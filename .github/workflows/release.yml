@@ -138,6 +138,6 @@ jobs:
       - name: 生成并上传部署清单
         run: |
           node scripts/release/release.mjs manifest "$RUNNER_TEMP/release.json"
-          gh release upload "$VERSION" "$RUNNER_TEMP/release.json" --clobber
-          gh release edit "$VERSION" --notes-file .github/release-notes.md --draft=false --prerelease
+          gh release upload "$VERSION" "$RUNNER_TEMP/release.json" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$VERSION" --repo "$GITHUB_REPOSITORY" --notes-file .github/release-notes.md --draft=false --prerelease
           echo "已发布 $VERSION：$IMAGE@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"

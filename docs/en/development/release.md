@@ -30,6 +30,10 @@ Check git remote -v first. Add missing remotes only:
     git remote add upstream https://github.com/ChouUn/axon-hub.git
     git remote add original-upstream https://github.com/looplj/axonhub.git
 
+GitHub CLI may select the parent repository by default in a fork. Pass
+`--repo Syh1906/axon-hub` for your PR/release operations, or configure this checkout
+with `gh repo set-default Syh1906/axon-hub`. Publishing explicitly targets this repository.
+
 ## Version identity and provenance
 
 release.config.json records the publishing repository and branch, direct upstream

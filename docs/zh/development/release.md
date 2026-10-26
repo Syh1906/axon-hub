@@ -27,6 +27,10 @@ looplj/axonhub。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR�
     git remote add upstream https://github.com/ChouUn/axon-hub.git
     git remote add original-upstream https://github.com/looplj/axonhub.git
 
+GitHub CLI 在 fork 中可能默认选择父仓库。对自己的 PR/Release 操作显式传
+`--repo Syh1906/axon-hub`；本机也可执行 `gh repo set-default Syh1906/axon-hub`
+固定当前 checkout 的默认目标。发布工作流显式使用当前仓库，不向父仓库写入。
+
 ## 三层版本与发布清单
 
 release.config.json 保存仓库、发布分支、直接上游 tag/提交、原始上游 tag/提交。
