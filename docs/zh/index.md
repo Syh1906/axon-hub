@@ -52,6 +52,7 @@
 |------|------|
 | [开发指南](development/development.md) | 本地开发环境搭建和贡献指南 |
 | [Git 工作流](development/git-workflow.md) | 项目的 Git 分支和提交规范 |
+| [独立发版与部署](development/release.md) | 两层上游追溯、独立版本、GitHub 发版与多机部署 |
 | [实体关系图](development/erd.md) | 数据库模型关系图 |
 | [转换流程](development/transformation-flow.md) | 请求/响应转换流程详解 |
 | [授权编码规范](development/authz-coding-guidelines.md) | 权限相关代码编写规范 |

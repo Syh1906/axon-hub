@@ -2,6 +2,7 @@
 # https://github.com/spf13/cobra/blob/master/LICENSE.txt
 name: Test
 on:
+  workflow_call:
   push:
     branches:
       - "unstable"
@@ -13,6 +14,22 @@ on:
 env:
   GO111MODULE: on
 jobs:
+  test-release:
+    name: 发布流程测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node --test scripts/release/*.test.mjs
+        env:
+          RELEASE_TEST_ROOT: ${{ runner.temp }}/release-tests
+      - name: Windows 升级版本比较
+        shell: pwsh
+        run: ./scripts/release/version.test.ps1
   test:
     runs-on: ubuntu-latest
     steps:

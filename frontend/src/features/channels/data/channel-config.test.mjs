@@ -139,7 +139,7 @@ test('channel proxy connection reuse setting is submitted, echoed, and localized
   for (const selection of proxySelections) {
     assert.match(selection, /disableConnectionReuse/, 'channel proxy queries should echo disableConnectionReuse');
   }
-  assert.match(channelsData, /proxy\?:\s*ProxyConfig;/, 'channel test input should use the shared ProxyConfig type');
+  assert.match(channelsData, /proxy\?:\s*ProxyConfig(?=\s*[;}])/, 'channel test input should use the shared ProxyConfig type');
 
   assert.match(proxyDialog, /name='disableConnectionReuse'/, 'proxy dialog should render the connection reuse switch');
   const submitSection = proxyDialog.slice(proxyDialog.indexOf('const onSubmit'), proxyDialog.indexOf('const handleTest'));

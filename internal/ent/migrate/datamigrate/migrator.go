@@ -7,6 +7,7 @@ import (
 	"github.com/looplj/axonhub/internal/build"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/xversion"
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
@@ -72,7 +73,7 @@ func (m *Migrator) shouldRunMigration(ctx context.Context, migrationVersion stri
 		systemVersion = "v0.2.1"
 	}
 
-	migrationSemver, err := parseComparableVersion(migrationVersion)
+	migrationSemver, err := xversion.Parse(migrationVersion)
 	if err != nil {
 		log.Warn(ctx, "invalid migration version, will run migration",
 			log.String("migration_version", migrationVersion),
@@ -81,7 +82,7 @@ func (m *Migrator) shouldRunMigration(ctx context.Context, migrationVersion stri
 		return true
 	}
 
-	systemSemver, err := parseComparableVersion(systemVersion)
+	systemSemver, err := xversion.Parse(systemVersion)
 	if err != nil {
 		log.Warn(ctx, "invalid system version, will run migration",
 			log.String("system_version", systemVersion),
@@ -146,7 +147,7 @@ func (m *Migrator) Run(ctx context.Context) error {
 		return err
 	}
 
-	buildSemver, err := parseComparableVersion(build.Version)
+	buildSemver, err := xversion.Parse(build.Version)
 	if err != nil {
 		log.Warn(ctx, "invalid build version, skipping system version update",
 			log.String("build_version", build.Version),
@@ -160,7 +161,7 @@ func (m *Migrator) Run(ctx context.Context) error {
 	if currentVersion == "" {
 		updateSystemVersion = true
 	} else {
-		currentSemver, err := parseComparableVersion(currentVersion)
+		currentSemver, err := xversion.Parse(currentVersion)
 		if err != nil {
 			log.Warn(ctx, "invalid system version, updating to build version",
 				log.String("system_version", currentVersion),

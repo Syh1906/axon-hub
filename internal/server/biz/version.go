@@ -12,7 +12,10 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/looplj/axonhub/internal/build"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/pkg/xversion"
 )
+
+const releaseRepository = "Syh1906/axon-hub"
 
 // Version retrieves the system version from system settings.
 // Returns empty string if not set.
@@ -52,7 +55,7 @@ func (s *SystemService) CheckForUpdate(ctx context.Context, includeBeta bool) (*
 	}
 
 	hasUpdate := s.isNewerVersion(currentVersion, latestVersion)
-	releaseURL := fmt.Sprintf("https://github.com/looplj/axonhub/releases/tag/%s", latestVersion)
+	releaseURL := fmt.Sprintf("https://github.com/%s/releases/tag/%s", releaseRepository, latestVersion)
 
 	return &VersionCheckResult{
 		CurrentVersion: currentVersion,
@@ -89,7 +92,7 @@ const releaseCooldownDuration = 30 * time.Minute
 // It waits for a cooldown period after release.
 // In monorepo mode, it only considers tags matching "vX.Y.Z" (no service prefix).
 func FetchLatestGitHubRelease(ctx context.Context, includeBeta bool) (string, error) {
-	baseURL := "https://api.github.com/repos/looplj/axonhub/releases"
+	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/releases", releaseRepository)
 
 	u, err := url.Parse(baseURL)
 	if err != nil {
@@ -159,7 +162,7 @@ func selectLatestGitHubRelease(releases []GitHubRelease, includeBeta bool, now t
 			continue
 		}
 
-		version, err := semver.NewVersion(release.TagName)
+		version, err := xversion.Parse(release.TagName)
 		if err != nil {
 			continue
 		}
@@ -206,13 +209,13 @@ func isBetaReleaseTag(tag string) bool {
 // IsNewerVersion compares two semantic versions and returns true if latest is newer than current.
 // Versions are expected to be in format "vX.Y.Z" or "X.Y.Z".
 func IsNewerVersion(current, latest string) bool {
-	vCurrent, err := semver.NewVersion(current)
+	vCurrent, err := xversion.Parse(current)
 	if err != nil {
 		// Handle error, maybe log it and return false
 		return false
 	}
 
-	vLatest, err := semver.NewVersion(latest)
+	vLatest, err := xversion.Parse(latest)
 	if err != nil {
 		// Handle error, maybe log it and return false
 		return false

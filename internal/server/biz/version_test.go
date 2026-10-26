@@ -141,6 +141,24 @@ func TestIsNewerVersion(t *testing.T) {
 			want:    false, // build metadata doesn't affect version comparison
 		},
 		{
+			name:    "numeric beta ordering matches data migrations",
+			current: "v1.0.0-beta9-fork.7",
+			latest:  "v1.0.0-beta10-fork.8",
+			want:    true,
+		},
+		{
+			name:    "fork numbers compare numerically",
+			current: "v1.0.0-beta10-fork.9",
+			latest:  "v1.0.0-beta10-fork.10",
+			want:    true,
+		},
+		{
+			name:    "own releases stay below the next direct upstream baseline",
+			current: "v1.0.0-beta10-fork.7.syh.10",
+			latest:  "v1.0.0-beta10-fork.8.syh.1",
+			want:    true,
+		},
+		{
 			name:    "version with many digits",
 			current: "v1.2.3",
 			latest:  "v1.2.3.4",
@@ -290,6 +308,14 @@ func TestIsPreReleaseTag(t *testing.T) {
 
 func TestSelectLatestGitHubRelease(t *testing.T) {
 	now := time.Date(2026, time.July, 30, 12, 0, 0, 0, time.UTC)
+	t.Run("fork releases use the same numeric beta order as migrations", func(t *testing.T) {
+		got, err := selectLatestGitHubRelease([]GitHubRelease{
+			{TagName: "v1.0.0-beta9-fork.7", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
+			{TagName: "v1.0.0-beta10-fork.8", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
+		}, true, now)
+		require.NoError(t, err)
+		require.Equal(t, "v1.0.0-beta10-fork.8", got)
+	})
 	releases := []GitHubRelease{
 		{TagName: "v1.0.0-beta6", PublishedAt: now.Add(-time.Hour)},
 		{TagName: "v1.0.0-rc1", PublishedAt: now.Add(-2 * time.Hour)},

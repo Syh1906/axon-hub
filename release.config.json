@@ -1,0 +1,14 @@
+{
+  "repository": "Syh1906/axon-hub",
+  "branch": "release/v1.0.x",
+  "upstreamRepository": "ChouUn/axon-hub",
+  "upstreamTag": "v1.0.0-beta10-fork.7",
+  "upstreamCommit": "b205ae8eb0db9fed6078e3a5c624bda61b36de31",
+  "originalUpstream": {
+    "repository": "looplj/axonhub",
+    "tag": "v1.0.0-beta10",
+    "commit": "939b2bc07cc05bdf7750d7ec872290d67784d13d"
+  },
+  "minimumReleaseNumber": 1,
+  "notesFile": ".github/release-notes.md"
+}

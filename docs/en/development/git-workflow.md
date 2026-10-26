@@ -1,5 +1,7 @@
 # Git Workflow
 
+For this fork, follow [Independent releases and upstream maintenance](release.md) for upstream synchronization, version identity and deployment.
+
 ---
 
 ## Development Workflow

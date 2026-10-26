@@ -53,6 +53,7 @@ Welcome to the AxonHub documentation center! This index will help you quickly fi
 |----------|-------------|
 | [Development Guide](development/development.md) | Local development setup and contribution guidelines |
 | [Git Workflow](development/git-workflow.md) | Git branching and commit conventions |
+| [Independent releases and deployment](development/release.md) | Two upstream levels, version identity, GitHub releases and multi-host deployment |
 | [Entity Relationship Diagram](development/erd.md) | Database model relationship diagrams |
 | [Transformation Flow](development/transformation-flow.md) | Request/response transformation process |
 | [Authz Coding Guidelines](development/authz-coding-guidelines.md) | Guidelines for writing authorization code |

@@ -24,7 +24,7 @@ BASE_DIR="${USER_HOME}/.config/axonhub"
 INSTALL_DIR="/usr/local/bin"
 
 # GitHub repository
-REPO="looplj/axonhub"
+REPO="Syh1906/axon-hub"
 GITHUB_API="https://api.github.com/repos/${REPO}"
 
 # CLI options

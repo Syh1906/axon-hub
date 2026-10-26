@@ -6,6 +6,9 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
+本仓库继承 ChouUn 的维护版本；下列既有功能保留原提交归属。直接上游与原始上游
+分别记录在 `release.config.json`，自己的 `.syh.N` 发版规则见[独立发版与部署](zh/development/release.md)。
+
 ## 维护检查表
 
 ### 新增或实质修改 Fork Topic
@@ -703,27 +706,27 @@ fork 改动，由用户决定。
   `internal/server/biz/channel_query_test.go`、
   `scripts/e2e/fixtures/channel-groups.sql`。
 
-### Docker 镜像发布到 fork 仓库
+### GitHub 独立发布与两层上游追溯
 
-- 行为：复用上游 `docker-publish.yml`（监听 `v*` tag，amd64 / arm64 原生构建后合成
-  manifest，构建前把 tag 写入 `internal/build/VERSION`），镜像名由 workflow 级
-  `env.IMAGE` 指定为 `chouun/axon-hub`；产出 `<tag>`、`<tag>-<arch>`、`latest`。
-- 发布：tag 命名为 `v1.0.0-<上游基线>-fork.N`（如 `v1.0.0-beta10-fork.1`），
-  `git tag -a vX -m "release: vX"` 后 `git push fork release/v1.0.x --follow-tags`。
-  fork 仓库需启用 workflow，并配置 repository secrets `DOCKERHUB_USERNAME` /
-  `DOCKERHUB_TOKEN`；`release.yml`（goreleaser）在 Actions 页面单独禁用。
-- 动机：此前手工 `docker build .` 未写 VERSION，镜像自报仓库内上游值 `v1.0.0-beta8`，
-  启动时 `datamigrate` 把 `system_version` 抬到 beta8，此后所有 `v1.0.0-beta7-fork.N`
-  数据迁移都会被跳过，且镜像内容不保证等于 tag。
-- 存量实例：曾被误抬到 `v1.0.0-beta8` 的实例不再需要手工回拨。上游 `v1.0.0-beta9`
-  迁移覆盖了 `fork.1` 的清理，且版本比较修复（`6c07e14e`）后部署
-  `v1.0.0-beta10-fork.N` 会正常把 `system_version` 抬上去。
-- 同步上游注意：上游 manifest 步骤硬编码 `looplj/axonhub`，合并时会在该处冲突，
-  保留 `${IMAGE}`。
-- 提交：`4dc42806`（`feat(ci): 发布 Docker 镜像到 fork 仓库`）；
-  `7fdbd2ae`（合入 beta10）。
-- 代码：`.github/workflows/docker-publish.yml`。
-- 迁移与测试：无。
+- 当前行为：直接上游为 ChouUn/axon-hub，原始上游为 looplj/axonhub；
+  `release.config.json` 分别固定两层 tag 和提交。自己的版本为 `<直接上游 tag>.syh.N`。
+- 发布：`.github/workflows/release.yml` 是唯一 tag 发布入口；复用现有测试，调用
+  `docker-publish.yml` 向 `ghcr.io/syh1906/axon-hub` 发布 amd64/arm64 镜像，
+  验证启动后由 GoReleaser 发布下载包、版本说明与 `release.json`。部署固定摘要。
+- 来源与版本：`scripts/release/` 校验 tag、维护分支及基线；升级检查及 Windows 升级脚本指向本 fork，
+  与迁移共享 `internal/pkg/xversion` 的数值感知比较，保护 `.syh.9 < .syh.10`
+  及当前自己的版本早于下一次直接上游版本的顺序。安装和升级脚本改用本 fork。
+- 独立生产机：私有 `Syh1906/axon-hub-ops` 仓库管理 PostgreSQL + Compose，
+  先单台、再逐台；备份或验证失败停止后续机器，不自动回退数据库。
+- 清理：删除旧每日 unstable 镜像工作流；模型目录定时同步仅原始上游启用；
+  去掉上游 Homebrew 发布及构建后反写默认分支。保留 Go 模块路径和原始作者信息。
+- 历史：ChouUn 的 `4dc42806` 将镜像发布到 `chouun/axon-hub`，
+  `7fdbd2ae` 合入 beta10；本次独立发布替换其发布目标，不改写历史提交。
+- 迁移：无新增 schema/data migration，已有迁移版本及行为不变。
+- 验证：发布脚本覆盖独立编号、来源、分支与清单；版本比较补充双层 fork 顺序回归；
+  ops 仓库覆盖摘要、首台凭据、备份与验证失败。执行结果以本次交付和 Actions 记录为准，
+  未接入生产机前不声明真实数据库升级或恢复已验证。
+- 详细规范：[独立发版与部署](zh/development/release.md)（[English](en/development/release.md)）。
 
 ## Bugfix Topics
 
@@ -831,11 +834,11 @@ fork 改动，由用户决定。
   `v1.0.0-beta10-fork.N` 后 `system_version` 抬不上去，之后所有 `beta10-fork.N`
   数据迁移被静默跳过；上游自身从 beta9 升 beta10 同样不抬版本。
 - 上游来源：上游 beta10 的 `migrator.go` 比较逻辑未变，尚未处理；fork 先行修复，可回馈。
-- 行为：`parseComparableVersion` 把 `betaN`、`rcN` 拆成 `beta.N`，`beta7-fork.5` 拆成
+- 行为：`xversion.Parse` 把 `betaN`、`rcN` 拆成 `beta.N`，`beta7-fork.5` 拆成
   `beta.7.fork.5`，只用于比较，存储与展示的版本字符串不变。迁移版本、系统版本与
   构建版本三处比较均改用该函数。
 - 提交：`6c07e14e`（`fix(datamigrate): 预发布号按数值比较`）。
-- 代码：`internal/ent/migrate/datamigrate/version.go`、
+- 代码：`internal/pkg/xversion/version.go`、
   `internal/ent/migrate/datamigrate/migrator.go`。
 - 迁移与测试：无迁移。`version_test.go` 覆盖 beta6 到 1.0.0 的完整顺序；
   `migrator_test.go` 的 `TestMigrator_Run_NumericPrereleaseOrdering` 覆盖 beta9 系统
