@@ -11,7 +11,7 @@ function Write-Success([string]$m){ Write-Host "[SUCCESS] $m" -ForegroundColor G
 function Write-Warn([string]$m){ Write-Host "[WARNING] $m" -ForegroundColor Yellow }
 function Write-Err([string]$m){ Write-Host "[ERROR] $m" -ForegroundColor Red }
 
-$Repo = 'looplj/axonhub'
+$Repo = 'Syh1906/axon-hub'
 $Api = "https://api.github.com/repos/$Repo"
 
 $IncludeBeta = $false

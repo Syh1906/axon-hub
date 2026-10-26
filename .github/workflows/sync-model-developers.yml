@@ -7,6 +7,7 @@ on:
 
 jobs:
   sync:
+    if: github.repository == 'looplj/axonhub'
     runs-on: ubuntu-latest
     permissions:
       contents: write

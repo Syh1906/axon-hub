@@ -27,7 +27,7 @@ LOG_DIR="${BASE_DIR}"
 SERVICE_USER="axonhub"
 
 # GitHub repository
-REPO="looplj/axonhub"
+REPO="Syh1906/axon-hub"
 GITHUB_API="https://api.github.com/repos/${REPO}"
 
 # CLI options (default: exclude beta/rc)

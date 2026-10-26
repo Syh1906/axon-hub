@@ -1,3 +1,5 @@
+> 本仓库是 Syh1906 的独立维护版本。直接上游为 ChouUn/axon-hub；发版、上游同步和多机部署见[维护指南](docs/zh/development/release.md)。
+
 <div align="center">
 
 # AxonHub - All-in-one AI 开发平台

@@ -1,4 +1,4 @@
-package datamigrate
+package xversion
 
 import (
 	"testing"
@@ -19,15 +19,21 @@ func TestParseComparableVersionOrdersNumericPrereleases(t *testing.T) {
 		"v1.0.0-beta10",
 		"v1.0.0-beta10-fork.1",
 		"v1.0.0-beta10-fork.2",
+		"v1.0.0-beta10-fork.7",
+		"v1.0.0-beta10-fork.7.syh.1",
+		"v1.0.0-beta10-fork.7.syh.9",
+		"v1.0.0-beta10-fork.7.syh.10",
+		"v1.0.0-beta10-fork.8",
+		"v1.0.0-beta10-fork.8.syh.1",
 		"v1.0.0-beta11",
 		"v1.0.0-rc1",
 		"v1.0.0",
 	}
 
 	for i := 1; i < len(ordered); i++ {
-		previous, err := parseComparableVersion(ordered[i-1])
+		previous, err := Parse(ordered[i-1])
 		require.NoError(t, err)
-		next, err := parseComparableVersion(ordered[i])
+		next, err := Parse(ordered[i])
 		require.NoError(t, err)
 		require.Truef(t, previous.LessThan(next),
 			"%s should sort before %s", ordered[i-1], ordered[i])
@@ -37,14 +43,14 @@ func TestParseComparableVersionOrdersNumericPrereleases(t *testing.T) {
 }
 
 func TestParseComparableVersionKeepsEqualVersionsEqual(t *testing.T) {
-	first, err := parseComparableVersion("v1.0.0-beta10")
+	first, err := Parse("v1.0.0-beta10")
 	require.NoError(t, err)
-	second, err := parseComparableVersion("v1.0.0-beta10")
+	second, err := Parse("v1.0.0-beta10")
 	require.NoError(t, err)
 	require.True(t, first.Equal(second))
 }
 
 func TestParseComparableVersionRejectsInvalidInput(t *testing.T) {
-	_, err := parseComparableVersion("not-a-version")
+	_, err := Parse("not-a-version")
 	require.Error(t, err)
 }

@@ -12,7 +12,7 @@ function Write-Warn([string]$m){ Write-Host "[WARNING] $m" -ForegroundColor Yell
 function Write-Err([string]$m){ Write-Host "[ERROR] $m" -ForegroundColor Red }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$Repo = 'looplj/axonhub'
+$Repo = 'Syh1906/axon-hub'
 $Api = "https://api.github.com/repos/$Repo"
 
 $IncludeBeta = $false
@@ -147,21 +147,35 @@ function Get-CurrentVersion([string]$binary){
 }
 
 function Compare-Version([string]$a,[string]$b){
-  $aNorm = $a.TrimStart('v')
-  $bNorm = $b.TrimStart('v')
-  $aParts = $aNorm -split '[.\-]'
-  $bParts = $bNorm -split '[.\-]'
-  $maxLen = [Math]::Max($aParts.Length, $bParts.Length)
-  for($i=0; $i -lt $maxLen; $i++){
-    $aVal = if($i -lt $aParts.Length){ $aParts[$i] } else { '0' }
-    $bVal = if($i -lt $bParts.Length){ $bParts[$i] } else { '0' }
-    $aNum = 0; $bNum = 0
-    [int]::TryParse($aVal, [ref]$aNum) | Out-Null
-    [int]::TryParse($bVal, [ref]$bNum) | Out-Null
-    if($aNum -lt $bNum){ return -1 }
-    if($aNum -gt $bNum){ return 1 }
+  $pattern = '^v?(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+.*)?$'
+  $aMatch = [regex]::Match($a, $pattern)
+  $bMatch = [regex]::Match($b, $pattern)
+  if(-not $aMatch.Success -or -not $bMatch.Success){ throw '版本号格式不正确' }
+  foreach($index in 1..3){
+    $comparison = ([bigint]$aMatch.Groups[$index].Value).CompareTo([bigint]$bMatch.Groups[$index].Value)
+    if($comparison -ne 0){ return $comparison }
   }
-  return 0
+  $aPre = $aMatch.Groups[4].Value
+  $bPre = $bMatch.Groups[4].Value
+  if(-not $aPre -and -not $bPre){ return 0 }
+  if(-not $aPre){ return 1 }
+  if(-not $bPre){ return -1 }
+  # 与 xversion.Parse 一致，将 beta10-fork.7.syh.1 拆为 beta.10.fork.7.syh.1。
+  $aParts = ($aPre -replace '([A-Za-z]+)(\d+)', '$1.$2') -split '[.\-]'
+  $bParts = ($bPre -replace '([A-Za-z]+)(\d+)', '$1.$2') -split '[.\-]'
+  for($i=0; $i -lt [Math]::Min($aParts.Length, $bParts.Length); $i++){
+    $aNumeric = $aParts[$i] -match '^\d+$'
+    $bNumeric = $bParts[$i] -match '^\d+$'
+    if($aNumeric -and $bNumeric){
+      $comparison = ([bigint]$aParts[$i]).CompareTo([bigint]$bParts[$i])
+    } elseif($aNumeric){ return -1
+    } elseif($bNumeric){ return 1
+    } else {
+      $comparison = [string]::CompareOrdinal($aParts[$i], $bParts[$i])
+    }
+    if($comparison -ne 0){ return $comparison }
+  }
+  return $aParts.Length.CompareTo($bParts.Length)
 }
 
 function Ensure-Dirs([string]$path){ if(-not (Test-Path $path)){ New-Item -ItemType Directory -Force -Path $path | Out-Null } }

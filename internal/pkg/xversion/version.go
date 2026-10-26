@@ -1,4 +1,4 @@
-package datamigrate
+package xversion
 
 import (
 	"regexp"
@@ -11,13 +11,13 @@ import (
 // "beta7-fork": an alphabetic word, a number, and an optional hyphenated tail.
 var numericSuffixIdentifier = regexp.MustCompile(`^([A-Za-z]+)(\d+)(?:-(.+))?$`)
 
-// parseComparableVersion parses v for ordering only. Upstream names
+// Parse parses v for ordering only. Upstream names
 // pre-releases like v1.0.0-beta10, and semver compares "beta10" with "beta9"
 // as plain strings, which sorts beta10 first. Splitting the number into its
 // own identifier (beta.10) restores numeric order; fork suffixes such as
 // beta7-fork.5 become beta.7.fork.5 so they stay between beta7 and beta8.
 // The returned value must not be persisted or displayed.
-func parseComparableVersion(v string) (*semver.Version, error) {
+func Parse(v string) (*semver.Version, error) {
 	parsed, err := semver.NewVersion(v)
 	if err != nil {
 		return nil, err

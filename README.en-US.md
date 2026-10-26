@@ -1,3 +1,5 @@
+> This is Syh1906’s independently maintained fork of ChouUn/axon-hub. See the [release and upstream maintenance guide](docs/en/development/release.md).
+
 <div align="center">
 
 # AxonHub - All-in-one AI Development Platform

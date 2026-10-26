@@ -12,7 +12,11 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## 仓库维护模式
 
-- 本仓库是 [上游 AxonHub](https://github.com/looplj/axonhub) 的自维护 fork。
+- 本仓库的直接上游是 [ChouUn/axon-hub](https://github.com/ChouUn/axon-hub)，
+  原始上游是 [looplj/axonhub](https://github.com/looplj/axonhub)。两层来源不可混为一条基线。
+- 分支、上游同步、版本与发版遵循 [独立发版与部署](docs/zh/development/release.md)。
+  发布来源以 `release.config.json` 为准；自己的 tag 使用 `<直接上游 tag>.syh.N`，
+  不占用 ChouUn 的 `fork.N`。生产镜像由 GitHub Actions 发布到本仓库 GHCR。
 - 本 fork 的 feature、bugfix topic 及其维护检查表记录在
   [Fork 维护台账](docs/fork-maintenance.md)。新增或实质修改 fork topic 时更新台账；
   同步上游 release 时逐项核对。
@@ -27,8 +31,8 @@ This file provides guidance to AI coding assistants when working with code in th
   `internal/ent/migrate/datamigrate/`（data migration）都视为升级路径代码。
 - 新增 fork 迁移前，必须对照目标上游 release tag 及其迁移版本；不要复用上游迁移版本，
   也不要假定看似未使用的版本号已经被 fork 保留。
-- 每个 fork data migration 都要使用 `v1.0.0-<上游基线>-fork.N` 形式、能明确表明 fork 归属的
-  版本标识（例如 `v1.0.0-beta10-fork.1`）。版本顺序以 `datamigrate.parseComparableVersion`
+- 新增自己的 data migration 使用 `<直接上游 tag>.syh.N` 形式（例如
+  `v1.0.0-beta10-fork.7.syh.1`），已有 ChouUn 迁移保持原版本。版本顺序以 `xversion.Parse`
   的数值感知比较为准（原生 semver 会把 `beta10` 排在 `beta9` 之前）。必须验证它与周边
   上游版本的顺序，并在 `NewMigrator` 中按对应的执行顺序注册。
 - 已发布的迁移视为不可变。需要修正时新增幂等迁移，不要修改既有迁移的行为或版本号。
