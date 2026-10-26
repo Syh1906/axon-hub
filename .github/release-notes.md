@@ -1,11 +1,15 @@
-# 本次发布说明
+# v1.0.0-beta10-fork.7.syh.1 更新说明
 
 ## 功能变化
 
 - 本 fork 由 `Syh1906/axon-hub` 独立维护；镜像发布到 GitHub GHCR。
-- 保留 ChouUn 的功能，基于上游 `v1.0.0-beta10`；上游提交见 `release.config.json`。
+- 直接基于 ChouUn 的 `v1.0.0-beta10-fork.7`，原始上游为 `looplj/axonhub` 的
+  `v1.0.0-beta10`；两层提交号分别记录在 `release.config.json` 和发布清单中。
 - 发布包附带 `release.json`，记录源码、上游基线及不可变镜像地址。
 - 程序和安装、升级脚本使用本 fork 的 GitHub Releases。
+- 升级检查与数据迁移统一按数值比较预发布版本，正确识别 `.syh.9`、`.syh.10`
+  及下一次 ChouUn 基线；修复 Windows 升级脚本跨 `beta10` / `beta11` 判断错误。
+- 提供独立 PostgreSQL 生产机部署流程：先首台验收、再逐台备份升级，失败停止后续机器。
 
 ## 数据库与配置
 
