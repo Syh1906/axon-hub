@@ -37,7 +37,7 @@ with `gh repo set-default Syh1906/axon-hub`. Publishing explicitly targets this 
 ## Version identity and provenance
 
 release.config.json records the publishing repository and branch, direct upstream
-tag/commit, and original upstream tag/commit. The current direct baseline is
+tag/commit, original upstream tag/commit, and an explicit prerelease boolean. The current direct baseline is
 v1.0.0-beta10-fork.7 at b205ae8e; its original baseline is v1.0.0-beta10 at 939b2bc0.
 
 Your tags use <direct-upstream-tag>.syh.N:
@@ -127,10 +127,14 @@ same commit, and creates their GHCR manifest. A digest-pinned startup and versio
 check against temporary PostgreSQL 17 precedes binary packaging. This is not a production-data migration rehearsal.
 
 GoReleaser uploads binaries, checksums and the configuration schema to a draft.
-The final step attaches release.json and the reviewed notes, then publishes as a
-prerelease. There is no version-file commit back to the default branch.
-Enable Beta updates in the application to see releases retaining a beta baseline.
-Production never follows a mutable latest tag.
+The final step attaches release.json and the reviewed notes, then publishes with the complete version as its title and the configured
+prerelease state. There is no version-file commit back to the default branch.
+Set prerelease: false for an official release; it becomes the latest GitHub release.
+Explicitly use true for a test release, which must not replace the latest official release.
+Upstream beta/rc provenance does not determine your release level. Update checks follow
+GitHub metadata; enabling pre-releases opts into test releases. The application-side
+recognition fix takes effect in the next binary release. Changing release metadata never
+replaces existing images or tags. Production continues to deploy immutable digests.
 
 Failures leave the release unpublished. Inspect logs before retrying failed jobs;
 inspect existing draft assets before rerunning binary publication. Published

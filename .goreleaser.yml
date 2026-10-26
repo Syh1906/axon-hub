@@ -59,6 +59,7 @@ builds:
         goarch: loong64
 
 release:
+  name_template: '{{ .Tag }}'
   draft: true
   extra_files:
     - glob: ./config.schema.json

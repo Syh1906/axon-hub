@@ -17,6 +17,8 @@ This file provides guidance to AI coding assistants when working with code in th
 - 分支、上游同步、版本与发版遵循 [独立发版与部署](docs/zh/development/release.md)。
   发布来源以 `release.config.json` 为准；自己的 tag 使用 `<直接上游 tag>.syh.N`，
   不占用 ChouUn 的 `fork.N`。生产镜像由 GitHub Actions 发布到本仓库 GHCR。
+- 正式／预发布由 `release.config.json.prerelease` 独立指定，不根据上游 tag 的 beta/rc
+  名称推断。正式发布设为 GitHub 最新版本；不得移动 tag 或替换已发布构建产物来调整级别。
 - 本 fork 的 feature、bugfix topic 及其维护检查表记录在
   [Fork 维护台账](docs/fork-maintenance.md)。新增或实质修改 fork topic 时更新台账；
   同步上游 release 时逐项核对。

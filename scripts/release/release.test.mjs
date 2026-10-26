@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { createManifest, prepareRelease, validateTag } from './release.mjs';
 
 const config = { repository: 'Syh1906/axon-hub', branch: 'release/v1.0.x',
+  prerelease: false,
   upstreamTag: 'v1.0.0-beta10-fork.7', upstreamRepository: 'ChouUn/axon-hub',
   minimumReleaseNumber: 1, notesFile: 'notes.md',
   originalUpstream: { repository: 'looplj/axonhub', tag: 'v1.0.0-beta10', commit: 'b'.repeat(40) } };
@@ -50,6 +52,16 @@ test('真实 Git 历史拒绝分支外发布、错误 tag 及倒退编号', () =
   const tag = 'v1.0.0-beta10-fork.7.syh.1';
   git('tag', tag);
   assert.equal(prepareRelease(root, config.repository, tag).commit, git('rev-parse', 'HEAD'));
+  for (const prerelease of [false, true]) {
+    writeFileSync(join(root, 'release.config.json'), JSON.stringify({ ...config, upstreamCommit,
+      prerelease, originalUpstream: { ...config.originalUpstream, commit: upstreamCommit } }));
+    const output = join(root, `output-${prerelease}.txt`);
+    execFileSync(process.execPath, [fileURLToPath(new URL('./release.mjs', import.meta.url)), 'prepare'], {
+      cwd: root, env: { ...process.env, GITHUB_REPOSITORY: config.repository,
+        GITHUB_REF_NAME: tag, GITHUB_OUTPUT: output },
+    });
+    assert.match(readFileSync(output, 'utf8'), new RegExp(`^prerelease=${prerelease}$`, 'm'));
+  }
   assert.throws(() => prepareRelease(root, 'other/repo', tag));
   git('tag', 'v1.0.0-beta10-fork.7.syh.2');
   assert.throws(() => prepareRelease(root, config.repository, tag), /继续递增/);

@@ -18,6 +18,7 @@ export function validateTag(tag, config) {
 export function prepareRelease(root, repository, tag) {
   const config = JSON.parse(readFileSync(resolve(root, 'release.config.json'), 'utf8'));
   if (repository !== config.repository) throw new Error('发布仓库与 release.config.json 不一致');
+  if (typeof config.prerelease !== 'boolean') throw new Error('必须明确配置 prerelease 为 true 或 false');
   const number = validateTag(tag, config);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const commit = git('rev-parse', 'HEAD');
@@ -54,7 +55,7 @@ export function createManifest(prepared, digest, runURL) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const prepared = prepareRelease(process.cwd(), process.env.GITHUB_REPOSITORY, process.env.GITHUB_REF_NAME);
   if (process.argv[2] === 'prepare') {
-    appendFileSync(process.env.GITHUB_OUTPUT, `version=${prepared.version}\ncommit=${prepared.commit}\nimage=${prepared.image}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `version=${prepared.version}\ncommit=${prepared.commit}\nimage=${prepared.image}\nprerelease=${prepared.config.prerelease}\n`);
   } else if (process.argv[2] === 'manifest') {
     const manifest = createManifest(prepared, process.env.IMAGE_DIGEST,
       `https://github.com/${prepared.config.repository}/actions/runs/${process.env.GITHUB_RUN_ID}`);

@@ -33,7 +33,7 @@ GitHub CLI 在 fork 中可能默认选择父仓库。对自己的 PR/Release 操
 
 ## 三层版本与发布清单
 
-release.config.json 保存仓库、发布分支、直接上游 tag/提交、原始上游 tag/提交。
+release.config.json 保存仓库、发布分支、直接上游 tag/提交、原始上游 tag/提交，以及独立的 prerelease 布尔值。
 当前直接基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；
 原始基线是 looplj 的 v1.0.0-beta10，对应 939b2bc0。
 
@@ -117,10 +117,12 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
    推送各架构镜像，合成 ghcr.io/syh1906/axon-hub 的版本镜像。
 4. 拉取固定摘要的镜像，连接临时 PostgreSQL 17，做启动和自报版本检查。此检查不代表生产数据升级或业务验收。
 5. GoReleaser 构建下载包、校验和及配置 schema，上传草稿；没有反向提交版本文件的步骤。
-6. 生成并上传 release.json，写入本次发布说明，最后公开为预发布。
+6. 生成并上传 release.json，写入本次发布说明，以完整版本号为标题，按 prerelease 配置正式／预发布。
 
-保留 beta 基线，因此 GitHub 标为预发布；这是版本分类，不代替生产验收。
-管理端更新检查查看这些版本时需开启包含 Beta。工作流不维护 latest 作为生产部署入口。
+正式发布默认使用 prerelease: false，并设为 GitHub 最新版本；测试发布明确设为 true，且不成为最新正式版。
+上游 tag 中的 beta/rc 只表示来源，不决定自己的发布级别。更新检查按 GitHub 的 prerelease 字段筛选；
+“包含预发布版本”开启时才纳入测试发布。旧版程序的识别修正随下一次程序发版生效。
+发布级别调整不替换已有镜像或 tag；生产仍固定镜像摘要。
 
 中途失败不会把不完整版本公开为正式 Release。检查工作流记录后，可重试失败任务：
 重跑二进制发布前先核对现有草稿资产；已经公开的版本禁止重跑覆盖，使用新 syh 编号。
