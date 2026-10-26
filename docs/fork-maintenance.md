@@ -710,6 +710,9 @@ fork 改动，由用户决定。
 
 - 当前行为：直接上游为 ChouUn/axon-hub，原始上游为 looplj/axonhub；
   `release.config.json` 分别固定两层 tag 和提交。自己的版本为 `<直接上游 tag>.syh.N`。
+- 发布级别：`release.config.json.prerelease` 独立控制正式／预发布；正式版本设为 GitHub 最新，
+  标题为完整版本号。上游名称中的 beta/rc 只用于追溯。更新查询按 GitHub 发布状态过滤；
+  界面“包含预发布版本”纳入测试发布，修正随下一次程序构建生效。
 - 发布：`.github/workflows/release.yml` 是唯一 tag 发布入口；复用现有测试，调用
   `docker-publish.yml` 向 `ghcr.io/syh1906/axon-hub` 发布 amd64/arm64 镜像，
   验证启动后由 GoReleaser 发布下载包、版本说明与 `release.json`。部署固定摘要。

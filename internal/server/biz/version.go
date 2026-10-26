@@ -88,7 +88,8 @@ type GitHubRelease struct {
 const releaseCooldownDuration = 30 * time.Minute
 
 // FetchLatestGitHubRelease fetches the latest eligible release tag from GitHub for the axonhub service.
-// Beta versions are included when includeBeta is true; other prereleases are always skipped.
+// GitHub prereleases are included when includeBeta is true. The tag records
+// upstream provenance and does not determine whether a release is stable.
 // It waits for a cooldown period after release.
 // In monorepo mode, it only considers tags matching "vX.Y.Z" (no service prefix).
 func FetchLatestGitHubRelease(ctx context.Context, includeBeta bool) (string, error) {
@@ -151,10 +152,8 @@ func selectLatestGitHubRelease(releases []GitHubRelease, includeBeta bool, now t
 			continue
 		}
 
-		if release.Prerelease || isPreReleaseTag(release.TagName) {
-			if !includeBeta || !isBetaReleaseTag(release.TagName) {
-				continue
-			}
+		if release.Prerelease && !includeBeta {
+			continue
 		}
 
 		// Check if the release has passed the cooldown period
@@ -185,25 +184,6 @@ func selectLatestGitHubRelease(releases []GitHubRelease, includeBeta bool, now t
 func isAxonHubTag(tag string) bool {
 	// axonhub tags start with "v", other services use "service/vX.Y.Z" format
 	return strings.HasPrefix(tag, "v")
-}
-
-// isPreReleaseTag checks if a version tag contains beta, rc, alpha, or similar prerelease indicators.
-func isPreReleaseTag(tag string) bool {
-	lowerTag := strings.ToLower(tag)
-	preReleasePatterns := []string{"-beta", "-rc", "-alpha", "-dev", "-preview", "-snapshot"}
-
-	for _, pattern := range preReleasePatterns {
-		if strings.Contains(lowerTag, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isBetaReleaseTag reports whether tag identifies a beta prerelease.
-func isBetaReleaseTag(tag string) bool {
-	return strings.Contains(strings.ToLower(tag), "-beta")
 }
 
 // IsNewerVersion compares two semantic versions and returns true if latest is newer than current.

@@ -220,92 +220,6 @@ func TestIsAxonHubTag(t *testing.T) {
 	}
 }
 
-func TestIsPreReleaseTag(t *testing.T) {
-	tests := []struct {
-		name string
-		tag  string
-		want bool
-	}{
-		{
-			name: "beta tag",
-			tag:  "v1.0.0-beta",
-			want: true,
-		},
-		{
-			name: "rc tag",
-			tag:  "v1.0.0-rc",
-			want: true,
-		},
-		{
-			name: "alpha tag",
-			tag:  "v1.0.0-alpha",
-			want: true,
-		},
-		{
-			name: "dev tag",
-			tag:  "v1.0.0-dev",
-			want: true,
-		},
-		{
-			name: "preview tag",
-			tag:  "v1.0.0-preview",
-			want: true,
-		},
-		{
-			name: "snapshot tag",
-			tag:  "v1.0.0-snapshot",
-			want: true,
-		},
-		{
-			name: "stable tag",
-			tag:  "v1.0.0",
-			want: false,
-		},
-		{
-			name: "uppercase beta",
-			tag:  "v1.0.0-BETA",
-			want: true,
-		},
-		{
-			name: "mixed case",
-			tag:  "v1.0.0-Beta",
-			want: true,
-		},
-		{
-			name: "beta with number",
-			tag:  "v1.0.0-beta.1",
-			want: true,
-		},
-		{
-			name: "rc with number",
-			tag:  "v1.0.0-rc.1",
-			want: true,
-		},
-		{
-			name: "empty tag",
-			tag:  "",
-			want: false,
-		},
-		{
-			name: "tag without prerelease",
-			tag:  "release",
-			want: false,
-		},
-		{
-			name: "tag containing beta but not as prerelease",
-			tag:  "betatest",
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isPreReleaseTag(tt.tag)
-			require.Equal(t, tt.want, got, "isPreReleaseTag(%q) = %v, want %v", tt.tag, got, tt.want)
-		})
-	}
-}
-
 func TestSelectLatestGitHubRelease(t *testing.T) {
 	now := time.Date(2026, time.July, 30, 12, 0, 0, 0, time.UTC)
 	t.Run("fork releases use the same numeric beta order as migrations", func(t *testing.T) {
@@ -316,9 +230,22 @@ func TestSelectLatestGitHubRelease(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "v1.0.0-beta10-fork.8", got)
 	})
+	t.Run("stable own release remains eligible despite beta provenance", func(t *testing.T) {
+		got, err := selectLatestGitHubRelease([]GitHubRelease{
+			{TagName: "v1.0.0-beta10-fork.7.syh.1", PublishedAt: now.Add(-time.Hour)},
+		}, false, now)
+		require.NoError(t, err)
+		require.Equal(t, "v1.0.0-beta10-fork.7.syh.1", got)
+	})
+	t.Run("GitHub prerelease is excluded even without a beta tag", func(t *testing.T) {
+		_, err := selectLatestGitHubRelease([]GitHubRelease{
+			{TagName: "v1.0.1-syh.1", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
+		}, false, now)
+		require.Error(t, err)
+	})
 	releases := []GitHubRelease{
-		{TagName: "v1.0.0-beta6", PublishedAt: now.Add(-time.Hour)},
-		{TagName: "v1.0.0-rc1", PublishedAt: now.Add(-2 * time.Hour)},
+		{TagName: "v1.0.0-beta6", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
+		{TagName: "v1.0.0-rc1", Prerelease: true, PublishedAt: now.Add(-2 * time.Hour)},
 		{TagName: "v0.9.43", PublishedAt: now.Add(-3 * time.Hour)},
 	}
 
@@ -328,10 +255,10 @@ func TestSelectLatestGitHubRelease(t *testing.T) {
 		require.Equal(t, "v0.9.43", got)
 	})
 
-	t.Run("beta check includes beta releases", func(t *testing.T) {
+	t.Run("prerelease opt-in selects the highest eligible prerelease", func(t *testing.T) {
 		got, err := selectLatestGitHubRelease(releases, true, now)
 		require.NoError(t, err)
-		require.Equal(t, "v1.0.0-beta6", got)
+		require.Equal(t, "v1.0.0-rc1", got)
 	})
 
 	t.Run("selects higher stable release after lower beta release", func(t *testing.T) {
@@ -352,13 +279,13 @@ func TestSelectLatestGitHubRelease(t *testing.T) {
 		require.Equal(t, "v0.9.43", got)
 	})
 
-	t.Run("beta check still excludes other prereleases", func(t *testing.T) {
+	t.Run("prerelease opt-in follows GitHub metadata for rc tags", func(t *testing.T) {
 		got, err := selectLatestGitHubRelease([]GitHubRelease{
-			{TagName: "v1.0.0-rc1", PublishedAt: now.Add(-time.Hour)},
+			{TagName: "v1.0.0-rc1", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
 			{TagName: "v0.9.43", PublishedAt: now.Add(-2 * time.Hour)},
 		}, true, now)
 		require.NoError(t, err)
-		require.Equal(t, "v0.9.43", got)
+		require.Equal(t, "v1.0.0-rc1", got)
 	})
 
 	t.Run("skips drafts recent releases and other service tags", func(t *testing.T) {
@@ -374,7 +301,7 @@ func TestSelectLatestGitHubRelease(t *testing.T) {
 
 	t.Run("returns an error when no release is eligible", func(t *testing.T) {
 		_, err := selectLatestGitHubRelease([]GitHubRelease{
-			{TagName: "v1.0.0-beta6", PublishedAt: now.Add(-time.Hour)},
+			{TagName: "v1.0.0-beta6", Prerelease: true, PublishedAt: now.Add(-time.Hour)},
 		}, false, now)
 		require.EqualError(t, err, "no eligible release found")
 	})

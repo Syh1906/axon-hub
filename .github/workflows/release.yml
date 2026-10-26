@@ -20,6 +20,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       commit: ${{ steps.release.outputs.commit }}
       image: ${{ steps.release.outputs.image }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -84,6 +85,7 @@ jobs:
       IMAGE: ${{ needs.prepare.outputs.image }}
       IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
       VERSION: ${{ needs.prepare.outputs.version }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
@@ -139,5 +141,7 @@ jobs:
         run: |
           node scripts/release/release.mjs manifest "$RUNNER_TEMP/release.json"
           gh release upload "$VERSION" "$RUNNER_TEMP/release.json" --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit "$VERSION" --repo "$GITHUB_REPOSITORY" --notes-file .github/release-notes.md --draft=false --prerelease
+          if [ "$PRERELEASE" = true ]; then latest=false; else latest=true; fi
+          gh release edit "$VERSION" --repo "$GITHUB_REPOSITORY" --title "$VERSION" \
+            --notes-file .github/release-notes.md --draft=false --prerelease="$PRERELEASE" --latest="$latest"
           echo "已发布 $VERSION：$IMAGE@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
