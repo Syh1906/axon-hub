@@ -73,6 +73,8 @@ func TestHealthGateSessionDisabledOwnerMigratesWithoutHysteresis(t *testing.T) {
 }
 
 func TestChannelPriorityOverridesRemainRequestLocal(t *testing.T) {
+	t.Parallel()
+
 	first := healthGateSelectorCandidate(1, 0, "one")
 	second := healthGateSelectorCandidate(2, 1, "two")
 	duplicate := healthGateSelectorCandidate(1, 2, "one", "three")
