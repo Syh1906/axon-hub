@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/predicate"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 // ID filters vertices based on their ID field.
@@ -77,6 +78,11 @@ func Developer(v string) predicate.Model {
 // ModelID applies equality check predicate on the "model_id" field. It's identical to ModelIDEQ.
 func ModelID(v string) predicate.Model {
 	return predicate.Model(sql.FieldEQ(FieldModelID, v))
+}
+
+// MatchPriority applies equality check predicate on the "match_priority" field. It's identical to MatchPriorityEQ.
+func MatchPriority(v int) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldMatchPriority, v))
 }
 
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
@@ -347,6 +353,86 @@ func ModelIDEqualFold(v string) predicate.Model {
 // ModelIDContainsFold applies the ContainsFold predicate on the "model_id" field.
 func ModelIDContainsFold(v string) predicate.Model {
 	return predicate.Model(sql.FieldContainsFold(FieldModelID, v))
+}
+
+// MatchTypeEQ applies the EQ predicate on the "match_type" field.
+func MatchTypeEQ(v objects.ModelMatchType) predicate.Model {
+	vc := v
+	return predicate.Model(sql.FieldEQ(FieldMatchType, vc))
+}
+
+// MatchTypeNEQ applies the NEQ predicate on the "match_type" field.
+func MatchTypeNEQ(v objects.ModelMatchType) predicate.Model {
+	vc := v
+	return predicate.Model(sql.FieldNEQ(FieldMatchType, vc))
+}
+
+// MatchTypeIn applies the In predicate on the "match_type" field.
+func MatchTypeIn(vs ...objects.ModelMatchType) predicate.Model {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Model(sql.FieldIn(FieldMatchType, v...))
+}
+
+// MatchTypeNotIn applies the NotIn predicate on the "match_type" field.
+func MatchTypeNotIn(vs ...objects.ModelMatchType) predicate.Model {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Model(sql.FieldNotIn(FieldMatchType, v...))
+}
+
+// MatchPriorityEQ applies the EQ predicate on the "match_priority" field.
+func MatchPriorityEQ(v int) predicate.Model {
+	return predicate.Model(sql.FieldEQ(FieldMatchPriority, v))
+}
+
+// MatchPriorityNEQ applies the NEQ predicate on the "match_priority" field.
+func MatchPriorityNEQ(v int) predicate.Model {
+	return predicate.Model(sql.FieldNEQ(FieldMatchPriority, v))
+}
+
+// MatchPriorityIn applies the In predicate on the "match_priority" field.
+func MatchPriorityIn(vs ...int) predicate.Model {
+	return predicate.Model(sql.FieldIn(FieldMatchPriority, vs...))
+}
+
+// MatchPriorityNotIn applies the NotIn predicate on the "match_priority" field.
+func MatchPriorityNotIn(vs ...int) predicate.Model {
+	return predicate.Model(sql.FieldNotIn(FieldMatchPriority, vs...))
+}
+
+// MatchPriorityGT applies the GT predicate on the "match_priority" field.
+func MatchPriorityGT(v int) predicate.Model {
+	return predicate.Model(sql.FieldGT(FieldMatchPriority, v))
+}
+
+// MatchPriorityGTE applies the GTE predicate on the "match_priority" field.
+func MatchPriorityGTE(v int) predicate.Model {
+	return predicate.Model(sql.FieldGTE(FieldMatchPriority, v))
+}
+
+// MatchPriorityLT applies the LT predicate on the "match_priority" field.
+func MatchPriorityLT(v int) predicate.Model {
+	return predicate.Model(sql.FieldLT(FieldMatchPriority, v))
+}
+
+// MatchPriorityLTE applies the LTE predicate on the "match_priority" field.
+func MatchPriorityLTE(v int) predicate.Model {
+	return predicate.Model(sql.FieldLTE(FieldMatchPriority, v))
+}
+
+// PublicModelIdsIsNil applies the IsNil predicate on the "public_model_ids" field.
+func PublicModelIdsIsNil() predicate.Model {
+	return predicate.Model(sql.FieldIsNull(FieldPublicModelIds))
+}
+
+// PublicModelIdsNotNil applies the NotNil predicate on the "public_model_ids" field.
+func PublicModelIdsNotNil() predicate.Model {
+	return predicate.Model(sql.FieldNotNull(FieldPublicModelIds))
 }
 
 // TypeEQ applies the EQ predicate on the "type" field.

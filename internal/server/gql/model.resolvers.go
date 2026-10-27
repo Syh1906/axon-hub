@@ -186,8 +186,23 @@ func (r *queryResolver) QueryModels(ctx context.Context, input QueryModelsInput)
 }
 
 // QueryModelChannelConnections is the resolver for the queryModelChannelConnections field.
-func (r *queryResolver) QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation) ([]*biz.ModelChannelConnection, error) {
-	return r.modelService.QueryModelChannelConnections(ctx, associations)
+func (r *queryResolver) QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID *string) ([]*biz.ModelChannelConnection, error) {
+	modelID := ""
+	if requestModelID != nil {
+		modelID = *requestModelID
+	}
+	return r.modelService.QueryModelChannelConnectionsForModel(ctx, associations, modelID)
+}
+
+// TestModelMatch is the resolver for the testModelMatch field.
+func (r *queryResolver) TestModelMatch(ctx context.Context, matchType objects.ModelMatchType, pattern string, modelID string) (*objects.ModelMatchTest, error) {
+	matched, err := objects.MatchModelID(matchType, pattern, modelID)
+	result := &objects.ModelMatchTest{Matched: matched}
+	if err != nil {
+		message := err.Error()
+		result.Error = &message
+	}
+	return result, nil
 }
 
 // QueryUnassociatedChannels is the resolver for the queryUnassociatedChannels field.

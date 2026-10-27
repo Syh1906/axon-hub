@@ -66,14 +66,14 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 		// Verify cache was populated
 		selector.cacheMu.RLock()
 		require.Len(t, selector.associationCache, 1)
-		require.Contains(t, selector.associationCache, modelID)
+		require.Contains(t, selector.associationCache, "exact:"+modelID)
 		selector.cacheMu.RUnlock()
 	})
 
 	t.Run("second call uses cache", func(t *testing.T) {
 		// Get initial cache entry
 		selector.cacheMu.RLock()
-		initialEntry := selector.associationCache[modelID]
+		initialEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		// Call again
@@ -84,7 +84,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify same cache entry is used (pointer equality)
 		selector.cacheMu.RLock()
-		currentEntry := selector.associationCache[modelID]
+		currentEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.Same(t, initialEntry, currentEntry, "should use same cache entry")
@@ -108,7 +108,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify cache was updated with new channel count
 		selector.cacheMu.RLock()
-		entry := selector.associationCache[modelID]
+		entry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.Equal(t, 3, entry.channelCount, "cache should reflect new channel count")
@@ -116,7 +116,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 	t.Run("cache invalidated when channel updated", func(t *testing.T) {
 		selector.cacheMu.RLock()
-		initialEntry := selector.associationCache[modelID]
+		initialEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		// Update a channel's timestamp
@@ -141,7 +141,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify cache was populated
 		selector.cacheMu.RLock()
-		entry := selector.associationCache[modelID]
+		entry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.NotNil(t, entry)
@@ -152,7 +152,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 	t.Run("cache invalidated when model updated", func(t *testing.T) {
 		// Get initial cache entry
 		selector.cacheMu.RLock()
-		initialEntry := selector.associationCache[modelID]
+		initialEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		// Update model's UpdatedAt timestamp
@@ -174,7 +174,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify cache was refreshed with new model update time
 		selector.cacheMu.RLock()
-		currentEntry := selector.associationCache[modelID]
+		currentEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.NotSame(t, initialEntry, currentEntry, "cache entry should be refreshed when model is updated")
@@ -184,7 +184,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 	t.Run("cache invalidated when model associations updated", func(t *testing.T) {
 		// Get initial cache entry
 		selector.cacheMu.RLock()
-		initialEntry := selector.associationCache[modelID]
+		initialEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		// Wait a bit to ensure timestamp difference
@@ -220,7 +220,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify cache was refreshed with new model update time
 		selector.cacheMu.RLock()
-		currentEntry := selector.associationCache[modelID]
+		currentEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.NotSame(t, initialEntry, currentEntry, "cache entry should be refreshed when model associations are updated")
@@ -266,8 +266,8 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 		// Verify we now have 2 cache entries
 		selector.cacheMu.RLock()
 		require.Len(t, selector.associationCache, 2)
-		require.Contains(t, selector.associationCache, modelID)
-		require.Contains(t, selector.associationCache, differentModelID)
+		require.Contains(t, selector.associationCache, "exact:"+modelID)
+		require.Contains(t, selector.associationCache, "exact:"+differentModelID)
 		selector.cacheMu.RUnlock()
 	})
 
@@ -368,7 +368,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 		require.Equal(t, longContextChannel.ID, largeCandidates[0].Channel.ID)
 
 		selector.cacheMu.RLock()
-		require.Contains(t, selector.associationCache, conditionalModelID)
+		require.Contains(t, selector.associationCache, "exact:"+conditionalModelID)
 		selector.cacheMu.RUnlock()
 	})
 
@@ -515,14 +515,14 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Manually set cache entry to be older than TTL
 		selector.cacheMu.Lock()
-		entry := selector.associationCache[modelID]
+		entry := selector.associationCache["exact:"+modelID]
 		entry.cachedAt = time.Now().Add(-6 * time.Minute) // 6 minutes ago, past 5-minute TTL
 
 		selector.cacheMu.Unlock()
 
 		// Get cache before
 		selector.cacheMu.RLock()
-		oldEntry := selector.associationCache[modelID]
+		oldEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		// Call again - should refresh cache due to expiration
@@ -532,7 +532,7 @@ func TestDefaultSelector_SelectModelCandidates_Cache(t *testing.T) {
 
 		// Verify cache was refreshed
 		selector.cacheMu.RLock()
-		newEntry := selector.associationCache[modelID]
+		newEntry := selector.associationCache["exact:"+modelID]
 		selector.cacheMu.RUnlock()
 
 		require.NotSame(t, oldEntry, newEntry, "cache entry should be refreshed after TTL")

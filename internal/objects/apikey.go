@@ -29,6 +29,13 @@ type APIKeyProfile struct {
 	ChannelTags          []string             `json:"channelTags,omitempty"`
 	ChannelTagsMatchMode ChannelTagsMatchMode `json:"channelTagsMatchMode,omitempty"`
 	ModelIDs             []string             `json:"modelIDs,omitempty"`
+	ChannelPriorities    []ChannelPriority    `json:"channelPriorities,omitempty"`
+}
+
+// ChannelPriority only reorders channels that already pass the profile filters.
+type ChannelPriority struct {
+	ChannelID int `json:"channelId"`
+	Priority  int `json:"priority"`
 }
 
 // MapModel applies the first matching profile mapping without chaining targets.
@@ -149,6 +156,9 @@ func (p *APIKeyProfile) Clone() *APIKeyProfile {
 	if len(p.ModelIDs) > 0 {
 		cp.ModelIDs = make([]string, len(p.ModelIDs))
 		copy(cp.ModelIDs, p.ModelIDs)
+	}
+	if p.ChannelPriorities != nil {
+		cp.ChannelPriorities = slices.Clone(p.ChannelPriorities)
 	}
 	if p.LoadBalanceStrategy != nil {
 		s := *p.LoadBalanceStrategy

@@ -33,6 +33,7 @@ import { useQueryModelChannelConnections, ModelAssociationInput, ModelChannelCon
 import { useUpdateModel } from '../data/models';
 import { ModelAssociation, normalizeModelRoutingPolicyValue } from '../data/schema';
 import { ChannelModelsList } from './channel-models-list';
+import { ModelMatchTest } from './models-match-fields';
 
 const MAX_ASSOCIATION_PRIORITY = 10;
 
@@ -374,7 +375,7 @@ const associationFormSchema = z.object({
   associations: z
     .array(
       z.object({
-        type: z.enum(['channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
+        type: z.enum(['channel_request', 'channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
         priority: z
           .number()
           .min(0, 'Priority must be at least 0')
@@ -402,7 +403,7 @@ const associationFormSchema = z.object({
             path: [index, 'type'],
           });
         }
-        if (assoc.type === 'channel_model' || assoc.type === 'channel_regex') {
+        if (assoc.type === 'channel_request' || assoc.type === 'channel_model' || assoc.type === 'channel_regex') {
           if (!assoc.channelId) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -466,6 +467,7 @@ function associationModelID(assoc: AssociationFormRow, inheritedModelID?: string
 }
 
 function isCompleteAssociationFormRow(assoc: AssociationFormRow, inheritedModelID?: string) {
+  if (assoc.type === 'channel_request') return Boolean(assoc.channelId);
   if (assoc.type === 'channel_model') {
     return Boolean(assoc.channelId && (associationModelID(assoc, inheritedModelID) || assoc.inheritModel));
   }
@@ -519,6 +521,10 @@ function formAssociationToInput(assoc: AssociationFormRow, inheritedModelID?: st
     disabled: assoc.disabled ?? false,
     when: buildAssociationWhen(assoc.whenEnabled, assoc.whenCondition) || undefined,
   };
+
+  if (assoc.type === 'channel_request') {
+    return { ...base, type: 'channel_request', channelRequest: { channelId: assoc.channelId! } };
+  }
 
   if (assoc.type === 'channel_model') {
     return {
@@ -592,6 +598,7 @@ function formAssociationToModelAssociation(assoc: AssociationFormRow): ModelAsso
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
     when: input?.when ? { enabled: Boolean(input.when.enabled), condition: input.when.condition ?? null } : null,
+    channelRequest: input?.channelRequest || null,
     channelModel: input?.channelModel || null,
     channelRegex: input?.channelRegex || null,
     regex: input?.regex || null,
@@ -631,6 +638,7 @@ function modelAssociationToInput(assoc: ModelAssociation, inheritedModelID?: str
           condition: assoc.when.condition || undefined,
         }
       : undefined,
+    channelRequest: assoc.channelRequest || undefined,
     channelModel,
     channelRegex: assoc.channelRegex || undefined,
     regex: assoc.regex || undefined,
@@ -653,7 +661,7 @@ function modelAssociationToFormRow(assoc: ModelAssociation, inheritModel = false
       promptTokensCondition.enabled && (promptTokensCondition.condition.groups?.length || 0) === 0
         ? { groups: [DEFAULT_WHEN_GROUP] }
         : promptTokensCondition.condition,
-    channelId: assoc.channelModel?.channelId || assoc.channelRegex?.channelId,
+    channelId: assoc.channelRequest?.channelId || assoc.channelModel?.channelId || assoc.channelRegex?.channelId,
     channelTags: assoc.channelTagsModel?.channelTags || assoc.channelTagsRegex?.channelTags || [],
     modelId: inheritModel ? '' : assoc.channelModel?.modelId || assoc.modelId?.modelId || assoc.channelTagsModel?.modelId,
     pattern: assoc.channelRegex?.pattern || assoc.regex?.pattern || assoc.channelTagsRegex?.pattern,
@@ -718,7 +726,9 @@ export function ModelsAssociationDialog() {
   const { data: channelsData } = useAllChannelSummarys(undefined, { enabled: open === 'association' || open === 'developerAssociation' });
   const { data: availableModels, mutateAsync: fetchModels } = useQueryModels();
   const { data: allTags = [] } = useAllChannelTags();
-  const { mutateAsync: queryConnections } = useQueryModelChannelConnections();
+  const [requestModelID, setRequestModelID] = useState('');
+  const debouncedRequestModelID = useDebounce(requestModelID, 350);
+  const { mutateAsync: queryConnections } = useQueryModelChannelConnections(debouncedRequestModelID || undefined);
   const [connections, setConnections] = useState<ModelChannelConnection[]>([]);
   const [channelFilter, setChannelFilter] = useState('');
   const dialogContentRef = useRef<HTMLDivElement>(null);
@@ -817,6 +827,7 @@ export function ModelsAssociationDialog() {
       return;
     }
 
+    let active = true;
     const fetchConnections = async () => {
       try {
         if (isDeveloperMode) {
@@ -824,7 +835,7 @@ export function ModelsAssociationDialog() {
           return;
         }
 
-        const inheritedInputs = inheritedAssociations.map((assoc) => modelAssociationToInput(assoc, currentRow?.modelID));
+        const inheritedInputs = inheritedAssociations.map((assoc) => modelAssociationToInput(assoc, debouncedRequestModelID || currentRow?.modelID));
         const formInputs = sortAssociationsByPriority(debouncedAssociations)
           .map((assoc) => formAssociationToInput(assoc))
           .filter((item): item is ModelAssociationInput => item !== undefined);
@@ -832,21 +843,25 @@ export function ModelsAssociationDialog() {
 
         if (associations.length > 0) {
           const result = await queryConnections(associations);
-          setConnections(result);
+          if (active) setConnections(result);
         } else {
           setConnections([]);
         }
       } catch (error) {
-        toast.error(t('common.errors.loadFailed'));
-        setConnections([]);
+        if (active) {
+          toast.error(t('common.errors.loadFailed'));
+          setConnections([]);
+        }
       }
     };
 
     fetchConnections();
-  }, [channelOptions, currentRow?.modelID, debouncedAssociationsString, inheritedAssociations, isOpen, isDeveloperMode, queryConnections]);
+    return () => { active = false; };
+  }, [debouncedRequestModelID, t, channelOptions, currentRow?.modelID, debouncedAssociationsString, inheritedAssociations, isOpen, isDeveloperMode, queryConnections]);
 
   useEffect(() => {
     if (isOpen) {
+      setRequestModelID(currentRow?.matchType === 'exact' ? currentRow.modelID : currentRow?.publicModelIds?.[0] ?? '');
       const associations = isDeveloperMode ? developerAssociations : currentRow?.settings?.associations || [];
       form.reset({
         disableDeveloperSettingsInheritance: isDeveloperMode ? false : (currentRow?.settings?.disableDeveloperSettingsInheritance ?? false),
@@ -1145,6 +1160,10 @@ export function ModelsAssociationDialog() {
           <div className='flex min-w-0 flex-col border-t pt-4 sm:min-h-0 sm:flex-1 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6'>
             <div className='shrink-0 space-y-2 pb-4'>
               <h3 className='text-sm font-semibold'>{t('models.dialogs.association.preview')}</h3>
+              {!isDeveloperMode && currentRow && <>
+                <p className='break-all text-xs text-muted-foreground'>{t(`models.match.types.${currentRow.matchType}`)} · <code>{currentRow.modelID}</code></p>
+                <ModelMatchTest matchType={currentRow.matchType} pattern={currentRow.modelID} value={requestModelID} onChange={setRequestModelID} />
+              </>}
               <p className='text-muted-foreground text-xs'>
                 {isDeveloperMode
                   ? t('models.dialogs.developerAssociation.previewDescription')
@@ -1328,6 +1347,7 @@ function AssociationTypeSelectContent({ isDeveloperMode }: { isDeveloperMode: bo
 
   return (
     <SelectContent>
+      <SelectItem value='channel_request'>{t('models.dialogs.association.types.channelRequest')}</SelectItem>
       <SelectItem value='channel_model'>{t('models.dialogs.association.types.channelModel')}</SelectItem>
       <SelectItem value='channel_regex'>{t('models.dialogs.association.types.channelRegex')}</SelectItem>
       <SelectItem value='channel_tags_model'>{t('models.dialogs.association.types.channelTagsModel')}</SelectItem>
@@ -1369,7 +1389,7 @@ function AssociationRow({
     setModelSearch(modelId?.toString() || '');
   }, [modelId]);
 
-  const showChannel = type === 'channel_model' || type === 'channel_regex';
+  const showChannel = type === 'channel_request' || type === 'channel_model' || type === 'channel_regex';
   const showChannelTags = type === 'channel_tags_model' || type === 'channel_tags_regex';
   const showModel = !isDeveloperMode && (type === 'channel_model' || type === 'model' || type === 'channel_tags_model');
   const showPattern = !isDeveloperMode && (type === 'channel_regex' || type === 'regex' || type === 'channel_tags_regex');
@@ -1883,6 +1903,8 @@ function AssociationRow({
             });
           } else if (isDeveloperMode && type === 'channel_tags_model' && channelTags && channelTags.length > 0) {
             hint = t('models.dialogs.association.developerRuleHints.channelTags', { tags: channelTags.join(', ') });
+          } else if (type === 'channel_request' && channelId) {
+            hint = t('models.dialogs.association.ruleHints.channelRequest', { channel: selectedChannel?.label || channelId.toString() });
           } else if (type === 'channel_model' && channelId && modelId) {
             hint = t('models.dialogs.association.ruleHints.channelModel', {
               model: modelId,

@@ -938,7 +938,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	node = &Node{
 		ID:     _m.ID,
 		Type:   "Model",
-		Fields: make([]*Field, 12),
+		Fields: make([]*Field, 15),
 		Edges:  make([]*Edge, 0),
 	}
 	var buf []byte
@@ -974,10 +974,34 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 		Name:  "model_id",
 		Value: string(buf),
 	}
-	if buf, err = json.Marshal(_m.Type); err != nil {
+	if buf, err = json.Marshal(_m.MatchType); err != nil {
 		return nil, err
 	}
 	node.Fields[4] = &Field{
+		Type:  "objects.ModelMatchType",
+		Name:  "match_type",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.MatchPriority); err != nil {
+		return nil, err
+	}
+	node.Fields[5] = &Field{
+		Type:  "int",
+		Name:  "match_priority",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.PublicModelIds); err != nil {
+		return nil, err
+	}
+	node.Fields[6] = &Field{
+		Type:  "[]string",
+		Name:  "public_model_ids",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Type); err != nil {
+		return nil, err
+	}
+	node.Fields[7] = &Field{
 		Type:  "model.Type",
 		Name:  "type",
 		Value: string(buf),
@@ -985,7 +1009,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Name); err != nil {
 		return nil, err
 	}
-	node.Fields[5] = &Field{
+	node.Fields[8] = &Field{
 		Type:  "string",
 		Name:  "name",
 		Value: string(buf),
@@ -993,7 +1017,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Icon); err != nil {
 		return nil, err
 	}
-	node.Fields[6] = &Field{
+	node.Fields[9] = &Field{
 		Type:  "string",
 		Name:  "icon",
 		Value: string(buf),
@@ -1001,7 +1025,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Group); err != nil {
 		return nil, err
 	}
-	node.Fields[7] = &Field{
+	node.Fields[10] = &Field{
 		Type:  "string",
 		Name:  "group",
 		Value: string(buf),
@@ -1009,7 +1033,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.ModelCard); err != nil {
 		return nil, err
 	}
-	node.Fields[8] = &Field{
+	node.Fields[11] = &Field{
 		Type:  "*objects.ModelCard",
 		Name:  "model_card",
 		Value: string(buf),
@@ -1017,7 +1041,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Settings); err != nil {
 		return nil, err
 	}
-	node.Fields[9] = &Field{
+	node.Fields[12] = &Field{
 		Type:  "*objects.ModelSettings",
 		Name:  "settings",
 		Value: string(buf),
@@ -1025,7 +1049,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Status); err != nil {
 		return nil, err
 	}
-	node.Fields[10] = &Field{
+	node.Fields[13] = &Field{
 		Type:  "model.Status",
 		Name:  "status",
 		Value: string(buf),
@@ -1033,7 +1057,7 @@ func (_m *Model) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.Remark); err != nil {
 		return nil, err
 	}
-	node.Fields[11] = &Field{
+	node.Fields[14] = &Field{
 		Type:  "string",
 		Name:  "remark",
 		Value: string(buf),

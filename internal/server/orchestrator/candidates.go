@@ -15,7 +15,6 @@ import (
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -119,14 +118,14 @@ func (s *DefaultSelector) Select(ctx context.Context, req *llm.Request) ([]*Chan
 }
 
 func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Request) ([]*ChannelModelsCandidate, error) {
-	model, err := s.ModelService.GetModelByModelID(ctx, req.Model, model.StatusEnabled)
+	model, err := s.ModelService.ResolveModel(ctx, req.Model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query AxonHub Model: %w", err)
 	}
 
 	systemSettings := s.SystemService.ModelSettingsOrDefault(ctx)
 	developerAssociationCount, modelAssociationCount, developerInheritanceDisabled := effectiveAssociationSourceCounts(systemSettings, model)
-	associations := biz.EffectiveModelAssociations(systemSettings, model)
+	associations := biz.EffectiveModelAssociationsForRequest(systemSettings, model, req.Model)
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "computed effective model associations",
 			log.String("model", model.ModelID),
@@ -153,7 +152,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 		)
 	}
 
-	resolvedCandidates, err := s.resolveAssociations(ctx, model, associations)
+	resolvedCandidates, err := s.resolveAssociationsForRequest(ctx, model, associations, req.Model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve associations: %w", err)
 	}
@@ -204,6 +203,12 @@ func (s *DefaultSelector) resolveAssociations(
 	model *ent.Model,
 	associations []*objects.ModelAssociation,
 ) ([]*resolvedAssociationCandidate, error) {
+	return s.resolveAssociationsForRequest(ctx, model, associations, "")
+}
+
+func (s *DefaultSelector) resolveAssociationsForRequest(ctx context.Context, model *ent.Model, associations []*objects.ModelAssociation, requestModelID string) ([]*resolvedAssociationCandidate, error) {
+	// Dynamic targets belong to this request, never to the shared model cache.
+	dynamic := (model.MatchType != "" && model.MatchType != objects.ModelMatchExact) || lo.ContainsBy(associations, func(a *objects.ModelAssociation) bool { return a != nil && !a.Disabled && a.Type == "channel_request" })
 	// Read version before channels to avoid storing an older channel snapshot with
 	// a newer cache version if the enabled-channels cache swaps between the reads.
 	// The inverse interleaving only causes a conservative cache miss.
@@ -222,7 +227,7 @@ func (s *DefaultSelector) resolveAssociations(
 	}
 
 	// Use model ID as cache key
-	modelID := model.ModelID
+	modelID := fmt.Sprintf("%s:%s", model.MatchType, model.ModelID)
 	associationSignature := modelAssociationSignature(associations)
 	channelCount := len(channels)
 	latestChannelUpdateTime := s.getLatestChannelUpdateTime(channels)
@@ -231,7 +236,7 @@ func (s *DefaultSelector) resolveAssociations(
 	// Try to get from cache
 	s.cacheMu.RLock()
 
-	if entry, ok := s.associationCache[modelID]; ok {
+	if entry, ok := s.associationCache[modelID]; ok && !dynamic {
 		// Check if cache is still valid:
 		// 1. Channel cache version hasn't changed (most reliable: detects any cache swap)
 		// 2. Channel count hasn't changed
@@ -261,7 +266,7 @@ func (s *DefaultSelector) resolveAssociations(
 
 	// Cache miss or invalid, resolve associations first. Request-specific `When`
 	// filtering is intentionally deferred to a separate pass afterwards.
-	matches := biz.MatchAssociations(associations, channels)
+	matches := biz.MatchAssociationsForModel(associations, channels, requestModelID)
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "association matching results",
@@ -327,6 +332,9 @@ func (s *DefaultSelector) resolveAssociations(
 	}
 
 	// Update cache
+	if dynamic {
+		return resolvedCandidates, nil
+	}
 	s.cacheMu.Lock()
 	s.associationCache[modelID] = &associationCacheEntry{
 		associations:            append([]*objects.ModelAssociation(nil), associations...),
@@ -369,6 +377,10 @@ func writeAssociationSignature(h hash.Hash64, assoc *objects.ModelAssociation) {
 	writeSignatureInt(h, assoc.Priority)
 	writeSignatureBool(h, assoc.Disabled)
 	writeAssociationWhenSignature(h, assoc.When)
+	if assoc.ChannelRequest != nil {
+		writeSignatureString(h, "channelRequest")
+		writeSignatureInt(h, assoc.ChannelRequest.ChannelID)
+	}
 	if assoc.ChannelModel != nil {
 		writeSignatureString(h, "channelModel")
 		writeSignatureInt(h, assoc.ChannelModel.ChannelID)
@@ -796,7 +808,7 @@ func extractStickyCandidate(
 	var stickyCandidate *ChannelModelsCandidate
 	remainingCandidates := make([]*ChannelModelsCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
-		if candidate == nil || candidate.Channel == nil || candidate.Channel.ID != channelID {
+		if candidate == nil || candidate.Channel == nil || candidate.Channel.ID != channelID || !candidate.Channel.SessionReuseEnabled() {
 			remainingCandidates = append(remainingCandidates, candidate)
 			continue
 		}

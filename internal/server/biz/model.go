@@ -75,6 +75,9 @@ func validateModelSettings(settings *objects.ModelSettings) error {
 		if assoc == nil {
 			continue
 		}
+		if !assoc.Disabled && assoc.Type == "channel_request" && (assoc.ChannelRequest == nil || assoc.ChannelRequest.ChannelID <= 0) {
+			return fmt.Errorf("channel_request association requires a channel")
+		}
 
 		if err := validateModelAssociationWhen(assoc.When); err != nil {
 			return fmt.Errorf("invalid when condition: %w", err)
@@ -369,6 +372,10 @@ func validateModelCard(card *objects.ModelCard) error {
 
 // CreateModel creates a new model with the provided input.
 func (svc *ModelService) CreateModel(ctx context.Context, input ent.CreateModelInput) (*ent.Model, error) {
+	if err := validateModelIdentity(modelMatchType(input.MatchType), input.ModelID, input.PublicModelIds); err != nil {
+		return nil, err
+	}
+	input.PublicModelIds = normalizePublicModelIDs(input.PublicModelIds)
 	if err := validateModelCard(input.ModelCard); err != nil {
 		return nil, err
 	}
@@ -382,7 +389,7 @@ func (svc *ModelService) CreateModel(ctx context.Context, input ent.CreateModelI
 
 	// Check if a model with the same developer and modelId already exists
 	existing, err := svc.entFromContext(ctx).Model.Query().
-		Where(model.ModelID(input.ModelID)).
+		Where(model.ModelID(input.ModelID), model.MatchTypeEQ(modelMatchType(input.MatchType))).
 		First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, fmt.Errorf("failed to check model existence: %w", err)
@@ -413,6 +420,10 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 	inputMap := make(map[string]bool)
 
 	for _, input := range inputs {
+		if err := validateModelIdentity(modelMatchType(input.MatchType), input.ModelID, input.PublicModelIds); err != nil {
+			return nil, err
+		}
+		input.PublicModelIds = normalizePublicModelIDs(input.PublicModelIds)
 		if err := validateModelCard(input.ModelCard); err != nil {
 			return nil, err
 		}
@@ -423,7 +434,7 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 			}
 		}
 
-		key := fmt.Sprintf("%s:%s", input.Developer, input.ModelID)
+		key := fmt.Sprintf("%s:%s", modelMatchType(input.MatchType), input.ModelID)
 		if inputMap[key] {
 			return nil, fmt.Errorf("duplicate model in input: developer '%s' and modelId '%s'", input.Developer, input.ModelID)
 		}
@@ -437,7 +448,7 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 			var predicates []*sql.Predicate
 			for _, input := range inputs {
 				predicates = append(predicates, sql.And(
-					sql.EQ(model.FieldDeveloper, input.Developer),
+					sql.EQ(model.FieldMatchType, modelMatchType(input.MatchType)),
 					sql.EQ(model.FieldModelID, input.ModelID),
 				))
 			}
@@ -480,6 +491,33 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 
 // UpdateModel updates an existing model with the provided input.
 func (svc *ModelService) UpdateModel(ctx context.Context, id int, input *ent.UpdateModelInput) (*ent.Model, error) {
+	identityChanged := input.ModelID != nil || input.MatchType != nil || input.PublicModelIds != nil || input.ClearPublicModelIds || input.AppendPublicModelIds != nil
+	if identityChanged {
+		current, err := svc.entFromContext(ctx).Model.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		kind, pattern, publicIDs := current.MatchType, current.ModelID, current.PublicModelIds
+		if input.MatchType != nil {
+			kind = *input.MatchType
+		}
+		if input.ModelID != nil {
+			pattern = *input.ModelID
+		}
+		if input.ClearPublicModelIds {
+			publicIDs = nil
+		}
+		if input.PublicModelIds != nil {
+			publicIDs = input.PublicModelIds
+		}
+		if input.AppendPublicModelIds != nil {
+			publicIDs = append(publicIDs, input.AppendPublicModelIds...)
+		}
+		if err := validateModelIdentity(kind, pattern, publicIDs); err != nil {
+			return nil, err
+		}
+		input.PublicModelIds = normalizePublicModelIDs(publicIDs)
+	}
 	if err := validateModelCard(input.ModelCard); err != nil {
 		return nil, err
 	}
@@ -494,11 +532,20 @@ func (svc *ModelService) UpdateModel(ctx context.Context, id int, input *ent.Upd
 	mut := svc.entFromContext(ctx).Model.UpdateOneID(id).
 		SetNillableDeveloper(input.Developer).
 		SetNillableModelID(input.ModelID).
+		SetNillableMatchType(input.MatchType).
+		SetNillableMatchPriority(input.MatchPriority).
 		SetNillableType(input.Type).
 		SetNillableName(input.Name).
 		SetNillableGroup(input.Group).
 		SetNillableStatus(input.Status).
 		SetNillableIcon(input.Icon)
+
+	if input.ClearPublicModelIds {
+		mut.ClearPublicModelIds()
+	}
+	if input.PublicModelIds != nil {
+		mut.SetPublicModelIds(input.PublicModelIds)
+	}
 
 	if input.ModelCard != nil {
 		mut.SetModelCard(input.ModelCard)
@@ -599,6 +646,10 @@ func (svc *ModelService) BulkDeleteModels(ctx context.Context, ids []int) error 
 // QueryModelChannelConnections queries channels and their models based on model associations.
 // Results are ordered by the matching order of associations.
 func (svc *ModelService) QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation) ([]*ModelChannelConnection, error) {
+	return svc.QueryModelChannelConnectionsForModel(ctx, associations, "")
+}
+
+func (svc *ModelService) QueryModelChannelConnectionsForModel(ctx context.Context, associations []*objects.ModelAssociation, requestModelID string) ([]*ModelChannelConnection, error) {
 	if len(associations) == 0 {
 		return []*ModelChannelConnection{}, nil
 	}
@@ -617,9 +668,9 @@ func (svc *ModelService) QueryModelChannelConnections(ctx context.Context, assoc
 	}
 
 	// Use the shared MatchAssociations function
-	return MatchConnections(associations, lo.Map(channels, func(ch *ent.Channel, _ int) *Channel {
+	return MatchConnectionsForModel(associations, lo.Map(channels, func(ch *ent.Channel, _ int) *Channel {
 		return &Channel{Channel: ch}
-	})), nil
+	}), requestModelID), nil
 }
 
 // GetModelByModelID retrieves a model by its modelId and status.
@@ -627,6 +678,7 @@ func (svc *ModelService) GetModelByModelID(ctx context.Context, modelID string, 
 	return svc.entFromContext(ctx).Model.Query().
 		Where(
 			model.ModelID(modelID),
+			model.MatchTypeEQ(objects.ModelMatchExact),
 			model.StatusEQ(status),
 		).
 		First(ctx)
@@ -653,10 +705,9 @@ func (svc *ModelService) ListModels(ctx context.Context, statusIn []model.Status
 	// Convert to ModelIdentityWithStatus
 	result := make([]*ModelIdentityWithStatus, 0, len(models))
 	for _, m := range models {
-		result = append(result, &ModelIdentityWithStatus{
-			ID:     m.ModelID,
-			Status: channel.Status(m.Status.String()),
-		})
+		for _, publicID := range PublicModelIDs(m) {
+			result = append(result, &ModelIdentityWithStatus{ID: publicID, Status: channel.Status(m.Status.String())})
+		}
 	}
 
 	return result, nil
@@ -718,58 +769,19 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 		allowedModelIDs = profile.ModelIDs
 	}
 
-	query := svc.entFromContext(ctx).
-		Model.
-		Query().
-		Where(model.StatusEQ(model.StatusEnabled))
-	// Mapped aliases are filtered by their public IDs, not by their target IDs.
-	if len(allowedModelIDs) > 0 && len(profile.ModelMappings) == 0 {
-		query = query.Where(model.ModelIDIn(allowedModelIDs...))
-	}
-
-	enabledModels, err := query.All(ctx)
+	enabledModels, err := svc.entFromContext(ctx).Model.Query().
+		Where(model.StatusEQ(model.StatusEnabled)).Order(model.ByID()).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list configured models: %w", err)
 	}
 
-	models := make([]ModelFacade, 0, len(enabledModels))
 	systemSettings := svc.modelSettingsOrDefault(ctx)
-
+	resolver := newModelResolver(enabledModels)
+	requestIDs := make([]string, 0, len(enabledModels))
 	for _, m := range enabledModels {
-		effectiveAssociations := EffectiveModelAssociations(systemSettings, m)
-		connections := MatchConnections(effectiveAssociations, channels)
-		if len(connections) == 0 {
-			continue
-		}
-
-		if systemSettings.HideUnroutableModelsInList && !hasCapableEndpointForModel(m, connections) {
-			continue
-		}
-
-		models = append(models, ModelFacade{
-			ID:              m.ModelID,
-			DisplayName:     m.ModelID,
-			CreatedAt:       m.CreatedAt,
-			Created:         m.CreatedAt.Unix(),
-			OwnedBy:         "configured",
-			ConfiguredModel: m,
-		})
+		requestIDs = append(requestIDs, PublicModelIDs(m)...)
 	}
-	if profile == nil || len(profile.ModelMappings) == 0 {
-		return models, nil
-	}
-
-	registered := make(map[string]ModelFacade, len(models))
-	for _, m := range models {
-		registered[m.ID] = m
-	}
-
-	requestIDs := allowedModelIDs
-	if len(requestIDs) == 0 {
-		requestIDs = make([]string, 0, len(enabledModels)+len(profile.ModelMappings))
-		for _, m := range enabledModels {
-			requestIDs = append(requestIDs, m.ModelID)
-		}
+	if profile != nil && len(profile.ModelMappings) > 0 {
 		for _, mapping := range profile.ModelMappings {
 			// Regex patterns describe request IDs, not enumerable aliases. Dots
 			// remain valid in concrete model IDs such as gpt-4.1.
@@ -777,6 +789,11 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 				requestIDs = append(requestIDs, mapping.From)
 			}
 		}
+	}
+	if len(allowedModelIDs) > 0 {
+		// Explicit key aliases can be enumerated even when their mapping is a
+		// pattern. They still must resolve to a published ID below.
+		requestIDs = allowedModelIDs
 	}
 
 	result := make([]ModelFacade, 0, len(requestIDs))
@@ -786,11 +803,22 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 			continue
 		}
 		seen[requestID] = true
-		if m, ok := registered[profile.MapModel(requestID)]; ok {
-			m.ID = requestID
-			m.DisplayName = requestID
-			result = append(result, m)
+		targetID := profile.MapModel(requestID)
+		m := resolver.resolve(targetID)
+		if m == nil || !lo.Contains(PublicModelIDs(m), targetID) {
+			continue
 		}
+		connections := MatchConnectionsForModel(EffectiveModelAssociationsForRequest(systemSettings, m, targetID), channels, targetID)
+		if len(connections) == 0 {
+			continue
+		}
+		if systemSettings.HideUnroutableModelsInList && !hasCapableEndpointForModel(m, connections) {
+			continue
+		}
+		result = append(result, ModelFacade{
+			ID: requestID, DisplayName: requestID, CreatedAt: m.CreatedAt,
+			Created: m.CreatedAt.Unix(), OwnedBy: "configured", ConfiguredModel: m,
+		})
 	}
 
 	return result, nil
@@ -803,7 +831,16 @@ func (svc *ModelService) CountAssociatedChannels(ctx context.Context, associatio
 
 // CountModelAssociatedChannels counts associated channels after applying developer-level inherited associations.
 func (svc *ModelService) CountModelAssociatedChannels(ctx context.Context, m *ent.Model) (int, error) {
-	return svc.countAssociatedChannels(ctx, EffectiveModelAssociations(svc.modelSettingsOrDefault(ctx), m))
+	settings := svc.modelSettingsOrDefault(ctx)
+	if m.MatchType == "" || m.MatchType == objects.ModelMatchExact {
+		return svc.countAssociatedChannels(ctx, EffectiveModelAssociations(settings, m))
+	}
+	channels, err := svc.entFromContext(ctx).Channel.Query().
+		Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).All(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query channels: %w", err)
+	}
+	return countMatchingChannels(modelCatalogAssociations(settings, m, channels), channels), nil
 }
 
 func (svc *ModelService) QueryUnassociatedChannels(ctx context.Context) ([]*UnassociatedChannel, error) {
@@ -829,7 +866,7 @@ func (svc *ModelService) QueryUnassociatedChannels(ctx context.Context) ([]*Unas
 	systemSettings := svc.modelSettingsOrDefault(ctx)
 
 	for _, m := range models {
-		allAssociations = append(allAssociations, EffectiveModelAssociations(systemSettings, m)...)
+		allAssociations = append(allAssociations, modelCatalogAssociations(systemSettings, m, channels)...)
 	}
 
 	return findUnassociatedChannels(channels, allAssociations), nil
@@ -852,6 +889,10 @@ func (svc *ModelService) countAssociatedChannels(ctx context.Context, associatio
 		return 0, nil
 	}
 
+	return countMatchingChannels(associations, channels), nil
+}
+
+func countMatchingChannels(associations []*objects.ModelAssociation, channels []*ent.Channel) int {
 	connections := MatchConnections(associations, lo.Map(channels, func(ch *ent.Channel, _ int) *Channel {
 		return &Channel{Channel: ch}
 	}))
@@ -860,7 +901,7 @@ func (svc *ModelService) countAssociatedChannels(ctx context.Context, associatio
 		return conn.Channel.ID
 	})
 
-	return len(connections), nil
+	return len(connections)
 }
 
 func (svc *ModelService) modelSettingsOrDefault(ctx context.Context) *SystemModelSettings {

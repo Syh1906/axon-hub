@@ -77,6 +77,40 @@ func (_c *ModelCreate) SetModelID(v string) *ModelCreate {
 	return _c
 }
 
+// SetMatchType sets the "match_type" field.
+func (_c *ModelCreate) SetMatchType(v objects.ModelMatchType) *ModelCreate {
+	_c.mutation.SetMatchType(v)
+	return _c
+}
+
+// SetNillableMatchType sets the "match_type" field if the given value is not nil.
+func (_c *ModelCreate) SetNillableMatchType(v *objects.ModelMatchType) *ModelCreate {
+	if v != nil {
+		_c.SetMatchType(*v)
+	}
+	return _c
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (_c *ModelCreate) SetMatchPriority(v int) *ModelCreate {
+	_c.mutation.SetMatchPriority(v)
+	return _c
+}
+
+// SetNillableMatchPriority sets the "match_priority" field if the given value is not nil.
+func (_c *ModelCreate) SetNillableMatchPriority(v *int) *ModelCreate {
+	if v != nil {
+		_c.SetMatchPriority(*v)
+	}
+	return _c
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (_c *ModelCreate) SetPublicModelIds(v []string) *ModelCreate {
+	_c.mutation.SetPublicModelIds(v)
+	return _c
+}
+
 // SetType sets the "type" field.
 func (_c *ModelCreate) SetType(v model.Type) *ModelCreate {
 	_c.mutation.SetType(v)
@@ -204,6 +238,14 @@ func (_c *ModelCreate) defaults() error {
 		v := model.DefaultDeletedAt
 		_c.mutation.SetDeletedAt(v)
 	}
+	if _, ok := _c.mutation.MatchType(); !ok {
+		v := model.DefaultMatchType
+		_c.mutation.SetMatchType(v)
+	}
+	if _, ok := _c.mutation.MatchPriority(); !ok {
+		v := model.DefaultMatchPriority
+		_c.mutation.SetMatchPriority(v)
+	}
 	if _, ok := _c.mutation.GetType(); !ok {
 		v := model.DefaultType
 		_c.mutation.SetType(v)
@@ -225,6 +267,17 @@ func (_c *ModelCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelID(); !ok {
 		return &ValidationError{Name: "model_id", err: errors.New(`ent: missing required field "Model.model_id"`)}
+	}
+	if _, ok := _c.mutation.MatchType(); !ok {
+		return &ValidationError{Name: "match_type", err: errors.New(`ent: missing required field "Model.match_type"`)}
+	}
+	if v, ok := _c.mutation.MatchType(); ok {
+		if err := model.MatchTypeValidator(v); err != nil {
+			return &ValidationError{Name: "match_type", err: fmt.Errorf(`ent: validator failed for field "Model.match_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.MatchPriority(); !ok {
+		return &ValidationError{Name: "match_priority", err: errors.New(`ent: missing required field "Model.match_priority"`)}
 	}
 	if _, ok := _c.mutation.GetType(); !ok {
 		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "Model.type"`)}
@@ -303,6 +356,18 @@ func (_c *ModelCreate) createSpec() (*Model, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ModelID(); ok {
 		_spec.SetField(model.FieldModelID, field.TypeString, value)
 		_node.ModelID = value
+	}
+	if value, ok := _c.mutation.MatchType(); ok {
+		_spec.SetField(model.FieldMatchType, field.TypeEnum, value)
+		_node.MatchType = value
+	}
+	if value, ok := _c.mutation.MatchPriority(); ok {
+		_spec.SetField(model.FieldMatchPriority, field.TypeInt, value)
+		_node.MatchPriority = value
+	}
+	if value, ok := _c.mutation.PublicModelIds(); ok {
+		_spec.SetField(model.FieldPublicModelIds, field.TypeJSON, value)
+		_node.PublicModelIds = value
 	}
 	if value, ok := _c.mutation.GetType(); ok {
 		_spec.SetField(model.FieldType, field.TypeEnum, value)
@@ -439,6 +504,54 @@ func (u *ModelUpsert) SetModelID(v string) *ModelUpsert {
 // UpdateModelID sets the "model_id" field to the value that was provided on create.
 func (u *ModelUpsert) UpdateModelID() *ModelUpsert {
 	u.SetExcluded(model.FieldModelID)
+	return u
+}
+
+// SetMatchType sets the "match_type" field.
+func (u *ModelUpsert) SetMatchType(v objects.ModelMatchType) *ModelUpsert {
+	u.Set(model.FieldMatchType, v)
+	return u
+}
+
+// UpdateMatchType sets the "match_type" field to the value that was provided on create.
+func (u *ModelUpsert) UpdateMatchType() *ModelUpsert {
+	u.SetExcluded(model.FieldMatchType)
+	return u
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (u *ModelUpsert) SetMatchPriority(v int) *ModelUpsert {
+	u.Set(model.FieldMatchPriority, v)
+	return u
+}
+
+// UpdateMatchPriority sets the "match_priority" field to the value that was provided on create.
+func (u *ModelUpsert) UpdateMatchPriority() *ModelUpsert {
+	u.SetExcluded(model.FieldMatchPriority)
+	return u
+}
+
+// AddMatchPriority adds v to the "match_priority" field.
+func (u *ModelUpsert) AddMatchPriority(v int) *ModelUpsert {
+	u.Add(model.FieldMatchPriority, v)
+	return u
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (u *ModelUpsert) SetPublicModelIds(v []string) *ModelUpsert {
+	u.Set(model.FieldPublicModelIds, v)
+	return u
+}
+
+// UpdatePublicModelIds sets the "public_model_ids" field to the value that was provided on create.
+func (u *ModelUpsert) UpdatePublicModelIds() *ModelUpsert {
+	u.SetExcluded(model.FieldPublicModelIds)
+	return u
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (u *ModelUpsert) ClearPublicModelIds() *ModelUpsert {
+	u.SetNull(model.FieldPublicModelIds)
 	return u
 }
 
@@ -649,6 +762,62 @@ func (u *ModelUpsertOne) SetModelID(v string) *ModelUpsertOne {
 func (u *ModelUpsertOne) UpdateModelID() *ModelUpsertOne {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetMatchType sets the "match_type" field.
+func (u *ModelUpsertOne) SetMatchType(v objects.ModelMatchType) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetMatchType(v)
+	})
+}
+
+// UpdateMatchType sets the "match_type" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdateMatchType() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateMatchType()
+	})
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (u *ModelUpsertOne) SetMatchPriority(v int) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetMatchPriority(v)
+	})
+}
+
+// AddMatchPriority adds v to the "match_priority" field.
+func (u *ModelUpsertOne) AddMatchPriority(v int) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddMatchPriority(v)
+	})
+}
+
+// UpdateMatchPriority sets the "match_priority" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdateMatchPriority() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateMatchPriority()
+	})
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (u *ModelUpsertOne) SetPublicModelIds(v []string) *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPublicModelIds(v)
+	})
+}
+
+// UpdatePublicModelIds sets the "public_model_ids" field to the value that was provided on create.
+func (u *ModelUpsertOne) UpdatePublicModelIds() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePublicModelIds()
+	})
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (u *ModelUpsertOne) ClearPublicModelIds() *ModelUpsertOne {
+	return u.Update(func(s *ModelUpsert) {
+		s.ClearPublicModelIds()
 	})
 }
 
@@ -1042,6 +1211,62 @@ func (u *ModelUpsertBulk) SetModelID(v string) *ModelUpsertBulk {
 func (u *ModelUpsertBulk) UpdateModelID() *ModelUpsertBulk {
 	return u.Update(func(s *ModelUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetMatchType sets the "match_type" field.
+func (u *ModelUpsertBulk) SetMatchType(v objects.ModelMatchType) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetMatchType(v)
+	})
+}
+
+// UpdateMatchType sets the "match_type" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdateMatchType() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateMatchType()
+	})
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (u *ModelUpsertBulk) SetMatchPriority(v int) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetMatchPriority(v)
+	})
+}
+
+// AddMatchPriority adds v to the "match_priority" field.
+func (u *ModelUpsertBulk) AddMatchPriority(v int) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.AddMatchPriority(v)
+	})
+}
+
+// UpdateMatchPriority sets the "match_priority" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdateMatchPriority() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdateMatchPriority()
+	})
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (u *ModelUpsertBulk) SetPublicModelIds(v []string) *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.SetPublicModelIds(v)
+	})
+}
+
+// UpdatePublicModelIds sets the "public_model_ids" field to the value that was provided on create.
+func (u *ModelUpsertBulk) UpdatePublicModelIds() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.UpdatePublicModelIds()
+	})
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (u *ModelUpsertBulk) ClearPublicModelIds() *ModelUpsertBulk {
+	return u.Update(func(s *ModelUpsert) {
+		s.ClearPublicModelIds()
 	})
 }
 

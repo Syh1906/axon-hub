@@ -290,8 +290,9 @@ func TestUpdateTemplatePublishesToLinkedAndUnchangedLegacyProfiles(t *testing.T)
 	require.Equal(t, 2, count)
 
 	_, err = svc.UpdateTemplate(ctx, template.ID, ent.UpdateAPIKeyProfileTemplateInput{}, &objects.APIKeyProfile{
-		Name:          "Production",
-		ModelMappings: []objects.ModelMapping{{From: "claude", To: "new-model"}},
+		Name:              "Production",
+		ModelMappings:     []objects.ModelMapping{{From: "claude", To: "new-model"}},
+		ChannelPriorities: []objects.ChannelPriority{{ChannelID: 42, Priority: 0}},
 	})
 	require.NoError(t, err)
 
@@ -299,6 +300,7 @@ func TestUpdateTemplatePublishesToLinkedAndUnchangedLegacyProfiles(t *testing.T)
 		updated, getErr := client.APIKey.Get(ctx, key.ID)
 		require.NoError(t, getErr)
 		require.Equal(t, "new-model", updated.Profiles.Profiles[0].ModelMappings[0].To)
+		require.Equal(t, []objects.ChannelPriority{{ChannelID: 42, Priority: 0}}, updated.Profiles.Profiles[0].ChannelPriorities)
 		require.NotNil(t, updated.Profiles.Profiles[0].TemplateID)
 		require.Equal(t, template.ID, *updated.Profiles.Profiles[0].TemplateID)
 	}
@@ -357,6 +359,13 @@ func TestDetachModifiedTemplateProfiles(t *testing.T) {
 	detachModifiedTemplateProfiles(existing, modified)
 	require.Nil(t, modified.Profiles[0].TemplateID)
 	require.Empty(t, modified.Profiles[0].TemplateName)
+
+	priorityOnly := existing.Profiles[0].Clone()
+	priorityOnly.ChannelPriorities = []objects.ChannelPriority{{ChannelID: 42, Priority: 0}}
+	modified = &objects.APIKeyProfiles{Profiles: []objects.APIKeyProfile{*priorityOnly}}
+	detachModifiedTemplateProfiles(existing, modified)
+	require.Nil(t, modified.Profiles[0].TemplateID)
+	require.Empty(t, existing.Profiles[0].ChannelPriorities)
 }
 
 // TestLoadTemplate_NameConflict tests loading a template where profile name already exists.

@@ -259,19 +259,22 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		Type: "Model",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			model.FieldCreatedAt: {Type: field.TypeTime, Column: model.FieldCreatedAt},
-			model.FieldUpdatedAt: {Type: field.TypeTime, Column: model.FieldUpdatedAt},
-			model.FieldDeletedAt: {Type: field.TypeInt, Column: model.FieldDeletedAt},
-			model.FieldDeveloper: {Type: field.TypeString, Column: model.FieldDeveloper},
-			model.FieldModelID:   {Type: field.TypeString, Column: model.FieldModelID},
-			model.FieldType:      {Type: field.TypeEnum, Column: model.FieldType},
-			model.FieldName:      {Type: field.TypeString, Column: model.FieldName},
-			model.FieldIcon:      {Type: field.TypeString, Column: model.FieldIcon},
-			model.FieldGroup:     {Type: field.TypeString, Column: model.FieldGroup},
-			model.FieldModelCard: {Type: field.TypeJSON, Column: model.FieldModelCard},
-			model.FieldSettings:  {Type: field.TypeJSON, Column: model.FieldSettings},
-			model.FieldStatus:    {Type: field.TypeEnum, Column: model.FieldStatus},
-			model.FieldRemark:    {Type: field.TypeString, Column: model.FieldRemark},
+			model.FieldCreatedAt:      {Type: field.TypeTime, Column: model.FieldCreatedAt},
+			model.FieldUpdatedAt:      {Type: field.TypeTime, Column: model.FieldUpdatedAt},
+			model.FieldDeletedAt:      {Type: field.TypeInt, Column: model.FieldDeletedAt},
+			model.FieldDeveloper:      {Type: field.TypeString, Column: model.FieldDeveloper},
+			model.FieldModelID:        {Type: field.TypeString, Column: model.FieldModelID},
+			model.FieldMatchType:      {Type: field.TypeEnum, Column: model.FieldMatchType},
+			model.FieldMatchPriority:  {Type: field.TypeInt, Column: model.FieldMatchPriority},
+			model.FieldPublicModelIds: {Type: field.TypeJSON, Column: model.FieldPublicModelIds},
+			model.FieldType:           {Type: field.TypeEnum, Column: model.FieldType},
+			model.FieldName:           {Type: field.TypeString, Column: model.FieldName},
+			model.FieldIcon:           {Type: field.TypeString, Column: model.FieldIcon},
+			model.FieldGroup:          {Type: field.TypeString, Column: model.FieldGroup},
+			model.FieldModelCard:      {Type: field.TypeJSON, Column: model.FieldModelCard},
+			model.FieldSettings:       {Type: field.TypeJSON, Column: model.FieldSettings},
+			model.FieldStatus:         {Type: field.TypeEnum, Column: model.FieldStatus},
+			model.FieldRemark:         {Type: field.TypeString, Column: model.FieldRemark},
 		},
 	}
 	graph.Nodes[10] = &sqlgraph.Node{
@@ -2546,6 +2549,21 @@ func (f *ModelFilter) WhereDeveloper(p entql.StringP) {
 // WhereModelID applies the entql string predicate on the model_id field.
 func (f *ModelFilter) WhereModelID(p entql.StringP) {
 	f.Where(p.Field(model.FieldModelID))
+}
+
+// WhereMatchType applies the entql string predicate on the match_type field.
+func (f *ModelFilter) WhereMatchType(p entql.StringP) {
+	f.Where(p.Field(model.FieldMatchType))
+}
+
+// WhereMatchPriority applies the entql int predicate on the match_priority field.
+func (f *ModelFilter) WhereMatchPriority(p entql.IntP) {
+	f.Where(p.Field(model.FieldMatchPriority))
+}
+
+// WherePublicModelIds applies the entql json.RawMessage predicate on the public_model_ids field.
+func (f *ModelFilter) WherePublicModelIds(p entql.BytesP) {
+	f.Where(p.Field(model.FieldPublicModelIds))
 }
 
 // WhereType applies the entql string predicate on the type field.

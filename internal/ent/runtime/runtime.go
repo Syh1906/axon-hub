@@ -437,6 +437,10 @@ func init() {
 	modelDescDeletedAt := modelMixinFields1[0].Descriptor()
 	// model.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	model.DefaultDeletedAt = modelDescDeletedAt.Default.(int)
+	// modelDescMatchPriority is the schema descriptor for match_priority field.
+	modelDescMatchPriority := modelFields[3].Descriptor()
+	// model.DefaultMatchPriority holds the default value on creation for the match_priority field.
+	model.DefaultMatchPriority = modelDescMatchPriority.Default.(int)
 	oidcidentityMixin := schema.OIDCIdentity{}.Mixin()
 	oidcidentity.Policy = privacy.NewPolicies(schema.OIDCIdentity{})
 	oidcidentity.Hooks[0] = func(next ent.Mutator) ent.Mutator {

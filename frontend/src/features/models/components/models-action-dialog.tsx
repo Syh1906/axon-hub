@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toc } from '@lobehub/icons';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/utils/format-number';
@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +36,7 @@ import {
 } from '../data/schema';
 import { modelCardInputSchema } from '../data/schema';
 import { ModelsPriceEditor } from './models-price-editor';
+import { ModelMatchDetails, ModelMatchTypeField } from './models-match-fields';
 
 function isDeveloper(provider: string) {
   return DEVELOPER_IDS.includes(provider);
@@ -43,6 +45,18 @@ function isDeveloper(provider: string) {
 function modelCardFormValues(card?: ModelCard | null): ModelCard {
   return {
     ...card,
+    reasoning: {
+      supported: card?.reasoning?.supported ?? false,
+      default: card?.reasoning?.default ?? false,
+    },
+    modalities: {
+      input: card?.modalities?.input ?? [],
+      output: card?.modalities?.output ?? [],
+    },
+    limit: {
+      context: card?.limit?.context ?? 0,
+      output: card?.limit?.output ?? 0,
+    },
     price: {
       ...card?.price,
       items: card?.price?.items ?? [],
@@ -54,7 +68,7 @@ function modelCardFormValues(card?: ModelCard | null): ModelCard {
 
 export function ModelsActionDialog() {
   const { t, i18n } = useTranslation();
-  const { open, setOpen, currentRow } = useModels();
+  const { open, setOpen, currentRow, setCurrentRow } = useModels();
   const createModel = useCreateModel();
   const updateModel = useUpdateModel();
   const { data: developersData } = useDevelopersData();
@@ -136,6 +150,8 @@ export function ModelsActionDialog() {
     defaultValues: {
       developer: '',
       modelID: '',
+      matchType: 'exact',
+      matchPriority: 100,
       type: 'chat',
       name: '',
       icon: '',
@@ -151,6 +167,9 @@ export function ModelsActionDialog() {
       form.reset({
         developer: currentRow.developer,
         modelID: currentRow.modelID,
+        matchType: currentRow.matchType,
+        matchPriority: currentRow.matchPriority,
+        publicModelIds: currentRow.publicModelIds ?? (currentRow.matchType === 'exact' ? [currentRow.modelID] : []),
         type: currentRow.type,
         name: currentRow.name,
         icon: currentRow.icon,
@@ -172,6 +191,9 @@ export function ModelsActionDialog() {
       form.reset({
         developer: '',
         modelID: '',
+        matchType: 'exact',
+        matchPriority: 100,
+        publicModelIds: undefined,
         type: 'chat',
         name: '',
         icon: '',
@@ -273,12 +295,15 @@ export function ModelsActionDialog() {
     [selectedProviderModels, selectedProvider, form, isEdit]
   );
 
-  const onSubmit = async (data: CreateModelInput) => {
+  const onSubmit = async (data: CreateModelInput, associate = true) => {
     try {
       if (isEdit && currentRow) {
         const updateData: UpdateModelInput = {
           developer: data.developer,
           modelID: data.modelID,
+          matchType: data.matchType,
+          matchPriority: data.matchPriority,
+          publicModelIds: data.publicModelIds,
           type: data.type,
           name: data.name,
           icon: data.icon,
@@ -289,7 +314,13 @@ export function ModelsActionDialog() {
         };
         await updateModel.mutateAsync({ id: currentRow.id, input: updateData });
       } else {
-        await createModel.mutateAsync(data);
+        const created = await createModel.mutateAsync(data);
+        if (associate) {
+          handleClose();
+          setCurrentRow(created);
+          setOpen('association');
+          return;
+        }
       }
       handleClose();
     } catch (_error) {
@@ -316,7 +347,7 @@ export function ModelsActionDialog() {
         </DialogHeader>
 
         <Form {...form}>
-          <form id='model-form' onSubmit={form.handleSubmit(onSubmit)} className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          <form id='model-form' onSubmit={form.handleSubmit((data) => onSubmit(data))} className='flex min-h-0 flex-1 flex-col overflow-hidden'>
             <div className='flex min-h-0 flex-1 gap-6 overflow-x-auto overflow-y-hidden md:overflow-hidden'>
               {/* Left Panel - Basic Information */}
               <div className='min-h-0 w-1/2 flex-shrink-0 overflow-y-auto pr-4 md:w-1/3'>
@@ -344,14 +375,17 @@ export function ModelsActionDialog() {
                     )}
                   />
 
+                  <ModelMatchTypeField />
                   <FormField
                     control={form.control}
                     name='modelID'
                     render={() => (
                       <FormItem>
-                        <FormLabel>{t('models.fields.modelId')}</FormLabel>
+                        <FormLabel>{t(form.watch('matchType') === 'exact' ? 'models.fields.modelId' : 'models.match.expression')}</FormLabel>
                         <FormControl>
-                          {selectedProvider && modelIdOptions.length > 0 ? (
+                          {form.watch('matchType') !== 'exact' ? (
+                            <Input value={modelIdSearchValue} onChange={(event) => handleModelIdSearchChange(event.target.value)} className='font-mono' />
+                          ) : selectedProvider && modelIdOptions.length > 0 ? (
                             <AutoComplete
                               selectedValue={modelIdInput}
                               onSelectedValueChange={handleModelIdChange}
@@ -380,6 +414,7 @@ export function ModelsActionDialog() {
                     )}
                   />
 
+                  <ModelMatchDetails key={`${open}-${currentRow?.id ?? 'new'}`} />
                   <FormField
                     control={form.control}
                     name='name'
@@ -792,8 +827,16 @@ export function ModelsActionDialog() {
                 {t('common.buttons.cancel')}
               </Button>
               <Button type='submit' disabled={createModel.isPending || updateModel.isPending}>
-                {isEdit ? t('common.buttons.save') : t('common.buttons.create')}
+                {isEdit ? t('common.buttons.save') : t('models.match.createAndAssociate')}
               </Button>
+              {!isEdit && <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type='button' size='icon' disabled={createModel.isPending} aria-label={t('models.match.createOptions')}><ChevronDown className='h-4 w-4' /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end'>
+                  <DropdownMenuItem onSelect={() => form.handleSubmit((data) => onSubmit(data, false))()}>{t('models.match.createOnly')}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>}
             </div>
           </form>
         </Form>

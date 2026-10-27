@@ -245,11 +245,14 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 			pipelineOpts = append(pipelineOpts, pipeline.WithEmptyResponseDetection())
 		}
 
-		pipelineOpts = append(pipelineOpts, pipeline.WithResponseTimeouts(
-			time.Duration(retryPolicy.StreamFirstEventTimeoutSeconds)*time.Second,
-			time.Duration(retryPolicy.NonStreamResponseTimeoutSeconds)*time.Second,
-		))
 	}
+	pipelineOpts = append(pipelineOpts, pipeline.WithResponseTimeoutResolver(func() (time.Duration, time.Duration) {
+		var channel *biz.Channel
+		if state.CurrentCandidate != nil {
+			channel = state.CurrentCandidate.Channel
+		}
+		return channelResponseTimeouts(retryPolicy, channel)
+	}))
 
 	var middlewares []pipeline.Middleware
 

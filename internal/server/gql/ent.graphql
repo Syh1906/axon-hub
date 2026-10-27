@@ -1684,6 +1684,18 @@ input CreateModelInput {
   """
   modelID: String!
   """
+  How model_id matches incoming request model IDs
+  """
+  matchType: ModelMatchType
+  """
+  Order of prefix, suffix and regex rules; lower values match first
+  """
+  matchPriority: Int
+  """
+  Explicit discovery IDs; null preserves legacy exact-model discovery, empty hides the model
+  """
+  publicModelIds: [String!]
+  """
   model type
   """
   type: ModelType
@@ -2302,6 +2314,18 @@ type Model implements Node {
   """
   modelID: String!
   """
+  How model_id matches incoming request model IDs
+  """
+  matchType: ModelMatchType!
+  """
+  Order of prefix, suffix and regex rules; lower values match first
+  """
+  matchPriority: Int!
+  """
+  Explicit discovery IDs; null preserves legacy exact-model discovery, empty hides the model
+  """
+  publicModelIds: [String!]
+  """
   model type
   """
   type: ModelType!
@@ -2354,6 +2378,15 @@ type ModelEdge {
   A cursor for use in pagination.
   """
   cursor: Cursor!
+}
+"""
+ModelMatchType is enum for the field match_type
+"""
+enum ModelMatchType @goModel(model: "github.com/looplj/axonhub/internal/objects.ModelMatchType") {
+  exact
+  prefix
+  suffix
+  regex
 }
 """
 Ordering options for Model connections
@@ -2467,6 +2500,24 @@ input ModelWhereInput {
   modelIDHasSuffix: String
   modelIDEqualFold: String
   modelIDContainsFold: String
+  """
+  match_type field predicates
+  """
+  matchType: ModelMatchType
+  matchTypeNEQ: ModelMatchType
+  matchTypeIn: [ModelMatchType!]
+  matchTypeNotIn: [ModelMatchType!]
+  """
+  match_priority field predicates
+  """
+  matchPriority: Int
+  matchPriorityNEQ: Int
+  matchPriorityIn: [Int!]
+  matchPriorityNotIn: [Int!]
+  matchPriorityGT: Int
+  matchPriorityGTE: Int
+  matchPriorityLT: Int
+  matchPriorityLTE: Int
   """
   type field predicates
   """
@@ -6204,6 +6255,20 @@ input UpdateModelInput {
   model id, eg. deeepseek-chat
   """
   modelID: String
+  """
+  How model_id matches incoming request model IDs
+  """
+  matchType: ModelMatchType
+  """
+  Order of prefix, suffix and regex rules; lower values match first
+  """
+  matchPriority: Int
+  """
+  Explicit discovery IDs; null preserves legacy exact-model discovery, empty hides the model
+  """
+  publicModelIds: [String!]
+  appendPublicModelIds: [String!]
+  clearPublicModelIds: Boolean
   """
   model type
   """

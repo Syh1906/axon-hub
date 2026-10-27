@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { channelPrioritySchema } from './schema';
 
 export const formSchemaFactory = (t: (key: string) => string) =>
   z
@@ -13,6 +14,7 @@ export const formSchemaFactory = (t: (key: string) => string) =>
             to: z.string().min(1, t('apikeys.validation.targetModelRequired')),
           })
         ),
+        channelPriorities: z.array(channelPrioritySchema).optional().nullable(),
         channelIDs: z.array(z.number()).optional().nullable(),
         channelTags: z.array(z.string()).optional().nullable(),
         channelTagsMatchMode: z.enum(['any', 'all', 'none']),

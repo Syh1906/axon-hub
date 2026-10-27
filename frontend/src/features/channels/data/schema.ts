@@ -315,6 +315,9 @@ export type ChannelProviderQuotaSettings = z.infer<typeof channelProviderQuotaSe
 
 // Channel Settings
 export const channelSettingsSchema = z.object({
+  streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
+  nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
+  disableSessionReuse: z.boolean().optional(),
   healthGateFailureThreshold: z.number().int().min(0).optional().nullable(),
   modelPriceMultiplier: z.union([z.string(), z.number()]).optional().nullable(),
   extraModelPrefix: z.string().optional(),

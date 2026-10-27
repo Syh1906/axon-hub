@@ -152,6 +152,11 @@ func (m ModelProtocol) IsEnabled() bool {
 }
 
 type ChannelSettings struct {
+	// Nil timeouts inherit the system policy; zero removes only the channel limit.
+	StreamFirstEventTimeoutSeconds  *int `json:"streamFirstEventTimeoutSeconds,omitempty"`
+	NonStreamResponseTimeoutSeconds *int `json:"nonStreamResponseTimeoutSeconds,omitempty"`
+	DisableSessionReuse             bool `json:"disableSessionReuse,omitempty"`
+
 	// ModelPriceMultiplier applies to channel price snapshots; absent values mean one.
 	// Only the versioned channel pricing mutation may change it.
 	ModelPriceMultiplier *decimal.Decimal `json:"modelPriceMultiplier,omitempty"`

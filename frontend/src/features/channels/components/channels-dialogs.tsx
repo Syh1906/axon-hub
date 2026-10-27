@@ -1,3 +1,4 @@
+import { ChannelsRequestSettingsDialog } from './channels-request-settings-dialog';
 import { useEffect } from 'react';
 import { useChannels } from '../context/channels-context';
 import { ChannelsActionDialog } from './channels-action-dialog';
@@ -291,6 +292,8 @@ export function ChannelsDialogs() {
             }}
             currentRow={currentRow}
           />
+
+          <ChannelsRequestSettingsDialog open={open === 'requestSettings'} onOpenChange={(isOpen) => setOpen(isOpen ? 'requestSettings' : null)} currentRow={currentRow} />
 
           <ChannelsRateLimitDialog
             key={`channel-rate-limit-${currentRow.id}`}

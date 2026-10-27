@@ -54,6 +54,16 @@ type ModelAssociation {
   modelId: ModelIDAssociation
   channelTagsModel: ChannelTagsModelAssociation
   channelTagsRegex: ChannelTagsRegexAssociation
+  channelRequest: ChannelRequestAssociation
+}
+
+type ChannelRequestAssociation {
+  channelId: Int!
+}
+
+type ModelMatchTest {
+  matched: Boolean!
+  error: String
 }
 
 type ModelAssociationWhen {
@@ -144,6 +154,11 @@ input ModelAssociationInput {
   modelId: ModelIDAssociationInput
   channelTagsModel: ChannelTagsModelAssociationInput
   channelTagsRegex: ChannelTagsRegexAssociationInput
+  channelRequest: ChannelRequestAssociationInput
+}
+
+input ChannelRequestAssociationInput {
+  channelId: Int!
 }
 
 input ModelAssociationWhenInput {
@@ -213,7 +228,9 @@ extend type Query {
   queryModels(input: QueryModelsInput!): [ModelIdentityWithStatus!]!
   queryModelChannelConnections(
     associations: [ModelAssociationInput!]!
+    requestModelID: String
   ): [ModelChannelConnection!]!
+  testModelMatch(matchType: ModelMatchType!, pattern: String!, modelID: String!): ModelMatchTest!
   queryUnassociatedChannels: [UnassociatedChannel!]!
 }
 

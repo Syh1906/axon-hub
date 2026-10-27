@@ -284,6 +284,22 @@ Anthropic prompt caches expire after 5 minutes by default. In human-agent collab
 - Whether the upstream actually caches for 1 hour is up to the upstream. Billing follows the 5-minute / 1-hour cache write split reported in the upstream response, not the request; responses reporting only a total are billed at the base cache write price. See [Cost Tracking](cost-tracking.md#cache-write-variants-anthropic) for 1-hour write pricing.
 - In request logs, the model column shows a 1-hour cache icon after the outbound protocol and pass-through icons. It lights up when the request's billing includes 1-hour cache writes and stays gray otherwise, so it always matches billing and does not depend on this switch. In that case the Usage card in request details also shows a "1h cache" badge. Requests that only read an existing 1-hour cache without writing do not light it up.
 
+## Channel request settings
+
+Open **Request settings** from a channel row's action menu.
+
+- **Stream first response timeout** waits for the first upstream stream event. It does not limit later event gaps or specifically measure the first visible token.
+- **Non-stream response timeout** waits for the complete non-streaming response.
+- **Do not reuse session channel** prevents session-based preference or ownership binding to this channel. Normal selection can still choose it.
+
+Leave timeouts empty to inherit the system setting, enter `0` to remove that channel-specific timeout, or enter a positive integer in seconds.
+The overall request deadline still applies. Every attempt uses the selected channel's values, including after failover.
+Explicit channel timeouts work even when retries are disabled; inherited system values retain their existing retry-policy activation rule.
+Once content has been sent to the client, a timeout does not replay the request through another channel.
+
+The session switch covers both ordinary stickiness and health-gated ownership. It does not disable Responses `previous_response_id` context restoration,
+exclude the channel, or guarantee a different channel on every request. It is off by default.
+
 ## Streaming Pass-Through and Retry
 
 With retry enabled, stream metadata stays private until the first meaningful content event.

@@ -248,5 +248,13 @@
   "apikeys.templateTransfer.saveSuccess": "模板“{{name}}”已保存到目标项目",
   "apikeys.templateTransfer.overwriteSuccess": "目标项目中的模板“{{name}}”已覆盖",
   "apikeys.templateTransfer.saveError": "保存模板失败，请确认你拥有目标项目的 API Key 管理权限。",
-  "apikeys.templateTransfer.exportSuccess": "模板“{{name}}”已导出"
+  "apikeys.templateTransfer.exportSuccess": "模板“{{name}}”已导出",
+  "apikeys.priorities.title": "渠道优先级",
+  "apikeys.priorities.description": "仅在此配置允许的渠道内生效。数字越小越优先；未设置的渠道继承模型关联优先级。同级沿用负载均衡，会话粘性仍可能优先复用原渠道。",
+  "apikeys.priorities.resetAll": "全部恢复继承",
+  "apikeys.priorities.reset": "恢复继承",
+  "apikeys.priorities.channelId": "渠道 #{{id}}",
+  "apikeys.priorities.value": "{{channel}} 的优先级",
+  "apikeys.priorities.outOfScope": "该渠道不在当前可用范围内，此项暂不生效。",
+  "apikeys.priorities.add": "添加渠道优先级"
 }

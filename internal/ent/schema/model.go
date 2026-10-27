@@ -28,8 +28,8 @@ func (Model) Indexes() []ent.Index {
 		index.Fields("name", "deleted_at").
 			StorageKey("models_by_name").
 			Unique(),
-		index.Fields("model_id", "deleted_at").
-			StorageKey("models_by_model_id").
+		index.Fields("model_id", "match_type", "deleted_at").
+			StorageKey("models_by_match_identity").
 			Unique(),
 	}
 }
@@ -38,6 +38,13 @@ func (Model) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("developer").Comment("developer of the model, eg. deeepseek"),
 		field.String("model_id").Comment("model id, eg. deeepseek-chat"),
+		field.Enum("match_type").GoType(objects.ModelMatchType("")).Default("exact").
+			Annotations(entgql.Type("ModelMatchType")).
+			Comment("How model_id matches incoming request model IDs"),
+		field.Int("match_priority").Default(100).
+			Comment("Order of prefix, suffix and regex rules; lower values match first"),
+		field.Strings("public_model_ids").Optional().
+			Comment("Explicit discovery IDs; null preserves legacy exact-model discovery, empty hides the model"),
 		field.Enum("type").Values("chat", "embedding", "rerank", "image_generation", "video_generation").Default("chat").Comment("model type"),
 		field.String("name").Comment("model name, eg. DeepSeek Chat").
 			Annotations(

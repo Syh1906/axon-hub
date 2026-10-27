@@ -913,5 +913,15 @@
   "channels.healthGate.empty": "—",
   "channels.healthGate.readyToProbe": "Ready for a new-session probe",
   "channels.healthGate.view": "View health gate",
-  "channels.healthGate.unavailable": "Health gate details are unavailable for this channel"
+  "channels.healthGate.unavailable": "Health gate details are unavailable for this channel",
+  "channels.requestSettings.title": "Request settings",
+  "channels.requestSettings.description": "Set response timeouts and session reuse for {{name}}.",
+  "channels.requestSettings.inherit": "Leave blank to inherit system settings",
+  "channels.requestSettings.streamFirstEventTimeoutSeconds": "First stream response timeout (seconds)",
+  "channels.requestSettings.streamFirstEventTimeoutSecondsHelp": "Time to wait for the first upstream stream event. Does not limit gaps between later events.",
+  "channels.requestSettings.nonStreamResponseTimeoutSeconds": "Non-stream response timeout (seconds)",
+  "channels.requestSettings.nonStreamResponseTimeoutSecondsHelp": "Time to wait for a complete non-stream response.",
+  "channels.requestSettings.timeoutHelp": "Blank inherits system settings; 0 removes the channel-specific timeout. The overall request deadline still applies. Each selected channel uses its own settings.",
+  "channels.requestSettings.disableSessionReuse": "Disable session channel reuse",
+  "channels.requestSettings.sessionHelp": "Do not prefer or bind this channel because of previous session routing. Normal selection can still choose it. Responses conversation recovery remains available."
 }

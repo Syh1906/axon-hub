@@ -248,5 +248,13 @@
   "apikeys.templateTransfer.saveSuccess": "Template “{{name}}” was saved to the target project",
   "apikeys.templateTransfer.overwriteSuccess": "Template “{{name}}” was overwritten in the target project",
   "apikeys.templateTransfer.saveError": "Failed to save the template. Check your API key management permission in the target project.",
-  "apikeys.templateTransfer.exportSuccess": "Template “{{name}}” was exported"
+  "apikeys.templateTransfer.exportSuccess": "Template “{{name}}” was exported",
+  "apikeys.priorities.title": "Channel priorities",
+  "apikeys.priorities.description": "Applies only to channels allowed by this profile. Lower numbers go first; unset channels inherit model association priorities. Equal priorities use load balancing; session stickiness may still prefer the previous channel.",
+  "apikeys.priorities.resetAll": "Reset all",
+  "apikeys.priorities.reset": "Inherit priority",
+  "apikeys.priorities.channelId": "Channel #{{id}}",
+  "apikeys.priorities.value": "Priority for {{channel}}",
+  "apikeys.priorities.outOfScope": "This channel is outside the current allowed scope; this override is inactive.",
+  "apikeys.priorities.add": "Add channel priority"
 }

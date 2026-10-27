@@ -329,6 +329,11 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
             <IconTransform size={16} className='mr-2' />
             {t('channels.dialogs.transformOptions.action')}
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setCurrentRow(channel); setOpen('requestSettings'); }}>
+            <IconClockPlay size={16} className='mr-2' />
+            {t('channels.requestSettings.title')}
+          </DropdownMenuItem>
+
           <DropdownMenuItem
             onClick={() => {
               setCurrentRow(channel);

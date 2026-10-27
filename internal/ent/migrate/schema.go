@@ -331,6 +331,9 @@ var (
 		{Name: "deleted_at", Type: field.TypeInt, Default: 0},
 		{Name: "developer", Type: field.TypeString},
 		{Name: "model_id", Type: field.TypeString},
+		{Name: "match_type", Type: field.TypeEnum, Enums: []string{"exact", "prefix", "suffix", "regex"}, Default: "exact"},
+		{Name: "match_priority", Type: field.TypeInt, Default: 100},
+		{Name: "public_model_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "type", Type: field.TypeEnum, Enums: []string{"chat", "embedding", "rerank", "image_generation", "video_generation"}, Default: "chat"},
 		{Name: "name", Type: field.TypeString},
 		{Name: "icon", Type: field.TypeString},
@@ -349,12 +352,12 @@ var (
 			{
 				Name:    "models_by_name",
 				Unique:  true,
-				Columns: []*schema.Column{ModelsColumns[7], ModelsColumns[3]},
+				Columns: []*schema.Column{ModelsColumns[10], ModelsColumns[3]},
 			},
 			{
-				Name:    "models_by_model_id",
+				Name:    "models_by_match_identity",
 				Unique:  true,
-				Columns: []*schema.Column{ModelsColumns[5], ModelsColumns[3]},
+				Columns: []*schema.Column{ModelsColumns[5], ModelsColumns[6], ModelsColumns[3]},
 			},
 		},
 	}

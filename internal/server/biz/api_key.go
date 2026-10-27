@@ -769,6 +769,9 @@ func normalizeProfileForComparison(profile *objects.APIKeyProfile) *objects.APIK
 	if result.ModelIDs == nil {
 		result.ModelIDs = []string{}
 	}
+	if result.ChannelPriorities == nil {
+		result.ChannelPriorities = []objects.ChannelPriority{}
+	}
 	result.ChannelTagsMatchMode = result.ChannelTagsMatchMode.OrDefault()
 	loadBalanceStrategy := objects.RoutingPolicyDefault
 	if result.LoadBalanceStrategy != nil {
@@ -838,6 +841,16 @@ func validateProfileRoutingPolicies(profiles []objects.APIKeyProfile) error {
 func normalizeAndValidateProfileRoutingPolicy(profile *objects.APIKeyProfile) error {
 	if profile == nil {
 		return nil
+	}
+	seenChannels := make(map[int]bool, len(profile.ChannelPriorities))
+	for _, entry := range profile.ChannelPriorities {
+		if entry.ChannelID <= 0 {
+			return fmt.Errorf("profile '%s' channel priority requires a channel", profile.Name)
+		}
+		if seenChannels[entry.ChannelID] {
+			return fmt.Errorf("profile '%s' has duplicate channel priorities for channel %d", profile.Name, entry.ChannelID)
+		}
+		seenChannels[entry.ChannelID] = true
 	}
 
 	if profile.LoadBalanceStrategy == nil {
@@ -945,7 +958,7 @@ type apiKeyCtxKey struct{}
 
 func buildAPIKeyCacheKey(key string) string {
 	hash := xxhash.Sum64String(key)
-	return fmt.Sprintf("api_key:%d", hash)
+	return fmt.Sprintf("api_key:v2:%d", hash)
 }
 
 func buildAPIKeyCacheKeys(keys []string) []string {

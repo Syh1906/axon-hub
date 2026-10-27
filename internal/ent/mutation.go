@@ -10004,27 +10004,32 @@ func (m *InvitationMutation) ResetEdge(name string) error {
 // ModelMutation represents an operation that mutates the Model nodes in the graph.
 type ModelMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	created_at    *time.Time
-	updated_at    *time.Time
-	deleted_at    *int
-	adddeleted_at *int
-	developer     *string
-	model_id      *string
-	_type         *model.Type
-	name          *string
-	icon          *string
-	group         *string
-	model_card    **objects.ModelCard
-	settings      **objects.ModelSettings
-	status        *model.Status
-	remark        *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Model, error)
-	predicates    []predicate.Model
+	op                     Op
+	typ                    string
+	id                     *int
+	created_at             *time.Time
+	updated_at             *time.Time
+	deleted_at             *int
+	adddeleted_at          *int
+	developer              *string
+	model_id               *string
+	match_type             *objects.ModelMatchType
+	match_priority         *int
+	addmatch_priority      *int
+	public_model_ids       *[]string
+	appendpublic_model_ids []string
+	_type                  *model.Type
+	name                   *string
+	icon                   *string
+	group                  *string
+	model_card             **objects.ModelCard
+	settings               **objects.ModelSettings
+	status                 *model.Status
+	remark                 *string
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*Model, error)
+	predicates             []predicate.Model
 }
 
 var _ ent.Mutation = (*ModelMutation)(nil)
@@ -10323,6 +10328,163 @@ func (m *ModelMutation) OldModelID(ctx context.Context) (v string, err error) {
 // ResetModelID resets all changes to the "model_id" field.
 func (m *ModelMutation) ResetModelID() {
 	m.model_id = nil
+}
+
+// SetMatchType sets the "match_type" field.
+func (m *ModelMutation) SetMatchType(omt objects.ModelMatchType) {
+	m.match_type = &omt
+}
+
+// MatchType returns the value of the "match_type" field in the mutation.
+func (m *ModelMutation) MatchType() (r objects.ModelMatchType, exists bool) {
+	v := m.match_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMatchType returns the old "match_type" field's value of the Model entity.
+// If the Model object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ModelMutation) OldMatchType(ctx context.Context) (v objects.ModelMatchType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMatchType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMatchType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMatchType: %w", err)
+	}
+	return oldValue.MatchType, nil
+}
+
+// ResetMatchType resets all changes to the "match_type" field.
+func (m *ModelMutation) ResetMatchType() {
+	m.match_type = nil
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (m *ModelMutation) SetMatchPriority(i int) {
+	m.match_priority = &i
+	m.addmatch_priority = nil
+}
+
+// MatchPriority returns the value of the "match_priority" field in the mutation.
+func (m *ModelMutation) MatchPriority() (r int, exists bool) {
+	v := m.match_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMatchPriority returns the old "match_priority" field's value of the Model entity.
+// If the Model object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ModelMutation) OldMatchPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMatchPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMatchPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMatchPriority: %w", err)
+	}
+	return oldValue.MatchPriority, nil
+}
+
+// AddMatchPriority adds i to the "match_priority" field.
+func (m *ModelMutation) AddMatchPriority(i int) {
+	if m.addmatch_priority != nil {
+		*m.addmatch_priority += i
+	} else {
+		m.addmatch_priority = &i
+	}
+}
+
+// AddedMatchPriority returns the value that was added to the "match_priority" field in this mutation.
+func (m *ModelMutation) AddedMatchPriority() (r int, exists bool) {
+	v := m.addmatch_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMatchPriority resets all changes to the "match_priority" field.
+func (m *ModelMutation) ResetMatchPriority() {
+	m.match_priority = nil
+	m.addmatch_priority = nil
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (m *ModelMutation) SetPublicModelIds(s []string) {
+	m.public_model_ids = &s
+	m.appendpublic_model_ids = nil
+}
+
+// PublicModelIds returns the value of the "public_model_ids" field in the mutation.
+func (m *ModelMutation) PublicModelIds() (r []string, exists bool) {
+	v := m.public_model_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicModelIds returns the old "public_model_ids" field's value of the Model entity.
+// If the Model object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ModelMutation) OldPublicModelIds(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicModelIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicModelIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicModelIds: %w", err)
+	}
+	return oldValue.PublicModelIds, nil
+}
+
+// AppendPublicModelIds adds s to the "public_model_ids" field.
+func (m *ModelMutation) AppendPublicModelIds(s []string) {
+	m.appendpublic_model_ids = append(m.appendpublic_model_ids, s...)
+}
+
+// AppendedPublicModelIds returns the list of values that were appended to the "public_model_ids" field in this mutation.
+func (m *ModelMutation) AppendedPublicModelIds() ([]string, bool) {
+	if len(m.appendpublic_model_ids) == 0 {
+		return nil, false
+	}
+	return m.appendpublic_model_ids, true
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (m *ModelMutation) ClearPublicModelIds() {
+	m.public_model_ids = nil
+	m.appendpublic_model_ids = nil
+	m.clearedFields[model.FieldPublicModelIds] = struct{}{}
+}
+
+// PublicModelIdsCleared returns if the "public_model_ids" field was cleared in this mutation.
+func (m *ModelMutation) PublicModelIdsCleared() bool {
+	_, ok := m.clearedFields[model.FieldPublicModelIds]
+	return ok
+}
+
+// ResetPublicModelIds resets all changes to the "public_model_ids" field.
+func (m *ModelMutation) ResetPublicModelIds() {
+	m.public_model_ids = nil
+	m.appendpublic_model_ids = nil
+	delete(m.clearedFields, model.FieldPublicModelIds)
 }
 
 // SetType sets the "type" field.
@@ -10660,7 +10822,7 @@ func (m *ModelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ModelMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 16)
 	if m.created_at != nil {
 		fields = append(fields, model.FieldCreatedAt)
 	}
@@ -10675,6 +10837,15 @@ func (m *ModelMutation) Fields() []string {
 	}
 	if m.model_id != nil {
 		fields = append(fields, model.FieldModelID)
+	}
+	if m.match_type != nil {
+		fields = append(fields, model.FieldMatchType)
+	}
+	if m.match_priority != nil {
+		fields = append(fields, model.FieldMatchPriority)
+	}
+	if m.public_model_ids != nil {
+		fields = append(fields, model.FieldPublicModelIds)
 	}
 	if m._type != nil {
 		fields = append(fields, model.FieldType)
@@ -10718,6 +10889,12 @@ func (m *ModelMutation) Field(name string) (ent.Value, bool) {
 		return m.Developer()
 	case model.FieldModelID:
 		return m.ModelID()
+	case model.FieldMatchType:
+		return m.MatchType()
+	case model.FieldMatchPriority:
+		return m.MatchPriority()
+	case model.FieldPublicModelIds:
+		return m.PublicModelIds()
 	case model.FieldType:
 		return m.GetType()
 	case model.FieldName:
@@ -10753,6 +10930,12 @@ func (m *ModelMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDeveloper(ctx)
 	case model.FieldModelID:
 		return m.OldModelID(ctx)
+	case model.FieldMatchType:
+		return m.OldMatchType(ctx)
+	case model.FieldMatchPriority:
+		return m.OldMatchPriority(ctx)
+	case model.FieldPublicModelIds:
+		return m.OldPublicModelIds(ctx)
 	case model.FieldType:
 		return m.OldType(ctx)
 	case model.FieldName:
@@ -10812,6 +10995,27 @@ func (m *ModelMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelID(v)
+		return nil
+	case model.FieldMatchType:
+		v, ok := value.(objects.ModelMatchType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMatchType(v)
+		return nil
+	case model.FieldMatchPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMatchPriority(v)
+		return nil
+	case model.FieldPublicModelIds:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicModelIds(v)
 		return nil
 	case model.FieldType:
 		v, ok := value.(model.Type)
@@ -10880,6 +11084,9 @@ func (m *ModelMutation) AddedFields() []string {
 	if m.adddeleted_at != nil {
 		fields = append(fields, model.FieldDeletedAt)
 	}
+	if m.addmatch_priority != nil {
+		fields = append(fields, model.FieldMatchPriority)
+	}
 	return fields
 }
 
@@ -10890,6 +11097,8 @@ func (m *ModelMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case model.FieldDeletedAt:
 		return m.AddedDeletedAt()
+	case model.FieldMatchPriority:
+		return m.AddedMatchPriority()
 	}
 	return nil, false
 }
@@ -10906,6 +11115,13 @@ func (m *ModelMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddDeletedAt(v)
 		return nil
+	case model.FieldMatchPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMatchPriority(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Model numeric field %s", name)
 }
@@ -10914,6 +11130,9 @@ func (m *ModelMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ModelMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(model.FieldPublicModelIds) {
+		fields = append(fields, model.FieldPublicModelIds)
+	}
 	if m.FieldCleared(model.FieldRemark) {
 		fields = append(fields, model.FieldRemark)
 	}
@@ -10931,6 +11150,9 @@ func (m *ModelMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ModelMutation) ClearField(name string) error {
 	switch name {
+	case model.FieldPublicModelIds:
+		m.ClearPublicModelIds()
+		return nil
 	case model.FieldRemark:
 		m.ClearRemark()
 		return nil
@@ -10956,6 +11178,15 @@ func (m *ModelMutation) ResetField(name string) error {
 		return nil
 	case model.FieldModelID:
 		m.ResetModelID()
+		return nil
+	case model.FieldMatchType:
+		m.ResetMatchType()
+		return nil
+	case model.FieldMatchPriority:
+		m.ResetMatchPriority()
+		return nil
+	case model.FieldPublicModelIds:
+		m.ResetPublicModelIds()
 		return nil
 	case model.FieldType:
 		m.ResetType()

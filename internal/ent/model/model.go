@@ -10,6 +10,8 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 const (
@@ -27,6 +29,12 @@ const (
 	FieldDeveloper = "developer"
 	// FieldModelID holds the string denoting the model_id field in the database.
 	FieldModelID = "model_id"
+	// FieldMatchType holds the string denoting the match_type field in the database.
+	FieldMatchType = "match_type"
+	// FieldMatchPriority holds the string denoting the match_priority field in the database.
+	FieldMatchPriority = "match_priority"
+	// FieldPublicModelIds holds the string denoting the public_model_ids field in the database.
+	FieldPublicModelIds = "public_model_ids"
 	// FieldType holds the string denoting the type field in the database.
 	FieldType = "type"
 	// FieldName holds the string denoting the name field in the database.
@@ -55,6 +63,9 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldDeveloper,
 	FieldModelID,
+	FieldMatchType,
+	FieldMatchPriority,
+	FieldPublicModelIds,
 	FieldType,
 	FieldName,
 	FieldIcon,
@@ -92,7 +103,21 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
 	DefaultDeletedAt int
+	// DefaultMatchPriority holds the default value on creation for the "match_priority" field.
+	DefaultMatchPriority int
 )
+
+const DefaultMatchType objects.ModelMatchType = "exact"
+
+// MatchTypeValidator is a validator for the "match_type" field enum values. It is called by the builders before save.
+func MatchTypeValidator(mt objects.ModelMatchType) error {
+	switch mt.String() {
+	case "exact", "prefix", "suffix", "regex":
+		return nil
+	default:
+		return fmt.Errorf("model: invalid enum value for match_type field: %q", mt)
+	}
+}
 
 // Type defines the type for the "type" enum field.
 type Type string
@@ -183,6 +208,16 @@ func ByModelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModelID, opts...).ToFunc()
 }
 
+// ByMatchType orders the results by the match_type field.
+func ByMatchType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMatchType, opts...).ToFunc()
+}
+
+// ByMatchPriority orders the results by the match_priority field.
+func ByMatchPriority(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMatchPriority, opts...).ToFunc()
+}
+
 // ByType orders the results by the type field.
 func ByType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldType, opts...).ToFunc()
@@ -212,6 +247,13 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 func ByRemark(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRemark, opts...).ToFunc()
 }
+
+var (
+	// objects.ModelMatchType must implement graphql.Marshaler.
+	_ graphql.Marshaler = (*objects.ModelMatchType)(nil)
+	// objects.ModelMatchType must implement graphql.Unmarshaler.
+	_ graphql.Unmarshaler = (*objects.ModelMatchType)(nil)
+)
 
 // MarshalGQL implements graphql.Marshaler interface.
 func (e Type) MarshalGQL(w io.Writer) {

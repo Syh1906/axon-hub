@@ -130,7 +130,7 @@ func TestDefaultSelector_Select_InvalidatesCacheWhenDeveloperAssociationsChange(
 	require.NoError(t, err)
 
 	selector.cacheMu.RLock()
-	initialEntry := selector.associationCache["gpt-4"]
+	initialEntry := selector.associationCache["exact:gpt-4"]
 	selector.cacheMu.RUnlock()
 	require.NotNil(t, initialEntry)
 
@@ -156,7 +156,7 @@ func TestDefaultSelector_Select_InvalidatesCacheWhenDeveloperAssociationsChange(
 	require.NoError(t, err)
 
 	selector.cacheMu.RLock()
-	currentEntry := selector.associationCache["gpt-4"]
+	currentEntry := selector.associationCache["exact:gpt-4"]
 	selector.cacheMu.RUnlock()
 	require.NotSame(t, initialEntry, currentEntry)
 }

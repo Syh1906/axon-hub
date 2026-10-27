@@ -73,6 +73,10 @@ func MatchConnections(
 	associations []*objects.ModelAssociation,
 	channels []*Channel,
 ) []*ModelChannelConnection {
+	return MatchConnectionsForModel(associations, channels, "")
+}
+
+func MatchConnectionsForModel(associations []*objects.ModelAssociation, channels []*Channel, requestModelID string) []*ModelChannelConnection {
 	result := make([]*ModelChannelConnection, 0)
 	tracker := NewDuplicateKeyTracker()
 
@@ -80,7 +84,7 @@ func MatchConnections(
 		if assoc.Disabled {
 			continue
 		}
-		connections := matchSingleAssociation(assoc, channels, tracker)
+		connections := matchSingleAssociation(assoc, channels, tracker, requestModelID)
 		result = append(result, connections...)
 	}
 
@@ -95,6 +99,10 @@ func MatchAssociations(
 	associations []*objects.ModelAssociation,
 	channels []*Channel,
 ) []*AssociationMatch {
+	return MatchAssociationsForModel(associations, channels, "")
+}
+
+func MatchAssociationsForModel(associations []*objects.ModelAssociation, channels []*Channel, requestModelID string) []*AssociationMatch {
 	result := make([]*AssociationMatch, 0, len(associations))
 
 	for _, assoc := range associations {
@@ -103,7 +111,7 @@ func MatchAssociations(
 		}
 
 		tracker := NewDuplicateKeyTracker()
-		connections := matchSingleAssociation(assoc, channels, tracker)
+		connections := matchSingleAssociation(assoc, channels, tracker, requestModelID)
 		if len(connections) == 0 {
 			continue
 		}
@@ -122,12 +130,15 @@ func matchSingleAssociation(
 	assoc *objects.ModelAssociation,
 	channels []*Channel,
 	tracker *DuplicateKeyTracker,
+	requestModelID string,
 ) []*ModelChannelConnection {
 	connections := make([]*ModelChannelConnection, 0)
 
 	switch assoc.Type {
 	case "channel_model":
 		connections = matchChannelModel(assoc, channels, tracker)
+	case "channel_request":
+		connections = matchChannelRequest(assoc, channels, tracker, requestModelID)
 	case "channel_regex":
 		connections = matchChannelRegex(assoc, channels, tracker)
 	case "regex":
@@ -141,6 +152,24 @@ func matchSingleAssociation(
 	}
 
 	return connections
+}
+
+// A pass-through association explicitly accepts the request ID, including IDs
+// not yet present in a provider's discovery list. Channel/endpoint permissions
+// are still enforced by the regular candidate filters.
+func matchChannelRequest(assoc *objects.ModelAssociation, channels []*Channel, tracker *DuplicateKeyTracker, requestModelID string) []*ModelChannelConnection {
+	if assoc.ChannelRequest == nil {
+		return nil
+	}
+	ch, found := lo.Find(channels, func(c *Channel) bool { return c.ID == assoc.ChannelRequest.ChannelID })
+	if !found || !tracker.Add(ch.ID, requestModelID) {
+		return nil
+	}
+	models := []ChannelModelEntry{}
+	if requestModelID != "" {
+		models = append(models, ChannelModelEntry{RequestModel: requestModelID, ActualModel: requestModelID, Source: "request"})
+	}
+	return []*ModelChannelConnection{{Channel: ch.Channel, Models: models, Priority: assoc.Priority}}
 }
 
 // matchChannelModel handles channel_model type association.
