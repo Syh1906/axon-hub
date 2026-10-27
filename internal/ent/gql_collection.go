@@ -1791,6 +1791,21 @@ func (_q *ModelQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 				selectedFields = append(selectedFields, model.FieldModelID)
 				fieldSeen[model.FieldModelID] = struct{}{}
 			}
+		case "matchType":
+			if _, ok := fieldSeen[model.FieldMatchType]; !ok {
+				selectedFields = append(selectedFields, model.FieldMatchType)
+				fieldSeen[model.FieldMatchType] = struct{}{}
+			}
+		case "matchPriority":
+			if _, ok := fieldSeen[model.FieldMatchPriority]; !ok {
+				selectedFields = append(selectedFields, model.FieldMatchPriority)
+				fieldSeen[model.FieldMatchPriority] = struct{}{}
+			}
+		case "publicModelIds":
+			if _, ok := fieldSeen[model.FieldPublicModelIds]; !ok {
+				selectedFields = append(selectedFields, model.FieldPublicModelIds)
+				fieldSeen[model.FieldPublicModelIds] = struct{}{}
+			}
 		case "type":
 			if _, ok := fieldSeen[model.FieldType]; !ok {
 				selectedFields = append(selectedFields, model.FieldType)

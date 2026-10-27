@@ -556,6 +556,24 @@ models:
   ModelSettings:
     model:
       - github.com/looplj/axonhub/internal/objects.ModelSettings
+  ModelMatchType:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ModelMatchType
+  ModelMatchTest:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ModelMatchTest
+  ChannelRequestAssociation:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelRequestAssociation
+  ChannelRequestAssociationInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelRequestAssociation
+  ChannelPriority:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelPriority
+  ChannelPriorityInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelPriority
   ModelAssociation:
     model:
       - github.com/looplj/axonhub/internal/objects.ModelAssociation

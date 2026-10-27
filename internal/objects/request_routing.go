@@ -4,6 +4,7 @@ package objects
 const (
 	RoutingMigrationReasonOwnerOpen            = "owner_open"
 	RoutingMigrationReasonConsecutiveFailovers = "consecutive_failovers"
+	RoutingMigrationReasonSessionReuseDisabled = "session_reuse_disabled"
 )
 
 // RequestRoutingDecision records why a health-gated request was routed the way it was.
@@ -39,6 +40,6 @@ type RoutingDecisionMigration struct {
 	FromChannelName string `json:"from_channel_name"`
 	ToChannelID     int    `json:"to_channel_id"`
 	ToChannelName   string `json:"to_channel_name"`
-	// Reason is RoutingMigrationReasonOwnerOpen or RoutingMigrationReasonConsecutiveFailovers.
+	// Reason is one of the RoutingMigrationReason constants.
 	Reason string `json:"reason"`
 }

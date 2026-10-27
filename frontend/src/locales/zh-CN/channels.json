@@ -913,5 +913,15 @@
   "channels.healthGate.empty": "—",
   "channels.healthGate.readyToProbe": "可由新会话试探",
   "channels.healthGate.view": "查看健康门控",
-  "channels.healthGate.unavailable": "无法查看该渠道的健康门控详情"
+  "channels.healthGate.unavailable": "无法查看该渠道的健康门控详情",
+  "channels.requestSettings.title": "请求设置",
+  "channels.requestSettings.description": "设置 {{name}} 的响应等待时间和会话复用。",
+  "channels.requestSettings.inherit": "留空继承系统设置",
+  "channels.requestSettings.streamFirstEventTimeoutSeconds": "流式首响应超时（秒）",
+  "channels.requestSettings.streamFirstEventTimeoutSecondsHelp": "等待上游第一个流事件的时间，不限制后续事件间隔。",
+  "channels.requestSettings.nonStreamResponseTimeoutSeconds": "非流式响应超时（秒）",
+  "channels.requestSettings.nonStreamResponseTimeoutSecondsHelp": "等待上游返回完整非流式响应的时间。",
+  "channels.requestSettings.timeoutHelp": "留空继承；0 表示不单独设置渠道超时。始终受整次请求的截止时间约束。切换渠道后使用新渠道的设置。",
+  "channels.requestSettings.disableSessionReuse": "不复用会话渠道",
+  "channels.requestSettings.sessionHelp": "开启后，不因前次会话而优先选择或绑定此渠道；普通选路仍可能选中它。不会关闭 Responses 对话上下文恢复。"
 }

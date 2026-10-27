@@ -32,6 +32,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
 	"github.com/looplj/axonhub/internal/ent/userrole"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 // APIKeyWhereInput represents a where input for filtering APIKey queries.
@@ -3669,6 +3670,22 @@ type ModelWhereInput struct {
 	ModelIDEqualFold    *string  `json:"modelIDEqualFold,omitempty"`
 	ModelIDContainsFold *string  `json:"modelIDContainsFold,omitempty"`
 
+	// "match_type" field predicates.
+	MatchType      *objects.ModelMatchType  `json:"matchType,omitempty"`
+	MatchTypeNEQ   *objects.ModelMatchType  `json:"matchTypeNEQ,omitempty"`
+	MatchTypeIn    []objects.ModelMatchType `json:"matchTypeIn,omitempty"`
+	MatchTypeNotIn []objects.ModelMatchType `json:"matchTypeNotIn,omitempty"`
+
+	// "match_priority" field predicates.
+	MatchPriority      *int  `json:"matchPriority,omitempty"`
+	MatchPriorityNEQ   *int  `json:"matchPriorityNEQ,omitempty"`
+	MatchPriorityIn    []int `json:"matchPriorityIn,omitempty"`
+	MatchPriorityNotIn []int `json:"matchPriorityNotIn,omitempty"`
+	MatchPriorityGT    *int  `json:"matchPriorityGT,omitempty"`
+	MatchPriorityGTE   *int  `json:"matchPriorityGTE,omitempty"`
+	MatchPriorityLT    *int  `json:"matchPriorityLT,omitempty"`
+	MatchPriorityLTE   *int  `json:"matchPriorityLTE,omitempty"`
+
 	// "type" field predicates.
 	Type      *model.Type  `json:"type,omitempty"`
 	TypeNEQ   *model.Type  `json:"typeNEQ,omitempty"`
@@ -3964,6 +3981,42 @@ func (i *ModelWhereInput) P() (predicate.Model, error) {
 	}
 	if i.ModelIDContainsFold != nil {
 		predicates = append(predicates, model.ModelIDContainsFold(*i.ModelIDContainsFold))
+	}
+	if i.MatchType != nil {
+		predicates = append(predicates, model.MatchTypeEQ(*i.MatchType))
+	}
+	if i.MatchTypeNEQ != nil {
+		predicates = append(predicates, model.MatchTypeNEQ(*i.MatchTypeNEQ))
+	}
+	if len(i.MatchTypeIn) > 0 {
+		predicates = append(predicates, model.MatchTypeIn(i.MatchTypeIn...))
+	}
+	if len(i.MatchTypeNotIn) > 0 {
+		predicates = append(predicates, model.MatchTypeNotIn(i.MatchTypeNotIn...))
+	}
+	if i.MatchPriority != nil {
+		predicates = append(predicates, model.MatchPriorityEQ(*i.MatchPriority))
+	}
+	if i.MatchPriorityNEQ != nil {
+		predicates = append(predicates, model.MatchPriorityNEQ(*i.MatchPriorityNEQ))
+	}
+	if len(i.MatchPriorityIn) > 0 {
+		predicates = append(predicates, model.MatchPriorityIn(i.MatchPriorityIn...))
+	}
+	if len(i.MatchPriorityNotIn) > 0 {
+		predicates = append(predicates, model.MatchPriorityNotIn(i.MatchPriorityNotIn...))
+	}
+	if i.MatchPriorityGT != nil {
+		predicates = append(predicates, model.MatchPriorityGT(*i.MatchPriorityGT))
+	}
+	if i.MatchPriorityGTE != nil {
+		predicates = append(predicates, model.MatchPriorityGTE(*i.MatchPriorityGTE))
+	}
+	if i.MatchPriorityLT != nil {
+		predicates = append(predicates, model.MatchPriorityLT(*i.MatchPriorityLT))
+	}
+	if i.MatchPriorityLTE != nil {
+		predicates = append(predicates, model.MatchPriorityLTE(*i.MatchPriorityLTE))
 	}
 	if i.Type != nil {
 		predicates = append(predicates, model.TypeEQ(*i.Type))

@@ -73,6 +73,13 @@ fork 改动，由用户决定。
 
 - 行为：正式请求在 API Key 模型映射后，必须解析到已注册且启用的模型，再按开发者与
   模型的有效关联选择渠道；模型不存在、禁用、归档或无可用关联时拒绝，不回退直连渠道。
+- 规则入口：模型配置支持精确、字面前缀、字面后缀、正则；启用精确配置优先，其他规则按
+  `match_priority`、ID 升序取首个匹配。创建／编辑内的匹配测试与选路共用后端匹配器，测试不发上游请求。
+- 公开 ID：`public_model_ids` 可为零／一／多个符合规则的具体 ID；显式空数组隐藏发现但不禁用调用。
+  旧精确模型的 null 沿用原 ID；规则 null 不公开。三种协议列表及 OpenAI 详情按实际胜出配置与密钥范围展开，
+  不泄露表达式或隐藏 ID，不因低优先级规则公开同名 ID 而改变胜出配置的可见性。
+- 关联：新增 `channel_request` 沿用本次 API Key 映射后的 ID，不要求渠道目录预列此 ID；固定模型关联保留。
+  规则继承开发者配置也使用具体请求 ID；规则及动态关联逐请求解析，避免共享缓存串用不同请求 ID。
 - 映射与列表：API Key 映射采用首个匹配、不递归映射；公开模型列表只下发启用的注册
   目标及有效别名，不再合并渠道独有模型。OpenAI 模型详情使用映射目标元数据，保留对外别名。
 - 设置：删除渠道回退、渠道模型列表合并及对应黑名单设置；旧 JSON 键被忽略，不能恢复旁路。
@@ -85,12 +92,48 @@ fork 改动，由用户决定。
   `internal/objects/apikey.go`、`internal/server/biz/model.go`、`internal/server/api/`、
   `internal/server/gql/model.resolvers.go`、`internal/server/gql/system.graphql`、
   `frontend/src/features/models/components/models-settings-dialog.tsx`。
-- 迁移：无 schema 或 data migration；无缓存序列化结构变更。
+- 迁移：Ent schema 新增 `match_type`（默认 exact）、`match_priority`（默认 100）、`public_model_ids`（可空）；
+  唯一索引改为 `(model_id, match_type, deleted_at)`。已对照直接上游 `v1.0.0-beta10-fork.7`
+  对应提交 `b205ae8` 的模型 schema；沿用启动时自动 schema 迁移替换索引，无新增 data migration 版本，
+  不修改已发布迁移。SQLite 升级测试覆盖旧索引存在／缺失、旧行默认值、公开行为、唯一索引和软删除后身份复用；
+  MySQL/PostgreSQL 实库升级尚未执行。
+  静态关联缓存键包含匹配类型；新规则不使用共享关联缓存。
 - 测试与 fixture：`internal/server/orchestrator/model_admission_test.go`、候选渠道测试、
   `internal/server/biz/model_test.go`、`internal/server/biz/model_list_routability_test.go`、
   `internal/server/api/openai_retrieve_test.go`、`internal/server/api/chat_test.go`、
   `internal/server/gql/model_resolvers_test.go`、`internal/objects/apikey_test.go`，
   覆盖模型状态、关联限制、映射、Responses 续接和管理权限边界；无新增 fixture。
+- 新增验证：`internal/objects/model_match_test.go`、`internal/server/biz/model_routing{,_upgrade}_test.go`、
+  `internal/server/orchestrator/candidates_model_rules_test.go`、`internal/server/api/model_rules_test.go`，
+  覆盖四种匹配、重叠胜出、隐藏／多公开 ID、别名权限、动态与继承关联、三协议列表及升级路径。
+
+### 密钥渠道优先级与渠道请求设置
+
+- 行为：`APIKeyProfile.channelPriorities` 只覆盖已经过项目和密钥渠道／标签过滤的候选；数值越小越优先，
+  无覆盖时继承模型关联优先级。同渠道同有效优先级合并并去重实际模型，同时保留每个模型的协议，
+  避免重复计权或重试时沿用另一模型的协议；不修改全局渠道权重。
+  同级负载均衡及既有会话粘性继续生效，不新增用户分组实体。
+- 模板与缓存：优先级参加完整 profile 的深拷贝、比较、保存、模板导入导出与发布同步；直接修改仍脱离模板。
+  API Key 序列化缓存键升为 `api_key:v2:`，避免旧缓存遗漏新增字段；启用渠道缓存为进程内对象，不跨版本反序列化。
+- 渠道设置：`streamFirstEventTimeoutSeconds`、`nonStreamResponseTimeoutSeconds` 可空继承、0 取消该项渠道限制、
+  正整数按秒生效；每次选中渠道后读取，即使禁用重试也应用显式渠道值，外层请求 deadline 继续约束。
+  `disableSessionReuse` 同时否决普通粘性与健康门控 owner 绑定／复用，不影响正常候选或 Responses 上下文恢复。
+  旧 owner 关闭复用后，后续成功的正常渠道可接管，决策原因记为 `session_reuse_disabled`。
+- 界面：现有密钥配置与模板复用 `channel-priority-editor.tsx`；渠道行菜单新增独立“请求设置”，不重排渠道编辑页。
+  渠道查询的静态字段选择归入 `data/channel-query-fields.ts`，原查询构造和导出接口不变，避免继续扩大已超长的数据文件。
+- 迁移：复用既有 profile/settings JSON，新字段零值保持旧行为，无新 schema 或 data migration。
+- 代码：`internal/server/orchestrator/candidates_priority.go`、`channel_request_settings.go`、
+  `health_gate_selector.go`、`health_gate_session.go`、`llm/pipeline/pipeline.go`、
+  `frontend/src/features/apikeys/components/channel-priority-editor.tsx`、
+  `frontend/src/features/channels/components/channels-request-settings-dialog.tsx`。
+- 验证：`internal/server/orchestrator/channel_request_settings_test.go`、`channel_response_timeouts_test.go`、
+  `internal/server/biz/api_key_profile_template_test.go`，覆盖密钥并发隔离、重复候选合并、模板同步／脱离、
+  每次尝试超时、0 与外层 deadline、普通粘性及健康门控归属；协议合并回归覆盖第二模型重试和健康门控裁剪。
+  未向真实供应商发送验收请求。
+- 同步上游注意：保留范围过滤先于优先级覆盖、每次尝试读取超时、两条会话复用途径同时否决的契约。
+- 局部顺带修复：完整测试复现同渠道快速重建归属时 `time.Now()` 相同，旧请求可能误认新归属；
+  新归属 generation 必须晚于缓存保留的旧标识，续租仍保持原标识。原晚完成回归用例加入时钟回退场景，
+  避免依赖平台时钟粒度；不改变会话缓存形状或多实例串行化边界。
 
 ### 健康门控路由策略
 

@@ -29,6 +29,12 @@ type Model struct {
 	Developer string `json:"developer,omitempty"`
 	// model id, eg. deeepseek-chat
 	ModelID string `json:"model_id,omitempty"`
+	// How model_id matches incoming request model IDs
+	MatchType objects.ModelMatchType `json:"match_type,omitempty"`
+	// Order of prefix, suffix and regex rules; lower values match first
+	MatchPriority int `json:"match_priority,omitempty"`
+	// Explicit discovery IDs; null preserves legacy exact-model discovery, empty hides the model
+	PublicModelIds []string `json:"public_model_ids,omitempty"`
 	// model type
 	Type model.Type `json:"type,omitempty"`
 	// model name, eg. DeepSeek Chat
@@ -53,11 +59,11 @@ func (*Model) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case model.FieldModelCard, model.FieldSettings:
+		case model.FieldPublicModelIds, model.FieldModelCard, model.FieldSettings:
 			values[i] = new([]byte)
-		case model.FieldID, model.FieldDeletedAt:
+		case model.FieldID, model.FieldDeletedAt, model.FieldMatchPriority:
 			values[i] = new(sql.NullInt64)
-		case model.FieldDeveloper, model.FieldModelID, model.FieldType, model.FieldName, model.FieldIcon, model.FieldGroup, model.FieldStatus, model.FieldRemark:
+		case model.FieldDeveloper, model.FieldModelID, model.FieldMatchType, model.FieldType, model.FieldName, model.FieldIcon, model.FieldGroup, model.FieldStatus, model.FieldRemark:
 			values[i] = new(sql.NullString)
 		case model.FieldCreatedAt, model.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +117,26 @@ func (_m *Model) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field model_id", values[i])
 			} else if value.Valid {
 				_m.ModelID = value.String
+			}
+		case model.FieldMatchType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field match_type", values[i])
+			} else if value.Valid {
+				_m.MatchType = objects.ModelMatchType(value.String)
+			}
+		case model.FieldMatchPriority:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field match_priority", values[i])
+			} else if value.Valid {
+				_m.MatchPriority = int(value.Int64)
+			}
+		case model.FieldPublicModelIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field public_model_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.PublicModelIds); err != nil {
+					return fmt.Errorf("unmarshal field public_model_ids: %w", err)
+				}
 			}
 		case model.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -215,6 +241,15 @@ func (_m *Model) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_id=")
 	builder.WriteString(_m.ModelID)
+	builder.WriteString(", ")
+	builder.WriteString("match_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MatchType))
+	builder.WriteString(", ")
+	builder.WriteString("match_priority=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MatchPriority))
+	builder.WriteString(", ")
+	builder.WriteString("public_model_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PublicModelIds))
 	builder.WriteString(", ")
 	builder.WriteString("type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Type))

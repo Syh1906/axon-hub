@@ -38,6 +38,8 @@ In short: **API Key Profile renames → Model Association selects channel → Ch
 
 ## Developer Rule Inheritance
 
+Rule-based models inherit developer associations using the concrete request ID after API Key mapping, rather than the matching expression.
+
 If multiple models from the same developer should use the same channel rules, configure **Developer Rules** on the developer group in the model list. A developer rule only selects a channel or channel tags. It does not lock in a specific upstream model; at routing time, each concrete model uses its own model ID when searching those channels.
 
 By default, a model inherits developer rules from the same developer and merges them with rules configured directly on the model:
@@ -48,7 +50,14 @@ By default, a model inherits developer rules from the same developer and merges 
 
 ## Model Association Types
 
-Model associations are "routing rules." AxonHub supports 6 rule types:
+Model associations are routing rules. The following types can be combined:
+
+### Request model on a selected channel
+
+The **Use request model on channel** association sends the model ID after API Key mapping unchanged to the selected channel.
+The ID does not need to be listed in that channel's model catalog. Existing channel permissions, status, protocol capabilities, and association conditions still apply.
+Combine this with fixed-model associations when one channel accepts `gpt-6.1-luna` while another requires `gpt-5.6-luna`.
+The association preview accepts a test request ID without contacting the upstream.
 
 ### 1. Specific Channel, Specific Model (Most Precise)
 
@@ -128,6 +137,8 @@ Model associations are "routing rules." AxonHub supports 6 rule types:
 
 ## Priority Settings
 
+An active API Key profile can override priorities within its already permitted channels. See [Channel priorities and templates](api-key-profiles.md#channel-priorities-and-templates).
+
 **Smaller priority value = Higher priority**
 
 Recommended settings:
@@ -143,6 +154,25 @@ Example configuration in Admin UI:
 - Association 2: Priority 10 (Lower priority: Backup)
   - Type: Global Model Match
   - Model: gpt-4
+
+## Entry matching and public model IDs
+
+Use the existing add/edit model dialog to select **exact**, **prefix**, **suffix**, or **regex** matching, then configure associations.
+Prefixes and suffixes are literal strings. Regex matches the full ID; for example, `^gpt-.*-luna$` accepts `gpt-6-luna` and `gpt-6.1-luna`.
+The test model ID uses the same backend matcher as routing and reports match, no match, or invalid expression without saving or calling a provider.
+Testing is optional. **Create and associate** opens the existing association dialog; **Create only** saves the configuration for later. Enable the model when configuration is ready.
+
+Enabled exact entries take precedence. Otherwise, the first matching enabled rule wins by ascending match priority, then ascending configuration ID.
+Disabled and archived configurations do not participate. If the selected configuration has no usable association, the request fails instead of trying lower-priority rules.
+
+**Public model IDs** is a separate list of zero, one, or multiple concrete IDs. Every ID must match the configuration's rule.
+An empty list hides the configuration from model discovery and detail endpoints while matching requests can still call it.
+OpenAI, Anthropic, and Gemini lists share these IDs; expressions and unbounded possible matches are never enumerated.
+API Key aliases are listed only when mapped to a published ID, while model allowlists still check the original client ID and channel restrictions still apply.
+All published IDs share the configuration's capability card; use separate configurations when capabilities differ.
+
+Existing exact models continue publishing their original ID after upgrade until explicitly cleared and saved.
+Discovery and routing resolve overlapping rules identically, so a lower-priority configuration cannot publish an ID hidden by the winning configuration.
 
 ## System Settings
 

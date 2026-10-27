@@ -81,6 +81,12 @@ func WithResponseTimeouts(streamFirstEventTimeout, nonStreamTimeout time.Duratio
 	}
 }
 
+// WithResponseTimeoutResolver resolves limits after the outbound transformer
+// selects each attempt's channel, independently of whether retries are enabled.
+func WithResponseTimeoutResolver(resolve func() (time.Duration, time.Duration)) Option {
+	return func(p *pipeline) { p.responseTimeoutResolver = resolve }
+}
+
 // Factory creates pipeline instances.
 type Factory struct {
 	Executor Executor
@@ -125,6 +131,7 @@ type pipeline struct {
 	emptyResponseDetection  bool
 	streamFirstEventTimeout time.Duration
 	nonStreamTimeout        time.Duration
+	responseTimeoutResolver func() (time.Duration, time.Duration)
 }
 
 type Result struct {
@@ -387,6 +394,10 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*R
 	}
 
 	effectiveWantStream := request.Stream != nil && *request.Stream
+	firstEventTimeout, nonStreamTimeout := p.streamFirstEventTimeout, p.nonStreamTimeout
+	if p.responseTimeoutResolver != nil {
+		firstEventTimeout, nonStreamTimeout = p.responseTimeoutResolver()
+	}
 
 	var result *Result
 	switch {
@@ -395,7 +406,7 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*R
 			Stream: true,
 		}
 
-		stream, err := p.stream(ctx, executor, httpReq, p.streamFirstEventTimeout)
+		stream, err := p.stream(ctx, executor, httpReq, firstEventTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to stream request: %w", err)
 		}
@@ -406,7 +417,7 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*R
 			Stream: false,
 		}
 
-		timeoutCtx, cancel := p.withNonStreamTimeout(ctx)
+		timeoutCtx, cancel := p.withNonStreamTimeout(ctx, nonStreamTimeout)
 		response, err := p.autoAggregateStream(timeoutCtx, executor, httpReq)
 		cancel()
 		if err != nil {
@@ -423,7 +434,7 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*R
 			Stream: false,
 		}
 
-		timeoutCtx, cancel := p.withNonStreamTimeout(ctx)
+		timeoutCtx, cancel := p.withNonStreamTimeout(ctx, nonStreamTimeout)
 		response, err := p.notStream(timeoutCtx, executor, httpReq)
 		cancel()
 		if err != nil {
@@ -449,14 +460,14 @@ func isResponseTimeoutError(err error) bool {
 	return errors.Is(err, ErrStreamFirstEventTimeout) || errors.Is(err, ErrNonStreamResponseTimeout)
 }
 
-func (p *pipeline) withNonStreamTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if p.nonStreamTimeout <= 0 {
+func (p *pipeline) withNonStreamTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
 		return ctx, func() {}
 	}
 
-	return context.WithTimeoutCause(ctx, p.nonStreamTimeout, ErrNonStreamResponseTimeout)
+	return context.WithTimeoutCause(ctx, timeout, ErrNonStreamResponseTimeout)
 }
 
 func (p *pipeline) isNonStreamTimeout(ctx context.Context) bool {
-	return p.nonStreamTimeout > 0 && errors.Is(context.Cause(ctx), ErrNonStreamResponseTimeout)
+	return errors.Is(context.Cause(ctx), ErrNonStreamResponseTimeout)
 }

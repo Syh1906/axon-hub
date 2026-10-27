@@ -94,6 +94,19 @@ Supported matching methods:
 2. Click **Save**
 3. The change takes effect immediately
 
+## Channel priorities and templates
+
+Expand the active profile in API Key profile management and add entries under **Channel priorities**.
+Smaller numbers are tried first. Unset channels inherit model-association priority; **Restore inheritance** removes the override without removing the channel.
+
+For two keys allowing the same channels A and B, set A=10/B=20 on one and A=20/B=10 on the other.
+Channel and tag restrictions define the permitted set. Priorities only reorder that set and never broaden access or change global channel weight.
+Equal priorities retain the existing load balancer. Session stickiness may keep an existing conversation on its prior channel;
+enable **Do not reuse session channel** in that channel's request settings when it should not receive this preference.
+
+Priorities participate in saving, template import/export, and linked-template synchronization together with the full profile.
+Publishing a template updates linked profiles; directly editing and saving a key's profile detaches it. Templates synchronize the entire profile, not only priorities.
+
 ## Rule Matching Order
 
 Model mappings are evaluated in order. **The first matching rule is applied.**

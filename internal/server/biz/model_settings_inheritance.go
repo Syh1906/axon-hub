@@ -130,6 +130,13 @@ func EffectiveModelAssociations(systemSettings *SystemModelSettings, model *ent.
 	if model == nil {
 		return nil
 	}
+	return EffectiveModelAssociationsForRequest(systemSettings, model, model.ModelID)
+}
+
+func EffectiveModelAssociationsForRequest(systemSettings *SystemModelSettings, model *ent.Model, requestModelID string) []*objects.ModelAssociation {
+	if model == nil {
+		return nil
+	}
 
 	var modelAssociations []*objects.ModelAssociation
 	if model.Settings != nil {
@@ -140,7 +147,7 @@ func EffectiveModelAssociations(systemSettings *SystemModelSettings, model *ent.
 	}
 
 	return mergeInheritedModelAssociations(
-		inheritDeveloperAssociationsForModel(developerAssociationsForDeveloper(systemSettings, model.Developer), model.ModelID),
+		inheritDeveloperAssociationsForModel(developerAssociationsForDeveloper(systemSettings, model.Developer), requestModelID),
 		modelAssociations,
 	)
 }
@@ -195,6 +202,10 @@ func cloneModelAssociation(assoc *objects.ModelAssociation) *objects.ModelAssoci
 
 	clone := *assoc
 	clone.When = cloneModelAssociationWhen(assoc.When)
+	if assoc.ChannelRequest != nil {
+		channelRequest := *assoc.ChannelRequest
+		clone.ChannelRequest = &channelRequest
+	}
 	if assoc.ChannelModel != nil {
 		channelModel := *assoc.ChannelModel
 		clone.ChannelModel = &channelModel

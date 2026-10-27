@@ -1,3 +1,4 @@
+import { ChannelPriorityEditor } from './channel-priority-editor';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { format, type Locale } from 'date-fns';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -1131,6 +1132,12 @@ function ProfileCard({
               )}
             />
           </div>
+          <FormField control={form.control} name={`profiles.${profileIndex}.channelPriorities`} render={({ field }) => (
+            <FormItem><ChannelPriorityEditor value={field.value} onChange={field.onChange}
+              channels={channelsData?.edges?.map((edge) => edge.node) ?? []}
+              allowedChannelIDs={form.watch(`profiles.${profileIndex}.channelIDs`)}
+              channelTags={form.watch(`profiles.${profileIndex}.channelTags`)} channelTagsMatchMode={channelTagsMatchMode} /><FormMessage /></FormItem>
+          )} />
         </CardContent>
       )}
     </Card>

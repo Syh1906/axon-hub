@@ -170,5 +170,6 @@
   "requests.drawer.viewDetail": "查看详情",
   "requests.drawer.noRequestBody": "无请求体",
   "requests.drawer.expandAll": "展开全部",
-  "requests.drawer.collapseAll": "折叠全部"
+  "requests.drawer.collapseAll": "折叠全部",
+  "requests.routingDecision.reasons.session_reuse_disabled": "原渠道已关闭会话复用"
 }

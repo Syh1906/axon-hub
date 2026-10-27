@@ -809,6 +809,11 @@ func TestHealthGateSession_LateFallbackCannotAlterReestablishedSameChannel(t *te
 	f.policy.HealthGate.OwnerFailoverThreshold = 1
 	require.NoError(t, f.selector.policy.(*biz.SystemService).SetRetryPolicy(ctx, f.policy))
 	f.complete(t, ctx, f.selectCandidates(t, ctx), 0, true, false)
+	// Simulate a clock correction so the assertion does not depend on the
+	// platform clock ticking between two quick bindings of the same channel.
+	setHealthGateSessionOwner(f.request, ctx, 20, 10, biz.SessionOwner{
+		ChannelID: 1, Generation: time.Now().Add(time.Minute),
+	})
 	selected := f.selectCandidates(t, ctx)
 	slow := f.begin(t, ctx, selected, 1, nil)
 	old := slow.decision.owner
@@ -822,6 +827,7 @@ func TestHealthGateSession_LateFallbackCannotAlterReestablishedSameChannel(t *te
 	require.NoError(t, err)
 	require.True(t, found)
 	require.NotEqual(t, old.Generation, current.Generation)
+	require.True(t, current.Generation.After(old.Generation), "new bindings must advance past the retained identity even after a clock correction")
 	decision := f.finish(t, ctx, slow, true, false)
 	require.Nil(t, decision.Migration)
 	require.False(t, decision.TemporaryFailover)

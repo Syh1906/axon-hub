@@ -1,3 +1,4 @@
+import { ChannelPriorityEditor } from './channel-priority-editor';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -73,6 +74,7 @@ export function ApiKeyEditTemplateDialog({ open, onOpenChange, template }: ApiKe
         channelIDs: profile?.channelIDs ?? null,
         channelTags: profile?.channelTags ?? null,
         channelTagsMatchMode: profile?.channelTagsMatchMode ?? 'any',
+        channelPriorities: profile?.channelPriorities ?? [],
         modelIDs: profile?.modelIDs ?? null,
         loadBalanceStrategy: normalizeRoutingPolicyValue(profile?.loadBalanceStrategy),
         traceStickyMode: normalizeRoutingPolicyValue(profile?.traceStickyMode),
@@ -218,7 +220,14 @@ export function ApiKeyEditTemplateDialog({ open, onOpenChange, template }: ApiKe
                   </div>
                 </div>
 
-                <div className='border-t pt-6'>
+                <FormField control={form.control} name='profile.channelPriorities' render={({ field }) => (
+                <FormItem><ChannelPriorityEditor value={field.value} onChange={field.onChange}
+                  channels={channelsData?.edges?.map((edge) => edge.node) ?? []}
+                  allowedChannelIDs={form.watch('profile.channelIDs')}
+                  channelTags={form.watch('profile.channelTags')} channelTagsMatchMode={channelTagsMatchMode} /><FormMessage /></FormItem>
+              )} />
+
+              <div className='border-t pt-6'>
                   <FormField
                     control={form.control}
                     name='profile.loadBalanceStrategy'

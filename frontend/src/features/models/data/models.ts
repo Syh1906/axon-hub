@@ -26,6 +26,9 @@ const MODELS_QUERY = `
           updatedAt
           developer
           modelID
+          matchType
+          matchPriority
+          publicModelIds
           icon
           type
           name
@@ -83,6 +86,7 @@ const MODELS_QUERY = `
                   }
                 }
               }
+              channelRequest { channelId }
               channelModel {
                 channelId
                 modelId
@@ -142,6 +146,9 @@ const CREATE_MODEL_MUTATION = `
       updatedAt
       developer
       modelID
+      matchType
+      matchPriority
+      publicModelIds
       icon
       type
       name
@@ -199,6 +206,7 @@ const CREATE_MODEL_MUTATION = `
               }
             }
           }
+          channelRequest { channelId }
           channelModel {
             channelId
             modelId
@@ -240,6 +248,9 @@ const BULK_CREATE_MODELS_MUTATION = `
       updatedAt
       developer
       modelID
+      matchType
+      matchPriority
+      publicModelIds
       icon
       type
       name
@@ -297,6 +308,7 @@ const BULK_CREATE_MODELS_MUTATION = `
               }
             }
           }
+          channelRequest { channelId }
           channelModel {
             channelId
             modelId
@@ -338,6 +350,9 @@ const UPDATE_MODEL_MUTATION = `
       updatedAt
       developer
       modelID
+      matchType
+      matchPriority
+      publicModelIds
       icon
       type
       name
@@ -395,6 +410,7 @@ const UPDATE_MODEL_MUTATION = `
               }
             }
           }
+          channelRequest { channelId }
           channelModel {
             channelId
             modelId
@@ -721,13 +737,14 @@ export interface UnassociatedChannel {
 }
 
 export interface ModelAssociationInput {
-  type: 'channel_model' | 'channel_regex' | 'regex' | 'model' | 'channel_tags_model' | 'channel_tags_regex';
+  type: 'channel_request' | 'channel_model' | 'channel_regex' | 'regex' | 'model' | 'channel_tags_model' | 'channel_tags_regex';
   priority?: number;
   disabled?: boolean;
   when?: {
     enabled?: boolean;
     condition?: FilterConditionInput;
   };
+  channelRequest?: { channelId: number };
   channelModel?: {
     channelId: number;
     modelId: string;
@@ -797,8 +814,8 @@ export function useQueryUnassociatedChannels() {
 }
 
 const MODEL_CHANNEL_CONNECTIONS_QUERY = `
-  query QueryModelChannelConnections($associations: [ModelAssociationInput!]!) {
-    queryModelChannelConnections(associations: $associations) {
+  query QueryModelChannelConnections($associations: [ModelAssociationInput!]!, $requestModelID: String) {
+    queryModelChannelConnections(associations: $associations, requestModelID: $requestModelID) {
       channel {
         id
         name
@@ -814,12 +831,12 @@ const MODEL_CHANNEL_CONNECTIONS_QUERY = `
   }
 `;
 
-export function useQueryModelChannelConnections() {
+export function useQueryModelChannelConnections(requestModelID?: string) {
   return useMutation({
     mutationFn: async (associations: ModelAssociationInput[]) => {
       const data = await graphqlRequest<{
         queryModelChannelConnections: ModelChannelConnection[];
-      }>(MODEL_CHANNEL_CONNECTIONS_QUERY, { associations });
+      }>(MODEL_CHANNEL_CONNECTIONS_QUERY, { associations, requestModelID });
       return data.queryModelChannelConnections;
     },
   });

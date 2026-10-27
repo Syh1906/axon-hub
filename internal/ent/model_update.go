@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/predicate"
@@ -82,6 +83,59 @@ func (_u *ModelUpdate) SetNillableModelID(v *string) *ModelUpdate {
 	if v != nil {
 		_u.SetModelID(*v)
 	}
+	return _u
+}
+
+// SetMatchType sets the "match_type" field.
+func (_u *ModelUpdate) SetMatchType(v objects.ModelMatchType) *ModelUpdate {
+	_u.mutation.SetMatchType(v)
+	return _u
+}
+
+// SetNillableMatchType sets the "match_type" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillableMatchType(v *objects.ModelMatchType) *ModelUpdate {
+	if v != nil {
+		_u.SetMatchType(*v)
+	}
+	return _u
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (_u *ModelUpdate) SetMatchPriority(v int) *ModelUpdate {
+	_u.mutation.ResetMatchPriority()
+	_u.mutation.SetMatchPriority(v)
+	return _u
+}
+
+// SetNillableMatchPriority sets the "match_priority" field if the given value is not nil.
+func (_u *ModelUpdate) SetNillableMatchPriority(v *int) *ModelUpdate {
+	if v != nil {
+		_u.SetMatchPriority(*v)
+	}
+	return _u
+}
+
+// AddMatchPriority adds value to the "match_priority" field.
+func (_u *ModelUpdate) AddMatchPriority(v int) *ModelUpdate {
+	_u.mutation.AddMatchPriority(v)
+	return _u
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (_u *ModelUpdate) SetPublicModelIds(v []string) *ModelUpdate {
+	_u.mutation.SetPublicModelIds(v)
+	return _u
+}
+
+// AppendPublicModelIds appends value to the "public_model_ids" field.
+func (_u *ModelUpdate) AppendPublicModelIds(v []string) *ModelUpdate {
+	_u.mutation.AppendPublicModelIds(v)
+	return _u
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (_u *ModelUpdate) ClearPublicModelIds() *ModelUpdate {
+	_u.mutation.ClearPublicModelIds()
 	return _u
 }
 
@@ -236,6 +290,11 @@ func (_u *ModelUpdate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ModelUpdate) check() error {
+	if v, ok := _u.mutation.MatchType(); ok {
+		if err := model.MatchTypeValidator(v); err != nil {
+			return &ValidationError{Name: "match_type", err: fmt.Errorf(`ent: validator failed for field "Model.match_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.GetType(); ok {
 		if err := model.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Model.type": %w`, err)}
@@ -281,6 +340,26 @@ func (_u *ModelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(model.FieldModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MatchType(); ok {
+		_spec.SetField(model.FieldMatchType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.MatchPriority(); ok {
+		_spec.SetField(model.FieldMatchPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMatchPriority(); ok {
+		_spec.AddField(model.FieldMatchPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PublicModelIds(); ok {
+		_spec.SetField(model.FieldPublicModelIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPublicModelIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, model.FieldPublicModelIds, value)
+		})
+	}
+	if _u.mutation.PublicModelIdsCleared() {
+		_spec.ClearField(model.FieldPublicModelIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.GetType(); ok {
 		_spec.SetField(model.FieldType, field.TypeEnum, value)
@@ -383,6 +462,59 @@ func (_u *ModelUpdateOne) SetNillableModelID(v *string) *ModelUpdateOne {
 	if v != nil {
 		_u.SetModelID(*v)
 	}
+	return _u
+}
+
+// SetMatchType sets the "match_type" field.
+func (_u *ModelUpdateOne) SetMatchType(v objects.ModelMatchType) *ModelUpdateOne {
+	_u.mutation.SetMatchType(v)
+	return _u
+}
+
+// SetNillableMatchType sets the "match_type" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillableMatchType(v *objects.ModelMatchType) *ModelUpdateOne {
+	if v != nil {
+		_u.SetMatchType(*v)
+	}
+	return _u
+}
+
+// SetMatchPriority sets the "match_priority" field.
+func (_u *ModelUpdateOne) SetMatchPriority(v int) *ModelUpdateOne {
+	_u.mutation.ResetMatchPriority()
+	_u.mutation.SetMatchPriority(v)
+	return _u
+}
+
+// SetNillableMatchPriority sets the "match_priority" field if the given value is not nil.
+func (_u *ModelUpdateOne) SetNillableMatchPriority(v *int) *ModelUpdateOne {
+	if v != nil {
+		_u.SetMatchPriority(*v)
+	}
+	return _u
+}
+
+// AddMatchPriority adds value to the "match_priority" field.
+func (_u *ModelUpdateOne) AddMatchPriority(v int) *ModelUpdateOne {
+	_u.mutation.AddMatchPriority(v)
+	return _u
+}
+
+// SetPublicModelIds sets the "public_model_ids" field.
+func (_u *ModelUpdateOne) SetPublicModelIds(v []string) *ModelUpdateOne {
+	_u.mutation.SetPublicModelIds(v)
+	return _u
+}
+
+// AppendPublicModelIds appends value to the "public_model_ids" field.
+func (_u *ModelUpdateOne) AppendPublicModelIds(v []string) *ModelUpdateOne {
+	_u.mutation.AppendPublicModelIds(v)
+	return _u
+}
+
+// ClearPublicModelIds clears the value of the "public_model_ids" field.
+func (_u *ModelUpdateOne) ClearPublicModelIds() *ModelUpdateOne {
+	_u.mutation.ClearPublicModelIds()
 	return _u
 }
 
@@ -550,6 +682,11 @@ func (_u *ModelUpdateOne) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ModelUpdateOne) check() error {
+	if v, ok := _u.mutation.MatchType(); ok {
+		if err := model.MatchTypeValidator(v); err != nil {
+			return &ValidationError{Name: "match_type", err: fmt.Errorf(`ent: validator failed for field "Model.match_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.GetType(); ok {
 		if err := model.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Model.type": %w`, err)}
@@ -612,6 +749,26 @@ func (_u *ModelUpdateOne) sqlSave(ctx context.Context) (_node *Model, err error)
 	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(model.FieldModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MatchType(); ok {
+		_spec.SetField(model.FieldMatchType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.MatchPriority(); ok {
+		_spec.SetField(model.FieldMatchPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMatchPriority(); ok {
+		_spec.AddField(model.FieldMatchPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.PublicModelIds(); ok {
+		_spec.SetField(model.FieldPublicModelIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPublicModelIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, model.FieldPublicModelIds, value)
+		})
+	}
+	if _u.mutation.PublicModelIdsCleared() {
+		_spec.ClearField(model.FieldPublicModelIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.GetType(); ok {
 		_spec.SetField(model.FieldType, field.TypeEnum, value)

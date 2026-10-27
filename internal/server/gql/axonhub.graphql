@@ -165,6 +165,9 @@ input ChannelProviderQuotaSettingsInput {
 }
 
 type ChannelSettings {
+  streamFirstEventTimeoutSeconds: Int
+  nonStreamResponseTimeoutSeconds: Int
+  disableSessionReuse: Boolean!
   modelPriceMultiplier: Decimal
   extraModelPrefix: String
   modelMappings: [ModelMapping!]
@@ -237,6 +240,9 @@ input ModelMappingInput {
 }
 
 input ChannelSettingsInput {
+  streamFirstEventTimeoutSeconds: Int
+  nonStreamResponseTimeoutSeconds: Int
+  disableSessionReuse: Boolean
   extraModelPrefix: String
   modelMappings: [ModelMappingInput!]
   autoTrimedModelPrefixes: [String!]
@@ -435,6 +441,17 @@ input APIKeyProfileInput {
   quota: APIKeyQuotaInput
   loadBalanceStrategy: String
   traceStickyMode: String
+  channelPriorities: [ChannelPriorityInput!]
+}
+
+input ChannelPriorityInput {
+  channelId: Int!
+  priority: Int!
+}
+
+type ChannelPriority {
+  channelId: Int!
+  priority: Int!
 }
 
 input UpdateProjectProfilesInput {
@@ -482,6 +499,7 @@ type APIKeyProfile {
   quota: APIKeyQuota
   loadBalanceStrategy: String
   traceStickyMode: String
+  channelPriorities: [ChannelPriority!]
 }
 
 enum ChannelTagsMatchMode {

@@ -170,5 +170,6 @@
   "requests.drawer.viewDetail": "View Detail",
   "requests.drawer.noRequestBody": "No request body",
   "requests.drawer.expandAll": "Expand all",
-  "requests.drawer.collapseAll": "Collapse all"
+  "requests.drawer.collapseAll": "Collapse all",
+  "requests.routingDecision.reasons.session_reuse_disabled": "Session reuse disabled on previous channel"
 }

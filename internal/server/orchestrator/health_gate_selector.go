@@ -39,6 +39,10 @@ func (s *LoadBalancedSelector) selectHealthGated(
 	decision.probeEligible = probeEligible
 	decision.candidates = candidates
 	decision.channelSvc = channelService
+	if decision.found && !decision.ownerSessionReuseEnabled(decision.owner.ChannelID) {
+		probeEligible = true
+		decision.probeEligible = true
+	}
 	decision.requestSvc, _ = s.previousChannelProvider.(*biz.RequestService)
 	decision.policy = s.policy
 	decision.fallback = policy.HealthGateOrDefault()
@@ -55,7 +59,7 @@ func (s *LoadBalancedSelector) selectHealthGated(
 		if candidate == nil || candidate.Channel == nil {
 			continue
 		}
-		ownerCandidate := decision.found && candidate.Channel.ID == decision.owner.ChannelID
+		ownerCandidate := decision.found && candidate.Channel.ID == decision.owner.ChannelID && candidate.Channel.SessionReuseEnabled()
 		if ownerCandidate {
 			ownerSeen = true
 			decision.record.Owner.ChannelName = candidate.Channel.Name

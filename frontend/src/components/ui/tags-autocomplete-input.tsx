@@ -16,10 +16,11 @@ interface TagsAutocompleteInputProps {
   className?: string;
   suggestions?: string[];
   isLoading?: boolean;
+  inputLabel?: string;
 }
 
 export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocompleteInputProps>(
-  ({ value = [], onChange, placeholder, className, suggestions = [], isLoading }, ref) => {
+  ({ value = [], onChange, placeholder, className, suggestions = [], isLoading, inputLabel }, ref) => {
     const [inputValue, setInputValue] = useState('');
     const [open, setOpen] = useState(false);
     const [isComposing, setIsComposing] = useState(false);
@@ -138,6 +139,7 @@ export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocomplete
           <PopoverTrigger asChild>
             <input
               ref={inputRef}
+              aria-label={inputLabel}
               type='text'
               value={inputValue}
               onChange={handleInputChange}

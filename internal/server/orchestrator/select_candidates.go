@@ -50,6 +50,9 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 			if len(profile.ChannelTags) > 0 {
 				selector = WithChannelTagsFilterSelector(selector, profile.ChannelTags, profile.ChannelTagsMatchMode)
 			}
+			if len(profile.ChannelPriorities) > 0 {
+				selector = WithChannelPrioritySelector(selector, profile.ChannelPriorities)
+			}
 		}
 
 		// Apply Google native tools filter (only for Gemini native API format)

@@ -110,6 +110,7 @@ function buildApiKeyQuery(permissions: { canViewUsers: boolean }) {
             channelIDs
             channelTags
             channelTagsMatchMode
+            channelPriorities { channelId priority }
             modelIDs
             loadBalanceStrategy
             traceStickyMode
@@ -213,6 +214,7 @@ const UPDATE_APIKEY_PROFILES_MUTATION = `
           channelIDs
           channelTags
           channelTagsMatchMode
+          channelPriorities { channelId priority }
           modelIDs
           loadBalanceStrategy
           traceStickyMode
@@ -322,6 +324,7 @@ const APIKEY_PROFILE_TEMPLATES_QUERY = `
             channelIDs
             channelTags
             channelTagsMatchMode
+            channelPriorities { channelId priority }
             modelIDs
             loadBalanceStrategy
             traceStickyMode
@@ -400,6 +403,7 @@ const LOAD_APIKEY_PROFILE_TEMPLATE_MUTATION = `
           channelIDs
           channelTags
           channelTagsMatchMode
+          channelPriorities { channelId priority }
           modelIDs
           loadBalanceStrategy
           traceStickyMode

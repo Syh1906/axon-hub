@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { pageInfoSchema } from '@/gql/pagination';
 import { userSchema } from '@/features/users/data/schema';
 
+export const channelPrioritySchema = z.object({ channelId: z.number().int().positive(), priority: z.number().int() });
+export type ChannelPriority = z.infer<typeof channelPrioritySchema>;
+
 // API Key Type
 export const apiKeyTypeSchema = z.enum(['user', 'service_account', 'noauth', 'personal']);
 export type ApiKeyType = z.infer<typeof apiKeyTypeSchema>;
@@ -72,6 +75,7 @@ export const apiKeySchema = z.object({
               .default([]),
             channelIDs: z.array(z.number()).optional().nullable(),
             channelTags: z.array(z.string()).optional().nullable(),
+            channelPriorities: z.array(channelPrioritySchema).optional().nullable(),
             channelTagsMatchMode: channelTagsMatchModeFieldSchema,
             modelIDs: z.array(z.string()).optional().nullable(),
             loadBalanceStrategy: z.string().optional().nullable(),
@@ -174,6 +178,7 @@ export const apiKeyProfileSchema = z.object({
   modelMappings: z.array(modelMappingSchema),
   channelIDs: z.array(z.number()).optional().nullable(),
   channelTags: z.array(z.string()).optional().nullable(),
+  channelPriorities: z.array(channelPrioritySchema).optional().nullable(),
   channelTagsMatchMode: channelTagsMatchModeFieldSchema,
   modelIDs: z.array(z.string()).optional().nullable(),
   loadBalanceStrategy: z.string().optional().nullable(),
@@ -261,6 +266,7 @@ export const updateApiKeyProfilesInputSchemaFactory = (t: (key: string) => strin
             ),
             channelIDs: z.array(z.number()).optional().nullable(),
             channelTags: z.array(z.string()).optional().nullable(),
+            channelPriorities: z.array(channelPrioritySchema).optional().nullable(),
             channelTagsMatchMode: channelTagsMatchModeFieldSchema,
             modelIDs: z.array(z.string()).optional().nullable(),
             loadBalanceStrategy: z.string().optional().nullable(),
@@ -362,6 +368,7 @@ export const updateApiKeyProfilesInputSchema = z.object({
       ),
       channelIDs: z.array(z.number()).optional().nullable(),
       channelTags: z.array(z.string()).optional().nullable(),
+      channelPriorities: z.array(channelPrioritySchema).optional().nullable(),
       channelTagsMatchMode: channelTagsMatchModeFieldSchema,
       modelIDs: z.array(z.string()).optional().nullable(),
       loadBalanceStrategy: z.string().optional().nullable(),

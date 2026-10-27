@@ -5,6 +5,9 @@ import { modelPriceInputSchema, modelPriceSchema } from '@/features/channels/dat
 export const modelTypeSchema = z.enum(['chat', 'embedding', 'rerank', 'image_generation', 'video_generation']);
 export type ModelType = z.infer<typeof modelTypeSchema>;
 
+export const modelMatchTypeSchema = z.enum(['exact', 'prefix', 'suffix', 'regex']);
+export type ModelMatchType = z.infer<typeof modelMatchTypeSchema>;
+
 export const modelStatusSchema = z.enum(['enabled', 'disabled', 'archived']);
 export type ModelStatus = z.infer<typeof modelStatusSchema>;
 
@@ -124,10 +127,11 @@ export const modelAssociationWhenSchema = z.object({
 export type ModelAssociationWhen = z.infer<typeof modelAssociationWhenSchema>;
 
 export const modelAssociationSchema = z.object({
-  type: z.enum(['channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
+  type: z.enum(['channel_request', 'channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
   priority: z.number().min(0).max(100).optional().default(0),
   disabled: z.boolean().optional().default(false),
   when: modelAssociationWhenSchema.optional().nullable(),
+  channelRequest: z.object({ channelId: z.number() }).optional().nullable(),
   channelModel: channelModelAssociationSchema.optional().nullable(),
   channelRegex: channelRegexAssociationSchema.optional().nullable(),
   regex: regexAssociationSchema.optional().nullable(),
@@ -159,6 +163,9 @@ export const modelSchema = z.object({
   updatedAt: z.coerce.date(),
   developer: z.string(),
   modelID: z.string(),
+  matchType: modelMatchTypeSchema,
+  matchPriority: z.number(),
+  publicModelIds: z.array(z.string()).nullable().optional(),
   type: modelTypeSchema,
   name: z.string(),
   icon: z.string(),
@@ -174,6 +181,9 @@ export type Model = z.infer<typeof modelSchema>;
 export const createModelInputSchema = z.object({
   developer: z.string().min(1, 'Developer is required'),
   modelID: z.string().min(1, 'Model ID is required'),
+  matchType: modelMatchTypeSchema.optional(),
+  matchPriority: z.number().int().optional(),
+  publicModelIds: z.array(z.string()).optional(),
   type: modelTypeSchema,
   name: z.string().min(1, 'Name is required'),
   icon: z.string().min(1, 'Icon is required'),
@@ -188,6 +198,9 @@ export type CreateModelInput = z.infer<typeof createModelInputSchema>;
 export const updateModelInputSchema = z.object({
   developer: z.string().min(1, 'Developer is required').optional(),
   modelID: z.string().min(1, 'Model ID is required').optional(),
+  matchType: modelMatchTypeSchema.optional(),
+  matchPriority: z.number().int().optional(),
+  publicModelIds: z.array(z.string()).optional(),
   type: modelTypeSchema.optional(),
   name: z.string().min(1, 'Name is required').optional(),
   icon: z.string().min(1, 'Icon is required').optional(),

@@ -90,6 +90,20 @@ func healthGateCombo(candidate *ChannelModelsCandidate, actualModel string, stat
 	}
 }
 
+func (d *healthGateRequestDecision) ownerSessionReuseEnabled(channelID int) bool {
+	if d.channelSvc != nil {
+		if current := d.channelSvc.GetEnabledChannel(channelID); current != nil {
+			return current.SessionReuseEnabled()
+		}
+	}
+	for _, candidate := range d.candidates {
+		if candidate != nil && candidate.Channel != nil && candidate.Channel.ID == channelID {
+			return candidate.Channel.SessionReuseEnabled()
+		}
+	}
+	return true
+}
+
 // The owner may have been excluded by model, permission, or quota filtering.
 // Capture its name at selection time while keeping its model/state empty.
 func healthGateOwnerName(ctx context.Context, channelID int, candidates []*ChannelModelsCandidate, service *biz.ChannelService, requests *biz.RequestService) string {
@@ -152,7 +166,7 @@ func (m *healthGateAttemptTracker) finishSession(ctx context.Context, successful
 	state := m.outbound.state
 	record := d.record
 	record.LastResort = m.lastResort || record.LastResort
-	if successful && m.channel != nil && d.sticky && state.RequestService != nil && (d.threadID != 0 || d.traceID != 0) {
+	if successful && m.channel != nil && m.channel.SessionReuseEnabled() && d.sticky && state.RequestService != nil && (d.threadID != 0 || d.traceID != 0) {
 		success := healthGateCombo(state.CurrentCandidate, m.key.ActualModel, "")
 		// This is the protection window declared by the final upstream request,
 		// after overrides; it does not imply an upstream cache hit.
@@ -187,6 +201,10 @@ func (m *healthGateAttemptTracker) finishSession(ctx context.Context, successful
 				generation := time.Now()
 				if found && current.ChannelID == channelID {
 					generation = current.Generation
+				} else if !generation.After(current.Generation) {
+					// The retained expired identity also guards late completions.
+					// A coarse or corrected clock must not reuse that identity.
+					generation = current.Generation.Add(time.Nanosecond)
 				}
 				return biz.SessionOwner{ChannelID: channelID, ExpiresAt: time.Now().Add(ttl), Generation: generation}
 			}
@@ -209,6 +227,9 @@ func (m *healthGateAttemptTracker) finishSession(ctx context.Context, successful
 					Reason: reason,
 				}
 				return completedOwner(success.ChannelID), true
+			}
+			if !d.ownerSessionReuseEnabled(current.ChannelID) {
+				return migration(objects.RoutingMigrationReasonSessionReuseDisabled)
 			}
 			if d.ownerGatedAtCompletion(ctx, m.gate, current.ChannelID) {
 				return migration(objects.RoutingMigrationReasonOwnerOpen)
