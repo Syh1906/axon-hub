@@ -15,8 +15,11 @@ import (
 
 func TestModelDeveloperPersistence(t *testing.T) {
 	for _, tc := range []struct{ input, want string }{
-		{"OpenAI", "openai"}, {" OPENAI ", "openai"}, {"Anthropic", "anthropic"},
-		{"MyProvider", "MyProvider"}, {"myprovider", "myprovider"},
+		{"OpenAI", "openai"},
+		{" OPENAI ", "openai"},
+		{"Anthropic", "anthropic"},
+		{"MyProvider", "MyProvider"},
+		{"myprovider", "myprovider"},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
 			client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
