@@ -1,0 +1,26 @@
+type ChannelTagPriority {
+  tag: String!
+  priority: Int!
+}
+
+input ChannelTagPriorityUpdateInput {
+  channelId: ID!
+  "Leave empty to inherit the model association priority for this tag."
+  priority: Int
+  orderingWeight: Int
+}
+
+enum ChannelRoutingOrderField {
+  PRIORITY
+  COST_MULTIPLIER
+}
+
+input ChannelRoutingOrder {
+  field: ChannelRoutingOrderField!
+  direction: OrderDirection!
+}
+
+extend type Mutation {
+  updateChannelTagPriorities(tag: String!, input: [ChannelTagPriorityUpdateInput!]!): [Channel!]!
+  updateChannelCostMultiplier(channelId: ID!, multiplier: Decimal!): [ChannelModelPrice!]!
+}

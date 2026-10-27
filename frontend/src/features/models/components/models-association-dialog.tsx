@@ -29,6 +29,7 @@ import {
 import { useAllChannelSummarys, useAllChannelTags } from '@/features/channels/data/channels';
 import { useModelSettings, useUpdateModelSettings } from '@/features/system/data/system';
 import { useModels } from '../context/models-context';
+import { normalizeModelDeveloper } from '../data/developer';
 import { useQueryModelChannelConnections, ModelAssociationInput, ModelChannelConnection } from '../data/models';
 import { useUpdateModel } from '../data/models';
 import { ModelAssociation, normalizeModelRoutingPolicyValue } from '../data/schema';
@@ -735,14 +736,17 @@ export function ModelsAssociationDialog() {
 
   const isOpen = open === 'association' || open === 'developerAssociation';
   const isDeveloperMode = open === 'developerAssociation';
-  const activeDeveloper = isDeveloperMode ? currentDeveloper : currentRow?.developer || null;
+  const activeDeveloper = normalizeModelDeveloper((isDeveloperMode ? currentDeveloper : currentRow?.developer) || '') || null;
   const developerLabel = useMemo(() => {
     if (!activeDeveloper) return '';
     const key = `models.developers.${activeDeveloper}`;
     return i18n.exists(key) ? t(key) : activeDeveloper;
   }, [activeDeveloper, i18n, t]);
   const developerAssociations = useMemo(
-    () => settings?.developerSettings?.find((item) => item.developer === activeDeveloper)?.associations || [],
+    () =>
+      settings?.developerSettings
+        ?.filter((item) => normalizeModelDeveloper(item.developer) === activeDeveloper)
+        .flatMap((item) => item.associations || []) || [],
     [activeDeveloper, settings?.developerSettings]
   );
 
@@ -882,7 +886,9 @@ export function ModelsAssociationDialog() {
       const associations = sortAssociationsByPriority(data.associations).map(formAssociationToModelAssociation);
 
       if (isDeveloperMode) {
-        const nextDeveloperSettings = [...(settings?.developerSettings || []).filter((item) => item.developer !== activeDeveloper)];
+        const nextDeveloperSettings = [
+          ...(settings?.developerSettings || []).filter((item) => normalizeModelDeveloper(item.developer) !== activeDeveloper),
+        ];
         if (associations.length > 0) {
           nextDeveloperSettings.push({
             developer: activeDeveloper!,

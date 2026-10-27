@@ -99,10 +99,6 @@ func TestHealthGateSelector_NewSessionPrefersAddedHigherWeightWithRealScores(t *
 			oldScore := healthGateWeightTotalScore(t, newCtx, selector.loadBalancer.strategies, old.Channel)
 			newScore := healthGateWeightTotalScore(t, newCtx, selector.loadBalancer.strategies, added.Channel)
 			require.Greater(t, oldScore, newScore)
-			scoreFirst := NewLoadBalancer(selector.policy, nil, selector.loadBalancer.strategies...)
-			scoreFirst.debug = mode.debug
-			legacyOrder := scoreFirst.Sort(newCtx, wrapped.candidates, req.Model, false)
-			require.Equal(t, old.Channel.ID, legacyOrder[0].Channel.ID)
 
 			result, err := selector.Select(newCtx, req)
 			require.NoError(t, err)
@@ -235,7 +231,7 @@ func TestHealthGateLoadBalancer_WeightTiersRespectHardLimitsAndQuota(t *testing.
 	}
 }
 
-func TestHealthGateLoadBalancer_OtherFourStrategiesKeepTheirOrdering(t *testing.T) {
+func TestHealthGateLoadBalancer_AllStrategiesRespectWeightTiers(t *testing.T) {
 	for _, debug := range []bool{false, true} {
 		for _, strategy := range []string{biz.LoadBalancerStrategyAdaptive, biz.LoadBalancerStrategyFailover, biz.LoadBalancerStrategyCircuitBreaker, biz.LoadBalancerStrategyRoundRobin} {
 			t.Run(map[bool]string{false: "production", true: "debug"}[debug]+"/"+strategy, func(t *testing.T) {
@@ -254,18 +250,15 @@ func TestHealthGateLoadBalancer_OtherFourStrategiesKeepTheirOrdering(t *testing.
 				switch strategy {
 				case biz.LoadBalancerStrategyAdaptive:
 					lb = NewLoadBalancer(policy, nil, NewErrorAwareStrategy(metrics), NewWeightRoundRobinStrategy(metrics), NewLatencyAwareStrategy(metrics), rateLimit, quota)
-					expectedID = old.Channel.ID
 				case biz.LoadBalancerStrategyFailover:
 					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewRandomStrategy(), rateLimit, quota)
 				case biz.LoadBalancerStrategyCircuitBreaker:
 					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(biz.NewModelCircuitBreaker()), rateLimit, quota)
 				case biz.LoadBalancerStrategyRoundRobin:
-					// Equal counts retain input order even when the second channel
-					// has a higher weight: this mode disables the weight tie-breaker.
+					// Round robin applies within a weight tier, like the other strategies.
 					oldMetrics.RequestCount = 0
 					lb = NewLoadBalancer(policy, nil, NewRoundRobinStrategy(metrics), rateLimit, quota).
-						WithoutWeightTieBreaker().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metrics))
-					expectedID = old.Channel.ID
+						WithStableTieOrder().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metrics))
 				}
 				lb.debug = debug
 				require.Nil(t, lb.healthGate)

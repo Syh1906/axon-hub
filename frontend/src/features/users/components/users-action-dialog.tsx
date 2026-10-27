@@ -14,7 +14,7 @@ import { passwordConfirmationSchema } from '@/lib/validation';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { ScopesSelect } from '@/components/scopes-select';
 import { User, CreateUserInput, UpdateUserInput } from '../data/schema';
@@ -25,7 +25,7 @@ const createFormSchema = (t: (key: string) => string) =>
   z
     .object({
       firstName: z.string().min(1, t('users.validation.firstNameRequired')),
-      lastName: z.string().min(1, t('users.validation.lastNameRequired')),
+      lastName: z.string(),
       email: z.email().min(1, t('users.validation.emailRequired')),
       password: z.string().optional(),
       confirmPassword: z.string().optional(),
@@ -89,7 +89,7 @@ export function UsersActionDialog({ currentRow, open, onOpenChange }: Props) {
     defaultValues: isEdit
       ? {
           firstName: currentRow.firstName,
-          lastName: currentRow.lastName,
+          lastName: currentRow.lastName ?? '',
           email: currentRow.email,
           password: '',
           confirmPassword: '',
@@ -250,10 +250,11 @@ export function UsersActionDialog({ currentRow, open, onOpenChange }: Props) {
                   name='lastName'
                   render={({ field, fieldState }) => (
                     <FormItem>
-                      <FormLabel>{t('users.form.lastName')}</FormLabel>
+                      <FormLabel>{t('users.form.lastNameOptional')}</FormLabel>
                       <FormControl>
-                        <Input placeholder='Doe' aria-invalid={!!fieldState.error} {...field} />
+                        <Input placeholder={t('users.form.lastNamePlaceholder')} aria-invalid={!!fieldState.error} {...field} />
                       </FormControl>
+                      <FormDescription>{t('users.form.lastNameHint')}</FormDescription>
                       <div className='min-h-[1.25rem]'>
                         <FormMessage />
                       </div>
@@ -378,11 +379,7 @@ export function UsersActionDialog({ currentRow, open, onOpenChange }: Props) {
 
         <DialogFooter>
           {isEdit && !canEdit && <p className='text-destructive mr-auto text-sm'>{t('users.errors.insufficientPermissions')}</p>}
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
             {t('common.buttons.cancel')}
           </Button>
           <Button type='submit' form='user-form' disabled={createUser.isPending || updateUser.isPending || (isEdit && !canEdit)}>

@@ -4,9 +4,53 @@ import (
 	"context"
 	"slices"
 
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
 )
+
+type ChannelTagPrioritySelector struct {
+	wrapped CandidateSelector
+	tags    []string
+}
+
+func WithChannelTagPrioritySelector(wrapped CandidateSelector, tags []string) *ChannelTagPrioritySelector {
+	return &ChannelTagPrioritySelector{wrapped: wrapped, tags: slices.Clone(tags)}
+}
+
+func (s *ChannelTagPrioritySelector) Select(ctx context.Context, req *llm.Request) ([]*ChannelModelsCandidate, error) {
+	candidates, err := s.wrapped.Select(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	priorities := make([]objects.ChannelPriority, 0, len(candidates))
+	for _, candidate := range candidates {
+		if priority := candidate.Channel.Settings.PriorityForTags(candidate.Channel.Tags, s.tags); priority != nil {
+			priorities = append(priorities, objects.ChannelPriority{ChannelID: candidate.Channel.ID, Priority: *priority})
+		}
+	}
+	return applyChannelPriorities(candidates, priorities), nil
+}
+
+// A key's tag selection takes precedence over its project's tags. Exclusion
+// selections restrict access but never supply inherited priority values.
+func channelPriorityTags(key *ent.APIKey) []string {
+	if key == nil {
+		return nil
+	}
+	if profile := key.GetActiveProfile(); profile != nil && len(profile.ChannelTags) > 0 {
+		if profile.ChannelTagsMatchMode == objects.ChannelTagsMatchModeNone {
+			return nil
+		}
+		return profile.ChannelTags
+	}
+	if project := key.Edges.Project; project != nil {
+		if profile := project.GetActiveProfile(); profile != nil && profile.ChannelTagsMatchMode != objects.ChannelTagsMatchModeNone {
+			return profile.ChannelTags
+		}
+	}
+	return nil
+}
 
 type ChannelPrioritySelector struct {
 	wrapped    CandidateSelector

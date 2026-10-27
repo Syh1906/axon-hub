@@ -1,7 +1,6 @@
-import { useCallback, useState, memo, useRef, useEffect } from 'react';
+import { useCallback, useState, memo } from 'react';
 import { format } from 'date-fns';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
-import { HeartPulse } from 'lucide-react';
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
 import {
   IconPlayerPlay,
@@ -12,14 +11,12 @@ import {
   IconArchive,
   IconTrash,
   IconCheck,
-  IconWeight,
   IconTransform,
   IconNetwork,
   IconAdjustments,
   IconRoute,
   IconCopy,
   IconCoin,
-  IconLoader2,
   IconKey,
   IconKeyOff,
   IconGauge,
@@ -27,13 +24,13 @@ import {
   IconPlugConnected,
   IconClockPlay,
 } from '@tabler/icons-react';
+import { HeartPulse } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,16 +42,15 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import { useChannels } from '../context/channels-context';
-import { useTestChannel, useUpdateChannel } from '../data/channels';
+import { useTestChannel } from '../data/channels';
 import { CHANNEL_CONFIGS, getProvider } from '../data/config_channels';
 import { Channel } from '../data/schema';
+import { channelDisplayPriority } from '../utils/channel-priority';
 import { ChannelHealthCell } from './channel-health-cell';
 import { ChannelLimiterCell } from './channel-limiter-cell';
+import { ChannelRoutingValueCell } from './channel-routing-value-cell';
 import { ChannelsStatusDialog } from './channels-status-dialog';
 
-const WEIGHT_PRECISION = 4;
-const MIN_WEIGHT = 0;
-const MAX_WEIGHT = 100;
 const QUOTA_VISIBLE_LIMIT = 5;
 
 const OAUTH_CHANNEL_TYPES = new Set<Channel['type']>(['codex', 'claudecode', 'antigravity', 'github_copilot', 'xai_subscription']);
@@ -172,9 +168,6 @@ const quotaColor = (remaining: number) => {
   if (remaining <= 50) return 'text-yellow-500';
   return 'text-green-600 dark:text-green-500';
 };
-
-const formatWeight = (value: number) => Number(value.toFixed(WEIGHT_PRECISION));
-const clampWeight = (value: number) => formatWeight(Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, value)));
 
 // Status Switch Cell Component to handle status toggle with confirmation dialog
 const StatusSwitchCell = memo(({ row }: { row: Row<Channel> }) => {
@@ -329,7 +322,12 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
             <IconTransform size={16} className='mr-2' />
             {t('channels.dialogs.transformOptions.action')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => { setCurrentRow(channel); setOpen('requestSettings'); }}>
+          <DropdownMenuItem
+            onClick={() => {
+              setCurrentRow(channel);
+              setOpen('requestSettings');
+            }}
+          >
             <IconClockPlay size={16} className='mr-2' />
             {t('channels.requestSettings.title')}
           </DropdownMenuItem>
@@ -511,59 +509,72 @@ const NameCell = memo(({ row }: { row: Row<Channel> }) => {
     </div>
   );
 
-  const gateBadges = gate && (gate.openCount > 0 || gate.unstableCount > 0) ? (
-    <div className='flex justify-center gap-1'>
-      {gate.openCount > 0 && (
-        <Badge variant='destructive' asChild>
-          <button type='button' onClick={openHealthGate}>
-            {t('channels.healthGate.openBadge', { count: gate.openCount })}
-          </button>
-        </Badge>
-      )}
-      {gate.unstableCount > 0 && (
-        <Badge variant='outline' className='border-amber-500 text-amber-600' asChild>
-          <button type='button' onClick={openHealthGate}>
-            {t('channels.healthGate.unstableBadge', { count: gate.unstableCount })}
-          </button>
-        </Badge>
-      )}
-    </div>
-  ) : (
-    <div className='flex justify-center'>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button type='button' size='icon' variant='ghost' className='text-muted-foreground h-6 w-6' onClick={openHealthGate} aria-label={t('channels.healthGate.view')}>
-            <HeartPulse className='h-4 w-4' />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('channels.healthGate.view')}</TooltipContent>
-      </Tooltip>
-    </div>
-  );
+  const gateBadges =
+    gate && (gate.openCount > 0 || gate.unstableCount > 0) ? (
+      <div className='flex justify-center gap-1'>
+        {gate.openCount > 0 && (
+          <Badge variant='destructive' asChild>
+            <button type='button' onClick={openHealthGate}>
+              {t('channels.healthGate.openBadge', { count: gate.openCount })}
+            </button>
+          </Badge>
+        )}
+        {gate.unstableCount > 0 && (
+          <Badge variant='outline' className='border-amber-500 text-amber-600' asChild>
+            <button type='button' onClick={openHealthGate}>
+              {t('channels.healthGate.unstableBadge', { count: gate.unstableCount })}
+            </button>
+          </Badge>
+        )}
+      </div>
+    ) : (
+      <div className='flex justify-center'>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type='button'
+              size='icon'
+              variant='ghost'
+              className='text-muted-foreground h-6 w-6'
+              onClick={openHealthGate}
+              aria-label={t('channels.healthGate.view')}
+            >
+              <HeartPulse className='h-4 w-4' />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('channels.healthGate.view')}</TooltipContent>
+        </Tooltip>
+      </div>
+    );
 
   if (!hasError && !hasDisabledKeys) {
-    return <div className='space-y-1'>{content}{gateBadges}</div>;
+    return (
+      <div className='space-y-1'>
+        {content}
+        {gateBadges}
+      </div>
+    );
   }
 
   return (
     <div className='space-y-1'>
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent>
-        <div className='space-y-1'>
-          {hasError && (
-            <p className='text-destructive text-sm'>
-              {t(`channels.messages.${channel.errorMessage}`, {
-                defaultValue: channel.errorMessage,
-              })}
-            </p>
-          )}
-          {hasDisabledKeys && (
-            <p className='text-sm text-amber-500'>{t('channels.actions.disabledAPIKeys', { count: disabledKeysCount })}</p>
-          )}
-        </div>
-      </TooltipContent>
-    </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent>
+          <div className='space-y-1'>
+            {hasError && (
+              <p className='text-destructive text-sm'>
+                {t(`channels.messages.${channel.errorMessage}`, {
+                  defaultValue: channel.errorMessage,
+                })}
+              </p>
+            )}
+            {hasDisabledKeys && (
+              <p className='text-sm text-amber-500'>{t('channels.actions.disabledAPIKeys', { count: disabledKeysCount })}</p>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
       {gateBadges}
     </div>
   );
@@ -627,21 +638,23 @@ const QuotaCell = memo(({ row }: { row: Row<Channel> }) => {
   const visibleLimits = isExpanded ? limits : limits.slice(0, QUOTA_VISIBLE_LIMIT);
   const hiddenCount = limits.length - QUOTA_VISIBLE_LIMIT;
   const content = (
-    <div className='flex min-w-80 flex-col items-stretch gap-1.5 text-[11px]'>
+    <div className='flex w-28 flex-col items-stretch gap-1.5 text-[11px]'>
       {visibleLimits.map((limit, index) => {
         const usageRatio = limit.status === 'exhausted' ? 1 : (limit.usageRatio ?? 1);
         const remaining = Math.round(Math.max(0, Math.min(100, 100 - usageRatio * 100)));
         const label = quotaWindowLabel(limit.window) || t('quota.label.quota');
         return (
-          <div key={`${label}-${index}`} className='flex items-center justify-end gap-2'>
-            <span className='text-muted-foreground min-w-24 whitespace-nowrap text-left'>{label}</span>
-            <div className='bg-muted h-1.5 w-24 shrink-0 overflow-hidden rounded-full'>
+          <div key={`${label}-${index}`} className='flex flex-col gap-1'>
+            <div className='flex items-center justify-between gap-2'>
+              <span className='text-muted-foreground truncate text-left'>{label}</span>
+              <span className={`shrink-0 text-right font-medium ${quotaColor(remaining)}`}>{remaining}%</span>
+            </div>
+            <div className='bg-muted h-1.5 w-full overflow-hidden rounded-full'>
               <div
                 className={`h-full ${remaining <= 20 ? 'bg-red-500' : remaining <= 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
                 style={{ width: `${remaining}%` }}
               />
             </div>
-            <span className={`w-8 text-right font-medium ${quotaColor(remaining)}`}>{remaining}%</span>
           </div>
         );
       })}
@@ -795,94 +808,6 @@ const SupportedModelsCell = memo(({ row }: { row: Row<Channel> }) => {
 
 SupportedModelsCell.displayName = 'SupportedModelsCell';
 
-const OrderingWeightCell = memo(({ row }: { row: Row<Channel> }) => {
-  const channel = row.original;
-  const initialWeight = row.getValue('orderingWeight') as number | null;
-  const [isEditing, setIsEditing] = useState(false);
-  const [weight, setWeight] = useState<string>(initialWeight?.toString() || '1');
-  const updateChannel = useUpdateChannel();
-  const { channelPermissions } = usePermissions();
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleDoubleClick = useCallback(() => {
-    setIsEditing(true);
-    setWeight(initialWeight?.toString() || '1');
-  }, [initialWeight]);
-
-  const handleSave = useCallback(async () => {
-    const weightValue = clampWeight(Number(weight));
-    if (weightValue === initialWeight) {
-      setIsEditing(false);
-      return;
-    }
-
-    try {
-      await updateChannel.mutateAsync({
-        id: channel.id,
-        input: { orderingWeight: weightValue },
-      });
-      setIsEditing(false);
-    } catch (_error) {
-      // Error handled by mutation hook
-    }
-  }, [channel.id, weight, initialWeight, updateChannel]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        handleSave();
-      } else if (e.key === 'Escape') {
-        setIsEditing(false);
-        setWeight(initialWeight?.toString() || '1');
-      }
-    },
-    [handleSave, initialWeight]
-  );
-
-  if (!channelPermissions.canWrite) {
-    return <span className={cn('font-mono text-sm', initialWeight == null && 'text-muted-foreground')}>{initialWeight ?? '-'}</span>;
-  }
-
-  if (isEditing) {
-    return (
-      <div className='flex justify-center px-2'>
-        <Input
-          ref={inputRef}
-          type='number'
-          inputMode='decimal'
-          step='any'
-          min={MIN_WEIGHT}
-          max={MAX_WEIGHT}
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          className='h-7 w-20 text-center font-mono text-sm'
-          disabled={updateChannel.isPending}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className='flex items-center justify-center gap-2 group cursor-pointer' onDoubleClick={handleDoubleClick}>
-      <span className={cn('font-mono text-sm', initialWeight == null && 'text-muted-foreground')}>
-        {initialWeight ?? '-'}
-      </span>
-      {updateChannel.isPending && <IconLoader2 className='h-3 w-3 animate-spin text-muted-foreground' />}
-    </div>
-  );
-});
-
-OrderingWeightCell.displayName = 'OrderingWeightCell';
-
 const CreatedAtCell = memo(({ row }: { row: Row<Channel> }) => {
   const raw = row.getValue('createdAt') as unknown;
   const date = raw instanceof Date ? raw : new Date(raw as string);
@@ -909,7 +834,11 @@ const CreatedAtCell = memo(({ row }: { row: Row<Channel> }) => {
 
 CreatedAtCell.displayName = 'CreatedAtCell';
 
-export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrite: boolean = true): ColumnDef<Channel>[] => {
+export const createColumns = (
+  t: ReturnType<typeof useTranslation>['t'],
+  canWrite: boolean = true,
+  tag: string = ''
+): ColumnDef<Channel>[] => {
   return [
     {
       id: 'expand',
@@ -958,7 +887,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.name')} className='justify-center' />,
       cell: NameCell,
       meta: {
-        className: 'md:table-cell min-w-48 text-center',
+        className: 'md:table-cell min-w-40 text-center',
       },
       enableHiding: false,
       enableSorting: true,
@@ -993,7 +922,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.quota')} className='justify-center' />,
       cell: QuotaCell,
       meta: {
-        className: 'w-96 min-w-96 text-center',
+        className: 'w-36 min-w-36 text-center',
       },
       enableSorting: false,
       enableHiding: true,
@@ -1032,7 +961,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       ),
       cell: SupportedModelsCell,
       meta: {
-        className: 'max-w-64 text-center',
+        className: 'w-48 max-w-48 text-center',
       },
       enableSorting: false,
     },
@@ -1068,15 +997,35 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       enableHiding: true,
     },
     {
+      id: 'priority',
+      accessorFn: (channel) => channelDisplayPriority(channel, tag).priority,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.priority')} className='justify-center' />,
+      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='priority' tag={tag} canWrite={canWrite} />,
+      meta: { className: 'w-24 min-w-24 text-center' },
+      enableSorting: true,
+      enableHiding: true,
+    },
+    {
       accessorKey: 'orderingWeight',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('channels.columns.orderingWeight')} className='justify-center' />
       ),
-      cell: OrderingWeightCell,
+      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='orderingWeight' tag={tag} canWrite={canWrite} />,
       meta: {
         className: 'w-20 min-w-20 text-center',
       },
       sortingFn: 'alphanumeric',
+      enableSorting: true,
+      enableHiding: true,
+    },
+    {
+      id: 'costMultiplier',
+      accessorFn: (channel) => channel.settings?.modelPriceMultiplier ?? '1',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' />
+      ),
+      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='costMultiplier' tag={tag} canWrite={canWrite} />,
+      meta: { className: 'w-24 min-w-24 text-center' },
       enableSorting: true,
       enableHiding: true,
     },

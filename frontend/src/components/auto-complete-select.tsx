@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,7 @@ export function AutoCompleteSelect<T extends string>({
   onOpenChange,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [internalSearchValue, setInternalSearchValue] = useState('');
   const searchValue = controlledSearchValue ?? internalSearchValue;
   const setSearchValue = onSearchValueChange ?? setInternalSearchValue;
@@ -103,27 +104,33 @@ export function AutoCompleteSelect<T extends string>({
         <Command shouldFilter={false} className='w-full bg-transparent'>
           <PopoverAnchor asChild>
             <CommandPrimitive.Input
+              ref={inputRef}
               asChild
               value={searchValue}
-              onValueChange={setSearchValue}
-              onKeyDown={(e) => handleOpenChange(e.key !== 'Escape')}
+              onValueChange={(value) => {
+                setSearchValue(value);
+                handleOpenChange(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' || event.key === 'Tab') handleOpenChange(false);
+                else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') handleOpenChange(true);
+              }}
               onMouseDown={() => {
                 if (!open) {
                   setSearchValue('');
                   handleOpenChange(true);
                 }
               }}
-              onFocus={() => handleOpenChange(true)}
               onBlur={onInputBlur}
             >
-              <Input placeholder={placeholder} className={cn('w-full', inputClassName)} />
+              <Input placeholder={placeholder} className={cn('w-full', inputClassName)} aria-expanded={open} />
             </CommandPrimitive.Input>
           </PopoverAnchor>
           {!open && <CommandList aria-hidden='true' className='hidden' />}
           <PopoverContent
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={(e) => {
-              if (e.target instanceof Element && e.target.hasAttribute('cmdk-input')) {
+              if (e.target === inputRef.current) {
                 e.preventDefault();
               }
             }}

@@ -2,6 +2,22 @@
 
 This guide explains how to configure AI provider channels (like OpenAI, Anthropic, DeepSeek) in AxonHub.
 
+## Tag priorities and quick list settings
+
+The channel list shows tags and displays **Priority**, **Weight**, and **Cost multiplier** together by default. Without a tag filter, priority is the smallest configured value on the channel’s own tags. A tag filter selects that tag’s value. The header does not repeat a tag name; the edit popover identifies the tag being changed. **Inherit** means no configured tag value, so the request resolves model-association priority. This display does not broaden request tag scope.
+
+**Priority and weight** saves both columns for a tag in one transaction. Priorities may repeat; smaller values are tried first. An empty priority or **Reset all priorities** restores only priority inheritance and preserves channel weight. Weight is shared across the channel, with larger values first. Quick multiplier changes retain existing model cost items and create the normal price-history version.
+
+Effective priority is **API Key override → matching tag default → model association**. Key tags take precedence over project tags; if neither specifies tags, association priority remains. Exclusion-mode tags provide no defaults. Overlapping tags use the smallest configured priority. Only already permitted, model-compatible candidates are reordered. Availability, failure backoff, and existing session reuse still apply; the configured load balancer chooses among equal priorities and weights.
+
+Column headers temporarily change list order. **Default sorting** stores a field and direction in the current browser for subsequent visits. Priority uses the filtered tag or, without a filter, the smallest value on each channel’s own tags. Inherited entries follow configured numbers. Priority and multiplier sorting covers the entire filtered result before pagination. List order never changes request routing.
+
+## Add supported models from model management
+
+In the channel create/edit form, click **Add from model list** below supported models. Search, select individual entries, or select/clear the current filtered results. Already supported IDs cannot be added twice. Exact models expose their model ID; rule models expose only concrete configured public IDs. Rules without public IDs require manual concrete names, never the rule expression itself.
+
+**Add selected** updates the form; saving the channel persists the change. Entries are manual models and survive automatic synchronization. This does not create model associations or verify provider support.
+
 ## What is a Channel?
 
 A **channel** is AxonHub's connection to an AI provider. Think of it as a "provider connection line" — each channel connects to one AI service (like OpenAI, Claude, or DeepSeek).

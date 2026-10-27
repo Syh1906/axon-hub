@@ -96,12 +96,14 @@ Supported matching methods:
 
 ## Channel priorities and templates
 
+See [tag priorities](channel-management.md#tag-priorities-and-quick-list-settings) for key/project tag inheritance.
+
 Expand the active profile in API Key profile management and add entries under **Channel priorities**.
-Smaller numbers are tried first. Unset channels inherit model-association priority; **Restore inheritance** removes the override without removing the channel.
+Smaller numbers are tried first. Unset channels inherit matching tag defaults, then model-association priority; **Restore inheritance** removes the override without removing the channel.
 
 For two keys allowing the same channels A and B, set A=10/B=20 on one and A=20/B=10 on the other.
 Channel and tag restrictions define the permitted set. Priorities only reorder that set and never broaden access or change global channel weight.
-Equal priorities retain the existing load balancer. Session stickiness may keep an existing conversation on its prior channel;
+Equal priorities use descending channel weight, then the configured load balancer for equal weights. Session stickiness may keep an existing conversation on its prior channel;
 enable **Do not reuse session channel** in that channel's request settings when it should not receive this preference.
 
 Priorities participate in saving, template import/export, and linked-template synchronization together with the full profile.

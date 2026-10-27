@@ -18,6 +18,7 @@ type ChannelsDialogType =
   | 'bulkImport'
   | 'archive'
   | 'bulkOrdering'
+  | 'tagPriorities'
   | 'bulkArchive'
   | 'bulkDisable'
   | 'bulkEnable'
@@ -48,6 +49,8 @@ interface ChannelsContextType {
   setResetRowSelection: (fn: () => void) => void;
   showTypeTabs: boolean;
   setShowTypeTabs: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedTag: string;
+  setSelectedTag: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const ChannelsContext = React.createContext<ChannelsContextType | null>(null);
@@ -60,6 +63,7 @@ export default function ChannelsProvider({ children }: Props) {
   const [open, setOpen] = useDialogState<ChannelsDialogType>(null);
   const [currentRow, setCurrentRow] = useState<Channel | null>(null);
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
+  const [selectedTag, setSelectedTag] = useState('');
   const [showTypeTabs, setShowTypeTabs] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('channels-show-type-tabs');
@@ -90,6 +94,8 @@ export default function ChannelsProvider({ children }: Props) {
         currentRow,
         setCurrentRow,
         selectedChannels,
+        selectedTag,
+        setSelectedTag,
         setSelectedChannels,
         resetRowSelection: () => resetRowSelectionRef.current(),
         setResetRowSelection: (fn: () => void) => {

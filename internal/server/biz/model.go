@@ -372,6 +372,7 @@ func validateModelCard(card *objects.ModelCard) error {
 
 // CreateModel creates a new model with the provided input.
 func (svc *ModelService) CreateModel(ctx context.Context, input ent.CreateModelInput) (*ent.Model, error) {
+	input.Developer = NormalizeModelDeveloper(input.Developer)
 	if err := validateModelIdentity(modelMatchType(input.MatchType), input.ModelID, input.PublicModelIds); err != nil {
 		return nil, err
 	}
@@ -420,6 +421,7 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 	inputMap := make(map[string]bool)
 
 	for _, input := range inputs {
+		input.Developer = NormalizeModelDeveloper(input.Developer)
 		if err := validateModelIdentity(modelMatchType(input.MatchType), input.ModelID, input.PublicModelIds); err != nil {
 			return nil, err
 		}
@@ -491,6 +493,9 @@ func (svc *ModelService) BulkCreateModels(ctx context.Context, inputs []*ent.Cre
 
 // UpdateModel updates an existing model with the provided input.
 func (svc *ModelService) UpdateModel(ctx context.Context, id int, input *ent.UpdateModelInput) (*ent.Model, error) {
+	if input.Developer != nil {
+		input.Developer = lo.ToPtr(NormalizeModelDeveloper(*input.Developer))
+	}
 	identityChanged := input.ModelID != nil || input.MatchType != nil || input.PublicModelIds != nil || input.ClearPublicModelIds || input.AppendPublicModelIds != nil
 	if identityChanged {
 		current, err := svc.entFromContext(ctx).Model.Get(ctx, id)

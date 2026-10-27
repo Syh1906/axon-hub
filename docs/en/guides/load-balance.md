@@ -5,22 +5,22 @@ AxonHub provides an intelligent adaptive load balancing system that automaticall
 ## 🎯 Core Features
 
 ### Intelligent Channel Selection
-- **Priority Grouping** - Candidates are first grouped by model association priority (Lower value = Higher priority)
+- **Priority Grouping** - Candidates are first grouped by effective channel priority (Lower value = Higher priority)
 - **Session Consistency** - Requests from the same conversation are prioritized to route to previously successful channels
 - **Health Awareness** - Automatically avoids channels with high error rates
-- **Fair Distribution** - Uses Weighted Round Robin to distribute requests proportionally based on channel weights
+- **Fair Distribution** - Uses request history among equal-priority, equal-weight candidates; different weights are ordered highest first
 - **Latency Awareness** - Uses request-type-specific UX signals: streaming requests prioritize lower first-token latency and higher output throughput, while non-streaming requests prioritize lower end-to-end latency
 - **Rate Limit Awareness** - Respects upstream RPM/TPM/concurrency limits, falls back to the default connection tracker when `MaxConcurrent` is not explicitly configured, and automatically cools down channels on 429 Retry-After
 
 ### Multi-Strategy Scoring System
-Load balancing follows a hierarchical process: first by **Association Priority**, then by **Strategy Scoring** within each priority group.
+Load balancing follows a hierarchical process: first by **effective priority** (key override, matching tag default, then association). Within a group, hard limits, exhausted quota, and failure backoff are respected before descending **channel weight**. Strategy scores only compare equal weights. Existing session reuse remains in effect. The scores below do not distribute traffic across different weight tiers.
 
 | Level | Strategy | Score Range | Description |
 |-------|----------|-------------|-------------|
 | **1** | **Association Priority** | 0-N (Lower is better) | Hard grouping defined in model associations |
 | **2** | **Trace Aware** | 0-1000 points | Same session priority, ensures conversation continuity |
 | **3** | **Error Aware** | 0-200 points | Based on success rate and error history |
-| **4** | **Weight Round Robin** | 10-150 points | Proportional distribution based on weight and history |
+| **4** | **Weight Round Robin** | 10-150 points | Historical-load distribution within equal weights |
 | **5** | **Latency Aware** | 0-80 points | Streaming requests use FTTL + TPS, non-streaming requests use end-to-end latency |
 | **6** | **Rate Limit Aware** | -10000-100 points | Respects RPM/TPM/concurrency limits and 429 Retry-After |
 
@@ -79,9 +79,9 @@ response = client.chat.completions.create(
 
 ### Model Association Priority
 - **Purpose**: High-level traffic control and hard grouping.
-- **Mechanism**: Candidates are first sorted by the `priority` field in the Model Association.
+- **Mechanism**: Candidates use the effective priority: key override, matching tag default, then model-association `priority`.
 - **Rule**: Lower values have higher priority. All candidates in priority group `N` will be exhausted before any candidate in group `N+1` is considered.
-- **Use Case**: Primary/Secondary channel separation, A/B testing (by setting same priority).
+- **Use Case**: Primary/Secondary channel separation, A/B testing (by setting the same priority and weight).
 
 ### Trace Aware Strategy
 - **Purpose**: Maintain channel consistency for multi-turn conversations
@@ -98,8 +98,8 @@ response = client.chat.completions.create(
 - **Recovery**: Failed channels automatically recover priority over time as the time-decay penalty decreases.
 
 ### Weight Round Robin Strategy
-- **Purpose**: Proportional distribution based on weight and historical load.
-- **Algorithm**: Normalizes historical request counts by channel weight. Higher weight channels can handle more requests before their score drops.
+- **Purpose**: Historical-load distribution within equal weights.
+- **Algorithm**: Normalizes historical request counts by channel weight. This score only compares equal weights; different weight tiers are no longer distributed proportionally.
 - **Scoring**: `150 * exp(-normalized_request_count / 150)`
 - **Range**: 10-150 points
 

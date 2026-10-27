@@ -170,7 +170,7 @@ func buildSimulationCandidates(weights []int) []*ChannelModelsCandidate {
 	return candidates
 }
 
-func TestAdaptiveLoadBalancer_Simulation_Healthy_DistributionByWeight(t *testing.T) {
+func TestAdaptiveLoadBalancer_Simulation_Healthy_PrefersHighestWeight(t *testing.T) {
 	ctx := context.Background()
 	weights := []int{80, 50, 20, 10}
 	candidates := buildSimulationCandidates(weights)
@@ -206,20 +206,13 @@ func TestAdaptiveLoadBalancer_Simulation_Healthy_DistributionByWeight(t *testing
 		metrics.RecordSuccess(picked)
 	}
 
-	totalWeight := 0
-	for _, w := range weights {
-		totalWeight += w
-	}
-
-	for i, c := range candidates {
-		channelID := c.Channel.ID
-		actualPercent := float64(requestCounts[channelID]) / float64(totalRequests) * 100
-		expectedPercent := float64(weights[i]) / float64(totalWeight) * 100
-		require.InDelta(t, expectedPercent, actualPercent, 2.0)
+	require.Equal(t, totalRequests, requestCounts[candidates[0].Channel.ID])
+	for _, c := range candidates[1:] {
+		require.Zero(t, requestCounts[c.Channel.ID])
 	}
 }
 
-func TestAdaptiveLoadBalancer_Simulation_HighLatencyCanOverrideWeight(t *testing.T) {
+func TestAdaptiveLoadBalancer_Simulation_LatencyOnlyBreaksEqualWeightTies(t *testing.T) {
 	ctx := context.Background()
 	weights := []int{80, 50, 20, 10}
 	candidates := buildSimulationCandidates(weights)
@@ -248,11 +241,11 @@ func TestAdaptiveLoadBalancer_Simulation_HighLatencyCanOverrideWeight(t *testing
 
 	sorted := lb.Sort(ctx, candidates, "gpt-4", false)
 	require.Len(t, sorted, 1)
-	// Channel 0 has ~72pt latency penalty vs channel 1; with both at 0 requests,
-	// WeightRR gives 150 to both, ErrorAware gives 200 to both.
-	// Channel 0: 200 + 150 + 5.33 ≈ 355
-	// Channel 1: 200 + 150 + 77.33 ≈ 427  → channel 1 should win
-	require.NotEqual(t, candidates[0].Channel.ID, sorted[0].Channel.ID)
+	require.Equal(t, candidates[0].Channel.ID, sorted[0].Channel.ID)
+	// Equal weight still lets the existing latency strategy choose.
+	candidates[1].Channel.OrderingWeight = candidates[0].Channel.OrderingWeight
+	sorted = lb.Sort(ctx, candidates, "gpt-4", false)
+	require.Equal(t, candidates[1].Channel.ID, sorted[0].Channel.ID)
 }
 
 func TestAdaptiveLoadBalancer_Simulation_ErrorMigrationAndRecovery(t *testing.T) {
@@ -404,7 +397,7 @@ func TestAdaptiveLoadBalancer_Simulation_ErrorAware_DetailedDecay(t *testing.T) 
 
 func TestAdaptiveLoadBalancer_Simulation_InactivityDecayAllowsComeback(t *testing.T) {
 	ctx := context.Background()
-	weights := []int{80, 50, 20, 10}
+	weights := []int{80, 80, 80, 80}
 	candidates := buildSimulationCandidates(weights)
 
 	metrics := newFakeAdaptiveMetricsProvider(600)
@@ -415,7 +408,7 @@ func TestAdaptiveLoadBalancer_Simulation_InactivityDecayAllowsComeback(t *testin
 		NewLatencyAwareStrategy(metrics),
 	}
 
-	lb := NewLoadBalancer(&mockSystemService{retryPolicy: &biz.RetryPolicy{Enabled: false}}, nil, strategies...)
+	lb := NewLoadBalancer(&mockSystemService{retryPolicy: &biz.RetryPolicy{Enabled: false}}, nil, strategies...).WithStableTieOrder()
 
 	heavyID := candidates[0].Channel.ID
 	for range 2000 {

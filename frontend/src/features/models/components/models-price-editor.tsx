@@ -20,6 +20,7 @@ export function ModelsPriceEditor({ portalContainer }: { portalContainer: HTMLDi
       <h4 className='text-sm font-medium'>{t('models.price.title')}</h4>
       <p className='text-muted-foreground text-xs'>{t('models.price.description')}</p>
       <CompleteModelPriceEditor pricePath='modelCard.price' portalContainer={portalContainer} />
+      <p className='text-muted-foreground text-xs'>{t('models.priceImport.autoFillHint')}</p>
     </section>
   );
 }

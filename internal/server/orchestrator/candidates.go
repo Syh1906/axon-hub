@@ -501,15 +501,7 @@ func effectiveAssociationSourceCounts(systemSettings *biz.SystemModelSettings, m
 		return developerCount, modelCount, developerInheritanceDisabled
 	}
 
-	for _, developerSettings := range systemSettings.DeveloperSettings {
-		if developerSettings == nil || developerSettings.Developer != m.Developer {
-			continue
-		}
-
-		return len(developerSettings.Associations), modelCount, developerInheritanceDisabled
-	}
-
-	return developerCount, modelCount, developerInheritanceDisabled
+	return len(biz.DeveloperModelAssociations(systemSettings, m.Developer)), modelCount, developerInheritanceDisabled
 }
 
 func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCandidate) []*ChannelModelsCandidate {

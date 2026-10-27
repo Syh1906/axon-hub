@@ -99,14 +99,14 @@ func TestLoadBalancer_Sort_NoStrategies(t *testing.T) {
 	// Without strategies, order should remain unchanged (all score 0)
 }
 
-func TestLoadBalancer_Sort_WithoutWeightTieBreaker_PreservesInputOrderWhenScoresTie(t *testing.T) {
+func TestLoadBalancer_Sort_WithStableTieOrder_PreservesInputOrderWithinWeightTier(t *testing.T) {
 	ctx := context.Background()
-	lb := newTestLoadBalancer(t, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3}).WithoutWeightTieBreaker()
+	lb := newTestLoadBalancer(t, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3}).WithStableTieOrder()
 
 	candidates := []*ChannelModelsCandidate{
 		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1, Name: "ch1", OrderingWeight: 10}}},
-		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 2, Name: "ch2", OrderingWeight: 100}}},
-		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 3, Name: "ch3", OrderingWeight: 50}}},
+		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 2, Name: "ch2", OrderingWeight: 10}}},
+		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 3, Name: "ch3", OrderingWeight: 10}}},
 	}
 
 	result := lb.Sort(ctx, candidates, "", false)
@@ -141,7 +141,7 @@ func TestLoadBalancer_Sort_RoundRobinHealthMovesUnhealthyChannelsLast(t *testing
 		t,
 		&biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3},
 		NewRoundRobinStrategy(metricsProvider),
-	).WithoutWeightTieBreaker().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
+	).WithStableTieOrder().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
 
 	candidates := []*ChannelModelsCandidate{
 		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1, Name: "unhealthy"}}},
@@ -182,7 +182,7 @@ func TestLoadBalancer_Sort_RoundRobinHealthSkipsUnhealthyBeforeTopK(t *testing.T
 		t,
 		&biz.RetryPolicy{Enabled: true, MaxChannelRetries: 1},
 		NewRoundRobinStrategy(metricsProvider),
-	).WithoutWeightTieBreaker().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
+	).WithStableTieOrder().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
 
 	candidates := []*ChannelModelsCandidate{
 		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1, Name: "unhealthy"}}},
@@ -229,7 +229,7 @@ func TestLoadBalancer_Sort_RoundRobinHealthKeepsHardUnavailableLast(t *testing.T
 		&biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3},
 		NewRoundRobinStrategy(metricsProvider),
 		hardUnavailableStrategy,
-	).WithoutWeightTieBreaker().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
+	).WithStableTieOrder().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metricsProvider))
 
 	candidates := []*ChannelModelsCandidate{
 		{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1, Name: "unhealthy"}}},

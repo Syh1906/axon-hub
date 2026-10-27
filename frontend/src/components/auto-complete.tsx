@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -57,6 +57,7 @@ export function AutoComplete<T extends string>({
   portalContainer,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const labels = useMemo(
     () =>
@@ -122,22 +123,28 @@ export function AutoComplete<T extends string>({
         <Command shouldFilter={false} className='flex-1 bg-transparent'>
           <PopoverAnchor asChild>
             <CommandPrimitive.Input
+              ref={inputRef}
               asChild
               value={searchValue}
-              onValueChange={onSearchValueChange}
-              onKeyDown={(e) => setOpen(e.key !== 'Escape')}
+              onValueChange={(value) => {
+                onSearchValueChange(value);
+                setOpen(true);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' || event.key === 'Tab') setOpen(false);
+                else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') setOpen(true);
+              }}
               onMouseDown={() => setOpen((open) => !!searchValue || !open)}
-              onFocus={() => setOpen(true)}
               onBlur={onInputBlur}
             >
-              <Input placeholder={placeholder} className='w-full' />
+              <Input placeholder={placeholder} className='w-full' aria-expanded={open} />
             </CommandPrimitive.Input>
           </PopoverAnchor>
           {!open && <CommandList aria-hidden='true' className='hidden' />}
           <PopoverContent
             onOpenAutoFocus={(e) => e.preventDefault()}
             onInteractOutside={(e) => {
-              if (e.target instanceof Element && e.target.hasAttribute('cmdk-input')) {
+              if (e.target === inputRef.current) {
                 e.preventDefault();
               }
             }}

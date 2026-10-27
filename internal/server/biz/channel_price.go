@@ -374,6 +374,22 @@ func (svc *ChannelService) SaveChannelModelPrices(
 	inputs []SaveChannelModelPriceInput,
 	multiplier *decimal.Decimal,
 ) ([]*ent.ChannelModelPrice, error) {
+	return svc.saveChannelModelPrices(ctx, channelID, inputs, multiplier, true)
+}
+
+// UpdateChannelCostMultiplier versions every existing price without replacing
+// the price list from a potentially stale browser snapshot.
+func (svc *ChannelService) UpdateChannelCostMultiplier(ctx context.Context, channelID int, multiplier decimal.Decimal) ([]*ent.ChannelModelPrice, error) {
+	return svc.saveChannelModelPrices(ctx, channelID, nil, &multiplier, false)
+}
+
+func (svc *ChannelService) saveChannelModelPrices(
+	ctx context.Context,
+	channelID int,
+	inputs []SaveChannelModelPriceInput,
+	multiplier *decimal.Decimal,
+	replacePrices bool,
+) ([]*ent.ChannelModelPrice, error) {
 	if multiplier != nil && multiplier.IsNegative() {
 		return nil, fmt.Errorf("model price multiplier must be non-negative")
 	}
@@ -429,6 +445,11 @@ func (svc *ChannelService) SaveChannelModelPrices(
 			return fmt.Errorf("failed to query existing channel model prices: %w", err)
 		}
 		versionedInputs := slices.Clone(inputs)
+		if !replacePrices {
+			versionedInputs = lo.Map(prices, func(price *ent.ChannelModelPrice, _ int) SaveChannelModelPriceInput {
+				return SaveChannelModelPriceInput{ModelID: price.ModelID, Price: price.Price}
+			})
+		}
 		for idx := range versionedInputs {
 			versionedInputs[idx].Price.Multiplier = settings.ModelPriceMultiplier
 		}
