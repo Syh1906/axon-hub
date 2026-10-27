@@ -315,6 +315,7 @@ export type ChannelProviderQuotaSettings = z.infer<typeof channelProviderQuotaSe
 
 // Channel Settings
 export const channelSettingsSchema = z.object({
+  tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })).optional(),
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   disableSessionReuse: z.boolean().optional(),
@@ -342,7 +343,7 @@ export const channelSettingsSchema = z.object({
 });
 
 export type ChannelSettings = z.infer<typeof channelSettingsSchema>;
-export const channelSettingsInputSchema = channelSettingsSchema.omit({ modelPriceMultiplier: true });
+export const channelSettingsInputSchema = channelSettingsSchema.omit({ modelPriceMultiplier: true, tagPriorities: true });
 
 // Channel Model Entry
 export const channelModelEntrySchema = z.object({

@@ -37,6 +37,7 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { PermissionGuard } from '@/components/permission-guard';
 import { useModelSettings } from '@/features/system/data/system';
 import { useModels } from '../context/models-context';
+import { normalizeModelDeveloper } from '../data/developer';
 import { Model } from '../data/schema';
 import { ModelsPriceDisplay } from './models-price-display';
 
@@ -46,7 +47,7 @@ export function useDeveloperLabel() {
   const { t, i18n } = useTranslation();
   return useCallback(
     (developer: string) => {
-      const key = `models.developers.${developer}`;
+      const key = `models.developers.${normalizeModelDeveloper(developer)}`;
       return i18n.exists(key) ? t(key) : developer;
     },
     [t, i18n]
@@ -137,7 +138,7 @@ export function ModelsTable({
     const rows = table.getRowModel().rows;
     const groups = new Map<string, typeof rows>();
     rows.forEach((row) => {
-      const developer = row.original.developer || 'Unknown';
+      const developer = normalizeModelDeveloper(row.original.developer) || 'Unknown';
       if (!groups.has(developer)) groups.set(developer, []);
       groups.get(developer)!.push(row);
     });
@@ -148,7 +149,8 @@ export function ModelsTable({
   const developerRuleCounts = useMemo(() => {
     const counts = new Map<string, number>();
     modelSettings?.developerSettings?.forEach((settings) => {
-      counts.set(settings.developer, settings.associations?.length || 0);
+      const developer = normalizeModelDeveloper(settings.developer);
+      counts.set(developer, (counts.get(developer) || 0) + (settings.associations?.length || 0));
     });
     return counts;
   }, [modelSettings?.developerSettings]);

@@ -75,7 +75,7 @@ func NewChatCompletionOrchestrator(
 		NewRoundRobinStrategy(channelService),
 		rateLimitStrategy,
 		quotaStrategy,
-	).WithoutWeightTieBreaker().WithRoundRobinHealthFilter(roundRobinHealthFilter)
+	).WithStableTieOrder().WithRoundRobinHealthFilter(roundRobinHealthFilter)
 
 	return &ChatCompletionOrchestrator{
 		Inbound:            inbound,

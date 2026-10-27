@@ -61,7 +61,8 @@ type ChannelDecision struct {
 	// OriginalIndex is the candidate's position before sorting.
 	OriginalIndex int
 	// TotalScore is the sum of all strategy scores
-	TotalScore float64
+	TotalScore     float64
+	HealthDegraded bool
 	// StrategyScores contains scores from each strategy
 	StrategyScores []StrategyScore
 	// FinalRank is the final ranking (1 = highest priority)
@@ -130,7 +131,7 @@ type LoadBalancer struct {
 	strategies             []LoadBalanceStrategy
 	systemService          RetryPolicyProvider
 	selectionTracker       ChannelSelectionTracker
-	weightTieBreaker       bool
+	stableTieOrder         bool
 	roundRobinHealthFilter *RoundRobinHealthStrategy
 	healthGate             *biz.HealthGate
 	debug                  bool
@@ -145,15 +146,13 @@ func NewLoadBalancer(systemService RetryPolicyProvider, selectionTracker Channel
 		strategies:       strategies,
 		systemService:    systemService,
 		selectionTracker: selectionTracker,
-		weightTieBreaker: true,
 		debug:            debug,
 	}
 }
 
-// WithoutWeightTieBreaker disables OrderingWeight as a tie-breaker and uses
-// input order when scores are equal.
-func (lb *LoadBalancer) WithoutWeightTieBreaker() *LoadBalancer {
-	lb.weightTieBreaker = false
+// WithStableTieOrder preserves input order when both weight and score are equal.
+func (lb *LoadBalancer) WithStableTieOrder() *LoadBalancer {
+	lb.stableTieOrder = true
 
 	return lb
 }
@@ -168,9 +167,10 @@ func (lb *LoadBalancer) WithRoundRobinHealthFilter(filter *RoundRobinHealthStrat
 
 // candidateScore holds a candidate and its calculated score.
 type candidateScore struct {
-	candidate *ChannelModelsCandidate
-	score     float64
-	index     int
+	candidate      *ChannelModelsCandidate
+	score          float64
+	healthDegraded bool
+	index          int
 }
 
 // Sort sorts candidates according to the configured strategies.
@@ -233,15 +233,19 @@ func (lb *LoadBalancer) sortProduction(
 	scored := make([]candidateScore, len(candidates))
 	for i, c := range candidates {
 		totalScore := 0.0
+		healthDegraded := false
 		// Apply all strategies
 		for _, strategy := range lb.strategies {
-			totalScore += strategy.Score(ctx, c.Channel)
+			score := strategy.Score(ctx, c.Channel)
+			totalScore += score
+			healthDegraded = healthDegraded || hasFailurePenalty(strategy, score)
 		}
 
 		scored[i] = candidateScore{
-			candidate: c,
-			score:     totalScore,
-			index:     i,
+			candidate:      c,
+			score:          totalScore,
+			healthDegraded: healthDegraded,
+			index:          i,
 		}
 	}
 
@@ -251,9 +255,9 @@ func (lb *LoadBalancer) sortProduction(
 	}
 
 	// Use partial sort to efficiently get top k candidates
-	// Health-gated candidates use weight tiers; other balancers remain score-first.
+	// Weight tiers precede strategy scores; hard rejections remain last.
 	partial.SortFunc(scored, sortK, func(a, b candidateScore) int {
-		return lb.compareCandidateScores(a.candidate.Channel, a.score, a.index, b.candidate.Channel, b.score, b.index)
+		return lb.compareCandidateScores(a.candidate.Channel, a.score, a.index, a.healthDegraded, b.candidate.Channel, b.score, b.index, b.healthDegraded)
 	})
 
 	selected := scored[:sortK]
@@ -308,11 +312,15 @@ func isHardUnavailableScore(score float64) bool {
 }
 
 // compareCandidateScores compares candidates within one association-priority group.
-func (lb *LoadBalancer) compareCandidateScores(a *biz.Channel, aScore float64, aIndex int, b *biz.Channel, bScore float64, bIndex int) int {
-	if lb.healthGate != nil {
-		if order := compareHealthGateWeightTiers(a, aScore, b, bScore); order != 0 {
-			return order
+func (lb *LoadBalancer) compareCandidateScores(a *biz.Channel, aScore float64, aIndex int, aDegraded bool, b *biz.Channel, bScore float64, bIndex int, bDegraded bool) int {
+	if !isHardUnavailableScore(aScore) && !isHardUnavailableScore(bScore) && aDegraded != bDegraded {
+		if aDegraded {
+			return 1
 		}
+		return -1
+	}
+	if order := compareChannelWeightTiers(a, aScore, b, bScore); order != 0 {
+		return order
 	}
 
 	if aScore > bScore {
@@ -321,15 +329,7 @@ func (lb *LoadBalancer) compareCandidateScores(a *biz.Channel, aScore float64, a
 		return 1
 	}
 
-	if lb.weightTieBreaker && a != nil && b != nil {
-		if a.OrderingWeight > b.OrderingWeight {
-			return -1
-		} else if a.OrderingWeight < b.OrderingWeight {
-			return 1
-		}
-	}
-
-	if !lb.weightTieBreaker {
+	if lb.stableTieOrder {
 		if aIndex < bIndex {
 			return -1
 		} else if aIndex > bIndex {
@@ -355,6 +355,7 @@ func (lb *LoadBalancer) sortWithDebug(
 	decisions := make([]ChannelDecision, len(candidates))
 	for i, c := range candidates {
 		totalScore := 0.0
+		healthDegraded := false
 		strategyScores := make([]StrategyScore, 0, len(lb.strategies))
 
 		// Apply all strategies and collect detailed scores
@@ -364,12 +365,14 @@ func (lb *LoadBalancer) sortWithDebug(
 			strategyScore.Duration = time.Since(scoreStart)
 			strategyScores = append(strategyScores, strategyScore)
 			totalScore += score
+			healthDegraded = healthDegraded || hasFailurePenalty(strategy, score)
 		}
 
 		decisions[i] = ChannelDecision{
 			Channel:        c.Channel,
 			OriginalIndex:  i,
 			TotalScore:     totalScore,
+			HealthDegraded: healthDegraded,
 			StrategyScores: strategyScores,
 			FinalRank:      0, // Will be set after sorting
 		}
@@ -383,7 +386,7 @@ func (lb *LoadBalancer) sortWithDebug(
 	}
 
 	partial.SortFunc(decisions, sortK, func(a, b ChannelDecision) int {
-		return lb.compareCandidateScores(a.Channel, a.TotalScore, a.OriginalIndex, b.Channel, b.TotalScore, b.OriginalIndex)
+		return lb.compareCandidateScores(a.Channel, a.TotalScore, a.OriginalIndex, a.HealthDegraded, b.Channel, b.TotalScore, b.OriginalIndex, b.HealthDegraded)
 	})
 
 	selected := decisions[:sortK]
@@ -509,5 +512,19 @@ func (lb *LoadBalancer) logDecision(ctx context.Context, candidates []*ChannelMo
 			log.Any("strategy_breakdown", strategySummary),
 			log.String("model", model),
 		)
+	}
+}
+
+// Only failure-sensitive scorers can override a weight tier. Request counts and
+// latency remain tie-breakers within the tier; quota/rate limits retain their
+// existing hard-unavailable scores.
+func hasFailurePenalty(strategy LoadBalanceStrategy, score float64) bool {
+	switch s := strategy.(type) {
+	case *ErrorAwareStrategy:
+		return score < s.maxScore
+	case *ModelAwareCircuitBreakerStrategy:
+		return score < s.maxScore
+	default:
+		return false
 	}
 }

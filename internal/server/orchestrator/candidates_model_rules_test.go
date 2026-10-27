@@ -35,10 +35,19 @@ func TestDefaultSelectorRuleRequestsKeepTheirModelIDs(t *testing.T) {
 	require.NoError(t, system.SetModelSettings(ctx, biz.SystemModelSettings{DeveloperSettings: []*biz.DeveloperModelSettings{{
 		Developer: "openai", Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: channels[0].ID}}},
 	}}}))
-	for _, id := range []string{"gpt-4", "gpt-3.5-turbo"} {
-		candidates, err := selector.selectModelCandidates(ctx, &llm.Request{Model: id})
-		require.NoError(t, err)
-		require.Len(t, candidates, 1)
-		require.Equal(t, id, candidates[0].Models[0].ActualModel)
+	settings, err := system.ModelSettings(ctx)
+	require.NoError(t, err)
+	for _, developer := range []string{"openai", "OpenAI"} {
+		updated := client.Model.UpdateOne(rule).SetDeveloper(developer).SaveX(ctx)
+		developerCount, modelCount, disabled := effectiveAssociationSourceCounts(settings, updated)
+		require.Equal(t, 1, developerCount)
+		require.Zero(t, modelCount)
+		require.False(t, disabled)
+		for _, id := range []string{"gpt-4", "gpt-3.5-turbo"} {
+			candidates, err := selector.selectModelCandidates(ctx, &llm.Request{Model: id})
+			require.NoError(t, err)
+			require.Len(t, candidates, 1)
+			require.Equal(t, id, candidates[0].Models[0].ActualModel)
+		}
 	}
 }

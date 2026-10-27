@@ -20,6 +20,7 @@ type QueryChannelsInput struct {
 	Before                  *entgql.Cursor[int]
 	Last                    *int
 	OrderBy                 *ent.ChannelOrder
+	RoutingOrder            *ChannelRoutingOrder
 	Where                   *ent.ChannelWhereInput
 	HasTag                  *string
 	Model                   *string
@@ -64,6 +65,10 @@ func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannel
 				sqljson.ValueNEQ(channel.FieldSettings, format, sqljson.Path("primaryApiFormat")),
 			))
 		})
+	}
+
+	if input.RoutingOrder != nil {
+		return svc.queryChannelsByRoutingOrder(ctx, query, input)
 	}
 
 	// If the model is not specified, return the query result directly.

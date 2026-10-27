@@ -26,6 +26,8 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           tags
           defaultTestModel
           settings {
+            tagPriorities { tag priority }
+            modelPriceMultiplier
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
@@ -155,7 +157,10 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
           status
           defaultTestModel
           errorMessage
+          tags
           settings {
+           tagPriorities { tag priority }
+            modelPriceMultiplier
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
@@ -183,6 +188,8 @@ export const CHANNEL_QUERY_TAGS_SELECTION = `
 
 export const CHANNEL_QUERY_PROXY_SELECTION = `
           settings {
+            tagPriorities { tag priority }
+            modelPriceMultiplier
             healthGateFailureThreshold
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds

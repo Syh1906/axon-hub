@@ -23,7 +23,7 @@ func normalizeSystemModelSettings(settings *SystemModelSettings) {
 			continue
 		}
 
-		developer.Developer = strings.TrimSpace(developer.Developer)
+		developer.Developer = NormalizeModelDeveloper(strings.TrimSpace(developer.Developer))
 		if developer.Associations == nil {
 			developer.Associations = []*objects.ModelAssociation{}
 		}
@@ -42,7 +42,7 @@ func validateSystemModelSettings(settings *SystemModelSettings) error {
 			continue
 		}
 
-		developer := strings.TrimSpace(developerSettings.Developer)
+		developer := NormalizeModelDeveloper(strings.TrimSpace(developerSettings.Developer))
 		if developer == "" {
 			return fmt.Errorf("model developer is required")
 		}
@@ -106,20 +106,21 @@ func validateDeveloperAssociations(associations []*objects.ModelAssociation) err
 	return nil
 }
 
-func developerAssociationsForDeveloper(settings *SystemModelSettings, developer string) []*objects.ModelAssociation {
+// DeveloperModelAssociations includes every matching legacy entry so casing
+// differences never silently discard configured rules.
+func DeveloperModelAssociations(settings *SystemModelSettings, developer string) []*objects.ModelAssociation {
 	if settings == nil || developer == "" {
 		return nil
 	}
-
+	developer = NormalizeModelDeveloper(developer)
+	var associations []*objects.ModelAssociation
 	for _, developerSettings := range settings.DeveloperSettings {
-		if developerSettings == nil || developerSettings.Developer != developer {
+		if developerSettings == nil || NormalizeModelDeveloper(developerSettings.Developer) != developer {
 			continue
 		}
-
-		return developerSettings.Associations
+		associations = append(associations, developerSettings.Associations...)
 	}
-
-	return nil
+	return associations
 }
 
 // EffectiveModelAssociations returns the associations that should actually be
@@ -147,7 +148,7 @@ func EffectiveModelAssociationsForRequest(systemSettings *SystemModelSettings, m
 	}
 
 	return mergeInheritedModelAssociations(
-		inheritDeveloperAssociationsForModel(developerAssociationsForDeveloper(systemSettings, model.Developer), requestModelID),
+		inheritDeveloperAssociationsForModel(DeveloperModelAssociations(systemSettings, model.Developer), requestModelID),
 		modelAssociations,
 	)
 }

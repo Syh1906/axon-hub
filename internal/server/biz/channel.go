@@ -1079,8 +1079,10 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			}
 			settings := *input.Settings
 			settings.ModelPriceMultiplier = nil
+			settings.TagPriorities = nil
 			if existingSettings.Settings != nil {
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
+				settings.TagPriorities = existingSettings.Settings.TagPriorities
 			}
 			mut.Where(channel.UpdatedAtEQ(existingSettings.UpdatedAt)).SetSettings(&settings)
 		} else if clearStaleQuotaSettings {

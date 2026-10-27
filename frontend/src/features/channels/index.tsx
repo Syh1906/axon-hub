@@ -6,6 +6,7 @@ import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
+import { useProvidersData } from '@/features/models/data/providers';
 import { createColumns } from './components/channels-columns';
 import { ChannelsErrorBanner } from './components/channels-error-banner';
 import { ChannelsPrimaryButtons } from './components/channels-primary-buttons';
@@ -21,8 +22,8 @@ import {
   type ChannelListColumnVisibility,
 } from './data/channels';
 import { CHANNEL_TYPE_TO_PROVIDER } from './data/config_channels';
+import { readDefaultChannelSort } from './utils/channel-sort';
 import { groupChannelTypesByProvider, IMAGE_PRIMARY_API_FORMAT } from './utils/group-channel-types';
-import { useProvidersData } from '@/features/models/data/providers';
 
 const ChannelsDialogs = lazy(() => import('./components/channels-dialogs').then((m) => ({ default: m.ChannelsDialogs })));
 
@@ -30,7 +31,7 @@ function ChannelsContent() {
   const { t } = useTranslation();
   useProvidersData();
   const { channelPermissions } = usePermissions();
-  const { showTypeTabs } = useChannels();
+  const { showTypeTabs, selectedTag: tagFilter, setSelectedTag: setTagFilter } = useChannels();
   const { pageSize, setCursors, setPageSize, resetCursor, paginationArgs } = usePaginationSearch({
     defaultPageSize: 20,
     pageSizeStorageKey: 'channels-table-page-size',
@@ -38,22 +39,11 @@ function ChannelsContent() {
   const [nameFilter, setNameFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [tagFilter, setTagFilter] = useState<string>('');
   const [modelFilter, setModelFilter] = useState<string>('');
   const [selectedTypeTab, setSelectedTypeTab] = useState<string>('all');
   const [showErrorOnly, setShowErrorOnly] = useState<boolean>(false);
   const [showHealthGateAbnormal, setShowHealthGateAbnormal] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>(() => {
-    const stored = localStorage.getItem('channels-table-sorting');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return [{ id: 'createdAt', desc: true }];
-      }
-    }
-    return [{ id: 'createdAt', desc: true }];
-  });
+  const [sorting, setSorting] = useState<SortingState>(readDefaultChannelSort);
   const [columnVisibility, setColumnVisibility] = useState<ChannelListColumnVisibility>(() => {
     const stored = localStorage.getItem('channels-table-column-visibility');
     if (stored) {
@@ -65,10 +55,6 @@ function ChannelsContent() {
     }
     return DEFAULT_CHANNEL_COLUMN_VISIBILITY;
   });
-
-  useEffect(() => {
-    localStorage.setItem('channels-table-sorting', JSON.stringify(sorting));
-  }, [sorting]);
 
   useEffect(() => {
     if (!showTypeTabs && selectedTypeTab !== 'all') {
@@ -87,10 +73,7 @@ function ChannelsContent() {
   const debouncedNameFilter = useDebounce(nameFilter, 300);
 
   // Group protocol variants of the same vendor into one tab
-  const channelTypeGroups = useMemo(
-    () => groupChannelTypesByProvider(channelTypeCounts, CHANNEL_TYPE_TO_PROVIDER),
-    [channelTypeCounts]
-  );
+  const channelTypeGroups = useMemo(() => groupChannelTypesByProvider(channelTypeCounts, CHANNEL_TYPE_TO_PROVIDER), [channelTypeCounts]);
 
   const selectedTypeGroup = useMemo(
     () => channelTypeGroups.find((group) => group.key === selectedTypeTab),
@@ -164,11 +147,14 @@ function ChannelsContent() {
     ...paginationArgs,
     where: whereClause,
     orderBy: currentOrderBy,
+    routingOrder:
+      sorting[0]?.id === 'priority' || sorting[0]?.id === 'costMultiplier'
+        ? { field: sorting[0].id === 'priority' ? 'PRIORITY' : 'COST_MULTIPLIER', direction: sorting[0].desc ? 'DESC' : 'ASC' }
+        : undefined,
     hasTag: tagFilter || undefined,
     model: modelFilter || undefined,
     primaryApiFormat: selectedTypeGroup?.primaryApiFormat,
-    excludePrimaryApiFormat:
-      selectedTypeTab !== 'all' && !selectedTypeGroup?.primaryApiFormat ? IMAGE_PRIMARY_API_FORMAT : undefined,
+    excludePrimaryApiFormat: selectedTypeTab !== 'all' && !selectedTypeGroup?.primaryApiFormat ? IMAGE_PRIMARY_API_FORMAT : undefined,
     healthGateAbnormal: showHealthGateAbnormal || undefined,
     columnVisibility,
   });
@@ -181,9 +167,9 @@ function ChannelsContent() {
 
   const channelsWithProbeData = useMemo(() => {
     if (!data?.edges) return [];
-    
+
     const probeMap = new Map(probeData?.map((probe) => [probe.channelID, probe.points]) || []);
-    
+
     return data.edges.map((edge) => ({
       ...edge.node,
       probePoints: probeMap.get(edge.node.id) || [],
@@ -284,13 +270,15 @@ function ChannelsContent() {
     resetCursor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const handleHealthGateAbnormalChange = useCallback((checked: boolean) => {
-    setShowHealthGateAbnormal(checked);
-    resetCursor();
-  }, [resetCursor]);
+  const handleHealthGateAbnormalChange = useCallback(
+    (checked: boolean) => {
+      setShowHealthGateAbnormal(checked);
+      resetCursor();
+    },
+    [resetCursor]
+  );
 
-
-  const columns = useMemo(() => createColumns(t, channelPermissions.canWrite), [t, channelPermissions.canWrite]);
+  const columns = useMemo(() => createColumns(t, channelPermissions.canWrite, tagFilter), [t, channelPermissions.canWrite, tagFilter]);
 
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
@@ -300,7 +288,12 @@ function ChannelsContent() {
         showErrorOnly={showErrorOnly}
         onExitErrorOnlyMode={handleExitErrorOnlyMode}
       />
-      <ChannelsTypeTabs groups={channelTypeGroups} selectedTab={selectedTypeTab} onTabChange={handleTabChange} className={showTypeTabs ? '' : 'hidden'} />
+      <ChannelsTypeTabs
+        groups={channelTypeGroups}
+        selectedTab={selectedTypeTab}
+        onTabChange={handleTabChange}
+        className={showTypeTabs ? '' : 'hidden'}
+      />
       <ChannelsTable
         loading={isLoading}
         data={channelsWithProbeData}
@@ -346,7 +339,7 @@ export default function ChannelsManagement() {
         <div className='flex w-full flex-1 flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-0'>
           <div className='min-w-0'>
             <h2 className='text-xl font-bold tracking-tight'>{t('channels.title')}</h2>
-            <p className='text-sm text-muted-foreground'>{t('channels.description')}</p>
+            <p className='text-muted-foreground text-sm'>{t('channels.description')}</p>
           </div>
           <ChannelsPrimaryButtons />
         </div>

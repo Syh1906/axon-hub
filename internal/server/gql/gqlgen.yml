@@ -13,6 +13,7 @@ schema:
   - backup.graphql
   - channel_probe.graphql
   - channel_health_gate.graphql
+  - channel_routing.graphql
   - request_routing.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
@@ -157,6 +158,18 @@ models:
     fields:
       modelPriceMultiplier:
         fieldName: ModelPriceMultiplier
+  ChannelTagPriority:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelTagPriority
+  ChannelTagPriorityUpdateInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ChannelTagPriorityUpdate
+  ChannelRoutingOrderField:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelRoutingOrderField
+  ChannelRoutingOrder:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ChannelRoutingOrder
   ChannelSettingsInput:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelSettings

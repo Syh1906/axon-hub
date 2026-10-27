@@ -69,15 +69,30 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### 标签优先级、渠道快捷设置与表单增强
+
+- 版本：纳入 `v1.0.0-beta10-fork.7.syh.3`。标签优先级保存于 `ChannelSettings.tagPriorities`，不新增数据库列或 schema/data migration；旧 JSON 无该字段时继承关联优先级。
+- 契约：密钥显式覆盖 → 请求使用的标签默认 → 模型关联；密钥标签优先于项目，排除型标签不继承，多标签取最小配置值。先完成原权限与模型过滤，覆盖不能添加候选。
+- 排序：所有负载均衡策略在同优先级内按权重分层，同权重再评分；保留硬不可用、近期失败、熔断恢复和轮询健康退避以及会话复用。此更新取代下方旧记录中的“四种策略行为不变”和跨权重比例分流；同步上游时须核对比较器与健康评分。
+- 界面：标签批量编辑优先级及权重；标签默认可见，列表直接点击三列数值；未筛选标签时优先级直接取渠道自身标签最小配置值，表头不重复标签名。优先级／倍率按全筛选结果排序后分页，默认展示排序保存在浏览器。倍率专用 mutation 保留成本项、历史版本及事务锁。
+- 模型表单：右侧从目录导入整张模型卡片（能力、模态、价格、限制和日期），不改左侧标识／规则；左侧仅空价自动填充，含零价配置及切换开发者均保留已填价格。姓选填且清空可保存；渠道从管理模型列表多选具体 ID，按手动模型保存，不自动关联。
+- 代码：`internal/server/biz/channel_routing{,_query}.go`、`channel_price.go`、`internal/server/orchestrator/candidates_priority.go`、`load_balancer.go`、`frontend/src/features/channels/components/channel-routing-value-cell.tsx`、`channels-tag-priorities-dialog.tsx`、`channels-model-picker.tsx`、`frontend/src/features/models/components/models-catalog-import.tsx`。渠道大表单按 hook／纯函数／渲染拆分，手写文件均低于 2200 行。
+- 验证：`channel_routing_test.go` 覆盖事务整体回滚、普通编辑保留标签设置、倍率保留原价格以及含零值／继承项的跨页排序；`candidates_tag_priority_test.go` 覆盖标签与密钥继承、权限集合不扩张和权重。相关四个后端包全部测试通过；前端价格用例和浏览器验证覆盖导入、零价保护、空姓回读及筛选多选。没有真实供应商调用，无新增持久测试 fixture。
+- 维护注意：JSON 值排序沿用筛选后内存分页方式，会读取全部匹配渠道；非常大规模渠道列表需另行评估数据库表达式排序。启用渠道使用现有提交后刷新与 live 更新；无跨版本共享的渠道序列化缓存结构变更。
+
+
 ### 模型入口校验与渠道分发
 
 - 行为：正式请求在 API Key 模型映射后，必须解析到已注册且启用的模型，再按开发者与
   模型的有效关联选择渠道；模型不存在、禁用、归档或无可用关联时拒绝，不回退直连渠道。
 - 规则入口：模型配置支持精确、字面前缀、字面后缀、正则；启用精确配置优先，其他规则按
   `match_priority`、ID 升序取首个匹配。创建／编辑内的匹配测试与选路共用后端匹配器，测试不发上游请求。
+- 创建交互：默认只创建并返回列表；“创建并关联”保留在创建方式菜单。菜单沿用外层 Dialog
+  的页面交互限制，避免创建完成并关闭弹窗后残留鼠标禁用状态；打开创建／编辑表单时先聚焦标题。
 - 公开 ID：`public_model_ids` 可为零／一／多个符合规则的具体 ID；显式空数组隐藏发现但不禁用调用。
   旧精确模型的 null 沿用原 ID；规则 null 不公开。三种协议列表及 OpenAI 详情按实际胜出配置与密钥范围展开，
   不泄露表达式或隐藏 ID，不因低优先级规则公开同名 ID 而改变胜出配置的可见性。
+- 开发者身份：内置 ID 在单个／批量创建、编辑与开发者规则保存时统一大小写；列表分组、规则编辑、实际继承及决策计数使用相同身份。已有大小写规则条目全部保留参与继承，自定义名称不转小写。无数据库迁移；`model_developer_test.go`、`candidates_model_rules_test.go` 和前端 `developer.test.mjs` 覆盖写入、旧值继承及输入识别。
 - 关联：新增 `channel_request` 沿用本次 API Key 映射后的 ID，不要求渠道目录预列此 ID；固定模型关联保留。
   规则继承开发者配置也使用具体请求 ID；规则及动态关联逐请求解析，避免共享缓存串用不同请求 ID。
 - 映射与列表：API Key 映射采用首个匹配、不递归映射；公开模型列表只下发启用的注册
@@ -91,7 +106,8 @@ fork 改动，由用户决定。
 - 代码：`internal/server/orchestrator/candidates.go`、`internal/server/orchestrator/model_mapper.go`、
   `internal/objects/apikey.go`、`internal/server/biz/model.go`、`internal/server/api/`、
   `internal/server/gql/model.resolvers.go`、`internal/server/gql/system.graphql`、
-  `frontend/src/features/models/components/models-settings-dialog.tsx`。
+  `frontend/src/features/models/components/models-settings-dialog.tsx`、
+  `frontend/src/features/models/components/models-action-dialog.tsx`。
 - 迁移：Ent schema 新增 `match_type`（默认 exact）、`match_priority`（默认 100）、`public_model_ids`（可空）；
   唯一索引改为 `(model_id, match_type, deleted_at)`。已对照直接上游 `v1.0.0-beta10-fork.7`
   对应提交 `b205ae8` 的模型 schema；沿用启动时自动 schema 迁移替换索引，无新增 data migration 版本，
@@ -106,13 +122,15 @@ fork 改动，由用户决定。
 - 新增验证：`internal/objects/model_match_test.go`、`internal/server/biz/model_routing{,_upgrade}_test.go`、
   `internal/server/orchestrator/candidates_model_rules_test.go`、`internal/server/api/model_rules_test.go`，
   覆盖四种匹配、重叠胜出、隐藏／多公开 ID、别名权限、动态与继承关联、三协议列表及升级路径。
+- 创建交互验证：本地浏览器验证默认创建、可选创建并关联、关闭后连续操作，以及长表单打开时
+  保持顶部且不自动展开候选列表。
 
 ### 密钥渠道优先级与渠道请求设置
 
 - 行为：`APIKeyProfile.channelPriorities` 只覆盖已经过项目和密钥渠道／标签过滤的候选；数值越小越优先，
-  无覆盖时继承模型关联优先级。同渠道同有效优先级合并并去重实际模型，同时保留每个模型的协议，
+  无覆盖时先继承请求标签默认值，再继承模型关联优先级。同渠道同有效优先级合并并去重实际模型，同时保留每个模型的协议，
   避免重复计权或重试时沿用另一模型的协议；不修改全局渠道权重。
-  同级负载均衡及既有会话粘性继续生效，不新增用户分组实体。
+  同级权重分层、同权重负载均衡及既有会话粘性继续生效，不新增用户分组实体。
 - 模板与缓存：优先级参加完整 profile 的深拷贝、比较、保存、模板导入导出与发布同步；直接修改仍脱离模板。
   API Key 序列化缓存键升为 `api_key:v2:`，避免旧缓存遗漏新增字段；启用渠道缓存为进程内对象，不跨版本反序列化。
 - 渠道设置：`streamFirstEventTimeoutSeconds`、`nonStreamResponseTimeoutSeconds` 可空继承、0 取消该项渠道限制、
@@ -775,6 +793,17 @@ fork 改动，由用户决定。
 - 详细规范：[独立发版与部署](zh/development/release.md)（[English](en/development/release.md)）。
 
 ## Bugfix Topics
+
+### 自动补全候选列表按交互展开
+
+- 归属：修正上游已有 `AutoComplete`、`AutoCompleteSelect` 的焦点与候选列表交互。
+- 行为：获得焦点本身不展开候选列表；点击、输入或上下方向键可以打开，Escape、Tab 或
+  切换到其他字段会关闭。切换两个自动补全字段时，不再把另一个输入框误认为当前列表内部。
+  屏幕阅读器读取的展开状态与可见列表一致。
+- 代码：`frontend/src/components/auto-complete.tsx`、`frontend/src/components/auto-complete-select.tsx`。
+- 验证：本地浏览器检查初次打开、输入筛选、方向键打开、Tab 关闭及候选列表与输入框的对齐。
+- 迁移与 fixture：无 schema、data migration 或持久 fixture 变化。
+- 同步上游注意：保留输入、点击与键盘操作入口，以及仅保护当前输入框的外部交互判断。
 
 ### 渠道 tab 按供应商聚合
 

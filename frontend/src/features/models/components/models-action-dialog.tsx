@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,20 +11,22 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { AutoComplete } from '@/components/auto-complete';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useModels } from '../context/models-context';
+import { modelCardFormValues, modelCardFromCatalog } from '../data/catalog-card';
 import { DEVELOPER_IDS, DEVELOPER_ICONS } from '../data/constants';
+import { normalizeModelDeveloper, resolveModelDeveloper } from '../data/developer';
 import { useCreateModel, useUpdateModel } from '../data/models';
-import { createPriceValidationSchema, priceFromCatalog } from '../data/pricing';
+import { createPriceValidationSchema, hasPriceConfiguration, priceFromCatalog } from '../data/pricing';
 import { useDevelopersData } from '../data/providers';
-import { type Provider, type ProviderModel, resolveVision } from '../data/providers.schema';
+import { type Provider, type ProviderModel } from '../data/providers.schema';
 import {
   CreateModelInput,
   createModelInputSchema,
@@ -35,35 +37,12 @@ import {
   normalizeModelRoutingPolicyValue,
 } from '../data/schema';
 import { modelCardInputSchema } from '../data/schema';
-import { ModelsPriceEditor } from './models-price-editor';
+import { ModelsCatalogImport } from './models-catalog-import';
 import { ModelMatchDetails, ModelMatchTypeField } from './models-match-fields';
+import { ModelsPriceEditor } from './models-price-editor';
 
 function isDeveloper(provider: string) {
   return DEVELOPER_IDS.includes(provider);
-}
-
-function modelCardFormValues(card?: ModelCard | null): ModelCard {
-  return {
-    ...card,
-    reasoning: {
-      supported: card?.reasoning?.supported ?? false,
-      default: card?.reasoning?.default ?? false,
-    },
-    modalities: {
-      input: card?.modalities?.input ?? [],
-      output: card?.modalities?.output ?? [],
-    },
-    limit: {
-      context: card?.limit?.context ?? 0,
-      output: card?.limit?.output ?? 0,
-    },
-    price: {
-      ...card?.price,
-      items: card?.price?.items ?? [],
-      // Field-array reset requires an explicit empty array to remove the previous model's tiers.
-      volumeTiers: card?.price?.volumeTiers ?? [],
-    },
-  };
 }
 
 export function ModelsActionDialog() {
@@ -80,6 +59,7 @@ export function ModelsActionDialog() {
 
   // 用于解决 Dialog 内 Popover 无法滚动的问题
   const [dialogContent, setDialogContent] = useState<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const isEdit = open === 'edit';
   const isOpen = open === 'create' || open === 'edit';
@@ -103,7 +83,7 @@ export function ModelsActionDialog() {
 
   const getDeveloperLabel = useCallback(
     (developer: string) => {
-      const key = `models.developers.${developer}`;
+      const key = `models.developers.${normalizeModelDeveloper(developer)}`;
       return i18n.exists(key) ? t(key) : developer;
     },
     [i18n, t]
@@ -165,7 +145,7 @@ export function ModelsActionDialog() {
   useEffect(() => {
     if (isEdit && currentRow) {
       form.reset({
-        developer: currentRow.developer,
+        developer: normalizeModelDeveloper(currentRow.developer),
         modelID: currentRow.modelID,
         matchType: currentRow.matchType,
         matchPriority: currentRow.matchPriority,
@@ -183,7 +163,7 @@ export function ModelsActionDialog() {
         },
         remark: currentRow.remark || '',
       });
-      setSelectedProvider(currentRow.developer);
+      setSelectedProvider(normalizeModelDeveloper(currentRow.developer));
       setModelIdInput(currentRow.modelID);
       setModelIdSearchValue(currentRow.modelID);
       setSelectedModelCard(currentRow.modelCard || {});
@@ -217,7 +197,8 @@ export function ModelsActionDialog() {
   }, [currentRow, getDeveloperLabel, isEdit]);
 
   const handleProviderChange = useCallback(
-    (providerId: string) => {
+    (value: string) => {
+      const providerId = resolveModelDeveloper(value, developerOptions);
       setSelectedProvider(providerId);
       setDeveloperSearchValue(getDeveloperLabel(providerId));
       form.setValue('developer', providerId);
@@ -229,11 +210,13 @@ export function ModelsActionDialog() {
         form.setValue('modelID', '');
         form.setValue('name', '');
         form.setValue('group', '');
-        form.reset({ ...form.getValues(), modelCard: modelCardFormValues() }, { keepDefaultValues: true });
-        setSelectedModelCard({});
+        const currentPrice = form.getValues('modelCard.price');
+        const modelCard = { price: hasPriceConfiguration(currentPrice) ? currentPrice : undefined };
+        form.reset({ ...form.getValues(), modelCard: modelCardFormValues(modelCard) }, { keepDefaultValues: true });
+        setSelectedModelCard(modelCard);
       }
     },
-    [form, getDeveloperLabel, isEdit]
+    [form, getDeveloperLabel, isEdit, developerOptions]
   );
 
   // 用户直接在输入框键入时实时同步 form 值，避免 blur/submit 竞态导致提交旧值。
@@ -257,6 +240,7 @@ export function ModelsActionDialog() {
       const selectedModel = selectedProviderModels.find((m: ProviderModel) => m.id === modelId);
 
       if (selectedModel && !isEdit) {
+        const currentPrice = form.getValues('modelCard.price');
         form.setValue('name', selectedModel.display_name || selectedModel.name || '');
         form.setValue('group', selectedModel.family || selectedProvider);
         const normalizedType = selectedModel.type?.replace(/-/g, '_');
@@ -264,38 +248,30 @@ export function ModelsActionDialog() {
           form.setValue('type', normalizedType as ModelType);
         }
         const modelCard: ModelCard = {
-          reasoning: {
-            supported: selectedModel.reasoning?.supported || false,
-            default: selectedModel.reasoning?.default || false,
-          },
-          toolCall: selectedModel.tool_call,
-          temperature: selectedModel.temperature,
-          modalities: {
-            input: selectedModel.modalities?.input || [],
-            output: selectedModel.modalities?.output || [],
-          },
-          vision: resolveVision(selectedModel),
-          price: priceFromCatalog(selectedModel, selectedProvider),
-          limit: {
-            context: selectedModel.limit?.context || 0,
-            output: selectedModel.limit?.output || 0,
-          },
-          knowledge: selectedModel.knowledge,
-          releaseDate: selectedModel.release_date,
-          lastUpdated: selectedModel.last_updated,
+          ...modelCardFromCatalog(selectedModel, selectedProvider),
+          price: hasPriceConfiguration(currentPrice) ? currentPrice : priceFromCatalog(selectedModel, selectedProvider),
         };
         // Replacing the card must refresh nested price and tier field arrays together.
         form.reset({ ...form.getValues(), modelCard: modelCardFormValues(modelCard) }, { keepDefaultValues: true });
         setSelectedModelCard(modelCard);
       } else {
         const currentModelCard = form.getValues('modelCard');
+        if (selectedModel && !hasPriceConfiguration(currentModelCard?.price)) {
+          form.reset(
+            {
+              ...form.getValues(),
+              modelCard: modelCardFormValues({ ...currentModelCard, price: priceFromCatalog(selectedModel, selectedProvider) }),
+            },
+            { keepDefaultValues: true }
+          );
+        }
         setSelectedModelCard(currentModelCard || {});
       }
     },
     [selectedProviderModels, selectedProvider, form, isEdit]
   );
 
-  const onSubmit = async (data: CreateModelInput, associate = true) => {
+  const onSubmit = async (data: CreateModelInput, associate = false) => {
     try {
       if (isEdit && currentRow) {
         const updateData: UpdateModelInput = {
@@ -340,14 +316,27 @@ export function ModelsActionDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent ref={setDialogContent} className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-6xl'>
+      <DialogContent
+        ref={setDialogContent}
+        className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-6xl'
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader className='flex-shrink-0 text-left'>
-          <DialogTitle>{isEdit ? t('models.dialogs.edit.title') : t('models.dialogs.create.title')}</DialogTitle>
+          <DialogTitle ref={titleRef} tabIndex={-1}>
+            {isEdit ? t('models.dialogs.edit.title') : t('models.dialogs.create.title')}
+          </DialogTitle>
           <DialogDescription>{isEdit ? t('models.dialogs.edit.description') : t('models.dialogs.create.description')}</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form id='model-form' onSubmit={form.handleSubmit((data) => onSubmit(data))} className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          <form
+            id='model-form'
+            onSubmit={form.handleSubmit((data) => onSubmit(data))}
+            className='flex min-h-0 flex-1 flex-col overflow-hidden'
+          >
             <div className='flex min-h-0 flex-1 gap-6 overflow-x-auto overflow-y-hidden md:overflow-hidden'>
               {/* Left Panel - Basic Information */}
               <div className='min-h-0 w-1/2 flex-shrink-0 overflow-y-auto pr-4 md:w-1/3'>
@@ -381,10 +370,16 @@ export function ModelsActionDialog() {
                     name='modelID'
                     render={() => (
                       <FormItem>
-                        <FormLabel>{t(form.watch('matchType') === 'exact' ? 'models.fields.modelId' : 'models.match.expression')}</FormLabel>
+                        <FormLabel>
+                          {t(form.watch('matchType') === 'exact' ? 'models.fields.modelId' : 'models.match.expression')}
+                        </FormLabel>
                         <FormControl>
                           {form.watch('matchType') !== 'exact' ? (
-                            <Input value={modelIdSearchValue} onChange={(event) => handleModelIdSearchChange(event.target.value)} className='font-mono' />
+                            <Input
+                              value={modelIdSearchValue}
+                              onChange={(event) => handleModelIdSearchChange(event.target.value)}
+                              className='font-mono'
+                            />
                           ) : selectedProvider && modelIdOptions.length > 0 ? (
                             <AutoComplete
                               selectedValue={modelIdInput}
@@ -508,7 +503,7 @@ export function ModelsActionDialog() {
               {/* Right Panel - Model Card Fields */}
               <div className='min-h-0 min-w-full flex-1 overflow-y-auto border-l pl-6 md:min-w-0'>
                 <div className='space-y-4 pb-4'>
-                  <h3 className='text-lg font-semibold'>{t('models.modelCard.title')}</h3>
+                  <ModelsCatalogImport portalContainer={dialogContent} />
 
                   <div className='space-y-2'>
                     <FormLabel>{t('models.modelCard.capabilities')}</FormLabel>
@@ -827,16 +822,23 @@ export function ModelsActionDialog() {
                 {t('common.buttons.cancel')}
               </Button>
               <Button type='submit' disabled={createModel.isPending || updateModel.isPending}>
-                {isEdit ? t('common.buttons.save') : t('models.match.createAndAssociate')}
+                {isEdit ? t('common.buttons.save') : t('common.buttons.create')}
               </Button>
-              {!isEdit && <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type='button' size='icon' disabled={createModel.isPending} aria-label={t('models.match.createOptions')}><ChevronDown className='h-4 w-4' /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align='end'>
-                  <DropdownMenuItem onSelect={() => form.handleSubmit((data) => onSubmit(data, false))()}>{t('models.match.createOnly')}</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>}
+              {!isEdit && (
+                // 外层 Dialog 已限制页面交互，菜单关闭时无需再恢复一份鼠标状态。
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button type='button' size='icon' disabled={createModel.isPending} aria-label={t('models.match.createOptions')}>
+                      <ChevronDown className='h-4 w-4' />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='end'>
+                    <DropdownMenuItem onSelect={() => form.handleSubmit((data) => onSubmit(data, true))()}>
+                      {t('models.match.createAndAssociate')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </form>
         </Form>

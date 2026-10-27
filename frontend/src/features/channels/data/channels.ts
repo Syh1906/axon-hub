@@ -104,6 +104,8 @@ const CREATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        tagPriorities { tag priority }
+        modelPriceMultiplier
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
@@ -189,6 +191,8 @@ const DUPLICATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        tagPriorities { tag priority }
+        modelPriceMultiplier
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
@@ -274,6 +278,8 @@ const BULK_CREATE_CHANNELS_MUTATION = `
       tags
       defaultTestModel
       settings {
+        tagPriorities { tag priority }
+        modelPriceMultiplier
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
@@ -359,6 +365,8 @@ const UPDATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        tagPriorities { tag priority }
+        modelPriceMultiplier
         healthGateFailureThreshold
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
@@ -566,6 +574,8 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           transport
         }
         settings {
+          tagPriorities { tag priority }
+          modelPriceMultiplier
           healthGateFailureThreshold
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
@@ -797,6 +807,8 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           transport
         }
         settings {
+          tagPriorities { tag priority }
+          modelPriceMultiplier
           healthGateFailureThreshold
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
@@ -896,7 +908,11 @@ const ALL_CHANNEL_TAGS_QUERY = `
 export type ChannelListColumnVisibility = Record<string, boolean>;
 
 export const DEFAULT_CHANNEL_COLUMN_VISIBILITY: ChannelListColumnVisibility = {
-  tags: false,
+  model: false,
+  priority: true,
+  orderingWeight: true,
+  costMultiplier: true,
+  tags: true,
   proxy: false,
 };
 
@@ -1015,6 +1031,7 @@ export function useQueryChannels(
       direction: 'ASC' | 'DESC';
     };
     hasTag?: string;
+    routingOrder?: { field: 'PRIORITY' | 'COST_MULTIPLIER'; direction: 'ASC' | 'DESC' };
     model?: string;
     primaryApiFormat?: string;
     excludePrimaryApiFormat?: string;
@@ -1038,6 +1055,8 @@ export function useQueryChannels(
       variables?.where,
       variables?.orderBy?.field,
       variables?.orderBy?.direction,
+      variables?.routingOrder?.field,
+      variables?.routingOrder?.direction,
       variables?.hasTag,
       variables?.model,
       variables?.primaryApiFormat,

@@ -124,5 +124,8 @@
   "users.invitation.expiry.never": "永不过期",
   "users.invitation.uses.single": "仅允许 1 人注册",
   "users.invitation.uses.unlimited": "不限注册人数",
-  "users.errors.insufficientPermissions": "您没有足够的权限编辑此用户"
+  "users.errors.insufficientPermissions": "您没有足够的权限编辑此用户",
+  "users.form.lastNameOptional": "姓（选填）",
+  "users.form.lastNamePlaceholder": "可留空",
+  "users.form.lastNameHint": "姓可留空，未填写时仅显示名字。"
 }

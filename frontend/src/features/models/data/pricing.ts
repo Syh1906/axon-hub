@@ -10,6 +10,12 @@ const costFields = [
   ['cache_write', 'prompt_write_cached_tokens'],
 ] as const;
 
+// Zero is an intentional price. Preserve even partially edited items rather
+// than replacing the user's draft when a different model ID is selected.
+export function hasPriceConfiguration(price: ModelPrice | null | undefined): boolean {
+  return Boolean(price?.items?.length || price?.volumeTiers?.length || price?.schedule);
+}
+
 export function priceFromCatalog(model: ProviderModel | undefined, providerId: string): ModelPrice | undefined {
   const cost = model?.cost;
   if (!cost) return undefined;

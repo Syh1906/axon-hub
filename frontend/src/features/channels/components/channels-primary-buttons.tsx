@@ -1,9 +1,9 @@
-import { IconPlus, IconUpload, IconArrowsSort, IconSettings, IconScale } from '@tabler/icons-react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
+import { IconPlus, IconUpload, IconArrowsSort, IconSettings, IconScale, IconTags } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import { useHorizontalScroll } from '@/hooks/use-horizontal-scroll';
 import { Button } from '@/components/ui/button';
 import { PermissionGuard } from '@/components/permission-guard';
-import { useHorizontalScroll } from '@/hooks/use-horizontal-scroll';
 import { useChannels } from '../context/channels-context';
 
 export function ChannelsPrimaryButtons() {
@@ -16,11 +16,7 @@ export function ChannelsPrimaryButtons() {
     <div ref={scrollRef} className='flex gap-2 overflow-x-auto md:overflow-x-visible'>
       <PermissionGuard requiredSystemScope='read_settings'>
         {/* Load Balancing Strategy - navigate to system retry configuration */}
-        <Button
-          variant='outline'
-          className='shrink-0 space-x-1'
-          onClick={() => navigate({ to: '/system', search: { tab: 'retry' } })}
-        >
+        <Button variant='outline' className='shrink-0 space-x-1' onClick={() => navigate({ to: '/system', search: { tab: 'retry' } })}>
           <span>{t('channels.loadBalancingStrategy')}</span> <IconScale size={18} />
         </Button>
       </PermissionGuard>
@@ -33,6 +29,10 @@ export function ChannelsPrimaryButtons() {
 
       <PermissionGuard requiredScope='write_channels'>
         <>
+          <Button variant='outline' className='shrink-0 space-x-1' onClick={() => setOpen('tagPriorities')}>
+            <IconTags size={18} />
+            <span>{t('channels.routing.title')}</span>
+          </Button>
           {/* Bulk Import - requires write_channels permission */}
           <Button variant='outline' className='shrink-0 space-x-1' onClick={() => setOpen('bulkImport')}>
             <span>{t('channels.importChannels', '批量导入')}</span> <IconUpload size={18} />

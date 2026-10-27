@@ -2,6 +2,12 @@
 
 This guide explains how to manage AI models in AxonHub and use "Model Associations" for intelligent routing.
 
+## Import a model card from the catalog
+
+The right-side **Model card** header provides **Import model card from catalog**. Select a developer and catalog model, preview capabilities, modalities, limits and prices, then import. It replaces the whole right-side card: tool calling, vision, temperature, reasoning support/default, input/output modalities, pricing, context/output limits, knowledge cutoff and release/update dates. The left-side developer, model ID, matching rules, public IDs, name and group stay unchanged. Save the model to persist.
+
+Missing catalog fields become empty or disabled. Models without catalog prices remain importable and clear current pricing. Prices include base/cache items and catalog volume tiers; old schedules are removed. Selecting a catalog model on the left still automatically fills empty pricing, while existing zero prices, items, tiers and schedules remain. Both entry points share catalog conversion without currency conversion.
+
 ## Core Concepts: Models and Channels
 
 ### Simple Analogy
@@ -39,6 +45,8 @@ In short: **API Key Profile renames → Model Association selects channel → Ch
 ## Developer Rule Inheritance
 
 Rule-based models inherit developer associations using the concrete request ID after API Key mapping, rather than the matching expression.
+
+Built-in developer IDs are case-insensitive: typing `OpenAI` or `OPENAI`, or selecting OpenAI from the catalog, stores `openai`. Existing casing variants share one developer group and inherit the same rules. Custom developer names retain their original spelling.
 
 If multiple models from the same developer should use the same channel rules, configure **Developer Rules** on the developer group in the model list. A developer rule only selects a channel or channel tags. It does not lock in a specific upstream model; at routing time, each concrete model uses its own model ID when searching those channels.
 
@@ -160,7 +168,7 @@ Example configuration in Admin UI:
 Use the existing add/edit model dialog to select **exact**, **prefix**, **suffix**, or **regex** matching, then configure associations.
 Prefixes and suffixes are literal strings. Regex matches the full ID; for example, `^gpt-.*-luna$` accepts `gpt-6-luna` and `gpt-6.1-luna`.
 The test model ID uses the same backend matcher as routing and reports match, no match, or invalid expression without saving or calling a provider.
-Testing is optional. **Create and associate** opens the existing association dialog; **Create only** saves the configuration for later. Enable the model when configuration is ready.
+Testing is optional. **Create** saves the model and returns to the list by default. Choose **Create and associate** from the adjacent creation-options menu to continue into the association dialog. Enable the model when configuration is ready.
 
 Enabled exact entries take precedence. Otherwise, the first matching enabled rule wins by ascending match priority, then ascending configuration ID.
 Disabled and archived configurations do not participate. If the selected configuration has no usable association, the request fails instead of trying lower-priority rules.

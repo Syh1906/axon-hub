@@ -124,5 +124,8 @@
   "users.invitation.expiry.never": "Never expires",
   "users.invitation.uses.single": "One registration",
   "users.invitation.uses.unlimited": "Unlimited registrations",
-  "users.errors.insufficientPermissions": "You don't have sufficient permissions to edit this user"
+  "users.errors.insufficientPermissions": "You don't have sufficient permissions to edit this user",
+  "users.form.lastNameOptional": "Last name (optional)",
+  "users.form.lastNamePlaceholder": "Optional",
+  "users.form.lastNameHint": "Leave empty to display only the first name."
 }

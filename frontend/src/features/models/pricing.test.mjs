@@ -16,11 +16,22 @@ function moduleURL(path, imports = {}) {
 
 const paginationURL = moduleURL('../../gql/pagination.ts');
 const schemaURL = moduleURL('../channels/data/schema.ts', { '@/gql/pagination': paginationURL });
-const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog } = await import(
-  moduleURL('./data/pricing.ts', { '@/features/channels/data/schema': schemaURL })
+const pricingURL = moduleURL('./data/pricing.ts', { '@/features/channels/data/schema': schemaURL });
+const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog, hasPriceConfiguration } = await import(pricingURL);
+const { modelCardFromCatalog } = await import(
+  moduleURL('./data/catalog-card.ts', { './pricing': pricingURL, './providers.schema': moduleURL('./data/providers.schema.ts') })
 );
 const priceSchema = createPriceValidationSchema((key) => key);
 const item = (itemCode, amount) => ({ itemCode, pricing: { mode: 'usage_per_unit', usagePerUnit: amount } });
+
+test('catalog auto-fill preserves zero prices, edited items, tiers and schedules', () => {
+  assert.equal(hasPriceConfiguration(undefined), false);
+  assert.equal(hasPriceConfiguration({ items: [], volumeTiers: [], schedule: null }), false);
+  assert.equal(hasPriceConfiguration({ items: [item('prompt_tokens', '0')] }), true);
+  assert.equal(hasPriceConfiguration({ items: [item('prompt_tokens', '')] }), true);
+  assert.equal(hasPriceConfiguration({ items: [], volumeTiers: [{ above: 200000, items: [] }] }), true);
+  assert.equal(hasPriceConfiguration({ items: [], schedule: { timezone: 'UTC', overrides: [] } }), true);
+});
 
 test('bulk tier filling preserves decimal prices and cache variants without mutating the base', () => {
   const base = [
@@ -46,9 +57,17 @@ test('bulk tier filling preserves decimal prices and cache variants without muta
 
 test('anthropic catalog imports bill one-hour cache writes at twice the input price', () => {
   const oneHour = (items) =>
-    items.find((entry) => entry.itemCode === 'prompt_write_cached_tokens').promptWriteCacheVariants?.map(({ variantCode, pricing }) => [variantCode, pricing.usagePerUnit]);
+    items
+      .find((entry) => entry.itemCode === 'prompt_write_cached_tokens')
+      .promptWriteCacheVariants?.map(({ variantCode, pricing }) => [variantCode, pricing.usagePerUnit]);
   const model = {
-    cost: { input: 0.3, output: 15, cache_read: 0.03, cache_write: 0.375, tiers: [{ input: 6, cache_write: 7.5, tier: { type: 'context', size: 200000 } }] },
+    cost: {
+      input: 0.3,
+      output: 15,
+      cache_read: 0.03,
+      cache_write: 0.375,
+      tiers: [{ input: 6, cache_write: 7.5, tier: { type: 'context', size: 200000 } }],
+    },
   };
   const price = priceFromCatalog(model, 'anthropic');
   assert.deepEqual(oneHour(price.items), [['one_hour', '0.6']]);
@@ -58,7 +77,10 @@ test('anthropic catalog imports bill one-hour cache writes at twice the input pr
 
   assert.equal(oneHour(priceFromCatalog(model, 'amazon-bedrock').items), undefined);
   const noWrite = priceFromCatalog({ cost: { input: 3, output: 15 } }, 'anthropic');
-  assert.equal(noWrite.items.some((entry) => entry.promptWriteCacheVariants), false);
+  assert.equal(
+    noWrite.items.some((entry) => entry.promptWriteCacheVariants),
+    false
+  );
 });
 
 test('an unconfigured price stays absent while an explicitly free price remains configured', () => {
@@ -86,4 +108,46 @@ test('schedule-only pricing can be edited but incomplete override prices are rej
   assert.equal(priceSchema.safeParse(price).success, false);
   price.schedule.overrides = [];
   assert.equal(priceSchema.safeParse(price).success, false);
+});
+
+test('catalog card imports capabilities, modalities, limits, dates and zero prices together', () => {
+  const card = modelCardFromCatalog(
+    {
+      id: 'catalog-id',
+      tool_call: true,
+      temperature: true,
+      reasoning: { supported: true, default: false },
+      modalities: { input: ['text', 'image'], output: ['text'] },
+      limit: { context: 128000, output: 16384 },
+      knowledge: '2025-01',
+      release_date: '2026-01-01',
+      last_updated: '2026-02-01',
+      cost: { input: 0, output: 2 },
+    },
+    'openai'
+  );
+  assert.equal(card.toolCall, true);
+  assert.equal(card.temperature, true);
+  assert.equal(card.vision, true);
+  assert.deepEqual(card.reasoning, { supported: true, default: false });
+  assert.deepEqual(card.modalities, { input: ['text', 'image'], output: ['text'] });
+  assert.deepEqual(card.limit, { context: 128000, output: 16384 });
+  assert.equal(card.knowledge, '2025-01');
+  assert.equal(card.releaseDate, '2026-01-01');
+  assert.equal(card.lastUpdated, '2026-02-01');
+  assert.equal(card.price.items[0].pricing.usagePerUnit, '0');
+  assert.equal(card.price.schedule, null);
+  assert.equal('modelID' in card, false);
+  assert.equal('developer' in card, false);
+});
+
+test('catalog cards without pricing remain importable and clear missing card fields', () => {
+  const card = modelCardFromCatalog({ id: 'no-prices' }, 'openai');
+  assert.deepEqual(card.price.items, []);
+  assert.deepEqual(card.price.volumeTiers, []);
+  assert.equal(card.price.schedule, null);
+  assert.equal(card.toolCall, false);
+  assert.equal(card.vision, false);
+  assert.deepEqual(card.modalities, { input: [], output: [] });
+  assert.deepEqual(card.limit, { context: 0, output: 0 });
 });
