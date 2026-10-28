@@ -1688,7 +1688,7 @@ export function useAllChannelSummarys(projectId?: string | null, options?: { ena
   const { t } = useTranslation();
 
   return useQuery({
-    queryKey: ['allChannelSummarys', projectId, options?.includeArchived],
+    queryKey: ['channels', 'summaries', projectId, options?.includeArchived],
     queryFn: async () => {
       try {
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;
@@ -1730,7 +1730,7 @@ export function useBulkUpdateChannelOrdering() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
-      queryClient.invalidateQueries({ queryKey: ['allChannelSummarys'] });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'summaries'] });
       toast.success(
         t('channels.messages.orderingUpdateSuccess', {
           updated: data.updated,
@@ -1874,7 +1874,7 @@ export function useAllChannelTags(projectId?: string | null) {
   const { t } = useTranslation();
 
   return useQuery({
-    queryKey: ['allChannelTags', projectId],
+    queryKey: ['channels', 'tags', projectId],
     queryFn: async () => {
       try {
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;

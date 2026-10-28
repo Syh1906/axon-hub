@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
+import { useNavigate } from '@tanstack/react-router';
 import { ColumnDef, Table, Row } from '@tanstack/react-table';
-import { Copy, Eye, Settings } from 'lucide-react';
+import { BarChart3, Copy, Eye, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn, extractNumberID, formatUserName } from '@/lib/utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
@@ -8,11 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import LongText from '@/components/long-text';
+import { selfUsageQueryClient } from '@/features/self-usage/query-client';
+import { setPageKey } from '@/features/self-usage/session';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKey } from '../data/schema';
 import { DataTableRowActions } from './data-table-row-actions';
 
 function ApiKeyCell({ apiKey, fullApiKey }: { apiKey: string; fullApiKey: ApiKey }) {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
 
@@ -29,7 +33,7 @@ function ApiKeyCell({ apiKey, fullApiKey }: { apiKey: string; fullApiKey: ApiKey
   };
 
   return (
-    <div className='flex max-w-48 items-center space-x-2'>
+    <div className='flex max-w-72 items-center space-x-2'>
       <code className='bg-muted shrink-0 rounded px-2 py-1 font-mono text-sm'>{maskedKey}</code>
       <Button variant='ghost' size='sm' onClick={handleViewKey} className='h-6 w-6 flex-shrink-0 p-0' title={t('apikeys.actions.view')}>
         <Eye className='h-3 w-3' />
@@ -37,6 +41,22 @@ function ApiKeyCell({ apiKey, fullApiKey }: { apiKey: string; fullApiKey: ApiKey
       <Button variant='ghost' size='sm' onClick={copyToClipboard} className='h-6 w-6 flex-shrink-0 p-0' title={t('apikeys.actions.copy')}>
         <Copy className='h-3 w-3' />
       </Button>
+      {fullApiKey.status === 'enabled' && ['user', 'personal'].includes(fullApiKey.type) && (
+        <Button
+          variant='ghost'
+          size='sm'
+          className='h-7 shrink-0 gap-1 px-2'
+          onClick={() => {
+            selfUsageQueryClient.clear();
+            setPageKey(apiKey);
+            void navigate({ to: '/self-usage' });
+          }}
+          title={t('apikeys.actions.viewUsage')}
+        >
+          <BarChart3 className='size-3.5' />
+          {t('apikeys.actions.usage')}
+        </Button>
+      )}
     </div>
   );
 }
@@ -141,7 +161,7 @@ export const createColumns = (
     cell: ({ row }) => <ApiKeyCell apiKey={row.getValue('key')} fullApiKey={row.original} />,
     enableSorting: false,
     meta: {
-      className: 'max-w-48',
+      className: 'max-w-72',
     },
   },
   ...(canViewCreators

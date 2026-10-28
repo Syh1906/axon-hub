@@ -10,8 +10,17 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CHANNEL_SORT_FIELDS, DEFAULT_CHANNEL_SORT, readDefaultChannelSort, saveDefaultChannelSort } from '../utils/channel-sort';
 import { RefreshAllUpstreamsButton } from './channel-upstream-cell';
+import { ChannelsDefaultTags } from './channels-default-tags';
 
-export function ChannelsDefaultSort({ sorting, onApply }: { sorting: SortingState; onApply: (value: SortingState) => void }) {
+export function ChannelsDefaultSort({
+  sorting,
+  onApply,
+  onApplyTags,
+}: {
+  sorting: SortingState;
+  onApply: (value: SortingState) => void;
+  onApplyTags: (tags: string[]) => void;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(readDefaultChannelSort);
@@ -40,6 +49,7 @@ export function ChannelsDefaultSort({ sorting, onApply }: { sorting: SortingStat
         </div>
         <div className='flex items-center gap-2'>
           <RefreshAllUpstreamsButton />
+          <ChannelsDefaultTags onApply={onApplyTags} />
           <Button
             type='button'
             variant='outline'

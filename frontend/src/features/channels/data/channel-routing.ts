@@ -52,7 +52,7 @@ export function useUpdateChannelTagPriorities() {
       ),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
-      queryClient.invalidateQueries({ queryKey: ['allChannelSummarys'] });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'summaries'] });
       variables.input.forEach(({ channelId }) => queryClient.invalidateQueries({ queryKey: ['channel', channelId] }));
       toast.success(t('channels.routing.saved'));
     },

@@ -1,5 +1,7 @@
-import { Badge } from '@/components/ui/badge';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
+import { groupChannelModels } from '../utils/group-channel-models';
 
 interface ChannelModel {
   requestModel: string;
@@ -22,6 +24,7 @@ interface ChannelModelsListProps {
 
 export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListProps) {
   const { t } = useTranslation();
+  const groupedChannels = useMemo(() => groupChannelModels(channels), [channels]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -49,18 +52,16 @@ export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListP
 
   if (channels.length === 0) {
     return (
-      <p className='text-muted-foreground py-8 text-center text-sm'>
-        {emptyMessage || t('models.dialogs.association.noConnections')}
-      </p>
+      <p className='text-muted-foreground py-8 text-center text-sm'>{emptyMessage || t('models.dialogs.association.noConnections')}</p>
     );
   }
 
   return (
     <div className='space-y-3'>
-      {channels.map((conn) => (
+      {groupedChannels.map((conn) => (
         <div key={conn.channel.id} className='rounded-lg border p-3'>
           <div className='mb-2 flex items-start justify-between gap-2'>
-            <div className='flex items-center gap-1.5 flex-wrap'>
+            <div className='flex flex-wrap items-center gap-1.5'>
               <span className='text-sm font-medium'>{conn.channel.name}</span>
               <Badge variant='outline' className={`h-5 px-1.5 text-[10px] font-normal ${getTypeColor(conn.channel.type)}`}>
                 {t(`channels.types.${conn.channel.type}`, conn.channel.type)}

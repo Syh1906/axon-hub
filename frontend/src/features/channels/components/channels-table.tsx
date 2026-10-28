@@ -47,7 +47,7 @@ interface DataTableProps {
   nameFilter: string;
   typeFilter: string[];
   statusFilter: string[];
-  tagFilter: string;
+  tagFilter: string[];
   modelFilter: string;
   selectedTypeTab?: string;
   showErrorOnly?: boolean;
@@ -63,7 +63,7 @@ interface DataTableProps {
   onNameFilterChange: (filter: string) => void;
   onTypeFilterChange: (filters: string[]) => void;
   onStatusFilterChange: (filters: string[]) => void;
-  onTagFilterChange: (filter: string) => void;
+  onTagFilterChange: (filter: string[]) => void;
   onModelFilterChange: (filter: string) => void;
   columnVisibility: ChannelListColumnVisibility;
   onColumnVisibilityChange: React.Dispatch<React.SetStateAction<ChannelListColumnVisibility>>;
@@ -121,7 +121,7 @@ export function ChannelsTable({
     if (statusFilter.length > 0) {
       newColumnFilters.push({ id: 'status', value: statusFilter });
     }
-    if (tagFilter) {
+    if (tagFilter.length) {
       newColumnFilters.push({ id: 'tags', value: tagFilter });
     }
     if (modelFilter) {
@@ -146,14 +146,14 @@ export function ChannelsTable({
       const nameFilterValue = newFilters.find((filter) => filter.id === 'name')?.value as string;
       const typeFilterValue = newFilters.find((filter) => filter.id === 'provider')?.value as string[];
       const statusFilterValue = newFilters.find((filter) => filter.id === 'status')?.value as string[];
-      const tagFilterValue = newFilters.find((filter) => filter.id === 'tags')?.value as string;
+      const tagFilterValue = newFilters.find((filter) => filter.id === 'tags')?.value as string[];
       const modelFilterValue = newFilters.find((filter) => filter.id === 'model')?.value as string;
 
       // Update server filters only if changed
       const newNameFilter = nameFilterValue || '';
       const newTypeFilter = Array.isArray(typeFilterValue) ? typeFilterValue : [];
       const newStatusFilter = Array.isArray(statusFilterValue) ? statusFilterValue : [];
-      const newTagFilter = tagFilterValue || '';
+      const newTagFilter = Array.isArray(tagFilterValue) ? tagFilterValue : [];
       const newModelFilter = modelFilterValue || '';
 
       if (newNameFilter !== nameFilter) {
@@ -168,7 +168,7 @@ export function ChannelsTable({
         onStatusFilterChange(newStatusFilter);
       }
 
-      if (newTagFilter !== tagFilter) {
+      if (JSON.stringify(newTagFilter) !== JSON.stringify(tagFilter)) {
         onTagFilterChange(newTagFilter);
       }
 
@@ -280,7 +280,7 @@ export function ChannelsTable({
         onHealthGateAbnormalChange={onHealthGateAbnormalChange}
         onExitErrorOnlyMode={onExitErrorOnlyMode}
       />
-      <ChannelsDefaultSort sorting={sorting} onApply={onSortingChange} />
+      <ChannelsDefaultSort sorting={sorting} onApply={onSortingChange} onApplyTags={onTagFilterChange} />
       <p className='text-muted-foreground mt-2 text-xs'>{t('channels.routing.clickHint')}</p>
       <div className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'>
         <div className='min-w-[1100px]'>
@@ -313,7 +313,7 @@ export function ChannelsTable({
                       <MotionTableRow
                         key={row.id}
                         data-state={row.getIsSelected() && 'selected'}
-                        className='group/row table-row-hover h-[88px] rounded-xl border-0 !bg-[var(--table-background)]'
+                        className='group/row table-row-stable h-[88px] rounded-xl border-0 !bg-[var(--table-background)]'
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell

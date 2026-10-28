@@ -82,6 +82,13 @@ const MODELS_QUERY = `
                       field
                       operator
                       value
+                      conditions {
+                        type
+                        logic
+                        field
+                        operator
+                        value
+                      }
                     }
                   }
                 }
@@ -840,4 +847,15 @@ export function useQueryModelChannelConnections(requestModelID?: string) {
       return data.queryModelChannelConnections;
     },
   });
+}
+
+// Re-read before appending so unrelated settings and recently added rules survive.
+export async function appendModelAssociations(id: string, candidates: import('./schema').ModelAssociation[]) {
+  const { appendAssociations } = await import('../utils/bulk-associations');
+  const data = await graphqlRequest<{ models: ModelConnection }>(MODELS_QUERY, { first: 1, where: { id } });
+  const model = modelConnectionSchema.parse(data.models).edges[0]?.node;
+  if (!model) throw new Error('Model no longer exists');
+  const associations = appendAssociations(model.settings.associations, candidates);
+  if (associations.length === model.settings.associations.length) return;
+  await graphqlRequest(UPDATE_MODEL_MUTATION, { id, input: { settings: { ...model.settings, associations } } });
 }

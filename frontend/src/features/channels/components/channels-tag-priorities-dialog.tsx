@@ -13,7 +13,7 @@ export function ChannelsTagPrioritiesDialog() {
   const { t } = useTranslation();
   const { open, setOpen, selectedTag } = useChannels();
   const query = useChannelRoutingSummaries(open === 'tagPriorities');
-  const [tag, setTag] = useState(selectedTag);
+  const [tag, setTag] = useState(selectedTag.length === 1 ? selectedTag[0] : '');
   const [drafts, setDrafts] = useState<Record<string, { priority: string; weight: string }>>({});
   const [error, setError] = useState('');
   const [container, setContainer] = useState<HTMLDivElement | null>(null);

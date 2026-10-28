@@ -10,6 +10,7 @@ type DialogType =
   | 'association'
   | 'developerAssociation'
   | 'settings'
+  | 'bulkAssociation'
   | 'bulkEnable'
   | 'bulkDisable'
   | 'unassociated'

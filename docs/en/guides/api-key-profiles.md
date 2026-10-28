@@ -147,3 +147,7 @@ There is no hard limit, but keep the set small and easy to manage.
 - [Channel Management Guide](channel-management.md) - Configure upstream channels
 - [Load Balancing Guide](load-balance.md) - Understand channel selection and failover
 - [Request Processing Guide](../getting-started/request-processing.md) - See the full request flow
+
+## Usage shortcut
+
+Enabled user and personal keys have a Usage button beside the masked key. It opens the existing self-service usage page for that key, clearing the previous key query cache first. The key passes through tab-scoped session storage, never the URL. Existing key type, status, project status and IP checks remain in force.

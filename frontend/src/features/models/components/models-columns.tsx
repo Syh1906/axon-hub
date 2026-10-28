@@ -167,7 +167,14 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       accessorKey: 'modelID',
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('models.columns.modelId')} />,
       cell: ({ row }) => {
-        return <span className='text-sm font-medium'>{row.getValue('modelID')}</span>;
+        return (
+          <div className='flex items-center gap-2'>
+            <Badge variant='outline' className='shrink-0'>
+              {t(`models.match.types.${row.original.matchType}`)}
+            </Badge>
+            <span className='text-sm font-medium'>{row.getValue('modelID')}</span>
+          </div>
+        );
       },
       meta: {
         className: 'min-w-48',

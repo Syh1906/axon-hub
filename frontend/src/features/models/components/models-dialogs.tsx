@@ -3,6 +3,7 @@ import { ModelsActionDialog } from './models-action-dialog';
 import { ModelsArchiveDialog } from './models-archive-dialog';
 import { ModelsAssociationDialog } from './models-association-dialog';
 import { ModelsBatchCreateDialog } from './models-batch-create-dialog';
+import { ModelsBulkAssociationDialog } from './models-bulk-association-dialog';
 import { ModelsBulkDisableDialog } from './models-bulk-disable-dialog';
 import { ModelsBulkEnableDialog } from './models-bulk-enable-dialog';
 import { ModelsDeleteDialog } from './models-delete-dialog';
@@ -15,6 +16,7 @@ export function ModelsDialogs() {
   return (
     <>
       {(open === 'create' || open === 'edit') && <ModelsActionDialog />}
+      {open === 'bulkAssociation' && <ModelsBulkAssociationDialog />}
       {open === 'batchCreate' && <ModelsBatchCreateDialog />}
       {open === 'delete' && <ModelsDeleteDialog />}
       {open === 'archive' && <ModelsArchiveDialog />}

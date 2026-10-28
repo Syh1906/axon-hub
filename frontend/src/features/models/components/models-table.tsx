@@ -319,7 +319,7 @@ export function ModelsTable({
                               <MotionTableRow
                                 key={row.id}
                                 data-state={row.getIsSelected() && 'selected'}
-                                className='group/row table-row-hover rounded-xl border-0 !bg-[var(--table-background)] transition-all duration-200 ease-in-out'
+                                className='group/row table-row-stable rounded-xl border-0 !bg-[var(--table-background)] transition-all duration-200 ease-in-out'
                               >
                                 {row.getVisibleCells().map((cell) => (
                                   <TableCell
@@ -550,6 +550,9 @@ export function ModelsTable({
               <span className='text-muted-foreground text-sm'>{t('common.selected')}</span>
             </div>
             <div className='bg-border mx-2 h-6 w-px' />
+            <Button variant='outline' size='sm' onClick={() => setOpen('bulkAssociation')}>
+              {t('models.bulk.title')}
+            </Button>
             <PermissionGuard requiredScope='write_channels'>
               <>
                 <Button

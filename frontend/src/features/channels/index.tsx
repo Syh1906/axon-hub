@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
 import { useProvidersData } from '@/features/models/data/providers';
@@ -17,6 +19,7 @@ import { useChannelUpstreamStates, useRefreshUpstreamOnPage } from './data/chann
 import {
   DEFAULT_CHANNEL_COLUMN_VISIBILITY,
   useQueryChannels,
+  useAllChannelSummarys,
   useChannelTypes,
   useErrorChannelsCount,
   useChannelProbeData,
@@ -24,9 +27,16 @@ import {
 } from './data/channels';
 import { CHANNEL_TYPE_TO_PROVIDER } from './data/config_channels';
 import { readDefaultChannelSort } from './utils/channel-sort';
+import { resolveChannelTagSelection } from './utils/default-tags';
 import { groupChannelTypesByProvider, IMAGE_PRIMARY_API_FORMAT } from './utils/group-channel-types';
 
 const ChannelsDialogs = lazy(() => import('./components/channels-dialogs').then((m) => ({ default: m.ChannelsDialogs })));
+
+const EMPTY_CHANNEL_PAGE = {
+  edges: [],
+  totalCount: 0,
+  pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null },
+};
 
 function ChannelsContent() {
   const { t } = useTranslation();
@@ -37,6 +47,16 @@ function ChannelsContent() {
     defaultPageSize: 20,
     pageSizeStorageKey: 'channels-table-page-size',
   });
+  const tagChannels = useAllChannelSummarys(undefined, { enabled: tagFilter.length > 1, includeArchived: true });
+  const multiTagSelection = useMemo(
+    () =>
+      resolveChannelTagSelection(
+        tagFilter,
+        tagChannels.data?.edges.map((edge) => edge.node)
+      ),
+    [tagFilter, tagChannels.data]
+  );
+  const tagQueryBlocked = multiTagSelection.disableQuery || (tagFilter.length > 1 && tagChannels.isError);
   const [nameFilter, setNameFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -91,7 +111,8 @@ function ChannelsContent() {
 
   // Build where clause with filters using useMemo
   const whereClause = useMemo(() => {
-    const where: Record<string, string | string[] | boolean> = {};
+    const where: Record<string, unknown> = {};
+    if (multiTagSelection.ids !== undefined) where.idIn = multiTagSelection.ids;
     if (debouncedNameFilter) {
       where.nameContainsFold = debouncedNameFilter;
     }
@@ -114,7 +135,7 @@ function ChannelsContent() {
       where.errorMessageNotNil = true;
     }
     return Object.keys(where).length > 0 ? where : undefined;
-  }, [debouncedNameFilter, tabFilteredTypes, statusFilter, showErrorOnly]);
+  }, [debouncedNameFilter, tabFilteredTypes, typeFilter, statusFilter, showErrorOnly, multiTagSelection]);
 
   const currentOrderBy = useMemo(() => {
     if (sorting.length === 0) {
@@ -141,24 +162,28 @@ function ChannelsContent() {
   }, [sorting]);
 
   const {
-    data,
+    data: queryData,
     isLoading,
     error: _error,
-  } = useQueryChannels({
-    ...paginationArgs,
-    where: whereClause,
-    orderBy: currentOrderBy,
-    routingOrder:
-      sorting[0]?.id === 'priority' || sorting[0]?.id === 'costMultiplier'
-        ? { field: sorting[0].id === 'priority' ? 'PRIORITY' : 'COST_MULTIPLIER', direction: sorting[0].desc ? 'DESC' : 'ASC' }
-        : undefined,
-    hasTag: tagFilter || undefined,
-    model: modelFilter || undefined,
-    primaryApiFormat: selectedTypeGroup?.primaryApiFormat,
-    excludePrimaryApiFormat: selectedTypeTab !== 'all' && !selectedTypeGroup?.primaryApiFormat ? IMAGE_PRIMARY_API_FORMAT : undefined,
-    healthGateAbnormal: showHealthGateAbnormal || undefined,
-    columnVisibility,
-  });
+  } = useQueryChannels(
+    {
+      ...paginationArgs,
+      where: whereClause,
+      orderBy: currentOrderBy,
+      routingOrder:
+        sorting[0]?.id === 'priority' || sorting[0]?.id === 'costMultiplier'
+          ? { field: sorting[0].id === 'priority' ? 'PRIORITY' : 'COST_MULTIPLIER', direction: sorting[0].desc ? 'DESC' : 'ASC' }
+          : undefined,
+      hasTag: tagFilter.length === 1 ? tagFilter[0] : undefined,
+      model: modelFilter || undefined,
+      primaryApiFormat: selectedTypeGroup?.primaryApiFormat,
+      excludePrimaryApiFormat: selectedTypeTab !== 'all' && !selectedTypeGroup?.primaryApiFormat ? IMAGE_PRIMARY_API_FORMAT : undefined,
+      healthGateAbnormal: showHealthGateAbnormal || undefined,
+      columnVisibility,
+    },
+    { disableAutoFetch: tagQueryBlocked }
+  );
+  const data = tagQueryBlocked ? EMPTY_CHANNEL_PAGE : queryData;
 
   const channelIDs = useMemo(() => {
     return data?.edges?.map((edge) => edge.node.id) || [];
@@ -247,7 +272,7 @@ function ChannelsContent() {
   );
 
   const handleTagFilterChange = useCallback(
-    (filter: string) => {
+    (filter: string[]) => {
       setTagFilter(filter);
       resetCursor();
     },
@@ -283,7 +308,10 @@ function ChannelsContent() {
     [resetCursor]
   );
 
-  const columns = useMemo(() => createColumns(t, channelPermissions.canWrite, tagFilter), [t, channelPermissions.canWrite, tagFilter]);
+  const columns = useMemo(
+    () => createColumns(t, channelPermissions.canWrite, tagFilter.length === 1 ? tagFilter[0] : ''),
+    [t, channelPermissions.canWrite, tagFilter]
+  );
 
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
@@ -299,8 +327,18 @@ function ChannelsContent() {
         onTabChange={handleTabChange}
         className={showTypeTabs ? '' : 'hidden'}
       />
+      {tagFilter.length > 1 && tagChannels.isError && (
+        <Alert variant='destructive'>
+          <AlertDescription>
+            {t('common.loadError')}
+            <Button variant='outline' size='sm' onClick={() => void tagChannels.refetch()}>
+              {t('channels.defaultTags.retry')}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <ChannelsTable
-        loading={isLoading}
+        loading={isLoading || (tagFilter.length > 1 && tagChannels.isLoading)}
         data={channelsWithProbeData}
         columns={columns}
         pageInfo={data?.pageInfo}

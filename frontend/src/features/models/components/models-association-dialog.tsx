@@ -33,10 +33,10 @@ import { normalizeModelDeveloper } from '../data/developer';
 import { useQueryModelChannelConnections, ModelAssociationInput, ModelChannelConnection } from '../data/models';
 import { useUpdateModel } from '../data/models';
 import { ModelAssociation, normalizeModelRoutingPolicyValue } from '../data/schema';
+import { MAX_ASSOCIATION_PRIORITY } from '../utils/bulk-associations';
+import { AssociationBulkPicker } from './association-bulk-picker';
 import { ChannelModelsList } from './channel-models-list';
 import { ModelMatchTest } from './models-match-fields';
-
-const MAX_ASSOCIATION_PRIORITY = 10;
 
 const requestFormatConditionOptions = [
   'openai/chat_completions',
@@ -394,7 +394,6 @@ const associationFormSchema = z.object({
         excludeChannelTags: z.array(z.string()).optional(),
       })
     )
-    .max(10, 'Cannot have more than 10 associations')
     .superRefine((associations, ctx) => {
       associations.forEach((assoc, index) => {
         if (assoc.inheritModel && assoc.type !== 'channel_model' && assoc.type !== 'channel_tags_model') {
@@ -728,6 +727,7 @@ export function ModelsAssociationDialog() {
   const { data: availableModels, mutateAsync: fetchModels } = useQueryModels();
   const { data: allTags = [] } = useAllChannelTags();
   const [requestModelID, setRequestModelID] = useState('');
+  const [bulkPicking, setBulkPicking] = useState(false);
   const debouncedRequestModelID = useDebounce(requestModelID, 350);
   const { mutateAsync: queryConnections } = useQueryModelChannelConnections(debouncedRequestModelID || undefined);
   const [connections, setConnections] = useState<ModelChannelConnection[]>([]);
@@ -839,7 +839,9 @@ export function ModelsAssociationDialog() {
           return;
         }
 
-        const inheritedInputs = inheritedAssociations.map((assoc) => modelAssociationToInput(assoc, debouncedRequestModelID || currentRow?.modelID));
+        const inheritedInputs = inheritedAssociations.map((assoc) =>
+          modelAssociationToInput(assoc, debouncedRequestModelID || currentRow?.modelID)
+        );
         const formInputs = sortAssociationsByPriority(debouncedAssociations)
           .map((assoc) => formAssociationToInput(assoc))
           .filter((item): item is ModelAssociationInput => item !== undefined);
@@ -860,12 +862,24 @@ export function ModelsAssociationDialog() {
     };
 
     fetchConnections();
-    return () => { active = false; };
-  }, [debouncedRequestModelID, t, channelOptions, currentRow?.modelID, debouncedAssociationsString, inheritedAssociations, isOpen, isDeveloperMode, queryConnections]);
+    return () => {
+      active = false;
+    };
+  }, [
+    debouncedRequestModelID,
+    t,
+    channelOptions,
+    currentRow?.modelID,
+    debouncedAssociationsString,
+    inheritedAssociations,
+    isOpen,
+    isDeveloperMode,
+    queryConnections,
+  ]);
 
   useEffect(() => {
     if (isOpen) {
-      setRequestModelID(currentRow?.matchType === 'exact' ? currentRow.modelID : currentRow?.publicModelIds?.[0] ?? '');
+      setRequestModelID(currentRow?.matchType === 'exact' ? currentRow.modelID : (currentRow?.publicModelIds?.[0] ?? ''));
       const associations = isDeveloperMode ? developerAssociations : currentRow?.settings?.associations || [];
       form.reset({
         disableDeveloperSettingsInheritance: isDeveloperMode ? false : (currentRow?.settings?.disableDeveloperSettingsInheritance ?? false),
@@ -932,8 +946,6 @@ export function ModelsAssociationDialog() {
   }, [setOpen, setCurrentDeveloper, form]);
 
   const handleAddAssociation = useCallback(() => {
-    if (fields.length >= 10) return;
-
     // Get the priority of the last rule (highest priority)
     const currentAssociations = form.getValues('associations') || [];
     const lastPriority = currentAssociations.length > 0 ? Math.max(...currentAssociations.map((a) => a.priority ?? 0)) : 0;
@@ -964,14 +976,39 @@ export function ModelsAssociationDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent ref={dialogContentRef} className='flex h-[90vh] max-h-[800px] w-full max-w-full flex-col sm:max-w-6xl'>
+      <DialogContent
+        onEscapeKeyDown={(event) => {
+          if (bulkPicking) {
+            event.preventDefault();
+            setBulkPicking(false);
+          }
+        }}
+        ref={dialogContentRef}
+        className='flex h-[90vh] max-h-[800px] w-full max-w-full flex-col sm:max-w-6xl'
+      >
         <DialogHeader className='shrink-0 text-left'>
           <DialogTitle className='text-lg sm:text-xl'>
             {isDeveloperMode ? t('models.dialogs.developerAssociation.title') : t('models.dialogs.association.title')}
           </DialogTitle>
         </DialogHeader>
 
-        <div className='flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto sm:flex-row sm:overflow-hidden'>
+        {bulkPicking && (
+          <AssociationBulkPicker
+            channels={channelOptions}
+            portalContainer={dialogContentRef.current}
+            existing={form.getValues('associations').map(formAssociationToModelAssociation)}
+            modelID={requestModelID}
+            onCancel={() => setBulkPicking(false)}
+            onAdd={(rules) => {
+              append(rules.map((rule) => modelAssociationToFormRow(rule, false)));
+              setBulkPicking(false);
+            }}
+          />
+        )}
+        <div
+          style={bulkPicking ? { display: 'none' } : undefined}
+          className='flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto sm:flex-row sm:overflow-hidden'
+        >
           {/* Left Side - Association Rules */}
           <div className='flex min-w-0 flex-col sm:min-h-0 sm:flex-[2]'>
             <DialogDescription className='shrink-0 text-sm sm:text-base'>
@@ -1053,7 +1090,9 @@ export function ModelsAssociationDialog() {
                                       <SelectItem value='round-robin'>
                                         {t('system.retry.loadBalancerStrategy.options.roundRobin')}
                                       </SelectItem>
-                                      <SelectItem value='health-gated'>{t('system.retry.loadBalancerStrategy.options.healthGated')}</SelectItem>
+                                      <SelectItem value='health-gated'>
+                                        {t('system.retry.loadBalancerStrategy.options.healthGated')}
+                                      </SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </FormControl>
@@ -1154,8 +1193,13 @@ export function ModelsAssociationDialog() {
             </div>
 
             {/* Fixed Add Rule Section at Bottom */}
+            {!isDeveloperMode && (
+              <Button type='button' variant='outline' onClick={() => setBulkPicking(true)}>
+                {t('models.bulk.add')}
+              </Button>
+            )}
             <div className='bg-background shrink-0 border-t pt-4'>
-              <Button type='button' variant='outline' onClick={handleAddAssociation} disabled={fields.length >= 10} className='w-full'>
+              <Button type='button' variant='outline' onClick={handleAddAssociation} className='w-full'>
                 <IconPlus className='mr-2 h-4 w-4' />
                 {t('models.dialogs.association.addRule')}
               </Button>
@@ -1166,10 +1210,19 @@ export function ModelsAssociationDialog() {
           <div className='flex min-w-0 flex-col border-t pt-4 sm:min-h-0 sm:flex-1 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6'>
             <div className='shrink-0 space-y-2 pb-4'>
               <h3 className='text-sm font-semibold'>{t('models.dialogs.association.preview')}</h3>
-              {!isDeveloperMode && currentRow && <>
-                <p className='break-all text-xs text-muted-foreground'>{t(`models.match.types.${currentRow.matchType}`)} · <code>{currentRow.modelID}</code></p>
-                <ModelMatchTest matchType={currentRow.matchType} pattern={currentRow.modelID} value={requestModelID} onChange={setRequestModelID} />
-              </>}
+              {!isDeveloperMode && currentRow && (
+                <>
+                  <p className='text-muted-foreground text-xs break-all'>
+                    {t(`models.match.types.${currentRow.matchType}`)} · <code>{currentRow.modelID}</code>
+                  </p>
+                  <ModelMatchTest
+                    matchType={currentRow.matchType}
+                    pattern={currentRow.modelID}
+                    value={requestModelID}
+                    onChange={setRequestModelID}
+                  />
+                </>
+              )}
               <p className='text-muted-foreground text-xs'>
                 {isDeveloperMode
                   ? t('models.dialogs.developerAssociation.previewDescription')
@@ -1195,7 +1248,10 @@ export function ModelsAssociationDialog() {
           </div>
         </div>
 
-        <DialogFooter className='flex shrink-0 flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end sm:gap-0'>
+        <DialogFooter
+          style={bulkPicking ? { display: 'none' } : undefined}
+          className='flex shrink-0 flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end sm:gap-0'
+        >
           <Button type='button' variant='outline' onClick={handleClose} className='w-full sm:w-auto'>
             {t('common.buttons.cancel')}
           </Button>

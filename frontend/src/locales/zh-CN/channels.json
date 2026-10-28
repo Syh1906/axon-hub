@@ -1208,5 +1208,10 @@
   "channels.addresses.restoreDefault": "恢复默认",
   "channels.addresses.removeInterface": "删除接口",
   "channels.addresses.addInterface": "添加接口",
-  "channels.upstream.errors.ACCOUNT_ALREADY_EXISTS": "此账号已存在，请复用已有账号记录。"
+  "channels.upstream.errors.ACCOUNT_ALREADY_EXISTS": "此账号已存在，请复用已有账号记录。",
+  "channels.defaultTags.title": "默认标签",
+  "channels.defaultTags.help": "进入页面时自动应用。留空显示全部，多标签满足任意一个即可。仅保存在当前浏览器。",
+  "channels.defaultTags.search": "搜索标签…",
+  "channels.defaultTags.clear": "清空（全部）",
+  "channels.defaultTags.retry": "重新加载标签"
 }

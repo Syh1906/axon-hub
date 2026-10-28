@@ -396,3 +396,7 @@ Go to channel details, find the key in the **Disabled List**, and click **Restor
 - [Model Management Guide](model-management.md) - Configure model-channel associations
 - [API Key Profiles Guide](api-key-profiles.md) - Configure model mappings and permissions
 - [Request Processing Guide](../getting-started/request-processing.md) - Understand the full request flow
+
+## Default tags and stable rows
+
+Default tags stores zero, one or multiple tags in the current browser and applies them when opening the page. Empty means all tags; multiple tags match any. Temporary filters and reset do not overwrite the saved preference. Multiple tags resolve matching IDs from channel summaries, followed by server filtering, ordering and pagination. A single tag retains its priority scope; multiple tags use the existing channel minimum-priority display. Channel and model rows change background color on hover without scaling.

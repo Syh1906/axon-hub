@@ -239,3 +239,11 @@ No, the system automatically deduplicates.
 - [API Key Profiles Guide](api-key-profiles.md) - Configure model mappings
 - [Load Balancing Guide](load-balance.md) - Learn about channel selection and failover
 - [Request Processing Guide](../getting-started/request-processing.md) - Complete request flow explanation
+
+## Bulk associations
+
+The model ID cell displays the stored Exact, Prefix, Suffix or Regex match type, without inferring it from the expression. Bulk priorities share the existing editor range of integers from 0 to 10. Preview entries for the same channel are merged, listing each model once.
+
+Select models in the list and choose Bulk associate, then select channels or tags. Exact models default to their own model ID; pattern rules and aliases require a concrete forwarded model. Preview shows additions and duplicates. Unmatched entries are excluded from saving. Saves run per model with individual results; failed entries can be retried without resubmitting successful ones. Each save rereads the model and appends rules while preserving other settings. The batch is not a cross-model transaction.
+
+Within one model association dialog, Add in bulk searches channels, tags and models and selects filtered results or same-name models across channels. Existing enabled, unconditional rules with the same target are skipped. Disabled or conditional rules remain and do not prevent a new unconditional rule. Additions first enter the edit draft and take effect after Save in the original dialog. Cancelling selection preserves the original draft. The former ten-rule UI limit is removed; long lists scroll inside the dialog.

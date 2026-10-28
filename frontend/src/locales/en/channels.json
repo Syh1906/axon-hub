@@ -1208,5 +1208,10 @@
   "channels.addresses.restoreDefault": "Restore default",
   "channels.addresses.removeInterface": "Remove interface",
   "channels.addresses.addInterface": "Add interface",
-  "channels.upstream.errors.ACCOUNT_ALREADY_EXISTS": "This account already exists. Reuse the existing account."
+  "channels.upstream.errors.ACCOUNT_ALREADY_EXISTS": "This account already exists. Reuse the existing account.",
+  "channels.defaultTags.title": "Default tags",
+  "channels.defaultTags.help": "Applied on entry. Empty means all tags; multiple tags match any. Saved in this browser only.",
+  "channels.defaultTags.search": "Search tags…",
+  "channels.defaultTags.clear": "Clear (all)",
+  "channels.defaultTags.retry": "Reload tags"
 }

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import useDialogState from '@/hooks/use-dialog-state';
 import { Channel } from '../data/schema';
+import { readDefaultTags } from '../utils/default-tags';
 
 type ChannelsDialogType =
   | 'add'
@@ -50,8 +51,8 @@ interface ChannelsContextType {
   setResetRowSelection: (fn: () => void) => void;
   showTypeTabs: boolean;
   setShowTypeTabs: React.Dispatch<React.SetStateAction<boolean>>;
-  selectedTag: string;
-  setSelectedTag: React.Dispatch<React.SetStateAction<string>>;
+  selectedTag: string[];
+  setSelectedTag: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const ChannelsContext = React.createContext<ChannelsContextType | null>(null);
@@ -64,7 +65,7 @@ export default function ChannelsProvider({ children }: Props) {
   const [open, setOpen] = useDialogState<ChannelsDialogType>(null);
   const [currentRow, setCurrentRow] = useState<Channel | null>(null);
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
-  const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string[]>(readDefaultTags);
   const [showTypeTabs, setShowTypeTabs] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('channels-show-type-tabs');

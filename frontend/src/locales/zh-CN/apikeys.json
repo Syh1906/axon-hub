@@ -256,5 +256,7 @@
   "apikeys.priorities.channelId": "渠道 #{{id}}",
   "apikeys.priorities.value": "{{channel}} 的优先级",
   "apikeys.priorities.outOfScope": "该渠道不在当前可用范围内，此项暂不生效。",
-  "apikeys.priorities.add": "添加渠道优先级"
+  "apikeys.priorities.add": "添加渠道优先级",
+  "apikeys.actions.usage": "用量",
+  "apikeys.actions.viewUsage": "查看此密钥的用量"
 }
