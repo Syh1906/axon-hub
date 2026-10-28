@@ -24,8 +24,8 @@ import (
 
 func upstreamConfigFingerprint(ch *ent.Channel) string {
 	data, _ := json.Marshal(struct {
-		BaseURL     string
-		Credentials *objects.ChannelUpstreamCredentials
+		BaseURL     string                              `json:"BaseURL"`
+		Credentials *objects.ChannelUpstreamCredentials `json:"Credentials"`
 	}{ch.BaseURL, ch.UpstreamCredentials})
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])

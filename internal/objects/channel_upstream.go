@@ -53,7 +53,7 @@ func (s *ChannelSettings) UpstreamSettings() ChannelUpstreamSettings {
 	return settings
 }
 
-// 账户令牌单独保存在敏感字段中，查询 DTO 只返回连接状态和账号 ID。
+// ChannelUpstreamCredentials 将账户令牌单独保存在敏感字段中，查询 DTO 只返回连接状态和账号 ID。
 type ChannelUpstreamCredentials struct {
 	AccountToken string `json:"accountToken"`
 	AccountID    int    `json:"accountId"`
@@ -163,7 +163,7 @@ type AppliedCostMultiplier struct {
 	ObservedAt *time.Time           `json:"observedAt,omitempty"`
 }
 
-// Price 在本次请求内复用；持久记录通过不可变的 PriceReferenceID 定位原价格。
+// RequestCostSnapshot 在本次请求内复用 Price；持久记录通过不可变的 PriceReferenceID 定位原价格。
 type RequestCostSnapshot struct {
 	PriceReferenceID string                `json:"priceReferenceId"`
 	PricedAt         time.Time             `json:"pricedAt"`

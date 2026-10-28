@@ -94,8 +94,7 @@ func (c *Client) request(ctx context.Context, path, key string, accountID int) (
 	}
 	response, err := c.http.Do(ctx, builder.Build())
 	if err != nil {
-		var responseError *httpclient.Error
-		if errors.As(err, &responseError) {
+		if responseError, ok := errors.AsType[*httpclient.Error](err); ok {
 			code := "UPSTREAM_UNAVAILABLE"
 			switch responseError.StatusCode {
 			case http.StatusUnauthorized:
@@ -188,8 +187,7 @@ func (c *Client) Prepare(ctx context.Context, key string, known objects.Upstream
 }
 
 func ErrorCode(err error) string {
-	var queryError *QueryError
-	if errors.As(err, &queryError) {
+	if queryError, ok := errors.AsType[*QueryError](err); ok {
 		return queryError.Code
 	}
 	return "QUERY_FAILED"

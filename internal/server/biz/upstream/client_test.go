@@ -21,11 +21,11 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 			_, _ = w.Write([]byte(`{"success":true,"data":{"quota_per_unit":500000,"quota_display_type":"USD"}}`))
 		case "/api/user/self":
 			if r.Header.Get("Authorization") != "Bearer fixture-account" {
-				w.WriteHeader(401)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			if r.Header.Get("New-Api-User") != "17" {
-				w.WriteHeader(401)
+				w.WriteHeader(http.StatusUnauthorized)
 				_, _ = w.Write([]byte(`{"message":"New-Api-User is required"}`))
 				return
 			}
@@ -88,7 +88,7 @@ func TestSub2APIIndependentResultsAndUnsupportedBilling(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/usage":
 			if balanceFailure {
-				w.WriteHeader(503)
+				w.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}
 			_, _ = w.Write([]byte(`{"isValid":true,"mode":"quota_limited","quota":{"remaining":0,"limit":20,"used":20}}`))
@@ -128,7 +128,7 @@ func TestSub2APIIndependentResultsAndUnsupportedBilling(t *testing.T) {
 func TestDetectionDoesNotTreatTemporaryFailureAsUnsupported(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/status" {
-			w.WriteHeader(503)
+			w.WriteHeader(http.StatusServiceUnavailable)
 		} else {
 			http.NotFound(w, r)
 		}
