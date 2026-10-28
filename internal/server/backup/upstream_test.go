@@ -22,8 +22,9 @@ func TestBackupUpstreamConfigurationAndCostSnapshot(t *testing.T) {
 	ch.Update().ClearUpstreamCredentials().SaveX(ctx)
 	require.NoError(t, svc.Restore(ctx, data, RestoreOptions{IncludeChannels: true, ChannelConflictStrategy: ConflictStrategyOverwrite}))
 	stored := db.Channel.GetX(ctx, ch.ID)
-	require.Equal(t, 17, stored.UpstreamCredentials.AccountID)
-	require.Equal(t, "fixture-account", stored.UpstreamCredentials.AccountToken)
+	require.Equal(t, 17, stored.UpstreamCredentials.Accounts[0].AccountID)
+	require.Equal(t, "fixture-account", stored.UpstreamCredentials.Accounts[0].AccountToken)
+	require.Empty(t, stored.UpstreamCredentials.AccountToken)
 	// The normal channel JSON still omits the private authentication field.
 	public, err := json.Marshal(stored)
 	require.NoError(t, err)

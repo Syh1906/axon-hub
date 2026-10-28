@@ -7,12 +7,15 @@ import { toast } from 'sonner';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { publishUpstreamStates, refreshUpstreamChannels, type UpstreamRefreshOptions } from './channel-upstream-refresh';
 import { channelUpstreamStateSchema, type ChannelUpstreamState, type UpstreamInput } from './schema';
+
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
 
 const balanceFields = 'kind amount used limit unlimited currency unit accountRef expiresAt';
-const stateFields = `channelId provider accountConnected accountId manualMultiplier
+export const upstreamStateFields = `channelId provider manualMultiplier keySessionReuse
+  accounts { ref name provider accountId hasToken verifiedAt keyCount complete updatedAt balance { ${balanceFields} } }
+  balanceSummary { accountCount knownAccountCount unassignedKeyCount complete balances { ${balanceFields} } }
   settings { enabled costMode refreshIntervalMinutes }
-  keys { keyRef label disabled upstreamMultiplier applied { value source provider observedAt }
+  keys { keyRef label remark accountRef disabled upstreamMultiplier applied { value source provider observedAt }
     snapshot { provider balanceState rateState balanceErrorCode rateErrorCode balanceUpdatedAt balanceCheckedAt rateCheckedAt nextBalanceCheckAt nextRateCheckAt
       balances { ${balanceFields} } account { accountId updatedAt balance { ${balanceFields} }
       } rate { multiplier group observedAt syncedAt validUntil }
@@ -25,7 +28,7 @@ export function useChannelUpstreamStates(channelIds: string[]) {
     enabled: channelIds.length > 0,
     queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(
-        `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${stateFields} } }`,
+        `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${upstreamStateFields} } }`,
         { channelIds },
         undefined,
         { signal }
@@ -56,7 +59,7 @@ export function useRefreshChannelUpstreams() {
       const states: ChannelUpstreamState[] = [];
       for (let offset = 0; offset < ids.length; offset += 100) {
         const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(
-          `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${stateFields} } }`,
+          `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${upstreamStateFields} } }`,
           { channelIds: ids.slice(offset, offset + 100) }
         );
         states.push(...z.array(channelUpstreamStateSchema).parse(data.channelUpstreamStates));
@@ -67,7 +70,7 @@ export function useRefreshChannelUpstreams() {
         }>(
           `mutation RefreshChannelUpstreams($channelIds: [ID!]!, $force: Boolean!, $includeDisabled: Boolean!, $keyRef: String!) {
             refreshChannelUpstreams(channelIds: $channelIds, force: $force, includeDisabled: $includeDisabled, keyRef: $keyRef) {
-              channels { ${stateFields} } refreshed skipped failed
+              channels { ${upstreamStateFields} } refreshed skipped failed
             }
           }`,
           { channelIds: [channelId], keyRef, force: variables.force ?? false, includeDisabled: variables.includeDisabled ?? false }
@@ -117,7 +120,7 @@ export function useSaveChannelUpstream(channelId: string) {
   return useMutation({
     mutationFn: async (input: UpstreamInput) => {
       const data = await graphqlRequest<{ updateChannelUpstream: unknown }>(
-        `mutation UpdateChannelUpstream($channelId: ID!, $input: UpdateChannelUpstreamInput!) { updateChannelUpstream(channelId: $channelId, input: $input) { ${stateFields} } }`,
+        `mutation UpdateChannelUpstream($channelId: ID!, $input: UpdateChannelUpstreamInput!) { updateChannelUpstream(channelId: $channelId, input: $input) { ${upstreamStateFields} } }`,
         { channelId, input }
       );
       return channelUpstreamStateSchema.parse(data.updateChannelUpstream);
@@ -133,14 +136,14 @@ export function useSaveChannelUpstream(channelId: string) {
   });
 }
 
-export async function verifyUpstreamAccount(channelId: string, accountToken: string, accountId?: number) {
+export async function verifyUpstreamAccount(channelId: string, accountRef: string) {
   const data = await graphqlRequest<{
     verifyChannelUpstreamAccount: { success: boolean; accountId: number | null; requiresAccountId: boolean; errorCode: string };
   }>(
-    `mutation VerifyChannelUpstreamAccount($channelId: ID!, $accountToken: String!, $accountId: Int) {
-      verifyChannelUpstreamAccount(channelId: $channelId, accountToken: $accountToken, accountId: $accountId) { success accountId requiresAccountId errorCode }
+    `mutation VerifyChannelUpstreamAccount($channelId: ID!, $accountRef: String!) {
+      verifyChannelUpstreamAccount(channelId: $channelId, accountRef: $accountRef) { success accountId requiresAccountId errorCode }
     }`,
-    { channelId, accountToken, accountId }
+    { channelId, accountRef }
   );
   return data.verifyChannelUpstreamAccount;
 }

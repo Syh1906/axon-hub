@@ -60,6 +60,21 @@ func TestTraceStickyKeyProvider_MultipleKeys_WithTrace_Sticky(t *testing.T) {
 	require.Contains(t, keys, key1)
 }
 
+func TestTraceStickyKeyProvider_DisabledSessionReuseDoesNotKeepTrace(t *testing.T) {
+	keys := []string{"fixture-key-1", "fixture-key-2"}
+	ch := &Channel{Channel: &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: keys}, Settings: &objects.ChannelSettings{DisableKeySessionReuse: true}}, cachedEnabledAPIKeys: keys}
+	provider := NewTraceStickyKeyProvider(ch)
+	ctx := contexts.WithTrace(context.Background(), &ent.Trace{TraceID: "same-session"})
+	for range 4 {
+		require.Contains(t, keys, provider.Get(ctx))
+	}
+	require.Zero(t, provider.cache.Len(), "关闭复用时不保存会话到 Key 的选择")
+	ch.Settings.DisableKeySessionReuse = false
+	first := provider.Get(ctx)
+	require.Equal(t, 1, provider.cache.Len())
+	require.Equal(t, first, provider.Get(ctx))
+}
+
 func TestTraceStickyKeyProvider_DifferentTraces_MaySelectDifferentKeys(t *testing.T) {
 	keys := []string{"key-1", "key-2", "key-3", "key-4", "key-5"}
 	ch := &Channel{

@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/samber/lo"
@@ -13,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/role"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userrole"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
@@ -108,6 +110,60 @@ func TestCreateRole(t *testing.T) {
 		_, err = roleService.CreateRole(ctx, input)
 		require.Error(t, err)
 	})
+}
+
+func TestRoleNameReuseAfterDelete(t *testing.T) {
+	for _, level := range []role.Level{role.LevelSystem, role.LevelProject} {
+		for _, bulk := range []bool{false, true} {
+			t.Run(string(level)+"/bulk="+fmt.Sprint(bulk), func(t *testing.T) {
+				roleService, _, client := setupTestRoleService(t)
+				defer client.Close()
+				ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+				ctx = contexts.WithUser(ctx, createOwnerUser(t, ctx, client))
+				input := ent.CreateRoleInput{
+					Name:   "项目管理员",
+					Level:  lo.ToPtr(level),
+					Scopes: []string{"read_users", "write_users"},
+				}
+				if level == role.LevelProject {
+					project, err := client.Project.Create().SetName("角色重建项目").Save(ctx)
+					require.NoError(t, err)
+					input.ProjectID = &project.ID
+				}
+
+				original, err := roleService.CreateRole(ctx, input)
+				require.NoError(t, err)
+				_, err = roleService.CreateRole(ctx, input)
+				require.Error(t, err, "有效角色仍不允许重名")
+				if bulk {
+					require.NoError(t, roleService.BulkDeleteRoles(ctx, []int{original.ID}))
+				} else {
+					require.NoError(t, roleService.DeleteRole(ctx, original.ID))
+				}
+
+				exists, err := roleService.RoleNameExists(ctx, level, input.Name, original.ProjectID)
+				require.NoError(t, err)
+				require.False(t, exists)
+				other, err := client.Role.Create().SetName("待重命名角色").SetLevel(level).
+					SetNillableProjectID(input.ProjectID).Save(ctx)
+				require.NoError(t, err)
+				_, err = roleService.UpdateRole(ctx, other.ID, ent.UpdateRoleInput{Name: &input.Name})
+				require.NoError(t, err, "也应允许改为已删除角色的名称")
+				otherName := "待重命名角色"
+				_, err = roleService.UpdateRole(ctx, other.ID, ent.UpdateRoleInput{Name: &otherName})
+				require.NoError(t, err)
+				recreated, err := roleService.CreateRole(ctx, input)
+				require.NoError(t, err, "删除角色后应能重新使用原名称")
+				require.NotEqual(t, original.ID, recreated.ID)
+				archived, err := client.Role.Get(schematype.SkipSoftDelete(ctx), original.ID)
+				require.NoError(t, err)
+				require.NotZero(t, archived.DeletedAt, "保留原角色的删除记录")
+
+				_, err = roleService.UpdateRole(ctx, other.ID, ent.UpdateRoleInput{Name: &input.Name})
+				require.Error(t, err, "编辑名称也不能与有效角色重名")
+			})
+		}
+	}
 }
 
 func TestUpdateRole(t *testing.T) {

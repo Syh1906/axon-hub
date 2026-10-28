@@ -8,6 +8,7 @@ import (
 
 	"github.com/samber/lo"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
@@ -371,6 +372,9 @@ var errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit bre
 // PersistentOutboundTransformer wraps an outbound transformer with shared persistence state.
 type PersistentOutboundTransformer struct {
 	wrapped                       transformer.Outbound
+	addressIndex                  int
+	retryAddress                  bool
+	addressAPIKey                 string
 	state                         *PersistenceState
 	outboundLlmRequestMiddlewares []pipeline.OutboundLlmRequestMiddleware
 }
@@ -521,10 +525,14 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		}
 	}
 
+	if p.addressIndex > 0 && p.addressAPIKey != "" {
+		ctx = biz.WithFixedChannelAPIKey(ctx, p.addressAPIKey)
+	}
 	httpRequest, err := p.wrapped.TransformRequest(ctx, llmRequest)
 	if err != nil {
 		return nil, err
 	}
+	p.addressAPIKey, _ = contexts.GetChannelAPIKey(ctx)
 
 	if httpRequest.APIFormat != "" {
 		outboundFormat = llm.APIFormat(httpRequest.APIFormat)
@@ -659,6 +667,8 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 	p.state.CurrentCandidateIndex++
 
 	p.state.CurrentModelIndex = 0
+	p.addressIndex, p.retryAddress = 0, false
+	p.addressAPIKey = ""
 	if p.state.CurrentCandidateIndex >= len(p.state.ChannelModelsCandidates) {
 		return errors.New("no more candidates available for retry")
 	}
@@ -689,11 +699,16 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 // It implements the pipeline.ChannelRetryable interface, it just check the error is retryable, the
 // pipeline will ensure the maxSameChannelRetries is not exceeded.
 func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
+	p.retryAddress = false
 	if p.state.CurrentCandidate == nil {
 		return false
 	}
 	if p.state.CurrentCandidate.healthGate != nil && p.state.CurrentCandidate.healthGate.lastResort || errors.Is(err, errSkipCandidateByHealthGate) {
 		return false
+	}
+	addresses := p.upstreamAddresses()
+	if len(addresses) > 1 && p.state.CurrentCandidate.Channel.Settings.AddressFailover && isUpstreamAddressFailure(err) {
+		return p.CanRetryAfterTimeout(err)
 	}
 
 	// Trace/thread sticky candidates are intentionally one-shot. A failed
@@ -762,6 +777,12 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	// Cancel any in-flight pass-through stream goroutine from the previous attempt
 	// so it exits promptly and releases its upstream HTTP connection.
 	p.resetPassThroughStreamState()
+	if p.retryAddress {
+		p.addressIndex++
+		p.retryAddress = false
+		return nil
+	}
+	p.addressIndex, p.addressAPIKey = 0, ""
 
 	// If there's another model in the list, advance to it.
 	if p.state.CurrentModelIndex+1 < len(candidate.Models) {

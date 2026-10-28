@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/enttest"
@@ -99,7 +100,8 @@ func setupTestAuthService(t *testing.T, cacheConfig xcache.Config) (*AuthService
 	require.NoError(t, err)
 
 	userService := &UserService{
-		UserCache: xcache.NewFromConfig[ent.User](cacheConfig),
+		UserCache:           xcache.NewFromConfig[ent.User](cacheConfig),
+		permissionValidator: NewPermissionValidator(),
 	}
 
 	projectService := &ProjectService{
@@ -231,7 +233,8 @@ func TestAuthService_AuthenticateUser(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid email or password")
 
 	// Test deactivated user
-	_, err = authService.UserService.UpdateUserStatus(ctx, testUser.ID, user.StatusDeactivated)
+	ownerCtx := contexts.WithUser(ctx, &ent.User{IsOwner: true})
+	_, err = authService.UserService.UpdateUserStatus(ownerCtx, testUser.ID, user.StatusDeactivated)
 	require.NoError(t, err)
 
 	_, err = authService.AuthenticateUser(ctx, "test@example.com", password)
@@ -310,7 +313,8 @@ func TestAuthService_AuthenticateJWTToken(t *testing.T) {
 	require.Error(t, err)
 
 	// Test deactivated user
-	_, err = authService.UserService.UpdateUserStatus(ctx, testUser.ID, user.StatusDeactivated)
+	ownerCtx := contexts.WithUser(ctx, &ent.User{IsOwner: true})
+	_, err = authService.UserService.UpdateUserStatus(ownerCtx, testUser.ID, user.StatusDeactivated)
 	require.NoError(t, err)
 
 	// Generate new token for deactivated user

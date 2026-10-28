@@ -15,6 +15,7 @@ schema:
   - channel_health_gate.graphql
   - channel_routing.graphql
   - channel_upstream.graphql
+  - channel_accounts.graphql
   - request_routing.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
@@ -185,6 +186,20 @@ models:
     model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamKeyState
   ChannelUpstreamState:
     model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamState
+  ChannelUpstreamAccountState:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamAccountState
+  ChannelBalanceSummary:
+    model: github.com/looplj/axonhub/internal/objects.ChannelBalanceSummary
+  SaveChannelUpstreamAccountInput:
+    model: github.com/looplj/axonhub/internal/objects.SaveChannelUpstreamAccountInput
+  ChannelKeySettingsInput:
+    model: github.com/looplj/axonhub/internal/objects.ChannelKeySettings
+  ChannelUpstreamAddress:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamAddress
+  ChannelUpstreamAddressInput:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamAddress
+  ChannelAddressProbe:
+    model: github.com/looplj/axonhub/internal/objects.ChannelAddressProbe
   UpdateChannelUpstreamInput:
     model: github.com/looplj/axonhub/internal/objects.UpdateChannelUpstreamInput
   UpstreamAccountVerification:

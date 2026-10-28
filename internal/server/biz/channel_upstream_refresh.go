@@ -52,7 +52,7 @@ func (svc *ChannelService) refreshChannelUpstream(ctx context.Context, id int, f
 	if err != nil {
 		return nil, false, err
 	}
-	var session *upstream.Session
+	sessions := make(map[string]*upstream.Session)
 	refreshed := false
 	for _, item := range state.Keys {
 		if (keyRef != "" && item.KeyRef != keyRef) || (item.Disabled && keyRef == "") {
@@ -76,13 +76,20 @@ func (svc *ChannelService) refreshChannelUpstream(ctx context.Context, id int, f
 			cancel()
 			return nil, refreshed, context.DeadlineExceeded
 		}
+		session := sessions[item.AccountRef]
 		if session == nil {
-			session = client.Prepare(queryCtx, keys[item.KeyRef], state.Provider, ch.UpstreamCredentials)
+			account := ch.UpstreamCredentials.Account(item.AccountRef)
+			provider := state.Provider
+			if account != nil {
+				provider = account.Provider
+			}
+			session = client.Prepare(queryCtx, keys[item.KeyRef], provider, account)
+			sessions[item.AccountRef] = session
 		}
 		snapshot := session.Query(queryCtx, keys[item.KeyRef], item.Snapshot, balanceDue, rateDue, time.Duration(state.Settings.RefreshIntervalMinutes)*time.Minute)
 		cancel()
 		if err := svc.entFromContext(ctx).ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(item.KeyRef).
-			SetConfigFingerprint(upstreamConfigFingerprint(ch)).SetSnapshot(snapshot).
+			SetConfigFingerprint(upstreamConfigFingerprint(ch, item.KeyRef)).SetSnapshot(snapshot).
 			OnConflictColumns(channelupstreamstatus.FieldChannelID, channelupstreamstatus.FieldKeyFingerprint).
 			UpdateNewValues().Exec(ctx); err != nil {
 			return nil, refreshed, fmt.Errorf("save upstream snapshot: %w", err)
@@ -160,7 +167,7 @@ func (svc *ChannelService) syncUpstreamRates(ctx context.Context) {
 
 func loadRequestUpstreamSnapshot(ctx context.Context, db *ent.Client, ch *ent.Channel, key string) (*objects.UpstreamKeySnapshot, error) {
 	return authz.RunWithSystemBypass(ctx, "request-selected-key-upstream-rate", func(ctx context.Context) (*objects.UpstreamKeySnapshot, error) {
-		row, err := db.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID), channelupstreamstatus.KeyFingerprint(upstream.KeyRef(key)), channelupstreamstatus.ConfigFingerprint(upstreamConfigFingerprint(ch))).Only(ctx)
+		row, err := db.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID), channelupstreamstatus.KeyFingerprint(upstream.KeyRef(key)), channelupstreamstatus.ConfigFingerprint(upstreamConfigFingerprint(ch, upstream.KeyRef(key)))).Only(ctx)
 		if ent.IsNotFound(err) {
 			return nil, nil
 		}

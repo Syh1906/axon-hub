@@ -2,7 +2,9 @@ package upstream
 
 import (
 	"context"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -59,6 +61,36 @@ func (s *Session) identity(ctx context.Context, key string) (int, int, error) {
 	}
 	if tokenID == 0 {
 		return 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+	}
+	return tokenID, accountID, nil
+}
+
+// accountKeyIdentity 在已验证账户内精确查询 Key，新建且尚无调用记录的 Key 也能关联。
+func (s *Session) accountKeyIdentity(ctx context.Context, key string) (int, int, error) {
+	value := strings.TrimPrefix(key, "sk-")
+	// New API 的搜索参数支持通配符；这里只允许完整 Key 的精确匹配。
+	if value == "" || strings.ContainsAny(value, "%_") {
+		return 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+	}
+	response, err := s.Client.requestWithQuery(ctx, "/api/token/search", s.Account.Token, s.Account.ID, url.Values{"token": {value}, "page_size": {"2"}})
+	if err != nil {
+		return 0, 0, err
+	}
+	data := response["data"]
+	items, ok := data.([]any)
+	if !ok {
+		items, ok = record(data)["items"].([]any)
+	}
+	if !ok {
+		return 0, 0, &QueryError{Code: "INVALID_RESPONSE"}
+	}
+	if len(items) != 1 {
+		return 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+	}
+	item := record(items[0])
+	tokenID, accountID := positiveID(item["id"]), positiveID(item["user_id"])
+	if tokenID == 0 || accountID != s.Account.ID {
+		return 0, 0, &QueryError{Code: "ACCOUNT_MISMATCH"}
 	}
 	return tokenID, accountID, nil
 }
@@ -131,7 +163,7 @@ func (s *Session) newAPIRate(ctx context.Context, key string, previous *objects.
 	tokenID, accountID := previous.UpstreamTokenID, previous.UpstreamAccountID
 	if tokenID == 0 || accountID == 0 {
 		var err error
-		tokenID, accountID, err = s.identity(ctx, key)
+		tokenID, accountID, err = s.accountKeyIdentity(ctx, key)
 		if err != nil {
 			return nil, 0, 0, err
 		}

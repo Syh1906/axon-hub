@@ -165,6 +165,8 @@ input ChannelProviderQuotaSettingsInput {
 }
 
 type ChannelSettings {
+  upstreamAddresses: [ChannelUpstreamAddress!]!
+  addressFailover: Boolean!
   upstream: ChannelUpstreamSettings
   tagPriorities: [ChannelTagPriority!]!
   streamFirstEventTimeoutSeconds: Int
@@ -242,6 +244,8 @@ input ModelMappingInput {
 }
 
 input ChannelSettingsInput {
+  upstreamAddresses: [ChannelUpstreamAddressInput!]
+  addressFailover: Boolean
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean

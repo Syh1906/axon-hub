@@ -26,7 +26,7 @@ func (Role) Mixin() []ent.Mixin {
 
 func (Role) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("project_id", "name").
+		index.Fields("project_id", "name", "deleted_at").
 			StorageKey("roles_by_project_id_name").
 			Unique(),
 		index.Fields("level").

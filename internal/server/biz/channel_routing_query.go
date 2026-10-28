@@ -58,11 +58,11 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 	upstreamRates := make(map[int]map[string]*objects.UpstreamKeySnapshot)
 	if order.Field == objects.ChannelRoutingOrderCostMultiplier {
 		ids := make([]int, 0, len(channels))
-		configs := make(map[int]string)
+		configs := make(map[int]*ent.Channel)
 		for _, ch := range channels {
 			if settings := ch.Settings.UpstreamSettings(); settings.Enabled && settings.CostMode == objects.ChannelCostModeUpstream {
 				ids = append(ids, ch.ID)
-				configs[ch.ID] = upstreamConfigFingerprint(ch)
+				configs[ch.ID] = ch
 			}
 		}
 		if len(ids) > 0 {
@@ -71,7 +71,7 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 				return nil, err
 			}
 			for _, row := range snapshots {
-				if row.ConfigFingerprint != configs[row.ChannelID] {
+				if row.ConfigFingerprint != upstreamConfigFingerprint(configs[row.ChannelID], row.KeyFingerprint) {
 					continue
 				}
 				if upstreamRates[row.ChannelID] == nil {

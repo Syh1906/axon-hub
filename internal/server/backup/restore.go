@@ -646,7 +646,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 					SetSettings(chData.Settings).
 					SetOrderingWeight(chData.OrderingWeight)
 				if chData.UpstreamCredentials != nil {
-					update.SetUpstreamCredentials(chData.UpstreamCredentials)
+					update.SetUpstreamCredentials(objects.UpgradeAccountCredentials(chData.UpstreamCredentials))
 				} else {
 					update.ClearUpstreamCredentials()
 				}
@@ -681,7 +681,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 				SetSettings(chData.Settings).
 				SetOrderingWeight(chData.OrderingWeight)
 			if chData.UpstreamCredentials != nil {
-				create.SetUpstreamCredentials(chData.UpstreamCredentials)
+				create.SetUpstreamCredentials(objects.UpgradeAccountCredentials(chData.UpstreamCredentials))
 			}
 
 			if chData.Remark != nil {

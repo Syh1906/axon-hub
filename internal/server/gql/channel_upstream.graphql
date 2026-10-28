@@ -89,6 +89,8 @@ type AppliedCostMultiplier {
 type ChannelUpstreamKeyState {
   keyRef: String!
   label: String!
+  remark: String!
+  accountRef: String!
   disabled: Boolean!
   snapshot: UpstreamKeySnapshot!
   upstreamMultiplier: Decimal
@@ -100,8 +102,9 @@ type ChannelUpstreamState {
   settings: ChannelUpstreamSettings!
   manualMultiplier: Decimal!
   provider: UpstreamProvider!
-  accountConnected: Boolean!
-  accountId: Int
+  accounts: [ChannelUpstreamAccountState!]!
+  balanceSummary: ChannelBalanceSummary!
+  keySessionReuse: Boolean!
   keys: [ChannelUpstreamKeyState!]!
 }
 
@@ -110,9 +113,6 @@ input UpdateChannelUpstreamInput {
   refreshIntervalMinutes: Int! = 10
   costMode: ChannelCostMode! = MANUAL
   manualMultiplier: Decimal!
-  accountToken: String
-  accountId: Int
-  clearAccount: Boolean! = false
 }
 
 type UpstreamAccountVerification {
@@ -148,6 +148,12 @@ extend type Query {
 
 extend type Mutation {
   updateChannelUpstream(channelId: ID!, input: UpdateChannelUpstreamInput!): ChannelUpstreamState!
-  verifyChannelUpstreamAccount(channelId: ID!, accountToken: String!, accountId: Int): UpstreamAccountVerification!
+  verifyChannelUpstreamAccount(channelId: ID!, accountToken: String, accountId: Int, accountRef: String): UpstreamAccountVerification!
+  saveChannelUpstreamAccount(channelId: ID!, input: SaveChannelUpstreamAccountInput!): ChannelUpstreamState!
+  deleteChannelUpstreamAccount(channelId: ID!, accountRef: String!): ChannelUpstreamState!
+  updateChannelKeySettings(channelId: ID!, input: ChannelKeySettingsInput!): ChannelUpstreamState!
+  setChannelKeySessionReuse(channelId: ID!, enabled: Boolean!): ChannelUpstreamState!
+  revealChannelCredential(channelId: ID!, keyRef: String, accountRef: String): String!
+  probeChannelAddress(url: String!, channelId: ID): ChannelAddressProbe!
   refreshChannelUpstreams(channelIds: [ID!]!, force: Boolean! = false, includeDisabled: Boolean! = false, keyRef: String!): RefreshChannelUpstreamsResult!
 }

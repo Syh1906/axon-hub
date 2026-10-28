@@ -28,9 +28,15 @@ Click **Upstream balance** in the channel list, then open **Sync settings**. Exi
 | Sub2API | No additional account token or ID | Wallet balance, key limits or subscription allowance; versions exposing `/v1/sub2api/billing` also return the current effective token multiplier |
 | Unsupported or older versions | Keep the manual multiplier | Unsupported endpoints stop automatic attempts and can be detected again manually |
 
-Generate the New API account access token in the upstream personal settings, verify it and save. Saved tokens are not returned to the browser. Each channel stores one account connection; keys from other accounts remain unmatched and use the fallback. Association uses the token and user IDs returned by that key's own usage-log endpoint, then queries the current token group with account authorization. Names, suffixes and historical log rates are never treated as identity proof. A new key without verifiable logs, a disabled log endpoint, an account mismatch or an automatic group without one definite rate remains explicitly unmatched or unsupported. Query again after usage logs exist.
+One channel represents one upstream, group or plan, and multiplier. Its keys may belong to different accounts. Put different rates in separate channels; key selection inside a channel does not prefer the lowest rate.
 
-**Key details** separates account balances, key quotas, groups, upstream rates, applied rates and independent query statuses. Verified shared account balances appear once; equal amounts are never added or deduplicated without identity evidence. Unknown units remain raw quota units rather than being assigned an assumed currency.
+Add accounts under **Accounts and authentication**, then assign keys in **Key management**. New API account access tokens come from the upstream personal settings and are distinct from calling keys. Saving verifies the account; its keys share that authentication. Key lookup runs directly within the authorized account, including newly created keys without usage logs. Unverified identity or rate information stays explicit; names, suffixes and matching amounts are not identity evidence. Sub2API needs no additional token: administrators assign account ownership manually, and only explicitly returned account balances are totaled.
+
+Saved New API tokens and channel keys can be revealed, hidden and copied through explicit actions requiring channel management permission. Tokens change only when replaced; reopening or verifying a connection does not require re-entry. Missing account authentication or assignments affect balance and rate queries without blocking otherwise valid model calls.
+
+The main list displays account totals and, for multiple keys, the actual key count. Hover previews up to three keys; clicking opens the full details. Each account is counted once, key quotas are excluded, and different currencies remain separate. Failed, stale or unassigned results are marked as partial or unavailable. Disabling a key does not erase its known account balance. Unknown units remain raw quota units.
+
+**Key management** includes labels, account assignments, individual enable/disable, reveal/copy, bulk import, tests and deletion. New channels can contain multiple keys, which are queried individually after saving. Each management action takes effect when submitted; at least one key remains enabled, and disabling a key does not interrupt in-flight requests. **Reuse session key** preserves a session's key when enabled and selects again for each request when disabled. Channel-level session routing is unchanged.
 
 - Opening Channels or changing pages displays cached data first and queries enabled channels only when due, every 10 minutes by default.
 - The row refresh button queries one channel immediately; the details view can query one key. **Query once** remains available with sync disabled.
@@ -39,9 +45,19 @@ Generate the New API account access token in the upstream personal settings, ver
 - Enabled channels following upstream rates also synchronize rates in the background. Query failures do not affect channel availability or other keys.
 - Saving with sync disabled switches to manual mode and retains the previous results. Temporary failures may retry when due. Authentication failures and unsupported endpoints stop automatic attempts until configuration is corrected or a manual refresh is requested.
 
-Manual mode always uses the manual value; refreshing only updates the reference. Following mode applies the actual selected key's multiplier and shows a range for different rates. Saving a quick multiplier edit switches back to manual mode. List sorting uses the currently applied rate, taking the minimum of a per-key range; it does not affect request routing.
+Manual mode always uses the manual value; refreshing only updates the reference. Following mode applies the actual selected key's multiplier. A channel normally shows one rate; inconsistent groups or rates remain visible in details with a prompt to split channels. Saving a quick multiplier edit switches back to manual mode. List sorting uses the currently applied rate, taking the minimum only when an inconsistent range exists; it does not affect request routing.
 
 Successful rates survive temporary failures for at most 30 minutes. Expiry or a known upstream time boundary switches to the manual fallback, marked as estimated. Price, request time and multiplier are fixed for each attempt; see [cost tracking](cost-tracking.md#fixed-per-key-cost-multipliers).
+
+## Multiple upstream addresses and interface paths
+
+While creating or editing a channel, choose **Manage addresses** below Base URL. Add primary and backup addresses for the same upstream, each with a name, enabled state and priority. Smaller priorities are tried first, and at least one address must remain enabled. Changes save with the channel; cancel discards the draft. Connectivity tests originate from the AxonHub server without generating model output or changing priorities. An HTTP response does not prove credentials or model availability.
+
+With **Automatic failover** enabled, connection failures, response timeouts and 5xx responses can move a model request to the next address while keeping its model and key. Attempts consume the existing same-channel retry budget and overall deadline. HTTP 401, 403 and 429 do not trigger address changes. Exhausting addresses returns control to normal channel handling. Streams are not replayed after content reaches the client. Account synchronization still uses the channel Base URL.
+
+**Interfaces and paths** combines default and custom interfaces, showing paths, selected addresses and final URLs. Interfaces inherit the channel address list unless an explicit interface-specific address is configured. Per-model interface settings remain in the advanced section.
+
+Data migration `v1.0.0-beta10-fork.7.syh.5` turns ordinary legacy single addresses into the first address and retains existing authentication as an account. Only keys with proven ownership in historical snapshots are assigned automatically. Backup restore preserves authentication, labels, assignments and address settings; query caches are excluded.
 
 Regular channel rows are 88px high. Model summaries show at most two lines plus `+N`; hover or focus to preview full names, or click the summary to open the existing model editor. Tags are also bounded. Creation time is hidden by default and can be enabled in column settings. Priority, weight and multiplier editors focus and select the numeric input immediately.
 
@@ -95,7 +111,7 @@ In short: **API Key Profile renames → Model Association selects channel → Ch
 
 ## Multiple API Keys
 
-When an account has multiple API Keys, you can configure them all in the same channel. AxonHub will automatically rotate between them for better stability.
+Multiple API keys for the same upstream, group or plan, and multiplier can share one channel. Assign keys from different accounts to their respective accounts. Put keys with different multipliers in separate channels.
 
 Simply add all keys in the API Keys field, one per line:
 ```
@@ -106,9 +122,9 @@ sk-key-3
 
 ### Load Balancing
 
-- Same Trace ID always uses the same Key (session consistency)
-- Different requests randomly select from available Keys
-- If one Key fails, the system automatically switches to another
+- With session key reuse enabled, the same Trace ID prefers its previous key while that key remains enabled.
+- With reuse disabled or no Trace ID, each request randomly selects an enabled key; selection is not round-robin.
+- Disabled keys are excluded from subsequent requests. Switching to a backup address within a request keeps the already selected key.
 
 ## Model Renaming
 

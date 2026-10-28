@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useProxyPresets, useSaveProxyPreset } from '@/features/system/data/system';
 import { ProxyType } from '../components/channels-proxy-dialog';
 import { antigravityOAuthExchange, antigravityOAuthStart } from '../data/antigravity';
+import { useRefreshChannelUpstreams } from '../data/channel-upstream';
 import {
   useCreateChannel,
   useDuplicateChannel,
@@ -93,6 +94,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const isDuplicate = !!duplicateFromRow && !isEdit;
   const initialRow: Channel | undefined = currentRow || duplicateFromRow;
   const createChannel = useCreateChannel();
+  const refreshUpstream = useRefreshChannelUpstreams();
   const duplicateChannel = useDuplicateChannel();
   const updateChannelSettings = useUpdateChannelSettings();
   const fetchModels = useFetchModels();
@@ -454,6 +456,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         ? {
             type: currentRow.type,
             baseURL: currentRow.baseURL,
+            endpoints: currentRow.endpoints ?? [],
             name: currentRow.name,
             policies: currentRow.policies ?? { stream: 'unlimited' },
             supportedModels: currentRow.supportedModels,
@@ -479,6 +482,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           ? {
               type: duplicateFromRow.type,
               baseURL: duplicateFromRow.baseURL,
+              endpoints: duplicateFromRow.endpoints ?? [],
               name: duplicateFromRow.name,
               policies: duplicateFromRow.policies ?? { stream: 'unlimited' },
               supportedModels: duplicateFromRow.supportedModels,
@@ -1105,6 +1109,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           selectedApiFormat === 'zenmux/video' ||
           existingModelProtocols?.some((protocol) => protocol.apiFormats.includes('zenmux/video')) === true;
         const settingsPatch: Partial<ChannelSettings> = {
+          upstreamAddresses: values.settings?.upstreamAddresses,
+          addressFailover: values.settings?.addressFailover,
           healthGateFailureThreshold: values.settings?.healthGateFailureThreshold ?? null,
           passThroughUserAgent,
           passThroughBody,
@@ -1155,6 +1161,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           input: updateInput,
           patch: settingsPatch,
         });
+        if (values.credentials?.apiKeys?.some((key) => !currentRow.credentials?.apiKeys?.includes(key)))
+          refreshUpstream.mutate({ channelIds: [currentRow.id], includeDisabled: true });
         toast.success(t('channels.messages.updateSuccess'));
       } else {
         const proxyConfig = {
@@ -1193,7 +1201,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
             input: createInput,
           });
         } else {
-          await createChannel.mutateAsync(createInput);
+          const created = await createChannel.mutateAsync(createInput);
+          if (createInput.credentials.apiKeys?.length) refreshUpstream.mutate({ channelIds: [created.id], includeDisabled: true });
         }
 
         // Auto-save proxy preset (preserve existing name if available)

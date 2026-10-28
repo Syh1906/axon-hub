@@ -134,6 +134,8 @@ export function mergeChannelSettingsForUpdate(
     modelProtocols: pick('modelProtocols', existing?.modelProtocols ?? []),
     providerQuota: pick('providerQuota', existing?.providerQuota ?? null),
     primaryApiFormat: pick('primaryApiFormat', existing?.primaryApiFormat ?? ''),
+    upstreamAddresses: pick('upstreamAddresses', existing?.upstreamAddresses ?? []),
+    addressFailover: pick('addressFailover', existing?.addressFailover ?? true),
   };
 }
 

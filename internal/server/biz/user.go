@@ -49,6 +49,15 @@ func NewUserService(params UserServiceParams) *UserService {
 
 // CreateUser creates a new user with hashed password.
 func (s *UserService) CreateUser(ctx context.Context, input ent.CreateUserInput) (*ent.User, error) {
+	if err := s.permissionValidator.CanGrantScopes(ctx, input.Scopes, nil); err != nil {
+		return nil, fmt.Errorf("permission denied: %w", err)
+	}
+	for _, roleID := range input.RoleIDs {
+		if err := s.permissionValidator.CanEditRole(ctx, roleID, nil); err != nil {
+			return nil, fmt.Errorf("permission denied: %w", err)
+		}
+	}
+
 	client := s.entFromContext(ctx)
 
 	// Hash the password
@@ -89,10 +98,19 @@ func (s *UserService) UpdateUser(ctx context.Context, id int, input ent.UpdateUs
 	if err := s.permissionValidator.CanEditUserPermissions(ctx, id, nil); err != nil {
 		return nil, fmt.Errorf("permission denied: %w", err)
 	}
+	currentUser, _ := contexts.GetUser(ctx)
+	if lo.FromPtr(input.IsOwner) && !currentUser.IsOwner {
+		return nil, fmt.Errorf("permission denied: only system owners can grant system ownership")
+	}
 
 	// Validate scope grants if scopes are being updated
 	if input.Scopes != nil {
 		if err := s.permissionValidator.CanGrantScopes(ctx, input.Scopes, nil); err != nil {
+			return nil, fmt.Errorf("permission denied: %w", err)
+		}
+	}
+	if input.AppendScopes != nil {
+		if err := s.permissionValidator.CanGrantScopes(ctx, input.AppendScopes, nil); err != nil {
 			return nil, fmt.Errorf("permission denied: %w", err)
 		}
 	}
@@ -211,6 +229,10 @@ func (s *UserService) UpdateOwnProfile(ctx context.Context, input ent.UpdateUser
 
 // UpdateUserStatus updates the status of a user.
 func (s *UserService) UpdateUserStatus(ctx context.Context, id int, status user.Status) (*ent.User, error) {
+	if err := s.permissionValidator.CanEditUserPermissions(ctx, id, nil); err != nil {
+		return nil, fmt.Errorf("permission denied: %w", err)
+	}
+
 	var updatedUser *ent.User
 
 	err := s.RunInTransaction(ctx, func(ctx context.Context) error {

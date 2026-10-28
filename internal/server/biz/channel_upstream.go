@@ -22,11 +22,22 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 )
 
-func upstreamConfigFingerprint(ch *ent.Channel) string {
+func upstreamConfigFingerprint(ch *ent.Channel, keyRef string) string {
+	accountRef := ch.Settings.KeySettingsFor(keyRef).AccountRef
+	account := ch.UpstreamCredentials.Account(accountRef)
+	var token string
+	var accountID int
+	var provider objects.UpstreamProvider
+	if account != nil {
+		token, accountID, provider = account.AccountToken, account.AccountID, account.Provider
+	}
 	data, _ := json.Marshal(struct {
-		BaseURL     string                              `json:"BaseURL"`
-		Credentials *objects.ChannelUpstreamCredentials `json:"Credentials"`
-	}{ch.BaseURL, ch.UpstreamCredentials})
+		BaseURL    string
+		AccountRef string
+		Token      string
+		AccountID  int
+		Provider   objects.UpstreamProvider
+	}{ch.BaseURL, accountRef, token, accountID, provider})
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])
 }
@@ -70,21 +81,17 @@ func (svc *ChannelService) upstreamChannel(ctx context.Context, id int, scope sc
 }
 
 func (svc *ChannelService) upstreamState(ctx context.Context, ch *ent.Channel) (*objects.ChannelUpstreamState, error) {
-	rows, err := svc.entFromContext(ctx).ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID), channelupstreamstatus.ConfigFingerprint(upstreamConfigFingerprint(ch))).All(ctx)
+	rows, err := svc.entFromContext(ctx).ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID)).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load upstream snapshots: %w", err)
 	}
 	byKey := make(map[string]*objects.UpstreamKeySnapshot, len(rows))
 	for _, row := range rows {
-		byKey[row.KeyFingerprint] = row.Snapshot
-	}
-	state := &objects.ChannelUpstreamState{ChannelID: objects.GUID{ID: ch.ID, Type: ent.TypeChannel}, Settings: ch.Settings.UpstreamSettings(), ManualMultiplier: channelManualMultiplier(ch), Provider: objects.UpstreamProviderUnknown, Keys: []*objects.ChannelUpstreamKeyState{}}
-	if ch.UpstreamCredentials != nil {
-		state.AccountConnected = ch.UpstreamCredentials.AccountToken != ""
-		if ch.UpstreamCredentials.AccountID > 0 {
-			state.AccountID = lo.ToPtr(ch.UpstreamCredentials.AccountID)
+		if row.ConfigFingerprint == upstreamConfigFingerprint(ch, row.KeyFingerprint) {
+			byKey[row.KeyFingerprint] = row.Snapshot
 		}
 	}
+	state := &objects.ChannelUpstreamState{ChannelID: objects.GUID{ID: ch.ID, Type: ent.TypeChannel}, Settings: ch.Settings.UpstreamSettings(), ManualMultiplier: channelManualMultiplier(ch), Provider: objects.UpstreamProviderUnknown, Keys: []*objects.ChannelUpstreamKeyState{}, KeySessionReuse: ch.Settings == nil || !ch.Settings.DisableKeySessionReuse}
 	enabled := ch.Credentials.GetEnabledAPIKeys(ch.DisabledAPIKeys)
 	for _, key := range lo.Uniq(ch.Credentials.GetAllAPIKeys()) {
 		ref := upstream.KeyRef(key)
@@ -95,12 +102,14 @@ func (svc *ChannelService) upstreamState(ctx context.Context, ch *ent.Channel) (
 		if snapshot.Provider != objects.UpstreamProviderUnknown {
 			state.Provider = snapshot.Provider
 		}
-		item := &objects.ChannelUpstreamKeyState{KeyRef: ref, Label: upstream.MaskKey(key), Disabled: !slices.Contains(enabled, key), Snapshot: snapshot, Applied: appliedUpstreamMultiplier(state.Settings, state.ManualMultiplier, snapshot, time.Now())}
+		keySettings := ch.Settings.KeySettingsFor(ref)
+		item := &objects.ChannelUpstreamKeyState{KeyRef: ref, Label: upstream.MaskKey(key), Remark: keySettings.Remark, AccountRef: keySettings.AccountRef, Disabled: !slices.Contains(enabled, key), Snapshot: snapshot, Applied: appliedUpstreamMultiplier(state.Settings, state.ManualMultiplier, snapshot, time.Now())}
 		if snapshot.Rate != nil {
 			item.UpstreamMultiplier = lo.ToPtr(snapshot.Rate.Multiplier)
 		}
 		state.Keys = append(state.Keys, item)
 	}
+	populateUpstreamAccounts(ch, state, time.Now())
 	return state, nil
 }
 
@@ -148,26 +157,41 @@ func (svc *ChannelService) upstreamClient(ch *ent.Channel) (*upstream.Client, er
 	return upstream.NewClient(client, ch.BaseURL)
 }
 
-func (svc *ChannelService) VerifyChannelUpstreamAccount(ctx context.Context, id int, token string, accountID *int) (*objects.UpstreamAccountVerification, error) {
+func (svc *ChannelService) VerifyChannelUpstreamAccount(ctx context.Context, id int, token *string, accountID *int, accountRef *string) (*objects.UpstreamAccountVerification, error) {
 	ch, err := svc.upstreamChannel(ctx, id, scopes.ScopeWriteChannels)
 	if err != nil {
 		return nil, err
+	}
+	credential := objects.UpstreamAccountCredentials{}
+	if accountRef != nil {
+		stored := ch.UpstreamCredentials.Account(*accountRef)
+		if stored == nil {
+			return nil, fmt.Errorf("upstream account not found")
+		}
+		credential = *stored
+	}
+	if token != nil && strings.TrimSpace(*token) != "" {
+		credential.AccountToken = strings.TrimSpace(*token)
+	}
+	if accountID != nil {
+		credential.AccountID = *accountID
 	}
 	client, err := svc.upstreamClient(ch)
 	if err != nil {
 		return nil, err
 	}
 	key := ""
-	if keys := ch.Credentials.GetAllAPIKeys(); len(keys) > 0 {
-		key = keys[0]
-	}
-	idValue := 0
-	if accountID != nil {
-		idValue = *accountID
+	if accountRef != nil {
+		for _, candidate := range ch.Credentials.GetAllAPIKeys() {
+			if ch.Settings.KeySettingsFor(upstream.KeyRef(candidate)).AccountRef == *accountRef {
+				key = candidate
+				break
+			}
+		}
 	}
 	queryCtx, cancel := upstreamQueryContext(ctx)
 	defer cancel()
-	return client.VerifyAccount(queryCtx, strings.TrimSpace(token), idValue, key), nil
+	return client.VerifyAccount(queryCtx, credential.AccountToken, credential.AccountID, key), nil
 }
 
 func (svc *ChannelService) UpdateChannelUpstream(ctx context.Context, id int, input objects.UpdateChannelUpstreamInput) (*objects.ChannelUpstreamState, error) {
@@ -203,19 +227,6 @@ func (svc *ChannelService) UpdateChannelUpstream(ctx context.Context, id int, in
 		settings.Upstream = &objects.ChannelUpstreamSettings{Enabled: input.Enabled, RefreshIntervalMinutes: input.RefreshIntervalMinutes, CostMode: input.CostMode}
 		settings.ModelPriceMultiplier = lo.ToPtr(input.ManualMultiplier)
 		mutation := svc.entFromContext(ctx).Channel.UpdateOneID(id).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetSettings(&settings)
-		if input.ClearAccount {
-			mutation.ClearUpstreamCredentials()
-		} else if input.AccountToken != nil && strings.TrimSpace(*input.AccountToken) != "" {
-			credential := &objects.ChannelUpstreamCredentials{AccountToken: strings.TrimSpace(*input.AccountToken)}
-			if input.AccountID != nil {
-				credential.AccountID = *input.AccountID
-			}
-			mutation.SetUpstreamCredentials(credential)
-		} else if input.AccountID != nil && ch.UpstreamCredentials != nil {
-			credential := *ch.UpstreamCredentials
-			credential.AccountID = *input.AccountID
-			mutation.SetUpstreamCredentials(&credential)
-		}
 		result, err = mutation.Save(ctx)
 		if err != nil {
 			return err

@@ -296,6 +296,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		applyOverrideRequestHeaders(outbound),
 		// Remove transport-incompatible fields after pass-through and overrides,
 		// so persistence and execution observe the same provider request.
+		applyUpstreamAddress(outbound),
 		finalizeTransportRequest(outbound),
 
 		// Unified performance tracking middleware.

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,6 @@ import {
   useRefreshChannelUpstreams,
   useSaveChannelUpstream,
   useUpstreamRefreshPending,
-  verifyUpstreamAccount,
   type ChannelUpstreamState,
 } from '../data/channel-upstream';
 import { hasUsableUpstreamRate } from '../data/channel-upstream-refresh';
@@ -40,46 +38,19 @@ export function ChannelUpstreamSettingsForm({
   const [mode, setMode] = useState(state.settings.costMode);
   const [interval, setInterval] = useState(String(state.settings.refreshIntervalMinutes));
   const [manual, setManual] = useState(state.manualMultiplier);
-  const [token, setToken] = useState('');
-  const [accountID, setAccountID] = useState(state.accountId ? String(state.accountId) : '');
-  const [requiresID, setRequiresID] = useState(false);
-  const [clearAccount, setClearAccount] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
   const [error, setError] = useState('');
   const [container, setContainer] = useState<HTMLFormElement | null>(null);
   const save = useSaveChannelUpstream(channel.id);
   const refresh = useRefreshChannelUpstreams();
   const pendingRefresh = useUpstreamRefreshPending(channel.id);
-  const locked = save.isPending || verifying || !channelPermissions.canWrite;
-  const connected = !clearAccount && (state.accountConnected || verified);
-  const canFollow = enabled && (state.provider === 'SUB2_API' || (state.provider === 'NEW_API' && connected));
+  const locked = save.isPending || !channelPermissions.canWrite;
+  const canFollow = enabled;
   const redetect = () => refresh.mutate({ channelIds: [channel.id], force: true, includeDisabled: true });
-  const verify = async () => {
-    setVerifying(true);
-    setError('');
-    try {
-      const result = await verifyUpstreamAccount(channel.id, token, accountID ? Number(accountID) : undefined);
-      setRequiresID(result.requiresAccountId);
-      setVerified(result.success);
-      if (result.accountId) setAccountID(String(result.accountId));
-      if (!result.success)
-        setError(t(`channels.upstream.errors.${result.errorCode}`, { defaultValue: t('channels.upstream.verifyFailed') }));
-    } catch {
-      setError(t('channels.upstream.verifyFailed'));
-    } finally {
-      setVerifying(false);
-    }
-  };
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
     if (!isValidPriceMultiplier(manual)) {
       setError(t('channels.routing.invalidMultiplier'));
-      return;
-    }
-    if (requiresID && (!accountID || !Number.isInteger(Number(accountID)) || Number(accountID) <= 0)) {
-      setError(t('channels.upstream.errors.ACCOUNT_ID_REQUIRED'));
       return;
     }
     try {
@@ -88,11 +59,7 @@ export function ChannelUpstreamSettingsForm({
         refreshIntervalMinutes: Number(interval),
         costMode: enabled && canFollow ? mode : 'MANUAL',
         manualMultiplier: manual,
-        ...(token.trim() ? { accountToken: token.trim() } : {}),
-        ...(accountID ? { accountId: Number(accountID) } : {}),
-        clearAccount,
       });
-      setToken('');
       save.reset();
       if (enabled) refresh.mutate({ channelIds: [channel.id], force: true });
       onClose();
@@ -167,84 +134,7 @@ export function ChannelUpstreamSettingsForm({
             </Button>
           </AlertDescription>
         </Alert>
-        {state.provider === 'NEW_API' && (
-          <section className='flex flex-col gap-4 rounded-lg border p-4'>
-            <div className='flex items-center justify-between'>
-              <h3 className='font-semibold'>{t('channels.upstream.connectAccount')}</h3>
-              <Badge variant={connected ? 'secondary' : 'outline'}>
-                {t(connected ? 'channels.upstream.connected' : 'channels.upstream.notConnected')}
-              </Badge>
-            </div>
-            <p className='text-muted-foreground text-sm'>{t('channels.upstream.accountHint')}</p>
-            <div className='grid gap-2 sm:grid-cols-[170px_1fr]'>
-              <Label htmlFor='upstream-account-token' className='pt-2'>
-                {t('channels.upstream.accountToken')}
-              </Label>
-              <div className='flex flex-col gap-2'>
-                <Input
-                  id='upstream-account-token'
-                  type='password'
-                  autoComplete='new-password'
-                  value={token}
-                  placeholder={state.accountConnected ? t('channels.upstream.keepToken') : t('channels.upstream.enterToken')}
-                  onChange={(event) => {
-                    setToken(event.target.value);
-                    setVerified(false);
-                    setClearAccount(false);
-                  }}
-                />
-                <p className='text-muted-foreground text-xs'>{t('channels.upstream.tokenHint')}</p>
-              </div>
-            </div>
-            {(requiresID || accountID) && (
-              <div className='grid gap-2 sm:grid-cols-[170px_1fr]'>
-                <Label htmlFor='upstream-account-id' className='pt-2'>
-                  {t('channels.upstream.accountID')}
-                  {requiresID && ' *'}
-                </Label>
-                <div className='flex flex-col gap-2'>
-                  <Input
-                    id='upstream-account-id'
-                    type='number'
-                    min='1'
-                    step='1'
-                    value={accountID}
-                    onChange={(event) => {
-                      setAccountID(event.target.value);
-                      setVerified(false);
-                    }}
-                  />
-                  <p className='text-muted-foreground text-xs'>{t('channels.upstream.accountIDHint')}</p>
-                </div>
-              </div>
-            )}
-            <div className='flex flex-wrap items-center justify-between gap-2'>
-              <p className='text-muted-foreground max-w-md text-xs'>
-                {t(verified ? 'channels.upstream.verifiedHint' : 'channels.upstream.tokenLocation')}
-              </p>
-              <div className='flex gap-2'>
-                {state.accountConnected && (
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => {
-                      setClearAccount(true);
-                      setToken('');
-                      setAccountID('');
-                      setMode('MANUAL');
-                    }}
-                  >
-                    {t('channels.upstream.disconnect')}
-                  </Button>
-                )}
-                <Button type='button' variant='outline' disabled={!token.trim() || verifying} onClick={verify}>
-                  {t(verifying ? 'channels.upstream.verifying' : 'channels.upstream.verify')}
-                </Button>
-              </div>
-            </div>
-          </section>
-        )}
+        <p className='text-muted-foreground text-sm'>{t('channels.accounts.authInTab')}</p>
         <Separator />
         <div className='grid gap-3 sm:grid-cols-[180px_1fr]'>
           <Label className='pt-1'>{t('channels.upstream.costSource')}</Label>

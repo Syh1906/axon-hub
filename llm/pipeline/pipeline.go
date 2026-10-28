@@ -35,6 +35,12 @@ type ChannelRetryable interface {
 	PrepareForRetry(ctx context.Context) error
 }
 
+// ChannelTimeoutRetryable permits a timeout retry only when the transformer can
+// choose another address. Other transformers still skip same-channel timeouts.
+type ChannelTimeoutRetryable interface {
+	CanRetryAfterTimeout(err error) bool
+}
+
 // ChannelCustomizedExecutor interface for channel need custom the process of request.
 // The customized executor will be used to execute the request.
 // e.g. the aws bedrock process need a custom executor to handle the request.
@@ -307,20 +313,26 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 		timeoutRetry := isResponseTimeoutError(lastErr)
 
 		// 1. Try same-channel retry first if supported
-		if !timeoutRetry {
-			if channelRetryable, ok := p.Outbound.(ChannelRetryable); ok {
-				if sameChannelRetries < p.getMaxSameChannelRetries() && channelRetryable.CanRetry(lastErr) {
-					if err := channelRetryable.PrepareForRetry(ctx); err == nil {
-						sameChannelRetries++
-						canRetry = true
+		if channelRetryable, ok := p.Outbound.(ChannelRetryable); ok && sameChannelRetries < p.getMaxSameChannelRetries() {
+			allowSameChannel := false
+			if timeoutRetry {
+				if timeoutRetryable, ok := p.Outbound.(ChannelTimeoutRetryable); ok {
+					allowSameChannel = timeoutRetryable.CanRetryAfterTimeout(lastErr)
+				}
+			} else {
+				allowSameChannel = channelRetryable.CanRetry(lastErr)
+			}
+			if allowSameChannel {
+				if err := channelRetryable.PrepareForRetry(ctx); err == nil {
+					sameChannelRetries++
+					canRetry = true
 
-						slog.DebugContext(ctx, "retrying same channel",
-							slog.Int("same_channel_attempt", sameChannelRetries),
-							slog.Int("max_same_channel_retries", p.getMaxSameChannelRetries()),
-						)
-					} else {
-						slog.WarnContext(ctx, "failed to prepare same channel retry, will try channel switch", slog.Any("error", err))
-					}
+					slog.DebugContext(ctx, "retrying same channel",
+						slog.Int("same_channel_attempt", sameChannelRetries),
+						slog.Int("max_same_channel_retries", p.getMaxSameChannelRetries()),
+					)
+				} else {
+					slog.WarnContext(ctx, "failed to prepare same channel retry, will try channel switch", slog.Any("error", err))
 				}
 			}
 		}

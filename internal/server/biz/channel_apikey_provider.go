@@ -19,12 +19,22 @@ type channelAPIKeyContextProvider struct {
 	inner auth.APIKeyProvider
 }
 
+type fixedChannelAPIKeyContextKey struct{}
+
+// WithFixedChannelAPIKey keeps an address retry on the key selected by the first attempt.
+func WithFixedChannelAPIKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, fixedChannelAPIKeyContextKey{}, key)
+}
+
 func NewChannelAPIKeyContextProvider(inner auth.APIKeyProvider) auth.APIKeyProvider {
 	return &channelAPIKeyContextProvider{inner: inner}
 }
 
 func (p *channelAPIKeyContextProvider) Get(ctx context.Context) string {
-	key := p.inner.Get(ctx)
+	key, _ := ctx.Value(fixedChannelAPIKeyContextKey{}).(string)
+	if key == "" {
+		key = p.inner.Get(ctx)
+	}
 	if key != "" {
 		contexts.WithChannelAPIKey(ctx, key)
 	}
@@ -66,9 +76,18 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 
 	var selectedKey string
 
-	if trace, ok := contexts.GetTrace(ctx); ok && trace != nil {
+	if trace, ok := contexts.GetTrace(ctx); ok && trace != nil && (p.channel.Settings == nil || !p.channel.Settings.DisableKeySessionReuse) {
 		if cached, ok := p.cache.Get(trace.TraceID); ok {
-			selectedKey = cached
+			for _, key := range enabled {
+				if key == cached {
+					selectedKey = cached
+					break
+				}
+			}
+			if selectedKey == "" {
+				selectedKey = rendezvousSelect(enabled, trace.TraceID)
+				p.cache.Add(trace.TraceID, selectedKey)
+			}
 		} else {
 			selectedKey = rendezvousSelect(enabled, trace.TraceID)
 			p.cache.Add(trace.TraceID, selectedKey)

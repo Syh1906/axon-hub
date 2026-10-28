@@ -139,7 +139,7 @@ func TestRequestCostSnapshotUsesSelectedKeyAndSurvivesLaterChanges(t *testing.T)
 		snapshot := upstream.EmptySnapshot()
 		snapshot.RateState = objects.UpstreamQuerySuccess
 		snapshot.Rate = &objects.UpstreamRateSnapshot{Multiplier: decimal.NewFromFloat([]float64{0.5, 0.8}[i]), ObservedAt: now, SyncedAt: now}
-		db.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef(key)).SetConfigFingerprint(upstreamConfigFingerprint(ch)).SetSnapshot(snapshot).SaveX(ctx)
+		db.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef(key)).SetConfigFingerprint(upstreamConfigFingerprint(ch, upstream.KeyRef(key))).SetSnapshot(snapshot).SaveX(ctx)
 	}
 	ctx = contexts.WithChannelAPIKey(ctx, "fixture-a")
 	a := captureRequestCostSnapshot(ctx, db, loaded, "priced")

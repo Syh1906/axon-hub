@@ -19,17 +19,39 @@ const appliedSchema = z.object({
   provider: z.string(),
   observedAt: z.string().nullish(),
 });
+export const upstreamAccountSchema = z.object({
+  ref: z.string(),
+  name: z.string(),
+  provider: z.enum(['NEW_API', 'SUB2_API']),
+  accountId: z.number().nullish(),
+  hasToken: z.boolean(),
+  verifiedAt: z.string().nullish(),
+  keyCount: z.number(),
+  balance: balanceSchema.nullish(),
+  updatedAt: z.string().nullish(),
+  complete: z.boolean(),
+});
+export type UpstreamAccount = z.infer<typeof upstreamAccountSchema>;
 export const channelUpstreamStateSchema = z.object({
   channelId: z.string(),
   provider: z.enum(['UNKNOWN', 'NEW_API', 'SUB2_API']),
-  accountConnected: z.boolean(),
-  accountId: z.number().nullish(),
+  accounts: z.array(upstreamAccountSchema),
+  balanceSummary: z.object({
+    balances: z.array(balanceSchema),
+    accountCount: z.number(),
+    knownAccountCount: z.number(),
+    unassignedKeyCount: z.number(),
+    complete: z.boolean(),
+  }),
+  keySessionReuse: z.boolean(),
   manualMultiplier: decimal,
   settings: z.object({ enabled: z.boolean(), costMode: z.enum(['MANUAL', 'UPSTREAM']), refreshIntervalMinutes: z.number() }),
   keys: z.array(
     z.object({
       keyRef: z.string(),
       label: z.string(),
+      remark: z.string(),
+      accountRef: z.string(),
       disabled: z.boolean(),
       upstreamMultiplier: decimal.nullish(),
       applied: appliedSchema,
@@ -64,9 +86,6 @@ export type UpstreamKey = ChannelUpstreamState['keys'][number];
 export type UpstreamBalance = z.infer<typeof balanceSchema>;
 export type UpstreamInput = ChannelUpstreamState['settings'] & {
   manualMultiplier: string;
-  accountToken?: string;
-  accountId?: number;
-  clearAccount?: boolean;
 };
 
 export const apiFormatSchema = z.enum([
@@ -381,8 +400,18 @@ export const channelProviderQuotaSettingsSchema = z.object({
 });
 export type ChannelProviderQuotaSettings = z.infer<typeof channelProviderQuotaSettingsSchema>;
 
+export const channelAddressSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string(),
+  priority: z.number().int(),
+  enabled: z.boolean(),
+});
+export type ChannelAddress = z.infer<typeof channelAddressSchema>;
 // Channel Settings
 export const channelSettingsSchema = z.object({
+  upstreamAddresses: z.array(channelAddressSchema).optional(),
+  addressFailover: z.boolean().optional(),
   tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })).optional(),
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),

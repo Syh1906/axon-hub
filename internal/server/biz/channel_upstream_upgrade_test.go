@@ -42,8 +42,8 @@ func TestUpstreamSchemaUpgradeAndRepeat(t *testing.T) {
 	require.False(t, ch.Settings.UpstreamSettings().Enabled)
 	require.Equal(t, "0.3", channelManualMultiplier(ch).String())
 	require.Nil(t, ch.UpstreamCredentials)
-	_, err = client.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef("fixture-legacy")).SetConfigFingerprint(upstreamConfigFingerprint(ch)).SetSnapshot(upstream.EmptySnapshot()).Save(ctx)
+	_, err = client.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef("fixture-legacy")).SetConfigFingerprint(upstreamConfigFingerprint(ch, upstream.KeyRef("fixture-legacy"))).SetSnapshot(upstream.EmptySnapshot()).Save(ctx)
 	require.NoError(t, err)
-	_, err = client.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef("fixture-legacy")).SetConfigFingerprint(upstreamConfigFingerprint(ch)).SetSnapshot(upstream.EmptySnapshot()).Save(ctx)
+	_, err = client.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(upstream.KeyRef("fixture-legacy")).SetConfigFingerprint(upstreamConfigFingerprint(ch, upstream.KeyRef("fixture-legacy"))).SetSnapshot(upstream.EmptySnapshot()).Save(ctx)
 	require.True(t, ent.IsConstraintError(err), "each channel/key pair has exactly one snapshot")
 }

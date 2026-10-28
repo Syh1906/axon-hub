@@ -141,6 +141,44 @@ type mockExecutor struct {
 	doStream func(context.Context, *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error)
 }
 
+type timeoutAddressOutbound struct{ *mockOutbound }
+
+func (m *timeoutAddressOutbound) CanRetryAfterTimeout(error) bool { return true }
+
+func TestPipeline_Process_TimeoutAddressRetryBudget(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		addressRetry bool
+		budget       int
+		wantCalls    int
+	}{
+		{name: "ordinary timeout skips same channel", budget: 3, wantCalls: 1},
+		{name: "alternate address uses retry budget", addressRetry: true, budget: 2, wantCalls: 3},
+		{name: "retry disabled", addressRetry: true, budget: 0, wantCalls: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, timeoutErr := range []error{ErrNonStreamResponseTimeout, ErrStreamFirstEventTimeout} {
+				calls, prepares := 0, 0
+				base := &mockOutbound{canRetry: func(error) bool { return true }, prepareForRetry: func(context.Context) error { prepares++; return nil }}
+				var outbound transformer.Outbound = base
+				if tt.addressRetry {
+					outbound = &timeoutAddressOutbound{base}
+				}
+				p := &pipeline{Inbound: &mockInbound{}, Outbound: outbound, maxSameChannelRetries: tt.budget,
+					Executor: &mockExecutor{do: func(context.Context, *httpclient.Request) (*httpclient.Response, error) {
+						calls++
+						return nil, timeoutErr
+					}},
+				}
+				_, err := p.Process(context.Background(), &httpclient.Request{})
+				require.ErrorIs(t, err, timeoutErr)
+				require.Equal(t, tt.wantCalls, calls)
+				require.Equal(t, tt.wantCalls-1, prepares)
+			}
+		})
+	}
+}
+
 func (m *mockExecutor) Do(ctx context.Context, req *httpclient.Request) (*httpclient.Response, error) {
 	return m.do(ctx, req)
 }

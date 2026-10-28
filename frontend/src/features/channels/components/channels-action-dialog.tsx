@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -36,6 +36,8 @@ import {
   getResponsesWebSocketBaseURL,
 } from '../utils/channel-dialog';
 import { isValidModelPattern } from '../utils/pattern';
+import { ChannelAddressesEditor } from './channel-addresses-editor';
+import { ChannelEndpointEditor } from './channel-endpoint-editor';
 import { ChannelsModelPicker } from './channels-model-picker';
 import { ProxyType } from './channels-proxy-dialog';
 import { CopilotDeviceFlow } from './copilot-device-flow';
@@ -283,6 +285,30 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     xaiOAuth,
     xaiSSOToken,
   } = useChannelActionDialog({ currentRow, duplicateFromRow, open, onOpenChange, showModelsPanel });
+  const [showAddressesPanel, setShowAddressesPanel] = useState(false);
+  const addresses = form.watch('settings.upstreamAddresses') ?? [];
+  const addressFailover = form.watch('settings.addressFailover') ?? true;
+  const watchedBaseURL = form.watch('baseURL') ?? '';
+  useEffect(() => {
+    if (!open) setShowAddressesPanel(false);
+  }, [open]);
+  useEffect(() => {
+    if (showApiKeysPanel || showConfiguredModelsPanel || showFetchedModelsPanel || showSupportedModelsPanel) setShowAddressesPanel(false);
+  }, [showApiKeysPanel, showConfiguredModelsPanel, showFetchedModelsPanel, showSupportedModelsPanel]);
+  const openAddresses = () => {
+    if (!addresses.length)
+      form.setValue(
+        'settings.upstreamAddresses',
+        [{ id: 'primary', name: t('channels.addresses.primary'), url: watchedBaseURL, priority: 10, enabled: true }],
+        { shouldDirty: true }
+      );
+    setShowApiKeysPanel(false);
+    setShowConfiguredModelsPanel(false);
+    setShowFetchedModelsPanel(false);
+    setShowSupportedModelsPanel(false);
+    setShowAddressesPanel(true);
+  };
+
   return (
     <>
       <Dialog
@@ -346,7 +372,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
         }}
       >
         <DialogContent
-          className={`flex max-h-[90vh] flex-col overflow-hidden transition-all duration-300 ${showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 'sm:max-w-6xl' : 'sm:max-w-4xl'}`}
+          className={`flex max-h-[90vh] flex-col overflow-hidden transition-all duration-300 ${showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 'sm:max-w-6xl' : 'sm:max-w-4xl'}`}
         >
           <DialogHeader className='flex-shrink-0 text-left'>
             <DialogTitle>{isEdit ? t('channels.dialogs.edit.title') : t('channels.dialogs.create.title')}</DialogTitle>
@@ -357,7 +383,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
           <div className='flex min-h-0 flex-1 overflow-hidden md:gap-4'>
             {/* Main Form Section */}
             <div
-              className={`flex min-h-0 flex-1 flex-col overflow-hidden py-1 transition-all duration-300 ${showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 'pr-2' : 'pr-0'}`}
+              className={`flex min-h-0 flex-1 flex-col overflow-hidden py-1 transition-all duration-300 ${showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 'pr-2' : 'pr-0'}`}
             >
               <Form {...form}>
                 <form id='channel-form' onSubmit={form.handleSubmit(onSubmit)} className='flex min-h-0 flex-1 flex-col space-y-6 p-0.5'>
@@ -368,7 +394,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         <FormLabel className='text-base font-semibold'>{t('channels.dialogs.fields.provider.label')}</FormLabel>
                         <div
                           ref={setProviderListRef}
-                          className={`flex-1 overflow-x-auto overflow-y-hidden pb-2 md:overflow-x-hidden md:overflow-y-auto md:pr-2 md:pb-0 ${isOAuthChannel ? 'cursor-not-allowed opacity-60' : ''}`}
+                          className={`relative flex-1 overflow-x-auto overflow-y-hidden pb-2 md:overflow-x-hidden md:overflow-y-auto md:pr-2 md:pb-0 ${isOAuthChannel ? 'cursor-not-allowed opacity-60' : ''}`}
                         >
                           <RadioGroup
                             value={selectedProvider}
@@ -419,7 +445,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                     </div>
 
                     {/* Right Side - Form Fields */}
-                    <div className='flex-1 space-y-6 overflow-y-auto md:pr-4'>
+                    <div className='relative flex-1 space-y-6 overflow-y-auto md:pr-4'>
                       {selectedProvider !== 'jina' && selectedProvider !== 'codex' && selectedProvider !== 'claudecode' && (
                         <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
                           <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
@@ -837,12 +863,55 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                   selectedProvider === 'antigravity'
                                 }
                                 {...field}
+                                onChange={(event) => {
+                                  field.onChange(event);
+                                  if (addresses.length)
+                                    form.setValue(
+                                      'settings.upstreamAddresses',
+                                      addresses.map((address, index) => (index === 0 ? { ...address, url: event.target.value } : address)),
+                                      { shouldDirty: true }
+                                    );
+                                }}
                               />
+                              {!(
+                                (isCodexType && authMode !== 'third-party') ||
+                                (isClaudeCodeType && authMode === 'official') ||
+                                isXAISubscriptionType ||
+                                selectedProvider === 'antigravity' ||
+                                selectedType === 'anthropic_gcp' ||
+                                selectedType === 'anthropic_aws'
+                              ) && (
+                                <Button type='button' variant='link' className='h-auto px-0 text-xs' onClick={openAddresses}>
+                                  {t('channels.addresses.manage', { count: addresses.length || 1 })}
+                                </Button>
+                              )}
                               <FormMessage />
                             </div>
                           </FormItem>
                         )}
                       />
+
+                      <details className='rounded-md border p-3'>
+                        <summary className='cursor-pointer text-sm font-medium'>{t('channels.endpoints.title')}</summary>
+                        <div className='mt-3'>
+                          <ChannelEndpointEditor
+                            defaults={initialRow?.defaultEndpoints ?? [{ apiFormat: selectedApiFormat }]}
+                            endpoints={form.watch('endpoints') ?? []}
+                            formats={[selectedApiFormat]}
+                            baseURL={watchedBaseURL}
+                            addresses={addresses}
+                            onChange={(value) => form.setValue('endpoints', value, { shouldDirty: true })}
+                            onRemove={(format) =>
+                              form.setValue(
+                                'endpoints',
+                                (form.getValues('endpoints') ?? []).filter((item) => item.apiFormat !== format),
+                                { shouldDirty: true }
+                              )
+                            }
+                            onManageAddresses={openAddresses}
+                          />
+                        </div>
+                      </details>
 
                       {(!(isCodexType || isClaudeCodeType || isCopilotType || isXAISubscriptionType) || authMode === 'third-party') &&
                         selectedProvider !== 'antigravity' &&
@@ -1524,15 +1593,35 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
             {/* Expandable Side Panel */}
             <div
-              className='border-border flex min-h-0 flex-col overflow-hidden border-l pt-1.5 pl-4 transition-all duration-300 ease-out'
+              className='border-border relative flex min-h-0 flex-col overflow-hidden border-l pt-1.5 pl-4 transition-all duration-300 ease-out'
               style={{
                 width:
-                  showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? '400px' : '0px',
-                opacity: showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? 1 : 0,
+                  showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel
+                    ? '400px'
+                    : '0px',
+                opacity:
+                  showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel
+                    ? 1
+                    : 0,
                 paddingLeft:
-                  showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel ? '16px' : '0px',
+                  showAddressesPanel || showFetchedModelsPanel || showSupportedModelsPanel || showApiKeysPanel || showConfiguredModelsPanel
+                    ? '16px'
+                    : '0px',
               }}
             >
+              {showAddressesPanel && (
+                <ChannelAddressesEditor
+                  addresses={addresses}
+                  failover={addressFailover}
+                  channelId={currentRow?.id}
+                  onChange={(value) => {
+                    form.setValue('settings.upstreamAddresses', value, { shouldDirty: true });
+                    if (value[0]) form.setValue('baseURL', value[0].url, { shouldDirty: true });
+                  }}
+                  onFailoverChange={(value) => form.setValue('settings.addressFailover', value, { shouldDirty: true })}
+                  onClose={() => setShowAddressesPanel(false)}
+                />
+              )}
               {showConfiguredModelsPanel && (
                 <ChannelsModelPicker
                   supportedModels={supportedModels}
@@ -1545,9 +1634,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               )}
 
               {/* Fetched Models Panel Content */}
-              <div
-                className={`flex h-full min-h-0 flex-col transition-opacity duration-200 ${showFetchedModelsPanel ? 'opacity-100' : 'pointer-events-none absolute opacity-0'}`}
-              >
+              <div hidden={!showFetchedModelsPanel} className='flex h-full min-h-0 flex-col'>
                 <div className='mb-3 flex items-center justify-between'>
                   <h3 className='text-sm font-semibold'>{t('channels.dialogs.fields.supportedModels.fetchedModelsLabel')}</h3>
                   <Button type='button' variant='ghost' size='sm' className='h-6 w-6 p-0' onClick={closeFetchedModelsPanel}>
@@ -1662,9 +1749,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               {showFetchedModelsPanel && showSupportedModelsPanel && <div className='border-border my-2 border-t' />}
 
               {/* API Keys Panel Content */}
-              <div
-                className={`flex h-full min-h-0 flex-col transition-opacity duration-200 ${showApiKeysPanel ? 'opacity-100' : 'pointer-events-none absolute opacity-0'}`}
-              >
+              <div hidden={!showApiKeysPanel} className='flex h-full min-h-0 flex-col'>
                 <div className='mb-3 flex items-center justify-between'>
                   <h3 className='text-sm font-semibold'>{t('channels.dialogs.fields.apiKey.panelTitle', { count: apiKeysCount })}</h3>
                   <Button type='button' variant='ghost' size='sm' className='h-6 w-6 p-0' onClick={closeApiKeysPanel}>
@@ -1930,9 +2015,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
               </div>
 
               {/* Supported Models Panel Content */}
-              <div
-                className={`flex h-full min-h-0 flex-col transition-opacity duration-200 ${showSupportedModelsPanel ? 'opacity-100' : 'pointer-events-none absolute opacity-0'}`}
-              >
+              <div hidden={!showSupportedModelsPanel} className='flex h-full min-h-0 flex-col'>
                 <div className='mb-3 flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
                     <Button type='button' variant='ghost' size='sm' className='h-6 w-6 p-0' onClick={closeSupportedModelsPanel}>

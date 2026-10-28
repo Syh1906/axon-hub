@@ -73,16 +73,27 @@ fork 改动，由用户决定。
 
 - 状态：2026-10-28 已随 [v1.0.0-beta10-fork.7.syh.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.4) 正式发布，并设为最新版本。New API 和 Sub2API 自动识别；复用渠道地址、代理与 Key，已有渠道默认关闭同步。余额、Key 额度、账户共享关系与倍率分别展示，未知账户不相加、不按尾号猜测关联。
 - 提交：`e30717fe` 实现上游余额、逐 Key 倍率及发布说明；`855fe99c` 修正发布规范检查，亦为 `.syh.4` tag 指向的最终源码。
-- New API：一个渠道配置一个账号访问令牌；账号 ID 可自动识别，必需时补填。Key 自身日志中的用户／令牌 ID 只作身份锚点，随后通过账号权限读取当前分组和用户适用倍率。无日志、身份不匹配和自动分组明确使用手动备用值。Sub2API 读取版本化 billing 接口的当前有效 Token 倍率及有效时段边界。
+- 账号与 Key：当前工作区扩展为一渠道多账号，同渠道约定同分组／套餐、同倍率；不同倍率拆到不同渠道。每个账号独立保存认证，每把 Key 保存备注和归属；New API 通过对应账号授权直接查询 Key，无调用记录也可识别，不能确认归属时保留待关联。Sub2API 手动指定归属，读取版本化 billing 接口的当前有效 Token 倍率及有效时段边界。此扩展尚未发布，不改变 `.syh.4` 产物。
+- 余额与凭据：主列汇总账户余额、显示实际 Key 数，同账号去重、不同币种不相加；失败或过期标记部分汇总，停用 Key 不删除账户资金。Key 额度独立展示。完整 Key 和 New API 令牌只能通过渠道管理权限的独立读取入口主动显示／复制，不写入普通上游状态 DTO；替换令牌为显式操作。缺少认证或关联不阻止模型调用。
+- Key 调度：保留既有选择方式，增加渠道内部的会话 Key 复用开关；不增加低倍率优先调度。独立启停继续受至少保留一把启用 Key 约束，已发请求不中断。
 - 同步：进入页面和切页检查到期缓存；单渠道、单 Key 可强制刷新；刷新全部覆盖各分页，跳过关闭项和完全不支持的渠道。已启用跟随渠道复用现有调度器每分钟检查是否到期。暂时错误按配置间隔重试，认证／不支持停止自动请求。关闭同步切回手动；查询失败不参与已有渠道可用性门禁。
 - 成本：每次实际发送前按选中 Key 保存价格版本、价格计算时点、倍率和来源；流式响应、普通响应、持久用量及历史展示共用记录。重试重新捕获，旧执行不因配置变化重算；手动保存优先，超过 30 分钟或时段边界使用备用并标为估算。固定费用保留手动。成本排序按生效倍率，多 Key 取最小值。
 - 界面：88px 普通行、两行模型摘要、悬浮完整列表和点击现有编辑窗口；创建时间默认隐藏；数字快捷编辑直接聚焦和选中。详细使用方法见[渠道配置](zh/guides/channel-management.md#查询上游余额与跟随倍率)与[成本追踪](zh/guides/cost-tracking.md#按-key-固定成本倍率)。
 - 刷新边界：刷新 mutation 限定单渠道、单 Key；页面统一逐 Key 执行、跨渠道最多三路。查询和账号验证不进入 GraphQL 外层事务，快照独立保存；查询总预算最多 24 秒并按父请求截止时间预留 2 秒保存，锁等待可取消。刷新取消旧缓存读取后发布并回读，重新查询倍率排序；保存预览同时检查上游观测时间与本地同步时间。回归用例覆盖正常 GraphQL 入口的超时隔离、无长事务、锁取消、前端并发边界与旧读取竞态。
-- Schema：新增 `channel_upstream_statuses`、渠道敏感账号字段及执行／用量成本快照字段，由 Ent 托管；不新增 data migration 版本。已对照直接上游 `b205ae8e`（`v1.0.0-beta10-fork.7`），无同名表／字段。唯一索引为渠道整数 ID 与 64 字符哈希，名称低于 63 字节、utf8mb4 字符部分最多 256 字节；不索引 JSON。旧渠道保持关闭。备份增加账号凭据及历史成本快照，查询缓存不备份。
-- 代码：`internal/server/biz/upstream/`、`channel_upstream*.go`、`request_cost_snapshot.go`、`channel_routing_query.go`、`usage_log.go`、GraphQL `channel_upstream.graphql` 和 `frontend/src/features/channels/{data/schema.ts,data/channel-upstream.ts,data/channel-upstream-refresh.ts,components/channel-upstream*.tsx,components/channels-upstream-dialog.tsx}`。纯数据定义位于 `schema.ts`，不依赖 React 查询 Hook；原价格单元测试可直接加载，避免因上游查询依赖导致测试入口失败。
+- Schema：`channel_upstream_statuses`、渠道敏感账号字段及执行／用量成本快照字段由 Ent 托管。多账号沿用 JSON 字段，新增 data migration `v1.0.0-beta10-fork.7.syh.5`，保留旧账号令牌，只关联有匹配配置快照且能证明账户身份的 Key；重复执行幂等。已对照直接上游 `b205ae8e`（`v1.0.0-beta10-fork.7`），并验证 `.syh.4 < .syh.5 < fork.8`。已有唯一索引为渠道整数 ID 与 64 字符哈希，不索引 JSON。旧渠道保持关闭。备份保留账号、备注、归属、地址与历史成本快照，查询缓存不备份；旧备份认证恢复为独立账号并保留待关联。
+- 代码：`internal/server/biz/upstream/`、`channel_upstream*.go`、`channel_accounts.go`、`channel_apikey_provider.go`、`request_cost_snapshot.go`、`channel_routing_query.go`、`usage_log.go`、GraphQL `channel_upstream.graphql`／`channel_accounts.graphql` 和渠道前端 `data/channel-{upstream,accounts}.ts`、`components/channel-accounts-panel.tsx`、`channel-credential-actions.tsx`、`channels-api-key-management-dialog.tsx`。纯数据定义位于 `schema.ts`，不依赖 React 查询 Hook。
 - 验证：新增本地 HTTP 用例覆盖两种协议、零值倍率、账号 ID 自动识别、当前分组、账号不匹配、无调用记录、独立查询失败与旧版接口；业务用例覆盖关闭不请求、未到期缓存、手动优先、地址变化失效、按 Key 固定成本、跨执行保持价格；SQLite 覆盖旧 schema 升级及重复迁移，备份用例覆盖敏感字段不从普通 JSON 泄露和持久快照。MySQL／PostgreSQL 实例升级与真实上游账号尚未联调。
 - 发布检查：最终源码 `855fe99c` 的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/40619414824)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/40619414684)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/40619414659) 全部通过；前端 115 项单元测试、发布脚本 3 项及 Windows 版本比较 6 项通过。TypeScript 检查仍有 172 项既有诊断，未报告为通过；未运行本地 lint/build。真实账号、完整页面保存／刷新流程、存量跨方言升级和生产恢复仍未验证，不以 CI 成功替代这些验收。
 - 同步上游注意：核对新增表／字段与账号凭据敏感性、逐 Key 独立刷新及事务边界、实际请求选 Key 后捕获成本和重试重新捕获；保留历史快照与备份字段。无新增持久测试 fixture，临时发布脚本夹具已清理。升级前备份；旧版不理解新增同步与成本快照，回退须评估新结构及备份后的数据，不能直接删表或自动回滚数据库。
+
+### 渠道多个上游地址与接口路径
+
+- 状态：当前工作区实现，尚未发布。创建／编辑表单增加地址侧面板，支持名称、地址、启停、优先级和单个／全部测速；统一保存、取消丢弃草稿。原端点配置改为「接口与路径」，合并默认与自定义配置，显示最终请求 URL，保留按模型指定接口。
+- 请求：按启用地址的优先级升序选择；连接错误、响应超时和 5xx 可切换地址，固定模型与本次选中的 Key。复用现有同渠道重试次数与请求截止时间，401／403／429 不切地址，已提交流式内容不重放；接口专用地址不被渠道列表覆盖。账户同步仍使用渠道 Base URL。
+- 升级与存储：地址保存在 `ChannelSettings` JSON 内，无新表或列；与账号扩展共用 `.syh.5` 数据迁移，将普通旧单地址变为首条地址。测速只发送连通探针、不生成模型输出，不自动改变优先级。
+- 代码：`internal/server/biz/channel_addresses.go`、`internal/server/orchestrator/channel_addresses.go`、`outbound.go`、`llm/pipeline/pipeline.go`、`frontend/src/features/channels/components/channel-{addresses,endpoint}-editor.tsx`、`data/channel-addresses.ts`。
+- 验证：业务与请求测试覆盖地址顺序、停用过滤、认证错误不切换、请求内容与 Key 保持、超时与重试次数；前端用例覆盖版本补全、显式路径和默认接口合并。真实上游故障切换与 MySQL／PostgreSQL 实例升级仍待联调。
+- 同步上游注意：核对请求转换、认证选择、同渠道重试及流式提交边界；不能通过独立重试循环叠加次数。保留专用接口地址和供应商固定地址约束。
 
 ### 标签优先级、渠道快捷设置与表单增强
 
@@ -810,6 +821,47 @@ fork 改动，由用户决定。
 - 详细规范：[独立发版与部署](zh/development/release.md)（[English](en/development/release.md)）。
 
 ## Bugfix Topics
+
+### 角色删除后允许复用名称
+
+- 归属：修正上游角色软删除与名称唯一约束不一致的问题；已对照直接上游
+  `v1.0.0-beta10-fork.7`（`b205ae8e`），原约束同样未包含删除标记。
+- 行为：系统角色、同一项目内的角色在单个或批量删除后可重新使用原名称，编辑角色也可
+  使用已删除的名称；仍保留删除记录，且有效角色之间不能重名。
+- 代码：`internal/ent/schema/role.go`，以及重新生成的 `internal/ent/migrate/schema.go`、
+  `internal/ent/internal/schema.go`。
+- 迁移：沿用软删除实体的 `deleted_at` 唯一性约定及原索引名，由 Ent 自动替换旧索引；
+  无新增 data migration，不修改已发布迁移。启动时关闭自动迁移的部署需要先同步 schema。
+  索引为两个整数列与原有名称列，未增加字符串索引宽度，名称低于 63 字节。
+- 验证：`role_test.go` 覆盖系统／项目、单个／批量删除、重建、重命名和有效名称冲突；
+  新增 `role_upgrade_test.go` 先复现旧索引的名称冲突，再覆盖 SQLite 旧索引升级、
+  索引缺失后重试、重复迁移及历史记录保留。MySQL／PostgreSQL 实例升级未验证；
+  无新增持久 fixture。
+- 同步上游注意：核对上游角色索引是否已包含删除标记；保留名称复用与升级路径测试。
+
+### 系统用户管理的授权上限与所有者保护
+
+- 归属：修正 `UpdateUserStatus` 缺少目标权限检查，以及创建账户、追加权限、设置系统
+  所有者标记时未完整检查授权上限的问题。
+- 行为：非所有者用户管理员不能停用系统所有者或拥有其未持有权限的用户；拒绝操作时，
+  目标账户状态和个人 API Key 均不改变。合法停用仍禁用个人密钥并在提交后清理用户缓存。
+- 行为：创建账户时直接权限和角色均不能超出操作者的授权范围；编辑账户的 `appendScopes`
+  遵循与 `scopes` 相同的上限。非系统所有者不能将自己或其他账户设为系统所有者；普通
+  账户表单携带 `isOwner: false` 仍能正常保存。
+- 代码：`internal/server/biz/user.go`、`internal/server/biz/user_test.go`，新增
+  `internal/server/biz/user_permissions_test.go`。
+- 验证：使用正常用户上下文验证停用拒绝及无副作用；新增测试复现修复前 5 条创建／编辑
+  提权路径成功，修复后验证全部拒绝且无账户残留或权限变化，同时覆盖合法授权与编辑。
+  复用合法停用、重新激活不恢复个人密钥和缓存失效用例。无 schema、data migration、
+  缓存结构或持久 fixture 变化。
+- 边界：此修复保护系统账户管理的上述入口；项目成员／全站账户、项目渠道／全站渠道的
+  完整隔离尚未实施，不能据此将当前系统视为已具备独立托管的权限边界。
+- 同步上游注意：创建、编辑和状态变更不得绕过相应授权检查；校验必须先于账户或密钥写入。
+- 角色名称与用户权限的定向验证命令（仓库根目录，2026-10-28 通过）：
+
+  ```shell
+  go test ./internal/server/biz -run 'Test(CreateUserGrantPermissions|UpdateUserPermissionEscalation|UpdateUser_|UpdateUserStatus|CreateRole|RoleNameReuseAfterDelete|RoleNameIndexUpgrade|UpdateRole|DeleteRole|BulkDeleteRoles|CanGrant|CanEdit|TraceStickyKeyProvider|RendezvousSelect|RequestCostSnapshotUsesSelectedKeyAndSurvivesLaterChanges|AppliedUpstreamRateExpiryAndZero)' -count=1
+  ```
 
 ### 自动补全候选列表按交互展开
 

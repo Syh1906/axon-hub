@@ -17,8 +17,42 @@ func (r *mutationResolver) UpdateChannelUpstream(ctx context.Context, channelID 
 }
 
 // VerifyChannelUpstreamAccount is the resolver for the verifyChannelUpstreamAccount field.
-func (r *mutationResolver) VerifyChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, accountToken string, accountID *int) (*objects.UpstreamAccountVerification, error) {
-	return r.channelService.VerifyChannelUpstreamAccount(ctx, channelID.ID, accountToken, accountID)
+func (r *mutationResolver) VerifyChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, accountToken *string, accountID *int, accountRef *string) (*objects.UpstreamAccountVerification, error) {
+	return r.channelService.VerifyChannelUpstreamAccount(ctx, channelID.ID, accountToken, accountID, accountRef)
+}
+
+// SaveChannelUpstreamAccount is the resolver for the saveChannelUpstreamAccount field.
+func (r *mutationResolver) SaveChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) (*objects.ChannelUpstreamState, error) {
+	return r.channelService.SaveChannelUpstreamAccount(ctx, channelID.ID, input)
+}
+
+// DeleteChannelUpstreamAccount is the resolver for the deleteChannelUpstreamAccount field.
+func (r *mutationResolver) DeleteChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, accountRef string) (*objects.ChannelUpstreamState, error) {
+	return r.channelService.DeleteChannelUpstreamAccount(ctx, channelID.ID, accountRef)
+}
+
+// UpdateChannelKeySettings is the resolver for the updateChannelKeySettings field.
+func (r *mutationResolver) UpdateChannelKeySettings(ctx context.Context, channelID objects.GUID, input objects.ChannelKeySettings) (*objects.ChannelUpstreamState, error) {
+	return r.channelService.UpdateChannelKeySettings(ctx, channelID.ID, input)
+}
+
+// SetChannelKeySessionReuse is the resolver for the setChannelKeySessionReuse field.
+func (r *mutationResolver) SetChannelKeySessionReuse(ctx context.Context, channelID objects.GUID, enabled bool) (*objects.ChannelUpstreamState, error) {
+	return r.channelService.SetChannelKeySessionReuse(ctx, channelID.ID, enabled)
+}
+
+// RevealChannelCredential is the resolver for the revealChannelCredential field.
+func (r *mutationResolver) RevealChannelCredential(ctx context.Context, channelID objects.GUID, keyRef *string, accountRef *string) (string, error) {
+	return r.channelService.RevealChannelCredential(ctx, channelID.ID, keyRef, accountRef)
+}
+
+// ProbeChannelAddress is the resolver for the probeChannelAddress field.
+func (r *mutationResolver) ProbeChannelAddress(ctx context.Context, url string, channelID *objects.GUID) (*objects.ChannelAddressProbe, error) {
+	var id *int
+	if channelID != nil {
+		id = &channelID.ID
+	}
+	return r.channelService.ProbeChannelAddress(ctx, url, id)
 }
 
 // RefreshChannelUpstreams is the resolver for the refreshChannelUpstreams field.

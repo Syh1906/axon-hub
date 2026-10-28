@@ -574,6 +574,9 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 	}
 
 	if input.Settings != nil {
+		if err := validateChannelAddresses(input.Settings, input.Type); err != nil {
+			return nil, err
+		}
 		// A new channel may intentionally be created before its model list is
 		// populated (for example by a bulk configuration flow). An empty list is
 		// therefore not evidence that every submitted override is stale. Keep the
@@ -948,6 +951,9 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 
 	if input.Settings != nil {
 		// Always normalize and validate override settings.
+		if err := validateChannelAddresses(input.Settings, effectiveType); err != nil {
+			return nil, err
+		}
 		if input.Settings.BodyOverrideOperations != nil {
 			if err := ValidateBodyOverrideOperations(input.Settings.BodyOverrideOperations); err != nil {
 				return nil, fmt.Errorf("invalid body override operations: %w", err)
@@ -1090,10 +1096,18 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			settings.ModelPriceMultiplier = nil
 			settings.TagPriorities = nil
 			settings.Upstream = nil
+			settings.KeySettings = nil
+			settings.DisableKeySessionReuse = false
 			if existingSettings.Settings != nil {
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
 				settings.TagPriorities = existingSettings.Settings.TagPriorities
 				settings.Upstream = existingSettings.Settings.Upstream
+				settings.KeySettings = existingSettings.Settings.KeySettings
+				settings.DisableKeySessionReuse = existingSettings.Settings.DisableKeySessionReuse
+				if input.Settings.UpstreamAddresses == nil {
+					settings.UpstreamAddresses = existingSettings.Settings.UpstreamAddresses
+					settings.AddressFailover = existingSettings.Settings.AddressFailover
+				}
 			}
 			mut.Where(channel.UpdatedAtEQ(existingSettings.UpdatedAt)).SetSettings(&settings)
 		} else if clearStaleQuotaSettings {

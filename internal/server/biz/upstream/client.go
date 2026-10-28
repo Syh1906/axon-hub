@@ -26,7 +26,7 @@ type Client struct {
 	base *url.URL
 }
 
-// Session 将同一渠道的站点信息与账号查询共享给各把 Key。
+// Session 仅在同一账号的 Key 之间共享站点信息和账号认证。
 type Session struct {
 	Client           *Client
 	Provider         objects.UpstreamProvider
@@ -81,10 +81,15 @@ func (c *Client) AccountRef(id int) string {
 }
 
 func (c *Client) request(ctx context.Context, path, key string, accountID int) (map[string]any, error) {
+	return c.requestWithQuery(ctx, path, key, accountID, nil)
+}
+
+func (c *Client) requestWithQuery(ctx context.Context, path, key string, accountID int, query url.Values) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(ctx, RequestTimeout)
 	defer cancel()
 	endpoint := *c.base
 	endpoint.Path += path
+	endpoint.RawQuery = query.Encode()
 	builder := httpclient.NewRequestBuilder().WithMethod(http.MethodGet).WithURL(endpoint.String()).WithHeader("Accept", "application/json")
 	if key != "" {
 		builder.WithBearerToken(key)
@@ -132,7 +137,7 @@ func (c *Client) request(ctx context.Context, path, key string, accountID int) (
 	return data, nil
 }
 
-func (c *Client) Prepare(ctx context.Context, key string, known objects.UpstreamProvider, credentials *objects.ChannelUpstreamCredentials) *Session {
+func (c *Client) Prepare(ctx context.Context, key string, known objects.UpstreamProvider, credentials *objects.UpstreamAccountCredentials) *Session {
 	session := &Session{Client: c, Provider: known}
 	if session.Provider == "" {
 		session.Provider = objects.UpstreamProviderUnknown

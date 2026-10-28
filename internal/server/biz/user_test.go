@@ -1200,6 +1200,55 @@ func TestUpdateUser_CacheInvalidation(t *testing.T) {
 	require.Error(t, err, "User cache should be invalidated after update")
 }
 
+func TestUpdateUserStatusPermissions(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		actorOwner  bool
+		targetOwner bool
+		targetScope string
+		wantError   bool
+	}{
+		{name: "用户管理员不能停用系统所有者", targetOwner: true, wantError: true},
+		{name: "用户管理员不能停用权限更高的用户", targetScope: "write_channels", wantError: true},
+		{name: "用户管理员可以停用普通用户"},
+		{name: "系统所有者可以停用普通用户", actorOwner: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			userService, client := setupTestUserService(t)
+			defer client.Close()
+			setupTestUserAPIKeyService(t, userService, client)
+			seedCtx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+			actor, err := client.User.Create().SetEmail("status-admin@example.com").SetPassword("password").
+				SetIsOwner(tc.actorOwner).SetScopes([]string{"read_users", "write_users"}).Save(seedCtx)
+			require.NoError(t, err)
+			targetScopes := []string{}
+			if tc.targetScope != "" {
+				targetScopes = append(targetScopes, tc.targetScope)
+			}
+			target, err := client.User.Create().SetEmail("status-target@example.com").SetPassword("password").
+				SetIsOwner(tc.targetOwner).SetScopes(targetScopes).SetStatus(user.StatusActivated).Save(seedCtx)
+			require.NoError(t, err)
+			project, err := client.Project.Create().SetName("用户状态权限项目").Save(seedCtx)
+			require.NoError(t, err)
+			personalKey, err := client.APIKey.Create().SetKey("status-permissions-personal-key").SetName("个人密钥").
+				SetType(apikey.TypePersonal).SetUser(target).SetProject(project).Save(seedCtx)
+			require.NoError(t, err)
+
+			ctx := contexts.WithUser(ent.NewContext(context.Background(), client), actor)
+			_, err = userService.UpdateUserStatus(ctx, target.ID, user.StatusDeactivated)
+			if tc.wantError {
+				require.Error(t, err, "必须在停用账户和个人密钥前拒绝越权")
+				require.Equal(t, user.StatusActivated, client.User.GetX(seedCtx, target.ID).Status)
+				require.Equal(t, apikey.StatusEnabled, client.APIKey.GetX(seedCtx, personalKey.ID).Status)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, user.StatusDeactivated, client.User.GetX(seedCtx, target.ID).Status)
+				require.Equal(t, apikey.StatusDisabled, client.APIKey.GetX(seedCtx, personalKey.ID).Status)
+			}
+		})
+	}
+}
+
 func TestUpdateUserStatus_CacheInvalidation(t *testing.T) {
 	userService, client := setupTestUserService(t)
 	defer client.Close()
@@ -1208,6 +1257,7 @@ func TestUpdateUserStatus_CacheInvalidation(t *testing.T) {
 	ctx := context.Background()
 	ctx = ent.NewContext(ctx, client)
 	ctx = authz.WithTestBypass(ctx)
+	ctx = contexts.WithUser(ctx, createOwnerUser(t, ctx, client))
 
 	// Create a user
 	testUser, err := client.User.Create().
@@ -1242,6 +1292,7 @@ func TestUpdateUserStatusDeactivatedDisablesOnlyPersonalAPIKeys(t *testing.T) {
 
 	ctx := ent.NewContext(context.Background(), client)
 	ctx = authz.WithTestBypass(ctx)
+	ctx = contexts.WithUser(ctx, createOwnerUser(t, ctx, client))
 
 	testUser, err := client.User.Create().
 		SetEmail("deactivate@example.com").

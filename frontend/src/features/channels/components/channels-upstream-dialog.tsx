@@ -18,6 +18,7 @@ import {
   type ChannelUpstreamState,
 } from '../data/channel-upstream';
 import type { Channel } from '../data/schema';
+import { ChannelAccountsPanel } from './channel-accounts-panel';
 import { useBalanceLabel } from './channel-upstream-cell';
 import { ChannelUpstreamSettingsForm } from './channel-upstream-settings-form';
 
@@ -50,6 +51,7 @@ export function ChannelsUpstreamDialog({ channel, onClose }: { channel: Channel;
           <Tabs value={tab} onValueChange={setTab} className='flex min-h-0 flex-1 flex-col'>
             <TabsList className='w-fit'>
               <TabsTrigger value='keys'>{t('channels.upstream.keyDetails')}</TabsTrigger>
+              <TabsTrigger value='accounts'>{t('channels.accounts.tab')}</TabsTrigger>
               <TabsTrigger value='settings'>{t('channels.upstream.syncSettings')}</TabsTrigger>
             </TabsList>
             <TabsContent value='keys' className='min-h-0 overflow-y-auto'>
@@ -63,6 +65,14 @@ export function ChannelsUpstreamDialog({ channel, onClose }: { channel: Channel;
             </TabsContent>
             <TabsContent value='settings' className='min-h-0 overflow-y-auto'>
               <ChannelUpstreamSettingsForm channel={channel} state={state} onClose={onClose} />
+            </TabsContent>
+            <TabsContent value='accounts' className='min-h-0 overflow-y-auto'>
+              <ChannelAccountsPanel state={state} />
+              <DialogFooter className='bg-background sticky bottom-0 py-3'>
+                <Button variant='outline' onClick={onClose}>
+                  {t('common.buttons.close')}
+                </Button>
+              </DialogFooter>
             </TabsContent>
           </Tabs>
         ) : (
@@ -86,11 +96,11 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
   const { channelPermissions } = usePermissions();
   const refresh = useRefreshChannelUpstreams();
   const pending = useUpstreamRefreshPending(state.channelId);
-  const accounts = [
-    ...new Map(
-      state.keys.flatMap((key) => (key.snapshot.account ? [[key.snapshot.account.balance.accountRef, key.snapshot.account] as const] : []))
-    ).values(),
-  ];
+  const accounts = state.accounts.filter((account) => account.balance);
+  const rates = state.keys.filter((key) => !key.disabled && key.snapshot.rate && key.snapshot.rateState === 'SUCCESS');
+  const inconsistent =
+    new Set(rates.map((key) => key.snapshot.rate!.multiplier)).size > 1 ||
+    new Set(rates.map((key) => key.snapshot.rate!.group).filter(Boolean)).size > 1;
   return (
     <div className='flex flex-col gap-4 pt-2'>
       <div className='flex items-center justify-between gap-3'>
@@ -110,18 +120,23 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
         )}
       </div>
       {accounts.map((account) => (
-        <Alert key={account.balance.accountRef}>
+        <Alert key={account.ref}>
           <Database className='size-4' />
           <AlertDescription>
-            <strong className='text-foreground mr-3'>{formatBalance(account.balance)}</strong>
-            {t('channels.upstream.accountSummary', {
-              id: account.accountId,
-              count: state.keys.filter((key) => key.snapshot.account?.accountId === account.accountId).length,
-            })}
-            <span className='text-muted-foreground ml-3 text-xs'>{new Date(account.updatedAt).toLocaleString()}</span>
+            <strong className='text-foreground mr-3'>{formatBalance(account.balance!)}</strong>
+            {account.name} · {t('channels.accounts.keyCount', { count: account.keyCount })}
+            <span className='text-muted-foreground ml-3 text-xs'>
+              {account.updatedAt ? new Date(account.updatedAt).toLocaleString() : ''}
+            </span>
           </AlertDescription>
         </Alert>
       ))}
+      {inconsistent && (
+        <Alert>
+          <Info className='size-4' />
+          <AlertDescription>{t('channels.accounts.inconsistent')}</AlertDescription>
+        </Alert>
+      )}
       {state.keys.length === 0 ? (
         <Alert>
           <Info className='size-4' />
@@ -145,6 +160,10 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
                     <span className='font-mono'>
                       #{index + 1} · {key.label}
                     </span>
+                    <p className='text-muted-foreground max-w-40 truncate text-xs'>
+                      {key.remark} ·{' '}
+                      {state.accounts.find((account) => account.ref === key.accountRef)?.name || t('channels.accounts.unassigned')}
+                    </p>
                     {key.disabled && (
                       <Badge variant='outline' className='ml-1'>
                         {t('channels.upstream.keyDisabled')}
@@ -154,7 +173,7 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
                   <TableCell>
                     <div className='flex min-w-24 flex-col gap-1'>
                       {key.snapshot.balances
-                        .filter((balance) => balance.kind !== 'ACCOUNT' || !key.snapshot.account)
+                        .filter((balance) => balance.kind !== 'ACCOUNT')
                         .map((balance, i) => (
                           <div key={i}>
                             <span className='tabular-nums'>{formatBalance(balance)}</span>
@@ -192,11 +211,13 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
                                 ? t(`channels.upstream.errors.${key.snapshot[`${kind}ErrorCode`]}`, {
                                     defaultValue: t('channels.upstream.refreshFailed'),
                                   })
-                                : key.snapshot[`${kind}State`] === 'NEVER' ? t('channels.upstream.states.NEVER') : t('channels.upstream.updatedAt', {
-                                    time: new Date(
-                                      (kind === 'rate' ? key.snapshot.rate?.syncedAt : key.snapshot.balanceUpdatedAt) ?? 0
-                                    ).toLocaleString(),
-                                  })}
+                                : key.snapshot[`${kind}State`] === 'NEVER'
+                                  ? t('channels.upstream.states.NEVER')
+                                  : t('channels.upstream.updatedAt', {
+                                      time: new Date(
+                                        (kind === 'rate' ? key.snapshot.rate?.syncedAt : key.snapshot.balanceUpdatedAt) ?? 0
+                                      ).toLocaleString(),
+                                    })}
                             </p>
                           </TooltipContent>
                         </Tooltip>

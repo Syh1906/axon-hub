@@ -768,7 +768,7 @@ var (
 			{
 				Name:    "roles_by_project_id_name",
 				Unique:  true,
-				Columns: []*schema.Column{RolesColumns[7], RolesColumns[4]},
+				Columns: []*schema.Column{RolesColumns[7], RolesColumns[4], RolesColumns[3]},
 			},
 			{
 				Name:    "roles_by_level",

@@ -1,0 +1,57 @@
+type ChannelUpstreamAccountState {
+  ref: String!
+  name: String!
+  provider: UpstreamProvider!
+  accountId: Int
+  hasToken: Boolean!
+  verifiedAt: Time
+  keyCount: Int!
+  balance: UpstreamBalance
+  updatedAt: Time
+  complete: Boolean!
+}
+
+type ChannelBalanceSummary {
+  balances: [UpstreamBalance!]!
+  accountCount: Int!
+  knownAccountCount: Int!
+  unassignedKeyCount: Int!
+  complete: Boolean!
+}
+
+input SaveChannelUpstreamAccountInput {
+  ref: String
+  name: String!
+  provider: UpstreamProvider!
+  accountToken: String
+  accountId: Int
+}
+
+input ChannelKeySettingsInput {
+  keyRef: String!
+  remark: String!
+  accountRef: String!
+}
+
+type ChannelUpstreamAddress {
+  id: String!
+  name: String!
+  url: String!
+  priority: Int!
+  enabled: Boolean!
+}
+
+input ChannelUpstreamAddressInput {
+  id: String!
+  name: String!
+  url: String!
+  priority: Int!
+  enabled: Boolean!
+}
+
+type ChannelAddressProbe {
+  reachable: Boolean!
+  latencyMs: Int!
+  statusCode: Int!
+  errorCode: String!
+}

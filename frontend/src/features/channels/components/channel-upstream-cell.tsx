@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChannels } from '../context/channels-context';
 import {
@@ -42,94 +43,91 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
   const refresh = useRefreshChannelUpstreams();
   const pending = useUpstreamRefreshPending(channel.id);
   const state = channel.upstreamState;
-  const keys = state?.keys.filter((key) => !key.disabled) ?? [];
-  const accounts = new Map(
-    keys.flatMap((key) => (key.snapshot.account ? [[key.snapshot.account.balance.accountRef, key.snapshot.account] as const] : []))
-  );
-  const singleBalance =
-    keys.length === 1
-      ? (keys[0].snapshot.balances.find((balance) => balance.kind === 'ACCOUNT') ?? keys[0].snapshot.balances[0])
-      : undefined;
-  const account = accounts.size === 1 ? [...accounts.values()][0] : undefined;
-  const balance = account?.balance ?? singleBalance;
-  const anyBalances = keys.some((key) => key.snapshot.balances.length > 0);
-  const unsupported = keys.length > 0 && keys.every((key) => key.snapshot.balanceState === 'UNSUPPORTED');
-  const failed = keys.some((key) => key.snapshot.balanceState === 'ERROR' || key.snapshot.balanceState === 'AUTH_REQUIRED');
-  const lastUpdated =
-    account?.updatedAt ??
-    keys
-      .map((key) => key.snapshot.balanceUpdatedAt)
-      .filter(Boolean)
-      .sort()
-      .at(-1);
+  const summary = state?.balanceSummary;
   const openDetails = () => {
     setCurrentRow(channel);
     setOpen('upstream');
   };
   const label = !state
     ? t(channel.upstreamLoadError ? 'channels.upstream.unavailable' : 'channels.upstream.loading')
-    : balance
-      ? formatBalance(balance)
-      : accounts.size > 1
-        ? t('channels.upstream.multipleAccounts', { count: accounts.size })
-        : anyBalances
-          ? t('channels.upstream.multipleKeys', { count: keys.length })
-          : unsupported
-            ? t('channels.upstream.unsupported')
-            : state?.settings.enabled
-              ? t('channels.upstream.noSnapshot')
-              : t('channels.upstream.notEnabled');
-  const detail = !state
-    ? t('channels.upstream.viewDetails')
-    : !state.settings.enabled
-      ? t(lastUpdated ? 'channels.upstream.syncOff' : 'channels.upstream.syncOffEmpty')
-      : failed
-        ? t('channels.upstream.refreshFailedShort')
-        : account
-          ? t('channels.upstream.sharedAccount', {
-              count: keys.filter((key) => key.snapshot.account?.accountId === account.accountId).length,
-            })
-          : balance
-            ? t(`channels.upstream.kinds.${balance.kind}`)
-            : t('channels.upstream.viewDetails');
+    : summary!.balances.length === 1
+      ? formatBalance(summary!.balances[0])
+      : summary!.balances.length > 1
+        ? t('channels.accounts.multipleCurrencies')
+        : t('channels.accounts.notProvided');
   return (
-    <div className='flex min-w-36 flex-col items-center gap-1'>
-      <div className='flex items-center gap-1'>
-        <Button
-          variant='ghost'
-          size='sm'
-          className='h-8 px-1 tabular-nums'
-          onClick={openDetails}
-          aria-label={`${t('channels.upstream.title')} · ${channel.name}`}
-        >
+    <div className='flex w-36 flex-col items-center gap-1'>
+      <div className='flex w-full items-center justify-center gap-1'>
+        <Button variant='ghost' size='sm' className='min-w-0 truncate px-1 tabular-nums' onClick={openDetails} title={label}>
           {label}
         </Button>
-        {channelPermissions.canWrite && (
+        {summary && !summary.complete && summary.balances.length > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant='outline'
-                size='icon'
-                className='size-7'
-                disabled={pending || channel.status === 'archived'}
-                aria-label={`${t('channels.upstream.refresh')} · ${channel.name}`}
-                onClick={() => refresh.mutate({ channelIds: [channel.id], force: true, includeDisabled: true })}
-              >
-                <RefreshCw className={cn(pending && 'animate-spin')} />
-              </Button>
+              <span tabIndex={0} aria-label={t('channels.accounts.partial')}>
+                <Info className='text-muted-foreground size-3' />
+              </span>
             </TooltipTrigger>
-            <TooltipContent>{t('channels.upstream.refreshHint')}</TooltipContent>
+            <TooltipContent>
+              {t('channels.accounts.partialHint', {
+                known: summary.knownAccountCount,
+                total: summary.accountCount,
+                unassigned: summary.unassignedKeyCount,
+              })}
+            </TooltipContent>
           </Tooltip>
         )}
+        {channelPermissions.canWrite && (
+          <Button
+            variant='outline'
+            size='icon'
+            className='size-7 shrink-0'
+            disabled={pending || channel.status === 'archived'}
+            aria-label={t('channels.upstream.refresh')}
+            onClick={() => refresh.mutate({ channelIds: [channel.id], force: true, includeDisabled: true })}
+          >
+            <RefreshCw className={cn(pending && 'animate-spin')} />
+          </Button>
+        )}
       </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className='text-muted-foreground max-w-44 truncate text-xs'>{detail}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {lastUpdated ? t('channels.upstream.updatedAt', { time: new Date(lastUpdated).toLocaleString() }) : detail}
-        </TooltipContent>
-      </Tooltip>
+      {state && state.keys.length > 1 && (
+        <HoverCard openDelay={150} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Button variant='link' className='text-muted-foreground h-auto p-0 text-xs' onClick={openDetails}>
+              {t('channels.accounts.keyCount', { count: state.keys.length })}
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent className='w-80' align='end'>
+            <p className='font-medium'>{t('channels.upstream.keyDetails')}</p>
+            <p className='text-muted-foreground mb-3 text-xs'>
+              {t('channels.accounts.summary', { accounts: summary!.accountCount, keys: state.keys.length })}
+              {summary!.balances.length > 0 && ` · ${summary!.balances.map(formatBalance).join(' / ')}`}
+            </p>
+            <div className='flex flex-col gap-2'>
+              {state.keys.slice(0, 3).map((key) => {
+                const quota = key.snapshot.balances.find((balance) => balance.kind === 'KEY');
+                const account = state.accounts.find((account) => account.ref === key.accountRef);
+                return (
+                  <div key={key.keyRef} className='flex items-center gap-3 text-xs'>
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate'>{key.remark || account?.name || t('channels.accounts.unassigned')}</p>
+                      <p className='text-muted-foreground truncate font-mono'>{key.label}</p>
+                    </div>
+                    <span className='shrink-0 tabular-nums'>{quota ? formatBalance(quota) : t('channels.upstream.notProvided')}</span>
+                    <span className='text-muted-foreground shrink-0'>
+                      {t(key.disabled ? 'channels.upstream.keyDisabled' : 'channels.accounts.enabled')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <Button variant='link' className='mt-2 h-auto px-0' onClick={openDetails}>
+              {t('channels.accounts.expandKeys', { count: state.keys.length })}
+            </Button>
+            <p className='text-muted-foreground text-xs'>{t('channels.accounts.balanceHint')}</p>
+          </HoverCardContent>
+        </HoverCard>
+      )}
     </div>
   );
 }

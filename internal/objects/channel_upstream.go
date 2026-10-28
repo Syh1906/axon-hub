@@ -53,10 +53,12 @@ func (s *ChannelSettings) UpstreamSettings() ChannelUpstreamSettings {
 	return settings
 }
 
-// ChannelUpstreamCredentials 将账户令牌单独保存在敏感字段中，查询 DTO 只返回连接状态和账号 ID。
+// ChannelUpstreamCredentials 只存入渠道敏感字段；普通查询使用不含令牌的账号状态。
 type ChannelUpstreamCredentials struct {
-	AccountToken string `json:"accountToken"`
-	AccountID    int    `json:"accountId"`
+	Accounts []UpstreamAccountCredentials `json:"accounts,omitempty"`
+	// 已发布单账号数据的读取字段，仅由升级和旧备份导入使用。
+	AccountToken string `json:"accountToken,omitempty"`
+	AccountID    int    `json:"accountId,omitempty"`
 }
 
 type UpstreamProvider string
@@ -196,6 +198,8 @@ func (s *RequestCostSnapshot) DisplayMultiplier(items []CostItem) *decimal.Decim
 type ChannelUpstreamKeyState struct {
 	KeyRef             string                `json:"keyRef"`
 	Label              string                `json:"label"`
+	Remark             string                `json:"remark"`
+	AccountRef         string                `json:"accountRef"`
 	Disabled           bool                  `json:"disabled"`
 	Snapshot           *UpstreamKeySnapshot  `json:"snapshot"`
 	UpstreamMultiplier *decimal.Decimal      `json:"upstreamMultiplier,omitempty"`
@@ -203,13 +207,14 @@ type ChannelUpstreamKeyState struct {
 }
 
 type ChannelUpstreamState struct {
-	ChannelID        GUID                       `json:"channelId"`
-	Settings         ChannelUpstreamSettings    `json:"settings"`
-	ManualMultiplier decimal.Decimal            `json:"manualMultiplier"`
-	Provider         UpstreamProvider           `json:"provider"`
-	AccountConnected bool                       `json:"accountConnected"`
-	AccountID        *int                       `json:"accountId,omitempty"`
-	Keys             []*ChannelUpstreamKeyState `json:"keys"`
+	ChannelID        GUID                           `json:"channelId"`
+	Settings         ChannelUpstreamSettings        `json:"settings"`
+	ManualMultiplier decimal.Decimal                `json:"manualMultiplier"`
+	Provider         UpstreamProvider               `json:"provider"`
+	Accounts         []*ChannelUpstreamAccountState `json:"accounts"`
+	BalanceSummary   ChannelBalanceSummary          `json:"balanceSummary"`
+	KeySessionReuse  bool                           `json:"keySessionReuse"`
+	Keys             []*ChannelUpstreamKeyState     `json:"keys"`
 }
 
 type UpdateChannelUpstreamInput struct {
@@ -217,9 +222,6 @@ type UpdateChannelUpstreamInput struct {
 	RefreshIntervalMinutes int             `json:"refreshIntervalMinutes"`
 	CostMode               ChannelCostMode `json:"costMode"`
 	ManualMultiplier       decimal.Decimal `json:"manualMultiplier"`
-	AccountToken           *string         `json:"accountToken,omitempty"`
-	AccountID              *int            `json:"accountId,omitempty"`
-	ClearAccount           bool            `json:"clearAccount"`
 }
 
 type UpstreamAccountVerification struct {

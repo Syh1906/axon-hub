@@ -31,6 +31,7 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(`{"success":true,"data":{"id":17,"group":"default","quota":5000000,"used_quota":1000000}}`))
 		case "/api/log/token":
+			require.NotEqual(t, "Bearer fixture-unused", r.Header.Get("Authorization"), "新 Key 关联不应依赖调用记录")
 			switch r.Header.Get("Authorization") {
 			case "Bearer fixture-a":
 				_, _ = w.Write([]byte(`{"success":true,"data":[{"token_id":11,"user_id":17,"group":"old-group"}]}`))
@@ -43,10 +44,25 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 			}
 		case "/api/usage/token/":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"object":"token_usage","total_available":1000000,"total_granted":1500000,"total_used":500000,"unlimited_quota":false}}`))
+		case "/api/token/search":
+			require.Equal(t, "Bearer fixture-account", r.Header.Get("Authorization"))
+			require.Equal(t, "17", r.Header.Get("New-Api-User"))
+			switch r.URL.Query().Get("token") {
+			case "fixture-a":
+				_, _ = w.Write([]byte(`{"success":true,"data":{"items":[{"id":11,"user_id":17}]}}`))
+			case "fixture-b":
+				_, _ = w.Write([]byte(`{"success":true,"data":{"items":[{"id":12,"user_id":17}]}}`))
+			case "fixture-unused":
+				_, _ = w.Write([]byte(`{"success":true,"data":{"items":[{"id":14,"user_id":17}]}}`))
+			default:
+				_, _ = w.Write([]byte(`{"success":true,"data":{"items":[]}}`))
+			}
 		case "/api/token/11":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"id":11,"user_id":17,"group":"current-group"}}`))
 		case "/api/token/12":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"id":12,"user_id":17,"group":"free-group"}}`))
+		case "/api/token/14":
+			_, _ = w.Write([]byte(`{"success":true,"data":{"id":14,"user_id":17,"group":"current-group"}}`))
 		case "/api/user/self/groups":
 			_, _ = w.Write([]byte(`{"success":true,"data":{"current-group":{"ratio":0.5},"free-group":{"ratio":0}}}`))
 		default:
@@ -56,7 +72,7 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 	defer server.Close()
 	client, err := NewClient(httpclient.NewHttpClient(), server.URL+"/v1")
 	require.NoError(t, err)
-	session := client.Prepare(t.Context(), "fixture-a", objects.UpstreamProviderUnknown, &objects.ChannelUpstreamCredentials{AccountToken: "fixture-account"})
+	session := client.Prepare(t.Context(), "fixture-a", objects.UpstreamProviderUnknown, &objects.UpstreamAccountCredentials{AccountToken: "fixture-account"})
 	require.Equal(t, objects.UpstreamProviderNewAPI, session.Provider)
 	require.NotNil(t, session.Account)
 	require.Equal(t, 17, session.Account.ID)
@@ -73,8 +89,9 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 	require.Equal(t, objects.UpstreamQueryUnmatched, other.RateState)
 	require.Nil(t, other.Account)
 	newKey := session.Query(t.Context(), "fixture-unused", EmptySnapshot(), true, true, time.Minute)
-	require.Equal(t, objects.UpstreamQueryUnmatched, newKey.RateState)
-	require.Nil(t, newKey.Rate)
+	require.Equal(t, objects.UpstreamQuerySuccess, newKey.RateState)
+	require.Equal(t, "0.5", newKey.Rate.Multiplier.String())
+	require.Equal(t, a.Account.Balance.AccountRef, newKey.Account.Balance.AccountRef)
 	encoded, err := json.Marshal(a)
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "fixture-account")
