@@ -190,8 +190,9 @@ func (svc *BackupService) streamChannels(ctx context.Context, o *objWriter, opts
 		},
 		func(ch *ent.Channel) ([]byte, bool, error) {
 			b, err := json.Marshal(&BackupChannel{
-				Channel:     *ch,
-				Credentials: ch.Credentials,
+				Channel:             *ch,
+				Credentials:         ch.Credentials,
+				UpstreamCredentials: ch.UpstreamCredentials,
 			})
 			return b, true, err
 		},

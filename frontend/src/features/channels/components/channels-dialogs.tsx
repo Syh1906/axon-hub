@@ -31,6 +31,7 @@ import { ChannelsTagPrioritiesDialog } from './channels-tag-priorities-dialog';
 import { ChannelsTestDialog } from './channels-test-dialog';
 import { ChannelsTestHistoryDrawer } from './channels-test-history-drawer';
 import { ChannelsTransformOptionsDialog } from './channels-transform-options-dialog';
+import { ChannelsUpstreamDialog } from './channels-upstream-dialog';
 
 export function ChannelsDialogs() {
   const { open, setOpen, currentRow: partialCurrentRow, setCurrentRow, selectedChannels } = useChannels();
@@ -82,6 +83,7 @@ export function ChannelsDialogs() {
 
       {currentRow && (
         <>
+          {open === 'upstream' && <ChannelsUpstreamDialog channel={currentRow} onClose={() => setOpen(null)} />}
           <ChannelsActionDialog
             key={`channel-edit-${currentRow.id}`}
             open={open === 'edit'}

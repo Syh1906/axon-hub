@@ -13,6 +13,7 @@ import { ChannelsPrimaryButtons } from './components/channels-primary-buttons';
 import { ChannelsTable } from './components/channels-table';
 import { ChannelsTypeTabs } from './components/channels-type-tabs';
 import ChannelsProvider, { useChannels } from './context/channels-context';
+import { useChannelUpstreamStates, useRefreshUpstreamOnPage } from './data/channel-upstream';
 import {
   DEFAULT_CHANNEL_COLUMN_VISIBILITY,
   useQueryChannels,
@@ -164,6 +165,8 @@ function ChannelsContent() {
   }, [data?.edges]);
 
   const { data: probeData } = useChannelProbeData(channelIDs, { enabled: columnVisibility.health !== false });
+  const upstreamQuery = useChannelUpstreamStates(channelIDs);
+  useRefreshUpstreamOnPage(channelIDs, channelPermissions.canWrite && upstreamQuery.isSuccess);
 
   const channelsWithProbeData = useMemo(() => {
     if (!data?.edges) return [];
@@ -173,8 +176,10 @@ function ChannelsContent() {
     return data.edges.map((edge) => ({
       ...edge.node,
       probePoints: probeMap.get(edge.node.id) || [],
+      upstreamState: upstreamQuery.data?.find((state) => state.channelId === edge.node.id),
+      upstreamLoadError: upstreamQuery.isError,
     }));
-  }, [data?.edges, probeData]);
+  }, [data?.edges, probeData, upstreamQuery.data, upstreamQuery.isError]);
 
   const handleNextPage = useCallback(() => {
     if (data?.pageInfo?.hasNextPage && data?.pageInfo?.endCursor) {

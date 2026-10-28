@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -137,6 +138,18 @@ func (_u *ChannelUpdate) SetNillableCredentials(v *objects.ChannelCredentials) *
 	if v != nil {
 		_u.SetCredentials(*v)
 	}
+	return _u
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (_u *ChannelUpdate) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelUpdate {
+	_u.mutation.SetUpstreamCredentials(v)
+	return _u
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (_u *ChannelUpdate) ClearUpstreamCredentials() *ChannelUpdate {
+	_u.mutation.ClearUpstreamCredentials()
 	return _u
 }
 
@@ -385,6 +398,21 @@ func (_u *ChannelUpdate) ClearEndpoints() *ChannelUpdate {
 	return _u
 }
 
+// AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
+func (_u *ChannelUpdate) AddUpstreamStatusIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.AddUpstreamStatusIDs(ids...)
+	return _u
+}
+
+// AddUpstreamStatuses adds the "upstream_statuses" edges to the ChannelUpstreamStatus entity.
+func (_u *ChannelUpdate) AddUpstreamStatuses(v ...*ChannelUpstreamStatus) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUpstreamStatusIDs(ids...)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *ChannelUpdate) AddRequestIDs(ids ...int) *ChannelUpdate {
 	_u.mutation.AddRequestIDs(ids...)
@@ -482,6 +510,27 @@ func (_u *ChannelUpdate) SetProviderQuotaStatus(v *ProviderQuotaStatus) *Channel
 // Mutation returns the ChannelMutation object of the builder.
 func (_u *ChannelUpdate) Mutation() *ChannelMutation {
 	return _u.mutation
+}
+
+// ClearUpstreamStatuses clears all "upstream_statuses" edges to the ChannelUpstreamStatus entity.
+func (_u *ChannelUpdate) ClearUpstreamStatuses() *ChannelUpdate {
+	_u.mutation.ClearUpstreamStatuses()
+	return _u
+}
+
+// RemoveUpstreamStatusIDs removes the "upstream_statuses" edge to ChannelUpstreamStatus entities by IDs.
+func (_u *ChannelUpdate) RemoveUpstreamStatusIDs(ids ...int) *ChannelUpdate {
+	_u.mutation.RemoveUpstreamStatusIDs(ids...)
+	return _u
+}
+
+// RemoveUpstreamStatuses removes "upstream_statuses" edges to ChannelUpstreamStatus entities.
+func (_u *ChannelUpdate) RemoveUpstreamStatuses(v ...*ChannelUpstreamStatus) *ChannelUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUpstreamStatusIDs(ids...)
 }
 
 // ClearRequests clears all "requests" edges to the Request entity.
@@ -697,6 +746,12 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Credentials(); ok {
 		_spec.SetField(channel.FieldCredentials, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.UpstreamCredentials(); ok {
+		_spec.SetField(channel.FieldUpstreamCredentials, field.TypeJSON, value)
+	}
+	if _u.mutation.UpstreamCredentialsCleared() {
+		_spec.ClearField(channel.FieldUpstreamCredentials, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.DisabledAPIKeys(); ok {
 		_spec.SetField(channel.FieldDisabledAPIKeys, field.TypeJSON, value)
 	}
@@ -796,6 +851,51 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.EndpointsCleared() {
 		_spec.ClearField(channel.FieldEndpoints, field.TypeJSON)
+	}
+	if _u.mutation.UpstreamStatusesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUpstreamStatusesIDs(); len(nodes) > 0 && !_u.mutation.UpstreamStatusesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UpstreamStatusesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1176,6 +1276,18 @@ func (_u *ChannelUpdateOne) SetNillableCredentials(v *objects.ChannelCredentials
 	return _u
 }
 
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (_u *ChannelUpdateOne) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelUpdateOne {
+	_u.mutation.SetUpstreamCredentials(v)
+	return _u
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (_u *ChannelUpdateOne) ClearUpstreamCredentials() *ChannelUpdateOne {
+	_u.mutation.ClearUpstreamCredentials()
+	return _u
+}
+
 // SetDisabledAPIKeys sets the "disabled_api_keys" field.
 func (_u *ChannelUpdateOne) SetDisabledAPIKeys(v []objects.DisabledAPIKey) *ChannelUpdateOne {
 	_u.mutation.SetDisabledAPIKeys(v)
@@ -1421,6 +1533,21 @@ func (_u *ChannelUpdateOne) ClearEndpoints() *ChannelUpdateOne {
 	return _u
 }
 
+// AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
+func (_u *ChannelUpdateOne) AddUpstreamStatusIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.AddUpstreamStatusIDs(ids...)
+	return _u
+}
+
+// AddUpstreamStatuses adds the "upstream_statuses" edges to the ChannelUpstreamStatus entity.
+func (_u *ChannelUpdateOne) AddUpstreamStatuses(v ...*ChannelUpstreamStatus) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUpstreamStatusIDs(ids...)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *ChannelUpdateOne) AddRequestIDs(ids ...int) *ChannelUpdateOne {
 	_u.mutation.AddRequestIDs(ids...)
@@ -1518,6 +1645,27 @@ func (_u *ChannelUpdateOne) SetProviderQuotaStatus(v *ProviderQuotaStatus) *Chan
 // Mutation returns the ChannelMutation object of the builder.
 func (_u *ChannelUpdateOne) Mutation() *ChannelMutation {
 	return _u.mutation
+}
+
+// ClearUpstreamStatuses clears all "upstream_statuses" edges to the ChannelUpstreamStatus entity.
+func (_u *ChannelUpdateOne) ClearUpstreamStatuses() *ChannelUpdateOne {
+	_u.mutation.ClearUpstreamStatuses()
+	return _u
+}
+
+// RemoveUpstreamStatusIDs removes the "upstream_statuses" edge to ChannelUpstreamStatus entities by IDs.
+func (_u *ChannelUpdateOne) RemoveUpstreamStatusIDs(ids ...int) *ChannelUpdateOne {
+	_u.mutation.RemoveUpstreamStatusIDs(ids...)
+	return _u
+}
+
+// RemoveUpstreamStatuses removes "upstream_statuses" edges to ChannelUpstreamStatus entities.
+func (_u *ChannelUpdateOne) RemoveUpstreamStatuses(v ...*ChannelUpstreamStatus) *ChannelUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUpstreamStatusIDs(ids...)
 }
 
 // ClearRequests clears all "requests" edges to the Request entity.
@@ -1763,6 +1911,12 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	if value, ok := _u.mutation.Credentials(); ok {
 		_spec.SetField(channel.FieldCredentials, field.TypeJSON, value)
 	}
+	if value, ok := _u.mutation.UpstreamCredentials(); ok {
+		_spec.SetField(channel.FieldUpstreamCredentials, field.TypeJSON, value)
+	}
+	if _u.mutation.UpstreamCredentialsCleared() {
+		_spec.ClearField(channel.FieldUpstreamCredentials, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.DisabledAPIKeys(); ok {
 		_spec.SetField(channel.FieldDisabledAPIKeys, field.TypeJSON, value)
 	}
@@ -1862,6 +2016,51 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	}
 	if _u.mutation.EndpointsCleared() {
 		_spec.ClearField(channel.FieldEndpoints, field.TypeJSON)
+	}
+	if _u.mutation.UpstreamStatusesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUpstreamStatusesIDs(); len(nodes) > 0 && !_u.mutation.UpstreamStatusesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UpstreamStatusesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

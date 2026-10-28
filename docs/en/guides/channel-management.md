@@ -18,7 +18,32 @@ In the channel create/edit form, click **Add from model list** below supported m
 
 **Add selected** updates the form; saving the channel persists the change. Entries are manual models and survive automatic synchronization. This does not create model associations or verify provider support.
 
-## What is a Channel?
+## Upstream balances and per-key rates
+
+Click **Upstream balance** in the channel list, then open **Sync settings**. Existing channels start with queries disabled. The URL, proxy and API keys are reused from channel configuration; supported endpoints are detected automatically.
+
+| Provider | Additional configuration | Query support |
+| --- | --- | --- |
+| New API | No account is required for key limits. Current group rates require an account access token. The account ID is filled automatically when possible; otherwise the form asks for it. | Key limits, verified account balance and the user-specific rate of the key's current group |
+| Sub2API | No additional account token or ID | Wallet balance, key limits or subscription allowance; versions exposing `/v1/sub2api/billing` also return the current effective token multiplier |
+| Unsupported or older versions | Keep the manual multiplier | Unsupported endpoints stop automatic attempts and can be detected again manually |
+
+Generate the New API account access token in the upstream personal settings, verify it and save. Saved tokens are not returned to the browser. Each channel stores one account connection; keys from other accounts remain unmatched and use the fallback. Association uses the token and user IDs returned by that key's own usage-log endpoint, then queries the current token group with account authorization. Names, suffixes and historical log rates are never treated as identity proof. A new key without verifiable logs, a disabled log endpoint, an account mismatch or an automatic group without one definite rate remains explicitly unmatched or unsupported. Query again after usage logs exist.
+
+**Key details** separates account balances, key quotas, groups, upstream rates, applied rates and independent query statuses. Verified shared account balances appear once; equal amounts are never added or deduplicated without identity evidence. Unknown units remain raw quota units rather than being assigned an assumed currency.
+
+- Opening Channels or changing pages displays cached data first and queries enabled channels only when due, every 10 minutes by default.
+- The row refresh button queries one channel immediately; the details view can query one key. **Query once** remains available with sync disabled.
+- **Refresh all** covers all pages and skips disabled sync and channels whose balance and rate endpoints are both unsupported.
+- Keys refresh sequentially within each channel, with up to three channels in parallel. A failed key does not stop the remaining keys or roll back successful results. The page reports failures so they can be refreshed again.
+- Enabled channels following upstream rates also synchronize rates in the background. Query failures do not affect channel availability or other keys.
+- Saving with sync disabled switches to manual mode and retains the previous results. Temporary failures may retry when due. Authentication failures and unsupported endpoints stop automatic attempts until configuration is corrected or a manual refresh is requested.
+
+Manual mode always uses the manual value; refreshing only updates the reference. Following mode applies the actual selected key's multiplier and shows a range for different rates. Saving a quick multiplier edit switches back to manual mode. List sorting uses the currently applied rate, taking the minimum of a per-key range; it does not affect request routing.
+
+Successful rates survive temporary failures for at most 30 minutes. Expiry or a known upstream time boundary switches to the manual fallback, marked as estimated. Price, request time and multiplier are fixed for each attempt; see [cost tracking](cost-tracking.md#fixed-per-key-cost-multipliers).
+
+Regular channel rows are 88px high. Model summaries show at most two lines plus `+N`; hover or focus to preview full names, or click the summary to open the existing model editor. Tags are also bounded. Creation time is hidden by default and can be enabled in column settings. Priority, weight and multiplier editors focus and select the numeric input immediately.
 
 A **channel** is AxonHub's connection to an AI provider. Think of it as a "provider connection line" — each channel connects to one AI service (like OpenAI, Claude, or DeepSeek).
 

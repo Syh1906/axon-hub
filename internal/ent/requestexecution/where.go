@@ -485,6 +485,16 @@ func ModelIDContainsFold(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldContainsFold(FieldModelID, v))
 }
 
+// CostSnapshotIsNil applies the IsNil predicate on the "cost_snapshot" field.
+func CostSnapshotIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldCostSnapshot))
+}
+
+// CostSnapshotNotNil applies the NotNil predicate on the "cost_snapshot" field.
+func CostSnapshotNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldCostSnapshot))
+}
+
 // FormatEQ applies the EQ predicate on the "format" field.
 func FormatEQ(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldFormat, v))

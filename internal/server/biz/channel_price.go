@@ -380,7 +380,27 @@ func (svc *ChannelService) SaveChannelModelPrices(
 // UpdateChannelCostMultiplier versions every existing price without replacing
 // the price list from a potentially stale browser snapshot.
 func (svc *ChannelService) UpdateChannelCostMultiplier(ctx context.Context, channelID int, multiplier decimal.Decimal) ([]*ent.ChannelModelPrice, error) {
-	return svc.saveChannelModelPrices(ctx, channelID, nil, &multiplier, false)
+	var prices []*ent.ChannelModelPrice
+	err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		prices, err = svc.saveChannelModelPrices(ctx, channelID, nil, &multiplier, false)
+		if err != nil {
+			return err
+		}
+		ch, err := svc.upstreamChannel(ctx, channelID, scopes.ScopeWriteChannels)
+		if err != nil {
+			return err
+		}
+		if ch.Settings != nil && ch.Settings.Upstream != nil && ch.Settings.Upstream.CostMode != objects.ChannelCostModeManual {
+			settings := *ch.Settings
+			upstreamSettings := *settings.Upstream
+			upstreamSettings.CostMode = objects.ChannelCostModeManual
+			settings.Upstream = &upstreamSettings
+			return svc.entFromContext(ctx).Channel.UpdateOneID(channelID).SetSettings(&settings).Exec(ctx)
+		}
+		return nil
+	})
+	return prices, err
 }
 
 func (svc *ChannelService) saveChannelModelPrices(

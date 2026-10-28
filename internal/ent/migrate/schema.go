@@ -104,6 +104,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"enabled", "disabled", "archived"}, Default: "disabled"},
 		{Name: "credentials", Type: field.TypeJSON},
+		{Name: "upstream_credentials", Type: field.TypeJSON, Nullable: true},
 		{Name: "disabled_api_keys", Type: field.TypeJSON, Nullable: true},
 		{Name: "supported_models", Type: field.TypeJSON},
 		{Name: "manual_models", Type: field.TypeJSON, Nullable: true},
@@ -255,6 +256,37 @@ var (
 				Name:    "channel_probes_by_channel_id_timestamp",
 				Unique:  false,
 				Columns: []*schema.Column{ChannelProbesColumns[6], ChannelProbesColumns[5]},
+			},
+		},
+	}
+	// ChannelUpstreamStatusColumns holds the columns for the "channel_upstream_status" table.
+	ChannelUpstreamStatusColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "key_fingerprint", Type: field.TypeString, Size: 64},
+		{Name: "config_fingerprint", Type: field.TypeString, Size: 64},
+		{Name: "snapshot", Type: field.TypeJSON},
+		{Name: "channel_id", Type: field.TypeInt},
+	}
+	// ChannelUpstreamStatusTable holds the schema information for the "channel_upstream_status" table.
+	ChannelUpstreamStatusTable = &schema.Table{
+		Name:       "channel_upstream_status",
+		Columns:    ChannelUpstreamStatusColumns,
+		PrimaryKey: []*schema.Column{ChannelUpstreamStatusColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "channel_upstream_status_channels_upstream_statuses",
+				Columns:    []*schema.Column{ChannelUpstreamStatusColumns[6]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channel_upstream_statuses_by_channel_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelUpstreamStatusColumns[6], ChannelUpstreamStatusColumns[3]},
 			},
 		},
 	}
@@ -645,6 +677,7 @@ var (
 		{Name: "project_id", Type: field.TypeInt, Default: 1},
 		{Name: "external_id", Type: field.TypeString, Nullable: true, Size: 512},
 		{Name: "model_id", Type: field.TypeString},
+		{Name: "cost_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "format", Type: field.TypeString, Default: "openai/chat_completions"},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true},
 		{Name: "request_body", Type: field.TypeJSON},
@@ -672,19 +705,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "request_executions_channels_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[21]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[22]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_data_storages_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[22]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[23]},
 				RefColumns: []*schema.Column{DataStoragesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_requests_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[23]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[24]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -693,17 +726,17 @@ var (
 			{
 				Name:    "request_executions_by_request_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[23], RequestExecutionsColumns[13], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[24], RequestExecutionsColumns[14], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_request_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[23], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[24], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[21], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[22], RequestExecutionsColumns[1]},
 			},
 		},
 	}
@@ -872,6 +905,7 @@ var (
 		{Name: "completion_rejected_prediction_tokens", Type: field.TypeInt64, Nullable: true, Default: 0},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"api", "playground", "test"}, Default: "api"},
 		{Name: "format", Type: field.TypeString, Default: "openai/chat_completions"},
+		{Name: "cost_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "total_cost", Type: field.TypeFloat64, Nullable: true},
 		{Name: "cost_items", Type: field.TypeJSON, Nullable: true},
 		{Name: "cost_price_reference_id", Type: field.TypeString, Nullable: true},
@@ -887,19 +921,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_channels_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[22]},
+				Columns:    []*schema.Column{UsageLogsColumns[23]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_projects_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[23]},
+				Columns:    []*schema.Column{UsageLogsColumns[24]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_requests_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[24]},
+				Columns:    []*schema.Column{UsageLogsColumns[25]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -908,7 +942,7 @@ var (
 			{
 				Name:    "usage_logs_by_request_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[24]},
+				Columns: []*schema.Column{UsageLogsColumns[25]},
 			},
 			{
 				Name:    "usage_logs_by_created_at",
@@ -923,12 +957,12 @@ var (
 			{
 				Name:    "usage_logs_by_project_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[23], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[24], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[22], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[23], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_api_key_id_created_at",
@@ -1057,6 +1091,7 @@ var (
 		ChannelModelPriceVersionsTable,
 		ChannelOverrideTemplatesTable,
 		ChannelProbesTable,
+		ChannelUpstreamStatusTable,
 		DataStoragesTable,
 		InvitationsTable,
 		ModelsTable,
@@ -1086,6 +1121,7 @@ func init() {
 	ChannelModelPriceVersionsTable.ForeignKeys[0].RefTable = ChannelModelPricesTable
 	ChannelOverrideTemplatesTable.ForeignKeys[0].RefTable = UsersTable
 	ChannelProbesTable.ForeignKeys[0].RefTable = ChannelsTable
+	ChannelUpstreamStatusTable.ForeignKeys[0].RefTable = ChannelsTable
 	InvitationsTable.ForeignKeys[0].RefTable = ProjectsTable
 	OidcIdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 	PromptsTable.ForeignKeys[0].RefTable = ProjectsTable

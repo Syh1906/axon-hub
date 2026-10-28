@@ -343,6 +343,18 @@ func (_u *UsageLogUpdate) ClearCompletionRejectedPredictionTokens() *UsageLogUpd
 	return _u
 }
 
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_u *UsageLogUpdate) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpdate {
+	_u.mutation.SetCostSnapshot(v)
+	return _u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (_u *UsageLogUpdate) ClearCostSnapshot() *UsageLogUpdate {
+	_u.mutation.ClearCostSnapshot()
+	return _u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_u *UsageLogUpdate) SetTotalCost(v float64) *UsageLogUpdate {
 	_u.mutation.ResetTotalCost()
@@ -588,6 +600,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CompletionRejectedPredictionTokensCleared() {
 		_spec.ClearField(usagelog.FieldCompletionRejectedPredictionTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.CostSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldCostSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)
@@ -949,6 +967,18 @@ func (_u *UsageLogUpdateOne) ClearCompletionRejectedPredictionTokens() *UsageLog
 	return _u
 }
 
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_u *UsageLogUpdateOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpdateOne {
+	_u.mutation.SetCostSnapshot(v)
+	return _u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (_u *UsageLogUpdateOne) ClearCostSnapshot() *UsageLogUpdateOne {
+	_u.mutation.ClearCostSnapshot()
+	return _u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_u *UsageLogUpdateOne) SetTotalCost(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetTotalCost()
@@ -1224,6 +1254,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.CompletionRejectedPredictionTokensCleared() {
 		_spec.ClearField(usagelog.FieldCompletionRejectedPredictionTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.CostSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldCostSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)

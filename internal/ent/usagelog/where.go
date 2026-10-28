@@ -1085,6 +1085,16 @@ func FormatContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldFormat, v))
 }
 
+// CostSnapshotIsNil applies the IsNil predicate on the "cost_snapshot" field.
+func CostSnapshotIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldCostSnapshot))
+}
+
+// CostSnapshotNotNil applies the NotNil predicate on the "cost_snapshot" field.
+func CostSnapshotNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldCostSnapshot))
+}
+
 // TotalCostEQ applies the EQ predicate on the "total_cost" field.
 func TotalCostEQ(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldTotalCost, v))

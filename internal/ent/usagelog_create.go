@@ -304,6 +304,12 @@ func (_c *UsageLogCreate) SetNillableFormat(v *string) *UsageLogCreate {
 	return _c
 }
 
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_c *UsageLogCreate) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogCreate {
+	_c.mutation.SetCostSnapshot(v)
+	return _c
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_c *UsageLogCreate) SetTotalCost(v float64) *UsageLogCreate {
 	_c.mutation.SetTotalCost(v)
@@ -606,6 +612,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Format(); ok {
 		_spec.SetField(usagelog.FieldFormat, field.TypeString, value)
 		_node.Format = value
+	}
+	if value, ok := _c.mutation.CostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
+		_node.CostSnapshot = value
 	}
 	if value, ok := _c.mutation.TotalCost(); ok {
 		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)
@@ -1001,6 +1011,24 @@ func (u *UsageLogUpsert) AddCompletionRejectedPredictionTokens(v int64) *UsageLo
 // ClearCompletionRejectedPredictionTokens clears the value of the "completion_rejected_prediction_tokens" field.
 func (u *UsageLogUpsert) ClearCompletionRejectedPredictionTokens() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldCompletionRejectedPredictionTokens)
+	return u
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *UsageLogUpsert) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpsert {
+	u.Set(usagelog.FieldCostSnapshot, v)
+	return u
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateCostSnapshot() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldCostSnapshot)
+	return u
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *UsageLogUpsert) ClearCostSnapshot() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldCostSnapshot)
 	return u
 }
 
@@ -1456,6 +1484,27 @@ func (u *UsageLogUpsertOne) UpdateCompletionRejectedPredictionTokens() *UsageLog
 func (u *UsageLogUpsertOne) ClearCompletionRejectedPredictionTokens() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearCompletionRejectedPredictionTokens()
+	})
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *UsageLogUpsertOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetCostSnapshot(v)
+	})
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateCostSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateCostSnapshot()
+	})
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *UsageLogUpsertOne) ClearCostSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearCostSnapshot()
 	})
 }
 
@@ -2087,6 +2136,27 @@ func (u *UsageLogUpsertBulk) UpdateCompletionRejectedPredictionTokens() *UsageLo
 func (u *UsageLogUpsertBulk) ClearCompletionRejectedPredictionTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearCompletionRejectedPredictionTokens()
+	})
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (u *UsageLogUpsertBulk) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetCostSnapshot(v)
+	})
+}
+
+// UpdateCostSnapshot sets the "cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateCostSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateCostSnapshot()
+	})
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (u *UsageLogUpsertBulk) ClearCostSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearCostSnapshot()
 	})
 }
 

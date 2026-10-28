@@ -645,6 +645,11 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 					SetDefaultTestModel(chData.DefaultTestModel).
 					SetSettings(chData.Settings).
 					SetOrderingWeight(chData.OrderingWeight)
+				if chData.UpstreamCredentials != nil {
+					update.SetUpstreamCredentials(chData.UpstreamCredentials)
+				} else {
+					update.ClearUpstreamCredentials()
+				}
 
 				if chData.Remark != nil {
 					update.SetRemark(*chData.Remark)
@@ -675,6 +680,9 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 				SetDefaultTestModel(chData.DefaultTestModel).
 				SetSettings(chData.Settings).
 				SetOrderingWeight(chData.OrderingWeight)
+			if chData.UpstreamCredentials != nil {
+				create.SetUpstreamCredentials(chData.UpstreamCredentials)
+			}
 
 			if chData.Remark != nil {
 				create.SetRemark(*chData.Remark)
@@ -1302,6 +1310,7 @@ func (svc *BackupService) restoreUsageLogs(
 			SetFormat(usageData.Format).
 			SetNillableTotalCost(usageData.TotalCost).
 			SetCostItems(usageData.CostItems).
+			SetCostSnapshot(usageData.CostSnapshot).
 			SetNillableCostPriceReferenceID(nilIfEmpty(usageData.CostPriceReferenceID)))
 		restoredLogRequestIDs[requestID] = struct{}{}
 

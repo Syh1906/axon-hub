@@ -69,6 +69,18 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### 上游余额与按 Key 同步成本倍率
+
+- 状态：纳入 `v1.0.0-beta10-fork.7.syh.4` 发布准备，尚未发布。New API 和 Sub2API 自动识别；复用渠道地址、代理与 Key，已有渠道默认关闭同步。余额、Key 额度、账户共享关系与倍率分别展示，未知账户不相加、不按尾号猜测关联。
+- New API：一个渠道配置一个账号访问令牌；账号 ID 可自动识别，必需时补填。Key 自身日志中的用户／令牌 ID 只作身份锚点，随后通过账号权限读取当前分组和用户适用倍率。无日志、身份不匹配和自动分组明确使用手动备用值。Sub2API 读取版本化 billing 接口的当前有效 Token 倍率及有效时段边界。
+- 同步：进入页面和切页检查到期缓存；单渠道、单 Key 可强制刷新；刷新全部覆盖各分页，跳过关闭项和完全不支持的渠道。已启用跟随渠道复用现有调度器每分钟检查是否到期。暂时错误按配置间隔重试，认证／不支持停止自动请求。关闭同步切回手动；查询失败不参与已有渠道可用性门禁。
+- 成本：每次实际发送前按选中 Key 保存价格版本、价格计算时点、倍率和来源；流式响应、普通响应、持久用量及历史展示共用记录。重试重新捕获，旧执行不因配置变化重算；手动保存优先，超过 30 分钟或时段边界使用备用并标为估算。固定费用保留手动。成本排序按生效倍率，多 Key 取最小值。
+- 界面：88px 普通行、两行模型摘要、悬浮完整列表和点击现有编辑窗口；创建时间默认隐藏；数字快捷编辑直接聚焦和选中。详细使用方法见[渠道配置](zh/guides/channel-management.md#查询上游余额与跟随倍率)与[成本追踪](zh/guides/cost-tracking.md#按-key-固定成本倍率)。
+- 刷新边界：刷新 mutation 限定单渠道、单 Key；页面统一逐 Key 执行、跨渠道最多三路。查询和账号验证不进入 GraphQL 外层事务，快照独立保存；查询总预算最多 24 秒并按父请求截止时间预留 2 秒保存，锁等待可取消。刷新取消旧缓存读取后发布并回读，重新查询倍率排序；保存预览同时检查上游观测时间与本地同步时间。回归用例覆盖正常 GraphQL 入口的超时隔离、无长事务、锁取消、前端并发边界与旧读取竞态。
+- Schema：新增 `channel_upstream_statuses`、渠道敏感账号字段及执行／用量成本快照字段，由 Ent 托管；不新增 data migration 版本。已对照直接上游 `b205ae8e`（`v1.0.0-beta10-fork.7`），无同名表／字段。唯一索引为渠道整数 ID 与 64 字符哈希，名称低于 63 字节、utf8mb4 字符部分最多 256 字节；不索引 JSON。旧渠道保持关闭。备份增加账号凭据及历史成本快照，查询缓存不备份。
+- 代码：`internal/server/biz/upstream/`、`channel_upstream*.go`、`request_cost_snapshot.go`、`channel_routing_query.go`、`usage_log.go`、GraphQL `channel_upstream.graphql` 和 `frontend/src/features/channels/{data/channel-upstream.ts,components/channel-upstream*.tsx,components/channels-upstream-dialog.tsx}`。
+- 验证：新增本地 HTTP 用例覆盖两种协议、零值倍率、账号 ID 自动识别、当前分组、账号不匹配、无调用记录、独立查询失败与旧版接口；业务用例覆盖关闭不请求、未到期缓存、手动优先、地址变化失效、按 Key 固定成本、跨执行保持价格；SQLite 覆盖旧 schema 升级及重复迁移，备份用例覆盖敏感字段不从普通 JSON 泄露和持久快照。MySQL／PostgreSQL 实例升级与真实上游账号尚未联调。
+
 ### 标签优先级、渠道快捷设置与表单增强
 
 - 版本：纳入 `v1.0.0-beta10-fork.7.syh.3`。标签优先级保存于 `ChannelSettings.tagPriorities`，不新增数据库列或 schema/data migration；旧 JSON 无该字段时继承关联优先级。

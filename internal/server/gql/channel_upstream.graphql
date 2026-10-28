@@ -1,0 +1,153 @@
+enum ChannelCostMode {
+  MANUAL
+  UPSTREAM
+}
+
+enum UpstreamProvider {
+  UNKNOWN
+  NEW_API
+  SUB2_API
+}
+
+enum UpstreamQueryState {
+  NEVER
+  SUCCESS
+  ERROR
+  UNSUPPORTED
+  AUTH_REQUIRED
+  UNMATCHED
+}
+
+enum UpstreamBalanceKind {
+  ACCOUNT
+  KEY
+  SUBSCRIPTION
+}
+
+enum CostMultiplierSource {
+  MANUAL
+  UPSTREAM
+  CACHED
+  ESTIMATED
+}
+
+type ChannelUpstreamSettings {
+  enabled: Boolean!
+  refreshIntervalMinutes: Int!
+  costMode: ChannelCostMode!
+}
+
+type UpstreamBalance {
+  kind: UpstreamBalanceKind!
+  amount: Decimal
+  used: Decimal
+  limit: Decimal
+  unlimited: Boolean!
+  currency: String!
+  unit: String!
+  accountRef: String!
+  expiresAt: Time
+}
+
+type UpstreamAccountSnapshot {
+  accountId: Int!
+  balance: UpstreamBalance!
+  updatedAt: Time!
+}
+
+type UpstreamRateSnapshot {
+  multiplier: Decimal!
+  group: String!
+  observedAt: Time!
+  syncedAt: Time!
+  validUntil: Time
+}
+
+type UpstreamKeySnapshot {
+  provider: UpstreamProvider!
+  balanceState: UpstreamQueryState!
+  rateState: UpstreamQueryState!
+  balances: [UpstreamBalance!]!
+  account: UpstreamAccountSnapshot
+  rate: UpstreamRateSnapshot
+  balanceUpdatedAt: Time
+  balanceCheckedAt: Time
+  rateCheckedAt: Time
+  nextBalanceCheckAt: Time
+  nextRateCheckAt: Time
+  balanceErrorCode: String!
+  rateErrorCode: String!
+}
+
+type AppliedCostMultiplier {
+  value: Decimal!
+  source: CostMultiplierSource!
+  provider: UpstreamProvider!
+  observedAt: Time
+}
+
+type ChannelUpstreamKeyState {
+  keyRef: String!
+  label: String!
+  disabled: Boolean!
+  snapshot: UpstreamKeySnapshot!
+  upstreamMultiplier: Decimal
+  applied: AppliedCostMultiplier!
+}
+
+type ChannelUpstreamState {
+  channelId: ID!
+  settings: ChannelUpstreamSettings!
+  manualMultiplier: Decimal!
+  provider: UpstreamProvider!
+  accountConnected: Boolean!
+  accountId: Int
+  keys: [ChannelUpstreamKeyState!]!
+}
+
+input UpdateChannelUpstreamInput {
+  enabled: Boolean!
+  refreshIntervalMinutes: Int! = 10
+  costMode: ChannelCostMode! = MANUAL
+  manualMultiplier: Decimal!
+  accountToken: String
+  accountId: Int
+  clearAccount: Boolean! = false
+}
+
+type UpstreamAccountVerification {
+  success: Boolean!
+  accountId: Int
+  requiresAccountId: Boolean!
+  errorCode: String!
+}
+
+type RefreshChannelUpstreamsResult {
+  channels: [ChannelUpstreamState!]!
+  refreshed: Int!
+  skipped: Int!
+  failed: Int!
+}
+
+type RequestCostSnapshot {
+  priceReferenceId: String!
+  pricedAt: Time!
+  keyLabel: String!
+  applied: AppliedCostMultiplier!
+  manualMultiplier: Decimal!
+}
+
+extend type UsageLog {
+  costSnapshot: RequestCostSnapshot
+}
+
+extend type Query {
+  channelUpstreamStates(channelIds: [ID!]!): [ChannelUpstreamState!]!
+  channelUpstreamRefreshTargets: [ID!]!
+}
+
+extend type Mutation {
+  updateChannelUpstream(channelId: ID!, input: UpdateChannelUpstreamInput!): ChannelUpstreamState!
+  verifyChannelUpstreamAccount(channelId: ID!, accountToken: String!, accountId: Int): UpstreamAccountVerification!
+  refreshChannelUpstreams(channelIds: [ID!]!, force: Boolean! = false, includeDisabled: Boolean! = false, keyRef: String!): RefreshChannelUpstreamsResult!
+}

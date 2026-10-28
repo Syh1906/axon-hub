@@ -1,6 +1,74 @@
 import { z } from 'zod';
 import { pageInfoSchema } from '@/gql/pagination';
 
+const decimal = z.union([z.string(), z.number()]).transform(String);
+const balanceSchema = z.object({
+  kind: z.enum(['ACCOUNT', 'KEY', 'SUBSCRIPTION']),
+  amount: decimal.nullish(),
+  used: decimal.nullish(),
+  limit: decimal.nullish(),
+  unlimited: z.boolean(),
+  currency: z.string(),
+  unit: z.string(),
+  accountRef: z.string(),
+  expiresAt: z.string().nullish(),
+});
+const appliedSchema = z.object({
+  value: decimal,
+  source: z.enum(['MANUAL', 'UPSTREAM', 'CACHED', 'ESTIMATED']),
+  provider: z.string(),
+  observedAt: z.string().nullish(),
+});
+export const channelUpstreamStateSchema = z.object({
+  channelId: z.string(),
+  provider: z.enum(['UNKNOWN', 'NEW_API', 'SUB2_API']),
+  accountConnected: z.boolean(),
+  accountId: z.number().nullish(),
+  manualMultiplier: decimal,
+  settings: z.object({ enabled: z.boolean(), costMode: z.enum(['MANUAL', 'UPSTREAM']), refreshIntervalMinutes: z.number() }),
+  keys: z.array(
+    z.object({
+      keyRef: z.string(),
+      label: z.string(),
+      disabled: z.boolean(),
+      upstreamMultiplier: decimal.nullish(),
+      applied: appliedSchema,
+      snapshot: z.object({
+        provider: z.string(),
+        balanceState: z.string(),
+        rateState: z.string(),
+        balanceErrorCode: z.string(),
+        rateErrorCode: z.string(),
+        balanceUpdatedAt: z.string().nullish(),
+        balanceCheckedAt: z.string().nullish(),
+        rateCheckedAt: z.string().nullish(),
+        nextBalanceCheckAt: z.string().nullish(),
+        nextRateCheckAt: z.string().nullish(),
+        balances: z.array(balanceSchema),
+        account: z.object({ accountId: z.number(), balance: balanceSchema, updatedAt: z.string() }).nullish(),
+        rate: z
+          .object({
+            multiplier: decimal,
+            group: z.string(),
+            observedAt: z.string(),
+            syncedAt: z.string(),
+            validUntil: z.string().nullish(),
+          })
+          .nullish(),
+      }),
+    })
+  ),
+});
+export type ChannelUpstreamState = z.infer<typeof channelUpstreamStateSchema>;
+export type UpstreamKey = ChannelUpstreamState['keys'][number];
+export type UpstreamBalance = z.infer<typeof balanceSchema>;
+export type UpstreamInput = ChannelUpstreamState['settings'] & {
+  manualMultiplier: string;
+  accountToken?: string;
+  accountId?: number;
+  clearAccount?: boolean;
+};
+
 export const apiFormatSchema = z.enum([
   'openai/chat_completions',
   'openai/responses',
@@ -432,6 +500,8 @@ export type ChannelHealthGateStatus = z.infer<typeof channelHealthGateStatusSche
 
 // Channel
 export const channelSchema = z.object({
+  upstreamState: channelUpstreamStateSchema.optional(),
+  upstreamLoadError: z.boolean().optional(),
   id: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

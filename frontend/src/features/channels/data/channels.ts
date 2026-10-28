@@ -914,6 +914,8 @@ export const DEFAULT_CHANNEL_COLUMN_VISIBILITY: ChannelListColumnVisibility = {
   costMultiplier: true,
   tags: true,
   proxy: false,
+  createdAt: false,
+  upstreamBalance: true,
 };
 
 function isChannelColumnVisible(columnVisibility: ChannelListColumnVisibility | undefined, columnID: string): boolean {

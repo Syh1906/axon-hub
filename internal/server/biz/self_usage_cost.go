@@ -57,7 +57,7 @@ type selfUsageMergedItem struct {
 // the authenticated key. Usage-log ownership columns are not authoritative.
 func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsageScope, ids []int) (map[int]selfUsageRequestCosts, error) {
 	logs, err := s.client.UsageLog.Query().Where(usagelog.RequestIDIn(ids...)).Select(
-		usagelog.FieldRequestID, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldTotalCost,
+		usagelog.FieldRequestID, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldTotalCost, usagelog.FieldCostSnapshot,
 	).Modify(func(q *sql.Selector) { scope.join(q) }).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage page cost items: %w", err)
@@ -115,6 +115,14 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 		multiplier, ok := multipliers[log.CostPriceReferenceID]
 		if !ok {
 			multiplier = decimal.NewFromInt(1)
+		}
+		if log.CostSnapshot != nil {
+			applied := log.CostSnapshot.DisplayMultiplier(log.CostItems)
+			if applied == nil {
+				row.mixed = true
+				continue
+			}
+			multiplier = *applied
 		}
 		if row.multiplier == nil {
 			row.multiplier = &multiplier

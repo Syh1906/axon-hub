@@ -71,6 +71,8 @@ func (UsageLog) Fields() []ent.Field {
 		field.String("format").Immutable().Default("openai/chat_completions").Comment("Request format used"),
 
 		// Cost fields
+		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).
+			Optional().Annotations(entgql.Skip()),
 		field.Float("total_cost").
 			Nillable().
 			Optional().

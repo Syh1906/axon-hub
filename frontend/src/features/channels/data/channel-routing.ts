@@ -75,6 +75,7 @@ export function useUpdateChannelCostMultiplier() {
         variables
       ),
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['channel-upstream'] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['channel', variables.channelId] });
       queryClient.invalidateQueries({ queryKey: ['channelModelPrices'] });

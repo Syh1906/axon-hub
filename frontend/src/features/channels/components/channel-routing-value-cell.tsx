@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,20 @@ import { useUpdateChannel } from '../data/channels';
 import type { Channel } from '../data/schema';
 import { channelDisplayPriority } from '../utils/channel-priority';
 
-type Props = { channel: Channel; field: 'priority' | 'orderingWeight' | 'costMultiplier'; tag: string; canWrite: boolean };
+type Props = {
+  channel: Channel;
+  field: 'priority' | 'orderingWeight' | 'costMultiplier';
+  tag: string;
+  canWrite: boolean;
+  displayOverride?: string;
+  upstreamFollow?: boolean;
+};
 
-export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props) {
+export function ChannelRoutingValueCell({ channel, field, tag, canWrite, displayOverride, upstreamFollow }: Props) {
   const { t } = useTranslation();
   const inputID = useId();
   const titleID = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState(tag);
   const [value, setValue] = useState('');
@@ -34,7 +42,8 @@ export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props
       : field === 'orderingWeight'
         ? channel.orderingWeight
         : (channel.settings?.modelPriceMultiplier ?? '1');
-  const display = field === 'costMultiplier' ? `${current}x` : current == null ? t('channels.routing.inherit') : String(current);
+  const display =
+    displayOverride ?? (field === 'costMultiplier' ? `${current}×` : current == null ? t('channels.routing.inherit') : String(current));
   const label = t(`channels.routing.edit.${field}`);
 
   const changeTag = (nextTag: string) => {
@@ -107,7 +116,16 @@ export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props
           {display}
         </Button>
       </PopoverTrigger>
-      <PopoverContent ref={setContainer} align='center' aria-labelledby={titleID}>
+      <PopoverContent
+        ref={setContainer}
+        align='center'
+        aria-labelledby={titleID}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        }}
+      >
         <form onSubmit={save} className='flex flex-col gap-3'>
           <h4 id={titleID} className='font-medium'>
             {label}
@@ -132,6 +150,7 @@ export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props
             {label}
           </Label>
           <Input
+            ref={inputRef}
             id={inputID}
             type='number'
             step={field === 'costMultiplier' ? 'any' : 1}
@@ -147,7 +166,9 @@ export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props
             aria-invalid={Boolean(error)}
           />
           <p className='text-muted-foreground text-xs'>
-            {t(`channels.routing.hint.${field}`, { tag: selectedTag || t('channels.routing.selectTag') })}
+            {upstreamFollow
+              ? t('channels.upstream.saveManualHint')
+              : t(`channels.routing.hint.${field}`, { tag: selectedTag || t('channels.routing.selectTag') })}
           </p>
           {error && (
             <p role='alert' className='text-destructive text-xs'>
@@ -159,7 +180,7 @@ export function ChannelRoutingValueCell({ channel, field, tag, canWrite }: Props
               {t('common.buttons.cancel')}
             </Button>
             <Button type='submit' size='sm' disabled={pending || (field === 'priority' && !selectedTag)}>
-              {t('common.buttons.save')}
+              {t(upstreamFollow ? 'channels.upstream.saveAsManual' : 'common.buttons.save')}
             </Button>
           </div>
         </form>

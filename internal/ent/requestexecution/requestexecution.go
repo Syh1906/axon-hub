@@ -33,6 +33,8 @@ const (
 	FieldExternalID = "external_id"
 	// FieldModelID holds the string denoting the model_id field in the database.
 	FieldModelID = "model_id"
+	// FieldCostSnapshot holds the string denoting the cost_snapshot field in the database.
+	FieldCostSnapshot = "cost_snapshot"
 	// FieldFormat holds the string denoting the format field in the database.
 	FieldFormat = "format"
 	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
@@ -105,6 +107,7 @@ var Columns = []string{
 	FieldDataStorageID,
 	FieldExternalID,
 	FieldModelID,
+	FieldCostSnapshot,
 	FieldFormat,
 	FieldReasoningEffort,
 	FieldRequestBody,

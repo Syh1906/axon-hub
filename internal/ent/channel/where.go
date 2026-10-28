@@ -415,6 +415,16 @@ func StatusNotIn(vs ...Status) predicate.Channel {
 	return predicate.Channel(sql.FieldNotIn(FieldStatus, vs...))
 }
 
+// UpstreamCredentialsIsNil applies the IsNil predicate on the "upstream_credentials" field.
+func UpstreamCredentialsIsNil() predicate.Channel {
+	return predicate.Channel(sql.FieldIsNull(FieldUpstreamCredentials))
+}
+
+// UpstreamCredentialsNotNil applies the NotNil predicate on the "upstream_credentials" field.
+func UpstreamCredentialsNotNil() predicate.Channel {
+	return predicate.Channel(sql.FieldNotNull(FieldUpstreamCredentials))
+}
+
 // DisabledAPIKeysIsNil applies the IsNil predicate on the "disabled_api_keys" field.
 func DisabledAPIKeysIsNil() predicate.Channel {
 	return predicate.Channel(sql.FieldIsNull(FieldDisabledAPIKeys))
@@ -863,6 +873,29 @@ func EndpointsIsNil() predicate.Channel {
 // EndpointsNotNil applies the NotNil predicate on the "endpoints" field.
 func EndpointsNotNil() predicate.Channel {
 	return predicate.Channel(sql.FieldNotNull(FieldEndpoints))
+}
+
+// HasUpstreamStatuses applies the HasEdge predicate on the "upstream_statuses" edge.
+func HasUpstreamStatuses() predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UpstreamStatusesTable, UpstreamStatusesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUpstreamStatusesWith applies the HasEdge predicate on the "upstream_statuses" edge with a given conditions (other predicates).
+func HasUpstreamStatusesWith(preds ...predicate.ChannelUpstreamStatus) predicate.Channel {
+	return predicate.Channel(func(s *sql.Selector) {
+		step := newUpstreamStatusesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // HasRequests applies the HasEdge predicate on the "requests" edge.

@@ -313,14 +313,16 @@ export function ChannelsTable({
                       <MotionTableRow
                         key={row.id}
                         data-state={row.getIsSelected() && 'selected'}
-                        className='group/row table-row-hover rounded-xl border-0 !bg-[var(--table-background)]'
+                        className='group/row table-row-hover h-[88px] rounded-xl border-0 !bg-[var(--table-background)]'
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell
                             key={cell.id}
-                            className={`${cell.column.columnDef.meta?.className ?? ''} border-0 bg-inherit px-3 py-3 transition-colors duration-200`}
+                            className={`${cell.column.columnDef.meta?.className ?? ''} border-0 bg-inherit px-2 py-3 transition-colors duration-200`}
                           >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            <div className='flex h-16 max-h-16 items-center justify-center overflow-hidden'>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </div>
                           </TableCell>
                         ))}
                       </MotionTableRow>

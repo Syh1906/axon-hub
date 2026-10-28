@@ -35,6 +35,8 @@ const (
 	FieldStatus = "status"
 	// FieldCredentials holds the string denoting the credentials field in the database.
 	FieldCredentials = "credentials"
+	// FieldUpstreamCredentials holds the string denoting the upstream_credentials field in the database.
+	FieldUpstreamCredentials = "upstream_credentials"
 	// FieldDisabledAPIKeys holds the string denoting the disabled_api_keys field in the database.
 	FieldDisabledAPIKeys = "disabled_api_keys"
 	// FieldSupportedModels holds the string denoting the supported_models field in the database.
@@ -63,6 +65,8 @@ const (
 	FieldRemark = "remark"
 	// FieldEndpoints holds the string denoting the endpoints field in the database.
 	FieldEndpoints = "endpoints"
+	// EdgeUpstreamStatuses holds the string denoting the upstream_statuses edge name in mutations.
+	EdgeUpstreamStatuses = "upstream_statuses"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
 	EdgeRequests = "requests"
 	// EdgeExecutions holds the string denoting the executions edge name in mutations.
@@ -77,6 +81,13 @@ const (
 	EdgeProviderQuotaStatus = "provider_quota_status"
 	// Table holds the table name of the channel in the database.
 	Table = "channels"
+	// UpstreamStatusesTable is the table that holds the upstream_statuses relation/edge.
+	UpstreamStatusesTable = "channel_upstream_status"
+	// UpstreamStatusesInverseTable is the table name for the ChannelUpstreamStatus entity.
+	// It exists in this package in order to avoid circular dependency with the "channelupstreamstatus" package.
+	UpstreamStatusesInverseTable = "channel_upstream_status"
+	// UpstreamStatusesColumn is the table column denoting the upstream_statuses relation/edge.
+	UpstreamStatusesColumn = "channel_id"
 	// RequestsTable is the table that holds the requests relation/edge.
 	RequestsTable = "requests"
 	// RequestsInverseTable is the table name for the Request entity.
@@ -132,6 +143,7 @@ var Columns = []string{
 	FieldName,
 	FieldStatus,
 	FieldCredentials,
+	FieldUpstreamCredentials,
 	FieldDisabledAPIKeys,
 	FieldSupportedModels,
 	FieldManualModels,
@@ -392,6 +404,20 @@ func ByRemark(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRemark, opts...).ToFunc()
 }
 
+// ByUpstreamStatusesCount orders the results by upstream_statuses count.
+func ByUpstreamStatusesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUpstreamStatusesStep(), opts...)
+	}
+}
+
+// ByUpstreamStatuses orders the results by upstream_statuses terms.
+func ByUpstreamStatuses(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUpstreamStatusesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByRequestsCount orders the results by requests count.
 func ByRequestsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -467,6 +493,13 @@ func ByProviderQuotaStatusField(field string, opts ...sql.OrderTermOption) Order
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProviderQuotaStatusStep(), sql.OrderByField(field, opts...))
 	}
+}
+func newUpstreamStatusesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UpstreamStatusesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UpstreamStatusesTable, UpstreamStatusesColumn),
+	)
 }
 func newRequestsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

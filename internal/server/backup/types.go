@@ -38,7 +38,8 @@ type BackupProject struct {
 type BackupChannel struct {
 	ent.Channel
 
-	Credentials objects.ChannelCredentials `json:"credentials"`
+	Credentials         objects.ChannelCredentials          `json:"credentials"`
+	UpstreamCredentials *objects.ChannelUpstreamCredentials `json:"upstream_credentials,omitempty"`
 }
 
 type BackupModel struct {
@@ -138,33 +139,34 @@ type BackupUsageLog struct {
 
 func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 	type usageLogData struct {
-		ID                                 int                `json:"id,omitempty"`
-		CreatedAt                          time.Time          `json:"created_at,omitzero"`
-		UpdatedAt                          time.Time          `json:"updated_at,omitzero"`
-		RequestID                          int                `json:"request_id,omitempty"`
-		ProjectID                          int                `json:"project_id,omitempty"`
-		ChannelID                          int                `json:"channel_id,omitempty"`
-		ModelID                            string             `json:"model_id,omitempty"`
-		PromptTokens                       int64              `json:"prompt_tokens,omitempty"`
-		CompletionTokens                   int64              `json:"completion_tokens,omitempty"`
-		TotalTokens                        int64              `json:"total_tokens,omitempty"`
-		PromptAudioTokens                  int64              `json:"prompt_audio_tokens,omitempty"`
-		PromptCachedTokens                 int64              `json:"prompt_cached_tokens,omitempty"`
-		PromptWriteCachedTokens            int64              `json:"prompt_write_cached_tokens,omitempty"`
-		PromptWriteCachedTokens5m          int64              `json:"prompt_write_cached_tokens_5m,omitempty"`
-		PromptWriteCachedTokens1h          int64              `json:"prompt_write_cached_tokens_1h,omitempty"`
-		CompletionAudioTokens              int64              `json:"completion_audio_tokens,omitempty"`
-		CompletionReasoningTokens          int64              `json:"completion_reasoning_tokens,omitempty"`
-		CompletionAcceptedPredictionTokens int64              `json:"completion_accepted_prediction_tokens,omitempty"`
-		CompletionRejectedPredictionTokens int64              `json:"completion_rejected_prediction_tokens,omitempty"`
-		Source                             usagelog.Source    `json:"source,omitempty"`
-		Format                             string             `json:"format,omitempty"`
-		TotalCost                          *float64           `json:"total_cost,omitempty"`
-		CostItems                          []objects.CostItem `json:"cost_items,omitempty"`
-		CostPriceReferenceID               string             `json:"cost_price_reference_id,omitempty"`
-		ProjectName                        string             `json:"project_name,omitempty"`
-		ChannelName                        string             `json:"channel_name,omitempty"`
-		APIKeyKey                          string             `json:"api_key_key,omitempty"`
+		ID                                 int                          `json:"id,omitempty"`
+		CreatedAt                          time.Time                    `json:"created_at,omitzero"`
+		UpdatedAt                          time.Time                    `json:"updated_at,omitzero"`
+		RequestID                          int                          `json:"request_id,omitempty"`
+		ProjectID                          int                          `json:"project_id,omitempty"`
+		ChannelID                          int                          `json:"channel_id,omitempty"`
+		ModelID                            string                       `json:"model_id,omitempty"`
+		PromptTokens                       int64                        `json:"prompt_tokens,omitempty"`
+		CompletionTokens                   int64                        `json:"completion_tokens,omitempty"`
+		TotalTokens                        int64                        `json:"total_tokens,omitempty"`
+		PromptAudioTokens                  int64                        `json:"prompt_audio_tokens,omitempty"`
+		PromptCachedTokens                 int64                        `json:"prompt_cached_tokens,omitempty"`
+		PromptWriteCachedTokens            int64                        `json:"prompt_write_cached_tokens,omitempty"`
+		PromptWriteCachedTokens5m          int64                        `json:"prompt_write_cached_tokens_5m,omitempty"`
+		PromptWriteCachedTokens1h          int64                        `json:"prompt_write_cached_tokens_1h,omitempty"`
+		CompletionAudioTokens              int64                        `json:"completion_audio_tokens,omitempty"`
+		CompletionReasoningTokens          int64                        `json:"completion_reasoning_tokens,omitempty"`
+		CompletionAcceptedPredictionTokens int64                        `json:"completion_accepted_prediction_tokens,omitempty"`
+		CompletionRejectedPredictionTokens int64                        `json:"completion_rejected_prediction_tokens,omitempty"`
+		Source                             usagelog.Source              `json:"source,omitempty"`
+		Format                             string                       `json:"format,omitempty"`
+		TotalCost                          *float64                     `json:"total_cost,omitempty"`
+		CostItems                          []objects.CostItem           `json:"cost_items,omitempty"`
+		CostPriceReferenceID               string                       `json:"cost_price_reference_id,omitempty"`
+		CostSnapshot                       *objects.RequestCostSnapshot `json:"cost_snapshot,omitempty"`
+		ProjectName                        string                       `json:"project_name,omitempty"`
+		ChannelName                        string                       `json:"channel_name,omitempty"`
+		APIKeyKey                          string                       `json:"api_key_key,omitempty"`
 	}
 
 	return json.Marshal(usageLogData{
@@ -192,6 +194,7 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 		TotalCost:                          l.TotalCost,
 		CostItems:                          l.CostItems,
 		CostPriceReferenceID:               l.CostPriceReferenceID,
+		CostSnapshot:                       l.CostSnapshot,
 		ProjectName:                        l.ProjectName,
 		ChannelName:                        l.ChannelName,
 		APIKeyKey:                          l.APIKeyKey,

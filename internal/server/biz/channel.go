@@ -160,7 +160,9 @@ type ChannelService struct {
 	SystemService   *SystemService
 	WebhookNotifier *WebhookNotifier
 
-	httpClient *httpclient.HttpClient
+	httpClient           *httpclient.HttpClient
+	upstreamRefreshOnce  sync.Once
+	upstreamRefreshLocks [64]chan struct{}
 
 	// healthGate holds process-local health-gated routing state (fork).
 	healthGateOnce sync.Once
@@ -212,6 +214,13 @@ type ChannelService struct {
 }
 
 func (svc *ChannelService) RegisterScheduledTasks(ctx context.Context, s *scheduler.Scheduler) error {
+	if err := s.Register(ctx, scheduler.TaskSpec{
+		Name:        "channel-upstream-rate-sync",
+		Description: "同步已启用跟随上游的渠道倍率",
+		FixRate:     time.Minute,
+	}, svc.syncUpstreamRates); err != nil {
+		return err
+	}
 	if err := s.Register(ctx, scheduler.TaskSpec{
 		Name:        "channel-model-sync",
 		Description: "Sync channel models every hour",
@@ -1080,9 +1089,11 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			settings := *input.Settings
 			settings.ModelPriceMultiplier = nil
 			settings.TagPriorities = nil
+			settings.Upstream = nil
 			if existingSettings.Settings != nil {
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
 				settings.TagPriorities = existingSettings.Settings.TagPriorities
+				settings.Upstream = existingSettings.Settings.Upstream
 			}
 			mut.Where(channel.UpdatedAtEQ(existingSettings.UpdatedAt)).SetSettings(&settings)
 		} else if clearStaleQuotaSettings {

@@ -64,6 +64,8 @@ type UsageLog struct {
 	Source usagelog.Source `json:"source,omitempty"`
 	// Request format used
 	Format string `json:"format,omitempty"`
+	// CostSnapshot holds the value of the "cost_snapshot" field.
+	CostSnapshot *objects.RequestCostSnapshot `json:"cost_snapshot,omitempty"`
 	// Total cost calculated based on channel model price
 	TotalCost *float64 `json:"total_cost,omitempty"`
 	// Detailed cost breakdown items in JSON
@@ -129,7 +131,7 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldCostItems:
+		case usagelog.FieldCostSnapshot, usagelog.FieldCostItems:
 			values[i] = new([]byte)
 		case usagelog.FieldTotalCost:
 			values[i] = new(sql.NullFloat64)
@@ -286,6 +288,14 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Format = value.String
 			}
+		case usagelog.FieldCostSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field cost_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.CostSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field cost_snapshot: %w", err)
+				}
+			}
 		case usagelog.FieldTotalCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field total_cost", values[i])
@@ -420,6 +430,9 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("format=")
 	builder.WriteString(_m.Format)
+	builder.WriteString(", ")
+	builder.WriteString("cost_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CostSnapshot))
 	builder.WriteString(", ")
 	if v := _m.TotalCost; v != nil {
 		builder.WriteString("total_cost=")

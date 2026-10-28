@@ -61,6 +61,8 @@ const (
 	FieldSource = "source"
 	// FieldFormat holds the string denoting the format field in the database.
 	FieldFormat = "format"
+	// FieldCostSnapshot holds the string denoting the cost_snapshot field in the database.
+	FieldCostSnapshot = "cost_snapshot"
 	// FieldTotalCost holds the string denoting the total_cost field in the database.
 	FieldTotalCost = "total_cost"
 	// FieldCostItems holds the string denoting the cost_items field in the database.
@@ -122,6 +124,7 @@ var Columns = []string{
 	FieldCompletionRejectedPredictionTokens,
 	FieldSource,
 	FieldFormat,
+	FieldCostSnapshot,
 	FieldTotalCost,
 	FieldCostItems,
 	FieldCostPriceReferenceID,

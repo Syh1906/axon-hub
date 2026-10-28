@@ -48,6 +48,8 @@ func (RequestExecution) Fields() []ent.Field {
 			Optional().
 			MaxLen(512),
 		field.String("model_id").Immutable(),
+		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).
+			Optional().Immutable().Annotations(entgql.Skip()),
 		//  The format of the request, e.g: openai/chat_completions, claude/messages, openai/response.
 		field.String("format").Immutable().Default("openai/chat_completions"),
 		field.String("reasoning_effort").

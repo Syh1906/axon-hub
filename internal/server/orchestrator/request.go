@@ -121,7 +121,7 @@ func (m *persistRequestMiddleware) injectUsageCost(ctx context.Context, resp *ll
 		}
 	}
 
-	state.UsageLogService.InjectUsageCost(ctx, state.RequestExec.ChannelID, state.RequestExec.ModelID, resp.Usage)
+	state.UsageLogService.InjectUsageCost(ctx, state.RequestExec.ChannelID, state.RequestExec.ModelID, resp.Usage, state.RequestExec.CostSnapshot)
 }
 
 type usageCostStream struct {

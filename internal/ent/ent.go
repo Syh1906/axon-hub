@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -104,6 +105,7 @@ func checkColumn(t, c string) error {
 			channelmodelpriceversion.Table: channelmodelpriceversion.ValidColumn,
 			channeloverridetemplate.Table:  channeloverridetemplate.ValidColumn,
 			channelprobe.Table:             channelprobe.ValidColumn,
+			channelupstreamstatus.Table:    channelupstreamstatus.ValidColumn,
 			datastorage.Table:              datastorage.ValidColumn,
 			invitation.Table:               invitation.ValidColumn,
 			model.Table:                    model.ValidColumn,

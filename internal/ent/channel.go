@@ -36,6 +36,8 @@ type Channel struct {
 	Status channel.Status `json:"status,omitempty"`
 	// Credentials holds the value of the "credentials" field.
 	Credentials objects.ChannelCredentials `json:"-"`
+	// UpstreamCredentials holds the value of the "upstream_credentials" field.
+	UpstreamCredentials *objects.ChannelUpstreamCredentials `json:"-"`
 	// Disabled API keys with metadata (sensitive; requires channel write permission)
 	DisabledAPIKeys []objects.DisabledAPIKey `json:"-"`
 	// SupportedModels holds the value of the "supported_models" field.
@@ -72,6 +74,8 @@ type Channel struct {
 
 // ChannelEdges holds the relations/edges for other nodes in the graph.
 type ChannelEdges struct {
+	// UpstreamStatuses holds the value of the upstream_statuses edge.
+	UpstreamStatuses []*ChannelUpstreamStatus `json:"upstream_statuses,omitempty"`
 	// Requests holds the value of the requests edge.
 	Requests []*Request `json:"requests,omitempty"`
 	// Executions holds the value of the executions edge.
@@ -86,10 +90,11 @@ type ChannelEdges struct {
 	ProviderQuotaStatus *ProviderQuotaStatus `json:"provider_quota_status,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 	// totalCount holds the count of the edges above.
 	totalCount [6]map[string]int
 
+	namedUpstreamStatuses   map[string][]*ChannelUpstreamStatus
 	namedRequests           map[string][]*Request
 	namedExecutions         map[string][]*RequestExecution
 	namedUsageLogs          map[string][]*UsageLog
@@ -97,10 +102,19 @@ type ChannelEdges struct {
 	namedChannelModelPrices map[string][]*ChannelModelPrice
 }
 
+// UpstreamStatusesOrErr returns the UpstreamStatuses value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelEdges) UpstreamStatusesOrErr() ([]*ChannelUpstreamStatus, error) {
+	if e.loadedTypes[0] {
+		return e.UpstreamStatuses, nil
+	}
+	return nil, &NotLoadedError{edge: "upstream_statuses"}
+}
+
 // RequestsOrErr returns the Requests value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) RequestsOrErr() ([]*Request, error) {
-	if e.loadedTypes[0] {
+	if e.loadedTypes[1] {
 		return e.Requests, nil
 	}
 	return nil, &NotLoadedError{edge: "requests"}
@@ -109,7 +123,7 @@ func (e ChannelEdges) RequestsOrErr() ([]*Request, error) {
 // ExecutionsOrErr returns the Executions value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ExecutionsOrErr() ([]*RequestExecution, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Executions, nil
 	}
 	return nil, &NotLoadedError{edge: "executions"}
@@ -118,7 +132,7 @@ func (e ChannelEdges) ExecutionsOrErr() ([]*RequestExecution, error) {
 // UsageLogsOrErr returns the UsageLogs value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) UsageLogsOrErr() ([]*UsageLog, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.UsageLogs, nil
 	}
 	return nil, &NotLoadedError{edge: "usage_logs"}
@@ -127,7 +141,7 @@ func (e ChannelEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 // ChannelProbesOrErr returns the ChannelProbes value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ChannelProbesOrErr() ([]*ChannelProbe, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.ChannelProbes, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_probes"}
@@ -136,7 +150,7 @@ func (e ChannelEdges) ChannelProbesOrErr() ([]*ChannelProbe, error) {
 // ChannelModelPricesOrErr returns the ChannelModelPrices value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelEdges) ChannelModelPricesOrErr() ([]*ChannelModelPrice, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.ChannelModelPrices, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_model_prices"}
@@ -147,7 +161,7 @@ func (e ChannelEdges) ChannelModelPricesOrErr() ([]*ChannelModelPrice, error) {
 func (e ChannelEdges) ProviderQuotaStatusOrErr() (*ProviderQuotaStatus, error) {
 	if e.ProviderQuotaStatus != nil {
 		return e.ProviderQuotaStatus, nil
-	} else if e.loadedTypes[5] {
+	} else if e.loadedTypes[6] {
 		return nil, &NotFoundError{label: providerquotastatus.Label}
 	}
 	return nil, &NotLoadedError{edge: "provider_quota_status"}
@@ -158,7 +172,7 @@ func (*Channel) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channel.FieldCredentials, channel.FieldDisabledAPIKeys, channel.FieldSupportedModels, channel.FieldManualModels, channel.FieldTags, channel.FieldPolicies, channel.FieldSettings, channel.FieldEndpoints:
+		case channel.FieldCredentials, channel.FieldUpstreamCredentials, channel.FieldDisabledAPIKeys, channel.FieldSupportedModels, channel.FieldManualModels, channel.FieldTags, channel.FieldPolicies, channel.FieldSettings, channel.FieldEndpoints:
 			values[i] = new([]byte)
 		case channel.FieldAutoSyncSupportedModels:
 			values[i] = new(sql.NullBool)
@@ -237,6 +251,14 @@ func (_m *Channel) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Credentials); err != nil {
 					return fmt.Errorf("unmarshal field credentials: %w", err)
+				}
+			}
+		case channel.FieldUpstreamCredentials:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field upstream_credentials", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.UpstreamCredentials); err != nil {
+					return fmt.Errorf("unmarshal field upstream_credentials: %w", err)
 				}
 			}
 		case channel.FieldDisabledAPIKeys:
@@ -353,6 +375,11 @@ func (_m *Channel) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryUpstreamStatuses queries the "upstream_statuses" edge of the Channel entity.
+func (_m *Channel) QueryUpstreamStatuses() *ChannelUpstreamStatusQuery {
+	return NewChannelClient(_m.config).QueryUpstreamStatuses(_m)
+}
+
 // QueryRequests queries the "requests" edge of the Channel entity.
 func (_m *Channel) QueryRequests() *RequestQuery {
 	return NewChannelClient(_m.config).QueryRequests(_m)
@@ -429,6 +456,8 @@ func (_m *Channel) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("credentials=<sensitive>")
 	builder.WriteString(", ")
+	builder.WriteString("upstream_credentials=<sensitive>")
+	builder.WriteString(", ")
 	builder.WriteString("disabled_api_keys=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("supported_models=")
@@ -477,6 +506,30 @@ func (_m *Channel) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.Endpoints))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedUpstreamStatuses returns the UpstreamStatuses named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Channel) NamedUpstreamStatuses(name string) ([]*ChannelUpstreamStatus, error) {
+	if _m.Edges.namedUpstreamStatuses == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedUpstreamStatuses[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Channel) appendNamedUpstreamStatuses(name string, edges ...*ChannelUpstreamStatus) {
+	if _m.Edges.namedUpstreamStatuses == nil {
+		_m.Edges.namedUpstreamStatuses = make(map[string][]*ChannelUpstreamStatus)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedUpstreamStatuses[name] = []*ChannelUpstreamStatus{}
+	} else {
+		_m.Edges.namedUpstreamStatuses[name] = append(_m.Edges.namedUpstreamStatuses[name], edges...)
+	}
 }
 
 // NamedRequests returns the Requests named value or an error if the edge was not

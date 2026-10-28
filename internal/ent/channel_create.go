@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
@@ -114,6 +115,12 @@ func (_c *ChannelCreate) SetNillableStatus(v *channel.Status) *ChannelCreate {
 // SetCredentials sets the "credentials" field.
 func (_c *ChannelCreate) SetCredentials(v objects.ChannelCredentials) *ChannelCreate {
 	_c.mutation.SetCredentials(v)
+	return _c
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (_c *ChannelCreate) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelCreate {
+	_c.mutation.SetUpstreamCredentials(v)
 	return _c
 }
 
@@ -255,6 +262,21 @@ func (_c *ChannelCreate) SetNillableRemark(v *string) *ChannelCreate {
 func (_c *ChannelCreate) SetEndpoints(v []objects.ChannelEndpoint) *ChannelCreate {
 	_c.mutation.SetEndpoints(v)
 	return _c
+}
+
+// AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
+func (_c *ChannelCreate) AddUpstreamStatusIDs(ids ...int) *ChannelCreate {
+	_c.mutation.AddUpstreamStatusIDs(ids...)
+	return _c
+}
+
+// AddUpstreamStatuses adds the "upstream_statuses" edges to the ChannelUpstreamStatus entity.
+func (_c *ChannelCreate) AddUpstreamStatuses(v ...*ChannelUpstreamStatus) *ChannelCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUpstreamStatusIDs(ids...)
 }
 
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
@@ -547,6 +569,10 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 		_spec.SetField(channel.FieldCredentials, field.TypeJSON, value)
 		_node.Credentials = value
 	}
+	if value, ok := _c.mutation.UpstreamCredentials(); ok {
+		_spec.SetField(channel.FieldUpstreamCredentials, field.TypeJSON, value)
+		_node.UpstreamCredentials = value
+	}
 	if value, ok := _c.mutation.DisabledAPIKeys(); ok {
 		_spec.SetField(channel.FieldDisabledAPIKeys, field.TypeJSON, value)
 		_node.DisabledAPIKeys = value
@@ -602,6 +628,22 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Endpoints(); ok {
 		_spec.SetField(channel.FieldEndpoints, field.TypeJSON, value)
 		_node.Endpoints = value
+	}
+	if nodes := _c.mutation.UpstreamStatusesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channel.UpstreamStatusesTable,
+			Columns: []string{channel.UpstreamStatusesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelupstreamstatus.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.RequestsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -844,6 +886,24 @@ func (u *ChannelUpsert) SetCredentials(v objects.ChannelCredentials) *ChannelUps
 // UpdateCredentials sets the "credentials" field to the value that was provided on create.
 func (u *ChannelUpsert) UpdateCredentials() *ChannelUpsert {
 	u.SetExcluded(channel.FieldCredentials)
+	return u
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (u *ChannelUpsert) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelUpsert {
+	u.Set(channel.FieldUpstreamCredentials, v)
+	return u
+}
+
+// UpdateUpstreamCredentials sets the "upstream_credentials" field to the value that was provided on create.
+func (u *ChannelUpsert) UpdateUpstreamCredentials() *ChannelUpsert {
+	u.SetExcluded(channel.FieldUpstreamCredentials)
+	return u
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (u *ChannelUpsert) ClearUpstreamCredentials() *ChannelUpsert {
+	u.SetNull(channel.FieldUpstreamCredentials)
 	return u
 }
 
@@ -1235,6 +1295,27 @@ func (u *ChannelUpsertOne) SetCredentials(v objects.ChannelCredentials) *Channel
 func (u *ChannelUpsertOne) UpdateCredentials() *ChannelUpsertOne {
 	return u.Update(func(s *ChannelUpsert) {
 		s.UpdateCredentials()
+	})
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (u *ChannelUpsertOne) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetUpstreamCredentials(v)
+	})
+}
+
+// UpdateUpstreamCredentials sets the "upstream_credentials" field to the value that was provided on create.
+func (u *ChannelUpsertOne) UpdateUpstreamCredentials() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateUpstreamCredentials()
+	})
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (u *ChannelUpsertOne) ClearUpstreamCredentials() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearUpstreamCredentials()
 	})
 }
 
@@ -1831,6 +1912,27 @@ func (u *ChannelUpsertBulk) SetCredentials(v objects.ChannelCredentials) *Channe
 func (u *ChannelUpsertBulk) UpdateCredentials() *ChannelUpsertBulk {
 	return u.Update(func(s *ChannelUpsert) {
 		s.UpdateCredentials()
+	})
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (u *ChannelUpsertBulk) SetUpstreamCredentials(v *objects.ChannelUpstreamCredentials) *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetUpstreamCredentials(v)
+	})
+}
+
+// UpdateUpstreamCredentials sets the "upstream_credentials" field to the value that was provided on create.
+func (u *ChannelUpsertBulk) UpdateUpstreamCredentials() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateUpstreamCredentials()
+	})
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (u *ChannelUpsertBulk) ClearUpstreamCredentials() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearUpstreamCredentials()
 	})
 }
 

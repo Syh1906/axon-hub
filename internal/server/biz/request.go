@@ -379,6 +379,7 @@ func (s *RequestService) CreateRequestExecution(
 		SetStatus(requestexecution.StatusProcessing).
 		SetStream(request.Stream).
 		SetRequestHeaders(requestHeadersBytes).
+		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID)).
 		SetPassThroughApplied(passThroughApplied)
 
 	if reasoningEffort := extractOutboundReasoningEffort(channelRequest, format); reasoningEffort != nil {

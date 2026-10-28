@@ -29,6 +29,7 @@ type ChannelsDialogType =
   | 'errorResolved'
   | 'viewModels'
   | 'price'
+  | 'upstream'
   | 'transformOptions'
   | 'rateLimit'
   | 'requestSettings'

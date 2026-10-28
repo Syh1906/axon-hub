@@ -18,6 +18,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -56,6 +57,7 @@ const (
 	TypeChannelModelPriceVersion = "ChannelModelPriceVersion"
 	TypeChannelOverrideTemplate  = "ChannelOverrideTemplate"
 	TypeChannelProbe             = "ChannelProbe"
+	TypeChannelUpstreamStatus    = "ChannelUpstreamStatus"
 	TypeDataStorage              = "DataStorage"
 	TypeInvitation               = "Invitation"
 	TypeModel                    = "Model"
@@ -2107,6 +2109,7 @@ type ChannelMutation struct {
 	name                         *string
 	status                       *channel.Status
 	credentials                  *objects.ChannelCredentials
+	upstream_credentials         **objects.ChannelUpstreamCredentials
 	disabled_api_keys            *[]objects.DisabledAPIKey
 	appenddisabled_api_keys      []objects.DisabledAPIKey
 	supported_models             *[]string
@@ -2128,6 +2131,9 @@ type ChannelMutation struct {
 	endpoints                    *[]objects.ChannelEndpoint
 	appendendpoints              []objects.ChannelEndpoint
 	clearedFields                map[string]struct{}
+	upstream_statuses            map[int]struct{}
+	removedupstream_statuses     map[int]struct{}
+	clearedupstream_statuses     bool
 	requests                     map[int]struct{}
 	removedrequests              map[int]struct{}
 	clearedrequests              bool
@@ -2567,6 +2573,55 @@ func (m *ChannelMutation) OldCredentials(ctx context.Context) (v objects.Channel
 // ResetCredentials resets all changes to the "credentials" field.
 func (m *ChannelMutation) ResetCredentials() {
 	m.credentials = nil
+}
+
+// SetUpstreamCredentials sets the "upstream_credentials" field.
+func (m *ChannelMutation) SetUpstreamCredentials(ouc *objects.ChannelUpstreamCredentials) {
+	m.upstream_credentials = &ouc
+}
+
+// UpstreamCredentials returns the value of the "upstream_credentials" field in the mutation.
+func (m *ChannelMutation) UpstreamCredentials() (r *objects.ChannelUpstreamCredentials, exists bool) {
+	v := m.upstream_credentials
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamCredentials returns the old "upstream_credentials" field's value of the Channel entity.
+// If the Channel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMutation) OldUpstreamCredentials(ctx context.Context) (v *objects.ChannelUpstreamCredentials, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamCredentials is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamCredentials requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamCredentials: %w", err)
+	}
+	return oldValue.UpstreamCredentials, nil
+}
+
+// ClearUpstreamCredentials clears the value of the "upstream_credentials" field.
+func (m *ChannelMutation) ClearUpstreamCredentials() {
+	m.upstream_credentials = nil
+	m.clearedFields[channel.FieldUpstreamCredentials] = struct{}{}
+}
+
+// UpstreamCredentialsCleared returns if the "upstream_credentials" field was cleared in this mutation.
+func (m *ChannelMutation) UpstreamCredentialsCleared() bool {
+	_, ok := m.clearedFields[channel.FieldUpstreamCredentials]
+	return ok
+}
+
+// ResetUpstreamCredentials resets all changes to the "upstream_credentials" field.
+func (m *ChannelMutation) ResetUpstreamCredentials() {
+	m.upstream_credentials = nil
+	delete(m.clearedFields, channel.FieldUpstreamCredentials)
 }
 
 // SetDisabledAPIKeys sets the "disabled_api_keys" field.
@@ -3302,6 +3357,60 @@ func (m *ChannelMutation) ResetEndpoints() {
 	delete(m.clearedFields, channel.FieldEndpoints)
 }
 
+// AddUpstreamStatusIDs adds the "upstream_statuses" edge to the ChannelUpstreamStatus entity by ids.
+func (m *ChannelMutation) AddUpstreamStatusIDs(ids ...int) {
+	if m.upstream_statuses == nil {
+		m.upstream_statuses = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.upstream_statuses[ids[i]] = struct{}{}
+	}
+}
+
+// ClearUpstreamStatuses clears the "upstream_statuses" edge to the ChannelUpstreamStatus entity.
+func (m *ChannelMutation) ClearUpstreamStatuses() {
+	m.clearedupstream_statuses = true
+}
+
+// UpstreamStatusesCleared reports if the "upstream_statuses" edge to the ChannelUpstreamStatus entity was cleared.
+func (m *ChannelMutation) UpstreamStatusesCleared() bool {
+	return m.clearedupstream_statuses
+}
+
+// RemoveUpstreamStatusIDs removes the "upstream_statuses" edge to the ChannelUpstreamStatus entity by IDs.
+func (m *ChannelMutation) RemoveUpstreamStatusIDs(ids ...int) {
+	if m.removedupstream_statuses == nil {
+		m.removedupstream_statuses = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.upstream_statuses, ids[i])
+		m.removedupstream_statuses[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedUpstreamStatuses returns the removed IDs of the "upstream_statuses" edge to the ChannelUpstreamStatus entity.
+func (m *ChannelMutation) RemovedUpstreamStatusesIDs() (ids []int) {
+	for id := range m.removedupstream_statuses {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// UpstreamStatusesIDs returns the "upstream_statuses" edge IDs in the mutation.
+func (m *ChannelMutation) UpstreamStatusesIDs() (ids []int) {
+	for id := range m.upstream_statuses {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetUpstreamStatuses resets all changes to the "upstream_statuses" edge.
+func (m *ChannelMutation) ResetUpstreamStatuses() {
+	m.upstream_statuses = nil
+	m.clearedupstream_statuses = false
+	m.removedupstream_statuses = nil
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by ids.
 func (m *ChannelMutation) AddRequestIDs(ids ...int) {
 	if m.requests == nil {
@@ -3645,7 +3754,7 @@ func (m *ChannelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, channel.FieldCreatedAt)
 	}
@@ -3669,6 +3778,9 @@ func (m *ChannelMutation) Fields() []string {
 	}
 	if m.credentials != nil {
 		fields = append(fields, channel.FieldCredentials)
+	}
+	if m.upstream_credentials != nil {
+		fields = append(fields, channel.FieldUpstreamCredentials)
 	}
 	if m.disabled_api_keys != nil {
 		fields = append(fields, channel.FieldDisabledAPIKeys)
@@ -3736,6 +3848,8 @@ func (m *ChannelMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case channel.FieldCredentials:
 		return m.Credentials()
+	case channel.FieldUpstreamCredentials:
+		return m.UpstreamCredentials()
 	case channel.FieldDisabledAPIKeys:
 		return m.DisabledAPIKeys()
 	case channel.FieldSupportedModels:
@@ -3789,6 +3903,8 @@ func (m *ChannelMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldStatus(ctx)
 	case channel.FieldCredentials:
 		return m.OldCredentials(ctx)
+	case channel.FieldUpstreamCredentials:
+		return m.OldUpstreamCredentials(ctx)
 	case channel.FieldDisabledAPIKeys:
 		return m.OldDisabledAPIKeys(ctx)
 	case channel.FieldSupportedModels:
@@ -3881,6 +3997,13 @@ func (m *ChannelMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCredentials(v)
+		return nil
+	case channel.FieldUpstreamCredentials:
+		v, ok := value.(*objects.ChannelUpstreamCredentials)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamCredentials(v)
 		return nil
 	case channel.FieldDisabledAPIKeys:
 		v, ok := value.([]objects.DisabledAPIKey)
@@ -4040,6 +4163,9 @@ func (m *ChannelMutation) ClearedFields() []string {
 	if m.FieldCleared(channel.FieldBaseURL) {
 		fields = append(fields, channel.FieldBaseURL)
 	}
+	if m.FieldCleared(channel.FieldUpstreamCredentials) {
+		fields = append(fields, channel.FieldUpstreamCredentials)
+	}
 	if m.FieldCleared(channel.FieldDisabledAPIKeys) {
 		fields = append(fields, channel.FieldDisabledAPIKeys)
 	}
@@ -4086,6 +4212,9 @@ func (m *ChannelMutation) ClearField(name string) error {
 	switch name {
 	case channel.FieldBaseURL:
 		m.ClearBaseURL()
+		return nil
+	case channel.FieldUpstreamCredentials:
+		m.ClearUpstreamCredentials()
 		return nil
 	case channel.FieldDisabledAPIKeys:
 		m.ClearDisabledAPIKeys()
@@ -4149,6 +4278,9 @@ func (m *ChannelMutation) ResetField(name string) error {
 	case channel.FieldCredentials:
 		m.ResetCredentials()
 		return nil
+	case channel.FieldUpstreamCredentials:
+		m.ResetUpstreamCredentials()
+		return nil
 	case channel.FieldDisabledAPIKeys:
 		m.ResetDisabledAPIKeys()
 		return nil
@@ -4197,7 +4329,10 @@ func (m *ChannelMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChannelMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
+	if m.upstream_statuses != nil {
+		edges = append(edges, channel.EdgeUpstreamStatuses)
+	}
 	if m.requests != nil {
 		edges = append(edges, channel.EdgeRequests)
 	}
@@ -4223,6 +4358,12 @@ func (m *ChannelMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case channel.EdgeUpstreamStatuses:
+		ids := make([]ent.Value, 0, len(m.upstream_statuses))
+		for id := range m.upstream_statuses {
+			ids = append(ids, id)
+		}
+		return ids
 	case channel.EdgeRequests:
 		ids := make([]ent.Value, 0, len(m.requests))
 		for id := range m.requests {
@@ -4263,7 +4404,10 @@ func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
+	if m.removedupstream_statuses != nil {
+		edges = append(edges, channel.EdgeUpstreamStatuses)
+	}
 	if m.removedrequests != nil {
 		edges = append(edges, channel.EdgeRequests)
 	}
@@ -4286,6 +4430,12 @@ func (m *ChannelMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case channel.EdgeUpstreamStatuses:
+		ids := make([]ent.Value, 0, len(m.removedupstream_statuses))
+		for id := range m.removedupstream_statuses {
+			ids = append(ids, id)
+		}
+		return ids
 	case channel.EdgeRequests:
 		ids := make([]ent.Value, 0, len(m.removedrequests))
 		for id := range m.removedrequests {
@@ -4322,7 +4472,10 @@ func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChannelMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
+	if m.clearedupstream_statuses {
+		edges = append(edges, channel.EdgeUpstreamStatuses)
+	}
 	if m.clearedrequests {
 		edges = append(edges, channel.EdgeRequests)
 	}
@@ -4348,6 +4501,8 @@ func (m *ChannelMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *ChannelMutation) EdgeCleared(name string) bool {
 	switch name {
+	case channel.EdgeUpstreamStatuses:
+		return m.clearedupstream_statuses
 	case channel.EdgeRequests:
 		return m.clearedrequests
 	case channel.EdgeExecutions:
@@ -4379,6 +4534,9 @@ func (m *ChannelMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *ChannelMutation) ResetEdge(name string) error {
 	switch name {
+	case channel.EdgeUpstreamStatuses:
+		m.ResetUpstreamStatuses()
+		return nil
 	case channel.EdgeRequests:
 		m.ResetRequests()
 		return nil
@@ -8040,6 +8198,659 @@ func (m *ChannelProbeMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelProbe edge %s", name)
+}
+
+// ChannelUpstreamStatusMutation represents an operation that mutates the ChannelUpstreamStatus nodes in the graph.
+type ChannelUpstreamStatusMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	created_at         *time.Time
+	updated_at         *time.Time
+	key_fingerprint    *string
+	config_fingerprint *string
+	snapshot           **objects.UpstreamKeySnapshot
+	clearedFields      map[string]struct{}
+	channel            *int
+	clearedchannel     bool
+	done               bool
+	oldValue           func(context.Context) (*ChannelUpstreamStatus, error)
+	predicates         []predicate.ChannelUpstreamStatus
+}
+
+var _ ent.Mutation = (*ChannelUpstreamStatusMutation)(nil)
+
+// channelupstreamstatusOption allows management of the mutation configuration using functional options.
+type channelupstreamstatusOption func(*ChannelUpstreamStatusMutation)
+
+// newChannelUpstreamStatusMutation creates new mutation for the ChannelUpstreamStatus entity.
+func newChannelUpstreamStatusMutation(c config, op Op, opts ...channelupstreamstatusOption) *ChannelUpstreamStatusMutation {
+	m := &ChannelUpstreamStatusMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeChannelUpstreamStatus,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withChannelUpstreamStatusID sets the ID field of the mutation.
+func withChannelUpstreamStatusID(id int) channelupstreamstatusOption {
+	return func(m *ChannelUpstreamStatusMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ChannelUpstreamStatus
+		)
+		m.oldValue = func(ctx context.Context) (*ChannelUpstreamStatus, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ChannelUpstreamStatus.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withChannelUpstreamStatus sets the old ChannelUpstreamStatus of the mutation.
+func withChannelUpstreamStatus(node *ChannelUpstreamStatus) channelupstreamstatusOption {
+	return func(m *ChannelUpstreamStatusMutation) {
+		m.oldValue = func(context.Context) (*ChannelUpstreamStatus, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ChannelUpstreamStatusMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ChannelUpstreamStatusMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ChannelUpstreamStatusMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ChannelUpstreamStatusMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ChannelUpstreamStatus.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ChannelUpstreamStatusMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ChannelUpstreamStatusMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ChannelUpstreamStatusMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ChannelUpstreamStatusMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *ChannelUpstreamStatusMutation) SetChannelID(i int) {
+	m.channel = &i
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) ChannelID() (r int, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *ChannelUpstreamStatusMutation) ResetChannelID() {
+	m.channel = nil
+}
+
+// SetKeyFingerprint sets the "key_fingerprint" field.
+func (m *ChannelUpstreamStatusMutation) SetKeyFingerprint(s string) {
+	m.key_fingerprint = &s
+}
+
+// KeyFingerprint returns the value of the "key_fingerprint" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) KeyFingerprint() (r string, exists bool) {
+	v := m.key_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyFingerprint returns the old "key_fingerprint" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldKeyFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyFingerprint: %w", err)
+	}
+	return oldValue.KeyFingerprint, nil
+}
+
+// ResetKeyFingerprint resets all changes to the "key_fingerprint" field.
+func (m *ChannelUpstreamStatusMutation) ResetKeyFingerprint() {
+	m.key_fingerprint = nil
+}
+
+// SetConfigFingerprint sets the "config_fingerprint" field.
+func (m *ChannelUpstreamStatusMutation) SetConfigFingerprint(s string) {
+	m.config_fingerprint = &s
+}
+
+// ConfigFingerprint returns the value of the "config_fingerprint" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) ConfigFingerprint() (r string, exists bool) {
+	v := m.config_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfigFingerprint returns the old "config_fingerprint" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldConfigFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfigFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfigFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfigFingerprint: %w", err)
+	}
+	return oldValue.ConfigFingerprint, nil
+}
+
+// ResetConfigFingerprint resets all changes to the "config_fingerprint" field.
+func (m *ChannelUpstreamStatusMutation) ResetConfigFingerprint() {
+	m.config_fingerprint = nil
+}
+
+// SetSnapshot sets the "snapshot" field.
+func (m *ChannelUpstreamStatusMutation) SetSnapshot(oks *objects.UpstreamKeySnapshot) {
+	m.snapshot = &oks
+}
+
+// Snapshot returns the value of the "snapshot" field in the mutation.
+func (m *ChannelUpstreamStatusMutation) Snapshot() (r *objects.UpstreamKeySnapshot, exists bool) {
+	v := m.snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshot returns the old "snapshot" field's value of the ChannelUpstreamStatus entity.
+// If the ChannelUpstreamStatus object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelUpstreamStatusMutation) OldSnapshot(ctx context.Context) (v *objects.UpstreamKeySnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshot: %w", err)
+	}
+	return oldValue.Snapshot, nil
+}
+
+// ResetSnapshot resets all changes to the "snapshot" field.
+func (m *ChannelUpstreamStatusMutation) ResetSnapshot() {
+	m.snapshot = nil
+}
+
+// ClearChannel clears the "channel" edge to the Channel entity.
+func (m *ChannelUpstreamStatusMutation) ClearChannel() {
+	m.clearedchannel = true
+	m.clearedFields[channelupstreamstatus.FieldChannelID] = struct{}{}
+}
+
+// ChannelCleared reports if the "channel" edge to the Channel entity was cleared.
+func (m *ChannelUpstreamStatusMutation) ChannelCleared() bool {
+	return m.clearedchannel
+}
+
+// ChannelIDs returns the "channel" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ChannelID instead. It exists only for internal usage by the builders.
+func (m *ChannelUpstreamStatusMutation) ChannelIDs() (ids []int) {
+	if id := m.channel; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetChannel resets all changes to the "channel" edge.
+func (m *ChannelUpstreamStatusMutation) ResetChannel() {
+	m.channel = nil
+	m.clearedchannel = false
+}
+
+// Where appends a list predicates to the ChannelUpstreamStatusMutation builder.
+func (m *ChannelUpstreamStatusMutation) Where(ps ...predicate.ChannelUpstreamStatus) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ChannelUpstreamStatusMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ChannelUpstreamStatusMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ChannelUpstreamStatus, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ChannelUpstreamStatusMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ChannelUpstreamStatusMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ChannelUpstreamStatus).
+func (m *ChannelUpstreamStatusMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ChannelUpstreamStatusMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.created_at != nil {
+		fields = append(fields, channelupstreamstatus.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, channelupstreamstatus.FieldUpdatedAt)
+	}
+	if m.channel != nil {
+		fields = append(fields, channelupstreamstatus.FieldChannelID)
+	}
+	if m.key_fingerprint != nil {
+		fields = append(fields, channelupstreamstatus.FieldKeyFingerprint)
+	}
+	if m.config_fingerprint != nil {
+		fields = append(fields, channelupstreamstatus.FieldConfigFingerprint)
+	}
+	if m.snapshot != nil {
+		fields = append(fields, channelupstreamstatus.FieldSnapshot)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ChannelUpstreamStatusMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case channelupstreamstatus.FieldCreatedAt:
+		return m.CreatedAt()
+	case channelupstreamstatus.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case channelupstreamstatus.FieldChannelID:
+		return m.ChannelID()
+	case channelupstreamstatus.FieldKeyFingerprint:
+		return m.KeyFingerprint()
+	case channelupstreamstatus.FieldConfigFingerprint:
+		return m.ConfigFingerprint()
+	case channelupstreamstatus.FieldSnapshot:
+		return m.Snapshot()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ChannelUpstreamStatusMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case channelupstreamstatus.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case channelupstreamstatus.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case channelupstreamstatus.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case channelupstreamstatus.FieldKeyFingerprint:
+		return m.OldKeyFingerprint(ctx)
+	case channelupstreamstatus.FieldConfigFingerprint:
+		return m.OldConfigFingerprint(ctx)
+	case channelupstreamstatus.FieldSnapshot:
+		return m.OldSnapshot(ctx)
+	}
+	return nil, fmt.Errorf("unknown ChannelUpstreamStatus field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelUpstreamStatusMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case channelupstreamstatus.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case channelupstreamstatus.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case channelupstreamstatus.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case channelupstreamstatus.FieldKeyFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyFingerprint(v)
+		return nil
+	case channelupstreamstatus.FieldConfigFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfigFingerprint(v)
+		return nil
+	case channelupstreamstatus.FieldSnapshot:
+		v, ok := value.(*objects.UpstreamKeySnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshot(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelUpstreamStatus field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ChannelUpstreamStatusMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ChannelUpstreamStatusMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelUpstreamStatusMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ChannelUpstreamStatus numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ChannelUpstreamStatusMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ChannelUpstreamStatusMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ChannelUpstreamStatusMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ChannelUpstreamStatus nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ChannelUpstreamStatusMutation) ResetField(name string) error {
+	switch name {
+	case channelupstreamstatus.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case channelupstreamstatus.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case channelupstreamstatus.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case channelupstreamstatus.FieldKeyFingerprint:
+		m.ResetKeyFingerprint()
+		return nil
+	case channelupstreamstatus.FieldConfigFingerprint:
+		m.ResetConfigFingerprint()
+		return nil
+	case channelupstreamstatus.FieldSnapshot:
+		m.ResetSnapshot()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelUpstreamStatus field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ChannelUpstreamStatusMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.channel != nil {
+		edges = append(edges, channelupstreamstatus.EdgeChannel)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ChannelUpstreamStatusMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case channelupstreamstatus.EdgeChannel:
+		if id := m.channel; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ChannelUpstreamStatusMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ChannelUpstreamStatusMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ChannelUpstreamStatusMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedchannel {
+		edges = append(edges, channelupstreamstatus.EdgeChannel)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ChannelUpstreamStatusMutation) EdgeCleared(name string) bool {
+	switch name {
+	case channelupstreamstatus.EdgeChannel:
+		return m.clearedchannel
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ChannelUpstreamStatusMutation) ClearEdge(name string) error {
+	switch name {
+	case channelupstreamstatus.EdgeChannel:
+		m.ClearChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelUpstreamStatus unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ChannelUpstreamStatusMutation) ResetEdge(name string) error {
+	switch name {
+	case channelupstreamstatus.EdgeChannel:
+		m.ResetChannel()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelUpstreamStatus edge %s", name)
 }
 
 // DataStorageMutation represents an operation that mutates the DataStorage nodes in the graph.
@@ -19190,6 +20001,7 @@ type RequestExecutionMutation struct {
 	addproject_id                     *int
 	external_id                       *string
 	model_id                          *string
+	cost_snapshot                     **objects.RequestCostSnapshot
 	format                            *string
 	reasoning_effort                  *string
 	request_body                      *objects.JSONRawMessage
@@ -19668,6 +20480,55 @@ func (m *RequestExecutionMutation) OldModelID(ctx context.Context) (v string, er
 // ResetModelID resets all changes to the "model_id" field.
 func (m *RequestExecutionMutation) ResetModelID() {
 	m.model_id = nil
+}
+
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (m *RequestExecutionMutation) SetCostSnapshot(ocs *objects.RequestCostSnapshot) {
+	m.cost_snapshot = &ocs
+}
+
+// CostSnapshot returns the value of the "cost_snapshot" field in the mutation.
+func (m *RequestExecutionMutation) CostSnapshot() (r *objects.RequestCostSnapshot, exists bool) {
+	v := m.cost_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostSnapshot returns the old "cost_snapshot" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldCostSnapshot(ctx context.Context) (v *objects.RequestCostSnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostSnapshot: %w", err)
+	}
+	return oldValue.CostSnapshot, nil
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (m *RequestExecutionMutation) ClearCostSnapshot() {
+	m.cost_snapshot = nil
+	m.clearedFields[requestexecution.FieldCostSnapshot] = struct{}{}
+}
+
+// CostSnapshotCleared returns if the "cost_snapshot" field was cleared in this mutation.
+func (m *RequestExecutionMutation) CostSnapshotCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldCostSnapshot]
+	return ok
+}
+
+// ResetCostSnapshot resets all changes to the "cost_snapshot" field.
+func (m *RequestExecutionMutation) ResetCostSnapshot() {
+	m.cost_snapshot = nil
+	delete(m.clearedFields, requestexecution.FieldCostSnapshot)
 }
 
 // SetFormat sets the "format" field.
@@ -20602,7 +21463,7 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
@@ -20626,6 +21487,9 @@ func (m *RequestExecutionMutation) Fields() []string {
 	}
 	if m.model_id != nil {
 		fields = append(fields, requestexecution.FieldModelID)
+	}
+	if m.cost_snapshot != nil {
+		fields = append(fields, requestexecution.FieldCostSnapshot)
 	}
 	if m.format != nil {
 		fields = append(fields, requestexecution.FieldFormat)
@@ -20696,6 +21560,8 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.ExternalID()
 	case requestexecution.FieldModelID:
 		return m.ModelID()
+	case requestexecution.FieldCostSnapshot:
+		return m.CostSnapshot()
 	case requestexecution.FieldFormat:
 		return m.Format()
 	case requestexecution.FieldReasoningEffort:
@@ -20751,6 +21617,8 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldExternalID(ctx)
 	case requestexecution.FieldModelID:
 		return m.OldModelID(ctx)
+	case requestexecution.FieldCostSnapshot:
+		return m.OldCostSnapshot(ctx)
 	case requestexecution.FieldFormat:
 		return m.OldFormat(ctx)
 	case requestexecution.FieldReasoningEffort:
@@ -20845,6 +21713,13 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelID(v)
+		return nil
+	case requestexecution.FieldCostSnapshot:
+		v, ok := value.(*objects.RequestCostSnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostSnapshot(v)
 		return nil
 	case requestexecution.FieldFormat:
 		v, ok := value.(string)
@@ -21053,6 +21928,9 @@ func (m *RequestExecutionMutation) ClearedFields() []string {
 	if m.FieldCleared(requestexecution.FieldExternalID) {
 		fields = append(fields, requestexecution.FieldExternalID)
 	}
+	if m.FieldCleared(requestexecution.FieldCostSnapshot) {
+		fields = append(fields, requestexecution.FieldCostSnapshot)
+	}
 	if m.FieldCleared(requestexecution.FieldReasoningEffort) {
 		fields = append(fields, requestexecution.FieldReasoningEffort)
 	}
@@ -21105,6 +21983,9 @@ func (m *RequestExecutionMutation) ClearField(name string) error {
 		return nil
 	case requestexecution.FieldExternalID:
 		m.ClearExternalID()
+		return nil
+	case requestexecution.FieldCostSnapshot:
+		m.ClearCostSnapshot()
 		return nil
 	case requestexecution.FieldReasoningEffort:
 		m.ClearReasoningEffort()
@@ -21167,6 +22048,9 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldModelID:
 		m.ResetModelID()
+		return nil
+	case requestexecution.FieldCostSnapshot:
+		m.ResetCostSnapshot()
 		return nil
 	case requestexecution.FieldFormat:
 		m.ResetFormat()
@@ -24398,6 +25282,7 @@ type UsageLogMutation struct {
 	addcompletion_rejected_prediction_tokens *int64
 	source                                   *usagelog.Source
 	format                                   *string
+	cost_snapshot                            **objects.RequestCostSnapshot
 	total_cost                               *float64
 	addtotal_cost                            *float64
 	cost_items                               *[]objects.CostItem
@@ -25682,6 +26567,55 @@ func (m *UsageLogMutation) ResetFormat() {
 	m.format = nil
 }
 
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (m *UsageLogMutation) SetCostSnapshot(ocs *objects.RequestCostSnapshot) {
+	m.cost_snapshot = &ocs
+}
+
+// CostSnapshot returns the value of the "cost_snapshot" field in the mutation.
+func (m *UsageLogMutation) CostSnapshot() (r *objects.RequestCostSnapshot, exists bool) {
+	v := m.cost_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostSnapshot returns the old "cost_snapshot" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldCostSnapshot(ctx context.Context) (v *objects.RequestCostSnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostSnapshot: %w", err)
+	}
+	return oldValue.CostSnapshot, nil
+}
+
+// ClearCostSnapshot clears the value of the "cost_snapshot" field.
+func (m *UsageLogMutation) ClearCostSnapshot() {
+	m.cost_snapshot = nil
+	m.clearedFields[usagelog.FieldCostSnapshot] = struct{}{}
+}
+
+// CostSnapshotCleared returns if the "cost_snapshot" field was cleared in this mutation.
+func (m *UsageLogMutation) CostSnapshotCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldCostSnapshot]
+	return ok
+}
+
+// ResetCostSnapshot resets all changes to the "cost_snapshot" field.
+func (m *UsageLogMutation) ResetCostSnapshot() {
+	m.cost_snapshot = nil
+	delete(m.clearedFields, usagelog.FieldCostSnapshot)
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (m *UsageLogMutation) SetTotalCost(f float64) {
 	m.total_cost = &f
@@ -25981,7 +26915,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.created_at != nil {
 		fields = append(fields, usagelog.FieldCreatedAt)
 	}
@@ -26045,6 +26979,9 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.format != nil {
 		fields = append(fields, usagelog.FieldFormat)
 	}
+	if m.cost_snapshot != nil {
+		fields = append(fields, usagelog.FieldCostSnapshot)
+	}
 	if m.total_cost != nil {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -26104,6 +27041,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.Source()
 	case usagelog.FieldFormat:
 		return m.Format()
+	case usagelog.FieldCostSnapshot:
+		return m.CostSnapshot()
 	case usagelog.FieldTotalCost:
 		return m.TotalCost()
 	case usagelog.FieldCostItems:
@@ -26161,6 +27100,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldSource(ctx)
 	case usagelog.FieldFormat:
 		return m.OldFormat(ctx)
+	case usagelog.FieldCostSnapshot:
+		return m.OldCostSnapshot(ctx)
 	case usagelog.FieldTotalCost:
 		return m.OldTotalCost(ctx)
 	case usagelog.FieldCostItems:
@@ -26322,6 +27263,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFormat(v)
+		return nil
+	case usagelog.FieldCostSnapshot:
+		v, ok := value.(*objects.RequestCostSnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostSnapshot(v)
 		return nil
 	case usagelog.FieldTotalCost:
 		v, ok := value.(float64)
@@ -26578,6 +27526,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldCompletionRejectedPredictionTokens) {
 		fields = append(fields, usagelog.FieldCompletionRejectedPredictionTokens)
 	}
+	if m.FieldCleared(usagelog.FieldCostSnapshot) {
+		fields = append(fields, usagelog.FieldCostSnapshot)
+	}
 	if m.FieldCleared(usagelog.FieldTotalCost) {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -26633,6 +27584,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldCompletionRejectedPredictionTokens:
 		m.ClearCompletionRejectedPredictionTokens()
+		return nil
+	case usagelog.FieldCostSnapshot:
+		m.ClearCostSnapshot()
 		return nil
 	case usagelog.FieldTotalCost:
 		m.ClearTotalCost()
@@ -26713,6 +27667,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldFormat:
 		m.ResetFormat()
+		return nil
+	case usagelog.FieldCostSnapshot:
+		m.ResetCostSnapshot()
 		return nil
 	case usagelog.FieldTotalCost:
 		m.ResetTotalCost()

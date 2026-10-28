@@ -38,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
@@ -49,6 +50,7 @@ import { channelDisplayPriority } from '../utils/channel-priority';
 import { ChannelHealthCell } from './channel-health-cell';
 import { ChannelLimiterCell } from './channel-limiter-cell';
 import { ChannelRoutingValueCell } from './channel-routing-value-cell';
+import { ChannelUpstreamBalanceCell, ChannelUpstreamMultiplierCell } from './channel-upstream-cell';
 import { ChannelsStatusDialog } from './channels-status-dialog';
 
 const QUOTA_VISIBLE_LIMIT = 5;
@@ -705,9 +707,9 @@ const TagsCell = memo(({ row }: { row: Row<Channel> }) => {
     );
   }
   return (
-    <div className='flex max-w-48 flex-wrap justify-center gap-1'>
+    <div className='flex max-h-14 max-w-36 flex-wrap justify-center gap-1 overflow-hidden' title={tags.join(', ')}>
       {tags.slice(0, 2).map((tag) => (
-        <Badge key={tag} variant='outline' className='text-xs'>
+        <Badge key={tag} variant='outline' className='block max-w-32 truncate text-xs'>
           {tag}
         </Badge>
       ))}
@@ -784,25 +786,45 @@ const SupportedModelsCell = memo(({ row }: { row: Row<Channel> }) => {
   }, [channel, setCurrentRow, setOpen]);
 
   return (
-    <div className='flex items-center justify-center gap-2'>
-      <div className='flex flex-wrap justify-center gap-1 overflow-hidden'>
-        {models.slice(0, 5).map((model) => (
-          <Badge key={model} variant='secondary' className='block max-w-48 truncate text-left text-xs'>
-            {model}
-          </Badge>
-        ))}
-        {models.length > 5 && (
-          <Badge
-            variant='secondary'
-            className='hover:bg-primary hover:text-primary-foreground cursor-pointer text-xs transition-colors'
-            onClick={handleOpenModelsDialog}
-            title={t('channels.actions.viewModels')}
-          >
-            +{models.length - 5}
-          </Badge>
-        )}
-      </div>
-    </div>
+    <HoverCard openDelay={250}>
+      <HoverCardTrigger asChild>
+        <button
+          type='button'
+          className='focus-visible:outline-ring flex h-14 w-40 flex-col items-center justify-center gap-1 rounded-md focus-visible:outline-2'
+          onClick={handleOpenModelsDialog}
+          aria-label={`${t('channels.actions.viewModels')} · ${channel.name}`}
+        >
+          {models.slice(0, 2).map((model, index) => (
+            <span key={model} className='flex max-w-full items-center gap-1'>
+              <Badge variant='secondary' className='block max-w-32 truncate text-xs'>
+                {model}
+              </Badge>
+              {index === Math.min(models.length, 2) - 1 && models.length > 2 && (
+                <Badge variant='outline' className='text-xs'>
+                  +{models.length - 2}
+                </Badge>
+              )}
+            </span>
+          ))}
+          {models.length === 0 && <span className='text-muted-foreground text-xs'>{t('channels.upstream.noModels')}</span>}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent className='w-80' align='start'>
+        <div className='flex flex-col gap-3'>
+          <p className='font-medium'>{t('channels.upstream.modelCount', { count: models.length })}</p>
+          <div className='flex max-h-64 flex-col gap-1 overflow-y-auto'>
+            {models.map((model) => (
+              <span key={model} className='font-mono text-xs break-all'>
+                {model}
+              </span>
+            ))}
+          </div>
+          <Button variant='outline' size='sm' onClick={handleOpenModelsDialog}>
+            {t('channels.actions.viewModels')}
+          </Button>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 });
 
@@ -1019,13 +1041,24 @@ export const createColumns = (
       enableHiding: true,
     },
     {
+      id: 'upstreamBalance',
+      accessorFn: (channel) => channel.upstreamState?.provider ?? '',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('channels.columns.upstreamBalance')} className='justify-center' />
+      ),
+      cell: ({ row }) => <ChannelUpstreamBalanceCell channel={row.original} />,
+      meta: { className: 'w-40 min-w-40 text-center' },
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
       id: 'costMultiplier',
       accessorFn: (channel) => channel.settings?.modelPriceMultiplier ?? '1',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' />
+        <span title={t('channels.upstream.sortHint')}><DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' /></span>
       ),
-      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='costMultiplier' tag={tag} canWrite={canWrite} />,
-      meta: { className: 'w-24 min-w-24 text-center' },
+      cell: ({ row }) => <ChannelUpstreamMultiplierCell channel={row.original} canWrite={canWrite} />,
+      meta: { className: 'w-40 min-w-40 text-center' },
       enableSorting: true,
       enableHiding: true,
     },
@@ -1037,7 +1070,7 @@ export const createColumns = (
         className: 'text-center',
       },
       enableSorting: true,
-      enableHiding: false,
+      enableHiding: true,
     },
     ...(canWrite
       ? [

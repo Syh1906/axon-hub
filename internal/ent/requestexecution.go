@@ -38,6 +38,8 @@ type RequestExecution struct {
 	ExternalID string `json:"external_id,omitempty"`
 	// ModelID holds the value of the "model_id" field.
 	ModelID string `json:"model_id,omitempty"`
+	// CostSnapshot holds the value of the "cost_snapshot" field.
+	CostSnapshot *objects.RequestCostSnapshot `json:"cost_snapshot,omitempty"`
 	// Format holds the value of the "format" field.
 	Format string `json:"format,omitempty"`
 	// Final reasoning effort sent to the upstream provider
@@ -127,7 +129,7 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldRequestHeaders:
+		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
 		case requestexecution.FieldStream, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
@@ -205,6 +207,14 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field model_id", values[i])
 			} else if value.Valid {
 				_m.ModelID = value.String
+			}
+		case requestexecution.FieldCostSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field cost_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.CostSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field cost_snapshot: %w", err)
+				}
 			}
 		case requestexecution.FieldFormat:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -383,6 +393,9 @@ func (_m *RequestExecution) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_id=")
 	builder.WriteString(_m.ModelID)
+	builder.WriteString(", ")
+	builder.WriteString("cost_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CostSnapshot))
 	builder.WriteString(", ")
 	builder.WriteString("format=")
 	builder.WriteString(_m.Format)

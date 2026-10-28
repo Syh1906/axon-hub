@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -30,6 +31,7 @@ type ChannelQuery struct {
 	order                       []channel.OrderOption
 	inters                      []Interceptor
 	predicates                  []predicate.Channel
+	withUpstreamStatuses        *ChannelUpstreamStatusQuery
 	withRequests                *RequestQuery
 	withExecutions              *RequestExecutionQuery
 	withUsageLogs               *UsageLogQuery
@@ -38,6 +40,7 @@ type ChannelQuery struct {
 	withProviderQuotaStatus     *ProviderQuotaStatusQuery
 	loadTotal                   []func(context.Context, []*Channel) error
 	modifiers                   []func(*sql.Selector)
+	withNamedUpstreamStatuses   map[string]*ChannelUpstreamStatusQuery
 	withNamedRequests           map[string]*RequestQuery
 	withNamedExecutions         map[string]*RequestExecutionQuery
 	withNamedUsageLogs          map[string]*UsageLogQuery
@@ -77,6 +80,28 @@ func (_q *ChannelQuery) Unique(unique bool) *ChannelQuery {
 func (_q *ChannelQuery) Order(o ...channel.OrderOption) *ChannelQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryUpstreamStatuses chains the current query on the "upstream_statuses" edge.
+func (_q *ChannelQuery) QueryUpstreamStatuses() *ChannelUpstreamStatusQuery {
+	query := (&ChannelUpstreamStatusClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, selector),
+			sqlgraph.To(channelupstreamstatus.Table, channelupstreamstatus.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.UpstreamStatusesTable, channel.UpstreamStatusesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryRequests chains the current query on the "requests" edge.
@@ -403,6 +428,7 @@ func (_q *ChannelQuery) Clone() *ChannelQuery {
 		order:                   append([]channel.OrderOption{}, _q.order...),
 		inters:                  append([]Interceptor{}, _q.inters...),
 		predicates:              append([]predicate.Channel{}, _q.predicates...),
+		withUpstreamStatuses:    _q.withUpstreamStatuses.Clone(),
 		withRequests:            _q.withRequests.Clone(),
 		withExecutions:          _q.withExecutions.Clone(),
 		withUsageLogs:           _q.withUsageLogs.Clone(),
@@ -414,6 +440,17 @@ func (_q *ChannelQuery) Clone() *ChannelQuery {
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+}
+
+// WithUpstreamStatuses tells the query-builder to eager-load the nodes that are connected to
+// the "upstream_statuses" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithUpstreamStatuses(opts ...func(*ChannelUpstreamStatusQuery)) *ChannelQuery {
+	query := (&ChannelUpstreamStatusClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUpstreamStatuses = query
+	return _q
 }
 
 // WithRequests tells the query-builder to eager-load the nodes that are connected to
@@ -566,7 +603,8 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	var (
 		nodes       = []*Channel{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
+			_q.withUpstreamStatuses != nil,
 			_q.withRequests != nil,
 			_q.withExecutions != nil,
 			_q.withUsageLogs != nil,
@@ -595,6 +633,15 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
+	}
+	if query := _q.withUpstreamStatuses; query != nil {
+		if err := _q.loadUpstreamStatuses(ctx, query, nodes,
+			func(n *Channel) { n.Edges.UpstreamStatuses = []*ChannelUpstreamStatus{} },
+			func(n *Channel, e *ChannelUpstreamStatus) {
+				n.Edges.UpstreamStatuses = append(n.Edges.UpstreamStatuses, e)
+			}); err != nil {
+			return nil, err
+		}
 	}
 	if query := _q.withRequests; query != nil {
 		if err := _q.loadRequests(ctx, query, nodes,
@@ -636,6 +683,13 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	if query := _q.withProviderQuotaStatus; query != nil {
 		if err := _q.loadProviderQuotaStatus(ctx, query, nodes, nil,
 			func(n *Channel, e *ProviderQuotaStatus) { n.Edges.ProviderQuotaStatus = e }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedUpstreamStatuses {
+		if err := _q.loadUpstreamStatuses(ctx, query, nodes,
+			func(n *Channel) { n.appendNamedUpstreamStatuses(name) },
+			func(n *Channel, e *ChannelUpstreamStatus) { n.appendNamedUpstreamStatuses(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -682,6 +736,36 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 	return nodes, nil
 }
 
+func (_q *ChannelQuery) loadUpstreamStatuses(ctx context.Context, query *ChannelUpstreamStatusQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *ChannelUpstreamStatus)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Channel)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(channelupstreamstatus.FieldChannelID)
+	}
+	query.Where(predicate.ChannelUpstreamStatus(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channel.UpstreamStatusesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ChannelID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "channel_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *ChannelQuery) loadRequests(ctx context.Context, query *RequestQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *Request)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int]*Channel)
@@ -951,6 +1035,20 @@ func (_q *ChannelQuery) sqlQuery(ctx context.Context) *sql.Selector {
 func (_q *ChannelQuery) Modify(modifiers ...func(s *sql.Selector)) *ChannelSelect {
 	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q.Select()
+}
+
+// WithNamedUpstreamStatuses tells the query-builder to eager-load the nodes that are connected to the "upstream_statuses"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithNamedUpstreamStatuses(name string, opts ...func(*ChannelUpstreamStatusQuery)) *ChannelQuery {
+	query := (&ChannelUpstreamStatusClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedUpstreamStatuses == nil {
+		_q.withNamedUpstreamStatuses = make(map[string]*ChannelUpstreamStatusQuery)
+	}
+	_q.withNamedUpstreamStatuses[name] = query
+	return _q
 }
 
 // WithNamedRequests tells the query-builder to eager-load the nodes that are connected to the "requests"

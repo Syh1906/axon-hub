@@ -122,6 +122,8 @@ func (Channel) Fields() []ent.Field {
 				entgql.OrderField("STATUS"),
 			),
 		field.JSON("credentials", objects.ChannelCredentials{}).Sensitive(),
+		field.JSON("upstream_credentials", &objects.ChannelUpstreamCredentials{}).
+			Optional().Sensitive().Annotations(entgql.Skip()),
 		field.JSON("disabled_api_keys", []objects.DisabledAPIKey{}).
 			Default([]objects.DisabledAPIKey{}).
 			Optional().
@@ -180,6 +182,7 @@ func (Channel) Fields() []ent.Field {
 
 func (Channel) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("upstream_statuses", ChannelUpstreamStatus.Type).Annotations(entgql.Skip()),
 		edge.To("requests", Request.Type).
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),

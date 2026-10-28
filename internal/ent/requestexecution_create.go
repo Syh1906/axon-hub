@@ -122,6 +122,12 @@ func (_c *RequestExecutionCreate) SetModelID(v string) *RequestExecutionCreate {
 	return _c
 }
 
+// SetCostSnapshot sets the "cost_snapshot" field.
+func (_c *RequestExecutionCreate) SetCostSnapshot(v *objects.RequestCostSnapshot) *RequestExecutionCreate {
+	_c.mutation.SetCostSnapshot(v)
+	return _c
+}
+
 // SetFormat sets the "format" field.
 func (_c *RequestExecutionCreate) SetFormat(v string) *RequestExecutionCreate {
 	_c.mutation.SetFormat(v)
@@ -453,6 +459,10 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 	if value, ok := _c.mutation.ModelID(); ok {
 		_spec.SetField(requestexecution.FieldModelID, field.TypeString, value)
 		_node.ModelID = value
+	}
+	if value, ok := _c.mutation.CostSnapshot(); ok {
+		_spec.SetField(requestexecution.FieldCostSnapshot, field.TypeJSON, value)
+		_node.CostSnapshot = value
 	}
 	if value, ok := _c.mutation.Format(); ok {
 		_spec.SetField(requestexecution.FieldFormat, field.TypeString, value)
@@ -885,6 +895,9 @@ func (u *RequestExecutionUpsertOne) UpdateNewValues() *RequestExecutionUpsertOne
 		}
 		if _, exists := u.create.mutation.ModelID(); exists {
 			s.SetIgnore(requestexecution.FieldModelID)
+		}
+		if _, exists := u.create.mutation.CostSnapshot(); exists {
+			s.SetIgnore(requestexecution.FieldCostSnapshot)
 		}
 		if _, exists := u.create.mutation.Format(); exists {
 			s.SetIgnore(requestexecution.FieldFormat)
@@ -1402,6 +1415,9 @@ func (u *RequestExecutionUpsertBulk) UpdateNewValues() *RequestExecutionUpsertBu
 			}
 			if _, exists := b.mutation.ModelID(); exists {
 				s.SetIgnore(requestexecution.FieldModelID)
+			}
+			if _, exists := b.mutation.CostSnapshot(); exists {
+				s.SetIgnore(requestexecution.FieldCostSnapshot)
 			}
 			if _, exists := b.mutation.Format(); exists {
 				s.SetIgnore(requestexecution.FieldFormat)

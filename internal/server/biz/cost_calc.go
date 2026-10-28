@@ -142,6 +142,22 @@ func getUpToOrZero(v *int64) int64 {
 // ComputeUsageCost calculates total cost and cost items breakdown for the given usage and model price.
 // The now parameter is used for time-based schedule matching.
 func ComputeUsageCost(usage *llm.Usage, price objects.ModelPrice, now time.Time) ([]objects.CostItem, decimal.Decimal) {
+	effectiveItems := effectiveModelPriceItems(usage, price, now)
+	items, total := computeUsageCostWithItems(usage, effectiveItems)
+	if price.Multiplier == nil || price.Multiplier.Equal(decimal.NewFromInt(1)) {
+		return items, total
+	}
+	for idx := range items {
+		items[idx].Subtotal = items[idx].Subtotal.Mul(*price.Multiplier)
+		for tierIdx := range items[idx].TierBreakdown {
+			tier := &items[idx].TierBreakdown[tierIdx]
+			tier.Subtotal = tier.Subtotal.Mul(*price.Multiplier)
+		}
+	}
+	return items, total.Mul(*price.Multiplier)
+}
+
+func effectiveModelPriceItems(usage *llm.Usage, price objects.ModelPrice, now time.Time) []objects.ModelPriceItem {
 	effectiveItems := price.Items
 
 	for idx := range price.VolumeTiers {
@@ -160,22 +176,7 @@ func ComputeUsageCost(usage *llm.Usage, price objects.ModelPrice, now time.Time)
 		}
 	}
 
-	items, total := computeUsageCostWithItems(usage, effectiveItems)
-	if price.Multiplier == nil || price.Multiplier.Equal(decimal.NewFromInt(1)) {
-		return items, total
-	}
-
-	// Scale the selected snapshot once, including every legacy tier and cache variant.
-	// Never mutate the base rates or consult the channel's current settings here.
-	for idx := range items {
-		items[idx].Subtotal = items[idx].Subtotal.Mul(*price.Multiplier)
-		for tierIdx := range items[idx].TierBreakdown {
-			tier := &items[idx].TierBreakdown[tierIdx]
-			tier.Subtotal = tier.Subtotal.Mul(*price.Multiplier)
-		}
-	}
-
-	return items, total.Mul(*price.Multiplier)
+	return effectiveItems
 }
 
 func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPriceItem) ([]objects.CostItem, decimal.Decimal) {

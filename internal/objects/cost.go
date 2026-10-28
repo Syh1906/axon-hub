@@ -14,4 +14,5 @@ type CostItem struct {
 	Quantity                    int64                       `json:"quantity"`
 	TierBreakdown               []TierCost                  `json:"tierBreakdown,omitempty"`
 	Subtotal                    decimal.Decimal             `json:"subtotal"`
+	Multiplier                  *decimal.Decimal            `json:"multiplier,omitempty"`
 }

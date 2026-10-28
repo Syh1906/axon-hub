@@ -18,6 +18,9 @@ func (r *usageLogResolver) CostPriceMultiplier(ctx context.Context, obj *ent.Usa
 	if obj.TotalCost == nil {
 		return nil, nil
 	}
+	if obj.CostSnapshot != nil {
+		return obj.CostSnapshot.DisplayMultiplier(obj.CostItems), nil
+	}
 	// Records priced before price versions existed, or whose version is gone, were billed without a multiplier.
 	one := decimal.NewFromInt(1)
 	if obj.CostPriceReferenceID == "" {

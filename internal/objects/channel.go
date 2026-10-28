@@ -164,6 +164,9 @@ type ChannelSettings struct {
 	// Only the versioned channel pricing mutation may change it.
 	ModelPriceMultiplier *decimal.Decimal `json:"modelPriceMultiplier,omitempty"`
 
+	// 由上游同步专用操作管理；普通渠道编辑保留这些设置。
+	Upstream *ChannelUpstreamSettings `json:"upstream,omitempty"`
+
 	// ExtraModelPrefix sets the channel accept the model with the extra prefix.
 	// e.g. a channel
 	// supported_modles is ["deepseek-chat", "deepseek-reasoner"]

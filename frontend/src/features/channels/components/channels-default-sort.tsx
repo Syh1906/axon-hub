@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CHANNEL_SORT_FIELDS, DEFAULT_CHANNEL_SORT, readDefaultChannelSort, saveDefaultChannelSort } from '../utils/channel-sort';
+import { RefreshAllUpstreamsButton } from './channel-upstream-cell';
 
 export function ChannelsDefaultSort({ sorting, onApply }: { sorting: SortingState; onApply: (value: SortingState) => void }) {
   const { t } = useTranslation();
@@ -37,18 +38,21 @@ export function ChannelsDefaultSort({ sorting, onApply }: { sorting: SortingStat
           {current.desc ? <ArrowDown className='size-4' /> : <ArrowUp className='size-4' />}
           <span className='text-muted-foreground text-xs'>{t(current.desc ? 'channels.sort.descending' : 'channels.sort.ascending')}</span>
         </div>
-        <Button
-          type='button'
-          variant='outline'
-          size='sm'
-          onClick={() => {
-            setDraft(readDefaultChannelSort());
-            setOpen(true);
-          }}
-        >
-          <RotateCcw />
-          {t('channels.sort.button')}
-        </Button>
+        <div className='flex items-center gap-2'>
+          <RefreshAllUpstreamsButton />
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => {
+              setDraft(readDefaultChannelSort());
+              setOpen(true);
+            }}
+          >
+            <RotateCcw />
+            {t('channels.sort.button')}
+          </Button>
+        </div>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent ref={setContainer} className='sm:max-w-md'>

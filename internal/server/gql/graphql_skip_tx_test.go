@@ -16,6 +16,8 @@ func TestSkipMutationTransactionMatchesFieldsForAnyOperationName(t *testing.T) {
 			testChannelAPIKeys(id: ID!): Boolean
 			testChannelAPIKey(id: ID!, key: String!): Boolean
 			bulkImportChannels: Boolean
+			refreshChannelUpstreams: Boolean
+			verifyChannelUpstreamAccount: Boolean
 			createChannel(name: String!): Boolean
 		}
 	`})
@@ -29,6 +31,8 @@ func TestSkipMutationTransactionMatchesFieldsForAnyOperationName(t *testing.T) {
 		{"named testChannelAPIKeys", `mutation TestChannelAPIKeys { testChannelAPIKeys(id: "1") }`, true},
 		{"single key test", `mutation TestKey { testChannelAPIKey(id: "1", key: "k") }`, true},
 		{"bulk import", `mutation Import { bulkImportChannels }`, true},
+		{"refresh", `mutation Refresh { refreshChannelUpstreams }`, true},
+		{"verify", `mutation { verifyChannelUpstreamAccount }`, true},
 		{"ordinary mutation", `mutation { createChannel(name: "x") }`, false},
 	}
 

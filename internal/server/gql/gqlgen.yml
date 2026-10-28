@@ -14,6 +14,7 @@ schema:
   - channel_probe.graphql
   - channel_health_gate.graphql
   - channel_routing.graphql
+  - channel_upstream.graphql
   - request_routing.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
@@ -158,6 +159,40 @@ models:
     fields:
       modelPriceMultiplier:
         fieldName: ModelPriceMultiplier
+  ChannelCostMode:
+    model: github.com/looplj/axonhub/internal/objects.ChannelCostMode
+  UpstreamProvider:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamProvider
+  UpstreamQueryState:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamQueryState
+  UpstreamBalanceKind:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamBalanceKind
+  CostMultiplierSource:
+    model: github.com/looplj/axonhub/internal/objects.CostMultiplierSource
+  ChannelUpstreamSettings:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamSettings
+  UpstreamBalance:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamBalance
+  UpstreamAccountSnapshot:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamAccountSnapshot
+  UpstreamRateSnapshot:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamRateSnapshot
+  UpstreamKeySnapshot:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamKeySnapshot
+  AppliedCostMultiplier:
+    model: github.com/looplj/axonhub/internal/objects.AppliedCostMultiplier
+  ChannelUpstreamKeyState:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamKeyState
+  ChannelUpstreamState:
+    model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamState
+  UpdateChannelUpstreamInput:
+    model: github.com/looplj/axonhub/internal/objects.UpdateChannelUpstreamInput
+  UpstreamAccountVerification:
+    model: github.com/looplj/axonhub/internal/objects.UpstreamAccountVerification
+  RefreshChannelUpstreamsResult:
+    model: github.com/looplj/axonhub/internal/objects.RefreshChannelUpstreamsResult
+  RequestCostSnapshot:
+    model: github.com/looplj/axonhub/internal/objects.RequestCostSnapshot
   ChannelTagPriority:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelTagPriority

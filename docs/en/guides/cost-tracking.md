@@ -85,6 +85,16 @@ When using tiered pricing, the cost breakdown includes tier details:
 
 ## Configuration
 
+### Fixed per-key cost multipliers
+
+Choose manual or upstream mode in [channel balance and rate settings](channel-management.md#upstream-balances-and-per-key-rates). If local token prices produce a base cost of $1, key A at 0.5× costs $0.50 and key B at 0.8× costs $0.80. A retry selecting B captures B's rate for that attempt; no average is used.
+
+Each attempt records a masked key label, price version, pricing time, multiplier and source. Response `usage.cost` and persisted usage share that snapshot. Synchronization, manual edits or channel disabling during a stream do not reprice it. Historical records and backups retain the captured result. An upstream rate alone cannot produce a cost without a local model price.
+
+The upstream multiplier is applied once, rather than multiplied by the manual value again. Independent flat charges retain the manual multiplier. Valid previous values after temporary failures are marked cached. Rates older than 30 minutes, beyond a known upstream time boundary or without verified identity use the manual fallback and are marked estimated. `UsageLog.costSnapshot` exposes the token multiplier and source. `costPriceMultiplier` returns the multiplier shared by the billed items, or null for mixed multipliers; the breakdown labels these as mixed without deriving one base total. Older records still use their historical price version.
+
+Local base prices must match the upstream base pricing and exclude group multipliers. These are local cost estimates, not a guarantee of the final upstream invoice.
+
 ### Model Pricing
 
 Configure pricing for each channel and model in the admin dashboard:

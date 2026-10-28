@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"time"
 
 	"entgo.io/contrib/entgql"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz/upstream"
 )
 
 type ChannelRoutingOrder struct {
@@ -52,6 +55,32 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 		return nil, err
 	}
 	rows := make([]channelRoutingRow, 0, len(channels))
+	upstreamRates := make(map[int]map[string]*objects.UpstreamKeySnapshot)
+	if order.Field == objects.ChannelRoutingOrderCostMultiplier {
+		ids := make([]int, 0, len(channels))
+		configs := make(map[int]string)
+		for _, ch := range channels {
+			if settings := ch.Settings.UpstreamSettings(); settings.Enabled && settings.CostMode == objects.ChannelCostModeUpstream {
+				ids = append(ids, ch.ID)
+				configs[ch.ID] = upstreamConfigFingerprint(ch)
+			}
+		}
+		if len(ids) > 0 {
+			snapshots, err := svc.entFromContext(ctx).ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelIDIn(ids...)).All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, row := range snapshots {
+				if row.ConfigFingerprint != configs[row.ChannelID] {
+					continue
+				}
+				if upstreamRates[row.ChannelID] == nil {
+					upstreamRates[row.ChannelID] = make(map[string]*objects.UpstreamKeySnapshot)
+				}
+				upstreamRates[row.ChannelID][row.KeyFingerprint] = row.Snapshot
+			}
+		}
+	}
 	for _, ch := range channels {
 		if input.Model != nil && *input.Model != "" && !(&Channel{Channel: ch}).IsModelSupported(*input.Model) {
 			continue
@@ -66,9 +95,16 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 				value = lo.ToPtr(decimal.NewFromInt(int64(*priority)))
 			}
 		} else {
-			value = lo.ToPtr(decimal.NewFromInt(1))
-			if ch.Settings != nil && ch.Settings.ModelPriceMultiplier != nil {
-				value = ch.Settings.ModelPriceMultiplier
+			manual := channelManualMultiplier(ch)
+			value = &manual
+			settings := ch.Settings.UpstreamSettings()
+			if settings.Enabled && settings.CostMode == objects.ChannelCostModeUpstream {
+				for index, key := range ch.Credentials.GetEnabledAPIKeys(ch.DisabledAPIKeys) {
+					applied := appliedUpstreamMultiplier(settings, manual, upstreamRates[ch.ID][upstream.KeyRef(key)], time.Now())
+					if index == 0 || applied.Value.LessThan(*value) {
+						value = lo.ToPtr(applied.Value)
+					}
+				}
 			}
 		}
 		rows = append(rows, channelRoutingRow{channel: ch, value: value})
