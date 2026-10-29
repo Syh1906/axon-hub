@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
+import { ScopesSelect } from '@/components/scopes-select';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { useCreateApiKey } from '../data/apikeys';
 import { CreateApiKeyInput, createApiKeyInputSchema } from '../data/schema';
-import { ScopesSelect } from '@/components/scopes-select';
-import { usePermissions } from '@/hooks/usePermissions';
+import { KeyGroupField } from './key-group-field';
 
 export function ApiKeysCreateDialog() {
   const { t } = useTranslation();
@@ -158,6 +159,7 @@ export function ApiKeysCreateDialog() {
               />
             )}
 
+            <KeyGroupField value={form.watch('groupRef')} onChange={(id) => form.setValue('groupRef', id)} container={dialogContent} />
             <div className='space-y-3 rounded-lg border p-4'>
               <div className='flex items-center justify-between'>
                 <div className='space-y-0.5'>

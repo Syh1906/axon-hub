@@ -259,5 +259,22 @@
   "apikeys.priorities.add": "添加渠道优先级",
   "apikeys.actions.usage": "用量",
   "apikeys.actions.viewUsage": "在新标签页查看此密钥的用量",
-  "apikeys.messages.usageOpenFailed": "无法打开用量页，请允许弹出窗口和浏览器会话存储后重试。"
+  "apikeys.messages.usageOpenFailed": "无法打开用量页，请允许弹出窗口和浏览器会话存储后重试。",
+  "apikeys.groups.title": "密钥分组",
+  "apikeys.groups.none": "无分组",
+  "apikeys.groups.defaults": "默认分组",
+  "apikeys.groups.defaultHelp": "进入此项目的密钥页面时自动应用。不选显示全部，多选时满足任意一个即可。仅保存在当前浏览器，按用户和项目分别记忆。",
+  "apikeys.groups.filterHelp": "不选显示全部，多选时满足任意一个即可。",
+  "apikeys.groups.search": "搜索分组…",
+  "apikeys.groups.clear": "清空（全部）",
+  "apikeys.groups.saveApply": "保存并应用",
+  "apikeys.groups.apply": "应用",
+  "apikeys.groups.saveFailed": "无法在当前浏览器保存默认分组。",
+  "apikeys.groups.name": "分组名称",
+  "apikeys.groups.manageHelp": "将同一使用者的多把密钥分组汇总。分组内任意有效密钥可查看整组用量。",
+  "apikeys.groups.deleteHelp": "删除此分组后，关联密钥变为无分组；密钥和历史用量均保留。",
+  "apikeys.groups.current": "当前密钥",
+  "apikeys.groups.scope": "所属分组",
+  "apikeys.groups.unavailable": "不可用分组 #{{id}}",
+  "apikeys.groups.removeSelection": "移除 {{name}}"
 }

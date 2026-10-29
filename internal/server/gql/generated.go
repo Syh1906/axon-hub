@@ -106,21 +106,24 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	APIKey struct {
-		AllowedIps func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Key        func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Profiles   func(childComplexity int) int
-		Project    func(childComplexity int) int
-		ProjectID  func(childComplexity int) int
-		Requests   func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput) int
-		Scopes     func(childComplexity int) int
-		Status     func(childComplexity int) int
-		Type       func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
-		User       func(childComplexity int) int
-		UserID     func(childComplexity int) int
+		AllowedIps  func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		DisplayName func(childComplexity int) int
+		GroupName   func(childComplexity int) int
+		GroupRef    func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Key         func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Profiles    func(childComplexity int) int
+		Project     func(childComplexity int) int
+		ProjectID   func(childComplexity int) int
+		Requests    func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput) int
+		Scopes      func(childComplexity int) int
+		Status      func(childComplexity int) int
+		Type        func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
+		User        func(childComplexity int) int
+		UserID      func(childComplexity int) int
 	}
 
 	APIKeyAutoDisableRule struct {
@@ -142,6 +145,12 @@ type ComplexityRoot struct {
 	APIKeyEdge struct {
 		Cursor func(childComplexity int) int
 		Node   func(childComplexity int) int
+	}
+
+	APIKeyGroupOption struct {
+		ID        func(childComplexity int) int
+		Name      func(childComplexity int) int
+		ProjectID func(childComplexity int) int
 	}
 
 	APIKeyProfile struct {
@@ -1287,6 +1296,7 @@ type ComplexityRoot struct {
 		CreatePromptProtectionRule            func(childComplexity int, input ent.CreatePromptProtectionRuleInput) int
 		CreateRole                            func(childComplexity int, input ent.CreateRoleInput) int
 		CreateUser                            func(childComplexity int, input ent.CreateUserInput) int
+		DeleteAPIKeyGroup                     func(childComplexity int, id int) int
 		DeleteAPIKeyProfileTemplate           func(childComplexity int, id objects.GUID) int
 		DeleteChannel                         func(childComplexity int, id objects.GUID) int
 		DeleteChannelOverrideTemplate         func(childComplexity int, id objects.GUID) int
@@ -1317,6 +1327,7 @@ type ComplexityRoot struct {
 		RetainTrace                           func(childComplexity int, id objects.GUID) int
 		RevealChannelCredential               func(childComplexity int, channelID objects.GUID, keyRef *string, accountRef *string) int
 		RotateAPIKey                          func(childComplexity int, id objects.GUID) int
+		SaveAPIKeyGroup                       func(childComplexity int, id *int, name string) int
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
 		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal) int
 		SaveChannelUpstreamAccount            func(childComplexity int, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) int
@@ -1663,6 +1674,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		APIKeyGroupOptions              func(childComplexity int) int
 		APIKeyProfileTemplates          func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.APIKeyProfileTemplateOrder, where *ent.APIKeyProfileTemplateWhereInput) int
 		APIKeyQuotaUsages               func(childComplexity int, apiKeyID objects.GUID) int
 		APIKeyTokenUsageStats           func(childComplexity int, input *APIKeyTokenUsageStatsInput) int
@@ -2552,6 +2564,9 @@ type APIKeyResolver interface {
 	ProjectID(ctx context.Context, obj *ent.APIKey) (*objects.GUID, error)
 
 	User(ctx context.Context, obj *ent.APIKey) (*ent.User, error)
+
+	GroupName(ctx context.Context, obj *ent.APIKey) (*string, error)
+	DisplayName(ctx context.Context, obj *ent.APIKey) (string, error)
 }
 type APIKeyProfileTemplateResolver interface {
 	ID(ctx context.Context, obj *ent.APIKeyProfileTemplate) (*objects.GUID, error)
@@ -2755,6 +2770,8 @@ type MutationResolver interface {
 	BulkDisablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	PreviewPromptProtectionRule(ctx context.Context, input PromptProtectionRulePreviewInput) (*PromptProtectionRulePreviewResult, error)
 	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal) ([]*ent.ChannelModelPrice, error)
+	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
+	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
 }
 type OIDCIdentityResolver interface {
 	ID(ctx context.Context, obj *ent.OIDCIdentity) (*objects.GUID, error)
@@ -2875,6 +2892,7 @@ type QueryResolver interface {
 	ConsumptionProjects(ctx context.Context) ([]*biz.ConsumptionProject, error)
 	ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
+	APIKeyGroupOptions(ctx context.Context) ([]*APIKeyGroupOption, error)
 }
 type QuotaEnforcementSettingsResolver interface {
 	AllowedChannelIDs(ctx context.Context, obj *biz.QuotaEnforcementSettings) ([]*objects.GUID, error)
@@ -3007,6 +3025,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.APIKey.CreatedAt(childComplexity), true
+	case "APIKey.displayName":
+		if e.complexity.APIKey.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.APIKey.DisplayName(childComplexity), true
+	case "APIKey.groupName":
+		if e.complexity.APIKey.GroupName == nil {
+			break
+		}
+
+		return e.complexity.APIKey.GroupName(childComplexity), true
+	case "APIKey.groupRef":
+		if e.complexity.APIKey.GroupRef == nil {
+			break
+		}
+
+		return e.complexity.APIKey.GroupRef(childComplexity), true
 	case "APIKey.id":
 		if e.complexity.APIKey.ID == nil {
 			break
@@ -3165,6 +3201,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.APIKeyEdge.Node(childComplexity), true
+
+	case "APIKeyGroupOption.id":
+		if e.complexity.APIKeyGroupOption.ID == nil {
+			break
+		}
+
+		return e.complexity.APIKeyGroupOption.ID(childComplexity), true
+	case "APIKeyGroupOption.name":
+		if e.complexity.APIKeyGroupOption.Name == nil {
+			break
+		}
+
+		return e.complexity.APIKeyGroupOption.Name(childComplexity), true
+	case "APIKeyGroupOption.projectID":
+		if e.complexity.APIKeyGroupOption.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.APIKeyGroupOption.ProjectID(childComplexity), true
 
 	case "APIKeyProfile.channelIDs":
 		if e.complexity.APIKeyProfile.ChannelIDs == nil {
@@ -7798,6 +7853,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(ent.CreateUserInput)), true
+	case "Mutation.deleteAPIKeyGroup":
+		if e.complexity.Mutation.DeleteAPIKeyGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAPIKeyGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAPIKeyGroup(childComplexity, args["id"].(int)), true
 	case "Mutation.deleteApiKeyProfileTemplate":
 		if e.complexity.Mutation.DeleteAPIKeyProfileTemplate == nil {
 			break
@@ -8123,6 +8189,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RotateAPIKey(childComplexity, args["id"].(objects.GUID)), true
+	case "Mutation.saveAPIKeyGroup":
+		if e.complexity.Mutation.SaveAPIKeyGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_saveAPIKeyGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SaveAPIKeyGroup(childComplexity, args["id"].(*int), args["name"].(string)), true
 	case "Mutation.saveChannelEndpoints":
 		if e.complexity.Mutation.SaveChannelEndpoints == nil {
 			break
@@ -9869,6 +9946,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ProxyPreset.Username(childComplexity), true
 
+	case "Query.apiKeyGroupOptions":
+		if e.complexity.Query.APIKeyGroupOptions == nil {
+			break
+		}
+
+		return e.complexity.Query.APIKeyGroupOptions(childComplexity), true
 	case "Query.apiKeyProfileTemplates":
 		if e.complexity.Query.APIKeyProfileTemplates == nil {
 			break
@@ -14153,7 +14236,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql"
+//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -14187,6 +14270,7 @@ var sources = []*ast.Source{
 	{Name: "usage_cost.graphql", Input: sourceData("usage_cost.graphql"), BuiltIn: false},
 	{Name: "analytics.graphql", Input: sourceData("analytics.graphql"), BuiltIn: false},
 	{Name: "consumption.graphql", Input: sourceData("consumption.graphql"), BuiltIn: false},
+	{Name: "api_key_group.graphql", Input: sourceData("api_key_group.graphql"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -14899,6 +14983,17 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteAPIKeyGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteApiKeyProfileTemplate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -15285,6 +15380,22 @@ func (ec *executionContext) field_Mutation_rotateAPIKey_args(ctx context.Context
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_saveAPIKeyGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
 	return args, nil
 }
 
@@ -18033,6 +18144,35 @@ func (ec *executionContext) fieldContext_APIKey_updatedAt(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _APIKey_groupRef(ctx context.Context, field graphql.CollectedField, obj *ent.APIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKey_groupRef,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupRef, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKey_groupRef(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKey",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _APIKey_userID(ctx context.Context, field graphql.CollectedField, obj *ent.APIKey) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18481,6 +18621,64 @@ func (ec *executionContext) fieldContext_APIKey_requests(ctx context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _APIKey_groupName(ctx context.Context, field graphql.CollectedField, obj *ent.APIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKey_groupName,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.APIKey().GroupName(ctx, obj)
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKey_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKey",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _APIKey_displayName(ctx context.Context, field graphql.CollectedField, obj *ent.APIKey) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKey_displayName,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.APIKey().DisplayName(ctx, obj)
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKey_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKey",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _APIKeyAutoDisableRule_statusCodes(ctx context.Context, field graphql.CollectedField, obj *objects.APIKeyAutoDisableRule) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18817,6 +19015,8 @@ func (ec *executionContext) fieldContext_APIKeyEdge_node(_ context.Context, fiel
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -18841,6 +19041,10 @@ func (ec *executionContext) fieldContext_APIKeyEdge_node(_ context.Context, fiel
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -18872,6 +19076,93 @@ func (ec *executionContext) fieldContext_APIKeyEdge_cursor(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _APIKeyGroupOption_id(ctx context.Context, field graphql.CollectedField, obj *APIKeyGroupOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyGroupOption_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyGroupOption_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyGroupOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _APIKeyGroupOption_name(ctx context.Context, field graphql.CollectedField, obj *APIKeyGroupOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyGroupOption_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyGroupOption_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyGroupOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _APIKeyGroupOption_projectID(ctx context.Context, field graphql.CollectedField, obj *APIKeyGroupOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyGroupOption_projectID,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyGroupOption_projectID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyGroupOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -41734,6 +42025,8 @@ func (ec *executionContext) fieldContext_Mutation_createAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -41758,6 +42051,10 @@ func (ec *executionContext) fieldContext_Mutation_createAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -41807,6 +42104,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -41831,6 +42130,10 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -41880,6 +42183,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKeyStatus(ctx context
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -41904,6 +42209,10 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKeyStatus(ctx context
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -41953,6 +42262,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKeyProfiles(ctx conte
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -41977,6 +42288,10 @@ func (ec *executionContext) fieldContext_Mutation_updateAPIKeyProfiles(ctx conte
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -42026,6 +42341,8 @@ func (ec *executionContext) fieldContext_Mutation_rotateAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -42050,6 +42367,10 @@ func (ec *executionContext) fieldContext_Mutation_rotateAPIKey(ctx context.Conte
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -43849,6 +44170,8 @@ func (ec *executionContext) fieldContext_Mutation_loadApiKeyProfileTemplate(ctx 
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -43873,6 +44196,10 @@ func (ec *executionContext) fieldContext_Mutation_loadApiKeyProfileTemplate(ctx 
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -47658,6 +47985,96 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelModelPrices(ctx con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_saveChannelModelPrices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_saveAPIKeyGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_saveAPIKeyGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SaveAPIKeyGroup(ctx, fc.Args["id"].(*int), fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalNAPIKeyGroupOption2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOption,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_saveAPIKeyGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_APIKeyGroupOption_id(ctx, field)
+			case "name":
+				return ec.fieldContext_APIKeyGroupOption_name(ctx, field)
+			case "projectID":
+				return ec.fieldContext_APIKeyGroupOption_projectID(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type APIKeyGroupOption", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_saveAPIKeyGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAPIKeyGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteAPIKeyGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().DeleteAPIKeyGroup(ctx, fc.Args["id"].(int))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAPIKeyGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAPIKeyGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -57364,6 +57781,43 @@ func (ec *executionContext) fieldContext_Query_usageStatistics(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_apiKeyGroupOptions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_apiKeyGroupOptions,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().APIKeyGroupOptions(ctx)
+		},
+		nil,
+		ec.marshalNAPIKeyGroupOption2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOptionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_apiKeyGroupOptions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_APIKeyGroupOption_id(ctx, field)
+			case "name":
+				return ec.fieldContext_APIKeyGroupOption_name(ctx, field)
+			case "projectID":
+				return ec.fieldContext_APIKeyGroupOption_projectID(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type APIKeyGroupOption", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -58673,6 +59127,8 @@ func (ec *executionContext) fieldContext_Request_apiKey(_ context.Context, field
 				return ec.fieldContext_APIKey_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
 			case "userID":
 				return ec.fieldContext_APIKey_userID(ctx, field)
 			case "projectID":
@@ -58697,6 +59153,10 @@ func (ec *executionContext) fieldContext_Request_apiKey(_ context.Context, field
 				return ec.fieldContext_APIKey_project(ctx, field)
 			case "requests":
 				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
 		},
@@ -76308,7 +76768,7 @@ func (ec *executionContext) unmarshalInputAPIKeyWhereInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "userID", "userIDNEQ", "userIDIn", "userIDNotIn", "userIDIsNil", "userIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "key", "keyNEQ", "keyIn", "keyNotIn", "keyGT", "keyGTE", "keyLT", "keyLTE", "keyContains", "keyHasPrefix", "keyHasSuffix", "keyEqualFold", "keyContainsFold", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "type", "typeNEQ", "typeIn", "typeNotIn", "status", "statusNEQ", "statusIn", "statusNotIn", "hasUser", "hasUserWith", "hasProject", "hasProjectWith", "hasRequests", "hasRequestsWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "groupRef", "groupRefNEQ", "groupRefIn", "groupRefNotIn", "groupRefGT", "groupRefGTE", "groupRefLT", "groupRefLTE", "groupRefIsNil", "groupRefNotNil", "userID", "userIDNEQ", "userIDIn", "userIDNotIn", "userIDIsNil", "userIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "key", "keyNEQ", "keyIn", "keyNotIn", "keyGT", "keyGTE", "keyLT", "keyLTE", "keyContains", "keyHasPrefix", "keyHasSuffix", "keyEqualFold", "keyContainsFold", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "type", "typeNEQ", "typeIn", "typeNotIn", "status", "statusNEQ", "statusIn", "statusNotIn", "hasUser", "hasUserWith", "hasProject", "hasProjectWith", "hasRequests", "hasRequestsWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -76536,6 +76996,76 @@ func (ec *executionContext) unmarshalInputAPIKeyWhereInput(ctx context.Context, 
 				return it, err
 			}
 			it.UpdatedAtLTE = data
+		case "groupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRef = data
+		case "groupRefNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefNEQ = data
+		case "groupRefIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefIn"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefIn = data
+		case "groupRefNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefNotIn"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefNotIn = data
+		case "groupRefGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefGT"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefGT = data
+		case "groupRefGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefGTE"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefGTE = data
+		case "groupRefLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefLT"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefLT = data
+		case "groupRefLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefLTE"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefLTE = data
+		case "groupRefIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefIsNil = data
+		case "groupRefNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRefNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRefNotNil = data
 		case "userID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
 			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -82196,13 +82726,20 @@ func (ec *executionContext) unmarshalInputConsumptionFilter(ctx context.Context,
 		asMap["period"] = "TODAY"
 	}
 
-	fieldsInOrder := [...]string{"projectID", "dimension", "metric", "period", "startDate", "endDate", "search"}
+	fieldsInOrder := [...]string{"groupRef", "projectID", "dimension", "metric", "period", "startDate", "endDate", "search"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "groupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRef = data
 		case "projectID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
 			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -82361,13 +82898,20 @@ func (ec *executionContext) unmarshalInputCreateAPIKeyInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "type", "scopes", "allowedIps", "projectID"}
+	fieldsInOrder := [...]string{"groupRef", "name", "type", "scopes", "allowedIps", "projectID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "groupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRef = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -97007,13 +97551,27 @@ func (ec *executionContext) unmarshalInputUpdateAPIKeyInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "scopes", "appendScopes", "clearScopes", "allowedIps", "appendAllowedIps", "clearAllowedIps"}
+	fieldsInOrder := [...]string{"groupRef", "clearGroupRef", "name", "scopes", "appendScopes", "clearScopes", "allowedIps", "appendAllowedIps", "clearAllowedIps"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "groupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRef = data
+		case "clearGroupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearGroupRef"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearGroupRef = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -103363,6 +103921,8 @@ func (ec *executionContext) _APIKey(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "groupRef":
+			out.Values[i] = ec._APIKey_groupRef(ctx, field, obj)
 		case "userID":
 			field := field
 
@@ -103563,6 +104123,75 @@ func (ec *executionContext) _APIKey(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "groupName":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._APIKey_groupName(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "displayName":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._APIKey_displayName(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -103701,6 +104330,55 @@ func (ec *executionContext) _APIKeyEdge(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = ec._APIKeyEdge_node(ctx, field, obj)
 		case "cursor":
 			out.Values[i] = ec._APIKeyEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var aPIKeyGroupOptionImplementors = []string{"APIKeyGroupOption"}
+
+func (ec *executionContext) _APIKeyGroupOption(ctx context.Context, sel ast.SelectionSet, obj *APIKeyGroupOption) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, aPIKeyGroupOptionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("APIKeyGroupOption")
+		case "id":
+			out.Values[i] = ec._APIKeyGroupOption_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._APIKeyGroupOption_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projectID":
+			out.Values[i] = ec._APIKeyGroupOption_projectID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -113748,6 +114426,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "saveAPIKeyGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_saveAPIKeyGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAPIKeyGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAPIKeyGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -118441,6 +119133,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_usageStatistics(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "apiKeyGroupOptions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_apiKeyGroupOptions(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -126676,6 +127390,64 @@ func (ec *executionContext) marshalNAPIKeyConnection2ᚖgithubᚗcomᚋloopljᚋ
 		return graphql.Null
 	}
 	return ec._APIKeyConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAPIKeyGroupOption2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOption(ctx context.Context, sel ast.SelectionSet, v APIKeyGroupOption) graphql.Marshaler {
+	return ec._APIKeyGroupOption(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAPIKeyGroupOption2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*APIKeyGroupOption) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAPIKeyGroupOption2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOption(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAPIKeyGroupOption2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐAPIKeyGroupOption(ctx context.Context, sel ast.SelectionSet, v *APIKeyGroupOption) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._APIKeyGroupOption(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNAPIKeyOrderField2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKeyOrderField(ctx context.Context, v any) (*ent.APIKeyOrderField, error) {

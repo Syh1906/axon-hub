@@ -58,7 +58,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 			Quantity: cost.Quantity, Subtotal: cost.Subtotal, TierBreakdown: tiers,
 		})
 	}
-	return &SelfUsageRequest{
+	return &SelfUsageRequest{APIKeyName: value.APIKeyName,
 		ID: value.ID, CreatedAt: value.CreatedAt, Model: value.Model,
 		Status: SelfUsageRequestStatus(value.Status), RequestStatus: value.RequestStatus, Stream: value.Stream,
 		LatencyMs: value.LatencyMs, FirstTokenLatencyMs: value.FirstTokenLatencyMs,

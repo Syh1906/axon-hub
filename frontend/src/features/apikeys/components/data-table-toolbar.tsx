@@ -1,15 +1,17 @@
+import { useMemo } from 'react';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import { Table } from '@tanstack/react-table';
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatUserName } from '@/lib/utils';
+import type { DateTimeRangeValue } from '@/utils/date-range';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/date-range-picker';
-import type { DateTimeRangeValue } from '@/utils/date-range';
-import { formatUserName } from '@/lib/utils';
 import { DataTableFacetedFilter } from '@/components/data-table-faceted-filter';
+import { DateRangePicker } from '@/components/date-range-picker';
 import { useUsers } from '@/features/users/data/users';
+import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKeyStatus } from '../data/schema';
+import { KeyGroupFilter } from './key-group-controls';
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -27,8 +29,9 @@ export function DataTableToolbar<TData>({
   canViewCreators = false,
 }: DataTableToolbarProps<TData>) {
   const { t } = useTranslation();
+  const { groupFilters } = useApiKeysContext();
   const hasDateRange = !!dateRange?.from || !!dateRange?.to;
-  const isFiltered = table.getState().columnFilters.length > 0 || hasDateRange;
+  const isFiltered = table.getState().columnFilters.length > 0 || hasDateRange || groupFilters.length > 0;
 
   const { data: usersData } = useUsers(
     {
@@ -79,6 +82,7 @@ export function DataTableToolbar<TData>({
         {canViewCreators && table.getColumn('creator') && userOptions.length > 0 && usersData?.edges && (
           <DataTableFacetedFilter column={table.getColumn('creator')} title={t('apikeys.filters.creator')} options={userOptions} />
         )}
+        <KeyGroupFilter />
         <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
         {isFiltered && (
           <Button
@@ -95,6 +99,7 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
+      <KeyGroupFilter defaults />
     </div>
   );
 }

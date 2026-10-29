@@ -135,6 +135,30 @@ func (f APIKeyMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyMutation", m)
 }
 
+// The APIKeyGroupQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type APIKeyGroupQueryRuleFunc func(context.Context, *ent.APIKeyGroupQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f APIKeyGroupQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyGroupQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.APIKeyGroupQuery", q)
+}
+
+// The APIKeyGroupMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type APIKeyGroupMutationRuleFunc func(context.Context, *ent.APIKeyGroupMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f APIKeyGroupMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.APIKeyGroupMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyGroupMutation", m)
+}
+
 // The APIKeyProfileTemplateQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type APIKeyProfileTemplateQueryRuleFunc func(context.Context, *ent.APIKeyProfileTemplateQuery) error
@@ -796,6 +820,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return q.Filter(), nil
+	case *ent.APIKeyGroupQuery:
+		return q.Filter(), nil
 	case *ent.APIKeyProfileTemplateQuery:
 		return q.Filter(), nil
 	case *ent.CacheEffectivenessWindowQuery:
@@ -856,6 +882,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 func mutationFilter(m ent.Mutation) (Filter, error) {
 	switch m := m.(type) {
 	case *ent.APIKeyMutation:
+		return m.Filter(), nil
+	case *ent.APIKeyGroupMutation:
 		return m.Filter(), nil
 	case *ent.APIKeyProfileTemplateMutation:
 		return m.Filter(), nil

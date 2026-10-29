@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
+import { useSelectedProjectId } from '@/stores/projectStore';
+import { type DateTimeRangeValue } from '@/utils/date-range';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
-import { type DateTimeRangeValue } from '@/utils/date-range';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
@@ -12,8 +13,10 @@ import { createColumns } from './components/apikeys-columns';
 import { ApiKeysDialogs } from './components/apikeys-dialogs';
 import { ApiKeysPrimaryButtons } from './components/apikeys-primary-buttons';
 import { ApiKeysTable } from './components/apikeys-table';
+import { useApiKeysContext } from './context/apikeys-context';
 import ApiKeysProvider from './context/apikeys-context';
 import { useApiKeys } from './data/apikeys';
+import { groupFilter } from './data/default-groups';
 import { ApiKeyType } from './data/schema';
 
 type ApiKeyTabKey = ApiKeyType | 'all' | 'mine';
@@ -50,13 +53,13 @@ function loadSorting(): SortingState {
 }
 
 function ApiKeysContent() {
+  const { groupFilters, setGroupFilters } = useApiKeysContext();
   const { t } = useTranslation();
   const { user, apiKeyPermissions, userPermissions } = usePermissions();
-  const { startCursor, endCursor, cursorHistory, pageSize, setCursors, setPageSize, resetCursor, paginationArgs } =
-    usePaginationSearch({
-      defaultPageSize: 20,
-      pageSizeStorageKey: 'apikeys-table-page-size',
-    });
+  const { startCursor, endCursor, cursorHistory, pageSize, setCursors, setPageSize, resetCursor, paginationArgs } = usePaginationSearch({
+    defaultPageSize: 20,
+    pageSizeStorageKey: 'apikeys-table-page-size',
+  });
 
   const [activeTab, setActiveTab] = useState<ApiKeyTabKey>('all');
   const [sorting, setSorting] = useState<SortingState>(loadSorting);
@@ -89,15 +92,12 @@ function ApiKeysContent() {
   // Build where clause for API filtering
   const whereClause = (() => {
     const where: Record<string, unknown> = {};
-    
+
     // Use OR condition for searching both name and key
     if (debouncedSearchFilter) {
-      where.or = [
-        { nameContainsFold: debouncedSearchFilter },
-        { keyContainsFold: debouncedSearchFilter },
-      ];
+      where.or = [{ nameContainsFold: debouncedSearchFilter }, { keyContainsFold: debouncedSearchFilter }];
     }
-    
+
     if (activeTab === 'mine') {
       where.userID = user?.id;
     } else if (activeTab !== 'all') {
@@ -112,19 +112,16 @@ function ApiKeysContent() {
     if (userFilter.length > 0 && userFilter[0]) {
       where.userID = userFilter[0]; // API expects single userID
     }
-    
+
     // Add AND condition to combine OR search with other filters
     if (where.or && (where.typeIn || where.statusIn || where.userID)) {
       const orCondition = where.or;
       delete where.or;
       return {
-        and: [
-          { or: orCondition },
-          where,
-        ],
+        and: [{ or: orCondition }, where],
       };
     }
-    
+
     return Object.keys(where).length > 0 ? where : undefined;
   })();
 
@@ -147,20 +144,17 @@ function ApiKeysContent() {
 
   const { data, isLoading } = useApiKeys({
     ...(sortingCursorResetPending ? { first: pageSize } : paginationArgs),
-    where: whereClause,
+    where: groupFilters.length ? { and: [whereClause ?? {}, groupFilter(groupFilters)] } : whereClause,
     orderBy: currentOrderBy,
   });
 
-  const tableData = React.useMemo(
-    () => (data?.edges?.map((edge) => edge.node) ?? []),
-    [data?.edges]
-  );
+  const tableData = React.useMemo(() => data?.edges?.map((edge) => edge.node) ?? [], [data?.edges]);
 
   // Reset cursor when filters change
   React.useEffect(() => {
     resetCursor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchFilter, activeTab, statusFilter, userFilter, dateRange]);
+  }, [debouncedSearchFilter, activeTab, statusFilter, userFilter, dateRange, groupFilters]);
 
   const handleNextPage = () => {
     if (data?.pageInfo?.hasNextPage && data?.pageInfo?.endCursor) {
@@ -202,6 +196,7 @@ function ApiKeysContent() {
   };
 
   const handleResetFilters = () => {
+    setGroupFilters([]);
     setSearchFilter('');
     setStatusFilter([]);
     setUserFilter([]);
@@ -268,15 +263,17 @@ function ApiKeysContent() {
 }
 
 export default function ApiKeysManagement() {
+  const project = useSelectedProjectId();
+  const { user } = usePermissions();
   const { t } = useTranslation();
 
   return (
-    <ApiKeysProvider>
-      <Header fixed>
-        <div className='flex flex-1 items-center justify-between'>
+    <ApiKeysProvider key={`${user?.id}:${project}`}>
+      <Header className='h-auto min-h-16 shrink-0'>
+        <div className='flex min-w-0 flex-1 flex-col items-start justify-between gap-3 sm:flex-row sm:items-center'>
           <div>
             <h2 className='text-xl font-bold tracking-tight'>{t('apikeys.title')}</h2>
-            <p className='text-sm text-muted-foreground'>{t('apikeys.description')}</p>
+            <p className='text-muted-foreground text-sm'>{t('apikeys.description')}</p>
           </div>
           <ApiKeysPrimaryButtons />
         </div>

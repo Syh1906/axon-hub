@@ -33,6 +33,8 @@ const (
 	FieldStatus = "status"
 	// FieldProfiles holds the string denoting the profiles field in the database.
 	FieldProfiles = "profiles"
+	// EdgeAPIKeyGroups holds the string denoting the api_key_groups edge name in mutations.
+	EdgeAPIKeyGroups = "api_key_groups"
 	// EdgeUsers holds the string denoting the users edge name in mutations.
 	EdgeUsers = "users"
 	// EdgeInvitations holds the string denoting the invitations edge name in mutations.
@@ -57,6 +59,13 @@ const (
 	EdgeProjectUsers = "project_users"
 	// Table holds the table name of the project in the database.
 	Table = "projects"
+	// APIKeyGroupsTable is the table that holds the api_key_groups relation/edge.
+	APIKeyGroupsTable = "api_key_groups"
+	// APIKeyGroupsInverseTable is the table name for the APIKeyGroup entity.
+	// It exists in this package in order to avoid circular dependency with the "apikeygroup" package.
+	APIKeyGroupsInverseTable = "api_key_groups"
+	// APIKeyGroupsColumn is the table column denoting the api_key_groups relation/edge.
+	APIKeyGroupsColumn = "project_id"
 	// UsersTable is the table that holds the users relation/edge. The primary key declared below.
 	UsersTable = "user_projects"
 	// UsersInverseTable is the table name for the User entity.
@@ -249,6 +258,20 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
+// ByAPIKeyGroupsCount orders the results by api_key_groups count.
+func ByAPIKeyGroupsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAPIKeyGroupsStep(), opts...)
+	}
+}
+
+// ByAPIKeyGroups orders the results by api_key_groups terms.
+func ByAPIKeyGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAPIKeyGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUsersCount orders the results by users count.
 func ByUsersCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -401,6 +424,13 @@ func ByProjectUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProjectUsersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
+}
+func newAPIKeyGroupsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(APIKeyGroupsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, APIKeyGroupsTable, APIKeyGroupsColumn),
+	)
 }
 func newUsersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

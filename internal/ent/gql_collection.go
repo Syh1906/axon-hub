@@ -186,6 +186,11 @@ func (_q *APIKeyQuery) collectField(ctx context.Context, oneNode bool, opCtx *gr
 				selectedFields = append(selectedFields, apikey.FieldUpdatedAt)
 				fieldSeen[apikey.FieldUpdatedAt] = struct{}{}
 			}
+		case "groupRef":
+			if _, ok := fieldSeen[apikey.FieldGroupRef]; !ok {
+				selectedFields = append(selectedFields, apikey.FieldGroupRef)
+				fieldSeen[apikey.FieldGroupRef] = struct{}{}
+			}
 		case "userID":
 			if _, ok := fieldSeen[apikey.FieldUserID]; !ok {
 				selectedFields = append(selectedFields, apikey.FieldUserID)

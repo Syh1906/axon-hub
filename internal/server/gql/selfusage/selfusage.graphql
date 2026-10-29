@@ -2,14 +2,15 @@ scalar Time
 
 type Query {
   selfUsageMeta: SelfUsageMeta!
-  selfUsageStats(start: String!, end: String!): SelfUsageStats!
+  selfUsageStats(start: String!, end: String!, group: Boolean! = false): SelfUsageStats!
   selfUsageRequests(
     start: String!, end: String!, model: String, status: SelfUsageRequestStatus,
-    page: Int = 1, pageSize: Int = 20
+    page: Int = 1, pageSize: Int = 20, group: Boolean! = false
   ): SelfUsageRequestPage!
 }
 
 type SelfUsageMeta {
+  groupName: String
   apiKeyName: String!
   apiKeyType: String!        # "user" | "personal"
   currencyCode: String!
@@ -36,6 +37,9 @@ type SelfUsageModelStat { model: String!, usage: SelfUsageSummary! }
 type SelfUsageDailyStat { date: String!, usage: SelfUsageSummary! }   # date = YYYY-MM-DD（系统时区）
 
 type SelfUsageStats {
+  scopeID: String!
+  apiKeyName: String!
+  groupName: String
   start: String!
   end: String!
   totals: SelfUsageSummary!
@@ -46,6 +50,7 @@ type SelfUsageStats {
 enum SelfUsageRequestStatus { SUCCESS FAILED PROCESSING }
 
 type SelfUsageRequest {
+  apiKeyName: String!
   id: Int!                         # 数字请求 ID，仅作列表 key
   createdAt: Time!
   model: String!
@@ -94,6 +99,9 @@ type SelfUsageTierCost {
 }
 
 type SelfUsageRequestPage {
+  scopeID: String!
+  apiKeyName: String!
+  groupName: String
   items: [SelfUsageRequest!]!
   page: Int!
   pageSize: Int!

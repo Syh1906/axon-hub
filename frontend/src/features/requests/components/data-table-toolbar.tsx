@@ -322,11 +322,11 @@ export function DataTableToolbar<TData>({
 
     const options = new Map<string, { value: string; label: string }>();
     for (const edge of selectedApiKeysData?.edges ?? []) {
-      options.set(edge.node.id, { value: edge.node.id, label: edge.node.name });
+      options.set(edge.node.id, { value: edge.node.id, label: edge.node.displayName ?? edge.node.name });
     }
     for (const page of apiKeysData?.pages ?? []) {
       for (const edge of page.edges) {
-        options.set(edge.node.id, { value: edge.node.id, label: edge.node.name });
+        options.set(edge.node.id, { value: edge.node.id, label: edge.node.displayName ?? edge.node.name });
       }
     }
     return Array.from(options.values());

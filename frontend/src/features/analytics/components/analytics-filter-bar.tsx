@@ -35,12 +35,7 @@ interface DateRangePickerProps {
   onEndChange: (date: Date | null) => void;
 }
 
-export function DateRangePicker({
-  startDate,
-  endDate,
-  onStartChange,
-  onEndChange,
-}: DateRangePickerProps) {
+export function DateRangePicker({ startDate, endDate, onStartChange, onEndChange }: DateRangePickerProps) {
   const { t } = useTranslation();
   const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
@@ -169,11 +164,11 @@ export function AnalyticsFilterBar({ earliestDate }: AnalyticsFilterBarProps) {
   const apiKeyOptions = useMemo(() => {
     const options = new Map<string, { label: string; value: string }>();
     for (const edge of selectedApiKeysData?.edges ?? []) {
-      options.set(edge.node.id, { label: edge.node.name, value: edge.node.id });
+      options.set(edge.node.id, { label: edge.node.displayName ?? edge.node.name, value: edge.node.id });
     }
     for (const page of apiKeysData?.pages ?? []) {
       for (const edge of page.edges) {
-        options.set(edge.node.id, { label: edge.node.name, value: edge.node.id });
+        options.set(edge.node.id, { label: edge.node.displayName ?? edge.node.name, value: edge.node.id });
       }
     }
     return Array.from(options.values());

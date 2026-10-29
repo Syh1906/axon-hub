@@ -1,0 +1,19 @@
+type APIKeyGroupOption {
+  id: Int!
+  name: String!
+  projectID: Int!
+}
+
+extend type APIKey {
+  groupName: String
+  displayName: String!
+}
+
+extend type Query {
+  apiKeyGroupOptions: [APIKeyGroupOption!]!
+}
+
+extend type Mutation {
+  saveAPIKeyGroup(id: Int, name: String!): APIKeyGroupOption!
+  deleteAPIKeyGroup(id: Int!): Boolean!
+}

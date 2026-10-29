@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/predicate"
@@ -120,6 +121,21 @@ func (_u *ProjectUpdate) SetProfiles(v *objects.ProjectProfiles) *ProjectUpdate 
 func (_u *ProjectUpdate) ClearProfiles() *ProjectUpdate {
 	_u.mutation.ClearProfiles()
 	return _u
+}
+
+// AddAPIKeyGroupIDs adds the "api_key_groups" edge to the APIKeyGroup entity by IDs.
+func (_u *ProjectUpdate) AddAPIKeyGroupIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.AddAPIKeyGroupIDs(ids...)
+	return _u
+}
+
+// AddAPIKeyGroups adds the "api_key_groups" edges to the APIKeyGroup entity.
+func (_u *ProjectUpdate) AddAPIKeyGroups(v ...*APIKeyGroup) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAPIKeyGroupIDs(ids...)
 }
 
 // AddUserIDs adds the "users" edge to the User entity by IDs.
@@ -290,6 +306,27 @@ func (_u *ProjectUpdate) AddProjectUsers(v ...*UserProject) *ProjectUpdate {
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdate) Mutation() *ProjectMutation {
 	return _u.mutation
+}
+
+// ClearAPIKeyGroups clears all "api_key_groups" edges to the APIKeyGroup entity.
+func (_u *ProjectUpdate) ClearAPIKeyGroups() *ProjectUpdate {
+	_u.mutation.ClearAPIKeyGroups()
+	return _u
+}
+
+// RemoveAPIKeyGroupIDs removes the "api_key_groups" edge to APIKeyGroup entities by IDs.
+func (_u *ProjectUpdate) RemoveAPIKeyGroupIDs(ids ...int) *ProjectUpdate {
+	_u.mutation.RemoveAPIKeyGroupIDs(ids...)
+	return _u
+}
+
+// RemoveAPIKeyGroups removes "api_key_groups" edges to APIKeyGroup entities.
+func (_u *ProjectUpdate) RemoveAPIKeyGroups(v ...*APIKeyGroup) *ProjectUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAPIKeyGroupIDs(ids...)
 }
 
 // ClearUsers clears all "users" edges to the User entity.
@@ -616,6 +653,51 @@ func (_u *ProjectUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ProfilesCleared() {
 		_spec.ClearField(project.FieldProfiles, field.TypeJSON)
+	}
+	if _u.mutation.APIKeyGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAPIKeyGroupsIDs(); len(nodes) > 0 && !_u.mutation.APIKeyGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.APIKeyGroupsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1227,6 +1309,21 @@ func (_u *ProjectUpdateOne) ClearProfiles() *ProjectUpdateOne {
 	return _u
 }
 
+// AddAPIKeyGroupIDs adds the "api_key_groups" edge to the APIKeyGroup entity by IDs.
+func (_u *ProjectUpdateOne) AddAPIKeyGroupIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.AddAPIKeyGroupIDs(ids...)
+	return _u
+}
+
+// AddAPIKeyGroups adds the "api_key_groups" edges to the APIKeyGroup entity.
+func (_u *ProjectUpdateOne) AddAPIKeyGroups(v ...*APIKeyGroup) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAPIKeyGroupIDs(ids...)
+}
+
 // AddUserIDs adds the "users" edge to the User entity by IDs.
 func (_u *ProjectUpdateOne) AddUserIDs(ids ...int) *ProjectUpdateOne {
 	_u.mutation.AddUserIDs(ids...)
@@ -1395,6 +1492,27 @@ func (_u *ProjectUpdateOne) AddProjectUsers(v ...*UserProject) *ProjectUpdateOne
 // Mutation returns the ProjectMutation object of the builder.
 func (_u *ProjectUpdateOne) Mutation() *ProjectMutation {
 	return _u.mutation
+}
+
+// ClearAPIKeyGroups clears all "api_key_groups" edges to the APIKeyGroup entity.
+func (_u *ProjectUpdateOne) ClearAPIKeyGroups() *ProjectUpdateOne {
+	_u.mutation.ClearAPIKeyGroups()
+	return _u
+}
+
+// RemoveAPIKeyGroupIDs removes the "api_key_groups" edge to APIKeyGroup entities by IDs.
+func (_u *ProjectUpdateOne) RemoveAPIKeyGroupIDs(ids ...int) *ProjectUpdateOne {
+	_u.mutation.RemoveAPIKeyGroupIDs(ids...)
+	return _u
+}
+
+// RemoveAPIKeyGroups removes "api_key_groups" edges to APIKeyGroup entities.
+func (_u *ProjectUpdateOne) RemoveAPIKeyGroups(v ...*APIKeyGroup) *ProjectUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAPIKeyGroupIDs(ids...)
 }
 
 // ClearUsers clears all "users" edges to the User entity.
@@ -1751,6 +1869,51 @@ func (_u *ProjectUpdateOne) sqlSave(ctx context.Context) (_node *Project, err er
 	}
 	if _u.mutation.ProfilesCleared() {
 		_spec.ClearField(project.FieldProfiles, field.TypeJSON)
+	}
+	if _u.mutation.APIKeyGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAPIKeyGroupsIDs(); len(nodes) > 0 && !_u.mutation.APIKeyGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.APIKeyGroupsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{

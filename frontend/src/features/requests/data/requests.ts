@@ -18,6 +18,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
   const apiKeyFields = permissions.canViewApiKeys
     ? `
           apiKey {
+            groupName
             id
             name${permissions.canViewCallerUser ? `
             user {
@@ -138,6 +139,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
   const apiKeyFields = permissions.canViewApiKeys
     ? `
           apiKey {
+            groupName
             id
             name${permissions.canViewCallerUser ? `
             user {
@@ -204,6 +206,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
   const apiKeyFields = permissions.canViewApiKeys
     ? `
           apiKey {
+            groupName
             id
             name${permissions.canViewCallerUser ? `
             user {

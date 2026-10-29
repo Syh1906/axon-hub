@@ -259,5 +259,22 @@
   "apikeys.priorities.add": "Add channel priority",
   "apikeys.actions.usage": "Usage",
   "apikeys.actions.viewUsage": "View usage for this key in a new tab",
-  "apikeys.messages.usageOpenFailed": "Could not open usage. Allow pop-ups and session storage, then try again."
+  "apikeys.messages.usageOpenFailed": "Could not open usage. Allow pop-ups and session storage, then try again.",
+  "apikeys.groups.title": "Key groups",
+  "apikeys.groups.none": "Ungrouped",
+  "apikeys.groups.defaults": "Default groups",
+  "apikeys.groups.defaultHelp": "Apply when entering this project. Select none for all, or match any selected group. Saved in this browser per user and project.",
+  "apikeys.groups.filterHelp": "Select none for all, or match any selected group.",
+  "apikeys.groups.search": "Search groups…",
+  "apikeys.groups.clear": "Clear (all)",
+  "apikeys.groups.saveApply": "Save and apply",
+  "apikeys.groups.apply": "Apply",
+  "apikeys.groups.saveFailed": "Unable to save default groups in this browser.",
+  "apikeys.groups.name": "Group name",
+  "apikeys.groups.manageHelp": "Group multiple keys for one recipient. Any valid member key can view group usage.",
+  "apikeys.groups.deleteHelp": "Remove this group and ungroup its keys. Keys and usage records are preserved.",
+  "apikeys.groups.current": "Current key",
+  "apikeys.groups.scope": "Key group",
+  "apikeys.groups.unavailable": "Unavailable group #{{id}}",
+  "apikeys.groups.removeSelection": "Remove {{name}}"
 }

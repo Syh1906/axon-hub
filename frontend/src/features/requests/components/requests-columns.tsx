@@ -1,5 +1,6 @@
 'use client';
 
+import { apiKeyOwnerLabel } from '@/components/api-key-identity';
 import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
 import { IconArrowsExchange, IconArrowsJoin2, IconClockHour1, IconRoute } from '@tabler/icons-react';
@@ -7,7 +8,6 @@ import { Ban, FileText } from 'lucide-react';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { formatUserName } from '@/lib/utils';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
@@ -480,7 +480,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
           return <Badge variant='secondary'>{t(`requests.source.${request.source}`)}</Badge>;
         }
 
-        const callerName = formatUserName(request.apiKey?.user?.firstName, request.apiKey?.user?.lastName);
+        const callerName = apiKeyOwnerLabel(request.apiKey ?? {});
 
         return (
           <div className='flex min-w-[120px] flex-col gap-0.5'>

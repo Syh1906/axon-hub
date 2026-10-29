@@ -57,6 +57,7 @@ func (Project) Fields() []ent.Field {
 // Edges of the Project.
 func (Project) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("api_key_groups", APIKeyGroup.Type).Annotations(entgql.Skip(entgql.SkipAll)),
 		edge.To("users", User.Type).
 			Through("project_users", UserProject.Type).
 			StorageKey(edge.Symbol("user_projects_by_user_id_project_id")).

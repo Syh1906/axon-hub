@@ -17,6 +17,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type APIKeyGroupOption struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	ProjectID int    `json:"projectID"`
+}
+
 type APIKeyProfileQuotaUsage struct {
 	ProfileName string               `json:"profileName"`
 	Quota       *objects.APIKeyQuota `json:"quota"`

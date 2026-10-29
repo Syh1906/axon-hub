@@ -815,6 +815,10 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 
 				return fmt.Errorf("API key %s already exists", akData.Name)
 			case ConflictStrategyOverwrite:
+				groupID, err := restoreKeyGroup(ctx, db, existing.ProjectID, akData.GroupName)
+				if err != nil {
+					return err
+				}
 				update := db.APIKey.UpdateOneID(existing.ID).
 					SetName(akData.Name).
 					SetType(akData.Type).
@@ -822,6 +826,7 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 					SetScopes(akData.Scopes).
 					SetProfiles(akData.Profiles)
 
+				update.ClearGroupRef().SetNillableGroupRef(groupID)
 				if _, err := update.Save(ctx); err != nil {
 					log.Error(ctx, "failed to restore API key",
 						log.String("name", akData.Name),
@@ -851,7 +856,11 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				return err
 			}
 
-			create := db.APIKey.Create().
+			groupID, err := restoreKeyGroup(ctx, db, proj.ID, akData.GroupName)
+			if err != nil {
+				return err
+			}
+			create := db.APIKey.Create().SetNillableGroupRef(groupID).
 				SetKey(akData.Key).
 				SetName(akData.Name).
 				SetType(akData.Type).

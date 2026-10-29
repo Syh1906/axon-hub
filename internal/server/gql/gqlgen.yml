@@ -24,6 +24,7 @@ schema:
   - usage_cost.graphql
   - analytics.graphql
   - consumption.graphql
+  - api_key_group.graphql
 
 omit_gqlgen_version_in_file_notice: true
 

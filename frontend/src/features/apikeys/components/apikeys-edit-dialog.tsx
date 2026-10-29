@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { ScopesSelect } from '@/components/scopes-select';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { useUpdateApiKey } from '../data/apikeys';
 import { UpdateApiKeyInput, updateApiKeyInputSchemaFactory } from '../data/schema';
-import { ScopesSelect } from '@/components/scopes-select';
+import { KeyGroupField } from './key-group-field';
 
 export function ApiKeysEditDialog() {
   const { t } = useTranslation();
@@ -39,6 +40,7 @@ export function ApiKeysEditDialog() {
       setIpInput(allowedIps.join(', '));
       form.reset({
         name: selectedApiKey.name,
+        groupRef: selectedApiKey.groupRef ?? undefined,
         scopes: selectedApiKey.scopes || [],
         allowedIps,
       });
@@ -62,6 +64,10 @@ export function ApiKeysEditDialog() {
         allowedIps,
       };
 
+      if ((data.groupRef ?? null) !== (selectedApiKey.groupRef ?? null)) {
+        input.groupRef = data.groupRef;
+        input.clearGroupRef = data.groupRef === undefined;
+      }
       if (selectedApiKey.type === 'service_account') {
         input.scopes = data.scopes;
       }
@@ -121,6 +127,7 @@ export function ApiKeysEditDialog() {
                 )}
               />
             )}
+            <KeyGroupField value={form.watch('groupRef')} onChange={(id) => form.setValue('groupRef', id)} container={dialogContent} />
             <div className='space-y-3 rounded-lg border p-4'>
               <div className='flex items-center justify-between'>
                 <div className='space-y-0.5'>

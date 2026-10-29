@@ -27,6 +27,8 @@ type APIKey struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
 	DeletedAt int `json:"deleted_at,omitempty"`
+	// GroupRef holds the value of the "group_ref" field.
+	GroupRef *int `json:"group_ref,omitempty"`
 	// The creator of the API key
 	UserID int `json:"user_id,omitempty"`
 	// Project ID, default to 1 for backward compatibility
@@ -106,7 +108,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case apikey.FieldScopes, apikey.FieldProfiles, apikey.FieldAllowedIps:
 			values[i] = new([]byte)
-		case apikey.FieldID, apikey.FieldDeletedAt, apikey.FieldUserID, apikey.FieldProjectID:
+		case apikey.FieldID, apikey.FieldDeletedAt, apikey.FieldGroupRef, apikey.FieldUserID, apikey.FieldProjectID:
 			values[i] = new(sql.NullInt64)
 		case apikey.FieldKey, apikey.FieldName, apikey.FieldType, apikey.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -150,6 +152,13 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
 			} else if value.Valid {
 				_m.DeletedAt = int(value.Int64)
+			}
+		case apikey.FieldGroupRef:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field group_ref", values[i])
+			} else if value.Valid {
+				_m.GroupRef = new(int)
+				*_m.GroupRef = int(value.Int64)
 			}
 		case apikey.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -270,6 +279,11 @@ func (_m *APIKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("deleted_at=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DeletedAt))
+	builder.WriteString(", ")
+	if v := _m.GroupRef; v != nil {
+		builder.WriteString("group_ref=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))

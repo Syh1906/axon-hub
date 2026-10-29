@@ -12,6 +12,9 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -88,7 +91,7 @@ func (s *ConsumptionService) UsageStatistics(ctx context.Context, input Consumpt
 		return nil, fmt.Errorf("only project owners can view usage statistics")
 	}
 	if input.Dimension == ConsumptionDimensionChannel || input.Metric != ConsumptionMetricCost {
-		return nil, fmt.Errorf("usage statistics supports user and API key cost summaries")
+		return nil, fmt.Errorf("usage statistics supports user, API key and API key group cost summaries")
 	}
 	if input.ProjectID != nil && (input.ProjectID.Type != ent.TypeProject || input.ProjectID.ID != projectID) {
 		return nil, fmt.Errorf("usage statistics project must match the current project")
@@ -97,7 +100,7 @@ func (s *ConsumptionService) UsageStatistics(ctx context.Context, input Consumpt
 }
 
 func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter, view string, projectID int) (*ConsumptionResult, error) {
-	if _, err := consumptionEnum(string(input.Dimension), "USER", "API_KEY", "CHANNEL"); err != nil {
+	if _, err := consumptionEnum(string(input.Dimension), "USER", "API_KEY", "API_KEY_GROUP", "CHANNEL"); err != nil {
 		return nil, err
 	}
 	if _, err := consumptionEnum(string(input.Metric), "COST", "CACHE"); err != nil {
@@ -121,6 +124,29 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
+		keyRevision := ""
+		if input.Dimension == ConsumptionDimensionAPIKey || input.Dimension == ConsumptionDimensionAPIKeyGroup {
+			keysQuery := s.client.APIKey.Query()
+			groupsQuery := s.client.APIKeyGroup.Query()
+			if projectID > 0 {
+				keysQuery.Where(apikey.ProjectIDEQ(projectID))
+				groupsQuery.Where(apikeygroup.ProjectIDEQ(projectID))
+			}
+			latestKey, err := keysQuery.Select(apikey.FieldID, apikey.FieldUpdatedAt).Order(ent.Desc(apikey.FieldUpdatedAt)).First(ctx)
+			if err != nil && !ent.IsNotFound(err) {
+				return nil, err
+			}
+			latestGroup, err := groupsQuery.Select(apikeygroup.FieldID, apikeygroup.FieldUpdatedAt).Order(ent.Desc(apikeygroup.FieldUpdatedAt)).First(ctx)
+			if err != nil && !ent.IsNotFound(err) {
+				return nil, err
+			}
+			if latestKey != nil {
+				keyRevision += latestKey.UpdatedAt.Format(time.RFC3339Nano)
+			}
+			if latestGroup != nil {
+				keyRevision += latestGroup.UpdatedAt.Format(time.RFC3339Nano)
+			}
+		}
 		keyInput, err := json.Marshal(struct {
 			Project                       int
 			View, Day, Timezone, Currency string
@@ -129,7 +155,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("consumption:v1:%x", sha256.Sum256(keyInput))
+		key := fmt.Sprintf("consumption:v2:%x:%s", sha256.Sum256(keyInput), keyRevision)
 		if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
 			return result, nil
 		}
@@ -138,6 +164,43 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 			return nil, err
 		}
 		entries := consumptionEntries(rows, input)
+		if input.Dimension == ConsumptionDimensionAPIKeyGroup && projectID == 0 && len(entries) > 0 {
+			ids := make([]int, 0, len(entries))
+			for _, entry := range entries {
+				ids = append(ids, entry.ID.ID)
+			}
+			groups, err := s.client.APIKeyGroup.Query().Where(apikeygroup.IDIn(ids...)).
+				WithProject(func(q *ent.ProjectQuery) { q.Select(project.FieldName) }).All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			labels := make(map[int]string, len(groups))
+			for _, group := range groups {
+				labels[group.ID] = group.Name + " · " + group.Edges.Project.Name
+			}
+			for _, entry := range entries {
+				entry.Name = labels[entry.ID.ID]
+			}
+		}
+		if input.Dimension == ConsumptionDimensionAPIKey {
+			ids := make([]int, 0, len(entries))
+			for _, entry := range entries {
+				ids = append(ids, entry.ID.ID)
+			}
+			if len(ids) > 0 {
+				keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).All(ctx)
+				if err != nil {
+					return nil, err
+				}
+				labels, err := APIKeyLabels(ctx, s.client, keys)
+				if err != nil {
+					return nil, err
+				}
+				for _, entry := range entries {
+					entry.Name = labels[entry.ID.ID]
+				}
+			}
+		}
 		if input.Dimension == ConsumptionDimensionChannel {
 			if err := s.attachCacheCoefficients(ctx, projectID, start, end, entries); err != nil {
 				return nil, err

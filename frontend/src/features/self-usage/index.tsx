@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -8,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ThemeSwitch } from '@/components/theme-switch';
 import { RequestIdCell, TokensCell, ReadCacheCell, WriteCacheCell, CostCell, DurationCell } from '@/components/request-usage-cells';
+import { ThemeSwitch } from '@/components/theme-switch';
 import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatus, type SelfUsageMeta, type Usage } from './api';
+import type { SelfUsageIdentity } from './api';
 import { Cost } from './components/cost';
 import { PageError } from './components/page-error';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
+import { sameUsageScope } from './scope';
 import { getPageKey, setPageKey } from './session';
 import { chartDay, presetRange, validRange, type DatePreset, type DateRange } from './utils/date-range';
 
@@ -336,30 +338,44 @@ function ModelTable({ models, meta }: { models: { model: string; usage: Usage }[
 }
 
 function RequestLog({
+  group = false,
   keyValue,
   range,
   meta,
   models,
   onUnauthorized,
+  expectedScope,
+  scopeRevision,
+  onScopeMismatch,
 }: {
+  group?: boolean;
   keyValue: string;
   range: DateRange;
   meta: SelfUsageMeta;
   models: string[];
   onUnauthorized: () => void;
+  expectedScope?: SelfUsageIdentity;
+  scopeRevision: number;
+  onScopeMismatch: () => void;
 }) {
   const { t, locale } = usePageLabels(meta);
   const [model, setModel] = useState<string | null>(null);
   const [status, setStatus] = useState<RequestStatus | null>(null);
   const [page, setPage] = useState(1);
   const result = useQuery({
-    queryKey: ['selfUsage', 'requests', range.start, range.end, model, status, page],
-    queryFn: ({ signal }) => fetchRequests(keyValue, range.start, range.end, model, status, page, signal),
+    queryKey: ['selfUsage', 'requests', scopeRevision, group, range.start, range.end, model, status, page],
+    queryFn: ({ signal }) => fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group),
+    staleTime: 0,
+    gcTime: 0,
   });
   useEffect(() => {
     if (result.error instanceof SelfUsageError && result.error.status === 401) onUnauthorized();
   }, [result.error, onUnauthorized]);
-  const data = result.data;
+  const scopeMismatch = !!result.data && !!expectedScope && !sameUsageScope(result.data, expectedScope);
+  useEffect(() => {
+    if (scopeMismatch) onScopeMismatch();
+  }, [scopeMismatch, onScopeMismatch]);
+  const data = scopeMismatch || !expectedScope ? undefined : result.data;
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.pageSize ?? 20)));
   return (
     <Card>
@@ -415,7 +431,7 @@ function RequestLog({
             }}
           />
         )}
-        {result.isPending && <p role='status'>{t('selfUsage.loading')}</p>}
+        {(result.isPending || scopeMismatch || !expectedScope) && <p role='status'>{t('selfUsage.loading')}</p>}
         {data && (
           <>
             <div className='overflow-x-auto'>
@@ -423,6 +439,7 @@ function RequestLog({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('common.columns.id')}</TableHead>
+                    <TableHead>{t('requests.columns.caller')}</TableHead>
                     <TableHead>{t('requests.columns.model')}</TableHead>
                     <TableHead>{t('requests.columns.tokens')}</TableHead>
                     <TableHead>{t('requests.columns.readCache')}</TableHead>
@@ -435,7 +452,10 @@ function RequestLog({
                 <TableBody>
                   {data.items.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell><RequestIdCell id={item.id} status={item.requestStatus} stream={item.stream} /></TableCell>
+                      <TableCell>
+                        <RequestIdCell id={item.id} status={item.requestStatus} stream={item.stream} />
+                      </TableCell>
+                      <TableCell>{item.apiKeyName}</TableCell>
                       <TableCell>{item.model}</TableCell>
                       {item.usageRecords === 0 ? (
                         <>
@@ -447,17 +467,46 @@ function RequestLog({
                         </>
                       ) : (
                         <>
-                          <TableCell><TokensCell prompt={item.inputTokens} completion={item.outputTokens} reasoning={item.reasoningTokens} /></TableCell>
-                          <TableCell><ReadCacheCell cached={item.cacheReadTokens} prompt={item.inputTokens} /></TableCell>
-                          <TableCell><WriteCacheCell writeCached={item.cacheWriteTokens} prompt={item.inputTokens} /></TableCell>
-                          <TableCell><CostCell total={item.cost} currencyCode={meta.currencyCode} emptyLabel='-' breakdown={{
-                            items: item.costItems.map((costItem) => ({ image: costItem.image, imageRule: costItem.imageRule, unpriced: costItem.unpriced, itemCode: costItem.itemCode, variant: costItem.promptWriteCacheVariantCode, quantity: costItem.quantity, subtotal: costItem.subtotal, tiers: costItem.tierBreakdown })),
-                            multiplier: item.costMultiplierMixed ? 'mixed' : (item.costMultiplier ?? 1),
-                            unpricedRecords: item.unpricedRecords,
-                          }} /></TableCell>
+                          <TableCell>
+                            <TokensCell prompt={item.inputTokens} completion={item.outputTokens} reasoning={item.reasoningTokens} />
+                          </TableCell>
+                          <TableCell>
+                            <ReadCacheCell cached={item.cacheReadTokens} prompt={item.inputTokens} />
+                          </TableCell>
+                          <TableCell>
+                            <WriteCacheCell writeCached={item.cacheWriteTokens} prompt={item.inputTokens} />
+                          </TableCell>
+                          <TableCell>
+                            <CostCell
+                              total={item.cost}
+                              currencyCode={meta.currencyCode}
+                              emptyLabel='-'
+                              breakdown={{
+                                items: item.costItems.map((costItem) => ({
+                                  image: costItem.image,
+                                  imageRule: costItem.imageRule,
+                                  unpriced: costItem.unpriced,
+                                  itemCode: costItem.itemCode,
+                                  variant: costItem.promptWriteCacheVariantCode,
+                                  quantity: costItem.quantity,
+                                  subtotal: costItem.subtotal,
+                                  tiers: costItem.tierBreakdown,
+                                })),
+                                multiplier: item.costMultiplierMixed ? 'mixed' : (item.costMultiplier ?? 1),
+                                unpricedRecords: item.unpricedRecords,
+                              }}
+                            />
+                          </TableCell>
                         </>
                       )}
-                      <TableCell><DurationCell status={item.requestStatus} stream={item.stream} latencyMs={item.latencyMs} firstTokenLatencyMs={item.firstTokenLatencyMs} /></TableCell>
+                      <TableCell>
+                        <DurationCell
+                          status={item.requestStatus}
+                          stream={item.stream}
+                          latencyMs={item.latencyMs}
+                          firstTokenLatencyMs={item.firstTokenLatencyMs}
+                        />
+                      </TableCell>
                       <TableCell className='whitespace-nowrap'>
                         {new Intl.DateTimeFormat(locale, {
                           timeZone: meta.timezone,
@@ -474,7 +523,7 @@ function RequestLog({
                   ))}
                   {!data.items.length && (
                     <TableRow>
-                      <TableCell colSpan={8}>{t('selfUsage.requests.empty')}</TableCell>
+                      <TableCell colSpan={9}>{t('selfUsage.requests.empty')}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -496,18 +545,49 @@ function RequestLog({
   );
 }
 
-function Dashboard({ keyValue, meta, onUnauthorized }: { keyValue: string; meta: SelfUsageMeta; onUnauthorized: () => void }) {
+function Dashboard({
+  keyValue,
+  meta,
+  onUnauthorized,
+  onIdentity,
+}: {
+  keyValue: string;
+  meta: SelfUsageMeta;
+  onUnauthorized: () => void;
+  onIdentity: (identity: Pick<SelfUsageMeta, 'apiKeyName' | 'groupName'>) => void;
+}) {
   const { t } = useTranslation();
+  const [group, setGroup] = useState(false);
+  // A log-only interaction can discover reassignment before the summary does.
+  // Advance both queries together so old totals and a new group log cannot mix.
+  const [scopeRevision, setScopeRevision] = useState(0);
+  const syncScope = useCallback(() => setScopeRevision((value) => value + 1), []);
   const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
   const stats = useQuery({
-    queryKey: ['selfUsage', 'stats', range.start, range.end],
-    queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal),
+    queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end],
+    queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group),
+    // Membership can change while this page is open; do not reuse a previous scope after toggling.
+    staleTime: 0,
+    gcTime: 0,
   });
+  useEffect(() => {
+    if (stats.data) onIdentity(stats.data);
+  }, [stats.data, onIdentity]);
   useEffect(() => {
     if (stats.error instanceof SelfUsageError && stats.error.status === 401) onUnauthorized();
   }, [stats.error, onUnauthorized]);
   return (
     <div className='space-y-6'>
+      {meta.groupName && (
+        <div className='flex items-center gap-2'>
+          <Button variant={group ? 'outline' : 'default'} onClick={() => setGroup(false)}>
+            {t('apikeys.groups.current')}
+          </Button>
+          <Button variant={group ? 'default' : 'outline'} onClick={() => setGroup(true)}>
+            {t('apikeys.groups.scope')}: {meta.groupName}
+          </Button>
+        </div>
+      )}
       <DatePicker meta={meta} onChange={setRange} />
       {stats.isPending && <p role='status'>{t('selfUsage.loading')}</p>}
       {stats.error && (
@@ -526,11 +606,15 @@ function Dashboard({ keyValue, meta, onUnauthorized }: { keyValue: string; meta:
         </>
       )}
       <RequestLog
-        key={`${range.start}:${range.end}`}
+        key={`${group}:${range.start}:${range.end}`}
+        group={group}
         keyValue={keyValue}
         range={range}
         meta={meta}
         models={stats.data?.models.map((item) => item.model) ?? []}
+        expectedScope={stats.data}
+        scopeRevision={scopeRevision}
+        onScopeMismatch={syncScope}
         onUnauthorized={onUnauthorized}
       />
     </div>
@@ -561,6 +645,16 @@ function PageContent() {
     if (meta.error instanceof SelfUsageError && meta.error.status === 401) logout();
   }, [meta.error]);
   const activeMeta = verifiedMeta ?? meta.data;
+  const updateIdentity = useCallback(
+    (identity: Pick<SelfUsageMeta, 'apiKeyName' | 'groupName'>) => {
+      setVerifiedMeta((previous) => {
+        const current = previous ?? meta.data;
+        if (!current || (current.apiKeyName === identity.apiKeyName && current.groupName === identity.groupName)) return previous;
+        return { ...current, apiKeyName: identity.apiKeyName, groupName: identity.groupName };
+      });
+    },
+    [meta.data]
+  );
   return (
     <main className='bg-background text-foreground min-h-screen'>
       <div className='mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6'>
@@ -616,7 +710,7 @@ function PageContent() {
             <p role='status'>{t('selfUsage.loading')}</p>
           )
         ) : (
-          <Dashboard key={keyValue} keyValue={keyValue} meta={activeMeta} onUnauthorized={logout} />
+          <Dashboard key={keyValue} keyValue={keyValue} meta={activeMeta} onUnauthorized={logout} onIdentity={updateIdentity} />
         )}
       </div>
     </main>

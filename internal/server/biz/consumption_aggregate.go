@@ -14,6 +14,9 @@ func consumptionEntries(rows []consumptionGroup, input ConsumptionFilter) []*Con
 	byID := make(map[int]*ConsumptionEntry)
 	totals := make(map[int]*consumptionGroup)
 	entityType := ent.TypeUser
+	if input.Dimension == ConsumptionDimensionAPIKeyGroup {
+		entityType = "APIKeyGroup"
+	}
 	if input.Dimension == ConsumptionDimensionAPIKey {
 		entityType = ent.TypeAPIKey
 	}

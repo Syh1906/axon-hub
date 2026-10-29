@@ -372,6 +372,12 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 		if input.Type != nil {
 			create.SetType(*input.Type)
 		}
+		if input.GroupRef != nil {
+			if err := s.validateAPIKeyGroup(ctx, input.ProjectID, input.GroupRef); err != nil {
+				return err
+			}
+			create.SetGroupRef(*input.GroupRef)
+		}
 
 		// User type uses the schema default scopes; service account uses provided
 		// scopes (or empty array).
@@ -487,6 +493,18 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 		}
 
 		update := client.APIKey.UpdateOneID(id).SetNillableName(input.Name)
+		if input.GroupRef != nil || input.ClearGroupRef {
+			if err := s.lockProjectForAPIKeyName(ctx, apiKey.ProjectID); err != nil {
+				return err
+			}
+			if err := s.validateAPIKeyGroup(ctx, apiKey.ProjectID, input.GroupRef); err != nil {
+				return err
+			}
+			if input.ClearGroupRef {
+				update.ClearGroupRef()
+			}
+			update.SetNillableGroupRef(input.GroupRef)
+		}
 
 		if apiKey.Type == apikey.TypeServiceAccount {
 			if len(input.Scopes) > 0 {
@@ -958,7 +976,7 @@ type apiKeyCtxKey struct{}
 
 func buildAPIKeyCacheKey(key string) string {
 	hash := xxhash.Sum64String(key)
-	return fmt.Sprintf("api_key:v2:%d", hash)
+	return fmt.Sprintf("api_key:v3:%d", hash)
 }
 
 func buildAPIKeyCacheKeys(keys []string) []string {

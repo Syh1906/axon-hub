@@ -299,7 +299,7 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
           </DialogTitle>
           <DialogDescription>
             {t('apikeys.profiles.description', {
-              name: selectedApiKey?.name,
+              name: selectedApiKey?.displayName ?? selectedApiKey?.name,
             })}
           </DialogDescription>
         </DialogHeader>

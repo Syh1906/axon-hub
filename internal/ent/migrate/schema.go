@@ -14,6 +14,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "deleted_at", Type: field.TypeInt, Default: 0},
+		{Name: "group_ref", Type: field.TypeInt, Nullable: true},
 		{Name: "key", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
 		{Name: "type", Type: field.TypeEnum, Enums: []string{"user", "service_account", "noauth", "personal"}, Default: "user"},
@@ -32,32 +33,66 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_projects_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[11]},
+				Columns:    []*schema.Column{APIKeysColumns[12]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "api_keys_users_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[12]},
+				Columns:    []*schema.Column{APIKeysColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
+				Name:    "api_keys_by_project_group",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeysColumns[12], APIKeysColumns[4]},
+			},
+			{
 				Name:    "api_keys_by_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[12]},
+				Columns: []*schema.Column{APIKeysColumns[13]},
 			},
 			{
 				Name:    "api_keys_by_project_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[11]},
+				Columns: []*schema.Column{APIKeysColumns[12]},
 			},
 			{
 				Name:    "api_keys_by_key",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeysColumns[4]},
+				Columns: []*schema.Column{APIKeysColumns[5]},
+			},
+		},
+	}
+	// APIKeyGroupsColumns holds the columns for the "api_key_groups" table.
+	APIKeyGroupsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "project_id", Type: field.TypeInt},
+	}
+	// APIKeyGroupsTable holds the schema information for the "api_key_groups" table.
+	APIKeyGroupsTable = &schema.Table{
+		Name:       "api_key_groups",
+		Columns:    APIKeyGroupsColumns,
+		PrimaryKey: []*schema.Column{APIKeyGroupsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "api_key_groups_projects_api_key_groups",
+				Columns:    []*schema.Column{APIKeyGroupsColumns[4]},
+				RefColumns: []*schema.Column{ProjectsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "api_key_groups_by_project_name",
+				Unique:  true,
+				Columns: []*schema.Column{APIKeyGroupsColumns[4], APIKeyGroupsColumns[3]},
 			},
 		},
 	}
@@ -1127,6 +1162,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		APIKeyGroupsTable,
 		APIKeyProfileTemplatesTable,
 		CacheEffectivenessWindowsTable,
 		ChannelsTable,
@@ -1159,6 +1195,7 @@ var (
 func init() {
 	APIKeysTable.ForeignKeys[0].RefTable = ProjectsTable
 	APIKeysTable.ForeignKeys[1].RefTable = UsersTable
+	APIKeyGroupsTable.ForeignKeys[0].RefTable = ProjectsTable
 	APIKeyProfileTemplatesTable.ForeignKeys[0].RefTable = ProjectsTable
 	ChannelModelPricesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelModelPriceVersionsTable.ForeignKeys[0].RefTable = ChannelModelPricesTable

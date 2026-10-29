@@ -72,6 +72,18 @@ type APIKeyWhereInput struct {
 	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
 	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
 
+	// "group_ref" field predicates.
+	GroupRef       *int  `json:"groupRef,omitempty"`
+	GroupRefNEQ    *int  `json:"groupRefNEQ,omitempty"`
+	GroupRefIn     []int `json:"groupRefIn,omitempty"`
+	GroupRefNotIn  []int `json:"groupRefNotIn,omitempty"`
+	GroupRefGT     *int  `json:"groupRefGT,omitempty"`
+	GroupRefGTE    *int  `json:"groupRefGTE,omitempty"`
+	GroupRefLT     *int  `json:"groupRefLT,omitempty"`
+	GroupRefLTE    *int  `json:"groupRefLTE,omitempty"`
+	GroupRefIsNil  bool  `json:"groupRefIsNil,omitempty"`
+	GroupRefNotNil bool  `json:"groupRefNotNil,omitempty"`
+
 	// "user_id" field predicates.
 	UserID       *int  `json:"userID,omitempty"`
 	UserIDNEQ    *int  `json:"userIDNEQ,omitempty"`
@@ -283,6 +295,36 @@ func (i *APIKeyWhereInput) P() (predicate.APIKey, error) {
 	}
 	if i.UpdatedAtLTE != nil {
 		predicates = append(predicates, apikey.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.GroupRef != nil {
+		predicates = append(predicates, apikey.GroupRefEQ(*i.GroupRef))
+	}
+	if i.GroupRefNEQ != nil {
+		predicates = append(predicates, apikey.GroupRefNEQ(*i.GroupRefNEQ))
+	}
+	if len(i.GroupRefIn) > 0 {
+		predicates = append(predicates, apikey.GroupRefIn(i.GroupRefIn...))
+	}
+	if len(i.GroupRefNotIn) > 0 {
+		predicates = append(predicates, apikey.GroupRefNotIn(i.GroupRefNotIn...))
+	}
+	if i.GroupRefGT != nil {
+		predicates = append(predicates, apikey.GroupRefGT(*i.GroupRefGT))
+	}
+	if i.GroupRefGTE != nil {
+		predicates = append(predicates, apikey.GroupRefGTE(*i.GroupRefGTE))
+	}
+	if i.GroupRefLT != nil {
+		predicates = append(predicates, apikey.GroupRefLT(*i.GroupRefLT))
+	}
+	if i.GroupRefLTE != nil {
+		predicates = append(predicates, apikey.GroupRefLTE(*i.GroupRefLTE))
+	}
+	if i.GroupRefIsNil {
+		predicates = append(predicates, apikey.GroupRefIsNil())
+	}
+	if i.GroupRefNotNil {
+		predicates = append(predicates, apikey.GroupRefNotNil())
 	}
 	if i.UserID != nil {
 		predicates = append(predicates, apikey.UserIDEQ(*i.UserID))

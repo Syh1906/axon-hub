@@ -70,6 +70,11 @@ func DeletedAt(v int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldDeletedAt, v))
 }
 
+// GroupRef applies equality check predicate on the "group_ref" field. It's identical to GroupRefEQ.
+func GroupRef(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldGroupRef, v))
+}
+
 // UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
 func UserID(v int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUserID, v))
@@ -208,6 +213,56 @@ func DeletedAtLT(v int) predicate.APIKey {
 // DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
 func DeletedAtLTE(v int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// GroupRefEQ applies the EQ predicate on the "group_ref" field.
+func GroupRefEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldGroupRef, v))
+}
+
+// GroupRefNEQ applies the NEQ predicate on the "group_ref" field.
+func GroupRefNEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldGroupRef, v))
+}
+
+// GroupRefIn applies the In predicate on the "group_ref" field.
+func GroupRefIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldGroupRef, vs...))
+}
+
+// GroupRefNotIn applies the NotIn predicate on the "group_ref" field.
+func GroupRefNotIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldGroupRef, vs...))
+}
+
+// GroupRefGT applies the GT predicate on the "group_ref" field.
+func GroupRefGT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldGroupRef, v))
+}
+
+// GroupRefGTE applies the GTE predicate on the "group_ref" field.
+func GroupRefGTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldGroupRef, v))
+}
+
+// GroupRefLT applies the LT predicate on the "group_ref" field.
+func GroupRefLT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldGroupRef, v))
+}
+
+// GroupRefLTE applies the LTE predicate on the "group_ref" field.
+func GroupRefLTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldGroupRef, v))
+}
+
+// GroupRefIsNil applies the IsNil predicate on the "group_ref" field.
+func GroupRefIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldGroupRef))
+}
+
+// GroupRefNotNil applies the NotNil predicate on the "group_ref" field.
+func GroupRefNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldGroupRef))
 }
 
 // UserIDEQ applies the EQ predicate on the "user_id" field.

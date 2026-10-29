@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 // parseDateStr 解析 YYYY-MM-DD 日期字符串为系统时区午夜时间（保持 loc 时区）
@@ -285,9 +286,10 @@ func (r *queryResolver) queryAnalyticsAPIKeyStats(ctx context.Context, filter *A
 		return nil, fmt.Errorf("failed to get API keys for analytics stats: %w", err)
 	}
 
-	apiKeyNames := lo.SliceToMap(apiKeys, func(apiKey *ent.APIKey) (int, string) {
-		return apiKey.ID, apiKey.Name
-	})
+	apiKeyNames, err := biz.APIKeyLabels(ctx, r.client, apiKeys)
+	if err != nil {
+		return nil, err
+	}
 	groups := make(map[int]*AnalyticsAPIKeyStat, len(apiKeys))
 	for _, raw := range rawResults {
 		name := fmt.Sprintf("API Key #%d", raw.APIKeyID)
@@ -1021,12 +1023,16 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 		if qErr != nil {
 			return nil, fmt.Errorf("failed to get API key details: %w", qErr)
 		}
+		labels, labelErr := biz.APIKeyLabels(ctx, r.client, apiKeys)
+		if labelErr != nil {
+			return nil, labelErr
+		}
 		apiKeyMap := lo.SliceToMap(apiKeys, func(ak *ent.APIKey) (int, *ent.APIKey) { return ak.ID, ak })
 
 		for _, raw := range rawResults {
 			name := fmt.Sprintf("API Key #%d", raw.APIKeyID)
 			if ak, ok := apiKeyMap[raw.APIKeyID]; ok {
-				name = ak.Name
+				name = labels[ak.ID]
 			}
 			results = append(results, dimStats{
 				ID:           fmt.Sprintf("%d", raw.APIKeyID),

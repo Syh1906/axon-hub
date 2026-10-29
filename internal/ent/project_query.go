@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/predicate"
@@ -35,6 +36,7 @@ type ProjectQuery struct {
 	order                           []project.OrderOption
 	inters                          []Interceptor
 	predicates                      []predicate.Project
+	withAPIKeyGroups                *APIKeyGroupQuery
 	withUsers                       *UserQuery
 	withInvitations                 *InvitationQuery
 	withRoles                       *RoleQuery
@@ -48,6 +50,7 @@ type ProjectQuery struct {
 	withProjectUsers                *UserProjectQuery
 	loadTotal                       []func(context.Context, []*Project) error
 	modifiers                       []func(*sql.Selector)
+	withNamedAPIKeyGroups           map[string]*APIKeyGroupQuery
 	withNamedUsers                  map[string]*UserQuery
 	withNamedInvitations            map[string]*InvitationQuery
 	withNamedRoles                  map[string]*RoleQuery
@@ -93,6 +96,28 @@ func (_q *ProjectQuery) Unique(unique bool) *ProjectQuery {
 func (_q *ProjectQuery) Order(o ...project.OrderOption) *ProjectQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryAPIKeyGroups chains the current query on the "api_key_groups" edge.
+func (_q *ProjectQuery) QueryAPIKeyGroups() *APIKeyGroupQuery {
+	query := (&APIKeyGroupClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(project.Table, project.FieldID, selector),
+			sqlgraph.To(apikeygroup.Table, apikeygroup.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, project.APIKeyGroupsTable, project.APIKeyGroupsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryUsers chains the current query on the "users" edge.
@@ -529,6 +554,7 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		order:                      append([]project.OrderOption{}, _q.order...),
 		inters:                     append([]Interceptor{}, _q.inters...),
 		predicates:                 append([]predicate.Project{}, _q.predicates...),
+		withAPIKeyGroups:           _q.withAPIKeyGroups.Clone(),
 		withUsers:                  _q.withUsers.Clone(),
 		withInvitations:            _q.withInvitations.Clone(),
 		withRoles:                  _q.withRoles.Clone(),
@@ -545,6 +571,17 @@ func (_q *ProjectQuery) Clone() *ProjectQuery {
 		path:      _q.path,
 		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
+}
+
+// WithAPIKeyGroups tells the query-builder to eager-load the nodes that are connected to
+// the "api_key_groups" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithAPIKeyGroups(opts ...func(*APIKeyGroupQuery)) *ProjectQuery {
+	query := (&APIKeyGroupClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAPIKeyGroups = query
+	return _q
 }
 
 // WithUsers tells the query-builder to eager-load the nodes that are connected to
@@ -752,7 +789,8 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	var (
 		nodes       = []*Project{}
 		_spec       = _q.querySpec()
-		loadedTypes = [11]bool{
+		loadedTypes = [12]bool{
+			_q.withAPIKeyGroups != nil,
 			_q.withUsers != nil,
 			_q.withInvitations != nil,
 			_q.withRoles != nil,
@@ -786,6 +824,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
+	}
+	if query := _q.withAPIKeyGroups; query != nil {
+		if err := _q.loadAPIKeyGroups(ctx, query, nodes,
+			func(n *Project) { n.Edges.APIKeyGroups = []*APIKeyGroup{} },
+			func(n *Project, e *APIKeyGroup) { n.Edges.APIKeyGroups = append(n.Edges.APIKeyGroups, e) }); err != nil {
+			return nil, err
+		}
 	}
 	if query := _q.withUsers; query != nil {
 		if err := _q.loadUsers(ctx, query, nodes,
@@ -863,6 +908,13 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 		if err := _q.loadProjectUsers(ctx, query, nodes,
 			func(n *Project) { n.Edges.ProjectUsers = []*UserProject{} },
 			func(n *Project, e *UserProject) { n.Edges.ProjectUsers = append(n.Edges.ProjectUsers, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedAPIKeyGroups {
+		if err := _q.loadAPIKeyGroups(ctx, query, nodes,
+			func(n *Project) { n.appendNamedAPIKeyGroups(name) },
+			func(n *Project, e *APIKeyGroup) { n.appendNamedAPIKeyGroups(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -951,6 +1003,36 @@ func (_q *ProjectQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Proj
 	return nodes, nil
 }
 
+func (_q *ProjectQuery) loadAPIKeyGroups(ctx context.Context, query *APIKeyGroupQuery, nodes []*Project, init func(*Project), assign func(*Project, *APIKeyGroup)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Project)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(apikeygroup.FieldProjectID)
+	}
+	query.Where(predicate.APIKeyGroup(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(project.APIKeyGroupsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ProjectID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "project_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *ProjectQuery) loadUsers(ctx context.Context, query *UserQuery, nodes []*Project, init func(*Project), assign func(*Project, *User)) error {
 	edgeIDs := make([]driver.Value, len(nodes))
 	byID := make(map[int]*Project)
@@ -1407,6 +1489,20 @@ func (_q *ProjectQuery) sqlQuery(ctx context.Context) *sql.Selector {
 func (_q *ProjectQuery) Modify(modifiers ...func(s *sql.Selector)) *ProjectSelect {
 	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q.Select()
+}
+
+// WithNamedAPIKeyGroups tells the query-builder to eager-load the nodes that are connected to the "api_key_groups"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ProjectQuery) WithNamedAPIKeyGroups(name string, opts ...func(*APIKeyGroupQuery)) *ProjectQuery {
+	query := (&APIKeyGroupClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedAPIKeyGroups == nil {
+		_q.withNamedAPIKeyGroups = make(map[string]*APIKeyGroupQuery)
+	}
+	_q.withNamedAPIKeyGroups[name] = query
+	return _q
 }
 
 // WithNamedUsers tells the query-builder to eager-load the nodes that are connected to the "users"

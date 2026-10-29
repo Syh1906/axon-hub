@@ -1,6 +1,7 @@
 enum ConsumptionDimension {
   USER
   API_KEY
+  API_KEY_GROUP
   CHANNEL
 }
 
@@ -19,6 +20,7 @@ enum ConsumptionPeriod {
 }
 
 input ConsumptionFilter {
+  groupRef: Int
   projectID: ID
   dimension: ConsumptionDimension!
   metric: ConsumptionMetric! = COST

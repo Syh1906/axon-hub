@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { PermissionGuard } from '@/components/permission-guard';
 import { useApiKeysContext } from '../context/apikeys-context';
+import { KeyGroupManager } from './key-group-controls';
 
 export function ApiKeysPrimaryButtons() {
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
 
   return (
-    <div className='flex gap-2'>
+    <div className='flex flex-wrap gap-2'>
+      <KeyGroupManager />
       <PermissionGuard requiredScope='write_api_keys'>
         <Button variant='outline' size='sm' onClick={() => openDialog('profileTemplates')}>
           <IconTemplate className='mr-2 h-4 w-4' />

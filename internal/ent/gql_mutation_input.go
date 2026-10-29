@@ -23,6 +23,7 @@ import (
 
 // CreateAPIKeyInput represents a mutation input for creating apikeys.
 type CreateAPIKeyInput struct {
+	GroupRef   *int
 	Name       string
 	Type       *apikey.Type
 	Scopes     []string
@@ -32,6 +33,9 @@ type CreateAPIKeyInput struct {
 
 // Mutate applies the CreateAPIKeyInput on the APIKeyMutation builder.
 func (i *CreateAPIKeyInput) Mutate(m *APIKeyMutation) {
+	if v := i.GroupRef; v != nil {
+		m.SetGroupRef(*v)
+	}
 	m.SetName(i.Name)
 	if v := i.Type; v != nil {
 		m.SetType(*v)
@@ -53,6 +57,8 @@ func (c *APIKeyCreate) SetInput(i CreateAPIKeyInput) *APIKeyCreate {
 
 // UpdateAPIKeyInput represents a mutation input for updating apikeys.
 type UpdateAPIKeyInput struct {
+	ClearGroupRef    bool
+	GroupRef         *int
 	Name             *string
 	ClearScopes      bool
 	Scopes           []string
@@ -64,6 +70,12 @@ type UpdateAPIKeyInput struct {
 
 // Mutate applies the UpdateAPIKeyInput on the APIKeyMutation builder.
 func (i *UpdateAPIKeyInput) Mutate(m *APIKeyMutation) {
+	if i.ClearGroupRef {
+		m.ClearGroupRef()
+	}
+	if v := i.GroupRef; v != nil {
+		m.SetGroupRef(*v)
+	}
 	if v := i.Name; v != nil {
 		m.SetName(*v)
 	}

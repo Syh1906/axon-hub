@@ -31,7 +31,7 @@ export function ApiKeysArchiveDialog() {
   const getDescription = () => {
     const baseDescription = t(
       isArchived ? 'apikeys.dialogs.archive.restoreDescription' : 'apikeys.dialogs.archive.description',
-      { name: selectedApiKey.name }
+      { name: selectedApiKey.displayName ?? selectedApiKey.name }
     );
     const warningText = t(
       isArchived ? 'apikeys.dialogs.archive.restoreInfo' : 'apikeys.dialogs.archive.warning'

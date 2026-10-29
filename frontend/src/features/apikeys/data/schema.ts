@@ -45,6 +45,9 @@ export function normalizeApiKeyProfileRoutingPolicy<T extends { loadBalanceStrat
 
 // API Key schema based on GraphQL schema
 export const apiKeySchema = z.object({
+  displayName: z.string().optional(),
+  groupRef: z.number().nullable().optional(),
+  groupName: z.string().nullable().optional(),
   id: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -130,6 +133,7 @@ export type ApiKeyConnection = z.infer<typeof apiKeyConnectionSchema>;
 // Create API Key Input - factory function for i18n support
 export const createApiKeyInputSchemaFactory = (t: (key: string) => string) =>
   z.object({
+    groupRef: z.number().int().positive().optional(),
     name: z.string().min(1, t('apikeys.validation.nameRequired')),
     type: apiKeyTypeSchema.optional(),
     scopes: z.array(z.string()).optional(),
@@ -139,6 +143,7 @@ export const createApiKeyInputSchemaFactory = (t: (key: string) => string) =>
 
 // Default schema for backward compatibility
 export const createApiKeyInputSchema = z.object({
+  groupRef: z.number().int().positive().optional(),
   name: z.string().min(1, 'Name is required'),
   type: apiKeyTypeSchema.optional(),
   scopes: z.array(z.string()).optional(),
@@ -150,6 +155,8 @@ export type CreateApiKeyInput = z.infer<typeof createApiKeyInputSchema>;
 // Update API Key Input - factory function for i18n support
 export const updateApiKeyInputSchemaFactory = (t: (key: string) => string) =>
   z.object({
+    groupRef: z.number().int().positive().optional(),
+    clearGroupRef: z.boolean().optional(),
     name: z.string().min(1, t('apikeys.validation.nameRequired')).optional(),
     scopes: z.array(z.string()).optional(),
     allowedIps: z.array(z.string()).optional(),
@@ -157,6 +164,8 @@ export const updateApiKeyInputSchemaFactory = (t: (key: string) => string) =>
 
 // Default schema for backward compatibility
 export const updateApiKeyInputSchema = z.object({
+  groupRef: z.number().int().positive().optional(),
+  clearGroupRef: z.boolean().optional(),
   name: z.string().min(1, 'Name is required').optional(),
   scopes: z.array(z.string()).optional(),
   allowedIps: z.array(z.string()).optional(),

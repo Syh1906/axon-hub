@@ -1,8 +1,8 @@
 {
   "scopes.read_leaderboard": "View consumption leaderboard",
   "consumption.title": "Consumption leaderboard",
-  "consumption.description": "Compare token usage and costs by user, API key, or channel.",
-  "consumption.usageDescription": "View request counts, token usage, and costs by user or API key in the current project.",
+  "consumption.description": "Compare token usage and costs by user, API key, key group, or channel.",
+  "consumption.usageDescription": "View request counts, token usage, and costs by user, API key, or key group in the current project.",
   "consumption.timeRange": "Time range",
   "consumption.periods.TODAY": "Today",
   "consumption.periods.YESTERDAY": "Yesterday",
@@ -56,5 +56,8 @@
   "consumption.empty": "No data in the selected time range",
   "consumption.cacheNote": "Only requests with cache reads or writes are included. Cache coefficients lag by about 15–20 minutes.",
   "consumption.costNote": "Requests use their final attribution and recorded costs. Unavailable metrics appear as “—”.",
-  "consumption.updatedAt": "Updated at {{time}}"
+  "consumption.updatedAt": "Updated at {{time}}",
+  "consumption.dimensions.API_KEY_GROUP": "Key groups",
+  "consumption.entityColumns.API_KEY_GROUP": "Key group / Model",
+  "consumption.allGroups": "All groups"
 }

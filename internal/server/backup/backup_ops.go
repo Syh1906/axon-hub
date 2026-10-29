@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -279,8 +280,21 @@ func (svc *BackupService) streamAPIKeys(ctx context.Context, o *objWriter, opts 
 			if ak.Edges.Project != nil {
 				projectName = ak.Edges.Project.Name
 			}
+			groupName := ""
+			if ak.GroupRef != nil {
+				group, err := svc.db.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*ak.GroupRef), apikeygroup.ProjectIDEQ(ak.ProjectID)).Only(ctx)
+				if err != nil && !ent.IsNotFound(err) {
+					return nil, false, err
+				}
+				if group != nil {
+					groupName = group.Name
+				}
+			}
+			copy := *ak
+			copy.GroupRef = nil
 			b, err := json.Marshal(&BackupAPIKey{
-				APIKey:      *ak,
+				APIKey:      copy,
+				GroupName:   groupName,
 				ProjectName: projectName,
 			})
 			return b, true, err

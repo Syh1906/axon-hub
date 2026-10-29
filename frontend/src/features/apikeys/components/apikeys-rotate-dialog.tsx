@@ -51,7 +51,7 @@ export function ApiKeysRotateDialog() {
         <DialogHeader>
           <DialogTitle>{t('apikeys.dialogs.rotate.title')}</DialogTitle>
           <DialogDescription>
-            {t('apikeys.dialogs.rotate.description', { name: selectedApiKey?.name })}
+            {t('apikeys.dialogs.rotate.description', { name: selectedApiKey?.displayName ?? selectedApiKey?.name })}
           </DialogDescription>
         </DialogHeader>
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
@@ -79,21 +80,63 @@ func init() {
 	// apikey.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	apikey.DefaultDeletedAt = apikeyDescDeletedAt.Default.(int)
 	// apikeyDescProjectID is the schema descriptor for project_id field.
-	apikeyDescProjectID := apikeyFields[1].Descriptor()
+	apikeyDescProjectID := apikeyFields[2].Descriptor()
 	// apikey.DefaultProjectID holds the default value on creation for the project_id field.
 	apikey.DefaultProjectID = apikeyDescProjectID.Default.(int)
 	// apikeyDescScopes is the schema descriptor for scopes field.
-	apikeyDescScopes := apikeyFields[6].Descriptor()
+	apikeyDescScopes := apikeyFields[7].Descriptor()
 	// apikey.DefaultScopes holds the default value on creation for the scopes field.
 	apikey.DefaultScopes = apikeyDescScopes.Default.([]string)
 	// apikeyDescProfiles is the schema descriptor for profiles field.
-	apikeyDescProfiles := apikeyFields[7].Descriptor()
+	apikeyDescProfiles := apikeyFields[8].Descriptor()
 	// apikey.DefaultProfiles holds the default value on creation for the profiles field.
 	apikey.DefaultProfiles = apikeyDescProfiles.Default.(*objects.APIKeyProfiles)
 	// apikeyDescAllowedIps is the schema descriptor for allowed_ips field.
-	apikeyDescAllowedIps := apikeyFields[8].Descriptor()
+	apikeyDescAllowedIps := apikeyFields[9].Descriptor()
 	// apikey.DefaultAllowedIps holds the default value on creation for the allowed_ips field.
 	apikey.DefaultAllowedIps = apikeyDescAllowedIps.Default.([]string)
+	apikeygroupMixin := schema.APIKeyGroup{}.Mixin()
+	apikeygroup.Policy = privacy.NewPolicies(schema.APIKeyGroup{})
+	apikeygroup.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := apikeygroup.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	apikeygroupMixinFields0 := apikeygroupMixin[0].Fields()
+	_ = apikeygroupMixinFields0
+	apikeygroupFields := schema.APIKeyGroup{}.Fields()
+	_ = apikeygroupFields
+	// apikeygroupDescCreatedAt is the schema descriptor for created_at field.
+	apikeygroupDescCreatedAt := apikeygroupMixinFields0[0].Descriptor()
+	// apikeygroup.DefaultCreatedAt holds the default value on creation for the created_at field.
+	apikeygroup.DefaultCreatedAt = apikeygroupDescCreatedAt.Default.(func() time.Time)
+	// apikeygroupDescUpdatedAt is the schema descriptor for updated_at field.
+	apikeygroupDescUpdatedAt := apikeygroupMixinFields0[1].Descriptor()
+	// apikeygroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	apikeygroup.DefaultUpdatedAt = apikeygroupDescUpdatedAt.Default.(func() time.Time)
+	// apikeygroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	apikeygroup.UpdateDefaultUpdatedAt = apikeygroupDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// apikeygroupDescName is the schema descriptor for name field.
+	apikeygroupDescName := apikeygroupFields[0].Descriptor()
+	// apikeygroup.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	apikeygroup.NameValidator = func() func(string) error {
+		validators := apikeygroupDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	apikeyprofiletemplateMixin := schema.APIKeyProfileTemplate{}.Mixin()
 	apikeyprofiletemplate.Policy = privacy.NewPolicies(schema.APIKeyProfileTemplate{})
 	apikeyprofiletemplate.Hooks[0] = func(next ent.Mutator) ent.Mutator {

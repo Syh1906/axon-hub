@@ -48,6 +48,7 @@ function buildApiKeysQuery(permissions: { canViewUsers: boolean }) {
             id
             createdAt
             updatedAt${userFields}
+            groupRef groupName displayName
             key
             name
             type
@@ -94,6 +95,7 @@ function buildApiKeyQuery(permissions: { canViewUsers: boolean }) {
         id
         createdAt
         updatedAt${userFields}
+        groupRef groupName displayName
         key
         name
         type
@@ -148,6 +150,7 @@ function buildCreateApiKeyMutation(permissions: { canViewUsers: boolean }) {
         id
         createdAt
         updatedAt${userFields}
+        groupRef groupName displayName
         key
         name
         type
@@ -175,6 +178,7 @@ function buildUpdateApiKeyMutation(permissions: { canViewUsers: boolean }) {
         id
         createdAt
         updatedAt${userFields}
+        groupRef groupName displayName
         key
         name
         type
@@ -256,6 +260,7 @@ const ROTATE_APIKEY_MUTATION = `
   mutation RotateAPIKey($id: ID!) {
     rotateAPIKey(id: $id) {
       id
+      groupRef groupName displayName
       key
       name
       type
@@ -430,6 +435,7 @@ const API_KEY_OPTIONS_QUERY = `
         node {
           id
           name
+          displayName
           status
         }
       }
@@ -447,6 +453,7 @@ const apiKeyOptionConnectionSchema = z.object({
       node: z.object({
         id: z.string(),
         name: z.string(),
+        displayName: z.string(),
         status: apiKeyStatusSchema,
       }),
     })
@@ -712,6 +719,21 @@ export function useUpdateApiKey() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
+      for (const key of [
+        'apiKeyGroups',
+        'apiKeys',
+        'apiKey',
+        'consumption',
+        'requests',
+        'request',
+        'analyticsMetadata',
+        'analyticsDimensionStats',
+        'analyticsAPIKeyStats',
+        'requestStatsByAPIKey',
+        'tokenStatsByAPIKey',
+        'costStatsByAPIKey',
+      ])
+        queryClient.invalidateQueries({ queryKey: [key] });
       toast.success(t('apikeys.messages.updateSuccess'));
     },
     onError: (error) => {
@@ -733,6 +755,21 @@ export function useUpdateApiKeyStatus() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
+      for (const key of [
+        'apiKeyGroups',
+        'apiKeys',
+        'apiKey',
+        'consumption',
+        'requests',
+        'request',
+        'analyticsMetadata',
+        'analyticsDimensionStats',
+        'analyticsAPIKeyStats',
+        'requestStatsByAPIKey',
+        'tokenStatsByAPIKey',
+        'costStatsByAPIKey',
+      ])
+        queryClient.invalidateQueries({ queryKey: [key] });
       const statusText =
         data.updateAPIKeyStatus.status === 'enabled'
           ? t('apikeys.status.enabled')
@@ -760,6 +797,21 @@ export function useUpdateApiKeyProfiles() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
+      for (const key of [
+        'apiKeyGroups',
+        'apiKeys',
+        'apiKey',
+        'consumption',
+        'requests',
+        'request',
+        'analyticsMetadata',
+        'analyticsDimensionStats',
+        'analyticsAPIKeyStats',
+        'requestStatsByAPIKey',
+        'tokenStatsByAPIKey',
+        'costStatsByAPIKey',
+      ])
+        queryClient.invalidateQueries({ queryKey: [key] });
       toast.success(t('apikeys.messages.profilesUpdateSuccess'));
     },
     onError: () => {

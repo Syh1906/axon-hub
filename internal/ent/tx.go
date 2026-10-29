@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeyGroup is the client for interacting with the APIKeyGroup builders.
+	APIKeyGroup *APIKeyGroupClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
 	APIKeyProfileTemplate *APIKeyProfileTemplateClient
 	// CacheEffectivenessWindow is the client for interacting with the CacheEffectivenessWindow builders.
@@ -198,6 +200,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.APIKeyGroup = NewAPIKeyGroupClient(tx.config)
 	tx.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(tx.config)
 	tx.CacheEffectivenessWindow = NewCacheEffectivenessWindowClient(tx.config)
 	tx.Channel = NewChannelClient(tx.config)

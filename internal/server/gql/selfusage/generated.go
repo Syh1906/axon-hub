@@ -49,8 +49,8 @@ type DirectiveRoot struct {
 type ComplexityRoot struct {
 	Query struct {
 		SelfUsageMeta     func(childComplexity int) int
-		SelfUsageRequests func(childComplexity int, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int) int
-		SelfUsageStats    func(childComplexity int, start string, end string) int
+		SelfUsageRequests func(childComplexity int, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) int
+		SelfUsageStats    func(childComplexity int, start string, end string, group bool) int
 	}
 
 	SelfUsageCostItem struct {
@@ -81,6 +81,7 @@ type ComplexityRoot struct {
 		APIKeyName   func(childComplexity int) int
 		APIKeyType   func(childComplexity int) int
 		CurrencyCode func(childComplexity int) int
+		GroupName    func(childComplexity int) int
 		MaxRangeDays func(childComplexity int) int
 		Timezone     func(childComplexity int) int
 	}
@@ -91,6 +92,7 @@ type ComplexityRoot struct {
 	}
 
 	SelfUsageRequest struct {
+		APIKeyName          func(childComplexity int) int
 		CacheReadTokens     func(childComplexity int) int
 		CacheWriteTokens    func(childComplexity int) int
 		Cost                func(childComplexity int) int
@@ -114,18 +116,24 @@ type ComplexityRoot struct {
 	}
 
 	SelfUsageRequestPage struct {
-		Items    func(childComplexity int) int
-		Page     func(childComplexity int) int
-		PageSize func(childComplexity int) int
-		Total    func(childComplexity int) int
+		APIKeyName func(childComplexity int) int
+		GroupName  func(childComplexity int) int
+		Items      func(childComplexity int) int
+		Page       func(childComplexity int) int
+		PageSize   func(childComplexity int) int
+		ScopeID    func(childComplexity int) int
+		Total      func(childComplexity int) int
 	}
 
 	SelfUsageStats struct {
-		Daily  func(childComplexity int) int
-		End    func(childComplexity int) int
-		Models func(childComplexity int) int
-		Start  func(childComplexity int) int
-		Totals func(childComplexity int) int
+		APIKeyName func(childComplexity int) int
+		Daily      func(childComplexity int) int
+		End        func(childComplexity int) int
+		GroupName  func(childComplexity int) int
+		Models     func(childComplexity int) int
+		ScopeID    func(childComplexity int) int
+		Start      func(childComplexity int) int
+		Totals     func(childComplexity int) int
 	}
 
 	SelfUsageSummary struct {
@@ -151,8 +159,8 @@ type ComplexityRoot struct {
 
 type QueryResolver interface {
 	SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, error)
-	SelfUsageStats(ctx context.Context, start string, end string) (*SelfUsageStats, error)
-	SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int) (*SelfUsageRequestPage, error)
+	SelfUsageStats(ctx context.Context, start string, end string, group bool) (*SelfUsageStats, error)
+	SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error)
 }
 
 type executableSchema struct {
@@ -190,7 +198,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int)), true
+		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int), args["group"].(bool)), true
 	case "Query.selfUsageStats":
 		if e.complexity.Query.SelfUsageStats == nil {
 			break
@@ -201,7 +209,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SelfUsageStats(childComplexity, args["start"].(string), args["end"].(string)), true
+		return e.complexity.Query.SelfUsageStats(childComplexity, args["start"].(string), args["end"].(string), args["group"].(bool)), true
 
 	case "SelfUsageCostItem.image":
 		if e.complexity.SelfUsageCostItem.Image == nil {
@@ -314,6 +322,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageMeta.CurrencyCode(childComplexity), true
+	case "SelfUsageMeta.groupName":
+		if e.complexity.SelfUsageMeta.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.GroupName(childComplexity), true
 	case "SelfUsageMeta.maxRangeDays":
 		if e.complexity.SelfUsageMeta.MaxRangeDays == nil {
 			break
@@ -340,6 +354,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelfUsageModelStat.Usage(childComplexity), true
 
+	case "SelfUsageRequest.apiKeyName":
+		if e.complexity.SelfUsageRequest.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.APIKeyName(childComplexity), true
 	case "SelfUsageRequest.cacheReadTokens":
 		if e.complexity.SelfUsageRequest.CacheReadTokens == nil {
 			break
@@ -461,6 +481,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelfUsageRequest.UsageRecords(childComplexity), true
 
+	case "SelfUsageRequestPage.apiKeyName":
+		if e.complexity.SelfUsageRequestPage.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.APIKeyName(childComplexity), true
+	case "SelfUsageRequestPage.groupName":
+		if e.complexity.SelfUsageRequestPage.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.GroupName(childComplexity), true
 	case "SelfUsageRequestPage.items":
 		if e.complexity.SelfUsageRequestPage.Items == nil {
 			break
@@ -479,6 +511,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequestPage.PageSize(childComplexity), true
+	case "SelfUsageRequestPage.scopeID":
+		if e.complexity.SelfUsageRequestPage.ScopeID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.ScopeID(childComplexity), true
 	case "SelfUsageRequestPage.total":
 		if e.complexity.SelfUsageRequestPage.Total == nil {
 			break
@@ -486,6 +524,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelfUsageRequestPage.Total(childComplexity), true
 
+	case "SelfUsageStats.apiKeyName":
+		if e.complexity.SelfUsageStats.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.APIKeyName(childComplexity), true
 	case "SelfUsageStats.daily":
 		if e.complexity.SelfUsageStats.Daily == nil {
 			break
@@ -498,12 +542,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageStats.End(childComplexity), true
+	case "SelfUsageStats.groupName":
+		if e.complexity.SelfUsageStats.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.GroupName(childComplexity), true
 	case "SelfUsageStats.models":
 		if e.complexity.SelfUsageStats.Models == nil {
 			break
 		}
 
 		return e.complexity.SelfUsageStats.Models(childComplexity), true
+	case "SelfUsageStats.scopeID":
+		if e.complexity.SelfUsageStats.ScopeID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.ScopeID(childComplexity), true
 	case "SelfUsageStats.start":
 		if e.complexity.SelfUsageStats.Start == nil {
 			break
@@ -755,6 +811,11 @@ func (ec *executionContext) field_Query_selfUsageRequests_args(ctx context.Conte
 		return nil, err
 	}
 	args["pageSize"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg6
 	return args, nil
 }
 
@@ -771,6 +832,11 @@ func (ec *executionContext) field_Query_selfUsageStats_args(ctx context.Context,
 		return nil, err
 	}
 	args["end"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg2
 	return args, nil
 }
 
@@ -850,6 +916,8 @@ func (ec *executionContext) fieldContext_Query_selfUsageMeta(_ context.Context, 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "groupName":
+				return ec.fieldContext_SelfUsageMeta_groupName(ctx, field)
 			case "apiKeyName":
 				return ec.fieldContext_SelfUsageMeta_apiKeyName(ctx, field)
 			case "apiKeyType":
@@ -875,7 +943,7 @@ func (ec *executionContext) _Query_selfUsageStats(ctx context.Context, field gra
 		ec.fieldContext_Query_selfUsageStats,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SelfUsageStats(ctx, fc.Args["start"].(string), fc.Args["end"].(string))
+			return ec.resolvers.Query().SelfUsageStats(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["group"].(bool))
 		},
 		nil,
 		ec.marshalNSelfUsageStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageStats,
@@ -892,6 +960,12 @@ func (ec *executionContext) fieldContext_Query_selfUsageStats(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "scopeID":
+				return ec.fieldContext_SelfUsageStats_scopeID(ctx, field)
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageStats_apiKeyName(ctx, field)
+			case "groupName":
+				return ec.fieldContext_SelfUsageStats_groupName(ctx, field)
 			case "start":
 				return ec.fieldContext_SelfUsageStats_start(ctx, field)
 			case "end":
@@ -928,7 +1002,7 @@ func (ec *executionContext) _Query_selfUsageRequests(ctx context.Context, field 
 		ec.fieldContext_Query_selfUsageRequests,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int))
+			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int), fc.Args["group"].(bool))
 		},
 		nil,
 		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestPage,
@@ -945,6 +1019,12 @@ func (ec *executionContext) fieldContext_Query_selfUsageRequests(ctx context.Con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "scopeID":
+				return ec.fieldContext_SelfUsageRequestPage_scopeID(ctx, field)
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageRequestPage_apiKeyName(ctx, field)
+			case "groupName":
+				return ec.fieldContext_SelfUsageRequestPage_groupName(ctx, field)
 			case "items":
 				return ec.fieldContext_SelfUsageRequestPage_items(ctx, field)
 			case "page":
@@ -1558,6 +1638,35 @@ func (ec *executionContext) fieldContext_SelfUsageImageOutput_source(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageMeta_groupName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageMeta_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageMeta) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1780,6 +1889,35 @@ func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Cont
 				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2383,6 +2521,93 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_unpricedRecords(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequestPage_scopeID(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_scopeID,
+		func(ctx context.Context) (any, error) {
+			return obj.ScopeID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_scopeID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_groupName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequestPage_items(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2407,6 +2632,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageRequest_apiKeyName(ctx, field)
 			case "id":
 				return ec.fieldContext_SelfUsageRequest_id(ctx, field)
 			case "createdAt":
@@ -2536,6 +2763,93 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_total(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_scopeID(ctx context.Context, field graphql.CollectedField, obj *SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_scopeID,
+		func(ctx context.Context) (any, error) {
+			return obj.ScopeID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_scopeID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_groupName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4880,6 +5194,8 @@ func (ec *executionContext) _SelfUsageMeta(ctx context.Context, sel ast.Selectio
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageMeta")
+		case "groupName":
+			out.Values[i] = ec._SelfUsageMeta_groupName(ctx, field, obj)
 		case "apiKeyName":
 			out.Values[i] = ec._SelfUsageMeta_apiKeyName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -4983,6 +5299,11 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageRequest_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._SelfUsageRequest_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5105,6 +5426,18 @@ func (ec *executionContext) _SelfUsageRequestPage(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequestPage")
+		case "scopeID":
+			out.Values[i] = ec._SelfUsageRequestPage_scopeID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageRequestPage_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupName":
+			out.Values[i] = ec._SelfUsageRequestPage_groupName(ctx, field, obj)
 		case "items":
 			out.Values[i] = ec._SelfUsageRequestPage_items(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5159,6 +5492,18 @@ func (ec *executionContext) _SelfUsageStats(ctx context.Context, sel ast.Selecti
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageStats")
+		case "scopeID":
+			out.Values[i] = ec._SelfUsageStats_scopeID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageStats_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupName":
+			out.Values[i] = ec._SelfUsageStats_groupName(ctx, field, obj)
 		case "start":
 			out.Values[i] = ec._SelfUsageStats_start(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

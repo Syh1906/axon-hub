@@ -29,11 +29,12 @@ type SelfUsageDailyStat struct {
 }
 
 type SelfUsageMeta struct {
-	APIKeyName   string `json:"apiKeyName"`
-	APIKeyType   string `json:"apiKeyType"`
-	CurrencyCode string `json:"currencyCode"`
-	Timezone     string `json:"timezone"`
-	MaxRangeDays int    `json:"maxRangeDays"`
+	GroupName    *string `json:"groupName,omitempty"`
+	APIKeyName   string  `json:"apiKeyName"`
+	APIKeyType   string  `json:"apiKeyType"`
+	CurrencyCode string  `json:"currencyCode"`
+	Timezone     string  `json:"timezone"`
+	MaxRangeDays int     `json:"maxRangeDays"`
 }
 
 type SelfUsageModelStat struct {
@@ -42,6 +43,7 @@ type SelfUsageModelStat struct {
 }
 
 type SelfUsageRequest struct {
+	APIKeyName          string                 `json:"apiKeyName"`
 	ID                  int                    `json:"id"`
 	CreatedAt           time.Time              `json:"createdAt"`
 	Model               string                 `json:"model"`
@@ -65,18 +67,24 @@ type SelfUsageRequest struct {
 }
 
 type SelfUsageRequestPage struct {
-	Items    []*SelfUsageRequest `json:"items"`
-	Page     int                 `json:"page"`
-	PageSize int                 `json:"pageSize"`
-	Total    int                 `json:"total"`
+	ScopeID    string              `json:"scopeID"`
+	APIKeyName string              `json:"apiKeyName"`
+	GroupName  *string             `json:"groupName,omitempty"`
+	Items      []*SelfUsageRequest `json:"items"`
+	Page       int                 `json:"page"`
+	PageSize   int                 `json:"pageSize"`
+	Total      int                 `json:"total"`
 }
 
 type SelfUsageStats struct {
-	Start  string                `json:"start"`
-	End    string                `json:"end"`
-	Totals *SelfUsageSummary     `json:"totals"`
-	Models []*SelfUsageModelStat `json:"models"`
-	Daily  []*SelfUsageDailyStat `json:"daily"`
+	ScopeID    string                `json:"scopeID"`
+	APIKeyName string                `json:"apiKeyName"`
+	GroupName  *string               `json:"groupName,omitempty"`
+	Start      string                `json:"start"`
+	End        string                `json:"end"`
+	Totals     *SelfUsageSummary     `json:"totals"`
+	Models     []*SelfUsageModelStat `json:"models"`
+	Daily      []*SelfUsageDailyStat `json:"daily"`
 }
 
 // 用量汇总；cost 在 usageRecords=0 时为 0，全部未定价时为 null，否则为已知费用之和

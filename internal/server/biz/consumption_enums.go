@@ -19,7 +19,7 @@ func (v ConsumptionDimension) MarshalGQL(w io.Writer) {
 	_, _ = io.WriteString(w, strconv.Quote(string(v)))
 }
 func (v *ConsumptionDimension) UnmarshalGQL(value any) error {
-	text, err := consumptionEnum(value, "USER", "API_KEY", "CHANNEL")
+	text, err := consumptionEnum(value, "USER", "API_KEY", "API_KEY_GROUP", "CHANNEL")
 	if err == nil {
 		*v = ConsumptionDimension(text)
 	}

@@ -178,7 +178,7 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 			if response.Code != tc.want {
 				t.Fatalf("status=%d, want=%d body=%s", response.Code, tc.want, response.Body.String())
 			}
-			if tc.want == http.StatusOK && !strings.Contains(response.Body.String(), `"apiKeyName":"allowed"`) {
+			if tc.want == http.StatusOK && !strings.Contains(response.Body.String(), `"apiKeyName":"allowed · Self Usage"`) {
 				t.Fatalf("unexpected meta response: %s", response.Body.String())
 			}
 		})
@@ -206,6 +206,9 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 func TestGraphqlHandlerSelfUsageFieldBudget(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:self_usage_graphql_budget?mode=memory&_fk=1")
 	t.Cleanup(func() { _ = client.Close() })
+	setup := authz.WithTestBypass(context.Background())
+	project := client.Project.Create().SetName("budget").SaveX(setup)
+	key := client.APIKey.Create().SetName("budget").SetKey("fixture-budget-not-a-secret").SetProjectID(project.ID).SaveX(setup)
 	var queries atomic.Int64
 	client.Intercept(intercept.Func(func(_ context.Context, _ intercept.Query) error {
 		queries.Add(1)
@@ -238,7 +241,7 @@ func TestGraphqlHandlerSelfUsageFieldBudget(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx := contexts.WithAPIKey(context.Background(), &ent.APIKey{ID: 1, ProjectID: 1, Type: apikey.TypeUser})
+			ctx := contexts.WithAPIKey(context.Background(), key)
 			req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", bytes.NewReader(body)).WithContext(ctx)
 			req.Header.Set("Content-Type", "application/json")
 			response := httptest.NewRecorder()

@@ -89,10 +89,20 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 		var names []string
 		var searchColumns []string
 		switch input.Dimension {
-		case ConsumptionDimensionUser, ConsumptionDimensionAPIKey:
+		case ConsumptionDimensionUser, ConsumptionDimensionAPIKey, ConsumptionDimensionAPIKeyGroup:
 			key := sql.Table(apikey.Table).As("ak")
 			q.Join(key).OnP(sql.And(sql.ColumnsEQ(q.C("api_key_id"), key.C("id")), sql.ColumnsEQ(key.C("project_id"), q.C("project_id"))))
-			if input.Dimension == ConsumptionDimensionUser {
+			group := sql.Table("api_key_groups").As("key_group")
+			q.LeftJoin(group).OnP(sql.And(sql.ColumnsEQ(key.C("group_ref"), group.C("id")), sql.ColumnsEQ(key.C("project_id"), group.C("project_id"))))
+			if input.GroupRef != nil {
+				q.Where(sql.EQ(group.C("id"), *input.GroupRef))
+			}
+			if input.Dimension == ConsumptionDimensionAPIKeyGroup {
+				q.Where(sql.And(sql.NotNull(group.C("id")), sql.EQ(key.C("deleted_at"), 0)))
+				entityID = group.C("id")
+				names = []string{group.C("name")}
+				searchColumns = names
+			} else if input.Dimension == ConsumptionDimensionUser {
 				owner := sql.Table(user.Table).As("owner")
 				q.Join(owner).On(key.C("user_id"), owner.C("id"))
 				q.Where(sql.EQ(owner.C("deleted_at"), 0))

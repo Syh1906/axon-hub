@@ -19,16 +19,16 @@ func (r *queryResolver) SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, erro
 	return &SelfUsageMeta{
 		APIKeyName: meta.APIKeyName, APIKeyType: meta.APIKeyType,
 		CurrencyCode: meta.CurrencyCode, Timezone: meta.Timezone,
-		MaxRangeDays: meta.MaxRangeDays,
+		MaxRangeDays: meta.MaxRangeDays, GroupName: meta.GroupName,
 	}, nil
 }
 
 // SelfUsageStats is the resolver for the selfUsageStats field.
-func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end string) (*SelfUsageStats, error) {
+func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end string, group bool) (*SelfUsageStats, error) {
 	if err := validateRange(start, end); err != nil {
 		return nil, err
 	}
-	stats, err := r.selfUsage.Stats(ctx, start, end)
+	stats, err := r.selfUsage.Stats(ctx, start, end, group)
 	if err != nil {
 		return nil, err
 	}
@@ -41,13 +41,14 @@ func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end st
 		daily = append(daily, &SelfUsageDailyStat{Date: item.Date, Usage: toSummary(item.Usage)})
 	}
 	return &SelfUsageStats{
+		ScopeID: stats.ScopeID, APIKeyName: stats.APIKeyName, GroupName: stats.GroupName,
 		Start: stats.Start, End: stats.End,
 		Totals: toSummary(stats.Totals), Models: models, Daily: daily,
 	}, nil
 }
 
 // SelfUsageRequests is the resolver for the selfUsageRequests field.
-func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int) (*SelfUsageRequestPage, error) {
+func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error) {
 	if err := validateRange(start, end); err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	if status != nil {
 		filterStatus = string(*status)
 	}
-	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize)
+	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize, group)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	for _, item := range result.Items {
 		items = append(items, toRequest(item))
 	}
-	return &SelfUsageRequestPage{Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
+	return &SelfUsageRequestPage{ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
 }
 
 // Query returns QueryResolver implementation.

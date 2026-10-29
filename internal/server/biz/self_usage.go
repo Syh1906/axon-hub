@@ -12,6 +12,8 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 )
@@ -30,6 +32,7 @@ func NewSelfUsageService(client *ent.Client, system *SystemService) *SelfUsageSe
 type SelfUsageMeta struct {
 	APIKeyName   string
 	APIKeyType   string
+	GroupName    *string
 	CurrencyCode string
 	Timezone     string
 	MaxRangeDays int
@@ -60,14 +63,18 @@ type SelfUsageDailyStat struct {
 }
 
 type SelfUsageStats struct {
-	Start  string
-	End    string
-	Totals SelfUsageSummary
-	Models []SelfUsageModelStat
-	Daily  []SelfUsageDailyStat
+	ScopeID    string
+	APIKeyName string
+	GroupName  *string
+	Start      string
+	End        string
+	Totals     SelfUsageSummary
+	Models     []SelfUsageModelStat
+	Daily      []SelfUsageDailyStat
 }
 
 type SelfUsageRequest struct {
+	APIKeyName          string
 	ID                  int
 	CreatedAt           time.Time
 	Model               string
@@ -91,18 +98,25 @@ type SelfUsageRequest struct {
 }
 
 type SelfUsageRequestPage struct {
-	Items    []SelfUsageRequest
-	Page     int
-	PageSize int
-	Total    int
+	ScopeID    string
+	APIKeyName string
+	GroupName  *string
+	Items      []SelfUsageRequest
+	Page       int
+	PageSize   int
+	Total      int
 }
 
 // The request predicates are applied to every request query and again to the
 // request side of every usage join. Usage-log key/project fields are not used
 // as a substitute: the request is the authoritative owner and time anchor.
 type selfUsageScope struct {
-	keyID, projectID int
-	start, end       time.Time
+	id         string
+	apiKeyName string
+	groupName  *string
+	projectID  int
+	keyIDs     []int
+	start, end time.Time
 }
 
 func selfUsageKey(ctx context.Context) (*ent.APIKey, error) {
@@ -125,15 +139,33 @@ func (s *SelfUsageService) Meta(ctx context.Context) (*SelfUsageMeta, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &SelfUsageMeta{
-			APIKeyName: key.Name, APIKeyType: string(key.Type),
+		var groupName *string
+		current, err := s.client.APIKey.Get(ctx, key.ID)
+		if err != nil {
+			return nil, err
+		}
+		if current.GroupRef != nil {
+			group, err := s.client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*current.GroupRef), apikeygroup.ProjectIDEQ(key.ProjectID)).Only(ctx)
+			if err != nil && !ent.IsNotFound(err) {
+				return nil, err
+			}
+			if group != nil {
+				groupName = &group.Name
+			}
+		}
+		labels, err := APIKeyLabels(ctx, s.client, []*ent.APIKey{current})
+		if err != nil {
+			return nil, err
+		}
+		return &SelfUsageMeta{GroupName: groupName,
+			APIKeyName: labels[current.ID], APIKeyType: string(key.Type),
 			CurrencyCode: settings.CurrencyCode, Timezone: s.system.TimeLocation(ctx).String(),
 			MaxRangeDays: selfUsageMaxRangeDays,
 		}, nil
 	})
 }
 
-func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string) (selfUsageScope, time.Time, error) {
+func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, group ...bool) (selfUsageScope, time.Time, error) {
 	key, err := selfUsageKey(ctx)
 	if err != nil {
 		return selfUsageScope{}, time.Time{}, err
@@ -164,12 +196,51 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string) (s
 			return selfUsageScope{}, time.Time{}, fmt.Errorf("invalid_range: range must contain 1 to %d days", selfUsageMaxRangeDays)
 		}
 	}
-	return selfUsageScope{keyID: key.ID, projectID: key.ProjectID, start: first.UTC(), end: last.AddDate(0, 0, 1).UTC()}, first, nil
+	scope, err := authz.RunWithSystemBypass(ctx, "self-usage-group-scope", func(ctx context.Context) (selfUsageScope, error) {
+		result := selfUsageScope{id: fmt.Sprintf("key:%d", key.ID), keyIDs: []int{key.ID}, projectID: key.ProjectID, start: first.UTC(), end: last.AddDate(0, 0, 1).UTC()}
+		current, err := s.client.APIKey.Get(ctx, key.ID)
+		if err != nil {
+			return result, err
+		}
+		if current.ProjectID != key.ProjectID || current.Status != apikey.StatusEnabled {
+			return result, fmt.Errorf("self usage is unavailable")
+		}
+		if current.GroupRef != nil {
+			row, err := s.client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*current.GroupRef), apikeygroup.ProjectIDEQ(key.ProjectID)).Only(ctx)
+			if err != nil && !ent.IsNotFound(err) {
+				return result, err
+			}
+			if row != nil {
+				result.groupName = &row.Name
+			}
+		}
+		if result.groupName != nil {
+			result.apiKeyName = current.Name + " · " + *result.groupName
+		} else {
+			labels, err := APIKeyLabels(ctx, s.client, []*ent.APIKey{current})
+			if err != nil {
+				return result, err
+			}
+			result.apiKeyName = labels[current.ID]
+		}
+		if len(group) > 0 && group[0] {
+			if result.groupName == nil {
+				return result, fmt.Errorf("group usage is unavailable")
+			}
+			result.id = fmt.Sprintf("group:%d", *current.GroupRef)
+			result.keyIDs, err = s.client.APIKey.Query().Where(apikey.ProjectIDEQ(key.ProjectID), apikey.GroupRefEQ(*current.GroupRef)).IDs(ctx)
+		}
+		return result, err
+	})
+	if err != nil {
+		return selfUsageScope{}, time.Time{}, err
+	}
+	return scope, first, nil
 }
 
 func (scope selfUsageScope) requestQuery(client *ent.Client) *ent.RequestQuery {
 	return client.Request.Query().Where(
-		request.APIKeyIDEQ(scope.keyID), request.ProjectIDEQ(scope.projectID),
+		request.APIKeyIDIn(scope.keyIDs...), request.ProjectIDEQ(scope.projectID),
 		request.SourceEQ(request.SourceAPI), request.CreatedAtGTE(scope.start), request.CreatedAtLT(scope.end),
 	)
 }
@@ -178,7 +249,7 @@ func (scope selfUsageScope) join(s *sql.Selector) *sql.SelectTable {
 	r := sql.Table(request.Table)
 	s.Join(r).On(s.C(usagelog.FieldRequestID), r.C(request.FieldID))
 	s.Where(sql.And(
-		sql.EQ(r.C(request.FieldAPIKeyID), scope.keyID),
+		sql.InInts(r.C(request.FieldAPIKeyID), scope.keyIDs...),
 		sql.EQ(r.C(request.FieldProjectID), scope.projectID),
 		sql.EQ(r.C(request.FieldSource), request.SourceAPI),
 		sql.GTE(r.C(request.FieldCreatedAt), scope.start),
@@ -271,8 +342,8 @@ func (summary *SelfUsageSummary) finishCost() {
 	}
 }
 
-func (s *SelfUsageService) Stats(ctx context.Context, start, end string) (*SelfUsageStats, error) {
-	scope, first, err := s.rangeScope(ctx, start, end)
+func (s *SelfUsageService) Stats(ctx context.Context, start, end string, group ...bool) (*SelfUsageStats, error) {
+	scope, first, err := s.rangeScope(ctx, start, end, group...)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +373,7 @@ func (s *SelfUsageService) Stats(ctx context.Context, start, end string) (*SelfU
 		}
 
 		loc := first.Location()
-		result := &SelfUsageStats{Start: start, End: end, Models: []SelfUsageModelStat{}, Daily: []SelfUsageDailyStat{}}
+		result := &SelfUsageStats{ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Start: start, End: end, Models: []SelfUsageModelStat{}, Daily: []SelfUsageDailyStat{}}
 		byModel := make(map[string]*SelfUsageSummary)
 		byDate := make(map[string]*SelfUsageSummary)
 		for d := first; d.Before(scope.end.In(loc)); d = d.AddDate(0, 0, 1) {
@@ -360,8 +431,8 @@ func (s *SelfUsageService) Stats(ctx context.Context, start, end string) (*SelfU
 	})
 }
 
-func (s *SelfUsageService) Requests(ctx context.Context, start, end string, model *string, status string, page, pageSize int) (*SelfUsageRequestPage, error) {
-	scope, _, err := s.rangeScope(ctx, start, end)
+func (s *SelfUsageService) Requests(ctx context.Context, start, end string, model *string, status string, page, pageSize int, group ...bool) (*SelfUsageRequestPage, error) {
+	scope, _, err := s.rangeScope(ctx, start, end, group...)
 	if err != nil {
 		return nil, err
 	}
@@ -392,14 +463,14 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 			return nil, fmt.Errorf("count self usage requests: %w", err)
 		}
 		requests, err := query().Select(
-			request.FieldID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
+			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
 			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs,
 		).Order(request.ByCreatedAt(sql.OrderDesc()), request.ByID(sql.OrderDesc())).
 			Limit(pageSize).Offset((page - 1) * pageSize).All(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list self usage requests: %w", err)
 		}
-		result := &SelfUsageRequestPage{Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
+		result := &SelfUsageRequestPage{ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
 		if len(requests) == 0 {
 			return result, nil
 		}
@@ -427,12 +498,24 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 			usage.finishCost()
 			byID[row.RequestID] = usage
 		}
+		keyIDs := make([]int, 0, len(requests))
+		for _, req := range requests {
+			keyIDs = append(keyIDs, req.APIKeyID)
+		}
+		keys, err := s.client.APIKey.Query().Where(apikey.IDIn(keyIDs...), apikey.ProjectIDEQ(scope.projectID)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		labels, err := APIKeyLabels(ctx, s.client, keys)
+		if err != nil {
+			return nil, err
+		}
 		for _, req := range requests {
 			usage, ok := byID[req.ID]
 			if !ok {
 				usage.finishCost()
 			}
-			row := SelfUsageRequest{
+			row := SelfUsageRequest{APIKeyName: labels[req.APIKeyID],
 				ID: req.ID, CreatedAt: req.CreatedAt, Model: req.ModelID, Stream: req.Stream,
 				InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens,
 				CacheReadTokens: usage.CacheReadTokens, CacheWriteTokens: usage.CacheWriteTokens,

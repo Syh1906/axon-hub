@@ -1,3 +1,4 @@
+import { apiKeyLabel } from '@/components/api-key-identity';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { DashboardIcon } from '@radix-ui/react-icons';
@@ -401,7 +402,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 <Key className='text-primary h-3.5 w-3.5' />
                 <span className='text-xs font-medium'>{t('requests.dialogs.requestDetail.fields.apiKeyName')}</span>
               </div>
-              <p className='text-muted-foreground font-mono text-xs'>{request.apiKey?.name || t('requests.columns.unknown')}</p>
+              <p className='text-muted-foreground font-mono text-xs'>{apiKeyLabel(request.apiKey ?? {}) || t('requests.columns.unknown')}</p>
             </div>
           </div>
         </CardContent>

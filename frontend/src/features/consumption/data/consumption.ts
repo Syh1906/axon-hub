@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 
-export type ConsumptionDimension = 'USER' | 'API_KEY' | 'CHANNEL';
+export type ConsumptionDimension = 'USER' | 'API_KEY' | 'API_KEY_GROUP' | 'CHANNEL';
 export type ConsumptionMetric = 'COST' | 'CACHE';
 export type ConsumptionPeriod = 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'ALL' | 'CUSTOM';
 export type ConsumptionDateRange = { period: ConsumptionPeriod; startDate?: string; endDate?: string };
@@ -10,6 +10,7 @@ export type ConsumptionFilter = ConsumptionDateRange & {
   dimension: ConsumptionDimension;
   metric: ConsumptionMetric;
   projectID?: string;
+  groupRef?: number;
   search?: string;
 };
 
@@ -61,7 +62,7 @@ const RESULT_FIELDS = `
 const LEADERBOARD_QUERY = `query ConsumptionLeaderboard($input: ConsumptionFilter!) { consumptionLeaderboard(input: $input) { ${RESULT_FIELDS} } }`;
 const USAGE_QUERY = `query UsageStatistics($input: ConsumptionFilter!) { usageStatistics(input: $input) { ${RESULT_FIELDS} } }`;
 
-export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null) {
+export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
   const projectID = view === 'usage' ? currentProjectID : undefined;
   return useQuery({
     queryKey: ['consumption', view, projectID, input],
@@ -72,7 +73,7 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
       const data = await graphqlRequest<Record<string, unknown>>(query, { input }, headers, { signal });
       return resultSchema.parse(data[field]);
     },
-    enabled: view === 'leaderboard' || !!projectID,
+    enabled: enabled && (view === 'leaderboard' || !!projectID),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });

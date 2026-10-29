@@ -25,6 +25,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// FieldGroupRef holds the string denoting the group_ref field in the database.
+	FieldGroupRef = "group_ref"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
@@ -80,6 +82,7 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldDeletedAt,
+	FieldGroupRef,
 	FieldUserID,
 	FieldProjectID,
 	FieldKey,
@@ -204,6 +207,11 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByGroupRef orders the results by the group_ref field.
+func ByGroupRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupRef, opts...).ToFunc()
 }
 
 // ByUserID orders the results by the user_id field.

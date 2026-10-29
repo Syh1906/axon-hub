@@ -10,9 +10,10 @@ import (
 type ConsumptionDimension string
 
 const (
-	ConsumptionDimensionUser    ConsumptionDimension = "USER"
-	ConsumptionDimensionAPIKey  ConsumptionDimension = "API_KEY"
-	ConsumptionDimensionChannel ConsumptionDimension = "CHANNEL"
+	ConsumptionDimensionAPIKeyGroup ConsumptionDimension = "API_KEY_GROUP"
+	ConsumptionDimensionUser        ConsumptionDimension = "USER"
+	ConsumptionDimensionAPIKey      ConsumptionDimension = "API_KEY"
+	ConsumptionDimensionChannel     ConsumptionDimension = "CHANNEL"
 )
 
 type ConsumptionMetric string
@@ -34,6 +35,7 @@ const (
 )
 
 type ConsumptionFilter struct {
+	GroupRef  *int
 	ProjectID *objects.GUID
 	Dimension ConsumptionDimension
 	Metric    ConsumptionMetric

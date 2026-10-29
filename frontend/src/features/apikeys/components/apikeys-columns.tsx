@@ -7,6 +7,7 @@ import { cn, extractNumberID, formatUserName } from '@/lib/utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { APIKeyIdentity } from '@/components/api-key-identity';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import LongText from '@/components/long-text';
 import { openSelfUsagePage } from '@/features/self-usage/session';
@@ -142,7 +143,7 @@ export const createColumns = (
   {
     accessorKey: 'name',
     header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.name')} />,
-    cell: ({ row }) => <LongText className='max-w-36 font-medium'>{row.getValue('name')}</LongText>,
+    cell: ({ row }) => <APIKeyIdentity value={row.original} />,
     meta: {
       className: 'md:table-cell',
     },

@@ -1,4 +1,7 @@
 import { createContext, useContext, useState, useRef } from 'react';
+import { useSelectedProjectId } from '@/stores/projectStore';
+import { usePermissions } from '@/hooks/usePermissions';
+import { defaultGroupsKey, readDefaultGroups } from '../data/default-groups';
 import { ApiKey } from '../data/schema';
 
 type ApiKeyDialogType =
@@ -16,6 +19,9 @@ type ApiKeyDialogType =
   | 'rotate';
 
 interface ApiKeysContextType {
+  groupFilters: number[];
+  setGroupFilters: (ids: number[]) => void;
+  groupStorageKey: string;
   selectedApiKey: ApiKey | null;
   setSelectedApiKey: (apiKey: ApiKey | null) => void;
   selectedApiKeys: ApiKey[];
@@ -30,6 +36,10 @@ interface ApiKeysContextType {
 const ApiKeysContext = createContext<ApiKeysContextType | undefined>(undefined);
 
 export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
+  const { user } = usePermissions();
+  const project = useSelectedProjectId();
+  const groupStorageKey = defaultGroupsKey(user?.id ?? '', project ?? '');
+  const [groupFilters, setGroupFilters] = useState<number[]>(() => readDefaultGroups(groupStorageKey));
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
   const [selectedApiKeys, setSelectedApiKeys] = useState<ApiKey[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState<Record<ApiKeyDialogType, boolean>>({
@@ -62,7 +72,15 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
   const closeDialog = (type?: ApiKeyDialogType) => {
     if (type) {
       setIsDialogOpen((prev) => ({ ...prev, [type]: false }));
-      if (type === 'delete' || type === 'edit' || type === 'view' || type === 'archive' || type === 'status' || type === 'profiles' || type === 'rotate') {
+      if (
+        type === 'delete' ||
+        type === 'edit' ||
+        type === 'view' ||
+        type === 'archive' ||
+        type === 'status' ||
+        type === 'profiles' ||
+        type === 'rotate'
+      ) {
         setSelectedApiKey(null);
       }
       if (type === 'bulkDisable' || type === 'bulkArchive' || type === 'bulkEnable') {
@@ -92,6 +110,9 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
   return (
     <ApiKeysContext.Provider
       value={{
+        groupFilters,
+        setGroupFilters,
+        groupStorageKey,
         selectedApiKey,
         setSelectedApiKey,
         selectedApiKeys,

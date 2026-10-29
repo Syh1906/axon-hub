@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BarChart3, Loader2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
+import { extractNumberID } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -31,16 +32,29 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const selectedProjectID = useSelectedProjectId();
+  const scope = isLeaderboard ? projectID : selectedProjectID;
+  const [groupSelection, setGroupSelection] = useState<{ scope: string | null | undefined; id: number } | null>(null);
+  const groupRef = groupSelection?.scope === scope ? groupSelection?.id : undefined;
+  const isKeyDimension = dimension === 'API_KEY' || dimension === 'API_KEY_GROUP';
   const filter = {
     ...range,
     dimension,
     metric,
+    groupRef: isKeyDimension ? groupRef : undefined,
     search: debouncedSearch || undefined,
     projectID: isLeaderboard && projectID !== 'all' ? projectID : undefined,
   };
   const { data, isLoading, isFetching, error, refetch } = useConsumption(filter, view, selectedProjectID);
   const projects = useConsumptionProjects(isLeaderboard);
-  const dimensions: ConsumptionDimension[] = isLeaderboard ? ['USER', 'API_KEY', 'CHANNEL'] : ['USER', 'API_KEY'];
+  const groupOptions = useConsumption(
+    { ...filter, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined },
+    view,
+    selectedProjectID,
+    isKeyDimension
+  );
+  const dimensions: ConsumptionDimension[] = isLeaderboard
+    ? ['USER', 'API_KEY', 'API_KEY_GROUP', 'CHANNEL']
+    : ['USER', 'API_KEY', 'API_KEY_GROUP'];
   const timezone = data?.timezone ?? 'UTC';
   const title = isLeaderboard ? t('consumption.title') : t('sidebar.items.usageStats');
   const formatDate = (value: string | Date) =>
@@ -124,6 +138,26 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               </Tabs>
             ) : (
               <span className='text-muted-foreground text-sm'>{t('consumption.currentProject')}</span>
+            )}
+            {isKeyDimension && (
+              <Select
+                value={String(groupRef ?? 'all')}
+                onValueChange={(value) => setGroupSelection(value === 'all' ? null : { scope, id: Number(value) })}
+              >
+                <SelectTrigger className='w-48' aria-label={t('apikeys.groups.title')}>
+                  <SelectValue placeholder={t('consumption.allGroups')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value='all'>{t('consumption.allGroups')}</SelectItem>
+                    {groupOptions.data?.entries.map((entry) => (
+                      <SelectItem key={entry.id} value={String(extractNumberID(entry.id))}>
+                        {entry.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             )}
             <div className='relative w-full sm:w-60'>
               <Search className='text-muted-foreground absolute top-2.5 left-3 size-4' aria-hidden />

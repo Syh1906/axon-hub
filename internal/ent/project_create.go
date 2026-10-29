@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/project"
@@ -114,6 +115,21 @@ func (_c *ProjectCreate) SetNillableStatus(v *project.Status) *ProjectCreate {
 func (_c *ProjectCreate) SetProfiles(v *objects.ProjectProfiles) *ProjectCreate {
 	_c.mutation.SetProfiles(v)
 	return _c
+}
+
+// AddAPIKeyGroupIDs adds the "api_key_groups" edge to the APIKeyGroup entity by IDs.
+func (_c *ProjectCreate) AddAPIKeyGroupIDs(ids ...int) *ProjectCreate {
+	_c.mutation.AddAPIKeyGroupIDs(ids...)
+	return _c
+}
+
+// AddAPIKeyGroups adds the "api_key_groups" edges to the APIKeyGroup entity.
+func (_c *ProjectCreate) AddAPIKeyGroups(v ...*APIKeyGroup) *ProjectCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAPIKeyGroupIDs(ids...)
 }
 
 // AddUserIDs adds the "users" edge to the User entity by IDs.
@@ -424,6 +440,22 @@ func (_c *ProjectCreate) createSpec() (*Project, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Profiles(); ok {
 		_spec.SetField(project.FieldProfiles, field.TypeJSON, value)
 		_node.Profiles = value
+	}
+	if nodes := _c.mutation.APIKeyGroupsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   project.APIKeyGroupsTable,
+			Columns: []string{project.APIKeyGroupsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikeygroup.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.UsersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

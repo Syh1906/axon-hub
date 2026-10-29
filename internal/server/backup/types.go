@@ -50,6 +50,7 @@ type BackupAPIKey struct {
 	ent.APIKey
 
 	ProjectName string `json:"project_name"`
+	GroupName   string `json:"group_name,omitempty"`
 }
 
 type BackupChannelModelPrice struct {

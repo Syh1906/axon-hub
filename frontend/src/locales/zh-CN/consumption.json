@@ -1,8 +1,8 @@
 {
   "scopes.read_leaderboard": "查看消耗排行榜",
   "consumption.title": "消耗排行榜",
-  "consumption.description": "按用户、密钥或渠道统计 Token 消耗与成本，支持多维度对比。",
-  "consumption.usageDescription": "查看当前项目中用户与 Key 的请求量、Token 消耗和成本。",
+  "consumption.description": "按用户、密钥、密钥分组或渠道统计 Token 消耗与成本，支持多维度对比。",
+  "consumption.usageDescription": "查看当前项目中用户、密钥与密钥分组的请求量、Token 消耗和成本。",
   "consumption.timeRange": "时间范围",
   "consumption.periods.TODAY": "今天",
   "consumption.periods.YESTERDAY": "昨天",
@@ -56,5 +56,8 @@
   "consumption.empty": "所选时间范围内暂无数据",
   "consumption.cacheNote": "仅统计发生缓存读写的请求；缓存系数约滞后 15–20 分钟。",
   "consumption.costNote": "按请求最终归属统计，成本使用历史记录；缺失指标显示“—”。",
-  "consumption.updatedAt": "更新于 {{time}}"
+  "consumption.updatedAt": "更新于 {{time}}",
+  "consumption.dimensions.API_KEY_GROUP": "密钥分组",
+  "consumption.entityColumns.API_KEY_GROUP": "密钥分组 / 模型",
+  "consumption.allGroups": "全部分组"
 }

@@ -68,6 +68,20 @@ func (_c *APIKeyCreate) SetNillableDeletedAt(v *int) *APIKeyCreate {
 	return _c
 }
 
+// SetGroupRef sets the "group_ref" field.
+func (_c *APIKeyCreate) SetGroupRef(v int) *APIKeyCreate {
+	_c.mutation.SetGroupRef(v)
+	return _c
+}
+
+// SetNillableGroupRef sets the "group_ref" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableGroupRef(v *int) *APIKeyCreate {
+	if v != nil {
+		_c.SetGroupRef(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user_id" field.
 func (_c *APIKeyCreate) SetUserID(v int) *APIKeyCreate {
 	_c.mutation.SetUserID(v)
@@ -333,6 +347,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldDeletedAt, field.TypeInt, value)
 		_node.DeletedAt = value
 	}
+	if value, ok := _c.mutation.GroupRef(); ok {
+		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)
+		_node.GroupRef = &value
+	}
 	if value, ok := _c.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
 		_node.Key = value
@@ -490,6 +508,30 @@ func (u *APIKeyUpsert) UpdateDeletedAt() *APIKeyUpsert {
 // AddDeletedAt adds v to the "deleted_at" field.
 func (u *APIKeyUpsert) AddDeletedAt(v int) *APIKeyUpsert {
 	u.Add(apikey.FieldDeletedAt, v)
+	return u
+}
+
+// SetGroupRef sets the "group_ref" field.
+func (u *APIKeyUpsert) SetGroupRef(v int) *APIKeyUpsert {
+	u.Set(apikey.FieldGroupRef, v)
+	return u
+}
+
+// UpdateGroupRef sets the "group_ref" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateGroupRef() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldGroupRef)
+	return u
+}
+
+// AddGroupRef adds v to the "group_ref" field.
+func (u *APIKeyUpsert) AddGroupRef(v int) *APIKeyUpsert {
+	u.Add(apikey.FieldGroupRef, v)
+	return u
+}
+
+// ClearGroupRef clears the value of the "group_ref" field.
+func (u *APIKeyUpsert) ClearGroupRef() *APIKeyUpsert {
+	u.SetNull(apikey.FieldGroupRef)
 	return u
 }
 
@@ -678,6 +720,34 @@ func (u *APIKeyUpsertOne) AddDeletedAt(v int) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateDeletedAt() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateDeletedAt()
+	})
+}
+
+// SetGroupRef sets the "group_ref" field.
+func (u *APIKeyUpsertOne) SetGroupRef(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetGroupRef(v)
+	})
+}
+
+// AddGroupRef adds v to the "group_ref" field.
+func (u *APIKeyUpsertOne) AddGroupRef(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddGroupRef(v)
+	})
+}
+
+// UpdateGroupRef sets the "group_ref" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateGroupRef() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateGroupRef()
+	})
+}
+
+// ClearGroupRef clears the value of the "group_ref" field.
+func (u *APIKeyUpsertOne) ClearGroupRef() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearGroupRef()
 	})
 }
 
@@ -1049,6 +1119,34 @@ func (u *APIKeyUpsertBulk) AddDeletedAt(v int) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateDeletedAt() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateDeletedAt()
+	})
+}
+
+// SetGroupRef sets the "group_ref" field.
+func (u *APIKeyUpsertBulk) SetGroupRef(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetGroupRef(v)
+	})
+}
+
+// AddGroupRef adds v to the "group_ref" field.
+func (u *APIKeyUpsertBulk) AddGroupRef(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddGroupRef(v)
+	})
+}
+
+// UpdateGroupRef sets the "group_ref" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateGroupRef() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateGroupRef()
+	})
+}
+
+// ClearGroupRef clears the value of the "group_ref" field.
+func (u *APIKeyUpsertBulk) ClearGroupRef() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearGroupRef()
 	})
 }
 

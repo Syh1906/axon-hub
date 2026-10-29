@@ -26,6 +26,7 @@ func (APIKey) Mixin() []ent.Mixin {
 
 func (APIKey) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("project_id", "group_ref").StorageKey("api_keys_by_project_group"),
 		index.Fields("user_id").
 			StorageKey("api_keys_by_user_id"),
 		index.Fields("project_id").
@@ -38,6 +39,7 @@ func (APIKey) Indexes() []ent.Index {
 
 func (APIKey) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int("group_ref").Optional().Nillable(),
 		field.Int("user_id").Optional().Immutable().
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
@@ -119,8 +121,8 @@ func (APIKey) Annotations() []schema.Annotation {
 func (APIKey) Policy() ent.Policy {
 	return scopes.Policy{
 		Query: scopes.QueryPolicy{
-			scopes.UserPersonalAPIKeyReadRule(scopes.ScopeReadAPIKeys),  // User 主体：project_id 过滤 + personal key 仅创建者可见
-			scopes.APIKeyProjectScopeReadRule(scopes.ScopeReadAPIKeys),  // API key 主体：用于 OpenAPI 走 service account 读 APIKey
+			scopes.UserPersonalAPIKeyReadRule(scopes.ScopeReadAPIKeys), // User 主体：project_id 过滤 + personal key 仅创建者可见
+			scopes.APIKeyProjectScopeReadRule(scopes.ScopeReadAPIKeys), // API key 主体：用于 OpenAPI 走 service account 读 APIKey
 			scopes.OwnerRule(), // owner 用户可以访问所有 API Keys
 		},
 		Mutation: scopes.MutationPolicy{

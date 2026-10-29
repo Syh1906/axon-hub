@@ -30,6 +30,7 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/gql/qb"
 	"github.com/samber/lo"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -307,6 +308,10 @@ func (r *queryResolver) RequestStatsByAPIKey(ctx context.Context, timeWindow *st
 	}
 
 	// Create lookup map
+	labels, labelErr := biz.APIKeyLabels(ctx, r.client, apiKeys)
+	if labelErr != nil {
+		return nil, labelErr
+	}
 	apiKeyMap := lo.SliceToMap(apiKeys, func(ak *ent.APIKey) (int, *ent.APIKey) {
 		return ak.ID, ak
 	})
@@ -318,7 +323,7 @@ func (r *queryResolver) RequestStatsByAPIKey(ctx context.Context, timeWindow *st
 		if ak, exists := apiKeyMap[result.APIKeyID]; exists {
 			response = append(response, &RequestStatsByAPIKey{
 				APIKeyID:   objects.GUID{Type: "APIKey", ID: result.APIKeyID},
-				APIKeyName: ak.Name,
+				APIKeyName: labels[ak.ID],
 				Count:      result.Count,
 			})
 		}
@@ -395,6 +400,10 @@ func (r *queryResolver) TokenStatsByAPIKey(ctx context.Context, timeWindow *stri
 	}
 
 	// Create lookup map
+	labels, labelErr := biz.APIKeyLabels(ctx, r.client, apiKeys)
+	if labelErr != nil {
+		return nil, labelErr
+	}
 	apiKeyMap := lo.SliceToMap(apiKeys, func(ak *ent.APIKey) (int, *ent.APIKey) {
 		return ak.ID, ak
 	})
@@ -408,7 +417,7 @@ func (r *queryResolver) TokenStatsByAPIKey(ctx context.Context, timeWindow *stri
 
 			response = append(response, &TokenStatsByAPIKey{
 				APIKeyID:        objects.GUID{Type: "APIKey", ID: result.APIKeyID},
-				APIKeyName:      ak.Name,
+				APIKeyName:      labels[ak.ID],
 				InputTokens:     int(result.InputTokens),
 				OutputTokens:    int(result.OutputTokens),
 				CachedTokens:    int(result.CachedTokens),
@@ -1741,6 +1750,10 @@ func (r *queryResolver) CostStatsByAPIKey(ctx context.Context, timeWindow *strin
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}
 
+	labels, labelErr := biz.APIKeyLabels(ctx, r.client, apiKeys)
+	if labelErr != nil {
+		return nil, labelErr
+	}
 	apiKeyMap := lo.SliceToMap(apiKeys, func(ak *ent.APIKey) (int, *ent.APIKey) {
 		return ak.ID, ak
 	})
@@ -1751,7 +1764,7 @@ func (r *queryResolver) CostStatsByAPIKey(ctx context.Context, timeWindow *strin
 		if ak, exists := apiKeyMap[result.APIKeyID]; exists {
 			response = append(response, &CostStatsByAPIKey{
 				APIKeyID:   objects.GUID{Type: "APIKey", ID: result.APIKeyID},
-				APIKeyName: ak.Name,
+				APIKeyName: labels[ak.ID],
 				Cost:       result.Cost,
 			})
 		}

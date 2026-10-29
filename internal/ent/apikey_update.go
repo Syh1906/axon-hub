@@ -59,6 +59,33 @@ func (_u *APIKeyUpdate) AddDeletedAt(v int) *APIKeyUpdate {
 	return _u
 }
 
+// SetGroupRef sets the "group_ref" field.
+func (_u *APIKeyUpdate) SetGroupRef(v int) *APIKeyUpdate {
+	_u.mutation.ResetGroupRef()
+	_u.mutation.SetGroupRef(v)
+	return _u
+}
+
+// SetNillableGroupRef sets the "group_ref" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableGroupRef(v *int) *APIKeyUpdate {
+	if v != nil {
+		_u.SetGroupRef(*v)
+	}
+	return _u
+}
+
+// AddGroupRef adds value to the "group_ref" field.
+func (_u *APIKeyUpdate) AddGroupRef(v int) *APIKeyUpdate {
+	_u.mutation.AddGroupRef(v)
+	return _u
+}
+
+// ClearGroupRef clears the value of the "group_ref" field.
+func (_u *APIKeyUpdate) ClearGroupRef() *APIKeyUpdate {
+	_u.mutation.ClearGroupRef()
+	return _u
+}
+
 // SetKey sets the "key" field.
 func (_u *APIKeyUpdate) SetKey(v string) *APIKeyUpdate {
 	_u.mutation.SetKey(v)
@@ -291,6 +318,15 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedDeletedAt(); ok {
 		_spec.AddField(apikey.FieldDeletedAt, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.GroupRef(); ok {
+		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGroupRef(); ok {
+		_spec.AddField(apikey.FieldGroupRef, field.TypeInt, value)
+	}
+	if _u.mutation.GroupRefCleared() {
+		_spec.ClearField(apikey.FieldGroupRef, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
 	}
@@ -422,6 +458,33 @@ func (_u *APIKeyUpdateOne) SetNillableDeletedAt(v *int) *APIKeyUpdateOne {
 // AddDeletedAt adds value to the "deleted_at" field.
 func (_u *APIKeyUpdateOne) AddDeletedAt(v int) *APIKeyUpdateOne {
 	_u.mutation.AddDeletedAt(v)
+	return _u
+}
+
+// SetGroupRef sets the "group_ref" field.
+func (_u *APIKeyUpdateOne) SetGroupRef(v int) *APIKeyUpdateOne {
+	_u.mutation.ResetGroupRef()
+	_u.mutation.SetGroupRef(v)
+	return _u
+}
+
+// SetNillableGroupRef sets the "group_ref" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableGroupRef(v *int) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetGroupRef(*v)
+	}
+	return _u
+}
+
+// AddGroupRef adds value to the "group_ref" field.
+func (_u *APIKeyUpdateOne) AddGroupRef(v int) *APIKeyUpdateOne {
+	_u.mutation.AddGroupRef(v)
+	return _u
+}
+
+// ClearGroupRef clears the value of the "group_ref" field.
+func (_u *APIKeyUpdateOne) ClearGroupRef() *APIKeyUpdateOne {
+	_u.mutation.ClearGroupRef()
 	return _u
 }
 
@@ -686,6 +749,15 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.AddedDeletedAt(); ok {
 		_spec.AddField(apikey.FieldDeletedAt, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GroupRef(); ok {
+		_spec.SetField(apikey.FieldGroupRef, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGroupRef(); ok {
+		_spec.AddField(apikey.FieldGroupRef, field.TypeInt, value)
+	}
+	if _u.mutation.GroupRefCleared() {
+		_spec.ClearField(apikey.FieldGroupRef, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
