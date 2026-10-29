@@ -23,6 +23,11 @@ export const routeConfigs: RouteGroup[] = [
     scopeLevel: 'system', // Admin 路由组只能通过 system-level 权限访问
     routes: [
       {
+        path: '/leaderboard',
+        requiredScopes: ['read_leaderboard'],
+        mode: 'hidden',
+      },
+      {
         path: '/',
         requiredScopes: ['read_dashboard'],
         mode: 'hidden',

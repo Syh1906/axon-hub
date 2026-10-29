@@ -8,6 +8,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/pkg/xerrors"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -89,6 +90,10 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		format = llm.APIFormat(request.APIFormat)
 	}
 
+	var cacheSample *usageanalytics.CacheSample
+	if state.RawRequest != nil && state.Request != nil {
+		cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
+	}
 	requestExec, err := state.RequestService.CreateRequestExecution(
 		ctx,
 		channel,
@@ -97,6 +102,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		*request,
 		format,
 		state.PassThroughApplied,
+		cacheSample,
 	)
 	if err != nil {
 		return nil, err
@@ -159,7 +165,8 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 		}
 
 		metrics = &biz.LatencyMetrics{
-			LatencyMs: &requestLatencyMs,
+			LatencyMs:          &requestLatencyMs,
+			FirstByteLatencyMs: state.Perf.FirstByteLatencyMs(),
 		}
 		if state.Perf.Stream && state.Perf.FirstTokenTime != nil {
 			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
@@ -222,14 +229,12 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	failure := ClassifyUpstreamTransportError(err)
-
-	updateErr := state.RequestService.UpdateRequestExecutionFailed(
-		persistCtx,
-		state.RequestExec.ID,
-		ExtractErrorMessage(failure),
-		ExtractErrorInfo(failure),
-	)
+	var metrics *biz.LatencyMetrics
+	if state.Perf != nil && !state.Perf.StartTime.IsZero() {
+		_, latency, _ := state.Perf.Calculate()
+		metrics = &biz.LatencyMetrics{LatencyMs: &latency, FirstByteLatencyMs: state.Perf.FirstByteLatencyMs()}
+	}
+	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, err, metrics)
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))
 	}

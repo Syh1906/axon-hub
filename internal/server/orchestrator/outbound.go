@@ -291,7 +291,7 @@ func (ts *OutboundPersistentStream) failureLatencyMetrics() *biz.LatencyMetrics 
 	}
 
 	latencyMs := biz.ClampLatency(endTime.Sub(ts.perf.StartTime).Milliseconds())
-	metrics := &biz.LatencyMetrics{LatencyMs: &latencyMs}
+	metrics := &biz.LatencyMetrics{LatencyMs: &latencyMs, FirstByteLatencyMs: ts.perf.FirstByteLatencyMs()}
 
 	if ts.perf.Stream && ts.perf.FirstTokenTime != nil {
 		firstTokenLatencyMs := biz.ClampLatency(ts.perf.FirstTokenTime.Sub(ts.perf.StartTime).Milliseconds())
@@ -334,7 +334,8 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 		firstTokenLatencyMs, requestLatencyMs, _ := ts.perf.Calculate()
 
 		metrics = &biz.LatencyMetrics{
-			LatencyMs: &requestLatencyMs,
+			LatencyMs:          &requestLatencyMs,
+			FirstByteLatencyMs: ts.perf.FirstByteLatencyMs(),
 		}
 		if ts.perf.Stream && ts.perf.FirstTokenTime != nil {
 			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs

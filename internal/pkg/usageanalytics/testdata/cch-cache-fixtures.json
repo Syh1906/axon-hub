@@ -1,0 +1,337 @@
+{
+  "sourceCommit": "0c508eaa",
+  "cases": [
+    {
+      "name": "anthropic_tools_history",
+      "format": "anthropic/messages",
+      "body": {
+        "model": "claude-sonnet-4-5",
+        "system": "You are a helpful assistant.",
+        "tools": [
+          {
+            "name": "read_file",
+            "description": "Read a file",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "bash",
+            "description": "Run a command",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "cmd": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "hello"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "hi there"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "next question"
+          }
+        ]
+      },
+      "expectedPrefixBytes": 249,
+      "expectedFingerprint": "ba222a266bee839ac94446076cb4daf0",
+      "expectedTokens": 62
+    },
+    {
+      "name": "anthropic_media_and_thinking",
+      "format": "anthropic/messages",
+      "body": {
+        "system": [
+          {
+            "type": "text",
+            "text": "中文 <context>"
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "image",
+                "source": {
+                  "type": "base64",
+                  "media_type": "image/png",
+                  "data": "YWJjZGVm"
+                }
+              },
+              {
+                "type": "text",
+                "text": "描述图片",
+                "cache_control": {
+                  "type": "ephemeral",
+                  "ttl": "1h"
+                }
+              }
+            ]
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "分析内容",
+                "signature": "volatile"
+              },
+              {
+                "type": "tool_use",
+                "id": "call-1",
+                "name": "inspect",
+                "input": {
+                  "b": {
+                    "nested": true
+                  },
+                  "a": "x"
+                }
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "call-1",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "result"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expectedPrefixBytes": 225,
+      "expectedFingerprint": "4524956e37fc0936cf34eb98772aecc9",
+      "expectedTokens": 56
+    },
+    {
+      "name": "openai_system_tools",
+      "format": "openai/chat_completions",
+      "body": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "System"
+          },
+          {
+            "role": "developer",
+            "content": "Rules"
+          },
+          {
+            "role": "user",
+            "content": "hello"
+          },
+          {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call-1",
+                "type": "function",
+                "function": {
+                  "name": "read_file",
+                  "arguments": "{\"path\":\"a.ts\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call-1",
+            "content": "result"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "description": "Read",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "expectedPrefixBytes": 210,
+      "expectedFingerprint": "8addeb45c5f55b5af0ceee9755a2c065",
+      "expectedTokens": 52
+    },
+    {
+      "name": "responses_tools_and_reasoning",
+      "format": "openai/responses",
+      "body": {
+        "instructions": "Be precise.",
+        "tools": [
+          {
+            "type": "function",
+            "name": "lookup",
+            "description": "Search",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "term": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "你好"
+              }
+            ]
+          },
+          {
+            "type": "function_call",
+            "call_id": "volatile-1",
+            "name": "lookup",
+            "arguments": "{\"term\":\"test\"}"
+          },
+          {
+            "type": "function_call_output",
+            "call_id": "volatile-1",
+            "output": "found"
+          },
+          {
+            "type": "reasoning",
+            "summary": [
+              {
+                "type": "summary_text",
+                "text": "checked"
+              }
+            ]
+          }
+        ]
+      },
+      "expectedPrefixBytes": 254,
+      "expectedFingerprint": "c86aac5c2db8a2ea5c461f04eb1294c4",
+      "expectedTokens": 63
+    },
+    {
+      "name": "gemini_multimodal",
+      "format": "gemini/contents",
+      "body": {
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "System"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "inspect",
+                "description": "Inspect",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "look"
+              },
+              {
+                "inlineData": {
+                  "mimeType": "image/png",
+                  "data": "YWJjZGVm"
+                }
+              }
+            ]
+          },
+          {
+            "role": "model",
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "inspect",
+                  "args": {
+                    "x": 1
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "name": "inspect",
+                  "id": "volatile",
+                  "response": {
+                    "ok": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expectedPrefixBytes": 216,
+      "expectedFingerprint": "4914890f48b2276a89b69a4512888956",
+      "expectedTokens": 54
+    },
+    {
+      "name": "responses_string",
+      "format": "openai/responses",
+      "body": {
+        "instructions": "中文",
+        "input": "hello"
+      },
+      "expectedPrefixBytes": 23,
+      "expectedFingerprint": "a3078799b4b54fd67bbf1178585db202",
+      "expectedTokens": 5
+    }
+  ]
+}

@@ -827,6 +827,11 @@ func TestChatCompletionOrchestrator_Process_QueueRejectionDoesNotConsumeRPM(t *t
 	var queueErr *ChannelQueueError
 	require.ErrorAs(t, err, &queueErr, "expected channel queue rejection")
 	assert.Equal(t, channelQueueReasonTimeout, queueErr.Reason)
+	execution := client.RequestExecution.Query().OnlyX(ctx)
+	assert.Equal(t, requestexecution.StatusFailed, execution.Status)
+	require.NotNil(t, execution.ResponseStatusCode)
+	assert.Equal(t, http.StatusTooManyRequests, *execution.ResponseStatusCode)
+	assert.Equal(t, "channel "+ch.Name+" is at capacity (queue_timeout); please retry shortly", execution.ErrorMessage)
 
 	assert.Zero(t, rateLimitTracker.GetRequestCount(ch.ID),
 		"queue rejection must not consume RPM budget — middleware order regression")
@@ -911,6 +916,10 @@ func TestChatCompletionOrchestrator_Process_RPMAdmissionBlocksBeforeUpstream(t *
 	assert.Equal(t, ch.ID, rpmErr.ChannelID)
 	assert.Equal(t, int64(1), rateLimitTracker.GetRequestCount(ch.ID))
 	assert.Equal(t, int64(1), executor.requestCalls.Load(), "RPM rejection must not reach upstream")
+	execution := client.RequestExecution.Query().Where(requestexecution.StatusEQ(requestexecution.StatusFailed)).OnlyX(ctx)
+	require.NotNil(t, execution.ResponseStatusCode)
+	assert.Equal(t, http.StatusTooManyRequests, *execution.ResponseStatusCode)
+	assert.Equal(t, "channel "+ch.Name+" exhausted local RPM limit 1; please retry shortly", execution.ErrorMessage)
 }
 
 // TestChatCompletionOrchestrator_Process_ChannelLimiter exercises the channel admission

@@ -54,6 +54,7 @@ type Resolver struct {
 	gcWorker                       *gc.Worker
 	videoWorker                    *video_storage.Worker
 	catalogService                 *biz.CatalogService
+	consumptionService             *biz.ConsumptionService
 }
 
 // NewSchema creates a graphql executable schema.
@@ -89,11 +90,13 @@ func NewSchema(
 	videoWorker *video_storage.Worker,
 	catalogService *biz.CatalogService,
 	channelTestTimeout orchestrator.ChannelTestTimeout,
+	consumptionService *biz.ConsumptionService,
 ) graphql.ExecutableSchema {
 	modelFetcher := biz.NewModelFetcher(httpClient, channelService)
 
 	return NewExecutableSchema(Config{
 		Resolvers: &Resolver{
+			consumptionService:             consumptionService,
 			client:                         client,
 			authService:                    authService,
 			apiKeyService:                  apiKeyService,

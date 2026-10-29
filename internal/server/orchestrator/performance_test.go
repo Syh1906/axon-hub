@@ -156,6 +156,10 @@ func TestPerformanceRecording_OnOutboundRawRequest_PreservesStreamFlag(t *testin
 			assert.Equal(t, tt.expectedStream, state.Perf.Stream,
 				"Stream flag should be preserved from OnInboundLlmRequest through OnOutboundRawRequest. "+
 					"If this fails, the bug has been reverted!")
+			require.NotNil(t, result.OnFirstResponseByte)
+			result.OnFirstResponseByte(state.Perf.StartTime.Add(200 * time.Millisecond))
+			result.OnFirstResponseByte(state.Perf.StartTime.Add(500 * time.Millisecond))
+			require.Equal(t, int64(200), *state.Perf.FirstByteLatencyMs())
 		})
 	}
 }

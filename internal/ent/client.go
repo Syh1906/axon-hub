@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
@@ -52,6 +53,8 @@ type Client struct {
 	APIKey *APIKeyClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
 	APIKeyProfileTemplate *APIKeyProfileTemplateClient
+	// CacheEffectivenessWindow is the client for interacting with the CacheEffectivenessWindow builders.
+	CacheEffectivenessWindow *CacheEffectivenessWindowClient
 	// Channel is the client for interacting with the Channel builders.
 	Channel *ChannelClient
 	// ChannelModelPrice is the client for interacting with the ChannelModelPrice builders.
@@ -115,6 +118,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
 	c.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(c.config)
+	c.CacheEffectivenessWindow = NewCacheEffectivenessWindowClient(c.config)
 	c.Channel = NewChannelClient(c.config)
 	c.ChannelModelPrice = NewChannelModelPriceClient(c.config)
 	c.ChannelModelPriceVersion = NewChannelModelPriceVersionClient(c.config)
@@ -233,6 +237,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
+		CacheEffectivenessWindow: NewCacheEffectivenessWindowClient(cfg),
 		Channel:                  NewChannelClient(cfg),
 		ChannelModelPrice:        NewChannelModelPriceClient(cfg),
 		ChannelModelPriceVersion: NewChannelModelPriceVersionClient(cfg),
@@ -278,6 +283,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
+		CacheEffectivenessWindow: NewCacheEffectivenessWindowClient(cfg),
 		Channel:                  NewChannelClient(cfg),
 		ChannelModelPrice:        NewChannelModelPriceClient(cfg),
 		ChannelModelPriceVersion: NewChannelModelPriceVersionClient(cfg),
@@ -331,12 +337,12 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
-		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
-		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
-		c.UserProject, c.UserRole,
+		c.APIKey, c.APIKeyProfileTemplate, c.CacheEffectivenessWindow, c.Channel,
+		c.ChannelModelPrice, c.ChannelModelPriceVersion, c.ChannelOverrideTemplate,
+		c.ChannelProbe, c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model,
+		c.OIDCIdentity, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.ProviderQuotaStatus, c.Request, c.RequestExecution, c.Role, c.System,
+		c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -346,12 +352,12 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.APIKeyProfileTemplate, c.Channel, c.ChannelModelPrice,
-		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
-		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
-		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
-		c.UserProject, c.UserRole,
+		c.APIKey, c.APIKeyProfileTemplate, c.CacheEffectivenessWindow, c.Channel,
+		c.ChannelModelPrice, c.ChannelModelPriceVersion, c.ChannelOverrideTemplate,
+		c.ChannelProbe, c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model,
+		c.OIDCIdentity, c.Project, c.Prompt, c.PromptProtectionRule,
+		c.ProviderQuotaStatus, c.Request, c.RequestExecution, c.Role, c.System,
+		c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -364,6 +370,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.APIKey.mutate(ctx, m)
 	case *APIKeyProfileTemplateMutation:
 		return c.APIKeyProfileTemplate.mutate(ctx, m)
+	case *CacheEffectivenessWindowMutation:
+		return c.CacheEffectivenessWindow.mutate(ctx, m)
 	case *ChannelMutation:
 		return c.Channel.mutate(ctx, m)
 	case *ChannelModelPriceMutation:
@@ -748,6 +756,140 @@ func (c *APIKeyProfileTemplateClient) mutate(ctx context.Context, m *APIKeyProfi
 		return (&APIKeyProfileTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKeyProfileTemplate mutation op: %q", m.Op())
+	}
+}
+
+// CacheEffectivenessWindowClient is a client for the CacheEffectivenessWindow schema.
+type CacheEffectivenessWindowClient struct {
+	config
+}
+
+// NewCacheEffectivenessWindowClient returns a client for the CacheEffectivenessWindow from the given config.
+func NewCacheEffectivenessWindowClient(c config) *CacheEffectivenessWindowClient {
+	return &CacheEffectivenessWindowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cacheeffectivenesswindow.Hooks(f(g(h())))`.
+func (c *CacheEffectivenessWindowClient) Use(hooks ...Hook) {
+	c.hooks.CacheEffectivenessWindow = append(c.hooks.CacheEffectivenessWindow, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cacheeffectivenesswindow.Intercept(f(g(h())))`.
+func (c *CacheEffectivenessWindowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CacheEffectivenessWindow = append(c.inters.CacheEffectivenessWindow, interceptors...)
+}
+
+// Create returns a builder for creating a CacheEffectivenessWindow entity.
+func (c *CacheEffectivenessWindowClient) Create() *CacheEffectivenessWindowCreate {
+	mutation := newCacheEffectivenessWindowMutation(c.config, OpCreate)
+	return &CacheEffectivenessWindowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CacheEffectivenessWindow entities.
+func (c *CacheEffectivenessWindowClient) CreateBulk(builders ...*CacheEffectivenessWindowCreate) *CacheEffectivenessWindowCreateBulk {
+	return &CacheEffectivenessWindowCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CacheEffectivenessWindowClient) MapCreateBulk(slice any, setFunc func(*CacheEffectivenessWindowCreate, int)) *CacheEffectivenessWindowCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CacheEffectivenessWindowCreateBulk{err: fmt.Errorf("calling to CacheEffectivenessWindowClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CacheEffectivenessWindowCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CacheEffectivenessWindowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CacheEffectivenessWindow.
+func (c *CacheEffectivenessWindowClient) Update() *CacheEffectivenessWindowUpdate {
+	mutation := newCacheEffectivenessWindowMutation(c.config, OpUpdate)
+	return &CacheEffectivenessWindowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CacheEffectivenessWindowClient) UpdateOne(_m *CacheEffectivenessWindow) *CacheEffectivenessWindowUpdateOne {
+	mutation := newCacheEffectivenessWindowMutation(c.config, OpUpdateOne, withCacheEffectivenessWindow(_m))
+	return &CacheEffectivenessWindowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CacheEffectivenessWindowClient) UpdateOneID(id int) *CacheEffectivenessWindowUpdateOne {
+	mutation := newCacheEffectivenessWindowMutation(c.config, OpUpdateOne, withCacheEffectivenessWindowID(id))
+	return &CacheEffectivenessWindowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CacheEffectivenessWindow.
+func (c *CacheEffectivenessWindowClient) Delete() *CacheEffectivenessWindowDelete {
+	mutation := newCacheEffectivenessWindowMutation(c.config, OpDelete)
+	return &CacheEffectivenessWindowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CacheEffectivenessWindowClient) DeleteOne(_m *CacheEffectivenessWindow) *CacheEffectivenessWindowDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CacheEffectivenessWindowClient) DeleteOneID(id int) *CacheEffectivenessWindowDeleteOne {
+	builder := c.Delete().Where(cacheeffectivenesswindow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CacheEffectivenessWindowDeleteOne{builder}
+}
+
+// Query returns a query builder for CacheEffectivenessWindow.
+func (c *CacheEffectivenessWindowClient) Query() *CacheEffectivenessWindowQuery {
+	return &CacheEffectivenessWindowQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCacheEffectivenessWindow},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CacheEffectivenessWindow entity by its id.
+func (c *CacheEffectivenessWindowClient) Get(ctx context.Context, id int) (*CacheEffectivenessWindow, error) {
+	return c.Query().Where(cacheeffectivenesswindow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CacheEffectivenessWindowClient) GetX(ctx context.Context, id int) *CacheEffectivenessWindow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CacheEffectivenessWindowClient) Hooks() []Hook {
+	hooks := c.hooks.CacheEffectivenessWindow
+	return append(hooks[:len(hooks):len(hooks)], cacheeffectivenesswindow.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *CacheEffectivenessWindowClient) Interceptors() []Interceptor {
+	return c.inters.CacheEffectivenessWindow
+}
+
+func (c *CacheEffectivenessWindowClient) mutate(ctx context.Context, m *CacheEffectivenessWindowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CacheEffectivenessWindowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CacheEffectivenessWindowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CacheEffectivenessWindowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CacheEffectivenessWindowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CacheEffectivenessWindow mutation op: %q", m.Op())
 	}
 }
 
@@ -4972,18 +5114,19 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
-		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe,
-		ChannelUpstreamStatus, DataStorage, Invitation, Model, OIDCIdentity, Project,
-		Prompt, PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
-		Role, System, Thread, Trace, UsageLog, User, UserProject, UserRole []ent.Hook
+		APIKey, APIKeyProfileTemplate, CacheEffectivenessWindow, Channel,
+		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
+		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
+		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,
+		Request, RequestExecution, Role, System, Thread, Trace, UsageLog, User,
+		UserProject, UserRole []ent.Hook
 	}
 	inters struct {
-		APIKey, APIKeyProfileTemplate, Channel, ChannelModelPrice,
-		ChannelModelPriceVersion, ChannelOverrideTemplate, ChannelProbe,
-		ChannelUpstreamStatus, DataStorage, Invitation, Model, OIDCIdentity, Project,
-		Prompt, PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
-		Role, System, Thread, Trace, UsageLog, User, UserProject,
-		UserRole []ent.Interceptor
+		APIKey, APIKeyProfileTemplate, CacheEffectivenessWindow, Channel,
+		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
+		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
+		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,
+		Request, RequestExecution, Role, System, Thread, Trace, UsageLog, User,
+		UserProject, UserRole []ent.Interceptor
 	}
 )

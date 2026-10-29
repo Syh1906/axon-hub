@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -547,6 +548,7 @@ type PerformanceRecord struct {
 	APIKey             string // API key used for the request (sensitive, do not log full value)
 	StartTime          time.Time
 	FirstTokenTime     *time.Time
+	firstByteLatency   atomic.Int64
 	ReasoningStartTime *time.Time
 	ReasoningEndTime   *time.Time
 	EndTime            time.Time

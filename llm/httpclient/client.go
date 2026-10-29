@@ -274,6 +274,7 @@ func (hc *HttpClient) Do(ctx context.Context, request *Request) (*Response, erro
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
+	rawResp.Body = ObserveFirstByte(rawResp.Body, request.OnFirstResponseByte)
 
 	defer func() {
 		err := rawResp.Body.Close()
@@ -365,6 +366,7 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 	if err != nil {
 		return nil, fmt.Errorf("HTTP stream request failed: %w", err)
 	}
+	rawResp.Body = ObserveFirstByte(rawResp.Body, request.OnFirstResponseByte)
 
 	// Check for HTTP errors before creating stream
 	if rawResp.StatusCode >= 400 {

@@ -247,7 +247,7 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		return nil, fmt.Errorf("failed to write response.create websocket event: %w", err)
 	}
 
-	stream := &webSocketStream{ctx: ctx, lease: lease, done: make(chan struct{})}
+	stream := &webSocketStream{ctx: ctx, lease: lease, done: make(chan struct{}), onFirstResponseByte: request.OnFirstResponseByte}
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -1056,7 +1056,7 @@ func newWebSocketDialError(request *httpclient.Request, resp *http.Response, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, readErr := io.ReadAll(resp.Body)
+	body, readErr := io.ReadAll(httpclient.ObserveFirstByte(resp.Body, request.OnFirstResponseByte))
 	if readErr != nil {
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
@@ -1072,16 +1072,17 @@ func newWebSocketDialError(request *httpclient.Request, resp *http.Response, err
 }
 
 type webSocketStream struct {
-	ctx      context.Context
-	lease    *webSocketLease
-	done     chan struct{}
-	doneOnce sync.Once
-	mu       sync.Mutex
-	current  *httpclient.StreamEvent
-	err      error
-	closed   bool
-	sawEvent bool
-	terminal bool
+	ctx                 context.Context
+	lease               *webSocketLease
+	done                chan struct{}
+	doneOnce            sync.Once
+	mu                  sync.Mutex
+	current             *httpclient.StreamEvent
+	err                 error
+	closed              bool
+	sawEvent            bool
+	terminal            bool
+	onFirstResponseByte func(time.Time)
 }
 
 func (s *webSocketStream) Next() bool {
@@ -1092,7 +1093,19 @@ func (s *webSocketStream) Next() bool {
 		return false
 	}
 
-	_, msg, err := s.lease.conn.ReadMessage()
+	// ReadMessage itself is NextReader + ReadAll. Observe the payload while it
+	// arrives, before waiting for the final WebSocket fragment of this event.
+	_, reader, err := s.lease.conn.NextReader()
+	var msg []byte
+	if err == nil {
+		if observer := s.onFirstResponseByte; observer != nil {
+			reader = httpclient.ObserveFirstByte(io.NopCloser(reader), func(at time.Time) {
+				observer(at)
+				s.onFirstResponseByte = nil
+			})
+		}
+		msg, err = io.ReadAll(reader)
+	}
 	if err != nil {
 		if websocket.IsCloseError(err, websocket.CloseNormalClosure) || strings.Contains(err.Error(), "use of closed network connection") {
 			if ctxErr := s.ctx.Err(); ctxErr != nil {

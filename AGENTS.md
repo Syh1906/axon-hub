@@ -7,7 +7,7 @@ This file provides guidance to AI coding assistants when working with code in th
 ## Global Rules
 
 1. Do NOT run lint or build commands unless explicitly requested by the user.
-2. Do NOT restart the development server — it's already started and managed.
+2. 用户授权推进实现或修复时，已包含必要的本地开发服务启动、为加载本轮修改所需的重启和联调验收，无需再次确认。先核对现有服务状态与项目启动入口，优先复用可用服务，不假定服务始终运行或由特定工具管理。验收结束后关闭本轮启动的服务及其子进程，保留用户原有服务；用户明确要求继续运行时按其要求。此授权不包含生产／远程服务或无关后台进程。
 3. All summary files should be stored in `.agent/summary` directory if available.
 
 ## 仓库维护模式

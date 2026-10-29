@@ -69,6 +69,16 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### 用量统计与消耗排行榜
+
+- 状态：2026-10-29 已实现并通过本地隔离验收，尚未发布。项目用量统计新增用户／Key 切换；管理区新增用户／密钥／渠道的消耗榜、缓存榜及模型展开，共用今天、昨天、本周、本月、全部、指定日期。系统级 `read_leaderboard` 只授予查看，项目所有者不自动获得全站权限。
+- 来源与边界：按 CCH `0c508eaa` 迁移字段、缓存触发请求分母、成功率分类、首字节输出速度及缓存系数的整数计算；Key 维度扩展其用户榜。保留 AxonHub 历史成本，不改变定价或路由。完整契约及直接来源见[统计说明](zh/development/consumption-statistics.md)与[英文说明](en/development/consumption-statistics.md)。
+- 代码：`internal/server/biz/consumption*.go`、`internal/pkg/usageanalytics/`、`internal/server/gql/consumption.graphql`、`llm/httpclient/first_byte.go`、请求执行采集和 `frontend/src/features/consumption/`。首字节观察覆盖 HTTP/SSE、Responses WebSocket 分片及 Vertex 请求转换。菜单、路由、接口及缓存前均执行权限检查；管理员统计明确区分项目筛选与顶部当前项目。
+- 升级：新增 `cache_effectiveness_windows` 及请求执行的可空采样字段，由 Ent 托管 schema；无新 data migration 版本，不改已发布迁移。已对照直接上游 `v1.0.0-beta10-fork.7`／`b205ae8e`；SQLite 验证旧表升级、重复升级、旧值保留及窗口唯一键。MySQL／PostgreSQL 实例升级尚未验证。
+- 验证与 fixture：固定 CCH 摘要／估算量夹具保存在 `internal/pkg/usageanalytics/testdata/`，MIT 通知随移植保留；用例覆盖缓存分母、重试去重、模型明细、样本阈值、日期边界、只读权限和首字节采集。隔离本地服务的 25 项 HTTP 检查、午夜归属、权限页面与自动缓存汇总已通过。联调发现的 SQLite 时区比较问题已修复：自然日按系统时区计算，查询边界和缓存窗口统一为 UTC；回归覆盖上海、洛杉矶和非 UTC 服务器时钟。复现命令及验证边界见[统计说明](zh/development/consumption-statistics.md#验证入口)。
+- 同日独立复审：修复本地队列／RPM 拒绝误计成功率失败、完整姓名搜索漏匹配，以及表头／父行／模型行文字错位。定向回归、真实拒绝落库断言和 5 项 HTTP 复验通过；普通上游 429、请求数、历史金额及项目过滤保持。独立 subagent 已复核当前计划、源码和居中截图，本地隔离阶段通过。
+- 同步上游注意：核对请求最终归属、首字节和首字耗时的区别、缓存字段是否重复计入输入，以及 Ent 新表／列冲突；窗口系数默认滞后约 15–20 分钟，历史缺失采样不补造。
+
 ### 上游余额与按 Key 同步成本倍率
 
 - 状态：2026-10-28 已随 [v1.0.0-beta10-fork.7.syh.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.4) 正式发布，并设为最新版本。New API 和 Sub2API 自动识别；复用渠道地址、代理与 Key，已有渠道默认关闭同步。余额、Key 额度、账户共享关系与倍率分别展示，未知账户不相加、不按尾号猜测关联。

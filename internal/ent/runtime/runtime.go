@@ -8,6 +8,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
@@ -136,6 +137,25 @@ func init() {
 	apikeyprofiletemplateDescProfile := apikeyprofiletemplateFields[3].Descriptor()
 	// apikeyprofiletemplate.DefaultProfile holds the default value on creation for the profile field.
 	apikeyprofiletemplate.DefaultProfile = apikeyprofiletemplateDescProfile.Default.(*objects.APIKeyProfile)
+	cacheeffectivenesswindow.Policy = privacy.NewPolicies(schema.CacheEffectivenessWindow{})
+	cacheeffectivenesswindow.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := cacheeffectivenesswindow.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	cacheeffectivenesswindowFields := schema.CacheEffectivenessWindow{}.Fields()
+	_ = cacheeffectivenesswindowFields
+	// cacheeffectivenesswindowDescModelID is the schema descriptor for model_id field.
+	cacheeffectivenesswindowDescModelID := cacheeffectivenesswindowFields[2].Descriptor()
+	// cacheeffectivenesswindow.ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
+	cacheeffectivenesswindow.ModelIDValidator = cacheeffectivenesswindowDescModelID.Validators[0].(func(string) error)
+	// cacheeffectivenesswindowDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
+	cacheeffectivenesswindowDescCacheTTLBucket := cacheeffectivenesswindowFields[3].Descriptor()
+	// cacheeffectivenesswindow.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
+	cacheeffectivenesswindow.CacheTTLBucketValidator = cacheeffectivenesswindowDescCacheTTLBucket.Validators[0].(func(string) error)
 	channelMixin := schema.Channel{}.Mixin()
 	channel.Policy = privacy.NewPolicies(schema.Channel{})
 	channel.Hooks[0] = func(next ent.Mutator) ent.Mutator {
@@ -737,8 +757,16 @@ func init() {
 	requestexecutionDescStream := requestexecutionFields[15].Descriptor()
 	// requestexecution.DefaultStream holds the default value on creation for the stream field.
 	requestexecution.DefaultStream = requestexecutionDescStream.Default.(bool)
+	// requestexecutionDescCacheCompatibilityKey is the schema descriptor for cache_compatibility_key field.
+	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[20].Descriptor()
+	// requestexecution.CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
+	requestexecution.CacheCompatibilityKeyValidator = requestexecutionDescCacheCompatibilityKey.Validators[0].(func(string) error)
+	// requestexecutionDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
+	requestexecutionDescCacheTTLBucket := requestexecutionFields[22].Descriptor()
+	// requestexecution.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
+	requestexecution.CacheTTLBucketValidator = requestexecutionDescCacheTTLBucket.Validators[0].(func(string) error)
 	// requestexecutionDescPassThroughApplied is the schema descriptor for pass_through_applied field.
-	requestexecutionDescPassThroughApplied := requestexecutionFields[21].Descriptor()
+	requestexecutionDescPassThroughApplied := requestexecutionFields[26].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
 	roleMixin := schema.Role{}.Mixin()

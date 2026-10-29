@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/looplj/axonhub/llm/streams"
 )
@@ -56,6 +57,9 @@ type Request struct {
 	// SkipInboundQueryMerge when set to true, prevents query parameters from the original
 	// inbound request from being merged into this request during MergeInboundRequest.
 	SkipInboundQueryMerge bool `json:"-"`
+
+	// OnFirstResponseByte observes the first response body byte, before decoding.
+	OnFirstResponseByte func(time.Time) `json:"-"`
 }
 
 // AuthConfig represents authentication configuration.

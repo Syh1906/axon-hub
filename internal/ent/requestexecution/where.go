@@ -130,6 +130,31 @@ func MetricsFirstTokenLatencyMs(v int64) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstTokenLatencyMs, v))
 }
 
+// MetricsFirstByteLatencyMs applies equality check predicate on the "metrics_first_byte_latency_ms" field. It's identical to MetricsFirstByteLatencyMsEQ.
+func MetricsFirstByteLatencyMs(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteRecorded applies equality check predicate on the "metrics_first_byte_recorded" field. It's identical to MetricsFirstByteRecordedEQ.
+func MetricsFirstByteRecorded(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstByteRecorded, v))
+}
+
+// CacheCompatibilityKey applies equality check predicate on the "cache_compatibility_key" field. It's identical to CacheCompatibilityKeyEQ.
+func CacheCompatibilityKey(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldCacheCompatibilityKey, v))
+}
+
+// TheoreticalCacheTokens applies equality check predicate on the "theoretical_cache_tokens" field. It's identical to TheoreticalCacheTokensEQ.
+func TheoreticalCacheTokens(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldTheoreticalCacheTokens, v))
+}
+
+// CacheTTLBucket applies equality check predicate on the "cache_ttl_bucket" field. It's identical to CacheTTLBucketEQ.
+func CacheTTLBucket(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldCacheTTLBucket, v))
+}
+
 // MetricsReasoningDurationMs applies equality check predicate on the "metrics_reasoning_duration_ms" field. It's identical to MetricsReasoningDurationMsEQ.
 func MetricsReasoningDurationMs(v int64) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsReasoningDurationMs, v))
@@ -908,6 +933,276 @@ func MetricsFirstTokenLatencyMsIsNil() predicate.RequestExecution {
 // MetricsFirstTokenLatencyMsNotNil applies the NotNil predicate on the "metrics_first_token_latency_ms" field.
 func MetricsFirstTokenLatencyMsNotNil() predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldNotNull(FieldMetricsFirstTokenLatencyMs))
+}
+
+// MetricsFirstByteLatencyMsEQ applies the EQ predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsNEQ applies the NEQ predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsNEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsIn applies the In predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldMetricsFirstByteLatencyMs, vs...))
+}
+
+// MetricsFirstByteLatencyMsNotIn applies the NotIn predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsNotIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldMetricsFirstByteLatencyMs, vs...))
+}
+
+// MetricsFirstByteLatencyMsGT applies the GT predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsGT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsGTE applies the GTE predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsGTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsLT applies the LT predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsLT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsLTE applies the LTE predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsLTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldMetricsFirstByteLatencyMs, v))
+}
+
+// MetricsFirstByteLatencyMsIsNil applies the IsNil predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldMetricsFirstByteLatencyMs))
+}
+
+// MetricsFirstByteLatencyMsNotNil applies the NotNil predicate on the "metrics_first_byte_latency_ms" field.
+func MetricsFirstByteLatencyMsNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldMetricsFirstByteLatencyMs))
+}
+
+// MetricsFirstByteRecordedEQ applies the EQ predicate on the "metrics_first_byte_recorded" field.
+func MetricsFirstByteRecordedEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstByteRecorded, v))
+}
+
+// MetricsFirstByteRecordedNEQ applies the NEQ predicate on the "metrics_first_byte_recorded" field.
+func MetricsFirstByteRecordedNEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldMetricsFirstByteRecorded, v))
+}
+
+// MetricsFirstByteRecordedIsNil applies the IsNil predicate on the "metrics_first_byte_recorded" field.
+func MetricsFirstByteRecordedIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldMetricsFirstByteRecorded))
+}
+
+// MetricsFirstByteRecordedNotNil applies the NotNil predicate on the "metrics_first_byte_recorded" field.
+func MetricsFirstByteRecordedNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldMetricsFirstByteRecorded))
+}
+
+// CacheCompatibilityKeyEQ applies the EQ predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyNEQ applies the NEQ predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyNEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyIn applies the In predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldCacheCompatibilityKey, vs...))
+}
+
+// CacheCompatibilityKeyNotIn applies the NotIn predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyNotIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldCacheCompatibilityKey, vs...))
+}
+
+// CacheCompatibilityKeyGT applies the GT predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyGT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyGTE applies the GTE predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyGTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyLT applies the LT predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyLT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyLTE applies the LTE predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyLTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyContains applies the Contains predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyContains(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContains(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyHasPrefix applies the HasPrefix predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyHasPrefix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasPrefix(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyHasSuffix applies the HasSuffix predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyHasSuffix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasSuffix(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyIsNil applies the IsNil predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldCacheCompatibilityKey))
+}
+
+// CacheCompatibilityKeyNotNil applies the NotNil predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldCacheCompatibilityKey))
+}
+
+// CacheCompatibilityKeyEqualFold applies the EqualFold predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyEqualFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEqualFold(FieldCacheCompatibilityKey, v))
+}
+
+// CacheCompatibilityKeyContainsFold applies the ContainsFold predicate on the "cache_compatibility_key" field.
+func CacheCompatibilityKeyContainsFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContainsFold(FieldCacheCompatibilityKey, v))
+}
+
+// TheoreticalCacheTokensEQ applies the EQ predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensNEQ applies the NEQ predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensNEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensIn applies the In predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldTheoreticalCacheTokens, vs...))
+}
+
+// TheoreticalCacheTokensNotIn applies the NotIn predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensNotIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldTheoreticalCacheTokens, vs...))
+}
+
+// TheoreticalCacheTokensGT applies the GT predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensGT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensGTE applies the GTE predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensGTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensLT applies the LT predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensLT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensLTE applies the LTE predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensLTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldTheoreticalCacheTokens, v))
+}
+
+// TheoreticalCacheTokensIsNil applies the IsNil predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldTheoreticalCacheTokens))
+}
+
+// TheoreticalCacheTokensNotNil applies the NotNil predicate on the "theoretical_cache_tokens" field.
+func TheoreticalCacheTokensNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldTheoreticalCacheTokens))
+}
+
+// CacheTTLBucketEQ applies the EQ predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketNEQ applies the NEQ predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketNEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketIn applies the In predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldCacheTTLBucket, vs...))
+}
+
+// CacheTTLBucketNotIn applies the NotIn predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketNotIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldCacheTTLBucket, vs...))
+}
+
+// CacheTTLBucketGT applies the GT predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketGT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketGTE applies the GTE predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketGTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketLT applies the LT predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketLT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketLTE applies the LTE predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketLTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketContains applies the Contains predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketContains(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContains(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketHasPrefix applies the HasPrefix predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketHasPrefix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasPrefix(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketHasSuffix applies the HasSuffix predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketHasSuffix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasSuffix(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketIsNil applies the IsNil predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldCacheTTLBucket))
+}
+
+// CacheTTLBucketNotNil applies the NotNil predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldCacheTTLBucket))
+}
+
+// CacheTTLBucketEqualFold applies the EqualFold predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketEqualFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEqualFold(FieldCacheTTLBucket, v))
+}
+
+// CacheTTLBucketContainsFold applies the ContainsFold predicate on the "cache_ttl_bucket" field.
+func CacheTTLBucketContainsFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContainsFold(FieldCacheTTLBucket, v))
 }
 
 // MetricsReasoningDurationMsEQ applies the EQ predicate on the "metrics_reasoning_duration_ms" field.

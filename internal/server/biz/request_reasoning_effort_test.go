@@ -148,6 +148,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		},
 		llm.APIFormatOpenAIChatCompletion,
 		false,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, execution.ReasoningEffort)
@@ -164,6 +165,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		},
 		llm.APIFormatOpenAIResponse,
 		false,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, responsesExecution.ReasoningEffort)
@@ -180,6 +182,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		},
 		llm.APIFormatAnthropicMessage,
 		false,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, anthropicExecution.ReasoningEffort)

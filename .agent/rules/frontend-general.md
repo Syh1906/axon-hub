@@ -5,7 +5,7 @@ globs: "frontend/**/*.ts, frontend/**/*.tsx"
 
 # Frontend General Rules
 
-1. Do not restart the frontend development server; it is already managed.
+1. 本地前端服务的启动、重启、联调与结束清理遵循仓库根 `AGENTS.md`；先核对实际服务状态。
 2. Use `pnpm` as the package manager.
 3. Do not run frontend lint or build commands unless the user explicitly asks.
 4. Prefer GraphQL input filters over client-side filtering when data should be filtered by the API.

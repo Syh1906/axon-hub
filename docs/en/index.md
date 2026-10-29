@@ -57,6 +57,7 @@ Welcome to the AxonHub documentation center! This index will help you quickly fi
 | [Entity Relationship Diagram](development/erd.md) | Database model relationship diagrams |
 | [Transformation Flow](development/transformation-flow.md) | Request/response transformation process |
 | [Authz Coding Guidelines](development/authz-coding-guidelines.md) | Guidelines for writing authorization code |
+| [Usage statistics and consumption leaderboard](development/consumption-statistics.md) | CCH metric mapping, calculations, read permission and upgrade boundaries |
 
 ### ❓ FAQ
 

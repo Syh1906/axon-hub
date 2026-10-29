@@ -7,7 +7,7 @@ globs: "**/*.go"
 
 ## Development Workflow
 
-1. The development server is managed by `air`; do not restart it manually.
+1. 本地后端服务的启动、重启、联调与结束清理遵循仓库根 `AGENTS.md`；先核对实际运行方式，不假定始终由 `air` 管理。
 2. Do not run `go build`, `make build-backend`, `make build`, or `golangci-lint run` unless the user explicitly asks.
 3. Use the owning Go module for commands. In particular, run Go commands for `llm/` from the `llm/` directory.
 

@@ -17,6 +17,7 @@ var Module = fx.Module("biz",
 	fx.Provide(NewChannelService),
 	fx.Provide(NewRequestService),
 	fx.Provide(NewSelfUsageService),
+	fx.Provide(NewConsumptionService),
 	fx.Provide(NewUsageLogService),
 	fx.Provide(NewVideoService),
 	fx.Provide(NewUserService),
@@ -97,6 +98,9 @@ var Module = fx.Module("biz",
 				return svc.RegisterScheduledTasks(ctx, s)
 			},
 		})
+	}),
+	fx.Invoke(func(lc fx.Lifecycle, svc *ConsumptionService, s *scheduler.Scheduler) {
+		lc.Append(fx.Hook{OnStart: func(ctx context.Context) error { return svc.RegisterScheduledTasks(ctx, s) }})
 	}),
 	fx.Invoke(func(lc fx.Lifecycle, svc *PromptService, s *scheduler.Scheduler) {
 		lc.Append(fx.Hook{

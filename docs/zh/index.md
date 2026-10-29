@@ -56,6 +56,7 @@
 | [实体关系图](development/erd.md) | 数据库模型关系图 |
 | [转换流程](development/transformation-flow.md) | 请求/响应转换流程详解 |
 | [授权编码规范](development/authz-coding-guidelines.md) | 权限相关代码编写规范 |
+| [用量统计与消耗排行榜](development/consumption-statistics.md) | CCH 字段映射、计算口径、只读权限与升级边界 |
 
 ### ❓ 常见问题
 

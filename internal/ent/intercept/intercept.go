@@ -10,6 +10,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
@@ -145,6 +146,33 @@ func (f TraverseAPIKeyProfileTemplate) Traverse(ctx context.Context, q ent.Query
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyProfileTemplateQuery", q)
+}
+
+// The CacheEffectivenessWindowFunc type is an adapter to allow the use of ordinary function as a Querier.
+type CacheEffectivenessWindowFunc func(context.Context, *ent.CacheEffectivenessWindowQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f CacheEffectivenessWindowFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.CacheEffectivenessWindowQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.CacheEffectivenessWindowQuery", q)
+}
+
+// The TraverseCacheEffectivenessWindow type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseCacheEffectivenessWindow func(context.Context, *ent.CacheEffectivenessWindowQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseCacheEffectivenessWindow) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseCacheEffectivenessWindow) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CacheEffectivenessWindowQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.CacheEffectivenessWindowQuery", q)
 }
 
 // The ChannelFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -802,6 +830,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.APIKeyQuery, predicate.APIKey, apikey.OrderOption]{typ: ent.TypeAPIKey, tq: q}, nil
 	case *ent.APIKeyProfileTemplateQuery:
 		return &query[*ent.APIKeyProfileTemplateQuery, predicate.APIKeyProfileTemplate, apikeyprofiletemplate.OrderOption]{typ: ent.TypeAPIKeyProfileTemplate, tq: q}, nil
+	case *ent.CacheEffectivenessWindowQuery:
+		return &query[*ent.CacheEffectivenessWindowQuery, predicate.CacheEffectivenessWindow, cacheeffectivenesswindow.OrderOption]{typ: ent.TypeCacheEffectivenessWindow, tq: q}, nil
 	case *ent.ChannelQuery:
 		return &query[*ent.ChannelQuery, predicate.Channel, channel.OrderOption]{typ: ent.TypeChannel, tq: q}, nil
 	case *ent.ChannelModelPriceQuery:

@@ -93,6 +93,43 @@ var (
 			},
 		},
 	}
+	// CacheEffectivenessWindowsColumns holds the columns for the "cache_effectiveness_windows" table.
+	CacheEffectivenessWindowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "channel_id", Type: field.TypeInt},
+		{Name: "model_id", Type: field.TypeString, Size: 255},
+		{Name: "cache_ttl_bucket", Type: field.TypeString, Size: 8},
+		{Name: "window_start", Type: field.TypeTime},
+		{Name: "window_end", Type: field.TypeTime},
+		{Name: "sample_count", Type: field.TypeInt64},
+		{Name: "eligible_count", Type: field.TypeInt64},
+		{Name: "theoretical_tokens", Type: field.TypeInt64},
+		{Name: "observed_tokens", Type: field.TypeInt64},
+	}
+	// CacheEffectivenessWindowsTable holds the schema information for the "cache_effectiveness_windows" table.
+	CacheEffectivenessWindowsTable = &schema.Table{
+		Name:       "cache_effectiveness_windows",
+		Columns:    CacheEffectivenessWindowsColumns,
+		PrimaryKey: []*schema.Column{CacheEffectivenessWindowsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cache_effectiveness_window_unique",
+				Unique:  true,
+				Columns: []*schema.Column{CacheEffectivenessWindowsColumns[1], CacheEffectivenessWindowsColumns[2], CacheEffectivenessWindowsColumns[3], CacheEffectivenessWindowsColumns[4], CacheEffectivenessWindowsColumns[6]},
+			},
+			{
+				Name:    "cache_effectiveness_by_project_window",
+				Unique:  false,
+				Columns: []*schema.Column{CacheEffectivenessWindowsColumns[1], CacheEffectivenessWindowsColumns[6]},
+			},
+			{
+				Name:    "cache_effectiveness_by_window",
+				Unique:  false,
+				Columns: []*schema.Column{CacheEffectivenessWindowsColumns[6]},
+			},
+		},
+	}
 	// ChannelsColumns holds the columns for the "channels" table.
 	ChannelsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -689,6 +726,11 @@ var (
 		{Name: "stream", Type: field.TypeBool, Default: false},
 		{Name: "metrics_latency_ms", Type: field.TypeInt64, Nullable: true},
 		{Name: "metrics_first_token_latency_ms", Type: field.TypeInt64, Nullable: true},
+		{Name: "metrics_first_byte_latency_ms", Type: field.TypeInt64, Nullable: true},
+		{Name: "metrics_first_byte_recorded", Type: field.TypeBool, Nullable: true},
+		{Name: "cache_compatibility_key", Type: field.TypeString, Nullable: true, Size: 160},
+		{Name: "theoretical_cache_tokens", Type: field.TypeInt64, Nullable: true},
+		{Name: "cache_ttl_bucket", Type: field.TypeString, Nullable: true, Size: 8},
 		{Name: "metrics_reasoning_duration_ms", Type: field.TypeInt64, Nullable: true},
 		{Name: "request_headers", Type: field.TypeJSON, Nullable: true},
 		{Name: "request_url", Type: field.TypeString, Nullable: true},
@@ -705,19 +747,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "request_executions_channels_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[22]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[27]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_data_storages_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[23]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[28]},
 				RefColumns: []*schema.Column{DataStoragesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_requests_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[24]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[29]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -726,17 +768,17 @@ var (
 			{
 				Name:    "request_executions_by_request_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[24], RequestExecutionsColumns[14], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[29], RequestExecutionsColumns[14], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_request_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[24], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[29], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[22], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[27], RequestExecutionsColumns[1]},
 			},
 		},
 	}
@@ -1086,6 +1128,7 @@ var (
 	Tables = []*schema.Table{
 		APIKeysTable,
 		APIKeyProfileTemplatesTable,
+		CacheEffectivenessWindowsTable,
 		ChannelsTable,
 		ChannelModelPricesTable,
 		ChannelModelPriceVersionsTable,

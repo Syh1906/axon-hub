@@ -82,6 +82,7 @@ type Dependencies struct {
 	VideoWorker                    *video_storage.Worker
 	CatalogService                 *biz.CatalogService
 	ChannelTestTimeout             orchestrator.ChannelTestTimeout
+	ConsumptionService             *biz.ConsumptionService
 }
 
 type GraphqlHandler struct {
@@ -140,6 +141,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 			deps.VideoWorker,
 			deps.CatalogService,
 			deps.ChannelTestTimeout,
+			deps.ConsumptionService,
 		),
 	)
 

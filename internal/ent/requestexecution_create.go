@@ -250,6 +250,76 @@ func (_c *RequestExecutionCreate) SetNillableMetricsFirstTokenLatencyMs(v *int64
 	return _c
 }
 
+// SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
+func (_c *RequestExecutionCreate) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionCreate {
+	_c.mutation.SetMetricsFirstByteLatencyMs(v)
+	return _c
+}
+
+// SetNillableMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableMetricsFirstByteLatencyMs(v *int64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetMetricsFirstByteLatencyMs(*v)
+	}
+	return _c
+}
+
+// SetMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field.
+func (_c *RequestExecutionCreate) SetMetricsFirstByteRecorded(v bool) *RequestExecutionCreate {
+	_c.mutation.SetMetricsFirstByteRecorded(v)
+	return _c
+}
+
+// SetNillableMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableMetricsFirstByteRecorded(v *bool) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetMetricsFirstByteRecorded(*v)
+	}
+	return _c
+}
+
+// SetCacheCompatibilityKey sets the "cache_compatibility_key" field.
+func (_c *RequestExecutionCreate) SetCacheCompatibilityKey(v string) *RequestExecutionCreate {
+	_c.mutation.SetCacheCompatibilityKey(v)
+	return _c
+}
+
+// SetNillableCacheCompatibilityKey sets the "cache_compatibility_key" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableCacheCompatibilityKey(v *string) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetCacheCompatibilityKey(*v)
+	}
+	return _c
+}
+
+// SetTheoreticalCacheTokens sets the "theoretical_cache_tokens" field.
+func (_c *RequestExecutionCreate) SetTheoreticalCacheTokens(v int64) *RequestExecutionCreate {
+	_c.mutation.SetTheoreticalCacheTokens(v)
+	return _c
+}
+
+// SetNillableTheoreticalCacheTokens sets the "theoretical_cache_tokens" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableTheoreticalCacheTokens(v *int64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetTheoreticalCacheTokens(*v)
+	}
+	return _c
+}
+
+// SetCacheTTLBucket sets the "cache_ttl_bucket" field.
+func (_c *RequestExecutionCreate) SetCacheTTLBucket(v string) *RequestExecutionCreate {
+	_c.mutation.SetCacheTTLBucket(v)
+	return _c
+}
+
+// SetNillableCacheTTLBucket sets the "cache_ttl_bucket" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableCacheTTLBucket(v *string) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetCacheTTLBucket(*v)
+	}
+	return _c
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (_c *RequestExecutionCreate) SetMetricsReasoningDurationMs(v int64) *RequestExecutionCreate {
 	_c.mutation.SetMetricsReasoningDurationMs(v)
@@ -407,6 +477,16 @@ func (_c *RequestExecutionCreate) check() error {
 	if _, ok := _c.mutation.Stream(); !ok {
 		return &ValidationError{Name: "stream", err: errors.New(`ent: missing required field "RequestExecution.stream"`)}
 	}
+	if v, ok := _c.mutation.CacheCompatibilityKey(); ok {
+		if err := requestexecution.CacheCompatibilityKeyValidator(v); err != nil {
+			return &ValidationError{Name: "cache_compatibility_key", err: fmt.Errorf(`ent: validator failed for field "RequestExecution.cache_compatibility_key": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.CacheTTLBucket(); ok {
+		if err := requestexecution.CacheTTLBucketValidator(v); err != nil {
+			return &ValidationError{Name: "cache_ttl_bucket", err: fmt.Errorf(`ent: validator failed for field "RequestExecution.cache_ttl_bucket": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.PassThroughApplied(); !ok {
 		return &ValidationError{Name: "pass_through_applied", err: errors.New(`ent: missing required field "RequestExecution.pass_through_applied"`)}
 	}
@@ -507,6 +587,26 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 	if value, ok := _c.mutation.MetricsFirstTokenLatencyMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsFirstTokenLatencyMs, field.TypeInt64, value)
 		_node.MetricsFirstTokenLatencyMs = &value
+	}
+	if value, ok := _c.mutation.MetricsFirstByteLatencyMs(); ok {
+		_spec.SetField(requestexecution.FieldMetricsFirstByteLatencyMs, field.TypeInt64, value)
+		_node.MetricsFirstByteLatencyMs = &value
+	}
+	if value, ok := _c.mutation.MetricsFirstByteRecorded(); ok {
+		_spec.SetField(requestexecution.FieldMetricsFirstByteRecorded, field.TypeBool, value)
+		_node.MetricsFirstByteRecorded = &value
+	}
+	if value, ok := _c.mutation.CacheCompatibilityKey(); ok {
+		_spec.SetField(requestexecution.FieldCacheCompatibilityKey, field.TypeString, value)
+		_node.CacheCompatibilityKey = &value
+	}
+	if value, ok := _c.mutation.TheoreticalCacheTokens(); ok {
+		_spec.SetField(requestexecution.FieldTheoreticalCacheTokens, field.TypeInt64, value)
+		_node.TheoreticalCacheTokens = &value
+	}
+	if value, ok := _c.mutation.CacheTTLBucket(); ok {
+		_spec.SetField(requestexecution.FieldCacheTTLBucket, field.TypeString, value)
+		_node.CacheTTLBucket = &value
 	}
 	if value, ok := _c.mutation.MetricsReasoningDurationMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsReasoningDurationMs, field.TypeInt64, value)
@@ -795,6 +895,48 @@ func (u *RequestExecutionUpsert) ClearMetricsFirstTokenLatencyMs() *RequestExecu
 	return u
 }
 
+// SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsert) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldMetricsFirstByteLatencyMs, v)
+	return u
+}
+
+// UpdateMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateMetricsFirstByteLatencyMs() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldMetricsFirstByteLatencyMs)
+	return u
+}
+
+// AddMetricsFirstByteLatencyMs adds v to the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsert) AddMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldMetricsFirstByteLatencyMs, v)
+	return u
+}
+
+// ClearMetricsFirstByteLatencyMs clears the value of the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsert) ClearMetricsFirstByteLatencyMs() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldMetricsFirstByteLatencyMs)
+	return u
+}
+
+// SetMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsert) SetMetricsFirstByteRecorded(v bool) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldMetricsFirstByteRecorded, v)
+	return u
+}
+
+// UpdateMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateMetricsFirstByteRecorded() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldMetricsFirstByteRecorded)
+	return u
+}
+
+// ClearMetricsFirstByteRecorded clears the value of the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsert) ClearMetricsFirstByteRecorded() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldMetricsFirstByteRecorded)
+	return u
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (u *RequestExecutionUpsert) SetMetricsReasoningDurationMs(v int64) *RequestExecutionUpsert {
 	u.Set(requestexecution.FieldMetricsReasoningDurationMs, v)
@@ -910,6 +1052,15 @@ func (u *RequestExecutionUpsertOne) UpdateNewValues() *RequestExecutionUpsertOne
 		}
 		if _, exists := u.create.mutation.Stream(); exists {
 			s.SetIgnore(requestexecution.FieldStream)
+		}
+		if _, exists := u.create.mutation.CacheCompatibilityKey(); exists {
+			s.SetIgnore(requestexecution.FieldCacheCompatibilityKey)
+		}
+		if _, exists := u.create.mutation.TheoreticalCacheTokens(); exists {
+			s.SetIgnore(requestexecution.FieldTheoreticalCacheTokens)
+		}
+		if _, exists := u.create.mutation.CacheTTLBucket(); exists {
+			s.SetIgnore(requestexecution.FieldCacheTTLBucket)
 		}
 	}))
 	return u
@@ -1135,6 +1286,55 @@ func (u *RequestExecutionUpsertOne) UpdateMetricsFirstTokenLatencyMs() *RequestE
 func (u *RequestExecutionUpsertOne) ClearMetricsFirstTokenLatencyMs() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertOne) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetMetricsFirstByteLatencyMs(v)
+	})
+}
+
+// AddMetricsFirstByteLatencyMs adds v to the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertOne) AddMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddMetricsFirstByteLatencyMs(v)
+	})
+}
+
+// UpdateMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateMetricsFirstByteLatencyMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateMetricsFirstByteLatencyMs()
+	})
+}
+
+// ClearMetricsFirstByteLatencyMs clears the value of the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertOne) ClearMetricsFirstByteLatencyMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearMetricsFirstByteLatencyMs()
+	})
+}
+
+// SetMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsertOne) SetMetricsFirstByteRecorded(v bool) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetMetricsFirstByteRecorded(v)
+	})
+}
+
+// UpdateMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateMetricsFirstByteRecorded() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateMetricsFirstByteRecorded()
+	})
+}
+
+// ClearMetricsFirstByteRecorded clears the value of the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsertOne) ClearMetricsFirstByteRecorded() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearMetricsFirstByteRecorded()
 	})
 }
 
@@ -1431,6 +1631,15 @@ func (u *RequestExecutionUpsertBulk) UpdateNewValues() *RequestExecutionUpsertBu
 			if _, exists := b.mutation.Stream(); exists {
 				s.SetIgnore(requestexecution.FieldStream)
 			}
+			if _, exists := b.mutation.CacheCompatibilityKey(); exists {
+				s.SetIgnore(requestexecution.FieldCacheCompatibilityKey)
+			}
+			if _, exists := b.mutation.TheoreticalCacheTokens(); exists {
+				s.SetIgnore(requestexecution.FieldTheoreticalCacheTokens)
+			}
+			if _, exists := b.mutation.CacheTTLBucket(); exists {
+				s.SetIgnore(requestexecution.FieldCacheTTLBucket)
+			}
 		}
 	}))
 	return u
@@ -1656,6 +1865,55 @@ func (u *RequestExecutionUpsertBulk) UpdateMetricsFirstTokenLatencyMs() *Request
 func (u *RequestExecutionUpsertBulk) ClearMetricsFirstTokenLatencyMs() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertBulk) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetMetricsFirstByteLatencyMs(v)
+	})
+}
+
+// AddMetricsFirstByteLatencyMs adds v to the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertBulk) AddMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddMetricsFirstByteLatencyMs(v)
+	})
+}
+
+// UpdateMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateMetricsFirstByteLatencyMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateMetricsFirstByteLatencyMs()
+	})
+}
+
+// ClearMetricsFirstByteLatencyMs clears the value of the "metrics_first_byte_latency_ms" field.
+func (u *RequestExecutionUpsertBulk) ClearMetricsFirstByteLatencyMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearMetricsFirstByteLatencyMs()
+	})
+}
+
+// SetMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsertBulk) SetMetricsFirstByteRecorded(v bool) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetMetricsFirstByteRecorded(v)
+	})
+}
+
+// UpdateMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateMetricsFirstByteRecorded() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateMetricsFirstByteRecorded()
+	})
+}
+
+// ClearMetricsFirstByteRecorded clears the value of the "metrics_first_byte_recorded" field.
+func (u *RequestExecutionUpsertBulk) ClearMetricsFirstByteRecorded() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearMetricsFirstByteRecorded()
 	})
 }
 

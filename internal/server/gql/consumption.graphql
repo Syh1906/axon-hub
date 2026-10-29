@@ -1,0 +1,78 @@
+enum ConsumptionDimension {
+  USER
+  API_KEY
+  CHANNEL
+}
+
+enum ConsumptionMetric {
+  COST
+  CACHE
+}
+
+enum ConsumptionPeriod {
+  TODAY
+  YESTERDAY
+  WEEK
+  MONTH
+  ALL
+  CUSTOM
+}
+
+input ConsumptionFilter {
+  projectID: ID
+  dimension: ConsumptionDimension!
+  metric: ConsumptionMetric! = COST
+  period: ConsumptionPeriod! = TODAY
+  startDate: String
+  endDate: String
+  search: String
+}
+
+type ConsumptionProject {
+  id: ID!
+  name: String!
+}
+
+type ConsumptionMetrics {
+  requestCount: Int!
+  totalTokens: Int!
+  totalCost: Float!
+  cacheRequests: Int!
+  cacheReadTokens: Int!
+  cacheInputTokens: Int!
+  cacheCreationCost: Float!
+  cacheHitRate: Float
+  successRate: Float
+  avgFirstTokenMs: Float
+  avgTokensPerSecond: Float
+  avgCostPerRequest: Float
+  avgCostPerMillionTokens: Float
+  cacheCoefficient: Int
+}
+
+type ConsumptionModel {
+  model: String!
+  metrics: ConsumptionMetrics!
+}
+
+type ConsumptionEntry {
+  id: ID!
+  name: String!
+  metrics: ConsumptionMetrics!
+  models: [ConsumptionModel!]!
+}
+
+type ConsumptionResult {
+  entries: [ConsumptionEntry!]!
+  generatedAt: Time!
+  rangeStart: Time
+  rangeEnd: Time!
+  timezone: String!
+  currencyCode: String!
+}
+
+extend type Query {
+  consumptionProjects: [ConsumptionProject!]!
+  consumptionLeaderboard(input: ConsumptionFilter!): ConsumptionResult!
+  usageStatistics(input: ConsumptionFilter!): ConsumptionResult!
+}

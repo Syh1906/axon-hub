@@ -62,6 +62,16 @@ type RequestExecution struct {
 	MetricsLatencyMs *int64 `json:"metrics_latency_ms,omitempty"`
 	// MetricsFirstTokenLatencyMs holds the value of the "metrics_first_token_latency_ms" field.
 	MetricsFirstTokenLatencyMs *int64 `json:"metrics_first_token_latency_ms,omitempty"`
+	// MetricsFirstByteLatencyMs holds the value of the "metrics_first_byte_latency_ms" field.
+	MetricsFirstByteLatencyMs *int64 `json:"metrics_first_byte_latency_ms,omitempty"`
+	// MetricsFirstByteRecorded holds the value of the "metrics_first_byte_recorded" field.
+	MetricsFirstByteRecorded *bool `json:"metrics_first_byte_recorded,omitempty"`
+	// CacheCompatibilityKey holds the value of the "cache_compatibility_key" field.
+	CacheCompatibilityKey *string `json:"cache_compatibility_key,omitempty"`
+	// TheoreticalCacheTokens holds the value of the "theoretical_cache_tokens" field.
+	TheoreticalCacheTokens *int64 `json:"theoretical_cache_tokens,omitempty"`
+	// CacheTTLBucket holds the value of the "cache_ttl_bucket" field.
+	CacheTTLBucket *string `json:"cache_ttl_bucket,omitempty"`
 	// Reasoning/thinking duration in milliseconds
 	MetricsReasoningDurationMs *int64 `json:"metrics_reasoning_duration_ms,omitempty"`
 	// Request headers
@@ -131,11 +141,11 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
-		case requestexecution.FieldStream, requestexecution.FieldPassThroughApplied:
+		case requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
-		case requestexecution.FieldID, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsReasoningDurationMs:
+		case requestexecution.FieldID, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
 			values[i] = new(sql.NullInt64)
-		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldErrorMessage, requestexecution.FieldStatus, requestexecution.FieldRequestURL:
+		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldErrorMessage, requestexecution.FieldStatus, requestexecution.FieldCacheCompatibilityKey, requestexecution.FieldCacheTTLBucket, requestexecution.FieldRequestURL:
 			values[i] = new(sql.NullString)
 		case requestexecution.FieldCreatedAt, requestexecution.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -292,6 +302,41 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				_m.MetricsFirstTokenLatencyMs = new(int64)
 				*_m.MetricsFirstTokenLatencyMs = value.Int64
 			}
+		case requestexecution.FieldMetricsFirstByteLatencyMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field metrics_first_byte_latency_ms", values[i])
+			} else if value.Valid {
+				_m.MetricsFirstByteLatencyMs = new(int64)
+				*_m.MetricsFirstByteLatencyMs = value.Int64
+			}
+		case requestexecution.FieldMetricsFirstByteRecorded:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field metrics_first_byte_recorded", values[i])
+			} else if value.Valid {
+				_m.MetricsFirstByteRecorded = new(bool)
+				*_m.MetricsFirstByteRecorded = value.Bool
+			}
+		case requestexecution.FieldCacheCompatibilityKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cache_compatibility_key", values[i])
+			} else if value.Valid {
+				_m.CacheCompatibilityKey = new(string)
+				*_m.CacheCompatibilityKey = value.String
+			}
+		case requestexecution.FieldTheoreticalCacheTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field theoretical_cache_tokens", values[i])
+			} else if value.Valid {
+				_m.TheoreticalCacheTokens = new(int64)
+				*_m.TheoreticalCacheTokens = value.Int64
+			}
+		case requestexecution.FieldCacheTTLBucket:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cache_ttl_bucket", values[i])
+			} else if value.Valid {
+				_m.CacheTTLBucket = new(string)
+				*_m.CacheTTLBucket = value.String
+			}
 		case requestexecution.FieldMetricsReasoningDurationMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field metrics_reasoning_duration_ms", values[i])
@@ -436,6 +481,31 @@ func (_m *RequestExecution) String() string {
 	if v := _m.MetricsFirstTokenLatencyMs; v != nil {
 		builder.WriteString("metrics_first_token_latency_ms=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.MetricsFirstByteLatencyMs; v != nil {
+		builder.WriteString("metrics_first_byte_latency_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.MetricsFirstByteRecorded; v != nil {
+		builder.WriteString("metrics_first_byte_recorded=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CacheCompatibilityKey; v != nil {
+		builder.WriteString("cache_compatibility_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.TheoreticalCacheTokens; v != nil {
+		builder.WriteString("theoretical_cache_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CacheTTLBucket; v != nil {
+		builder.WriteString("cache_ttl_bucket=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	if v := _m.MetricsReasoningDurationMs; v != nil {

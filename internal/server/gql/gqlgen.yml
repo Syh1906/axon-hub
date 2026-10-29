@@ -23,6 +23,7 @@ schema:
   - cost.graphql
   - usage_cost.graphql
   - analytics.graphql
+  - consumption.graphql
 
 omit_gqlgen_version_in_file_notice: true
 
@@ -78,6 +79,24 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  ConsumptionDimension:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionDimension
+  ConsumptionMetric:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionMetric
+  ConsumptionPeriod:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionPeriod
+  ConsumptionFilter:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionFilter
+  ConsumptionMetrics:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionMetrics
+  ConsumptionModel:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionModel
+  ConsumptionEntry:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionEntry
+  ConsumptionResult:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionResult
+  ConsumptionProject:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionProject
   # Defines the ID field as Go 'int'.
   ID:
     model:

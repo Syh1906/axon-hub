@@ -83,6 +83,7 @@ func (m *performanceRecording) OnOutboundRawRequest(ctx context.Context, request
 	}
 
 	m.outbound.state.Perf = &perf
+	request.OnFirstResponseByte = perf.MarkFirstByte
 
 	log.Debug(ctx, "Started performance tracking",
 		log.Int("channel_id", channel.ID),

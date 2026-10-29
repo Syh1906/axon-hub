@@ -72,6 +72,11 @@ export function useSidebarData(): SidebarData {
           icon: IconLayoutDashboard,
         } as NavLink,
         {
+          title: t('consumption.title'),
+          url: '/leaderboard',
+          icon: IconChartBar,
+        } as NavLink,
+        {
           title: t('sidebar.items.projects'),
           url: '/projects',
           icon: IconPackages,

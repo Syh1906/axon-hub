@@ -57,6 +57,16 @@ const (
 	FieldMetricsLatencyMs = "metrics_latency_ms"
 	// FieldMetricsFirstTokenLatencyMs holds the string denoting the metrics_first_token_latency_ms field in the database.
 	FieldMetricsFirstTokenLatencyMs = "metrics_first_token_latency_ms"
+	// FieldMetricsFirstByteLatencyMs holds the string denoting the metrics_first_byte_latency_ms field in the database.
+	FieldMetricsFirstByteLatencyMs = "metrics_first_byte_latency_ms"
+	// FieldMetricsFirstByteRecorded holds the string denoting the metrics_first_byte_recorded field in the database.
+	FieldMetricsFirstByteRecorded = "metrics_first_byte_recorded"
+	// FieldCacheCompatibilityKey holds the string denoting the cache_compatibility_key field in the database.
+	FieldCacheCompatibilityKey = "cache_compatibility_key"
+	// FieldTheoreticalCacheTokens holds the string denoting the theoretical_cache_tokens field in the database.
+	FieldTheoreticalCacheTokens = "theoretical_cache_tokens"
+	// FieldCacheTTLBucket holds the string denoting the cache_ttl_bucket field in the database.
+	FieldCacheTTLBucket = "cache_ttl_bucket"
 	// FieldMetricsReasoningDurationMs holds the string denoting the metrics_reasoning_duration_ms field in the database.
 	FieldMetricsReasoningDurationMs = "metrics_reasoning_duration_ms"
 	// FieldRequestHeaders holds the string denoting the request_headers field in the database.
@@ -119,6 +129,11 @@ var Columns = []string{
 	FieldStream,
 	FieldMetricsLatencyMs,
 	FieldMetricsFirstTokenLatencyMs,
+	FieldMetricsFirstByteLatencyMs,
+	FieldMetricsFirstByteRecorded,
+	FieldCacheCompatibilityKey,
+	FieldTheoreticalCacheTokens,
+	FieldCacheTTLBucket,
 	FieldMetricsReasoningDurationMs,
 	FieldRequestHeaders,
 	FieldRequestURL,
@@ -150,6 +165,10 @@ var (
 	DefaultFormat string
 	// DefaultStream holds the default value on creation for the "stream" field.
 	DefaultStream bool
+	// CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
+	CacheCompatibilityKeyValidator func(string) error
+	// CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
+	CacheTTLBucketValidator func(string) error
 	// DefaultPassThroughApplied holds the default value on creation for the "pass_through_applied" field.
 	DefaultPassThroughApplied bool
 )
@@ -266,6 +285,31 @@ func ByMetricsLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 // ByMetricsFirstTokenLatencyMs orders the results by the metrics_first_token_latency_ms field.
 func ByMetricsFirstTokenLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMetricsFirstTokenLatencyMs, opts...).ToFunc()
+}
+
+// ByMetricsFirstByteLatencyMs orders the results by the metrics_first_byte_latency_ms field.
+func ByMetricsFirstByteLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMetricsFirstByteLatencyMs, opts...).ToFunc()
+}
+
+// ByMetricsFirstByteRecorded orders the results by the metrics_first_byte_recorded field.
+func ByMetricsFirstByteRecorded(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMetricsFirstByteRecorded, opts...).ToFunc()
+}
+
+// ByCacheCompatibilityKey orders the results by the cache_compatibility_key field.
+func ByCacheCompatibilityKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCacheCompatibilityKey, opts...).ToFunc()
+}
+
+// ByTheoreticalCacheTokens orders the results by the theoretical_cache_tokens field.
+func ByTheoreticalCacheTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTheoreticalCacheTokens, opts...).ToFunc()
+}
+
+// ByCacheTTLBucket orders the results by the cache_ttl_bucket field.
+func ByCacheTTLBucket(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCacheTTLBucket, opts...).ToFunc()
 }
 
 // ByMetricsReasoningDurationMs orders the results by the metrics_reasoning_duration_ms field.

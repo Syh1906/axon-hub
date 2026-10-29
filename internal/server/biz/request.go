@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
 	"github.com/looplj/axonhub/llm"
@@ -311,6 +312,7 @@ func (s *RequestService) CreateRequestExecution(
 	channelRequest httpclient.Request,
 	format llm.APIFormat,
 	passThroughApplied bool,
+	cacheSample *usageanalytics.CacheSample,
 ) (*ent.RequestExecution, error) {
 	// Decide whether to store the channel request body
 	storeRequestBody := true
@@ -381,6 +383,12 @@ func (s *RequestService) CreateRequestExecution(
 		SetRequestHeaders(requestHeadersBytes).
 		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID)).
 		SetPassThroughApplied(passThroughApplied)
+
+	if cacheSample != nil {
+		mut.SetCacheCompatibilityKey(cacheSample.CompatibilityKey).
+			SetTheoreticalCacheTokens(cacheSample.TheoreticalTokens).
+			SetCacheTTLBucket(cacheSample.TTLBucket)
+	}
 
 	if reasoningEffort := extractOutboundReasoningEffort(channelRequest, format); reasoningEffort != nil {
 		mut = mut.SetReasoningEffort(*reasoningEffort)
@@ -456,6 +464,7 @@ func extractOutboundReasoningEffort(channelRequest httpclient.Request, format ll
 type LatencyMetrics struct {
 	LatencyMs           *int64
 	FirstTokenLatencyMs *int64
+	FirstByteLatencyMs  *int64
 	ReasoningDurationMs *int64
 }
 
@@ -784,6 +793,9 @@ func (s *RequestService) UpdateRequestExecutionCompleted(
 	upd := client.RequestExecution.UpdateOneID(executionID).
 		SetStatus(requestexecution.StatusCompleted).
 		SetExternalID(externalId)
+	if metrics != nil {
+		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
+	}
 
 	// Set latency metrics if provided
 	if metrics != nil {
@@ -886,6 +898,9 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 
 	upd := client.RequestExecution.UpdateOneID(executionID).
 		SetStatus(status)
+	if metrics != nil {
+		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
+	}
 	if errorMsg != "" {
 		upd = upd.SetErrorMessage(errorMsg)
 	}

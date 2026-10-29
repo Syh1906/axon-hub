@@ -3,6 +3,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Continuous parent/model groups from the approved consumption leaderboard. */
+.consumption-dimensions [data-state='active'] {
+  background: transparent;
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  box-shadow: none;
+}
+
+.consumption-table {
+  --consumption-open: color-mix(in srgb, var(--card) 82%, var(--muted));
+  --consumption-model: color-mix(in srgb, var(--card) 48%, var(--muted));
+  --consumption-model-alt: color-mix(in srgb, var(--card) 16%, var(--muted));
+  --consumption-divider: color-mix(in srgb, var(--foreground) 42%, var(--border));
+}
+
+.consumption-table th { height: 58px; padding: 0 8px; }
+.consumption-table td { height: 64px; padding: 12px 8px; border-bottom: 1px solid var(--border); }
+.consumption-parent-open > td { background: var(--consumption-open); }
+.consumption-model-row > td { background: var(--consumption-model); border-bottom: 2px solid var(--consumption-divider); }
+.consumption-model-alternate > td { background: var(--consumption-model-alt); }
+.consumption-model-row > td:first-child { border-bottom-color: transparent; }
+
 :root {
   --radius: 0.75rem;
   --background: oklch(0.95 0.005 90);

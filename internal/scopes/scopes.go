@@ -9,7 +9,8 @@ type ScopeSlug string
 // Available scopes in the system.
 const (
 	// ScopeReadDashboard read the dashboard of the system.
-	ScopeReadDashboard ScopeSlug = "read_dashboard"
+	ScopeReadDashboard   ScopeSlug = "read_dashboard"
+	ScopeReadLeaderboard ScopeSlug = "read_leaderboard"
 
 	// ScopeReadChannels read the channels/models of the system.
 	ScopeReadChannels ScopeSlug = "read_channels"
@@ -78,6 +79,11 @@ type Scope struct {
 
 // scopeConfigs defines all available scopes with their configurations.
 var scopeConfigs = []Scope{
+	{
+		Slug:        ScopeReadLeaderboard,
+		Description: "View consumption leaderboard",
+		Levels:      []ScopeLevel{ScopeLevelSystem},
+	},
 	{
 		Slug:        ScopeReadDashboard,
 		Description: "View dashboard",

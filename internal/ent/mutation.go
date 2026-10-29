@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
@@ -52,6 +53,7 @@ const (
 	// Node types.
 	TypeAPIKey                   = "APIKey"
 	TypeAPIKeyProfileTemplate    = "APIKeyProfileTemplate"
+	TypeCacheEffectivenessWindow = "CacheEffectivenessWindow"
 	TypeChannel                  = "Channel"
 	TypeChannelModelPrice        = "ChannelModelPrice"
 	TypeChannelModelPriceVersion = "ChannelModelPriceVersion"
@@ -2092,6 +2094,1019 @@ func (m *APIKeyProfileTemplateMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKeyProfileTemplate edge %s", name)
+}
+
+// CacheEffectivenessWindowMutation represents an operation that mutates the CacheEffectivenessWindow nodes in the graph.
+type CacheEffectivenessWindowMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int
+	project_id            *int
+	addproject_id         *int
+	channel_id            *int
+	addchannel_id         *int
+	model_id              *string
+	cache_ttl_bucket      *string
+	window_start          *time.Time
+	window_end            *time.Time
+	sample_count          *int64
+	addsample_count       *int64
+	eligible_count        *int64
+	addeligible_count     *int64
+	theoretical_tokens    *int64
+	addtheoretical_tokens *int64
+	observed_tokens       *int64
+	addobserved_tokens    *int64
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*CacheEffectivenessWindow, error)
+	predicates            []predicate.CacheEffectivenessWindow
+}
+
+var _ ent.Mutation = (*CacheEffectivenessWindowMutation)(nil)
+
+// cacheeffectivenesswindowOption allows management of the mutation configuration using functional options.
+type cacheeffectivenesswindowOption func(*CacheEffectivenessWindowMutation)
+
+// newCacheEffectivenessWindowMutation creates new mutation for the CacheEffectivenessWindow entity.
+func newCacheEffectivenessWindowMutation(c config, op Op, opts ...cacheeffectivenesswindowOption) *CacheEffectivenessWindowMutation {
+	m := &CacheEffectivenessWindowMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCacheEffectivenessWindow,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCacheEffectivenessWindowID sets the ID field of the mutation.
+func withCacheEffectivenessWindowID(id int) cacheeffectivenesswindowOption {
+	return func(m *CacheEffectivenessWindowMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CacheEffectivenessWindow
+		)
+		m.oldValue = func(ctx context.Context) (*CacheEffectivenessWindow, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CacheEffectivenessWindow.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCacheEffectivenessWindow sets the old CacheEffectivenessWindow of the mutation.
+func withCacheEffectivenessWindow(node *CacheEffectivenessWindow) cacheeffectivenesswindowOption {
+	return func(m *CacheEffectivenessWindowMutation) {
+		m.oldValue = func(context.Context) (*CacheEffectivenessWindow, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CacheEffectivenessWindowMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CacheEffectivenessWindowMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CacheEffectivenessWindowMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CacheEffectivenessWindowMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CacheEffectivenessWindow.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *CacheEffectivenessWindowMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *CacheEffectivenessWindowMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *CacheEffectivenessWindowMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *CacheEffectivenessWindowMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *CacheEffectivenessWindowMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *CacheEffectivenessWindowMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetModelID sets the "model_id" field.
+func (m *CacheEffectivenessWindowMutation) SetModelID(s string) {
+	m.model_id = &s
+}
+
+// ModelID returns the value of the "model_id" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) ModelID() (r string, exists bool) {
+	v := m.model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelID returns the old "model_id" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelID: %w", err)
+	}
+	return oldValue.ModelID, nil
+}
+
+// ResetModelID resets all changes to the "model_id" field.
+func (m *CacheEffectivenessWindowMutation) ResetModelID() {
+	m.model_id = nil
+}
+
+// SetCacheTTLBucket sets the "cache_ttl_bucket" field.
+func (m *CacheEffectivenessWindowMutation) SetCacheTTLBucket(s string) {
+	m.cache_ttl_bucket = &s
+}
+
+// CacheTTLBucket returns the value of the "cache_ttl_bucket" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) CacheTTLBucket() (r string, exists bool) {
+	v := m.cache_ttl_bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheTTLBucket returns the old "cache_ttl_bucket" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldCacheTTLBucket(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheTTLBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheTTLBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheTTLBucket: %w", err)
+	}
+	return oldValue.CacheTTLBucket, nil
+}
+
+// ResetCacheTTLBucket resets all changes to the "cache_ttl_bucket" field.
+func (m *CacheEffectivenessWindowMutation) ResetCacheTTLBucket() {
+	m.cache_ttl_bucket = nil
+}
+
+// SetWindowStart sets the "window_start" field.
+func (m *CacheEffectivenessWindowMutation) SetWindowStart(t time.Time) {
+	m.window_start = &t
+}
+
+// WindowStart returns the value of the "window_start" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) WindowStart() (r time.Time, exists bool) {
+	v := m.window_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWindowStart returns the old "window_start" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldWindowStart(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWindowStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWindowStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWindowStart: %w", err)
+	}
+	return oldValue.WindowStart, nil
+}
+
+// ResetWindowStart resets all changes to the "window_start" field.
+func (m *CacheEffectivenessWindowMutation) ResetWindowStart() {
+	m.window_start = nil
+}
+
+// SetWindowEnd sets the "window_end" field.
+func (m *CacheEffectivenessWindowMutation) SetWindowEnd(t time.Time) {
+	m.window_end = &t
+}
+
+// WindowEnd returns the value of the "window_end" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) WindowEnd() (r time.Time, exists bool) {
+	v := m.window_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWindowEnd returns the old "window_end" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldWindowEnd(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWindowEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWindowEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWindowEnd: %w", err)
+	}
+	return oldValue.WindowEnd, nil
+}
+
+// ResetWindowEnd resets all changes to the "window_end" field.
+func (m *CacheEffectivenessWindowMutation) ResetWindowEnd() {
+	m.window_end = nil
+}
+
+// SetSampleCount sets the "sample_count" field.
+func (m *CacheEffectivenessWindowMutation) SetSampleCount(i int64) {
+	m.sample_count = &i
+	m.addsample_count = nil
+}
+
+// SampleCount returns the value of the "sample_count" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) SampleCount() (r int64, exists bool) {
+	v := m.sample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSampleCount returns the old "sample_count" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldSampleCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSampleCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSampleCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSampleCount: %w", err)
+	}
+	return oldValue.SampleCount, nil
+}
+
+// AddSampleCount adds i to the "sample_count" field.
+func (m *CacheEffectivenessWindowMutation) AddSampleCount(i int64) {
+	if m.addsample_count != nil {
+		*m.addsample_count += i
+	} else {
+		m.addsample_count = &i
+	}
+}
+
+// AddedSampleCount returns the value that was added to the "sample_count" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedSampleCount() (r int64, exists bool) {
+	v := m.addsample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSampleCount resets all changes to the "sample_count" field.
+func (m *CacheEffectivenessWindowMutation) ResetSampleCount() {
+	m.sample_count = nil
+	m.addsample_count = nil
+}
+
+// SetEligibleCount sets the "eligible_count" field.
+func (m *CacheEffectivenessWindowMutation) SetEligibleCount(i int64) {
+	m.eligible_count = &i
+	m.addeligible_count = nil
+}
+
+// EligibleCount returns the value of the "eligible_count" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) EligibleCount() (r int64, exists bool) {
+	v := m.eligible_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEligibleCount returns the old "eligible_count" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldEligibleCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEligibleCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEligibleCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEligibleCount: %w", err)
+	}
+	return oldValue.EligibleCount, nil
+}
+
+// AddEligibleCount adds i to the "eligible_count" field.
+func (m *CacheEffectivenessWindowMutation) AddEligibleCount(i int64) {
+	if m.addeligible_count != nil {
+		*m.addeligible_count += i
+	} else {
+		m.addeligible_count = &i
+	}
+}
+
+// AddedEligibleCount returns the value that was added to the "eligible_count" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedEligibleCount() (r int64, exists bool) {
+	v := m.addeligible_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEligibleCount resets all changes to the "eligible_count" field.
+func (m *CacheEffectivenessWindowMutation) ResetEligibleCount() {
+	m.eligible_count = nil
+	m.addeligible_count = nil
+}
+
+// SetTheoreticalTokens sets the "theoretical_tokens" field.
+func (m *CacheEffectivenessWindowMutation) SetTheoreticalTokens(i int64) {
+	m.theoretical_tokens = &i
+	m.addtheoretical_tokens = nil
+}
+
+// TheoreticalTokens returns the value of the "theoretical_tokens" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) TheoreticalTokens() (r int64, exists bool) {
+	v := m.theoretical_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTheoreticalTokens returns the old "theoretical_tokens" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldTheoreticalTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTheoreticalTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTheoreticalTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTheoreticalTokens: %w", err)
+	}
+	return oldValue.TheoreticalTokens, nil
+}
+
+// AddTheoreticalTokens adds i to the "theoretical_tokens" field.
+func (m *CacheEffectivenessWindowMutation) AddTheoreticalTokens(i int64) {
+	if m.addtheoretical_tokens != nil {
+		*m.addtheoretical_tokens += i
+	} else {
+		m.addtheoretical_tokens = &i
+	}
+}
+
+// AddedTheoreticalTokens returns the value that was added to the "theoretical_tokens" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedTheoreticalTokens() (r int64, exists bool) {
+	v := m.addtheoretical_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTheoreticalTokens resets all changes to the "theoretical_tokens" field.
+func (m *CacheEffectivenessWindowMutation) ResetTheoreticalTokens() {
+	m.theoretical_tokens = nil
+	m.addtheoretical_tokens = nil
+}
+
+// SetObservedTokens sets the "observed_tokens" field.
+func (m *CacheEffectivenessWindowMutation) SetObservedTokens(i int64) {
+	m.observed_tokens = &i
+	m.addobserved_tokens = nil
+}
+
+// ObservedTokens returns the value of the "observed_tokens" field in the mutation.
+func (m *CacheEffectivenessWindowMutation) ObservedTokens() (r int64, exists bool) {
+	v := m.observed_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObservedTokens returns the old "observed_tokens" field's value of the CacheEffectivenessWindow entity.
+// If the CacheEffectivenessWindow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CacheEffectivenessWindowMutation) OldObservedTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObservedTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObservedTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObservedTokens: %w", err)
+	}
+	return oldValue.ObservedTokens, nil
+}
+
+// AddObservedTokens adds i to the "observed_tokens" field.
+func (m *CacheEffectivenessWindowMutation) AddObservedTokens(i int64) {
+	if m.addobserved_tokens != nil {
+		*m.addobserved_tokens += i
+	} else {
+		m.addobserved_tokens = &i
+	}
+}
+
+// AddedObservedTokens returns the value that was added to the "observed_tokens" field in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedObservedTokens() (r int64, exists bool) {
+	v := m.addobserved_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetObservedTokens resets all changes to the "observed_tokens" field.
+func (m *CacheEffectivenessWindowMutation) ResetObservedTokens() {
+	m.observed_tokens = nil
+	m.addobserved_tokens = nil
+}
+
+// Where appends a list predicates to the CacheEffectivenessWindowMutation builder.
+func (m *CacheEffectivenessWindowMutation) Where(ps ...predicate.CacheEffectivenessWindow) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CacheEffectivenessWindowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CacheEffectivenessWindowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CacheEffectivenessWindow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CacheEffectivenessWindowMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CacheEffectivenessWindowMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CacheEffectivenessWindow).
+func (m *CacheEffectivenessWindowMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CacheEffectivenessWindowMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.project_id != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldProjectID)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldChannelID)
+	}
+	if m.model_id != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldModelID)
+	}
+	if m.cache_ttl_bucket != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldCacheTTLBucket)
+	}
+	if m.window_start != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldWindowStart)
+	}
+	if m.window_end != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldWindowEnd)
+	}
+	if m.sample_count != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldSampleCount)
+	}
+	if m.eligible_count != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldEligibleCount)
+	}
+	if m.theoretical_tokens != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldTheoreticalTokens)
+	}
+	if m.observed_tokens != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldObservedTokens)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CacheEffectivenessWindowMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		return m.ProjectID()
+	case cacheeffectivenesswindow.FieldChannelID:
+		return m.ChannelID()
+	case cacheeffectivenesswindow.FieldModelID:
+		return m.ModelID()
+	case cacheeffectivenesswindow.FieldCacheTTLBucket:
+		return m.CacheTTLBucket()
+	case cacheeffectivenesswindow.FieldWindowStart:
+		return m.WindowStart()
+	case cacheeffectivenesswindow.FieldWindowEnd:
+		return m.WindowEnd()
+	case cacheeffectivenesswindow.FieldSampleCount:
+		return m.SampleCount()
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		return m.EligibleCount()
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		return m.TheoreticalTokens()
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		return m.ObservedTokens()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CacheEffectivenessWindowMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case cacheeffectivenesswindow.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case cacheeffectivenesswindow.FieldModelID:
+		return m.OldModelID(ctx)
+	case cacheeffectivenesswindow.FieldCacheTTLBucket:
+		return m.OldCacheTTLBucket(ctx)
+	case cacheeffectivenesswindow.FieldWindowStart:
+		return m.OldWindowStart(ctx)
+	case cacheeffectivenesswindow.FieldWindowEnd:
+		return m.OldWindowEnd(ctx)
+	case cacheeffectivenesswindow.FieldSampleCount:
+		return m.OldSampleCount(ctx)
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		return m.OldEligibleCount(ctx)
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		return m.OldTheoreticalTokens(ctx)
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		return m.OldObservedTokens(ctx)
+	}
+	return nil, fmt.Errorf("unknown CacheEffectivenessWindow field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CacheEffectivenessWindowMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case cacheeffectivenesswindow.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case cacheeffectivenesswindow.FieldModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelID(v)
+		return nil
+	case cacheeffectivenesswindow.FieldCacheTTLBucket:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheTTLBucket(v)
+		return nil
+	case cacheeffectivenesswindow.FieldWindowStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWindowStart(v)
+		return nil
+	case cacheeffectivenesswindow.FieldWindowEnd:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWindowEnd(v)
+		return nil
+	case cacheeffectivenesswindow.FieldSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSampleCount(v)
+		return nil
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEligibleCount(v)
+		return nil
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTheoreticalTokens(v)
+		return nil
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObservedTokens(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CacheEffectivenessWindow field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldProjectID)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldChannelID)
+	}
+	if m.addsample_count != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldSampleCount)
+	}
+	if m.addeligible_count != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldEligibleCount)
+	}
+	if m.addtheoretical_tokens != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldTheoreticalTokens)
+	}
+	if m.addobserved_tokens != nil {
+		fields = append(fields, cacheeffectivenesswindow.FieldObservedTokens)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CacheEffectivenessWindowMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		return m.AddedProjectID()
+	case cacheeffectivenesswindow.FieldChannelID:
+		return m.AddedChannelID()
+	case cacheeffectivenesswindow.FieldSampleCount:
+		return m.AddedSampleCount()
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		return m.AddedEligibleCount()
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		return m.AddedTheoreticalTokens()
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		return m.AddedObservedTokens()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CacheEffectivenessWindowMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case cacheeffectivenesswindow.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case cacheeffectivenesswindow.FieldSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSampleCount(v)
+		return nil
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEligibleCount(v)
+		return nil
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTheoreticalTokens(v)
+		return nil
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddObservedTokens(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CacheEffectivenessWindow numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CacheEffectivenessWindowMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CacheEffectivenessWindowMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CacheEffectivenessWindowMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CacheEffectivenessWindow nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CacheEffectivenessWindowMutation) ResetField(name string) error {
+	switch name {
+	case cacheeffectivenesswindow.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case cacheeffectivenesswindow.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case cacheeffectivenesswindow.FieldModelID:
+		m.ResetModelID()
+		return nil
+	case cacheeffectivenesswindow.FieldCacheTTLBucket:
+		m.ResetCacheTTLBucket()
+		return nil
+	case cacheeffectivenesswindow.FieldWindowStart:
+		m.ResetWindowStart()
+		return nil
+	case cacheeffectivenesswindow.FieldWindowEnd:
+		m.ResetWindowEnd()
+		return nil
+	case cacheeffectivenesswindow.FieldSampleCount:
+		m.ResetSampleCount()
+		return nil
+	case cacheeffectivenesswindow.FieldEligibleCount:
+		m.ResetEligibleCount()
+		return nil
+	case cacheeffectivenesswindow.FieldTheoreticalTokens:
+		m.ResetTheoreticalTokens()
+		return nil
+	case cacheeffectivenesswindow.FieldObservedTokens:
+		m.ResetObservedTokens()
+		return nil
+	}
+	return fmt.Errorf("unknown CacheEffectivenessWindow field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CacheEffectivenessWindowMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CacheEffectivenessWindowMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CacheEffectivenessWindowMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CacheEffectivenessWindowMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CacheEffectivenessWindowMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CacheEffectivenessWindowMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CacheEffectivenessWindow unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CacheEffectivenessWindowMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CacheEffectivenessWindow edge %s", name)
 }
 
 // ChannelMutation represents an operation that mutates the Channel nodes in the graph.
@@ -20019,6 +21034,13 @@ type RequestExecutionMutation struct {
 	addmetrics_latency_ms             *int64
 	metrics_first_token_latency_ms    *int64
 	addmetrics_first_token_latency_ms *int64
+	metrics_first_byte_latency_ms     *int64
+	addmetrics_first_byte_latency_ms  *int64
+	metrics_first_byte_recorded       *bool
+	cache_compatibility_key           *string
+	theoretical_cache_tokens          *int64
+	addtheoretical_cache_tokens       *int64
+	cache_ttl_bucket                  *string
 	metrics_reasoning_duration_ms     *int64
 	addmetrics_reasoning_duration_ms  *int64
 	request_headers                   *objects.JSONRawMessage
@@ -21128,6 +22150,293 @@ func (m *RequestExecutionMutation) ResetMetricsFirstTokenLatencyMs() {
 	delete(m.clearedFields, requestexecution.FieldMetricsFirstTokenLatencyMs)
 }
 
+// SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
+func (m *RequestExecutionMutation) SetMetricsFirstByteLatencyMs(i int64) {
+	m.metrics_first_byte_latency_ms = &i
+	m.addmetrics_first_byte_latency_ms = nil
+}
+
+// MetricsFirstByteLatencyMs returns the value of the "metrics_first_byte_latency_ms" field in the mutation.
+func (m *RequestExecutionMutation) MetricsFirstByteLatencyMs() (r int64, exists bool) {
+	v := m.metrics_first_byte_latency_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetricsFirstByteLatencyMs returns the old "metrics_first_byte_latency_ms" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldMetricsFirstByteLatencyMs(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetricsFirstByteLatencyMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetricsFirstByteLatencyMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetricsFirstByteLatencyMs: %w", err)
+	}
+	return oldValue.MetricsFirstByteLatencyMs, nil
+}
+
+// AddMetricsFirstByteLatencyMs adds i to the "metrics_first_byte_latency_ms" field.
+func (m *RequestExecutionMutation) AddMetricsFirstByteLatencyMs(i int64) {
+	if m.addmetrics_first_byte_latency_ms != nil {
+		*m.addmetrics_first_byte_latency_ms += i
+	} else {
+		m.addmetrics_first_byte_latency_ms = &i
+	}
+}
+
+// AddedMetricsFirstByteLatencyMs returns the value that was added to the "metrics_first_byte_latency_ms" field in this mutation.
+func (m *RequestExecutionMutation) AddedMetricsFirstByteLatencyMs() (r int64, exists bool) {
+	v := m.addmetrics_first_byte_latency_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMetricsFirstByteLatencyMs clears the value of the "metrics_first_byte_latency_ms" field.
+func (m *RequestExecutionMutation) ClearMetricsFirstByteLatencyMs() {
+	m.metrics_first_byte_latency_ms = nil
+	m.addmetrics_first_byte_latency_ms = nil
+	m.clearedFields[requestexecution.FieldMetricsFirstByteLatencyMs] = struct{}{}
+}
+
+// MetricsFirstByteLatencyMsCleared returns if the "metrics_first_byte_latency_ms" field was cleared in this mutation.
+func (m *RequestExecutionMutation) MetricsFirstByteLatencyMsCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldMetricsFirstByteLatencyMs]
+	return ok
+}
+
+// ResetMetricsFirstByteLatencyMs resets all changes to the "metrics_first_byte_latency_ms" field.
+func (m *RequestExecutionMutation) ResetMetricsFirstByteLatencyMs() {
+	m.metrics_first_byte_latency_ms = nil
+	m.addmetrics_first_byte_latency_ms = nil
+	delete(m.clearedFields, requestexecution.FieldMetricsFirstByteLatencyMs)
+}
+
+// SetMetricsFirstByteRecorded sets the "metrics_first_byte_recorded" field.
+func (m *RequestExecutionMutation) SetMetricsFirstByteRecorded(b bool) {
+	m.metrics_first_byte_recorded = &b
+}
+
+// MetricsFirstByteRecorded returns the value of the "metrics_first_byte_recorded" field in the mutation.
+func (m *RequestExecutionMutation) MetricsFirstByteRecorded() (r bool, exists bool) {
+	v := m.metrics_first_byte_recorded
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetricsFirstByteRecorded returns the old "metrics_first_byte_recorded" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldMetricsFirstByteRecorded(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetricsFirstByteRecorded is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetricsFirstByteRecorded requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetricsFirstByteRecorded: %w", err)
+	}
+	return oldValue.MetricsFirstByteRecorded, nil
+}
+
+// ClearMetricsFirstByteRecorded clears the value of the "metrics_first_byte_recorded" field.
+func (m *RequestExecutionMutation) ClearMetricsFirstByteRecorded() {
+	m.metrics_first_byte_recorded = nil
+	m.clearedFields[requestexecution.FieldMetricsFirstByteRecorded] = struct{}{}
+}
+
+// MetricsFirstByteRecordedCleared returns if the "metrics_first_byte_recorded" field was cleared in this mutation.
+func (m *RequestExecutionMutation) MetricsFirstByteRecordedCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldMetricsFirstByteRecorded]
+	return ok
+}
+
+// ResetMetricsFirstByteRecorded resets all changes to the "metrics_first_byte_recorded" field.
+func (m *RequestExecutionMutation) ResetMetricsFirstByteRecorded() {
+	m.metrics_first_byte_recorded = nil
+	delete(m.clearedFields, requestexecution.FieldMetricsFirstByteRecorded)
+}
+
+// SetCacheCompatibilityKey sets the "cache_compatibility_key" field.
+func (m *RequestExecutionMutation) SetCacheCompatibilityKey(s string) {
+	m.cache_compatibility_key = &s
+}
+
+// CacheCompatibilityKey returns the value of the "cache_compatibility_key" field in the mutation.
+func (m *RequestExecutionMutation) CacheCompatibilityKey() (r string, exists bool) {
+	v := m.cache_compatibility_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCompatibilityKey returns the old "cache_compatibility_key" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldCacheCompatibilityKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCompatibilityKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCompatibilityKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCompatibilityKey: %w", err)
+	}
+	return oldValue.CacheCompatibilityKey, nil
+}
+
+// ClearCacheCompatibilityKey clears the value of the "cache_compatibility_key" field.
+func (m *RequestExecutionMutation) ClearCacheCompatibilityKey() {
+	m.cache_compatibility_key = nil
+	m.clearedFields[requestexecution.FieldCacheCompatibilityKey] = struct{}{}
+}
+
+// CacheCompatibilityKeyCleared returns if the "cache_compatibility_key" field was cleared in this mutation.
+func (m *RequestExecutionMutation) CacheCompatibilityKeyCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldCacheCompatibilityKey]
+	return ok
+}
+
+// ResetCacheCompatibilityKey resets all changes to the "cache_compatibility_key" field.
+func (m *RequestExecutionMutation) ResetCacheCompatibilityKey() {
+	m.cache_compatibility_key = nil
+	delete(m.clearedFields, requestexecution.FieldCacheCompatibilityKey)
+}
+
+// SetTheoreticalCacheTokens sets the "theoretical_cache_tokens" field.
+func (m *RequestExecutionMutation) SetTheoreticalCacheTokens(i int64) {
+	m.theoretical_cache_tokens = &i
+	m.addtheoretical_cache_tokens = nil
+}
+
+// TheoreticalCacheTokens returns the value of the "theoretical_cache_tokens" field in the mutation.
+func (m *RequestExecutionMutation) TheoreticalCacheTokens() (r int64, exists bool) {
+	v := m.theoretical_cache_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTheoreticalCacheTokens returns the old "theoretical_cache_tokens" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldTheoreticalCacheTokens(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTheoreticalCacheTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTheoreticalCacheTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTheoreticalCacheTokens: %w", err)
+	}
+	return oldValue.TheoreticalCacheTokens, nil
+}
+
+// AddTheoreticalCacheTokens adds i to the "theoretical_cache_tokens" field.
+func (m *RequestExecutionMutation) AddTheoreticalCacheTokens(i int64) {
+	if m.addtheoretical_cache_tokens != nil {
+		*m.addtheoretical_cache_tokens += i
+	} else {
+		m.addtheoretical_cache_tokens = &i
+	}
+}
+
+// AddedTheoreticalCacheTokens returns the value that was added to the "theoretical_cache_tokens" field in this mutation.
+func (m *RequestExecutionMutation) AddedTheoreticalCacheTokens() (r int64, exists bool) {
+	v := m.addtheoretical_cache_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTheoreticalCacheTokens clears the value of the "theoretical_cache_tokens" field.
+func (m *RequestExecutionMutation) ClearTheoreticalCacheTokens() {
+	m.theoretical_cache_tokens = nil
+	m.addtheoretical_cache_tokens = nil
+	m.clearedFields[requestexecution.FieldTheoreticalCacheTokens] = struct{}{}
+}
+
+// TheoreticalCacheTokensCleared returns if the "theoretical_cache_tokens" field was cleared in this mutation.
+func (m *RequestExecutionMutation) TheoreticalCacheTokensCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldTheoreticalCacheTokens]
+	return ok
+}
+
+// ResetTheoreticalCacheTokens resets all changes to the "theoretical_cache_tokens" field.
+func (m *RequestExecutionMutation) ResetTheoreticalCacheTokens() {
+	m.theoretical_cache_tokens = nil
+	m.addtheoretical_cache_tokens = nil
+	delete(m.clearedFields, requestexecution.FieldTheoreticalCacheTokens)
+}
+
+// SetCacheTTLBucket sets the "cache_ttl_bucket" field.
+func (m *RequestExecutionMutation) SetCacheTTLBucket(s string) {
+	m.cache_ttl_bucket = &s
+}
+
+// CacheTTLBucket returns the value of the "cache_ttl_bucket" field in the mutation.
+func (m *RequestExecutionMutation) CacheTTLBucket() (r string, exists bool) {
+	v := m.cache_ttl_bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheTTLBucket returns the old "cache_ttl_bucket" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldCacheTTLBucket(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheTTLBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheTTLBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheTTLBucket: %w", err)
+	}
+	return oldValue.CacheTTLBucket, nil
+}
+
+// ClearCacheTTLBucket clears the value of the "cache_ttl_bucket" field.
+func (m *RequestExecutionMutation) ClearCacheTTLBucket() {
+	m.cache_ttl_bucket = nil
+	m.clearedFields[requestexecution.FieldCacheTTLBucket] = struct{}{}
+}
+
+// CacheTTLBucketCleared returns if the "cache_ttl_bucket" field was cleared in this mutation.
+func (m *RequestExecutionMutation) CacheTTLBucketCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldCacheTTLBucket]
+	return ok
+}
+
+// ResetCacheTTLBucket resets all changes to the "cache_ttl_bucket" field.
+func (m *RequestExecutionMutation) ResetCacheTTLBucket() {
+	m.cache_ttl_bucket = nil
+	delete(m.clearedFields, requestexecution.FieldCacheTTLBucket)
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (m *RequestExecutionMutation) SetMetricsReasoningDurationMs(i int64) {
 	m.metrics_reasoning_duration_ms = &i
@@ -21463,7 +22772,7 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
@@ -21523,6 +22832,21 @@ func (m *RequestExecutionMutation) Fields() []string {
 	}
 	if m.metrics_first_token_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
+	}
+	if m.metrics_first_byte_latency_ms != nil {
+		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
+	}
+	if m.metrics_first_byte_recorded != nil {
+		fields = append(fields, requestexecution.FieldMetricsFirstByteRecorded)
+	}
+	if m.cache_compatibility_key != nil {
+		fields = append(fields, requestexecution.FieldCacheCompatibilityKey)
+	}
+	if m.theoretical_cache_tokens != nil {
+		fields = append(fields, requestexecution.FieldTheoreticalCacheTokens)
+	}
+	if m.cache_ttl_bucket != nil {
+		fields = append(fields, requestexecution.FieldCacheTTLBucket)
 	}
 	if m.metrics_reasoning_duration_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsReasoningDurationMs)
@@ -21584,6 +22908,16 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.MetricsLatencyMs()
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.MetricsFirstTokenLatencyMs()
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		return m.MetricsFirstByteLatencyMs()
+	case requestexecution.FieldMetricsFirstByteRecorded:
+		return m.MetricsFirstByteRecorded()
+	case requestexecution.FieldCacheCompatibilityKey:
+		return m.CacheCompatibilityKey()
+	case requestexecution.FieldTheoreticalCacheTokens:
+		return m.TheoreticalCacheTokens()
+	case requestexecution.FieldCacheTTLBucket:
+		return m.CacheTTLBucket()
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		return m.MetricsReasoningDurationMs()
 	case requestexecution.FieldRequestHeaders:
@@ -21641,6 +22975,16 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldMetricsLatencyMs(ctx)
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.OldMetricsFirstTokenLatencyMs(ctx)
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		return m.OldMetricsFirstByteLatencyMs(ctx)
+	case requestexecution.FieldMetricsFirstByteRecorded:
+		return m.OldMetricsFirstByteRecorded(ctx)
+	case requestexecution.FieldCacheCompatibilityKey:
+		return m.OldCacheCompatibilityKey(ctx)
+	case requestexecution.FieldTheoreticalCacheTokens:
+		return m.OldTheoreticalCacheTokens(ctx)
+	case requestexecution.FieldCacheTTLBucket:
+		return m.OldCacheTTLBucket(ctx)
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		return m.OldMetricsReasoningDurationMs(ctx)
 	case requestexecution.FieldRequestHeaders:
@@ -21798,6 +23142,41 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetMetricsFirstTokenLatencyMs(v)
 		return nil
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetricsFirstByteLatencyMs(v)
+		return nil
+	case requestexecution.FieldMetricsFirstByteRecorded:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetricsFirstByteRecorded(v)
+		return nil
+	case requestexecution.FieldCacheCompatibilityKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCompatibilityKey(v)
+		return nil
+	case requestexecution.FieldTheoreticalCacheTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTheoreticalCacheTokens(v)
+		return nil
+	case requestexecution.FieldCacheTTLBucket:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheTTLBucket(v)
+		return nil
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		v, ok := value.(int64)
 		if !ok {
@@ -21846,6 +23225,12 @@ func (m *RequestExecutionMutation) AddedFields() []string {
 	if m.addmetrics_first_token_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
 	}
+	if m.addmetrics_first_byte_latency_ms != nil {
+		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
+	}
+	if m.addtheoretical_cache_tokens != nil {
+		fields = append(fields, requestexecution.FieldTheoreticalCacheTokens)
+	}
 	if m.addmetrics_reasoning_duration_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsReasoningDurationMs)
 	}
@@ -21865,6 +23250,10 @@ func (m *RequestExecutionMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedMetricsLatencyMs()
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.AddedMetricsFirstTokenLatencyMs()
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		return m.AddedMetricsFirstByteLatencyMs()
+	case requestexecution.FieldTheoreticalCacheTokens:
+		return m.AddedTheoreticalCacheTokens()
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		return m.AddedMetricsReasoningDurationMs()
 	}
@@ -21903,6 +23292,20 @@ func (m *RequestExecutionMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMetricsFirstTokenLatencyMs(v)
+		return nil
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMetricsFirstByteLatencyMs(v)
+		return nil
+	case requestexecution.FieldTheoreticalCacheTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTheoreticalCacheTokens(v)
 		return nil
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		v, ok := value.(int64)
@@ -21951,6 +23354,21 @@ func (m *RequestExecutionMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(requestexecution.FieldMetricsFirstTokenLatencyMs) {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
+	}
+	if m.FieldCleared(requestexecution.FieldMetricsFirstByteLatencyMs) {
+		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
+	}
+	if m.FieldCleared(requestexecution.FieldMetricsFirstByteRecorded) {
+		fields = append(fields, requestexecution.FieldMetricsFirstByteRecorded)
+	}
+	if m.FieldCleared(requestexecution.FieldCacheCompatibilityKey) {
+		fields = append(fields, requestexecution.FieldCacheCompatibilityKey)
+	}
+	if m.FieldCleared(requestexecution.FieldTheoreticalCacheTokens) {
+		fields = append(fields, requestexecution.FieldTheoreticalCacheTokens)
+	}
+	if m.FieldCleared(requestexecution.FieldCacheTTLBucket) {
+		fields = append(fields, requestexecution.FieldCacheTTLBucket)
 	}
 	if m.FieldCleared(requestexecution.FieldMetricsReasoningDurationMs) {
 		fields = append(fields, requestexecution.FieldMetricsReasoningDurationMs)
@@ -22007,6 +23425,21 @@ func (m *RequestExecutionMutation) ClearField(name string) error {
 		return nil
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		m.ClearMetricsFirstTokenLatencyMs()
+		return nil
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		m.ClearMetricsFirstByteLatencyMs()
+		return nil
+	case requestexecution.FieldMetricsFirstByteRecorded:
+		m.ClearMetricsFirstByteRecorded()
+		return nil
+	case requestexecution.FieldCacheCompatibilityKey:
+		m.ClearCacheCompatibilityKey()
+		return nil
+	case requestexecution.FieldTheoreticalCacheTokens:
+		m.ClearTheoreticalCacheTokens()
+		return nil
+	case requestexecution.FieldCacheTTLBucket:
+		m.ClearCacheTTLBucket()
 		return nil
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		m.ClearMetricsReasoningDurationMs()
@@ -22084,6 +23517,21 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		m.ResetMetricsFirstTokenLatencyMs()
+		return nil
+	case requestexecution.FieldMetricsFirstByteLatencyMs:
+		m.ResetMetricsFirstByteLatencyMs()
+		return nil
+	case requestexecution.FieldMetricsFirstByteRecorded:
+		m.ResetMetricsFirstByteRecorded()
+		return nil
+	case requestexecution.FieldCacheCompatibilityKey:
+		m.ResetCacheCompatibilityKey()
+		return nil
+	case requestexecution.FieldTheoreticalCacheTokens:
+		m.ResetTheoreticalCacheTokens()
+		return nil
+	case requestexecution.FieldCacheTTLBucket:
+		m.ResetCacheTTLBucket()
 		return nil
 	case requestexecution.FieldMetricsReasoningDurationMs:
 		m.ResetMetricsReasoningDurationMs()
