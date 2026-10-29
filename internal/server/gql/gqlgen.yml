@@ -233,6 +233,12 @@ models:
   ChannelTagPriorityUpdateInput:
     model:
       - github.com/looplj/axonhub/internal/server/biz.ChannelTagPriorityUpdate
+  ChannelTagPriorityInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelTagPriority
+  ChannelPrioritiesInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ChannelPrioritiesInput
   ChannelRoutingOrderField:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelRoutingOrderField

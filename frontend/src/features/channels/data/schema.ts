@@ -414,6 +414,7 @@ export const channelSettingsSchema = z.object({
   upstreamAddresses: z.array(channelAddressSchema).optional(),
   addressFailover: z.boolean().optional(),
   tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })).optional(),
+  globalPriority: z.number().int().nullish(),
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   disableSessionReuse: z.boolean().optional(),
@@ -441,7 +442,11 @@ export const channelSettingsSchema = z.object({
 });
 
 export type ChannelSettings = z.infer<typeof channelSettingsSchema>;
-export const channelSettingsInputSchema = channelSettingsSchema.omit({ modelPriceMultiplier: true, tagPriorities: true });
+export const channelSettingsInputSchema = channelSettingsSchema.omit({
+  modelPriceMultiplier: true,
+  tagPriorities: true,
+  globalPriority: true,
+});
 
 // Channel Model Entry
 export const channelModelEntrySchema = z.object({

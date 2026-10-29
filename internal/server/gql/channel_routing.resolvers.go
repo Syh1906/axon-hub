@@ -14,6 +14,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// UpdateChannelPriorities is the resolver for the updateChannelPriorities field.
+func (r *mutationResolver) UpdateChannelPriorities(ctx context.Context, channelID objects.GUID, input biz.ChannelPrioritiesInput) (*ent.Channel, error) {
+	return r.channelService.UpdateChannelPriorities(ctx, channelID.ID, input)
+}
+
 // UpdateChannelTagPriorities is the resolver for the updateChannelTagPriorities field.
 func (r *mutationResolver) UpdateChannelTagPriorities(ctx context.Context, tag string, input []*biz.ChannelTagPriorityUpdate) ([]*ent.Channel, error) {
 	return r.channelService.UpdateChannelTagPriorities(ctx, tag, input)

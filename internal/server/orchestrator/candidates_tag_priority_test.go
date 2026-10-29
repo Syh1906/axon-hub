@@ -53,6 +53,33 @@ func TestChannelPriorityTagDefaultsThenKeyOverrides(t *testing.T) {
 	require.Equal(t, 40, result[0].Priority)
 }
 
+func TestChannelPriorityGlobalFallback(t *testing.T) {
+	first := healthGateSelectorCandidate(1, 40, "one")
+	second := healthGateSelectorCandidate(2, 30, "two")
+	first.Channel.Tags = []string{"Codex", "Shared"}
+	first.Channel.Settings = &objects.ChannelSettings{GlobalPriority: lo.ToPtr(10), TagPriorities: []objects.ChannelTagPriority{
+		{Tag: "Codex", Priority: 14}, {Tag: "removed", Priority: -5},
+	}}
+	base := &staticChannelSelector{candidates: []*ChannelModelsCandidate{first, second}}
+	for _, tc := range []struct {
+		tags     []string
+		expected int
+	}{
+		{nil, 10}, {[]string{"Shared"}, 10}, {[]string{"removed"}, 10},
+		{[]string{"Codex"}, 14}, {[]string{"Codex", "Shared"}, 14},
+	} {
+		selector := WithChannelTagPrioritySelector(base, tc.tags)
+		result, err := selector.Select(context.Background(), &llm.Request{Model: "alias"})
+		require.NoError(t, err)
+		require.Equal(t, tc.expected, result[0].Priority)
+		require.Equal(t, 30, result[1].Priority)
+		result, err = WithChannelPrioritySelector(selector, []objects.ChannelPriority{{ChannelID: 1, Priority: 0}}).Select(context.Background(), &llm.Request{Model: "alias"})
+		require.NoError(t, err)
+		require.Equal(t, 0, result[0].Priority)
+		require.Equal(t, 40, first.Priority, "never mutate the shared candidate")
+	}
+}
+
 func TestChannelPriorityWeightTiersPrecedeStrategyScores(t *testing.T) {
 	for _, debug := range []bool{false, true} {
 		lb := newTestLoadBalancer(t, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3}, &channelBasedStrategy{

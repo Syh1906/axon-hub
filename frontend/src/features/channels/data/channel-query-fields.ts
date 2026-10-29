@@ -26,6 +26,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           tags
           defaultTestModel
           settings {
+            globalPriority
             tagPriorities { tag priority }
             modelPriceMultiplier
             healthGateFailureThreshold
@@ -161,6 +162,7 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
           errorMessage
           tags
           settings {
+           globalPriority
            tagPriorities { tag priority }
             modelPriceMultiplier
             healthGateFailureThreshold
@@ -192,6 +194,7 @@ export const CHANNEL_QUERY_TAGS_SELECTION = `
 
 export const CHANNEL_QUERY_PROXY_SELECTION = `
           settings {
+            globalPriority
             tagPriorities { tag priority }
             modelPriceMultiplier
             healthGateFailureThreshold

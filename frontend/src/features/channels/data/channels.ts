@@ -104,6 +104,7 @@ const CREATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        globalPriority
         tagPriorities { tag priority }
         modelPriceMultiplier
         healthGateFailureThreshold
@@ -193,6 +194,7 @@ const DUPLICATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        globalPriority
         tagPriorities { tag priority }
         modelPriceMultiplier
         healthGateFailureThreshold
@@ -282,6 +284,7 @@ const BULK_CREATE_CHANNELS_MUTATION = `
       tags
       defaultTestModel
       settings {
+        globalPriority
         tagPriorities { tag priority }
         modelPriceMultiplier
         healthGateFailureThreshold
@@ -371,6 +374,7 @@ const UPDATE_CHANNEL_MUTATION = `
       tags
       defaultTestModel
       settings {
+        globalPriority
         tagPriorities { tag priority }
         modelPriceMultiplier
         healthGateFailureThreshold
@@ -582,6 +586,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           transport
         }
         settings {
+          globalPriority
           tagPriorities { tag priority }
           modelPriceMultiplier
           healthGateFailureThreshold
@@ -817,6 +822,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           transport
         }
         settings {
+          globalPriority
           tagPriorities { tag priority }
           modelPriceMultiplier
           healthGateFailureThreshold

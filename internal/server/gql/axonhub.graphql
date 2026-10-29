@@ -169,6 +169,7 @@ type ChannelSettings {
   addressFailover: Boolean!
   upstream: ChannelUpstreamSettings
   tagPriorities: [ChannelTagPriority!]!
+  globalPriority: Int
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean!

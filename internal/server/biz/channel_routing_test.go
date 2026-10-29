@@ -3,6 +3,7 @@ package biz
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"entgo.io/contrib/entgql"
@@ -57,6 +58,96 @@ func TestChannelTagPrioritiesSaveAndRestore(t *testing.T) {
 	stored = client.Channel.GetX(ctx, ch.ID)
 	require.Nil(t, stored.Settings.PriorityForTags(stored.Tags, []string{"Codex"}))
 	require.Equal(t, 20, stored.OrderingWeight, "a later invalid row rolls back the whole save")
+}
+
+func TestChannelPrioritiesSaveAndRestore(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+	ctx := channelAutoPriceTestContext(client)
+	ch := createTestChannel(t, client, ctx, "global and tags", []string{"model"}, nil)
+	ch.Update().SetTags([]string{"Codex", "Shared"}).SetSettings(&objects.ChannelSettings{
+		StreamFirstEventTimeoutSeconds: lo.ToPtr(20),
+		ModelPriceMultiplier:           lo.ToPtr(decimal.RequireFromString("0.15")),
+	}).SaveX(ctx)
+	input := ChannelPrioritiesInput{GlobalPriority: lo.ToPtr(10), TagPriorities: []objects.ChannelTagPriority{{Tag: "Codex", Priority: 14}, {Tag: "Shared", Priority: 0}}}
+	_, err := svc.UpdateChannelPriorities(ctx, ch.ID, input)
+	require.NoError(t, err)
+	stored := client.Channel.GetX(ctx, ch.ID)
+	require.Equal(t, 10, *stored.Settings.GlobalPriority)
+	require.Equal(t, input.TagPriorities, stored.Settings.TagPriorities)
+	require.Equal(t, 20, *stored.Settings.StreamFirstEventTimeoutSeconds)
+	require.Equal(t, "0.15", stored.Settings.ModelPriceMultiplier.String())
+
+	_, err = svc.UpdateChannel(ctx, ch.ID, &ent.UpdateChannelInput{Settings: &objects.ChannelSettings{ExtraModelPrefix: "alias"}})
+	require.NoError(t, err)
+	stored = client.Channel.GetX(ctx, ch.ID)
+	require.Equal(t, 10, *stored.Settings.GlobalPriority, "ordinary edits preserve global priority")
+	require.Equal(t, input.TagPriorities, stored.Settings.TagPriorities)
+
+	for _, tags := range [][]objects.ChannelTagPriority{
+		{{Tag: "Codex", Priority: 5}, {Tag: "Removed", Priority: 6}},
+		{{Tag: "Codex", Priority: 5}, {Tag: "Codex", Priority: 6}},
+	} {
+		_, err = svc.UpdateChannelPriorities(ctx, ch.ID, ChannelPrioritiesInput{GlobalPriority: lo.ToPtr(99), TagPriorities: tags})
+		require.Error(t, err)
+		stored = client.Channel.GetX(ctx, ch.ID)
+		require.Equal(t, 10, *stored.Settings.GlobalPriority, "invalid tag must not partially save global priority")
+		require.Equal(t, input.TagPriorities, stored.Settings.TagPriorities)
+	}
+
+	_, err = svc.UpdateChannelTagPriorities(ctx, "Shared", []*ChannelTagPriorityUpdate{{ChannelID: objects.GUID{ID: ch.ID}}})
+	require.NoError(t, err)
+	stored = client.Channel.GetX(ctx, ch.ID)
+	require.Equal(t, 10, *stored.Settings.PriorityForTags(stored.Tags, []string{"Shared"}), "batch clearing a tag inherits global")
+	require.Equal(t, 14, *stored.Settings.PriorityForTags(stored.Tags, []string{"Codex"}))
+	_, err = svc.UpdateChannelPriorities(ctx, ch.ID, ChannelPrioritiesInput{})
+	require.NoError(t, err)
+	stored = client.Channel.GetX(ctx, ch.ID)
+	require.Nil(t, stored.Settings.GlobalPriority)
+	require.Empty(t, stored.Settings.TagPriorities)
+	require.Nil(t, stored.Settings.PriorityForTags(stored.Tags, []string{"Codex"}))
+
+	untagged := createTestChannel(t, client, ctx, "global only", []string{"model"}, nil)
+	_, err = svc.UpdateChannelPriorities(ctx, untagged.ID, ChannelPrioritiesInput{GlobalPriority: lo.ToPtr(0)})
+	require.NoError(t, err)
+	require.Equal(t, 0, *client.Channel.GetX(ctx, untagged.ID).Settings.PriorityForTags(nil, nil))
+}
+
+func TestChannelPriorityIntegerBounds(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+	ctx := channelAutoPriceTestContext(client)
+	ch := createTestChannel(t, client, ctx, "priority bounds", []string{"model"}, nil)
+	ch.Update().SetTags([]string{"Codex"}).SaveX(ctx)
+	for _, value := range []int{-2147483648, 2147483647} {
+		_, err := svc.UpdateChannelPriorities(ctx, ch.ID, ChannelPrioritiesInput{
+			GlobalPriority: &value, TagPriorities: []objects.ChannelTagPriority{{Tag: "Codex", Priority: value}},
+		})
+		require.NoError(t, err)
+		stored := client.Channel.GetX(ctx, ch.ID)
+		require.Equal(t, value, *stored.Settings.GlobalPriority)
+		require.Equal(t, value, stored.Settings.TagPriorities[0].Priority)
+	}
+	if strconv.IntSize < 64 {
+		return // A 32-bit int cannot represent the overflow inputs below.
+	}
+	for _, raw := range []int64{-2147483649, 2147483648} {
+		value := int(raw)
+		for _, input := range []ChannelPrioritiesInput{
+			{GlobalPriority: &value},
+			{GlobalPriority: lo.ToPtr(10), TagPriorities: []objects.ChannelTagPriority{{Tag: "Codex", Priority: value}}},
+		} {
+			_, err := svc.UpdateChannelPriorities(ctx, ch.ID, input)
+			require.ErrorContains(t, err, "between -2147483648 and 2147483647")
+		}
+		_, err := svc.UpdateChannelTagPriorities(ctx, "Codex", []*ChannelTagPriorityUpdate{
+			{ChannelID: objects.GUID{ID: ch.ID}, Priority: &value},
+		})
+		require.ErrorContains(t, err, "between -2147483648 and 2147483647")
+		stored := client.Channel.GetX(ctx, ch.ID)
+		require.Equal(t, 2147483647, *stored.Settings.GlobalPriority, "invalid inputs leave all persisted values unchanged")
+		require.Equal(t, 2147483647, stored.Settings.TagPriorities[0].Priority)
+	}
 }
 
 func TestChannelRoutingOrderPagination(t *testing.T) {
@@ -120,6 +211,22 @@ func TestChannelRoutingOrderPagination(t *testing.T) {
 	pageWithoutTag, err := svc.QueryChannels(ctx, QueryChannelsInput{First: lo.ToPtr(10), RoutingOrder: &ChannelRoutingOrder{Field: objects.ChannelRoutingOrderPriority, Direction: entgql.OrderDirectionAsc}})
 	require.NoError(t, err)
 	require.Equal(t, []int{ids[1], ids[2], ids[3], ids[0], ids[4]}, lo.Map(pageWithoutTag.Edges, func(edge *ent.ChannelEdge, _ int) int { return edge.Node.ID }))
+	// Global values drive unfiltered sorting, while an explicit tag still overrides them.
+	_, err = svc.UpdateChannelPriorities(ctx, ids[0], ChannelPrioritiesInput{GlobalPriority: lo.ToPtr(-1), TagPriorities: []objects.ChannelTagPriority{{Tag: "Codex", Priority: 20}}})
+	require.NoError(t, err)
+	_, err = svc.UpdateChannelPriorities(ctx, ids[4], ChannelPrioritiesInput{GlobalPriority: lo.ToPtr(12)})
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		tag      *string
+		expected []int
+	}{
+		{nil, []int{ids[0], ids[1], ids[4], ids[2], ids[3]}},
+		{lo.ToPtr("Codex"), []int{ids[1], ids[4], ids[2], ids[3], ids[0]}},
+	} {
+		page, err := svc.QueryChannels(ctx, QueryChannelsInput{HasTag: tc.tag, First: lo.ToPtr(10), RoutingOrder: &ChannelRoutingOrder{Field: objects.ChannelRoutingOrderPriority, Direction: entgql.OrderDirectionAsc}})
+		require.NoError(t, err)
+		require.Equal(t, tc.expected, lo.Map(page.Edges, func(edge *ent.ChannelEdge, _ int) int { return edge.Node.ID }))
+	}
 	// Filters are applied before sorting/pagination, not to the current page.
 	page, err := svc.QueryChannels(ctx, QueryChannelsInput{HasTag: lo.ToPtr("Other"), First: lo.ToPtr(2), RoutingOrder: &ChannelRoutingOrder{Field: objects.ChannelRoutingOrderPriority, Direction: entgql.OrderDirectionAsc}})
 	require.NoError(t, err)

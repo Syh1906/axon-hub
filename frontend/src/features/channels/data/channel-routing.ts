@@ -10,11 +10,43 @@ export const channelRoutingSummarySchema = z.object({
   name: z.string(),
   tags: z.array(z.string()).nullish(),
   orderingWeight: z.number(),
-  settings: z.object({ tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })) }).nullish(),
+  settings: z
+    .object({
+      globalPriority: z.number().int().nullish(),
+      tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })),
+    })
+    .nullish(),
 });
 
 export type ChannelRoutingSummary = z.infer<typeof channelRoutingSummarySchema>;
 export type ChannelTagPriorityUpdate = { channelId: string; priority: number | null; orderingWeight?: number };
+
+export type ChannelPrioritiesInput = { globalPriority: number | null; tagPriorities: { tag: string; priority: number }[] };
+
+export function useUpdateChannelPriorities() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
+  return useMutation({
+    mutationFn: (variables: { channelId: string; input: ChannelPrioritiesInput }) =>
+      graphqlRequest(
+        `mutation UpdateChannelPriorities($channelId: ID!, $input: ChannelPrioritiesInput!) {
+          updateChannelPriorities(channelId: $channelId, input: $input) {
+            id settings { globalPriority tagPriorities { tag priority } }
+          }
+        }`,
+        variables
+      ),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['channels'] }),
+        queryClient.invalidateQueries({ queryKey: ['channel', variables.channelId] }),
+      ]);
+      toast.success(t('channels.routing.saved'));
+    },
+    onError: (error) => handleError(error, t('channels.routing.saveFailed')),
+  });
+}
 
 export function useChannelRoutingSummaries(enabled: boolean) {
   return useQuery({
@@ -25,7 +57,7 @@ export function useChannelRoutingSummaries(enabled: boolean) {
         query ChannelRoutingSummaries {
           allChannelSummarys {
             id name tags orderingWeight
-            settings { tagPriorities { tag priority } }
+            settings { globalPriority tagPriorities { tag priority } }
           }
         }
       `);
@@ -44,7 +76,7 @@ export function useUpdateChannelTagPriorities() {
         `
         mutation UpdateChannelTagPriorities($tag: String!, $input: [ChannelTagPriorityUpdateInput!]!) {
           updateChannelTagPriorities(tag: $tag, input: $input) {
-            id orderingWeight settings { tagPriorities { tag priority } }
+            id orderingWeight settings { globalPriority tagPriorities { tag priority } }
           }
         }
       `,

@@ -14,7 +14,7 @@ type ChannelTagPriority struct {
 }
 
 // PriorityForTags only considers tags that still belong to the channel. An
-// unconfigured tag inherits the model association instead of becoming zero.
+// unconfigured tag inherits the channel global priority, then the model association.
 func (s *ChannelSettings) PriorityForTags(channelTags, selectedTags []string) *int {
 	if s == nil {
 		return nil
@@ -27,7 +27,10 @@ func (s *ChannelSettings) PriorityForTags(channelTags, selectedTags []string) *i
 			priority = &value
 		}
 	}
-	return priority
+	if priority != nil {
+		return priority
+	}
+	return s.GlobalPriority
 }
 
 type ChannelRoutingOrderField string

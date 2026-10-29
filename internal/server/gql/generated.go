@@ -674,6 +674,7 @@ type ComplexityRoot struct {
 		DisableSessionReuse             func(childComplexity int) int
 		ExtraModelPrefix                func(childComplexity int) int
 		ForceOneHourPromptCache         func(childComplexity int) int
+		GlobalPriority                  func(childComplexity int) int
 		HeaderOverrideOperations        func(childComplexity int) int
 		HealthGateFailureThreshold      func(childComplexity int) int
 		HideMappedModels                func(childComplexity int) int
@@ -1300,6 +1301,7 @@ type ComplexityRoot struct {
 		UpdateChannelCostMultiplier           func(childComplexity int, channelID objects.GUID, multiplier decimal.Decimal) int
 		UpdateChannelKeySettings              func(childComplexity int, channelID objects.GUID, input objects.ChannelKeySettingsInput) int
 		UpdateChannelOverrideTemplate         func(childComplexity int, id objects.GUID, input ent.UpdateChannelOverrideTemplateInput) int
+		UpdateChannelPriorities               func(childComplexity int, channelID objects.GUID, input biz.ChannelPrioritiesInput) int
 		UpdateChannelStatus                   func(childComplexity int, id objects.GUID, status channel.Status) int
 		UpdateChannelTagPriorities            func(childComplexity int, tag string, input []*biz.ChannelTagPriorityUpdate) int
 		UpdateChannelUpstream                 func(childComplexity int, channelID objects.GUID, input objects.UpdateChannelUpstreamInput) int
@@ -2681,6 +2683,7 @@ type MutationResolver interface {
 	UpdateAutoBackupSettings(ctx context.Context, input UpdateAutoBackupSettingsInput) (bool, error)
 	TriggerAutoBackup(ctx context.Context) (*TriggerBackupPayload, error)
 	ResetChannelHealthGate(ctx context.Context, channelID objects.GUID, actualModel *string) (bool, error)
+	UpdateChannelPriorities(ctx context.Context, channelID objects.GUID, input biz.ChannelPrioritiesInput) (*ent.Channel, error)
 	UpdateChannelTagPriorities(ctx context.Context, tag string, input []*biz.ChannelTagPriorityUpdate) ([]*ent.Channel, error)
 	UpdateChannelCostMultiplier(ctx context.Context, channelID objects.GUID, multiplier decimal.Decimal) ([]*ent.ChannelModelPrice, error)
 	UpdateChannelUpstream(ctx context.Context, channelID objects.GUID, input objects.UpdateChannelUpstreamInput) (*objects.ChannelUpstreamState, error)
@@ -5152,6 +5155,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.ForceOneHourPromptCache(childComplexity), true
+	case "ChannelSettings.globalPriority":
+		if e.complexity.ChannelSettings.GlobalPriority == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.GlobalPriority(childComplexity), true
 	case "ChannelSettings.headerOverrideOperations":
 		if e.complexity.ChannelSettings.HeaderOverrideOperations == nil {
 			break
@@ -8206,6 +8215,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateChannelOverrideTemplate(childComplexity, args["id"].(objects.GUID), args["input"].(ent.UpdateChannelOverrideTemplateInput)), true
+	case "Mutation.updateChannelPriorities":
+		if e.complexity.Mutation.UpdateChannelPriorities == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateChannelPriorities_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateChannelPriorities(childComplexity, args["channelId"].(objects.GUID), args["input"].(biz.ChannelPrioritiesInput)), true
 	case "Mutation.updateChannelStatus":
 		if e.complexity.Mutation.UpdateChannelStatus == nil {
 			break
@@ -13637,6 +13657,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelOverrideTemplateOrder,
 		ec.unmarshalInputChannelOverrideTemplateWhereInput,
 		ec.unmarshalInputChannelPoliciesInput,
+		ec.unmarshalInputChannelPrioritiesInput,
 		ec.unmarshalInputChannelPriorityInput,
 		ec.unmarshalInputChannelProbeWhereInput,
 		ec.unmarshalInputChannelProviderQuotaSettingsInput,
@@ -13645,6 +13666,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelRequestAssociationInput,
 		ec.unmarshalInputChannelRoutingOrder,
 		ec.unmarshalInputChannelSettingsInput,
+		ec.unmarshalInputChannelTagPriorityInput,
 		ec.unmarshalInputChannelTagPriorityUpdateInput,
 		ec.unmarshalInputChannelTagsModelAssociationInput,
 		ec.unmarshalInputChannelTagsRegexAssociationInput,
@@ -15402,6 +15424,22 @@ func (ec *executionContext) field_Mutation_updateChannelOverrideTemplate_args(ct
 	}
 	args["id"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateChannelOverrideTemplateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐUpdateChannelOverrideTemplateInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateChannelPriorities_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelId", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNChannelPrioritiesInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelPrioritiesInput)
 	if err != nil {
 		return nil, err
 	}
@@ -24068,6 +24106,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_upstream(ctx, field)
 			case "tagPriorities":
 				return ec.fieldContext_ChannelSettings_tagPriorities(ctx, field)
+			case "globalPriority":
+				return ec.fieldContext_ChannelSettings_globalPriority(ctx, field)
 			case "streamFirstEventTimeoutSeconds":
 				return ec.fieldContext_ChannelSettings_streamFirstEventTimeoutSeconds(ctx, field)
 			case "nonStreamResponseTimeoutSeconds":
@@ -29297,6 +29337,35 @@ func (ec *executionContext) fieldContext_ChannelSettings_tagPriorities(_ context
 				return ec.fieldContext_ChannelTagPriority_priority(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelTagPriority", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_globalPriority(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_globalPriority,
+		func(ctx context.Context) (any, error) {
+			return obj.GlobalPriority, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_globalPriority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -45068,6 +45137,113 @@ func (ec *executionContext) fieldContext_Mutation_resetChannelHealthGate(ctx con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_resetChannelHealthGate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateChannelPriorities(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateChannelPriorities,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateChannelPriorities(ctx, fc.Args["channelId"].(objects.GUID), fc.Args["input"].(biz.ChannelPrioritiesInput))
+		},
+		nil,
+		ec.marshalNChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannel,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateChannelPriorities(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Channel_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Channel_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Channel_updatedAt(ctx, field)
+			case "type":
+				return ec.fieldContext_Channel_type(ctx, field)
+			case "baseURL":
+				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "name":
+				return ec.fieldContext_Channel_name(ctx, field)
+			case "status":
+				return ec.fieldContext_Channel_status(ctx, field)
+			case "supportedModels":
+				return ec.fieldContext_Channel_supportedModels(ctx, field)
+			case "manualModels":
+				return ec.fieldContext_Channel_manualModels(ctx, field)
+			case "autoSyncSupportedModels":
+				return ec.fieldContext_Channel_autoSyncSupportedModels(ctx, field)
+			case "autoSyncModelPattern":
+				return ec.fieldContext_Channel_autoSyncModelPattern(ctx, field)
+			case "tags":
+				return ec.fieldContext_Channel_tags(ctx, field)
+			case "defaultTestModel":
+				return ec.fieldContext_Channel_defaultTestModel(ctx, field)
+			case "policies":
+				return ec.fieldContext_Channel_policies(ctx, field)
+			case "settings":
+				return ec.fieldContext_Channel_settings(ctx, field)
+			case "orderingWeight":
+				return ec.fieldContext_Channel_orderingWeight(ctx, field)
+			case "errorMessage":
+				return ec.fieldContext_Channel_errorMessage(ctx, field)
+			case "autoDisabledAt":
+				return ec.fieldContext_Channel_autoDisabledAt(ctx, field)
+			case "remark":
+				return ec.fieldContext_Channel_remark(ctx, field)
+			case "endpoints":
+				return ec.fieldContext_Channel_endpoints(ctx, field)
+			case "requests":
+				return ec.fieldContext_Channel_requests(ctx, field)
+			case "executions":
+				return ec.fieldContext_Channel_executions(ctx, field)
+			case "usageLogs":
+				return ec.fieldContext_Channel_usageLogs(ctx, field)
+			case "channelProbes":
+				return ec.fieldContext_Channel_channelProbes(ctx, field)
+			case "channelModelPrices":
+				return ec.fieldContext_Channel_channelModelPrices(ctx, field)
+			case "providerQuotaStatus":
+				return ec.fieldContext_Channel_providerQuotaStatus(ctx, field)
+			case "defaultEndpoints":
+				return ec.fieldContext_Channel_defaultEndpoints(ctx, field)
+			case "allModelEntries":
+				return ec.fieldContext_Channel_allModelEntries(ctx, field)
+			case "credentials":
+				return ec.fieldContext_Channel_credentials(ctx, field)
+			case "disabledAPIKeys":
+				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "liveLimiterStats":
+				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "healthGate":
+				return ec.fieldContext_Channel_healthGate(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Channel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateChannelPriorities_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -78515,6 +78691,40 @@ func (ec *executionContext) unmarshalInputChannelPoliciesInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChannelPrioritiesInput(ctx context.Context, obj any) (biz.ChannelPrioritiesInput, error) {
+	var it biz.ChannelPrioritiesInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"globalPriority", "tagPriorities"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "globalPriority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("globalPriority"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GlobalPriority = data
+		case "tagPriorities":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagPriorities"))
+			data, err := ec.unmarshalNChannelTagPriorityInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTagPriorityᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TagPriorities = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputChannelPriorityInput(ctx context.Context, obj any) (objects.ChannelPriority, error) {
 	var it objects.ChannelPriority
 	asMap := map[string]any{}
@@ -79410,6 +79620,40 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.ForceOneHourPromptCache = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputChannelTagPriorityInput(ctx context.Context, obj any) (objects.ChannelTagPriority, error) {
+	var it objects.ChannelTagPriority
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"tag", "priority"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "tag":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tag"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tag = data
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		}
 	}
 
@@ -106883,6 +107127,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "globalPriority":
+			out.Values[i] = ec._ChannelSettings_globalPriority(ctx, field, obj)
 		case "streamFirstEventTimeoutSeconds":
 			out.Values[i] = ec._ChannelSettings_streamFirstEventTimeoutSeconds(ctx, field, obj)
 		case "nonStreamResponseTimeoutSeconds":
@@ -111647,6 +111893,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "resetChannelHealthGate":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_resetChannelHealthGate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateChannelPriorities":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateChannelPriorities(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -126397,6 +126650,11 @@ func (ec *executionContext) marshalNChannelPerformanceStat2ᚖgithubᚗcomᚋloo
 	return ec._ChannelPerformanceStat(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNChannelPrioritiesInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelPrioritiesInput(ctx context.Context, v any) (biz.ChannelPrioritiesInput, error) {
+	res, err := ec.unmarshalInputChannelPrioritiesInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNChannelPriority2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelPriority(ctx context.Context, sel ast.SelectionSet, v objects.ChannelPriority) graphql.Marshaler {
 	return ec._ChannelPriority(ctx, sel, &v)
 }
@@ -126653,6 +126911,26 @@ func (ec *executionContext) marshalNChannelTagPriority2ᚕgithubᚗcomᚋlooplj�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNChannelTagPriorityInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTagPriority(ctx context.Context, v any) (objects.ChannelTagPriority, error) {
+	res, err := ec.unmarshalInputChannelTagPriorityInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNChannelTagPriorityInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTagPriorityᚄ(ctx context.Context, v any) ([]objects.ChannelTagPriority, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ChannelTagPriority, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNChannelTagPriorityInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTagPriority(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalNChannelTagPriorityUpdateInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelTagPriorityUpdateᚄ(ctx context.Context, v any) ([]*biz.ChannelTagPriorityUpdate, error) {

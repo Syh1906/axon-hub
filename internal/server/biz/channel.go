@@ -1095,12 +1095,14 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			settings := *input.Settings
 			settings.ModelPriceMultiplier = nil
 			settings.TagPriorities = nil
+			settings.GlobalPriority = nil
 			settings.Upstream = nil
 			settings.KeySettings = nil
 			settings.DisableKeySessionReuse = false
 			if existingSettings.Settings != nil {
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
 				settings.TagPriorities = existingSettings.Settings.TagPriorities
+				settings.GlobalPriority = existingSettings.Settings.GlobalPriority
 				settings.Upstream = existingSettings.Settings.Upstream
 				settings.KeySettings = existingSettings.Settings.KeySettings
 				settings.DisableKeySessionReuse = existingSettings.Settings.DisableKeySessionReuse

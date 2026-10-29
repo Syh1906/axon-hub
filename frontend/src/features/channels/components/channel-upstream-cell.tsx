@@ -146,7 +146,6 @@ export function ChannelUpstreamMultiplierCell({ channel, canWrite }: { channel: 
       <ChannelRoutingValueCell
         channel={channel}
         field='costMultiplier'
-        tag=''
         canWrite={canWrite}
         displayOverride={follow ? range : undefined}
         upstreamFollow={Boolean(follow)}

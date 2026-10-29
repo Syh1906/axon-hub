@@ -50,6 +50,7 @@ import { channelDisplayPriority } from '../utils/channel-priority';
 import { ChannelHealthCell } from './channel-health-cell';
 import { ChannelLimiterCell } from './channel-limiter-cell';
 import { ChannelRoutingValueCell } from './channel-routing-value-cell';
+import { ChannelPriorityCell } from './channel-priority-cell';
 import { ChannelUpstreamBalanceCell, ChannelUpstreamMultiplierCell } from './channel-upstream-cell';
 import { ChannelsStatusDialog } from './channels-status-dialog';
 
@@ -1022,7 +1023,7 @@ export const createColumns = (
       id: 'priority',
       accessorFn: (channel) => channelDisplayPriority(channel, tag).priority,
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.priority')} className='justify-center' />,
-      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='priority' tag={tag} canWrite={canWrite} />,
+      cell: ({ row }) => <ChannelPriorityCell channel={row.original} tag={tag} canWrite={canWrite} />,
       meta: { className: 'w-24 min-w-24 text-center' },
       enableSorting: true,
       enableHiding: true,
@@ -1032,7 +1033,7 @@ export const createColumns = (
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('channels.columns.orderingWeight')} className='justify-center' />
       ),
-      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='orderingWeight' tag={tag} canWrite={canWrite} />,
+      cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='orderingWeight' canWrite={canWrite} />,
       meta: {
         className: 'w-20 min-w-20 text-center',
       },

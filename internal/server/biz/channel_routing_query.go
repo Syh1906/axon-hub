@@ -90,6 +90,9 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 			selectedTags := ch.Tags
 			if tag != "" {
 				selectedTags = []string{tag}
+			} else if ch.Settings != nil && ch.Settings.GlobalPriority != nil {
+				// With an explicit global value, the unfiltered list displays it.
+				selectedTags = nil
 			}
 			if priority := ch.Settings.PriorityForTags(ch.Tags, selectedTags); priority != nil {
 				value = lo.ToPtr(decimal.NewFromInt(int64(*priority)))

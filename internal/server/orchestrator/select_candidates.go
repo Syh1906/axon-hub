@@ -53,9 +53,7 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 		}
 
 		// Priorities only reorder candidates after both permission boundaries.
-		if tags := channelPriorityTags(inbound.state.APIKey); len(tags) > 0 {
-			selector = WithChannelTagPrioritySelector(selector, tags)
-		}
+		selector = WithChannelTagPrioritySelector(selector, channelPriorityTags(inbound.state.APIKey))
 		if profile := inbound.state.APIKey.GetActiveProfile(); profile != nil && len(profile.ChannelPriorities) > 0 {
 			selector = WithChannelPrioritySelector(selector, profile.ChannelPriorities)
 		}

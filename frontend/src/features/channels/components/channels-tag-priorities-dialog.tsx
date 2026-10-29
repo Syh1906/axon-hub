@@ -111,7 +111,11 @@ export function ChannelsTagPrioritiesDialog() {
                         type='number'
                         step={1}
                         className='w-28'
-                        placeholder={t('channels.routing.inherit')}
+                        placeholder={
+                          channel.settings?.globalPriority == null
+                            ? t('channels.routing.inherit')
+                            : t('channels.routing.useGlobal', { priority: channel.settings.globalPriority })
+                        }
                         value={values.priority}
                         aria-label={`${channel.name} ${t('channels.routing.priority')}`}
                         onChange={(event) => updateDraft(channel, { priority: event.target.value })}

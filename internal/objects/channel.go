@@ -152,8 +152,9 @@ func (m ModelProtocol) IsEnabled() bool {
 }
 
 type ChannelSettings struct {
-	// Managed by the tag priority mutation; ordinary channel edits preserve it.
-	TagPriorities []ChannelTagPriority `json:"tagPriorities,omitempty"`
+	// Managed by routing mutations; ordinary channel edits preserve these values.
+	GlobalPriority *int                 `json:"globalPriority,omitempty"`
+	TagPriorities  []ChannelTagPriority `json:"tagPriorities,omitempty"`
 
 	// Nil timeouts inherit the system policy; zero removes only the channel limit.
 	StreamFirstEventTimeoutSeconds  *int                     `json:"streamFirstEventTimeoutSeconds,omitempty"`
