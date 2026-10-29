@@ -81,7 +81,7 @@ fork 改动，由用户决定。
 
 ### 上游余额与按 Key 同步成本倍率
 
-- 状态：2026-10-28 已随 [v1.0.0-beta10-fork.7.syh.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.4) 正式发布，并设为最新版本。New API 和 Sub2API 自动识别；复用渠道地址、代理与 Key，已有渠道默认关闭同步。余额、Key 额度、账户共享关系与倍率分别展示，未知账户不相加、不按尾号猜测关联。
+- 状态：2026-10-28 已随 [v1.0.0-beta10-fork.7.syh.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.4) 正式发布，当时设为最新版本。New API 和 Sub2API 自动识别；复用渠道地址、代理与 Key，已有渠道默认关闭同步。余额、Key 额度、账户共享关系与倍率分别展示，未知账户不相加、不按尾号猜测关联。
 - 提交：`e30717fe` 实现上游余额、逐 Key 倍率及发布说明；`855fe99c` 修正发布规范检查，亦为 `.syh.4` tag 指向的最终源码。
 - 账号与 Key：纳入 `.syh.5` 的扩展为一渠道多账号，同渠道约定同分组／套餐、同倍率；不同倍率拆到不同渠道。每个账号独立保存认证，每把 Key 保存备注和归属；New API 通过对应账号授权直接查询 Key，无调用记录也可识别，不能确认归属时保留待关联。Sub2API 手动指定归属，读取版本化 billing 接口的当前有效 Token 倍率及有效时段边界。此扩展纳入 `.syh.5` 发布，不改变 `.syh.4` 产物。
 - 余额与凭据：主列汇总账户余额、显示实际 Key 数，同账号去重、不同币种不相加；失败或过期标记部分汇总，停用 Key 不删除账户资金。Key 额度独立展示。完整 Key 和 New API 令牌只能通过渠道管理权限的独立读取入口主动显示／复制，不写入普通上游状态 DTO；替换令牌为显式操作。缺少认证或关联不阻止模型调用。
@@ -816,8 +816,10 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 最新正式发布：北京时间 2026-10-29 03:34:53 发布 [v1.0.0-beta10-fork.7.syh.5](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.5)，源码为 `9d4487538976d4014915a6a0b52dcf546f0c16a7`；`draft=false`、`prerelease=false`，已核对 GitHub latest 指向该版本。两层上游基线未变，既有 tag／产物未覆盖。
-- 本次发布准备：`.syh.6` 包含 `7ef215f1` 的 Key 优先级／模型批量关联、`83a82092` 的用量统计／消耗排行榜、`b78f041f` 的渠道全局／标签优先级。正式状态由 tag 发布工作流完成后确认，生产部署单独执行。
+- 最新正式发布：北京时间 2026-10-29 17:22:33 发布 [v1.0.0-beta10-fork.7.syh.6](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.6)，源码为 `92b62dee691fc1f864bbe9f26935d37b437d655c`；`draft=false`、`prerelease=false`，已核对 GitHub latest 指向该版本，远端 tag 指向同一源码。两层上游基线未变，既有 tag／产物未覆盖。
+- 本次发布内容：`.syh.6` 包含 `7ef215f1` 的 Key 优先级／模型批量关联、`83a82092` 的用量统计／消耗排行榜、`b78f041f` 的渠道全局／标签优先级。相关 topic 已同步版本归属；数据库升级与回退条件见该版本 Release 说明。生产部署单独执行，本次未升级生产机器。
+- `.syh.6` 发布证据：维护分支 [Test](https://github.com/Syh1906/axon-hub/actions/runs/40844893742)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/40844893771)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/40844893768) 均通过后创建 tag；[发布 Actions 40845466280](https://github.com/Syh1906/axon-hub/actions/runs/40845466280) 的测试、双架构镜像、临时 PostgreSQL 17 启动／版本检查、二进制包及部署清单步骤全部成功。附件共 12 个：9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.6/release.json)。已核对 9 个包的 GitHub 服务端摘要与校验和一致，另下载 3 个小附件并核对 SHA-256；未逐个平台运行安装包。
+- `.syh.6` 部署清单：版本、源码提交、两层上游来源、`linux/amd64`／`linux/arm64` 与工作流地址均已核对，固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:2dd9255e83225be643f1701d9d92c715d6cb35bb55792e7688d0108e36ebfa68`。临时数据库启动验证不代表生产存量升级或恢复演练已完成。
 - `.syh.4` 历史发布证据：[Actions 40619850110](https://github.com/Syh1906/axon-hub/actions/runs/40619850110) 的测试、双架构镜像、临时 PostgreSQL 17 启动／版本检查、二进制包及部署清单步骤均通过。附件含 9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.4/release.json)。已核对清单版本、源码提交及镜像为 `ghcr.io/syh1906/axon-hub@sha256:90cc30d52ed2a71e760fb244b6bef1d5e9840ee9e2453cc9129a3ea6349cb263`；本次未执行生产部署。
 - 当前行为：直接上游为 ChouUn/axon-hub，原始上游为 looplj/axonhub；
   `release.config.json` 分别固定两层 tag 和提交。自己的版本为 `<直接上游 tag>.syh.N`。

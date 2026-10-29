@@ -10,6 +10,11 @@ own configuration and volumes. The private
 [axon-hub-ops](https://github.com/Syh1906/axon-hub-ops) repository manages staged
 deployment. Access to that repository requires authorization.
 
+The latest stable version, source commit, publishing workflow, and artifact checks
+are recorded in the [release entry of the fork maintenance ledger](../../fork-maintenance.md#github-独立发布与两层上游追溯).
+That entry confirms application publication; production upgrade status belongs
+to the deployment repository.
+
 ## Branches and sources
 
 | Name | Purpose |

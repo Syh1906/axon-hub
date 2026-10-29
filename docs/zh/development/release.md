@@ -8,6 +8,10 @@ looplj/axonhub。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR�
 [axon-hub-ops](https://github.com/Syh1906/axon-hub-ops) 分批升级。
 该仓库只有获得授权的账号可访问。
 
+最新正式版本、源码提交、发布工作流与产物核验结果统一记录在
+[Fork 维护台账的发布条目](../../fork-maintenance.md#github-独立发布与两层上游追溯)。
+该记录表示应用已发布；生产机是否完成升级以部署仓库的记录为准。
+
 ## 分支与来源
 
 | 对象 | 职责 |
