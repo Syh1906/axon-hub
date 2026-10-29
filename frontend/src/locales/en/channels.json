@@ -1219,6 +1219,11 @@
   "channels.defaultTags.search": "Search tags…",
   "channels.defaultTags.clear": "Clear (all)",
   "channels.defaultTags.retry": "Reload tags",
+  "channels.defaultProvider.title": "Default provider",
+  "channels.defaultProvider.help": "Applied on entry. Saved in this browser only.",
+  "channels.defaultProvider.search": "Search providers…",
+  "channels.defaultProvider.empty": "No matching providers",
+  "channels.defaultProvider.saveFailed": "Could not save the default provider in this browser.",
   "channels.accounts.priority": "Priority",
   "channels.accounts.editPriority": "Edit key priority",
   "channels.accounts.priorityHint": "Lower values are preferred. Defaults to 0. Applies to subsequent requests after saving."

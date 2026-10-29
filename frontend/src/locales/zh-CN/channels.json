@@ -1219,6 +1219,11 @@
   "channels.defaultTags.search": "搜索标签…",
   "channels.defaultTags.clear": "清空（全部）",
   "channels.defaultTags.retry": "重新加载标签",
+  "channels.defaultProvider.title": "默认服务商",
+  "channels.defaultProvider.help": "进入页面时自动应用。仅保存在当前浏览器。",
+  "channels.defaultProvider.search": "搜索服务商…",
+  "channels.defaultProvider.empty": "没有匹配的服务商",
+  "channels.defaultProvider.saveFailed": "无法在当前浏览器保存默认服务商。",
   "channels.accounts.priority": "优先级",
   "channels.accounts.editPriority": "编辑 Key 优先级",
   "channels.accounts.priorityHint": "数字越小越优先，默认为 0；保存后用于后续请求。"

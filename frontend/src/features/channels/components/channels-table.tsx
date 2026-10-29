@@ -23,6 +23,7 @@ import { ServerSidePagination } from '@/components/server-side-pagination';
 import { useChannels } from '../context/channels-context';
 import type { ChannelListColumnVisibility } from '../data/channels';
 import { Channel, ChannelConnection } from '../data/schema';
+import type { ChannelTypeGroup } from '../utils/group-channel-types';
 import { ChannelExpandedRow } from './channel-expanded-row';
 import { ChannelsDefaultSort } from './channels-default-sort';
 import { DataTableToolbar } from './data-table-toolbar';
@@ -50,6 +51,8 @@ interface DataTableProps {
   tagFilter: string[];
   modelFilter: string;
   selectedTypeTab?: string;
+  providerGroups: ChannelTypeGroup[];
+  onApplyProvider: (provider: string) => void;
   showErrorOnly?: boolean;
   showHealthGateAbnormal: boolean;
   onHealthGateAbnormalChange: (checked: boolean) => void;
@@ -83,6 +86,8 @@ export function ChannelsTable({
   tagFilter,
   modelFilter,
   selectedTypeTab = 'all',
+  providerGroups,
+  onApplyProvider,
   showErrorOnly,
   showHealthGateAbnormal,
   onHealthGateAbnormalChange,
@@ -280,7 +285,13 @@ export function ChannelsTable({
         onHealthGateAbnormalChange={onHealthGateAbnormalChange}
         onExitErrorOnlyMode={onExitErrorOnlyMode}
       />
-      <ChannelsDefaultSort sorting={sorting} onApply={onSortingChange} onApplyTags={onTagFilterChange} />
+      <ChannelsDefaultSort
+        sorting={sorting}
+        onApply={onSortingChange}
+        onApplyTags={onTagFilterChange}
+        providerGroups={providerGroups}
+        onApplyProvider={onApplyProvider}
+      />
       <p className='text-muted-foreground mt-2 text-xs'>{t('channels.routing.clickHint')}</p>
       <div className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'>
         <div className='min-w-[1100px]'>

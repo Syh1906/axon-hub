@@ -20,7 +20,12 @@ export const ChannelsTypeTabs = memo(function ChannelsTypeTabs({ groups, selecte
   const { t } = useTranslation();
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
 
-  const visibleGroups = useMemo(() => groups.slice(0, MAX_VISIBLE_GROUPS), [groups]);
+  const visibleGroups = useMemo(() => {
+    const visible = groups.slice(0, MAX_VISIBLE_GROUPS);
+    const selected = groups.find((group) => group.key === selectedTab);
+    if (selected && !visible.includes(selected)) visible[visible.length - 1] = selected;
+    return visible;
+  }, [groups, selectedTab]);
 
   const totalCount = useMemo(() => groups.reduce((sum, { totalCount }) => sum + totalCount, 0), [groups]);
 

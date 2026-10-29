@@ -27,6 +27,7 @@ import {
 } from './data/channels';
 import { CHANNEL_TYPE_TO_PROVIDER } from './data/config_channels';
 import { readDefaultChannelSort } from './utils/channel-sort';
+import { readDefaultProvider, resolveChannelProviderSelection } from './utils/default-provider';
 import { resolveChannelTagSelection } from './utils/default-tags';
 import { groupChannelTypesByProvider, IMAGE_PRIMARY_API_FORMAT } from './utils/group-channel-types';
 
@@ -42,7 +43,7 @@ function ChannelsContent() {
   const { t } = useTranslation();
   useProvidersData();
   const { channelPermissions } = usePermissions();
-  const { showTypeTabs, selectedTag: tagFilter, setSelectedTag: setTagFilter } = useChannels();
+  const { showTypeTabs, setShowTypeTabs, selectedTag: tagFilter, setSelectedTag: setTagFilter } = useChannels();
   const { pageSize, setCursors, setPageSize, resetCursor, paginationArgs } = usePaginationSearch({
     defaultPageSize: 20,
     pageSizeStorageKey: 'channels-table-page-size',
@@ -61,7 +62,7 @@ function ChannelsContent() {
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [modelFilter, setModelFilter] = useState<string>('');
-  const [selectedTypeTab, setSelectedTypeTab] = useState<string>('all');
+  const [selectedTypeTab, setSelectedTypeTab] = useState(() => readDefaultProvider(CHANNEL_TYPE_TO_PROVIDER));
   const [showErrorOnly, setShowErrorOnly] = useState<boolean>(false);
   const [showHealthGateAbnormal, setShowHealthGateAbnormal] = useState(false);
   const [sorting, setSorting] = useState<SortingState>(readDefaultChannelSort);
@@ -96,9 +97,26 @@ function ChannelsContent() {
   // Group protocol variants of the same vendor into one tab
   const channelTypeGroups = useMemo(() => groupChannelTypesByProvider(channelTypeCounts, CHANNEL_TYPE_TO_PROVIDER), [channelTypeCounts]);
 
-  const selectedTypeGroup = useMemo(
-    () => channelTypeGroups.find((group) => group.key === selectedTypeTab),
-    [channelTypeGroups, selectedTypeTab]
+  const selectedTypeGroup = useMemo(() => {
+    const group = channelTypeGroups.find((group) => group.key === selectedTypeTab);
+    if (group) return group;
+    // Resolve saved defaults before counts load, and when the selected provider has no channels.
+    const selection = resolveChannelProviderSelection(selectedTypeTab, CHANNEL_TYPE_TO_PROVIDER);
+    return selection
+      ? {
+          key: selectedTypeTab,
+          ...selection,
+          totalCount: 0,
+          primaryApiFormat: selection.isImage ? IMAGE_PRIMARY_API_FORMAT : undefined,
+        }
+      : undefined;
+  }, [channelTypeGroups, selectedTypeTab]);
+  const visibleTypeGroups = useMemo(
+    () =>
+      selectedTypeGroup && !channelTypeGroups.some((group) => group.key === selectedTypeTab)
+        ? [...channelTypeGroups, selectedTypeGroup]
+        : channelTypeGroups,
+    [channelTypeGroups, selectedTypeGroup, selectedTypeTab]
   );
 
   // Get types for the selected tab
@@ -258,8 +276,7 @@ function ChannelsContent() {
       setTypeFilter([]);
       resetCursor();
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setSelectedTypeTab, setTypeFilter]
+    [setSelectedTypeTab, setTypeFilter, resetCursor]
   );
 
   const handleStatusFilterChange = useCallback(
@@ -322,7 +339,7 @@ function ChannelsContent() {
         onExitErrorOnlyMode={handleExitErrorOnlyMode}
       />
       <ChannelsTypeTabs
-        groups={channelTypeGroups}
+        groups={visibleTypeGroups}
         selectedTab={selectedTypeTab}
         onTabChange={handleTabChange}
         className={showTypeTabs ? '' : 'hidden'}
@@ -351,6 +368,11 @@ function ChannelsContent() {
         modelFilter={modelFilter}
         selectedTypeTab={selectedTypeTab}
         showErrorOnly={showErrorOnly}
+        providerGroups={channelTypeGroups}
+        onApplyProvider={(provider) => {
+          setShowTypeTabs(true);
+          handleTabChange(provider);
+        }}
         showHealthGateAbnormal={showHealthGateAbnormal}
         onHealthGateAbnormalChange={handleHealthGateAbnormalChange}
         sorting={sorting}

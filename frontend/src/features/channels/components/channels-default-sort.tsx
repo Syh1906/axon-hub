@@ -9,17 +9,23 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CHANNEL_SORT_FIELDS, DEFAULT_CHANNEL_SORT, readDefaultChannelSort, saveDefaultChannelSort } from '../utils/channel-sort';
+import type { ChannelTypeGroup } from '../utils/group-channel-types';
 import { RefreshAllUpstreamsButton } from './channel-upstream-cell';
+import { ChannelsDefaultProvider } from './channels-default-provider';
 import { ChannelsDefaultTags } from './channels-default-tags';
 
 export function ChannelsDefaultSort({
   sorting,
   onApply,
   onApplyTags,
+  providerGroups,
+  onApplyProvider,
 }: {
   sorting: SortingState;
   onApply: (value: SortingState) => void;
   onApplyTags: (tags: string[]) => void;
+  providerGroups: ChannelTypeGroup[];
+  onApplyProvider: (provider: string) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -47,9 +53,10 @@ export function ChannelsDefaultSort({
           {current.desc ? <ArrowDown className='size-4' /> : <ArrowUp className='size-4' />}
           <span className='text-muted-foreground text-xs'>{t(current.desc ? 'channels.sort.descending' : 'channels.sort.ascending')}</span>
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           <RefreshAllUpstreamsButton />
           <ChannelsDefaultTags onApply={onApplyTags} />
+          <ChannelsDefaultProvider groups={providerGroups} onApply={onApplyProvider} />
           <Button
             type='button'
             variant='outline'

@@ -402,4 +402,6 @@ Go to channel details, find the key in the **Disabled List**, and click **Restor
 
 ## Default tags and stable rows
 
+**Default provider**, next to **Default tags**, lets you search and select one provider group, with image groups selected separately. **Save and apply** filters the list immediately and returns to the first page. Reopening the channel page restores the provider, shows the provider tabs, and applies default tags as well. The preference is saved in the current browser only. Save **All** or **Clear (all)** to remove the default restriction. Cancelling, closing the dialog, or temporarily switching providers does not change the saved default. A provider with no matching channels shows an empty list instead of all channels.
+
 Default tags stores zero, one or multiple tags in the current browser and applies them when opening the page. Empty means all tags; multiple tags match any. Temporary filters and reset do not overwrite the saved preference. Multiple tags resolve matching IDs from channel summaries, followed by server filtering, ordering and pagination. A single tag shows its override or inherited global value; multiple tags follow the no-single-tag display rules above. Channel and model rows change background color on hover without scaling.

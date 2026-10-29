@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import useDialogState from '@/hooks/use-dialog-state';
+import { CHANNEL_TYPE_TO_PROVIDER } from '../data/config_channels';
 import { Channel } from '../data/schema';
+import { readDefaultProvider } from '../utils/default-provider';
 import { readDefaultTags } from '../utils/default-tags';
 
 type ChannelsDialogType =
@@ -67,6 +69,7 @@ export default function ChannelsProvider({ children }: Props) {
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
   const [selectedTag, setSelectedTag] = useState<string[]>(readDefaultTags);
   const [showTypeTabs, setShowTypeTabs] = useState<boolean>(() => {
+    if (readDefaultProvider(CHANNEL_TYPE_TO_PROVIDER) !== 'all') return true;
     try {
       const stored = localStorage.getItem('channels-show-type-tabs');
       if (stored !== null) {
