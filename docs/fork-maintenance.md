@@ -71,7 +71,7 @@ fork 改动，由用户决定。
 
 ### 用量统计与消耗排行榜
 
-- 状态：2026-10-29 已实现并通过本地隔离验收，尚未发布。项目用量统计新增用户／Key 切换；管理区新增用户／密钥／渠道的消耗榜、缓存榜及模型展开，共用今天、昨天、本周、本月、全部、指定日期。系统级 `read_leaderboard` 只授予查看，项目所有者不自动获得全站权限。
+- 状态：纳入 `v1.0.0-beta10-fork.7.syh.6`，实现提交 `83a82092`，2026-10-29 本地隔离验收通过。项目用量统计新增用户／Key 切换；管理区新增用户／密钥／渠道的消耗榜、缓存榜及模型展开，共用今天、昨天、本周、本月、全部、指定日期。系统级 `read_leaderboard` 只授予查看，项目所有者不自动获得全站权限。实际发布状态见下方独立发版条目。
 - 来源与边界：按 CCH `0c508eaa` 迁移字段、缓存触发请求分母、成功率分类、首字节输出速度及缓存系数的整数计算；Key 维度扩展其用户榜。保留 AxonHub 历史成本，不改变定价或路由。完整契约及直接来源见[统计说明](zh/development/consumption-statistics.md)与[英文说明](en/development/consumption-statistics.md)。
 - 代码：`internal/server/biz/consumption*.go`、`internal/pkg/usageanalytics/`、`internal/server/gql/consumption.graphql`、`llm/httpclient/first_byte.go`、请求执行采集和 `frontend/src/features/consumption/`。首字节观察覆盖 HTTP/SSE、Responses WebSocket 分片及 Vertex 请求转换。菜单、路由、接口及缓存前均执行权限检查；管理员统计明确区分项目筛选与顶部当前项目。
 - 升级：新增 `cache_effectiveness_windows` 及请求执行的可空采样字段，由 Ent 托管 schema；无新 data migration 版本，不改已发布迁移。已对照直接上游 `v1.0.0-beta10-fork.7`／`b205ae8e`；SQLite 验证旧表升级、重复升级、旧值保留及窗口唯一键。MySQL／PostgreSQL 实例升级尚未验证。
@@ -85,7 +85,7 @@ fork 改动，由用户决定。
 - 提交：`e30717fe` 实现上游余额、逐 Key 倍率及发布说明；`855fe99c` 修正发布规范检查，亦为 `.syh.4` tag 指向的最终源码。
 - 账号与 Key：纳入 `.syh.5` 的扩展为一渠道多账号，同渠道约定同分组／套餐、同倍率；不同倍率拆到不同渠道。每个账号独立保存认证，每把 Key 保存备注和归属；New API 通过对应账号授权直接查询 Key，无调用记录也可识别，不能确认归属时保留待关联。Sub2API 手动指定归属，读取版本化 billing 接口的当前有效 Token 倍率及有效时段边界。此扩展纳入 `.syh.5` 发布，不改变 `.syh.4` 产物。
 - 余额与凭据：主列汇总账户余额、显示实际 Key 数，同账号去重、不同币种不相加；失败或过期标记部分汇总，停用 Key 不删除账户资金。Key 额度独立展示。完整 Key 和 New API 令牌只能通过渠道管理权限的独立读取入口主动显示／复制，不写入普通上游状态 DTO；替换令牌为显式操作。缺少认证或关联不阻止模型调用。
-- Key 调度：每把 Key 保存整数优先级，默认 0、数值越小越优先；点击数字直接编辑。先选启用 Key 中最小优先级，再在同级内按会话复用开关复用或随机，不按倍率自动排序。修改备注或账号归属保留优先级。独立启停继续受至少保留一把启用 Key 约束，已发请求不中断。
+- Key 调度：`.syh.6` 纳入提交 `7ef215f1` 的 Key 优先级与唯一 Key 自动关联增量。每把 Key 保存整数优先级，默认 0、数值越小越优先；点击数字直接编辑。先选启用 Key 中最小优先级，再在同级内按会话复用开关复用或随机，不按倍率自动排序。修改备注或账号归属保留优先级。独立启停继续受至少保留一把启用 Key 约束，已发请求不中断。
 - 单 Key 账号：New API、Sub2API 创建账号时，渠道只有一把且尚未关联账号的 Key 会自动关联，不覆盖已有归属。Sub2API 无账号、无旧认证且只有一把 Key 时，成功识别并查询余额或倍率后自动建立默认账号；同步快照使用更新后的配置指纹。多 Key 不推断共同归属。
 - 上述增量沿用 JSON 字段，无新增 schema/data migration 或正式 fixture；`channel_accounts_test.go`、`channel_apikey_test.go` 覆盖优先级选 Key、备注更新、唯一 Key 自动关联、默认账号重复刷新与余额倍率回读。
 - 同步：进入页面和切页检查到期缓存；单渠道、单 Key 可强制刷新；刷新全部覆盖各分页，跳过关闭项和完全不支持的渠道。已启用跟随渠道复用现有调度器每分钟检查是否到期。暂时错误按配置间隔重试，认证／不支持停止自动请求。关闭同步切回手动；查询失败不参与已有渠道可用性门禁。
@@ -109,14 +109,14 @@ fork 改动，由用户决定。
 
 ### 标签优先级、渠道快捷设置与表单增强
 
-- 待发布增量：渠道优先级浮窗同时编辑全局值和全部标签值，列表筛选不锁定编辑范围。新增 `ChannelSettings.globalPriority` 与原子保存接口；普通渠道编辑保留此值。请求顺序为密钥覆盖 → 命中标签最小配置值 → 全局值 → 模型关联，无标签请求也使用全局值；旧 JSON 缺省保持原调度行为，无迁移。无单标签筛选时展示／排序优先使用全局值，未设置时保留旧标签最小值展示。同步上游时同时核对保存、查询、列表排序及候选调度；以本段及中英文渠道指南为最新契约，下方为既有发布记录。
+- 版本：标签默认优先级首次纳入 `.syh.3`，默认标签与列表交互纳入 `.syh.5`；全局与全部标签统一编辑纳入 `.syh.6`，实现提交 `b78f041f`。全局和标签值保存于 `ChannelSettings` JSON，无新增 schema/data migration；旧 JSON 缺省保持原调度行为。
+- 保存与校验：渠道优先级浮窗同时编辑全局值和全部标签值，列表筛选不锁定编辑范围。全局与标签原子保存，普通渠道编辑保留此值；标签留空使用全局，全局留空沿用模型关联。允许 -2147483648～2147483647 的整数，包含负数和 0；未完成数字由原生表单校验阻止，保存接口拒绝越界。保存后等待列表回读再结束，避免慢网连续编辑使用旧草稿。
 
 - `.syh.5` 增量：默认标签支持空／单／多选（任一匹配），浏览器保存；摘要解析匹配 ID 后服务器分页。单标签优先级保留，多标签沿用渠道自身最小值。渠道与模型行取消悬浮缩放；无迁移。代码新增 `channels-default-tags.tsx`、`utils/default-tags.ts`；`default-tags.test.mjs` 与原优先级测试覆盖偏好读写和既有语义。
 
-- 版本：纳入 `v1.0.0-beta10-fork.7.syh.3`。标签优先级保存于 `ChannelSettings.tagPriorities`，不新增数据库列或 schema/data migration；旧 JSON 无该字段时继承关联优先级。
-- 契约：密钥显式覆盖 → 请求使用的标签默认 → 模型关联；密钥标签优先于项目，排除型标签不继承，多标签取最小配置值。先完成原权限与模型过滤，覆盖不能添加候选。
+- 契约：密钥显式覆盖 → 请求命中标签的最小已配置值 → 渠道全局值 → 模型关联；密钥标签优先于项目，排除型标签不提供标签默认值，无标签请求也使用全局值。先完成原权限与模型过滤，覆盖不能添加候选。
 - 排序：所有负载均衡策略在同优先级内按权重分层，同权重再评分；保留硬不可用、近期失败、熔断恢复和轮询健康退避以及会话复用。此更新取代下方旧记录中的“四种策略行为不变”和跨权重比例分流；同步上游时须核对比较器与健康评分。
-- 界面：标签批量编辑优先级及权重；标签默认可见，列表直接点击三列数值；未筛选标签时优先级直接取渠道自身标签最小配置值，表头不重复标签名。优先级／倍率按全筛选结果排序后分页，默认展示排序保存在浏览器。倍率专用 mutation 保留成本项、历史版本及事务锁。
+- 界面：标签批量编辑优先级及权重；标签默认可见，列表直接点击三列数值；无单标签筛选时优先级展示全局值，未设置全局值的旧渠道保留自身标签最小值展示。优先级／倍率按全筛选结果排序后分页，默认展示排序保存在浏览器。倍率专用 mutation 保留成本项、历史版本及事务锁。
 - 模型表单：右侧从目录导入整张模型卡片（能力、模态、价格、限制和日期），不改左侧标识／规则；左侧仅空价自动填充，含零价配置及切换开发者均保留已填价格。姓选填且清空可保存；渠道从管理模型列表多选具体 ID，按手动模型保存，不自动关联。
 - 代码：`internal/server/biz/channel_routing{,_query}.go`、`channel_price.go`、`internal/server/orchestrator/candidates_priority.go`、`load_balancer.go`、`frontend/src/features/channels/components/channel-routing-value-cell.tsx`、`channels-tag-priorities-dialog.tsx`、`channels-model-picker.tsx`、`frontend/src/features/models/components/models-catalog-import.tsx`。渠道大表单按 hook／纯函数／渲染拆分，手写文件均低于 2200 行。
 - 验证：`channel_routing_test.go` 覆盖事务整体回滚、普通编辑保留标签设置、倍率保留原价格以及含零值／继承项的跨页排序；`candidates_tag_priority_test.go` 覆盖标签与密钥继承、权限集合不扩张和权重。相关四个后端包全部测试通过；前端价格用例和浏览器验证覆盖导入、零价保护、空姓回读及筛选多选。没有真实供应商调用，无新增持久测试 fixture。
@@ -137,7 +137,7 @@ fork 改动，由用户决定。
 - 开发者身份：内置 ID 在单个／批量创建、编辑与开发者规则保存时统一大小写；列表分组、规则编辑、实际继承及决策计数使用相同身份。已有大小写规则条目全部保留参与继承，自定义名称不转小写。无数据库迁移；`model_developer_test.go`、`candidates_model_rules_test.go` 和前端 `developer.test.mjs` 覆盖写入、旧值继承及输入识别。
 - 列表匹配类型：模型 ID 旁使用现有 `matchType` 与翻译显示精确／前缀／后缀／正则，保持单行。
 - 批量关联审查修正：新增优先级统一原编辑 0–10；同渠道预览合并模型；追加前回读覆盖后端允许的三层条件组叶节点。多标签零匹配禁发空 ID 查询，摘要与标签目录归入渠道缓存失效范围。无新增迁移。
-- 批量关联：列表多模型支持与单模型一致的七种类型：渠道内沿用请求模型、渠道内精准／正则、标签精准／正则、全局精准／正则。固定模型可按目标渠道列表下拉选择或输入；正则预览使用后端匹配器；沿用请求模型保存动态规则，不固定预览模型名。相同预览合并请求。单模型弹窗支持批量选择渠道模型；追加去重、保留原设置、逐项结果与失败重试，移除前端 10 条限制。代码为 `models-bulk-association-dialog.tsx`、`association-bulk-picker.tsx`、`utils/bulk-associations.ts`；`bulk-associations.test.mjs` 覆盖重复、条件／停用规则及 30 条追加。无 schema/data migration。
+- 批量关联：`.syh.6` 纳入 `7ef215f1` 的类型与预览完善。列表多模型支持与单模型一致的七种类型：渠道内沿用请求模型、渠道内精准／正则、标签精准／正则、全局精准／正则。固定模型可按目标渠道列表下拉选择或输入；正则预览使用后端匹配器；沿用请求模型保存动态规则，不固定预览模型名。相同预览合并请求。单模型弹窗支持批量选择渠道模型；追加去重、保留原设置、逐项结果与失败重试，移除前端 10 条限制。代码为 `models-bulk-association-dialog.tsx`、`association-bulk-picker.tsx`、`utils/bulk-associations.ts`；`bulk-associations.test.mjs` 覆盖重复、条件／停用规则及 30 条追加。无 schema/data migration。
 - 关联：新增 `channel_request` 沿用本次 API Key 映射后的 ID，不要求渠道目录预列此 ID；固定模型关联保留。
   规则继承开发者配置也使用具体请求 ID；规则及动态关联逐请求解析，避免共享缓存串用不同请求 ID。
 - 映射与列表：API Key 映射采用首个匹配、不递归映射；公开模型列表只下发启用的注册
@@ -816,8 +816,9 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 最新发布：2026-10-28 发布 [v1.0.0-beta10-fork.7.syh.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.4)，源码为 `855fe99ce31d15de20635b1d458aa4db16c4228e`；`draft=false`、`prerelease=false`，已核对 GitHub latest 指向该版本。两层上游基线未变，既有 tag／产物未覆盖。
-- 发布证据：[Actions 40619850110](https://github.com/Syh1906/axon-hub/actions/runs/40619850110) 的测试、双架构镜像、临时 PostgreSQL 17 启动／版本检查、二进制包及部署清单步骤均通过。附件含 9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.4/release.json)。已核对清单版本、源码提交及镜像为 `ghcr.io/syh1906/axon-hub@sha256:90cc30d52ed2a71e760fb244b6bef1d5e9840ee9e2453cc9129a3ea6349cb263`；本次未执行生产部署。
+- 最新正式发布：北京时间 2026-10-29 03:34:53 发布 [v1.0.0-beta10-fork.7.syh.5](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.5)，源码为 `9d4487538976d4014915a6a0b52dcf546f0c16a7`；`draft=false`、`prerelease=false`，已核对 GitHub latest 指向该版本。两层上游基线未变，既有 tag／产物未覆盖。
+- 本次发布准备：`.syh.6` 包含 `7ef215f1` 的 Key 优先级／模型批量关联、`83a82092` 的用量统计／消耗排行榜、`b78f041f` 的渠道全局／标签优先级。正式状态由 tag 发布工作流完成后确认，生产部署单独执行。
+- `.syh.4` 历史发布证据：[Actions 40619850110](https://github.com/Syh1906/axon-hub/actions/runs/40619850110) 的测试、双架构镜像、临时 PostgreSQL 17 启动／版本检查、二进制包及部署清单步骤均通过。附件含 9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.4/release.json)。已核对清单版本、源码提交及镜像为 `ghcr.io/syh1906/axon-hub@sha256:90cc30d52ed2a71e760fb244b6bef1d5e9840ee9e2453cc9129a3ea6349cb263`；本次未执行生产部署。
 - 当前行为：直接上游为 ChouUn/axon-hub，原始上游为 looplj/axonhub；
   `release.config.json` 分别固定两层 tag 和提交。自己的版本为 `<直接上游 tag>.syh.N`。
 - 发布级别：`release.config.json.prerelease` 独立控制正式／预发布；正式版本设为 GitHub 最新，
