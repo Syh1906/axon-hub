@@ -1170,7 +1170,7 @@
   "channels.accounts.readFailed": "凭据读取失败，请检查管理权限后重试。",
   "channels.accounts.saveFailed": "保存失败，请检查账号信息后重试。",
   "channels.accounts.reuseKey": "复用会话 Key",
-  "channels.accounts.reuseHint": "开启时同一会话沿用原 Key；关闭后每次重新选择。仅影响渠道内部。",
+  "channels.accounts.reuseHint": "数字越小越优先；仅在同级 Key 中复用，关闭后同级随机。",
   "channels.accounts.owner": "所属账号",
   "channels.accounts.remark": "备注",
   "channels.accounts.remarkKey": "备注 / Key",
@@ -1213,5 +1213,8 @@
   "channels.defaultTags.help": "进入页面时自动应用。留空显示全部，多标签满足任意一个即可。仅保存在当前浏览器。",
   "channels.defaultTags.search": "搜索标签…",
   "channels.defaultTags.clear": "清空（全部）",
-  "channels.defaultTags.retry": "重新加载标签"
+  "channels.defaultTags.retry": "重新加载标签",
+  "channels.accounts.priority": "优先级",
+  "channels.accounts.editPriority": "编辑 Key 优先级",
+  "channels.accounts.priorityHint": "数字越小越优先，默认为 0；保存后用于后续请求。"
 }

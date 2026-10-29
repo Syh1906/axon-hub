@@ -757,6 +757,7 @@ type ComplexityRoot struct {
 		Disabled           func(childComplexity int) int
 		KeyRef             func(childComplexity int) int
 		Label              func(childComplexity int) int
+		Priority           func(childComplexity int) int
 		Remark             func(childComplexity int) int
 		Snapshot           func(childComplexity int) int
 		UpstreamMultiplier func(childComplexity int) int
@@ -1254,7 +1255,7 @@ type ComplexityRoot struct {
 		UpdateCatalogSettings                 func(childComplexity int, input UpdateCatalogSettingsInput) int
 		UpdateChannel                         func(childComplexity int, id objects.GUID, input ent.UpdateChannelInput) int
 		UpdateChannelCostMultiplier           func(childComplexity int, channelID objects.GUID, multiplier decimal.Decimal) int
-		UpdateChannelKeySettings              func(childComplexity int, channelID objects.GUID, input objects.ChannelKeySettings) int
+		UpdateChannelKeySettings              func(childComplexity int, channelID objects.GUID, input objects.ChannelKeySettingsInput) int
 		UpdateChannelOverrideTemplate         func(childComplexity int, id objects.GUID, input ent.UpdateChannelOverrideTemplateInput) int
 		UpdateChannelStatus                   func(childComplexity int, id objects.GUID, status channel.Status) int
 		UpdateChannelTagPriorities            func(childComplexity int, tag string, input []*biz.ChannelTagPriorityUpdate) int
@@ -2640,7 +2641,7 @@ type MutationResolver interface {
 	VerifyChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, accountToken *string, accountID *int, accountRef *string) (*objects.UpstreamAccountVerification, error)
 	SaveChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) (*objects.ChannelUpstreamState, error)
 	DeleteChannelUpstreamAccount(ctx context.Context, channelID objects.GUID, accountRef string) (*objects.ChannelUpstreamState, error)
-	UpdateChannelKeySettings(ctx context.Context, channelID objects.GUID, input objects.ChannelKeySettings) (*objects.ChannelUpstreamState, error)
+	UpdateChannelKeySettings(ctx context.Context, channelID objects.GUID, input objects.ChannelKeySettingsInput) (*objects.ChannelUpstreamState, error)
 	SetChannelKeySessionReuse(ctx context.Context, channelID objects.GUID, enabled bool) (*objects.ChannelUpstreamState, error)
 	RevealChannelCredential(ctx context.Context, channelID objects.GUID, keyRef *string, accountRef *string) (string, error)
 	ProbeChannelAddress(ctx context.Context, url string, channelID *objects.GUID) (*objects.ChannelAddressProbe, error)
@@ -5464,6 +5465,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelUpstreamKeyState.Label(childComplexity), true
+	case "ChannelUpstreamKeyState.priority":
+		if e.complexity.ChannelUpstreamKeyState.Priority == nil {
+			break
+		}
+
+		return e.complexity.ChannelUpstreamKeyState.Priority(childComplexity), true
 	case "ChannelUpstreamKeyState.remark":
 		if e.complexity.ChannelUpstreamKeyState.Remark == nil {
 			break
@@ -7965,7 +7972,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateChannelKeySettings(childComplexity, args["channelId"].(objects.GUID), args["input"].(objects.ChannelKeySettings)), true
+		return e.complexity.Mutation.UpdateChannelKeySettings(childComplexity, args["channelId"].(objects.GUID), args["input"].(objects.ChannelKeySettingsInput)), true
 	case "Mutation.updateChannelOverrideTemplate":
 		if e.complexity.Mutation.UpdateChannelOverrideTemplate == nil {
 			break
@@ -15126,7 +15133,7 @@ func (ec *executionContext) field_Mutation_updateChannelKeySettings_args(ctx con
 		return nil, err
 	}
 	args["channelId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNChannelKeySettingsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelKeySettings)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNChannelKeySettingsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelKeySettingsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -30763,6 +30770,35 @@ func (ec *executionContext) fieldContext_ChannelUpstreamAddress_enabled(_ contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelUpstreamKeyState_priority(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamKeyState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelUpstreamKeyState_priority,
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelUpstreamKeyState_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelUpstreamKeyState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelUpstreamKeyState_keyRef(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamKeyState) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -31389,6 +31425,8 @@ func (ec *executionContext) fieldContext_ChannelUpstreamState_keys(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "priority":
+				return ec.fieldContext_ChannelUpstreamKeyState_priority(ctx, field)
 			case "keyRef":
 				return ec.fieldContext_ChannelUpstreamKeyState_keyRef(ctx, field)
 			case "label":
@@ -44278,7 +44316,7 @@ func (ec *executionContext) _Mutation_updateChannelKeySettings(ctx context.Conte
 		ec.fieldContext_Mutation_updateChannelKeySettings,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateChannelKeySettings(ctx, fc.Args["channelId"].(objects.GUID), fc.Args["input"].(objects.ChannelKeySettings))
+			return ec.resolvers.Mutation().UpdateChannelKeySettings(ctx, fc.Args["channelId"].(objects.GUID), fc.Args["input"].(objects.ChannelKeySettingsInput))
 		},
 		nil,
 		ec.marshalNChannelUpstreamState2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelUpstreamState,
@@ -75078,20 +75116,27 @@ func (ec *executionContext) unmarshalInputChannelEndpointInput(ctx context.Conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputChannelKeySettingsInput(ctx context.Context, obj any) (objects.ChannelKeySettings, error) {
-	var it objects.ChannelKeySettings
+func (ec *executionContext) unmarshalInputChannelKeySettingsInput(ctx context.Context, obj any) (objects.ChannelKeySettingsInput, error) {
+	var it objects.ChannelKeySettingsInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"keyRef", "remark", "accountRef"}
+	fieldsInOrder := [...]string{"priority", "keyRef", "remark", "accountRef"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		case "keyRef":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keyRef"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -106022,6 +106067,11 @@ func (ec *executionContext) _ChannelUpstreamKeyState(ctx context.Context, sel as
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelUpstreamKeyState")
+		case "priority":
+			out.Values[i] = ec._ChannelUpstreamKeyState_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "keyRef":
 			out.Values[i] = ec._ChannelUpstreamKeyState_keyRef(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -124246,7 +124296,7 @@ func (ec *executionContext) marshalNChannelHealthGateModel2ᚖgithubᚗcomᚋloo
 	return ec._ChannelHealthGateModel(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNChannelKeySettingsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelKeySettings(ctx context.Context, v any) (objects.ChannelKeySettings, error) {
+func (ec *executionContext) unmarshalNChannelKeySettingsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelKeySettingsInput(ctx context.Context, v any) (objects.ChannelKeySettingsInput, error) {
 	res, err := ec.unmarshalInputChannelKeySettingsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }

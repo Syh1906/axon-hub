@@ -7,7 +7,7 @@ import { publishUpstreamStates } from './channel-upstream-refresh';
 import { channelUpstreamStateSchema } from './schema';
 
 export type AccountInput = { ref?: string; name: string; provider: 'NEW_API' | 'SUB2_API'; accountToken?: string; accountId?: number };
-export type KeySettingsInput = { keyRef: string; remark: string; accountRef: string };
+export type KeySettingsInput = { keyRef: string; remark: string; accountRef: string; priority?: number };
 
 function useStateMutation<T>(channelId: string, field: string, declaration: string, argument: string) {
   const queryClient = useQueryClient();

@@ -329,7 +329,7 @@
   "models.bulk.addCount": "添加 {{count}} 条规则",
   "models.bulk.channels": "指定渠道",
   "models.bulk.tags": "按标签",
-  "models.bulk.mappingHelp": "默认使用各模型 ID。改名或模式匹配规则需填写实际转发模型；重复关联自动跳过。",
+  "models.bulk.mappingHelp": "选择关联类型后配置目标；固定模型可从列表选择或输入，正则使用后端匹配结果，沿用请求模型不固定模型名。",
   "models.bulk.enterModel": "填写转发模型",
   "models.bulk.newCount": "新增 {{count}} 条",
   "models.bulk.duplicates": "跳过 {{count}} 条重复",
@@ -344,5 +344,9 @@
   "models.bulk.searchChannels": "搜索渠道…",
   "models.bulk.searchTags": "搜索标签…",
   "models.bulk.summary": "可应用 {{ready}} 个 · 未匹配 {{unmatched}} 个 · 待填写 {{pending}} 个",
-  "models.bulk.chosenChannels": "覆盖 {{count}} 个渠道"
+  "models.bulk.chosenChannels": "覆盖 {{count}} 个渠道",
+  "models.bulk.followRequest": "跟随每次实际请求的模型 ID",
+  "models.bulk.pattern": "正则表达式",
+  "models.bulk.checking": "正在检查匹配",
+  "models.bulk.previewFailed": "预览失败，请检查表达式或重新打开"
 }

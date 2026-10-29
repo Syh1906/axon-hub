@@ -28,6 +28,7 @@ import {
 } from '../data/channels';
 import { TestAPIKeyResult } from '../data/schema';
 import { ChannelCredentialActions } from './channel-credential-actions';
+import { ChannelKeyPriorityCell } from './channel-key-priority-cell';
 import { useBalanceLabel } from './channel-upstream-cell';
 
 interface ChannelsAPIKeyManagementDialogProps {
@@ -468,6 +469,7 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                     <TableHead className='w-10' />
                     <TableHead>{t('channels.accounts.remarkKey')}</TableHead>
                     <TableHead className='w-36'>{t('channels.accounts.owner')}</TableHead>
+                    <TableHead className='w-20'>{t('channels.accounts.priority')}</TableHead>
                     <TableHead className='w-24'>{t('channels.accounts.keyQuota')}</TableHead>
                     <TableHead className='w-20'>{t('channels.accounts.enabled')}</TableHead>
                     <TableHead className='w-24'>{t('channels.dialogs.keyManagement.actionsColumn')}</TableHead>
@@ -476,7 +478,7 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                 <TableBody>
                   {disabledLoading && !validKeys.length ? (
                     <TableRow>
-                      <TableCell colSpan={6}>
+                      <TableCell colSpan={7}>
                         <IconLoader2 className='mx-auto size-5 animate-spin' />
                       </TableCell>
                     </TableRow>
@@ -556,6 +558,11 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                                 </SelectGroup>
                               </SelectContent>
                             </Select>
+                          </TableCell>
+                          <TableCell>
+                            {item && (
+                              <ChannelKeyPriorityCell channelId={currentRow.id} item={item} container={container} disabled={isPending} />
+                            )}
                           </TableCell>
                           <TableCell className='text-xs tabular-nums'>
                             {quota ? formatBalance(quota) : t('channels.upstream.notProvided')}

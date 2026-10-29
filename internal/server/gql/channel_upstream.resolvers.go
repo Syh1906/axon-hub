@@ -32,7 +32,7 @@ func (r *mutationResolver) DeleteChannelUpstreamAccount(ctx context.Context, cha
 }
 
 // UpdateChannelKeySettings is the resolver for the updateChannelKeySettings field.
-func (r *mutationResolver) UpdateChannelKeySettings(ctx context.Context, channelID objects.GUID, input objects.ChannelKeySettings) (*objects.ChannelUpstreamState, error) {
+func (r *mutationResolver) UpdateChannelKeySettings(ctx context.Context, channelID objects.GUID, input objects.ChannelKeySettingsInput) (*objects.ChannelUpstreamState, error) {
 	return r.channelService.UpdateChannelKeySettings(ctx, channelID.ID, input)
 }
 

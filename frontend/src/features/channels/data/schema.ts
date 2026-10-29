@@ -52,6 +52,7 @@ export const channelUpstreamStateSchema = z.object({
       label: z.string(),
       remark: z.string(),
       accountRef: z.string(),
+      priority: z.number().int(),
       disabled: z.boolean(),
       upstreamMultiplier: decimal.nullish(),
       applied: appliedSchema,

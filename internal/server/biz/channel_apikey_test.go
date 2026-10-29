@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm/auth"
 )
 
@@ -851,4 +852,30 @@ func TestCleanupExpiredDisabledAPIKeysKeepsManualDisable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, channel.StatusDisabled, updated.Status)
 	require.Empty(t, updated.DisabledAPIKeys)
+}
+
+func TestTraceStickyKeyProvider_PriorityPrecedesReuse(t *testing.T) {
+	keys := []string{"fixture-a", "fixture-b", "fixture-c"}
+	ch := &Channel{Channel: &ent.Channel{Credentials: objects.ChannelCredentials{APIKeys: keys}, Settings: &objects.ChannelSettings{KeySettings: []objects.ChannelKeySettings{
+		{KeyRef: upstream.KeyRef(keys[0]), Priority: -1}, {KeyRef: upstream.KeyRef(keys[1]), Priority: -1}, {KeyRef: upstream.KeyRef(keys[2]), Priority: 10},
+	}}}, cachedEnabledAPIKeys: keys}
+	provider := NewTraceStickyKeyProvider(ch)
+	ctx := contexts.WithTrace(context.Background(), &ent.Trace{TraceID: "priority-session"})
+	provider.cache.Add("priority-session", keys[2])
+	first := provider.Get(ctx)
+	require.Contains(t, keys[:2], first)
+	require.Equal(t, first, provider.Get(ctx))
+	ch.cachedEnabledAPIKeys = keys[2:]
+	require.Equal(t, keys[2], provider.Get(ctx))
+	ch.cachedEnabledAPIKeys = []string{keys[0], keys[2]}
+	require.Equal(t, keys[0], provider.Get(ctx), "重新启用更优先 Key 后不得继续使用低优先级 Key")
+	ch.cachedEnabledAPIKeys = keys
+	ch.Settings.DisableKeySessionReuse = true
+	seen := map[string]bool{}
+	for range 200 {
+		key := provider.Get(ctx)
+		require.Contains(t, keys[:2], key)
+		seen[key] = true
+	}
+	require.Len(t, seen, 2, "关闭复用时两个最高优先级 Key 均参与选择")
 }

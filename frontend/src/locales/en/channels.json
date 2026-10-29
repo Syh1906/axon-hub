@@ -1170,7 +1170,7 @@
   "channels.accounts.readFailed": "Unable to read the credential. Check management permission and retry.",
   "channels.accounts.saveFailed": "Unable to save. Check account details and retry.",
   "channels.accounts.reuseKey": "Reuse session key",
-  "channels.accounts.reuseHint": "When enabled, a session reuses its key. When disabled, each request selects again within this channel.",
+  "channels.accounts.reuseHint": "Lower priorities are preferred. Reuse applies only within the best tier; otherwise a key in that tier is selected randomly.",
   "channels.accounts.owner": "Account",
   "channels.accounts.remark": "Label",
   "channels.accounts.remarkKey": "Label / key",
@@ -1213,5 +1213,8 @@
   "channels.defaultTags.help": "Applied on entry. Empty means all tags; multiple tags match any. Saved in this browser only.",
   "channels.defaultTags.search": "Search tags…",
   "channels.defaultTags.clear": "Clear (all)",
-  "channels.defaultTags.retry": "Reload tags"
+  "channels.defaultTags.retry": "Reload tags",
+  "channels.accounts.priority": "Priority",
+  "channels.accounts.editPriority": "Edit key priority",
+  "channels.accounts.priorityHint": "Lower values are preferred. Defaults to 0. Applies to subsequent requests after saving."
 }

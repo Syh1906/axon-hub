@@ -9,6 +9,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm/auth"
 )
 
@@ -51,16 +52,23 @@ func (p *channelAPIKeyContextProvider) Get(ctx context.Context) string {
 //
 //nolint:revive // exported for use in transformers via interface.
 type TraceStickyKeyProvider struct {
-	channel *Channel
-	cache   *lru.Cache[string, string]
+	channel    *Channel
+	priorities map[string]int
+	cache      *lru.Cache[string, string]
 }
 
 func NewTraceStickyKeyProvider(channel *Channel) *TraceStickyKeyProvider {
 	cache, _ := lru.New[string, string](traceStickyLRUSize)
 
+	priorities := make(map[string]int, len(channel.cachedEnabledAPIKeys))
+	for _, key := range channel.cachedEnabledAPIKeys {
+		priorities[key] = channel.Settings.KeySettingsFor(upstream.KeyRef(key)).Priority
+	}
+
 	return &TraceStickyKeyProvider{
-		channel: channel,
-		cache:   cache,
+		channel:    channel,
+		priorities: priorities,
+		cache:      cache,
 	}
 }
 
@@ -69,6 +77,19 @@ func (p *TraceStickyKeyProvider) Get(ctx context.Context) string {
 	if len(enabled) == 0 {
 		return p.channel.Credentials.APIKeys[0]
 	}
+
+	// Priority takes precedence over session reuse; only the best enabled tier participates.
+	minimum := p.priorities[enabled[0]]
+	for _, key := range enabled[1:] {
+		minimum = min(minimum, p.priorities[key])
+	}
+	eligible := make([]string, 0, len(enabled))
+	for _, key := range enabled {
+		if p.priorities[key] == minimum {
+			eligible = append(eligible, key)
+		}
+	}
+	enabled = eligible
 
 	if len(enabled) == 1 {
 		return enabled[0]

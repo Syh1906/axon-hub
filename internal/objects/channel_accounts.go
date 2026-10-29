@@ -6,6 +6,15 @@ type ChannelKeySettings struct {
 	KeyRef     string `json:"keyRef"`
 	Remark     string `json:"remark"`
 	AccountRef string `json:"accountRef"`
+	Priority   int    `json:"priority"`
+}
+
+// ChannelKeySettingsInput keeps the priority optional for existing API clients.
+type ChannelKeySettingsInput struct {
+	KeyRef     string `json:"keyRef"`
+	Remark     string `json:"remark"`
+	AccountRef string `json:"accountRef"`
+	Priority   *int   `json:"priority,omitempty"`
 }
 
 type UpstreamAccountCredentials struct {

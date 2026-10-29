@@ -838,15 +838,19 @@ const MODEL_CHANNEL_CONNECTIONS_QUERY = `
   }
 `;
 
-export function useQueryModelChannelConnections(requestModelID?: string) {
-  return useMutation({
-    mutationFn: async (associations: ModelAssociationInput[]) => {
-      const data = await graphqlRequest<{
-        queryModelChannelConnections: ModelChannelConnection[];
-      }>(MODEL_CHANNEL_CONNECTIONS_QUERY, { associations, requestModelID });
-      return data.queryModelChannelConnections;
-    },
+export async function queryModelChannelConnections(
+  associations: ModelAssociationInput[] | import('./schema').ModelAssociation[],
+  requestModelID?: string
+) {
+  const data = await graphqlRequest<{ queryModelChannelConnections: ModelChannelConnection[] }>(MODEL_CHANNEL_CONNECTIONS_QUERY, {
+    associations,
+    requestModelID,
   });
+  return data.queryModelChannelConnections;
+}
+
+export function useQueryModelChannelConnections(requestModelID?: string) {
+  return useMutation({ mutationFn: (associations: ModelAssociationInput[]) => queryModelChannelConnections(associations, requestModelID) });
 }
 
 // Re-read before appending so unrelated settings and recently added rules survive.

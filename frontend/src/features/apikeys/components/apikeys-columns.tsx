@@ -1,22 +1,20 @@
 import { format } from 'date-fns';
-import { useNavigate } from '@tanstack/react-router';
 import { ColumnDef, Table, Row } from '@tanstack/react-table';
 import { BarChart3, Copy, Eye, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { cn, extractNumberID, formatUserName } from '@/lib/utils';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import LongText from '@/components/long-text';
-import { selfUsageQueryClient } from '@/features/self-usage/query-client';
-import { setPageKey } from '@/features/self-usage/session';
+import { openSelfUsagePage } from '@/features/self-usage/session';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKey } from '../data/schema';
 import { DataTableRowActions } from './data-table-row-actions';
 
 function ApiKeyCell({ apiKey, fullApiKey }: { apiKey: string; fullApiKey: ApiKey }) {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
 
@@ -47,9 +45,7 @@ function ApiKeyCell({ apiKey, fullApiKey }: { apiKey: string; fullApiKey: ApiKey
           size='sm'
           className='h-7 shrink-0 gap-1 px-2'
           onClick={() => {
-            selfUsageQueryClient.clear();
-            setPageKey(apiKey);
-            void navigate({ to: '/self-usage' });
+            if (!openSelfUsagePage(apiKey)) toast.error(t('apikeys.messages.usageOpenFailed'));
           }}
           title={t('apikeys.actions.viewUsage')}
         >

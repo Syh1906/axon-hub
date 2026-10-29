@@ -30,13 +30,13 @@ Click **Upstream balance** in the channel list, then open **Sync settings**. Exi
 
 One channel represents one upstream, group or plan, and multiplier. Its keys may belong to different accounts. Put different rates in separate channels; key selection inside a channel does not prefer the lowest rate.
 
-Add accounts under **Accounts and authentication**, then assign keys in **Key management**. New API account access tokens come from the upstream personal settings and are distinct from calling keys. Saving verifies the account; its keys share that authentication. Key lookup runs directly within the authorized account, including newly created keys without usage logs. Unverified identity or rate information stays explicit; names, suffixes and matching amounts are not identity evidence. Sub2API needs no additional token: administrators assign account ownership manually, and only explicitly returned account balances are totaled.
+Add accounts under **Accounts and authentication**, then assign keys in **Key management**. New API account access tokens come from the upstream personal settings and are distinct from calling keys. Saving verifies the account; its keys share that authentication. Key lookup runs directly within the authorized account, including newly created keys without usage logs. Unverified identity or rate information stays explicit; names, suffixes and matching amounts are not identity evidence. Sub2API needs no additional token, and only explicitly returned account balances are totaled. Creating a New API or Sub2API account automatically assigns the sole unassigned channel key to that account; existing assignments are preserved. When Sub2API is successfully identified and its balance or rate query succeeds, a channel with one key, no accounts and no legacy authentication gets a default account automatically. Multiple keys still require explicit account assignments.
 
 Saved New API tokens and channel keys can be revealed, hidden and copied through explicit actions requiring channel management permission. Tokens change only when replaced; reopening or verifying a connection does not require re-entry. Missing account authentication or assignments affect balance and rate queries without blocking otherwise valid model calls.
 
 The main list displays account totals and, for multiple keys, the actual key count. Hover previews up to three keys; clicking opens the full details. Each account is counted once, key quotas are excluded, and different currencies remain separate. Failed, stale or unassigned results are marked as partial or unavailable. Disabling a key does not erase its known account balance. Unknown units remain raw quota units.
 
-**Key management** includes labels, account assignments, individual enable/disable, reveal/copy, bulk import, tests and deletion. New channels can contain multiple keys, which are queried individually after saving. Each management action takes effect when submitted; at least one key remains enabled, and disabling a key does not interrupt in-flight requests. **Reuse session key** preserves a session's key when enabled and selects again for each request when disabled. Channel-level session routing is unchanged.
+**Key management** includes labels, account assignments, key priorities, individual enable/disable, reveal/copy, bulk import, tests and deletion. New channels can contain multiple keys, which are queried individually after saving. Each management action takes effect when submitted; at least one key remains enabled, and disabling a key does not interrupt in-flight requests. Click a priority number to edit its integer value. The default is 0, and lower values take precedence. Selection first narrows enabled keys to the lowest priority value. **Reuse session key** reuses a key only within that group; disabling reuse selects randomly within the group for each request. Channel-level session routing is unchanged.
 
 - Opening Channels or changing pages displays cached data first and queries enabled channels only when due, every 10 minutes by default.
 - The row refresh button queries one channel immediately; the details view can query one key. **Query once** remains available with sync disabled.
@@ -122,8 +122,9 @@ sk-key-3
 
 ### Load Balancing
 
-- With session key reuse enabled, the same Trace ID prefers its previous key while that key remains enabled.
-- With reuse disabled or no Trace ID, each request randomly selects an enabled key; selection is not round-robin.
+- Selection first narrows enabled keys to the lowest priority value; priorities default to 0 and lower values take precedence.
+- With session key reuse enabled, the same Trace ID prefers its previous key while that key remains enabled and belongs to the current best-priority group.
+- With reuse disabled or no Trace ID, each request randomly selects a key within that group; selection is not round-robin.
 - Disabled keys are excluded from subsequent requests. Switching to a backup address within a request keeps the already selected key.
 
 ## Model Renaming

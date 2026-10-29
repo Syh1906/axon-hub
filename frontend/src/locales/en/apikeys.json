@@ -258,5 +258,6 @@
   "apikeys.priorities.outOfScope": "This channel is outside the current allowed scope; this override is inactive.",
   "apikeys.priorities.add": "Add channel priority",
   "apikeys.actions.usage": "Usage",
-  "apikeys.actions.viewUsage": "View usage for this key"
+  "apikeys.actions.viewUsage": "View usage for this key in a new tab",
+  "apikeys.messages.usageOpenFailed": "Could not open usage. Allow pop-ups and session storage, then try again."
 }

@@ -15,7 +15,7 @@ export const upstreamStateFields = `channelId provider manualMultiplier keySessi
   accounts { ref name provider accountId hasToken verifiedAt keyCount complete updatedAt balance { ${balanceFields} } }
   balanceSummary { accountCount knownAccountCount unassignedKeyCount complete balances { ${balanceFields} } }
   settings { enabled costMode refreshIntervalMinutes }
-  keys { keyRef label remark accountRef disabled upstreamMultiplier applied { value source provider observedAt }
+  keys { keyRef label remark accountRef priority disabled upstreamMultiplier applied { value source provider observedAt }
     snapshot { provider balanceState rateState balanceErrorCode rateErrorCode balanceUpdatedAt balanceCheckedAt rateCheckedAt nextBalanceCheckAt nextRateCheckAt
       balances { ${balanceFields} } account { accountId updatedAt balance { ${balanceFields} }
       } rate { multiplier group observedAt syncedAt validUntil }

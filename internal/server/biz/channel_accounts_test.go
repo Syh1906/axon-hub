@@ -71,7 +71,7 @@ func TestChannelAccountsIndependentAuthAndBalance(t *testing.T) {
 		if key == "fixture-b1" {
 			ref = refB
 		}
-		_, err := svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettings{KeyRef: upstream.KeyRef(key), AccountRef: ref, Remark: "备注"})
+		_, err := svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettingsInput{KeyRef: upstream.KeyRef(key), AccountRef: ref, Remark: "备注"})
 		require.NoError(t, err)
 	}
 	result, err := refreshTestUpstreamChannel(svc, ctx, ch.ID, true, true)
@@ -99,7 +99,7 @@ func TestChannelAccountsIndependentAuthAndBalance(t *testing.T) {
 	state, err = svc.SaveChannelUpstreamAccount(ctx, ch.ID, objects.SaveChannelUpstreamAccountInput{Ref: &refB, Name: "B renamed", Provider: objects.UpstreamProviderNewAPI})
 	require.NoError(t, err)
 	require.Equal(t, objects.UpstreamQuerySuccess, state.Keys[0].Snapshot.RateState, "改备注不作废其他账号的结果")
-	state, err = svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettings{KeyRef: upstream.KeyRef("fixture-b1"), AccountRef: refA})
+	state, err = svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettingsInput{KeyRef: upstream.KeyRef("fixture-b1"), AccountRef: refA})
 	require.NoError(t, err)
 	require.Equal(t, objects.UpstreamQueryNever, state.Keys[2].Snapshot.RateState, "更换归属必须作废该 Key 的旧账号结果")
 	require.Equal(t, objects.UpstreamQuerySuccess, state.Keys[0].Snapshot.RateState)
@@ -172,4 +172,129 @@ func TestChannelAccountsVerificationDoesNotInferFromUnrelatedKey(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, result.Success)
 	require.True(t, result.RequiresAccountID)
+}
+
+func TestChannelAccountCreationLinksOnlyUnassignedSingleKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/user/self", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"data":{"id":17,"quota":1000000,"used_quota":0,"group":"standard"}}`))
+	}))
+	defer server.Close()
+	for _, provider := range []objects.UpstreamProvider{objects.UpstreamProviderNewAPI, objects.UpstreamProviderSub2API} {
+		t.Run(string(provider), func(t *testing.T) {
+			svc, db := setupTestChannelService(t)
+			defer db.Close()
+			svc.httpClient = httpclient.NewHttpClient()
+			ctx := channelAutoPriceTestContext(db)
+			for _, scenario := range []string{"single", "multiple", "assigned"} {
+				ch := createAutoPriceTestChannel(t, ctx, db, scenario, []string{"model"})
+				keys := []string{"fixture-key"}
+				if scenario == "multiple" {
+					keys = append(keys, "fixture-other")
+				}
+				setting := objects.ChannelKeySettings{KeyRef: upstream.KeyRef(keys[0]), Remark: "keep", Priority: 7}
+				credentials := objects.ChannelUpstreamCredentials{}
+				if scenario == "assigned" {
+					setting.AccountRef = "existing"
+					credentials.Accounts = []objects.UpstreamAccountCredentials{{Ref: "existing", Name: "Existing", Provider: provider}}
+				}
+				ch = ch.Update().SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKeys: keys}).SetSettings(&objects.ChannelSettings{KeySettings: []objects.ChannelKeySettings{setting}}).SetUpstreamCredentials(&credentials).SaveX(ctx)
+				result, err := svc.SaveChannelUpstreamAccount(ctx, ch.ID, objects.SaveChannelUpstreamAccountInput{Name: "New", Provider: provider, AccountToken: lo.ToPtr("fixture-account")})
+				require.NoError(t, err)
+				key := result.Keys[0]
+				if scenario == "single" {
+					require.Equal(t, result.Accounts[0].Ref, key.AccountRef)
+				} else {
+					require.Equal(t, setting.AccountRef, key.AccountRef)
+				}
+				require.Equal(t, 7, key.Priority)
+				require.Equal(t, "keep", key.Remark)
+			}
+		})
+	}
+}
+
+func TestChannelKeyPriorityPersistsAcrossLegacyUpdates(t *testing.T) {
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	ctx := channelAutoPriceTestContext(db)
+	ch := createAutoPriceTestChannel(t, ctx, db, "key-priority", []string{"model"})
+	ref := upstream.KeyRef(ch.Credentials.GetAllAPIKeys()[0])
+	state, err := svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettingsInput{KeyRef: ref, Priority: lo.ToPtr(-3)})
+	require.NoError(t, err)
+	require.Equal(t, -3, state.Keys[0].Priority)
+	state, err = svc.UpdateChannelKeySettings(ctx, ch.ID, objects.ChannelKeySettingsInput{KeyRef: ref, Remark: "new remark"})
+	require.NoError(t, err)
+	require.Equal(t, -3, state.Keys[0].Priority)
+	require.Equal(t, -3, db.Channel.GetX(ctx, ch.ID).Settings.KeySettingsFor(ref).Priority)
+}
+
+func TestSub2APIDefaultAccountSingleKey(t *testing.T) {
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	ctx := channelAutoPriceTestContext(db)
+	snapshot := upstream.EmptySnapshot()
+	snapshot.Provider = objects.UpstreamProviderSub2API
+	snapshot.BalanceState = objects.UpstreamQuerySuccess
+	for _, count := range []int{1, 2} {
+		name := "default-single"
+		if count == 2 {
+			name = "default-multiple"
+		}
+		ch := createAutoPriceTestChannel(t, ctx, db, name, []string{"model"})
+		keys := []string{"fixture-only"}
+		if count == 2 {
+			keys = append(keys, "fixture-other")
+		}
+		ch = ch.Update().SetCredentials(objects.ChannelCredentials{APIKeys: keys}).SaveX(ctx)
+		stored, err := svc.ensureSingleKeySub2APIAccount(ctx, ch, snapshot)
+		require.NoError(t, err)
+		if count == 2 {
+			require.Equal(t, ch, stored)
+			continue
+		}
+		require.Len(t, stored.UpstreamCredentials.Accounts, 1)
+		require.Equal(t, "默认账号", stored.UpstreamCredentials.Accounts[0].Name)
+		require.Equal(t, stored.UpstreamCredentials.Accounts[0].Ref, stored.Settings.KeySettingsFor(upstream.KeyRef(keys[0])).AccountRef)
+		again, err := svc.ensureSingleKeySub2APIAccount(ctx, stored, snapshot)
+		require.NoError(t, err)
+		require.Equal(t, stored, again)
+	}
+}
+
+func TestSub2APIDefaultAccountRefreshReadback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/usage":
+			_, _ = w.Write([]byte(`{"isValid":true,"balance":25}`))
+		case "/v1/sub2api/billing":
+			_ = json.NewEncoder(w).Encode(map[string]any{"object": "sub2api.key_billing", "schema_version": 1, "billing_scope": "token", "effective_rate_multiplier": 0.5, "observed_at": time.Now().UTC().Format(time.RFC3339)})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	svc.httpClient = httpclient.NewHttpClient()
+	ctx := channelAutoPriceTestContext(db)
+	ch := createAutoPriceTestChannel(t, ctx, db, "default-refresh", []string{"model"})
+	ch = ch.Update().SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKeys: []string{"fixture-one"}}).SaveX(ctx)
+	first, err := refreshTestUpstreamChannel(svc, ctx, ch.ID, true, true)
+	require.NoError(t, err)
+	state := first.Channels[0]
+	require.Len(t, state.Accounts, 1)
+	require.Equal(t, state.Accounts[0].Ref, state.Keys[0].AccountRef)
+	require.Equal(t, "25", state.BalanceSummary.Balances[0].Amount.String())
+	require.Equal(t, "0.5", state.Keys[0].UpstreamMultiplier.String())
+	reread, err := svc.upstreamState(ctx, db.Channel.GetX(ctx, ch.ID))
+	require.NoError(t, err)
+	require.Equal(t, state.Accounts[0].Ref, reread.Accounts[0].Ref)
+	require.True(t, reread.BalanceSummary.Complete, "账号归属更新后快照指纹必须同步，不能丢掉刚刷新成功的数据")
+	second, err := refreshTestUpstreamChannel(svc, ctx, ch.ID, true, true)
+	require.NoError(t, err)
+	require.Len(t, second.Channels[0].Accounts, 1)
+	require.Equal(t, state.Accounts[0].Ref, second.Channels[0].Accounts[0].Ref)
 }

@@ -258,5 +258,6 @@
   "apikeys.priorities.outOfScope": "该渠道不在当前可用范围内，此项暂不生效。",
   "apikeys.priorities.add": "添加渠道优先级",
   "apikeys.actions.usage": "用量",
-  "apikeys.actions.viewUsage": "查看此密钥的用量"
+  "apikeys.actions.viewUsage": "在新标签页查看此密钥的用量",
+  "apikeys.messages.usageOpenFailed": "无法打开用量页，请允许弹出窗口和浏览器会话存储后重试。"
 }

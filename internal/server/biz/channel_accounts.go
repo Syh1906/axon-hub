@@ -166,7 +166,12 @@ func (svc *ChannelService) SaveChannelUpstreamAccount(ctx context.Context, id in
 	} else {
 		credentials.Accounts[index] = account
 	}
-	stored, err := svc.entFromContext(ctx).Channel.UpdateOneID(id).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetUpstreamCredentials(&credentials).Save(ctx)
+	update := svc.entFromContext(ctx).Channel.UpdateOneID(id).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetUpstreamCredentials(&credentials)
+	keys := lo.Uniq(ch.Credentials.GetAllAPIKeys())
+	if input.Ref == nil && len(keys) == 1 && ch.Settings.KeySettingsFor(upstream.KeyRef(keys[0])).AccountRef == "" {
+		update.SetSettings(settingsWithKeyAccount(ch.Settings, upstream.KeyRef(keys[0]), account.Ref))
+	}
+	stored, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +207,7 @@ func (svc *ChannelService) DeleteChannelUpstreamAccount(ctx context.Context, id 
 	return svc.upstreamState(ctx, stored)
 }
 
-func (svc *ChannelService) UpdateChannelKeySettings(ctx context.Context, id int, input objects.ChannelKeySettings) (*objects.ChannelUpstreamState, error) {
+func (svc *ChannelService) UpdateChannelKeySettings(ctx context.Context, id int, input objects.ChannelKeySettingsInput) (*objects.ChannelUpstreamState, error) {
 	ch, err := svc.upstreamChannel(ctx, id, scopes.ScopeWriteChannels)
 	if err != nil {
 		return nil, err
@@ -221,9 +226,13 @@ func (svc *ChannelService) UpdateChannelKeySettings(ctx context.Context, id int,
 	}
 	index := slices.IndexFunc(settings.KeySettings, func(item objects.ChannelKeySettings) bool { return item.KeyRef == input.KeyRef })
 	if index < 0 {
-		settings.KeySettings = append(settings.KeySettings, input)
-	} else {
-		settings.KeySettings[index] = input
+		settings.KeySettings = append(settings.KeySettings, objects.ChannelKeySettings{KeyRef: input.KeyRef})
+		index = len(settings.KeySettings) - 1
+	}
+	settings.KeySettings[index].Remark = input.Remark
+	settings.KeySettings[index].AccountRef = input.AccountRef
+	if input.Priority != nil {
+		settings.KeySettings[index].Priority = *input.Priority
 	}
 	stored, err := svc.entFromContext(ctx).Channel.UpdateOneID(id).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetSettings(&settings).Save(ctx)
 	if err != nil {
@@ -270,4 +279,48 @@ func (svc *ChannelService) RevealChannelCredential(ctx context.Context, id int, 
 		return account.AccountToken, nil
 	}
 	return "", fmt.Errorf("credential not found")
+}
+
+// ensureSingleKeySub2APIAccount records the sole key's account after Sub2API is identified.
+// Multiple keys never imply shared account ownership.
+func (svc *ChannelService) ensureSingleKeySub2APIAccount(ctx context.Context, ch *ent.Channel, snapshot *objects.UpstreamKeySnapshot) (*ent.Channel, error) {
+	if snapshot.Provider != objects.UpstreamProviderSub2API || (snapshot.BalanceState != objects.UpstreamQuerySuccess && snapshot.RateState != objects.UpstreamQuerySuccess) {
+		return ch, nil
+	}
+	keys := lo.Uniq(ch.Credentials.GetAllAPIKeys())
+	if len(keys) != 1 || (ch.UpstreamCredentials != nil && (len(ch.UpstreamCredentials.Accounts) > 0 || ch.UpstreamCredentials.AccountToken != "")) {
+		return ch, nil
+	}
+	ref := upstream.KeyRef(keys[0])
+	if ch.Settings.KeySettingsFor(ref).AccountRef != "" {
+		return ch, nil
+	}
+	accountRef := uuid.NewString()
+	settings := settingsWithKeyAccount(ch.Settings, ref, accountRef)
+	credentials := objects.ChannelUpstreamCredentials{Accounts: []objects.UpstreamAccountCredentials{{Ref: accountRef, Name: "默认账号", Provider: objects.UpstreamProviderSub2API}}}
+	stored, err := svc.entFromContext(ctx).Channel.UpdateOneID(ch.ID).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetSettings(settings).SetUpstreamCredentials(&credentials).Save(ctx)
+	if ent.IsNotFound(err) {
+		// A concurrent channel edit wins; the next refresh may initialize the default account.
+		return ch, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	svc.reloadChannelsAfterCommit(ctx)
+	return stored, nil
+}
+
+func settingsWithKeyAccount(original *objects.ChannelSettings, keyRef, accountRef string) *objects.ChannelSettings {
+	settings := objects.ChannelSettings{}
+	if original != nil {
+		settings = *original
+		settings.KeySettings = slices.Clone(original.KeySettings)
+	}
+	index := slices.IndexFunc(settings.KeySettings, func(item objects.ChannelKeySettings) bool { return item.KeyRef == keyRef })
+	if index < 0 {
+		settings.KeySettings = append(settings.KeySettings, objects.ChannelKeySettings{KeyRef: keyRef})
+		index = len(settings.KeySettings) - 1
+	}
+	settings.KeySettings[index].AccountRef = accountRef
+	return &settings
 }

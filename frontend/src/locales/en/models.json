@@ -329,7 +329,7 @@
   "models.bulk.addCount": "Add {{count}} rules",
   "models.bulk.channels": "Select channels",
   "models.bulk.tags": "By tags",
-  "models.bulk.mappingHelp": "Uses each model ID by default. Enter a forwarded model for aliases or pattern rules. Duplicates are skipped.",
+  "models.bulk.mappingHelp": "Choose an association type and targets. Pick or enter a fixed model, preview regex matches on the server, or forward the model from each request.",
   "models.bulk.enterModel": "Enter forwarded model",
   "models.bulk.newCount": "Add {{count}} rules",
   "models.bulk.duplicates": "Skip {{count}} duplicates",
@@ -344,5 +344,9 @@
   "models.bulk.searchChannels": "Search channels…",
   "models.bulk.searchTags": "Search tags…",
   "models.bulk.summary": "{{ready}} ready · {{unmatched}} unmatched · {{pending}} awaiting input",
-  "models.bulk.chosenChannels": "Across {{count}} channels"
+  "models.bulk.chosenChannels": "Across {{count}} channels",
+  "models.bulk.followRequest": "Use each request’s model ID",
+  "models.bulk.pattern": "Regular expression",
+  "models.bulk.checking": "Checking matches",
+  "models.bulk.previewFailed": "Preview failed. Check the pattern or reopen the dialog."
 }

@@ -196,6 +196,7 @@ func (s *RequestCostSnapshot) DisplayMultiplier(items []CostItem) *decimal.Decim
 }
 
 type ChannelUpstreamKeyState struct {
+	Priority           int                   `json:"priority"`
 	KeyRef             string                `json:"keyRef"`
 	Label              string                `json:"label"`
 	Remark             string                `json:"remark"`

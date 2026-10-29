@@ -88,6 +88,10 @@ func (svc *ChannelService) refreshChannelUpstream(ctx context.Context, id int, f
 		}
 		snapshot := session.Query(queryCtx, keys[item.KeyRef], item.Snapshot, balanceDue, rateDue, time.Duration(state.Settings.RefreshIntervalMinutes)*time.Minute)
 		cancel()
+		ch, err = svc.ensureSingleKeySub2APIAccount(ctx, ch, snapshot)
+		if err != nil {
+			return nil, refreshed, fmt.Errorf("initialize default upstream account: %w", err)
+		}
 		if err := svc.entFromContext(ctx).ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(item.KeyRef).
 			SetConfigFingerprint(upstreamConfigFingerprint(ch, item.KeyRef)).SetSnapshot(snapshot).
 			OnConflictColumns(channelupstreamstatus.FieldChannelID, channelupstreamstatus.FieldKeyFingerprint).

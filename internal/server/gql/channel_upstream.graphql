@@ -87,6 +87,7 @@ type AppliedCostMultiplier {
 }
 
 type ChannelUpstreamKeyState {
+  priority: Int!
   keyRef: String!
   label: String!
   remark: String!

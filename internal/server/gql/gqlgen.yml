@@ -193,7 +193,7 @@ models:
   SaveChannelUpstreamAccountInput:
     model: github.com/looplj/axonhub/internal/objects.SaveChannelUpstreamAccountInput
   ChannelKeySettingsInput:
-    model: github.com/looplj/axonhub/internal/objects.ChannelKeySettings
+    model: github.com/looplj/axonhub/internal/objects.ChannelKeySettingsInput
   ChannelUpstreamAddress:
     model: github.com/looplj/axonhub/internal/objects.ChannelUpstreamAddress
   ChannelUpstreamAddressInput:

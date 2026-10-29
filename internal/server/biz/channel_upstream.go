@@ -103,7 +103,7 @@ func (svc *ChannelService) upstreamState(ctx context.Context, ch *ent.Channel) (
 			state.Provider = snapshot.Provider
 		}
 		keySettings := ch.Settings.KeySettingsFor(ref)
-		item := &objects.ChannelUpstreamKeyState{KeyRef: ref, Label: upstream.MaskKey(key), Remark: keySettings.Remark, AccountRef: keySettings.AccountRef, Disabled: !slices.Contains(enabled, key), Snapshot: snapshot, Applied: appliedUpstreamMultiplier(state.Settings, state.ManualMultiplier, snapshot, time.Now())}
+		item := &objects.ChannelUpstreamKeyState{KeyRef: ref, Label: upstream.MaskKey(key), Remark: keySettings.Remark, Priority: keySettings.Priority, AccountRef: keySettings.AccountRef, Disabled: !slices.Contains(enabled, key), Snapshot: snapshot, Applied: appliedUpstreamMultiplier(state.Settings, state.ManualMultiplier, snapshot, time.Now())}
 		if snapshot.Rate != nil {
 			item.UpstreamMultiplier = lo.ToPtr(snapshot.Rate.Multiplier)
 		}
