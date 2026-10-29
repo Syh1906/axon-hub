@@ -30,13 +30,28 @@ AxonHub tracks the following token types:
 
 ### Pricing Modes
 
-AxonHub supports three pricing modes:
+AxonHub supports the following pricing modes:
 
 | Mode | Description | Use Case |
 |------|-------------|----------|
 | **Flat Fee** (`flat_fee`) | Fixed fee per request | Fixed cost scenarios |
+| **Image specification fee** (`image_fixed`) | Match each final image to a tier or dimension rule, then sum fees | Resolution-based image pricing |
 | **Usage Per Unit** (`usage_per_unit`) | Price per 1M tokens | Most models |
 | **Tiered** (`usage_tiered`) | Tiered pricing based on usage | Volume discount scenarios |
+
+### Image specification fees
+
+Select **Image specification fee** in the existing price row in a channel's model prices or a model's pricing editor. Automatic identification is on by default: enter per-image prices for 1K, 2K and 4K. Zero is valid; empty prices cannot be saved. Time overrides share the editor. Channel rules apply only to that channel and model. Importing a standard price copies its complete rules for independent editing.
+
+Automatic tiers prefer explicit response labels, followed by labels in the actual outgoing request, accepting both `2K` and `2k`. Request labels are marked as unconfirmed upstream and do not prove the provider's final charge. Without labels, AxonHub reads final PNG/JPEG/WebP dimensions, then response dimensions or `widthxheight`. Known Gemini dimensions match first; other sizes use pixel-area bands up to `1024²`, `2048²` and `4096²`. These are local billing bands, not a longest-edge rule: `2048×512` belongs to 1K by area. Larger or unknown sizes remain unpriced.
+
+Turn automatic identification off to define conditions. **Width or height exceeds** and **Exact dimensions** fill common rules; adjust dimensions, numbers and comparisons (`>`, `≥`, `=`, `≤`, `<`) and select **Match any** or **Match all**. Drag handles reorder rules. Each image uses only the first match. Automatic tiers and manual rules retain their own prices, conditions and order across switches and saved edits. Unfinished drafts in the inactive mode do not affect billing. Manual rules use output dimensions, not requested dimensions.
+
+Example rules, in order: either dimension above 2048 costs 0.08; either dimension above 1024 costs 0.04; exactly 1024×1024 costs 0.02. One 1024×1024 image and one 2048×2048 image total `0.02+0.04=0.06` before the channel's manual multiplier. These are sample rates, not provider quotes. Billing uses the frozen request price version; upstream token-group multipliers do not apply to image fees.
+
+Supported evidence includes OpenAI Images-compatible responses with per-image sizes, Gemini image parts, completed Responses image-generation results and Chat Completions `image_url` content. Streams are billed after final aggregation, excluding partial previews and Gemini thought images. An asynchronous task ID alone is not a completed image. Unrecognized formats still return normally and remain unpriced. URL inspection reads a bounded image header from public HTTP(S) destinations without channel credentials or private-network access; failed reads may still use response dimensions or explicit labels.
+
+Image charges are logged even when provider token usage is absent, without fabricating token usage. Breakdown entries retain image dimensions, matched rules and evidence sources. If any image cannot be priced, the total is unpriced while known image entries remain available; this is not a zero-cost record.
 
 ### Cost Breakdown
 

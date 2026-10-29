@@ -28,11 +28,11 @@ type UsageLogService struct {
 }
 
 func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, modelID string, usage *llm.Usage, snapshots ...*objects.RequestCostSnapshot) ([]objects.CostItem, *float64, string) {
-	if usage == nil {
-		return nil, nil, ""
-	}
 	if len(snapshots) > 0 && snapshots[0] != nil {
 		return s.computeSnapshotUsageCost(ctx, usage, snapshots[0])
+	}
+	if usage == nil {
+		return nil, nil, ""
 	}
 
 	ch := s.ChannelService.GetEnabledChannel(channelID)
@@ -55,6 +55,11 @@ func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, m
 
 	if modelPrice, ok := ch.cachedModelPrices[modelID]; ok {
 		items, total := ComputeUsageCost(usage, modelPrice.Price, time.Now())
+		for _, item := range items {
+			if item.Unpriced {
+				return items, nil, modelPrice.ReferenceID
+			}
+		}
 
 		totalCost := total.InexactFloat64()
 		if log.DebugEnabled(ctx) {
@@ -111,8 +116,14 @@ type CreateUsageLogParams struct {
 
 // CreateUsageLog creates a new usage log record from LLM response usage data.
 func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsageLogParams) (*ent.UsageLog, error) {
-	if params.Usage == nil {
+	if params.Usage == nil && !hasImagePricingSnapshot(params.CostSnapshot) {
 		return nil, nil // No usage data to log
+	}
+	// Keep missing provider usage distinct during billing; zero token columns are
+	// only the storage representation for an image-only log.
+	providerUsage := params.Usage
+	if params.Usage == nil {
+		params.Usage = &llm.Usage{}
 	}
 
 	client := s.entFromContext(ctx)
@@ -160,7 +171,7 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 		priceReferenceID string
 	)
 
-	costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, params.Usage, params.CostSnapshot)
+	costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, providerUsage, params.CostSnapshot)
 	if params.CostSnapshot != nil {
 		mut.SetCostSnapshot(params.CostSnapshot)
 	}
@@ -201,7 +212,7 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 	requestExec *ent.RequestExecution,
 	usage *llm.Usage,
 ) (*ent.UsageLog, error) {
-	if request == nil || usage == nil {
+	if request == nil || requestExec == nil {
 		return nil, nil
 	}
 

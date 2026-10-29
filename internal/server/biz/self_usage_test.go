@@ -34,6 +34,23 @@ type selfUsageFixture struct {
 	otherProject *ent.Project
 }
 
+func TestSelfUsageKeepsImageOutputsSeparateFromTokenUnits(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	req := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "images")
+	f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetModelID("images").SetCostItems([]objects.CostItem{
+		{ItemCode: objects.PriceItemCodeUsage, Quantity: 1, Subtotal: decimal.RequireFromString("0.04"), Image: &objects.ImageOutput{Width: 2048, Height: 2048, Tier: "2K", Source: "file"}, ImageRule: "2K"},
+		{ItemCode: objects.PriceItemCodeUsage, Quantity: 1, Image: &objects.ImageOutput{Source: "unknown"}, Unpriced: true},
+	}).SaveX(authz.WithTestBypass(f.ctx))
+	page, err := f.service.Requests(f.ctx, "2026-01-01", "2026-01-01", nil, "", 1, 20)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	require.Len(t, page.Items[0].CostItems, 2)
+	require.Equal(t, 2048, page.Items[0].CostItems[0].Image.Width)
+	require.Equal(t, "2K", page.Items[0].CostItems[0].ImageRule)
+	require.True(t, page.Items[0].CostItems[1].Unpriced)
+}
+
 func newSelfUsageFixture(t *testing.T, timezone string, opts ...enttest.Option) *selfUsageFixture {
 	t.Helper()
 	client := enttest.Open(t, dialect.SQLite, fmt.Sprintf("file:self_usage_%d?mode=memory&cache=shared&_fk=0", time.Now().UnixNano()), opts...)

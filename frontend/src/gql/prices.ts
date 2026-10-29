@@ -1,5 +1,6 @@
 const PRICING_FIELDS = `
   mode
+  image { automatic rules { name fee match conditions { dimension operator value } } savedRules { name fee match conditions { dimension operator value } } }
   flatFee
   usagePerUnit
   usageTiered { tiers { upTo pricePerUnit } }

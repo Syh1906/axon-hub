@@ -451,7 +451,7 @@ function RequestLog({
                           <TableCell><ReadCacheCell cached={item.cacheReadTokens} prompt={item.inputTokens} /></TableCell>
                           <TableCell><WriteCacheCell writeCached={item.cacheWriteTokens} prompt={item.inputTokens} /></TableCell>
                           <TableCell><CostCell total={item.cost} currencyCode={meta.currencyCode} emptyLabel='-' breakdown={{
-                            items: item.costItems.map((costItem) => ({ itemCode: costItem.itemCode, variant: costItem.promptWriteCacheVariantCode, quantity: costItem.quantity, subtotal: costItem.subtotal, tiers: costItem.tierBreakdown })),
+                            items: item.costItems.map((costItem) => ({ image: costItem.image, imageRule: costItem.imageRule, unpriced: costItem.unpriced, itemCode: costItem.itemCode, variant: costItem.promptWriteCacheVariantCode, quantity: costItem.quantity, subtotal: costItem.subtotal, tiers: costItem.tierBreakdown })),
                             multiplier: item.costMultiplierMixed ? 'mixed' : (item.costMultiplier ?? 1),
                             unpricedRecords: item.unpricedRecords,
                           }} /></TableCell>

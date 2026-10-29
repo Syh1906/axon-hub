@@ -445,7 +445,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       cell: ({ row }) => {
         const log = row.original.usageLogs?.edges?.[0]?.node;
         return <CostCell total={log?.totalCost ?? null} currencyCode={settings?.currencyCode ?? 'USD'} breakdown={log ? {
-          items: (log.costItems ?? []).map((item) => ({ itemCode: item.itemCode, variant: item.promptWriteCacheVariantCode ?? null, quantity: item.quantity, subtotal: item.subtotal, tiers: item.tierBreakdown ?? [] })),
+          items: (log.costItems ?? []).map((item) => ({ image: item.image, imageRule: item.imageRule, unpriced: item.unpriced, itemCode: item.itemCode, variant: item.promptWriteCacheVariantCode ?? null, quantity: item.quantity, subtotal: item.subtotal, tiers: item.tierBreakdown ?? [] })),
           multiplier: log.costPriceMultiplier ?? 'mixed',
         } : null} emptyLabel='-' />;
       },

@@ -11,6 +11,7 @@ import (
 type PricingMode string
 
 const (
+	PricingModeImageFixed PricingMode = "image_fixed"
 	// PricingModeFlatFee means the request is charged a fixed fee.
 	PricingModeFlatFee PricingMode = "flat_fee"
 
@@ -32,7 +33,8 @@ const (
 )
 
 type Pricing struct {
-	Mode PricingMode `json:"mode"`
+	Mode  PricingMode   `json:"mode"`
+	Image *ImagePricing `json:"image,omitempty"`
 
 	// FlatFee is the fixed fee for the pricing.
 	FlatFee *decimal.Decimal `json:"flatFee,omitempty"`
@@ -56,6 +58,8 @@ func (p *Pricing) Equals(other *Pricing) bool {
 	}
 
 	switch p.Mode {
+	case PricingModeImageFixed:
+		return p.Image.Equals(other.Image)
 	case PricingModeFlatFee:
 		if (p.FlatFee == nil) != (other.FlatFee == nil) {
 			return false
@@ -85,6 +89,8 @@ func (p *Pricing) Validate() error {
 	}
 
 	switch p.Mode {
+	case PricingModeImageFixed:
+		return p.Image.Validate()
 	case PricingModeFlatFee:
 		if p.FlatFee == nil {
 			return fmt.Errorf("flatFee is required")
@@ -151,6 +157,9 @@ func (p *TieredPricing) Validate() error {
 func (p *PromptWriteCacheVariant) Validate() error {
 	if p == nil {
 		return fmt.Errorf("promptWriteCacheVariant is nil")
+	}
+	if p.Pricing.Mode == PricingModeImageFixed {
+		return fmt.Errorf("image pricing is not a cache-write variant")
 	}
 
 	if err := p.Pricing.Validate(); err != nil {

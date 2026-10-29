@@ -48,6 +48,7 @@ func TestAggregateStreamChunks_CodexImage(t *testing.T) {
 
 	var upstream Response
 	require.NoError(t, json.Unmarshal(body, &upstream))
+	require.Equal(t, "1254x1254", *upstream.Output[0].Size)
 
 	resp, err := BuildImageResponse(&upstream, map[string]any{})
 	require.NoError(t, err)

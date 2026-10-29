@@ -69,11 +69,22 @@ type SelfUsageRequest {
 }
 
 type SelfUsageCostItem {
+  image: SelfUsageImageOutput
+  imageRule: String!
+  unpriced: Boolean!
   itemCode: String!
   promptWriteCacheVariantCode: String
   quantity: Int!
   subtotal: Float!
   tierBreakdown: [SelfUsageTierCost!]!
+}
+
+type SelfUsageImageOutput {
+  tierSource: String!
+  width: Int!
+  height: Int!
+  tier: String!
+  source: String!
 }
 
 type SelfUsageTierCost {

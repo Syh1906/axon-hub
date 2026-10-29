@@ -111,6 +111,20 @@ function PriceValue({ pricing }: { pricing: Pricing }) {
         {amount(pricing.flatFee)} · {t('price.mode_flat_fee')}
       </span>
     );
+  if (pricing.mode === 'image_fixed')
+    return (
+      <div className='text-right text-xs'>
+        <span className='text-muted-foreground'>
+          {t('price.mode_image_fixed')} · {t(pricing.image?.automatic ? 'price.image.autoShort' : 'price.image.manualShort')}
+        </span>
+        {pricing.image?.rules.slice(0, 3).map((rule, i) => (
+          <div key={i}>
+            {rule.name}: {amount(rule.fee)} / {t('price.image.imageUnit')}
+          </div>
+        ))}
+        {(pricing.image?.rules.length ?? 0) > 3 && <div>{t('price.image.moreRules', { count: pricing.image!.rules.length - 3 })}</div>}
+      </div>
+    );
   if (pricing.mode === 'usage_per_unit') return <span className='text-right font-mono text-xs'>{amount(pricing.usagePerUnit)} / 1M</span>;
   return (
     <div className='text-right text-xs'>

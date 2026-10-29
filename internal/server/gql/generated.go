@@ -847,11 +847,14 @@ type ComplexityRoot struct {
 	}
 
 	CostItem struct {
+		Image                       func(childComplexity int) int
+		ImageRule                   func(childComplexity int) int
 		ItemCode                    func(childComplexity int) int
 		PromptWriteCacheVariantCode func(childComplexity int) int
 		Quantity                    func(childComplexity int) int
 		Subtotal                    func(childComplexity int) int
 		TierBreakdown               func(childComplexity int) int
+		Unpriced                    func(childComplexity int) int
 	}
 
 	CostStatsByAPIKey struct {
@@ -1026,6 +1029,46 @@ type ComplexityRoot struct {
 	HourlyRequestStats struct {
 		Count func(childComplexity int) int
 		Hour  func(childComplexity int) int
+	}
+
+	ImageCondition struct {
+		Dimension func(childComplexity int) int
+		Operator  func(childComplexity int) int
+		Value     func(childComplexity int) int
+	}
+
+	ImageConditionDraft struct {
+		Dimension func(childComplexity int) int
+		Operator  func(childComplexity int) int
+		Value     func(childComplexity int) int
+	}
+
+	ImageOutput struct {
+		Height     func(childComplexity int) int
+		Source     func(childComplexity int) int
+		Tier       func(childComplexity int) int
+		TierSource func(childComplexity int) int
+		Width      func(childComplexity int) int
+	}
+
+	ImagePriceRule struct {
+		Conditions func(childComplexity int) int
+		Fee        func(childComplexity int) int
+		Match      func(childComplexity int) int
+		Name       func(childComplexity int) int
+	}
+
+	ImagePriceRuleDraft struct {
+		Conditions func(childComplexity int) int
+		Fee        func(childComplexity int) int
+		Match      func(childComplexity int) int
+		Name       func(childComplexity int) int
+	}
+
+	ImagePricing struct {
+		Automatic  func(childComplexity int) int
+		Rules      func(childComplexity int) int
+		SavedRules func(childComplexity int) int
 	}
 
 	InitializeSystemPayload struct {
@@ -1439,6 +1482,7 @@ type ComplexityRoot struct {
 
 	Pricing struct {
 		FlatFee      func(childComplexity int) int
+		Image        func(childComplexity int) int
 		Mode         func(childComplexity int) int
 		UsagePerUnit func(childComplexity int) int
 		UsageTiered  func(childComplexity int) int
@@ -5853,6 +5897,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ConsumptionResult.Timezone(childComplexity), true
 
+	case "CostItem.image":
+		if e.complexity.CostItem.Image == nil {
+			break
+		}
+
+		return e.complexity.CostItem.Image(childComplexity), true
+	case "CostItem.imageRule":
+		if e.complexity.CostItem.ImageRule == nil {
+			break
+		}
+
+		return e.complexity.CostItem.ImageRule(childComplexity), true
 	case "CostItem.itemCode":
 		if e.complexity.CostItem.ItemCode == nil {
 			break
@@ -5883,6 +5939,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CostItem.TierBreakdown(childComplexity), true
+	case "CostItem.unpriced":
+		if e.complexity.CostItem.Unpriced == nil {
+			break
+		}
+
+		return e.complexity.CostItem.Unpriced(childComplexity), true
 
 	case "CostStatsByAPIKey.apiKeyId":
 		if e.complexity.CostStatsByAPIKey.APIKeyID == nil {
@@ -6495,6 +6557,144 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.HourlyRequestStats.Hour(childComplexity), true
+
+	case "ImageCondition.dimension":
+		if e.complexity.ImageCondition.Dimension == nil {
+			break
+		}
+
+		return e.complexity.ImageCondition.Dimension(childComplexity), true
+	case "ImageCondition.operator":
+		if e.complexity.ImageCondition.Operator == nil {
+			break
+		}
+
+		return e.complexity.ImageCondition.Operator(childComplexity), true
+	case "ImageCondition.value":
+		if e.complexity.ImageCondition.Value == nil {
+			break
+		}
+
+		return e.complexity.ImageCondition.Value(childComplexity), true
+
+	case "ImageConditionDraft.dimension":
+		if e.complexity.ImageConditionDraft.Dimension == nil {
+			break
+		}
+
+		return e.complexity.ImageConditionDraft.Dimension(childComplexity), true
+	case "ImageConditionDraft.operator":
+		if e.complexity.ImageConditionDraft.Operator == nil {
+			break
+		}
+
+		return e.complexity.ImageConditionDraft.Operator(childComplexity), true
+	case "ImageConditionDraft.value":
+		if e.complexity.ImageConditionDraft.Value == nil {
+			break
+		}
+
+		return e.complexity.ImageConditionDraft.Value(childComplexity), true
+
+	case "ImageOutput.height":
+		if e.complexity.ImageOutput.Height == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.Height(childComplexity), true
+	case "ImageOutput.source":
+		if e.complexity.ImageOutput.Source == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.Source(childComplexity), true
+	case "ImageOutput.tier":
+		if e.complexity.ImageOutput.Tier == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.Tier(childComplexity), true
+	case "ImageOutput.tierSource":
+		if e.complexity.ImageOutput.TierSource == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.TierSource(childComplexity), true
+	case "ImageOutput.width":
+		if e.complexity.ImageOutput.Width == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.Width(childComplexity), true
+
+	case "ImagePriceRule.conditions":
+		if e.complexity.ImagePriceRule.Conditions == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRule.Conditions(childComplexity), true
+	case "ImagePriceRule.fee":
+		if e.complexity.ImagePriceRule.Fee == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRule.Fee(childComplexity), true
+	case "ImagePriceRule.match":
+		if e.complexity.ImagePriceRule.Match == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRule.Match(childComplexity), true
+	case "ImagePriceRule.name":
+		if e.complexity.ImagePriceRule.Name == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRule.Name(childComplexity), true
+
+	case "ImagePriceRuleDraft.conditions":
+		if e.complexity.ImagePriceRuleDraft.Conditions == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRuleDraft.Conditions(childComplexity), true
+	case "ImagePriceRuleDraft.fee":
+		if e.complexity.ImagePriceRuleDraft.Fee == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRuleDraft.Fee(childComplexity), true
+	case "ImagePriceRuleDraft.match":
+		if e.complexity.ImagePriceRuleDraft.Match == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRuleDraft.Match(childComplexity), true
+	case "ImagePriceRuleDraft.name":
+		if e.complexity.ImagePriceRuleDraft.Name == nil {
+			break
+		}
+
+		return e.complexity.ImagePriceRuleDraft.Name(childComplexity), true
+
+	case "ImagePricing.automatic":
+		if e.complexity.ImagePricing.Automatic == nil {
+			break
+		}
+
+		return e.complexity.ImagePricing.Automatic(childComplexity), true
+	case "ImagePricing.rules":
+		if e.complexity.ImagePricing.Rules == nil {
+			break
+		}
+
+		return e.complexity.ImagePricing.Rules(childComplexity), true
+	case "ImagePricing.savedRules":
+		if e.complexity.ImagePricing.SavedRules == nil {
+			break
+		}
+
+		return e.complexity.ImagePricing.SavedRules(childComplexity), true
 
 	case "InitializeSystemPayload.message":
 		if e.complexity.InitializeSystemPayload.Message == nil {
@@ -8963,6 +9163,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Pricing.FlatFee(childComplexity), true
+	case "Pricing.image":
+		if e.complexity.Pricing.Image == nil {
+			break
+		}
+
+		return e.complexity.Pricing.Image(childComplexity), true
 	case "Pricing.mode":
 		if e.complexity.Pricing.Mode == nil {
 			break
@@ -13715,6 +13921,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputGetChannelProbeDataInput,
 		ec.unmarshalInputHeaderEntryInput,
 		ec.unmarshalInputHealthGatePolicyInput,
+		ec.unmarshalInputImageConditionDraftInput,
+		ec.unmarshalInputImageConditionInput,
+		ec.unmarshalInputImageOutputInput,
+		ec.unmarshalInputImagePriceRuleDraftInput,
+		ec.unmarshalInputImagePriceRuleInput,
+		ec.unmarshalInputImagePricingInput,
 		ec.unmarshalInputInitializeSystemInput,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
 		ec.unmarshalInputModelAssociationInput,
@@ -33037,6 +33249,105 @@ func (ec *executionContext) fieldContext_ConsumptionResult_currencyCode(_ contex
 	return fc, nil
 }
 
+func (ec *executionContext) _CostItem_image(ctx context.Context, field graphql.CollectedField, obj *objects.CostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostItem_image,
+		func(ctx context.Context) (any, error) {
+			return obj.Image, nil
+		},
+		nil,
+		ec.marshalOImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostItem_image(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tierSource":
+				return ec.fieldContext_ImageOutput_tierSource(ctx, field)
+			case "width":
+				return ec.fieldContext_ImageOutput_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ImageOutput_height(ctx, field)
+			case "tier":
+				return ec.fieldContext_ImageOutput_tier(ctx, field)
+			case "source":
+				return ec.fieldContext_ImageOutput_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageOutput", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostItem_imageRule(ctx context.Context, field graphql.CollectedField, obj *objects.CostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostItem_imageRule,
+		func(ctx context.Context) (any, error) {
+			return obj.ImageRule, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostItem_imageRule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostItem_unpriced(ctx context.Context, field graphql.CollectedField, obj *objects.CostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostItem_unpriced,
+		func(ctx context.Context) (any, error) {
+			return obj.Unpriced, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostItem_unpriced(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CostItem_itemCode(ctx context.Context, field graphql.CollectedField, obj *objects.CostItem) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36144,6 +36455,680 @@ func (ec *executionContext) fieldContext_HourlyRequestStats_count(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _ImageCondition_dimension(ctx context.Context, field graphql.CollectedField, obj *objects.ImageCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageCondition_dimension,
+		func(ctx context.Context) (any, error) {
+			return obj.Dimension, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageCondition_dimension(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageCondition_operator(ctx context.Context, field graphql.CollectedField, obj *objects.ImageCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageCondition_operator,
+		func(ctx context.Context) (any, error) {
+			return obj.Operator, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageCondition_operator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageCondition_value(ctx context.Context, field graphql.CollectedField, obj *objects.ImageCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageCondition_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageCondition_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageConditionDraft_dimension(ctx context.Context, field graphql.CollectedField, obj *objects.ImageConditionDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageConditionDraft_dimension,
+		func(ctx context.Context) (any, error) {
+			return obj.Dimension, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageConditionDraft_dimension(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageConditionDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageConditionDraft_operator(ctx context.Context, field graphql.CollectedField, obj *objects.ImageConditionDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageConditionDraft_operator,
+		func(ctx context.Context) (any, error) {
+			return obj.Operator, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageConditionDraft_operator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageConditionDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageConditionDraft_value(ctx context.Context, field graphql.CollectedField, obj *objects.ImageConditionDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageConditionDraft_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageConditionDraft_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageConditionDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_tierSource(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_tierSource,
+		func(ctx context.Context) (any, error) {
+			return obj.TierSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_tierSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_width(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_width,
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_height(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_height,
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_tier(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_tier,
+		func(ctx context.Context) (any, error) {
+			return obj.Tier, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_tier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_source(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRule_name(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRule_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRule_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRule_fee(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRule_fee,
+		func(ctx context.Context) (any, error) {
+			return obj.Fee, nil
+		},
+		nil,
+		ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRule_fee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRule_match(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRule_match,
+		func(ctx context.Context) (any, error) {
+			return obj.Match, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRule_match(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRule_conditions(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRule_conditions,
+		func(ctx context.Context) (any, error) {
+			return obj.Conditions, nil
+		},
+		nil,
+		ec.marshalOImageCondition2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRule_conditions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "dimension":
+				return ec.fieldContext_ImageCondition_dimension(ctx, field)
+			case "operator":
+				return ec.fieldContext_ImageCondition_operator(ctx, field)
+			case "value":
+				return ec.fieldContext_ImageCondition_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageCondition", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRuleDraft_name(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRuleDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRuleDraft_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRuleDraft_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRuleDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRuleDraft_fee(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRuleDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRuleDraft_fee,
+		func(ctx context.Context) (any, error) {
+			return obj.Fee, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRuleDraft_fee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRuleDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRuleDraft_match(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRuleDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRuleDraft_match,
+		func(ctx context.Context) (any, error) {
+			return obj.Match, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRuleDraft_match(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRuleDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePriceRuleDraft_conditions(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePriceRuleDraft) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePriceRuleDraft_conditions,
+		func(ctx context.Context) (any, error) {
+			return obj.Conditions, nil
+		},
+		nil,
+		ec.marshalOImageConditionDraft2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraftᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePriceRuleDraft_conditions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePriceRuleDraft",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "dimension":
+				return ec.fieldContext_ImageConditionDraft_dimension(ctx, field)
+			case "operator":
+				return ec.fieldContext_ImageConditionDraft_operator(ctx, field)
+			case "value":
+				return ec.fieldContext_ImageConditionDraft_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageConditionDraft", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePricing_automatic(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePricing_automatic,
+		func(ctx context.Context) (any, error) {
+			return obj.Automatic, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePricing_automatic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePricing_rules(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePricing_rules,
+		func(ctx context.Context) (any, error) {
+			return obj.Rules, nil
+		},
+		nil,
+		ec.marshalNImagePriceRule2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePricing_rules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ImagePriceRule_name(ctx, field)
+			case "fee":
+				return ec.fieldContext_ImagePriceRule_fee(ctx, field)
+			case "match":
+				return ec.fieldContext_ImagePriceRule_match(ctx, field)
+			case "conditions":
+				return ec.fieldContext_ImagePriceRule_conditions(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImagePriceRule", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImagePricing_savedRules(ctx context.Context, field graphql.CollectedField, obj *objects.ImagePricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImagePricing_savedRules,
+		func(ctx context.Context) (any, error) {
+			return obj.SavedRules, nil
+		},
+		nil,
+		ec.marshalOImagePriceRuleDraft2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraftᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImagePricing_savedRules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImagePricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ImagePriceRuleDraft_name(ctx, field)
+			case "fee":
+				return ec.fieldContext_ImagePriceRuleDraft_fee(ctx, field)
+			case "match":
+				return ec.fieldContext_ImagePriceRuleDraft_match(ctx, field)
+			case "conditions":
+				return ec.fieldContext_ImagePriceRuleDraft_conditions(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImagePriceRuleDraft", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _InitializeSystemPayload_success(ctx context.Context, field graphql.CollectedField, obj *InitializeSystemPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -38870,6 +39855,8 @@ func (ec *executionContext) fieldContext_ModelPriceItem_pricing(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "image":
+				return ec.fieldContext_Pricing_image(ctx, field)
 			case "mode":
 				return ec.fieldContext_Pricing_mode(ctx, field)
 			case "flatFee":
@@ -48462,6 +49449,43 @@ func (ec *executionContext) fieldContext_PriceTier_pricePerUnit(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Pricing_image(ctx context.Context, field graphql.CollectedField, obj *objects.Pricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Pricing_image,
+		func(ctx context.Context) (any, error) {
+			return obj.Image, nil
+		},
+		nil,
+		ec.marshalOImagePricing2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePricing,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Pricing_image(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Pricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "automatic":
+				return ec.fieldContext_ImagePricing_automatic(ctx, field)
+			case "rules":
+				return ec.fieldContext_ImagePricing_rules(ctx, field)
+			case "savedRules":
+				return ec.fieldContext_ImagePricing_savedRules(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImagePricing", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Pricing_mode(ctx context.Context, field graphql.CollectedField, obj *objects.Pricing) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -51106,6 +52130,8 @@ func (ec *executionContext) fieldContext_PromptWriteCacheVariant_pricing(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "image":
+				return ec.fieldContext_Pricing_image(ctx, field)
 			case "mode":
 				return ec.fieldContext_Pricing_mode(ctx, field)
 			case "flatFee":
@@ -69238,6 +70264,12 @@ func (ec *executionContext) fieldContext_UsageLog_costItems(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "image":
+				return ec.fieldContext_CostItem_image(ctx, field)
+			case "imageRule":
+				return ec.fieldContext_CostItem_imageRule(ctx, field)
+			case "unpriced":
+				return ec.fieldContext_CostItem_unpriced(ctx, field)
 			case "itemCode":
 				return ec.fieldContext_CostItem_itemCode(ctx, field)
 			case "promptWriteCacheVariantCode":
@@ -81233,13 +82265,34 @@ func (ec *executionContext) unmarshalInputCostItemInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"itemCode", "quantity", "tierBreakdown", "subtotal"}
+	fieldsInOrder := [...]string{"image", "imageRule", "unpriced", "itemCode", "quantity", "tierBreakdown", "subtotal"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "image":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
+			data, err := ec.unmarshalOImageOutputInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Image = data
+		case "imageRule":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageRule"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ImageRule = data
+		case "unpriced":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("unpriced"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Unpriced = data
 		case "itemCode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemCode"))
 			data, err := ec.unmarshalNPriceItemCode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPriceItemCode(ctx, v)
@@ -83790,6 +84843,284 @@ func (ec *executionContext) unmarshalInputHealthGatePolicyInput(ctx context.Cont
 				return it, err
 			}
 			it.OwnerFailoverThreshold = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImageConditionDraftInput(ctx context.Context, obj any) (objects.ImageConditionDraft, error) {
+	var it objects.ImageConditionDraft
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"dimension", "operator", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "dimension":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dimension"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Dimension = data
+		case "operator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operator"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Operator = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImageConditionInput(ctx context.Context, obj any) (objects.ImageCondition, error) {
+	var it objects.ImageCondition
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"dimension", "operator", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "dimension":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dimension"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Dimension = data
+		case "operator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operator"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Operator = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImageOutputInput(ctx context.Context, obj any) (objects.ImageOutput, error) {
+	var it objects.ImageOutput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"tierSource", "width", "height", "tier", "source"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "tierSource":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tierSource"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TierSource = data
+		case "width":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("width"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Width = data
+		case "height":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("height"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Height = data
+		case "tier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tier = data
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImagePriceRuleDraftInput(ctx context.Context, obj any) (objects.ImagePriceRuleDraft, error) {
+	var it objects.ImagePriceRuleDraft
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "fee", "match", "conditions"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "fee":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fee"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Fee = data
+		case "match":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("match"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Match = data
+		case "conditions":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conditions"))
+			data, err := ec.unmarshalOImageConditionDraftInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraftᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Conditions = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImagePriceRuleInput(ctx context.Context, obj any) (objects.ImagePriceRule, error) {
+	var it objects.ImagePriceRule
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "fee", "match", "conditions"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "fee":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fee"))
+			data, err := ec.unmarshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Fee = data
+		case "match":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("match"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Match = data
+		case "conditions":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conditions"))
+			data, err := ec.unmarshalOImageConditionInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Conditions = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputImagePricingInput(ctx context.Context, obj any) (objects.ImagePricing, error) {
+	var it objects.ImagePricing
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["automatic"]; !present {
+		asMap["automatic"] = true
+	}
+
+	fieldsInOrder := [...]string{"automatic", "rules", "savedRules"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "automatic":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("automatic"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Automatic = data
+		case "rules":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rules"))
+			data, err := ec.unmarshalNImagePriceRuleInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Rules = data
+		case "savedRules":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("savedRules"))
+			data, err := ec.unmarshalOImagePriceRuleDraftInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraftᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SavedRules = data
 		}
 	}
 
@@ -86602,13 +87933,20 @@ func (ec *executionContext) unmarshalInputPricingInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"mode", "flatFee", "usagePerUnit", "usageTiered"}
+	fieldsInOrder := [...]string{"image", "mode", "flatFee", "usagePerUnit", "usageTiered"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "image":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
+			data, err := ec.unmarshalOImagePricingInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePricing(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Image = data
 		case "mode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
 			data, err := ec.unmarshalNPricingMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPricingMode(ctx, v)
@@ -108364,6 +109702,18 @@ func (ec *executionContext) _CostItem(ctx context.Context, sel ast.SelectionSet,
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("CostItem")
+		case "image":
+			out.Values[i] = ec._CostItem_image(ctx, field, obj)
+		case "imageRule":
+			out.Values[i] = ec._CostItem_imageRule(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "unpriced":
+			out.Values[i] = ec._CostItem_unpriced(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "itemCode":
 			out.Values[i] = ec._CostItem_itemCode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -109811,6 +111161,311 @@ func (ec *executionContext) _HourlyRequestStats(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imageConditionImplementors = []string{"ImageCondition"}
+
+func (ec *executionContext) _ImageCondition(ctx context.Context, sel ast.SelectionSet, obj *objects.ImageCondition) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imageConditionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImageCondition")
+		case "dimension":
+			out.Values[i] = ec._ImageCondition_dimension(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "operator":
+			out.Values[i] = ec._ImageCondition_operator(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._ImageCondition_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imageConditionDraftImplementors = []string{"ImageConditionDraft"}
+
+func (ec *executionContext) _ImageConditionDraft(ctx context.Context, sel ast.SelectionSet, obj *objects.ImageConditionDraft) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imageConditionDraftImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImageConditionDraft")
+		case "dimension":
+			out.Values[i] = ec._ImageConditionDraft_dimension(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "operator":
+			out.Values[i] = ec._ImageConditionDraft_operator(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._ImageConditionDraft_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imageOutputImplementors = []string{"ImageOutput"}
+
+func (ec *executionContext) _ImageOutput(ctx context.Context, sel ast.SelectionSet, obj *objects.ImageOutput) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imageOutputImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImageOutput")
+		case "tierSource":
+			out.Values[i] = ec._ImageOutput_tierSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "width":
+			out.Values[i] = ec._ImageOutput_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._ImageOutput_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tier":
+			out.Values[i] = ec._ImageOutput_tier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._ImageOutput_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imagePriceRuleImplementors = []string{"ImagePriceRule"}
+
+func (ec *executionContext) _ImagePriceRule(ctx context.Context, sel ast.SelectionSet, obj *objects.ImagePriceRule) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imagePriceRuleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImagePriceRule")
+		case "name":
+			out.Values[i] = ec._ImagePriceRule_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fee":
+			out.Values[i] = ec._ImagePriceRule_fee(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "match":
+			out.Values[i] = ec._ImagePriceRule_match(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "conditions":
+			out.Values[i] = ec._ImagePriceRule_conditions(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imagePriceRuleDraftImplementors = []string{"ImagePriceRuleDraft"}
+
+func (ec *executionContext) _ImagePriceRuleDraft(ctx context.Context, sel ast.SelectionSet, obj *objects.ImagePriceRuleDraft) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imagePriceRuleDraftImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImagePriceRuleDraft")
+		case "name":
+			out.Values[i] = ec._ImagePriceRuleDraft_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fee":
+			out.Values[i] = ec._ImagePriceRuleDraft_fee(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "match":
+			out.Values[i] = ec._ImagePriceRuleDraft_match(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "conditions":
+			out.Values[i] = ec._ImagePriceRuleDraft_conditions(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var imagePricingImplementors = []string{"ImagePricing"}
+
+func (ec *executionContext) _ImagePricing(ctx context.Context, sel ast.SelectionSet, obj *objects.ImagePricing) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imagePricingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImagePricing")
+		case "automatic":
+			out.Values[i] = ec._ImagePricing_automatic(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rules":
+			out.Values[i] = ec._ImagePricing_rules(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "savedRules":
+			out.Values[i] = ec._ImagePricing_savedRules(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -112897,6 +114552,8 @@ func (ec *executionContext) _Pricing(ctx context.Context, sel ast.SelectionSet, 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Pricing")
+		case "image":
+			out.Values[i] = ec._Pricing_image(ctx, field, obj)
 		case "mode":
 			out.Values[i] = ec._Pricing_mode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -128541,6 +130198,101 @@ func (ec *executionContext) marshalNID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinte
 	return v
 }
 
+func (ec *executionContext) marshalNImageCondition2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageCondition(ctx context.Context, sel ast.SelectionSet, v objects.ImageCondition) graphql.Marshaler {
+	return ec._ImageCondition(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNImageConditionDraft2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraft(ctx context.Context, sel ast.SelectionSet, v objects.ImageConditionDraft) graphql.Marshaler {
+	return ec._ImageConditionDraft(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNImageConditionDraftInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraft(ctx context.Context, v any) (objects.ImageConditionDraft, error) {
+	res, err := ec.unmarshalInputImageConditionDraftInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNImageConditionInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageCondition(ctx context.Context, v any) (objects.ImageCondition, error) {
+	res, err := ec.unmarshalInputImageConditionInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNImagePriceRule2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRule(ctx context.Context, sel ast.SelectionSet, v objects.ImagePriceRule) graphql.Marshaler {
+	return ec._ImagePriceRule(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNImagePriceRule2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ImagePriceRule) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImagePriceRule2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRule(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNImagePriceRuleDraft2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraft(ctx context.Context, sel ast.SelectionSet, v objects.ImagePriceRuleDraft) graphql.Marshaler {
+	return ec._ImagePriceRuleDraft(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNImagePriceRuleDraftInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraft(ctx context.Context, v any) (objects.ImagePriceRuleDraft, error) {
+	res, err := ec.unmarshalInputImagePriceRuleDraftInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNImagePriceRuleInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRule(ctx context.Context, v any) (objects.ImagePriceRule, error) {
+	res, err := ec.unmarshalInputImagePriceRuleInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNImagePriceRuleInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleᚄ(ctx context.Context, v any) ([]objects.ImagePriceRule, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ImagePriceRule, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNImagePriceRuleInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRule(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -135362,6 +137114,231 @@ func (ec *executionContext) marshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinte
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOImageCondition2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ImageCondition) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImageCondition2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageCondition(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOImageConditionDraft2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraftᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ImageConditionDraft) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImageConditionDraft2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraft(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOImageConditionDraftInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraftᚄ(ctx context.Context, v any) ([]objects.ImageConditionDraft, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ImageConditionDraft, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNImageConditionDraftInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionDraft(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOImageConditionInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageConditionᚄ(ctx context.Context, v any) ([]objects.ImageCondition, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ImageCondition, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNImageConditionInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageCondition(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, sel ast.SelectionSet, v *objects.ImageOutput) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ImageOutput(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOImageOutputInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, v any) (*objects.ImageOutput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputImageOutputInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOImagePriceRuleDraft2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraftᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ImagePriceRuleDraft) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImagePriceRuleDraft2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraft(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOImagePriceRuleDraftInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraftᚄ(ctx context.Context, v any) ([]objects.ImagePriceRuleDraft, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ImagePriceRuleDraft, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNImagePriceRuleDraftInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRuleDraft(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOImagePricing2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePricing(ctx context.Context, sel ast.SelectionSet, v *objects.ImagePricing) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ImagePricing(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOImagePricingInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePricing(ctx context.Context, v any) (*objects.ImagePricing, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputImagePricingInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOInt2int(ctx context.Context, v any) (int, error) {

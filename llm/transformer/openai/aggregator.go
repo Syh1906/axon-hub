@@ -18,6 +18,7 @@ import (
 type choiceAggregator struct {
 	index               int
 	content             strings.Builder
+	contentParts        []llm.MessageContentPart
 	reasoningContent    strings.Builder
 	hasReasoningContent bool                  // Tracks whether any delta carried reasoning_content (even an empty string).
 	toolCalls           map[int]*llm.ToolCall // Map to track tool calls by their index within the choice
@@ -170,6 +171,15 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 				if choice.Delta.Content.Content != nil {
 					choiceAgg.content.WriteString(*choice.Delta.Content.Content)
 				}
+				if len(choice.Delta.Content.MultipleContent) > 0 {
+					if choiceAgg.content.Len() > 0 {
+						choiceAgg.contentParts = append(choiceAgg.contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
+						choiceAgg.content.Reset()
+					}
+					for _, part := range choice.Delta.Content.MultipleContent {
+						choiceAgg.contentParts = append(choiceAgg.contentParts, part.ToLLMPart())
+					}
+				}
 
 				// Handle reasoning content. Track presence of the field separately from its
 				// content length so that a semantically meaningful empty string (e.g. DeepSeek
@@ -300,7 +310,12 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 		}
 
 		// Set content if available
-		if choiceAgg.content.Len() > 0 {
+		if len(choiceAgg.contentParts) > 0 {
+			if choiceAgg.content.Len() > 0 {
+				choiceAgg.contentParts = append(choiceAgg.contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(choiceAgg.content.String())})
+			}
+			message.Content = llm.MessageContent{MultipleContent: choiceAgg.contentParts}
+		} else if choiceAgg.content.Len() > 0 {
 			content := choiceAgg.content.String()
 			message.Content = llm.MessageContent{Content: &content}
 		}

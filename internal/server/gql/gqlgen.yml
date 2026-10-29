@@ -79,6 +79,30 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  ImagePricing:
+    model: github.com/looplj/axonhub/internal/objects.ImagePricing
+  ImagePricingInput:
+    model: github.com/looplj/axonhub/internal/objects.ImagePricing
+  ImagePriceRule:
+    model: github.com/looplj/axonhub/internal/objects.ImagePriceRule
+  ImagePriceRuleInput:
+    model: github.com/looplj/axonhub/internal/objects.ImagePriceRule
+  ImagePriceRuleDraft:
+    model: github.com/looplj/axonhub/internal/objects.ImagePriceRuleDraft
+  ImagePriceRuleDraftInput:
+    model: github.com/looplj/axonhub/internal/objects.ImagePriceRuleDraft
+  ImageConditionDraft:
+    model: github.com/looplj/axonhub/internal/objects.ImageConditionDraft
+  ImageConditionDraftInput:
+    model: github.com/looplj/axonhub/internal/objects.ImageConditionDraft
+  ImageCondition:
+    model: github.com/looplj/axonhub/internal/objects.ImageCondition
+  ImageConditionInput:
+    model: github.com/looplj/axonhub/internal/objects.ImageCondition
+  ImageOutput:
+    model: github.com/looplj/axonhub/internal/objects.ImageOutput
+  ImageOutputInput:
+    model: github.com/looplj/axonhub/internal/objects.ImageOutput
   ConsumptionDimension:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionDimension
   ConsumptionMetric:

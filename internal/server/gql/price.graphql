@@ -1,5 +1,6 @@
 # Enum types
 enum PricingMode {
+	image_fixed
   flat_fee
   usage_per_unit
   usage_tiered
@@ -67,6 +68,7 @@ type DateRange {
 }
 
 type Pricing {
+	image: ImagePricing
   mode: PricingMode!
   flatFee: Decimal
   usagePerUnit: Decimal
@@ -135,6 +137,7 @@ input DateRangeInput {
 }
 
 input PricingInput {
+	image: ImagePricingInput
   mode: PricingMode!
   flatFee: Decimal
   usagePerUnit: Decimal
@@ -162,4 +165,59 @@ input SaveChannelModelPriceInput {
 
 extend type Mutation {
   saveChannelModelPrices(channelId: ID!, input: [SaveChannelModelPriceInput!]!, multiplier: Decimal): [ChannelModelPrice!]!
+}
+
+type ImagePricing {
+  automatic: Boolean!
+  rules: [ImagePriceRule!]!
+  savedRules: [ImagePriceRuleDraft!]
+}
+input ImagePricingInput {
+  automatic: Boolean! = true
+  rules: [ImagePriceRuleInput!]!
+  savedRules: [ImagePriceRuleDraftInput!]
+}
+type ImagePriceRuleDraft {
+  name: String!
+  fee: String!
+  match: String!
+  conditions: [ImageConditionDraft!]
+}
+input ImagePriceRuleDraftInput {
+  name: String!
+  fee: String!
+  match: String!
+  conditions: [ImageConditionDraftInput!]
+}
+type ImageConditionDraft {
+  dimension: String!
+  operator: String!
+  value: Float!
+}
+input ImageConditionDraftInput {
+  dimension: String!
+  operator: String!
+  value: Float!
+}
+type ImagePriceRule {
+  name: String!
+  fee: Decimal!
+  match: String!
+  conditions: [ImageCondition!]
+}
+input ImagePriceRuleInput {
+  name: String!
+  fee: Decimal!
+  match: String!
+  conditions: [ImageConditionInput!]
+}
+type ImageCondition {
+  dimension: String!
+  operator: String!
+  value: Int!
+}
+input ImageConditionInput {
+  dimension: String!
+  operator: String!
+  value: Int!
 }

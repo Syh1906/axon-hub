@@ -40,7 +40,7 @@ function buildUsageLogsQuery(permissions: { canViewChannels: boolean }) {
             source
             format
             totalCost
-            costItems {
+            costItems { image { width height tier source tierSource } imageRule unpriced
               itemCode
               quantity
               subtotal
@@ -92,7 +92,7 @@ function buildUsageLogDetailQuery(permissions: { canViewChannels: boolean }) {
           source
           format
           totalCost
-          costItems {
+          costItems { image { width height tier source tierSource } imageRule unpriced
             itemCode
             quantity
             subtotal

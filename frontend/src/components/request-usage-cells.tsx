@@ -90,25 +90,38 @@ export function DurationCell({ status, stream, latencyMs, firstTokenLatencyMs }:
   );
 }
 
-export function CostCell({ total, currencyCode, breakdown, emptyLabel = '—' }: {
-  total: number | null; currencyCode: string; breakdown: CostBreakdown | null; emptyLabel?: string;
+export function CostCell({
+  total,
+  currencyCode,
+  breakdown,
+  emptyLabel = '—',
+}: {
+  total: number | null;
+  currencyCode: string;
+  breakdown: CostBreakdown | null;
+  emptyLabel?: string;
 }) {
   const { t, i18n } = useTranslation();
-  if (total == null) return <span className='font-mono text-xs'>{emptyLabel}</span>;
+  if (total == null && !breakdown?.items.some((item) => item.unpriced)) return <span className='font-mono text-xs'>{emptyLabel}</span>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const money = (val: number, minimumFractionDigits: number, maximumFractionDigits = minimumFractionDigits) =>
     t('currencies.format', { val, currency: currencyCode, locale, minimumFractionDigits, maximumFractionDigits });
   // Per-million unit prices below keep 2–6 decimals so sub-cent prices such as 0.0028 stay visible.
-  const amount = money(total, 6);
+  const amount = total == null ? t('price.image.unpriced') : money(total, 6);
   if (!breakdown) return <span className='font-mono text-xs font-medium'>{amount}</span>;
-  const rows = buildCostBreakdown(total, breakdown);
+  const rows = buildCostBreakdown(total ?? 0, breakdown);
   const itemLabel = (code: string) => {
     switch (code) {
-      case 'prompt_tokens': return t('requests.columns.input');
-      case 'completion_tokens': return t('requests.columns.output');
-      case 'prompt_cached_tokens': return t('requests.columns.readCache');
-      case 'prompt_write_cached_tokens': return t('requests.columns.writeCache');
-      default: return code;
+      case 'prompt_tokens':
+        return t('requests.columns.input');
+      case 'completion_tokens':
+        return t('requests.columns.output');
+      case 'prompt_cached_tokens':
+        return t('requests.columns.readCache');
+      case 'prompt_write_cached_tokens':
+        return t('requests.columns.writeCache');
+      default:
+        return code;
     }
   };
   return (
@@ -124,23 +137,58 @@ export function CostCell({ total, currencyCode, breakdown, emptyLabel = '—' }:
           {rows.items.map((item, index) => (
             <div key={`${item.itemCode}:${item.variant ?? ''}:${index}`}>
               <div className='flex justify-between gap-4'>
-                <span className='flex items-center gap-1'>{itemLabel(item.itemCode)}{item.itemCode === 'prompt_write_cached_tokens' && item.variant && <Badge variant='secondary' className='h-4 px-1 text-[10px]'>{item.variant === 'five_min' ? '5m' : item.variant === 'one_hour' ? '1h' : item.variant}</Badge>} · {item.quantity.toLocaleString(locale)}</span>
-                <span className='font-mono'>{money(item.subtotal, 6)}</span>
+                <span className='flex items-center gap-1'>
+                  {item.image ? `${t('price.image.output')} ${item.imageRule || item.image.tier}` : itemLabel(item.itemCode)}
+                  {item.itemCode === 'prompt_write_cached_tokens' && item.variant && (
+                    <Badge variant='secondary' className='h-4 px-1 text-[10px]'>
+                      {item.variant === 'five_min' ? '5m' : item.variant === 'one_hour' ? '1h' : item.variant}
+                    </Badge>
+                  )}{' '}
+                  · {item.quantity.toLocaleString(locale)}
+                </span>
+                <span className='font-mono'>{item.unpriced ? t('price.image.unpriced') : money(item.subtotal, 6)}</span>
               </div>
-              {item.unitPrice !== null && <div className='text-background/75'>@ {money(item.unitPrice, 2, 6)} / 1M</div>}
+              {item.image && (
+                <div>
+                  {item.image.width > 0 && `${item.image.width} × ${item.image.height} · `}
+                  {t(`price.image.source.${item.image.source}`)}
+                  {item.image.tierSource &&
+                    item.image.tierSource !== item.image.source &&
+                    ` · ${t(`price.image.source.${item.image.tierSource}`)}`}
+                </div>
+              )}
+              {item.unitPrice !== null && (
+                <div className='text-background/75'>
+                  @ {money(item.unitPrice, 2, 6)} / {item.image ? t('price.image.imageUnit') : '1M'}
+                </div>
+              )}
               {item.tiers.map((tier, tierIndex) => (
                 <div key={tierIndex} className='text-background/75 ml-3 flex justify-between gap-4'>
-                  <span>{tier.upTo === null ? t('requests.costBreakdown.above') : t('requests.costBreakdown.upTo', { upTo: tier.upTo.toLocaleString(locale) })} · {tier.units.toLocaleString(locale)}{tier.unitPrice !== null && ` · @ ${money(tier.unitPrice, 2, 6)} / 1M`}</span>
+                  <span>
+                    {tier.upTo === null
+                      ? t('requests.costBreakdown.above')
+                      : t('requests.costBreakdown.upTo', { upTo: tier.upTo.toLocaleString(locale) })}{' '}
+                    · {tier.units.toLocaleString(locale)}
+                    {tier.unitPrice !== null && ` · @ ${money(tier.unitPrice, 2, 6)} / 1M`}
+                  </span>
                   <span className='font-mono'>{money(tier.subtotal, 6)}</span>
                 </div>
               ))}
             </div>
           ))}
           <div className='space-y-1 border-t pt-2'>
-            <div className='flex justify-between gap-4'><span>{t('requests.costBreakdown.baseTotal')}</span><span className='font-mono'>{rows.baseTotal === null ? '-' : money(rows.baseTotal, 6)}</span></div>
-            <div className='flex justify-between gap-4'><span>{t('requests.costBreakdown.multiplier')}</span><span>{rows.multiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.multiplier}`}</span></div>
+            <div className='flex justify-between gap-4'>
+              <span>{t('requests.costBreakdown.baseTotal')}</span>
+              <span className='font-mono'>{total == null || rows.baseTotal === null ? '-' : money(rows.baseTotal, 6)}</span>
+            </div>
+            <div className='flex justify-between gap-4'>
+              <span>{t('requests.costBreakdown.multiplier')}</span>
+              <span>{rows.multiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.multiplier}`}</span>
+            </div>
           </div>
-          {(breakdown.unpricedRecords ?? 0) > 0 && <div className='text-background/75'>{t('selfUsage.cost.unpriced', { count: breakdown.unpricedRecords })}</div>}
+          {(breakdown.unpricedRecords ?? 0) > 0 && (
+            <div className='text-background/75'>{t('selfUsage.cost.unpriced', { count: breakdown.unpricedRecords })}</div>
+          )}
           <div className='flex justify-between gap-4 border-t pt-2 font-semibold'>
             <span>{t('requests.costBreakdown.total')}</span>
             <span className='font-mono'>{amount}</span>

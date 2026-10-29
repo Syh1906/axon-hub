@@ -7,11 +7,20 @@ export const usageLogSourceSchema = z.enum(['api', 'playground', 'test']);
 export type UsageLogSource = z.infer<typeof usageLogSourceSchema>;
 
 export const costItemSchema = z.object({
+  image: z
+    .object({ width: z.number(), height: z.number(), tier: z.string(), tierSource: z.string().optional(), source: z.string() })
+    .nullable()
+    .optional(),
+  imageRule: z.string().optional(),
+  unpriced: z.boolean().optional(),
   itemCode: z.string(),
   promptWriteCacheVariantCode: z.string().nullable().optional(),
   quantity: z.number(),
   subtotal: z.number(),
-  tierBreakdown: z.array(z.object({ upTo: z.number().nullable(), units: z.number(), subtotal: z.number() })).nullable().optional(),
+  tierBreakdown: z
+    .array(z.object({ upTo: z.number().nullable(), units: z.number(), subtotal: z.number() }))
+    .nullable()
+    .optional(),
 });
 
 // Usage Log schema based on backend entity structure

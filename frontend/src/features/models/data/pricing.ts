@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js-light';
-import { modelPriceInputSchema, type ModelPrice, type ModelPriceItem, type Pricing } from '@/features/channels/data/schema';
+import { modelPriceInputSchema, type ImagePricing, type ModelPrice, type ModelPriceItem, type Pricing } from '@/features/channels/data/schema';
 import type { ProviderModel } from './providers.schema';
 
 const costFields = [
@@ -9,6 +9,23 @@ const costFields = [
   ['cache_read', 'prompt_cached_tokens'],
   ['cache_write', 'prompt_write_cached_tokens'],
 ] as const;
+
+export function switchImagePricingMode(config: ImagePricing, automatic: boolean): ImagePricing {
+  if (config.automatic === automatic) return config;
+  const rules = config.savedRules ?? (automatic
+    ? ['1K', '2K', '4K'].map((name) => ({
+        name,
+        fee: config.rules.find((rule) => rule.name === name)?.fee ?? '',
+        match: 'all' as const,
+        conditions: [],
+      }))
+    : config.rules);
+  return {
+    automatic,
+    rules: structuredClone(rules),
+    savedRules: structuredClone(config.rules).map((rule) => ({ ...rule, fee: String(rule.fee) })),
+  };
+}
 
 // Zero is an intentional price. Preserve even partially edited items rather
 // than replacing the user's draft when a different model ID is selected.
@@ -76,6 +93,26 @@ export function createPriceValidationSchema(t: (key: string) => string) {
         if (pricing.mode === 'flat_fee' || pricing.mode === 'usage_per_unit') {
           const field = pricing.mode === 'flat_fee' ? 'flatFee' : 'usagePerUnit';
           if (!validAmount(pricing[field])) issue([...path, field], 'price.validation.nonnegative');
+          return;
+        }
+        if (pricing.mode === 'image_fixed') {
+          const image = pricing.image;
+          if (!image?.rules.length) issue([...path, 'image'], 'price.validation.priceRequired');
+          const names = new Set<string>();
+          image?.rules.forEach((rule, index) => {
+            const rulePath = [...path, 'image', 'rules', index];
+            if (!validAmount(rule.fee)) issue([...rulePath, 'fee'], 'price.validation.nonnegative');
+            if (!rule.name.trim() || (image.automatic && (!['1K', '2K', '4K'].includes(rule.name) || names.has(rule.name))))
+              issue([...rulePath, 'name'], 'price.image.invalidName');
+            names.add(rule.name);
+            if (!image.automatic && !rule.conditions?.length) issue([...rulePath, 'conditions'], 'price.image.conditionsRequired');
+            if (!image.automatic) {
+              rule.conditions?.forEach((condition, j) => {
+                if (!Number.isSafeInteger(condition.value) || condition.value <= 0 || condition.value > 1000000)
+                  issue([...rulePath, 'conditions', j, 'value'], 'price.image.invalidDimension');
+              });
+            }
+          });
           return;
         }
         const tiers = pricing.usageTiered?.tiers ?? [];
@@ -170,6 +207,13 @@ export function multiplyPriceItems(items: ModelPriceItem[], multiplier: string |
     return {
       ...pricing,
       flatFee: amount(pricing.flatFee),
+      image: pricing.image
+        ? {
+            ...pricing.image,
+            rules: pricing.image.rules.map((rule) => ({ ...rule, fee: amount(rule.fee)! })),
+            savedRules: pricing.image.savedRules?.map((rule) => ({ ...rule, fee: String(amount(rule.fee)) })),
+          }
+        : pricing.image,
       usagePerUnit: amount(pricing.usagePerUnit),
       usageTiered: pricing.usageTiered
         ? {

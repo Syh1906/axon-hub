@@ -15,7 +15,7 @@ type candidateAggregator struct {
 	textParts         strings.Builder
 	reasoningContent  strings.Builder
 	toolCalls         map[int]*llm.ToolCall
-	inlineDataParts   []*Blob
+	inlineDataParts   []*Part
 	finishReason      string
 	groundingMetadata *GroundingMetadata
 }
@@ -107,7 +107,7 @@ func AggregateStreamChunks(
 						setOutboundToolCallThoughtSignature(agg.toolCalls[toolCallIndex], part.ThoughtSignature)
 
 					case part.InlineData != nil:
-						agg.inlineDataParts = append(agg.inlineDataParts, part.InlineData)
+						agg.inlineDataParts = append(agg.inlineDataParts, part)
 					}
 				}
 			}
@@ -198,11 +198,7 @@ func buildGeminiResponse(
 		}
 
 		// Add inline data parts (images, etc.)
-		for _, inlineData := range agg.inlineDataParts {
-			parts = append(parts, &Part{
-				InlineData: inlineData,
-			})
-		}
+		parts = append(parts, agg.inlineDataParts...)
 
 		content.Parts = parts
 

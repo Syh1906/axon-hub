@@ -16,13 +16,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
+import { ImagePriceEditor } from '@/components/image-price-editor';
 import { GMTTimeZoneOptions } from '@/features/system/data/timezones';
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
-type PricingMode = 'flat_fee' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
+type PricingMode = 'flat_fee' | 'image_fixed' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
 const priceItemCodes = ['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens'] as const;
 
 type DateRangeValue = { start: string; end: string };
@@ -934,6 +935,7 @@ const OverrideItemRow = memo(function OverrideItemRow({
                 </FormControl>
                 <SelectContent>
                   <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>
+                  <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>
                   <SelectItem value='usage_per_unit'>{t('price.mode_usage_per_unit')}</SelectItem>
                   <SelectItem value='usage_tiered'>{t('price.mode_usage_tiered')}</SelectItem>
                   <SelectItem value='usage_volume'>{t('price.mode_usage_volume')}</SelectItem>
@@ -999,6 +1001,7 @@ const OverrideItemRow = memo(function OverrideItemRow({
       </div>
 
       {/* Tier editor */}
+      {pricingMode === 'image_fixed' && <ImagePriceEditor name={`${base}.pricing.image`} currencyPrefix={currencyPrefix} />}
       {(pricingMode === 'usage_tiered' || pricingMode === 'usage_volume') && (
         <div className='ml-4 space-y-2 rounded-md border border-dashed p-2'>
           <div className='text-muted-foreground flex items-center justify-between text-[10px]'>

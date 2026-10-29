@@ -44,7 +44,7 @@ func captureRequestCostSnapshot(ctx context.Context, db *ent.Client, ch *Channel
 }
 
 func (s *UsageLogService) computeSnapshotUsageCost(ctx context.Context, usage *llm.Usage, snapshot *objects.RequestCostSnapshot) ([]objects.CostItem, *float64, string) {
-	if usage == nil || snapshot.PriceReferenceID == "" {
+	if snapshot.PriceReferenceID == "" {
 		return nil, nil, ""
 	}
 	price := snapshot.Price
@@ -59,12 +59,17 @@ func (s *UsageLogService) computeSnapshotUsageCost(ctx context.Context, usage *l
 		price = &version.Price
 	}
 	items, total := computeCostFromSnapshot(usage, *price, snapshot)
+	for _, item := range items {
+		if item.Unpriced {
+			return items, nil, snapshot.PriceReferenceID
+		}
+	}
 	return items, lo.ToPtr(total.InexactFloat64()), snapshot.PriceReferenceID
 }
 
 func computeCostFromSnapshot(usage *llm.Usage, price objects.ModelPrice, snapshot *objects.RequestCostSnapshot) ([]objects.CostItem, decimal.Decimal) {
 	price.Multiplier = nil
-	items, _ := ComputeUsageCost(usage, price, snapshot.PricedAt)
+	items, _ := ComputeUsageCost(usage, price, snapshot.PricedAt, snapshot.Images)
 	effective := effectiveModelPriceItems(usage, price, snapshot.PricedAt)
 	total := decimal.Zero
 	for i := range items {
@@ -78,7 +83,7 @@ func computeCostFromSnapshot(usage *llm.Usage, price objects.ModelPrice, snapsho
 			if items[i].PromptWriteCacheVariantCode != "" {
 				pricing = item.FindPromptWriteCacheVariantPricing(items[i].PromptWriteCacheVariantCode)
 			}
-			if pricing.Mode == objects.PricingModeFlatFee {
+			if pricing.Mode == objects.PricingModeFlatFee || pricing.Mode == objects.PricingModeImageFixed {
 				multiplier = snapshot.ManualMultiplier
 			}
 			break

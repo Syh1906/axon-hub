@@ -19,6 +19,9 @@ type SelfUsageTierCost struct {
 }
 
 type SelfUsageCostItem struct {
+	Image                       *objects.ImageOutput
+	ImageRule                   string
+	Unpriced                    bool
 	ItemCode                    string
 	PromptWriteCacheVariantCode *string
 	Quantity                    int
@@ -77,6 +80,7 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 		return nil, err
 	}
 	type aggregate struct {
+		images     []SelfUsageCostItem
 		items      map[selfUsageCostKey]*selfUsageMergedItem
 		multiplier *decimal.Decimal
 		mixed      bool
@@ -89,6 +93,10 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 			byRequest[log.RequestID] = row
 		}
 		for _, item := range log.CostItems {
+			if item.Image != nil || item.Unpriced {
+				row.images = append(row.images, SelfUsageCostItem{ItemCode: string(item.ItemCode), Image: item.Image, ImageRule: item.ImageRule, Unpriced: item.Unpriced, Quantity: int(item.Quantity), Subtotal: item.Subtotal.InexactFloat64(), TierBreakdown: []SelfUsageTierCost{}})
+				continue
+			}
 			key := selfUsageCostKey{code: item.ItemCode, variant: item.PromptWriteCacheVariantCode}
 			merged := row.items[key]
 			if merged == nil {
@@ -133,6 +141,7 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 	result := make(map[int]selfUsageRequestCosts, len(byRequest))
 	for requestID, row := range byRequest {
 		out := selfUsageRequestCosts{items: make([]SelfUsageCostItem, 0, len(row.items)), multiplierMixed: row.mixed}
+		out.items = append(out.items, row.images...)
 		if row.multiplier != nil && !row.mixed {
 			value, _ := row.multiplier.Float64()
 			out.multiplier = &value
@@ -159,7 +168,7 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 			})
 			out.items = append(out.items, item)
 		}
-		sort.Slice(out.items, func(i, j int) bool {
+		sort.SliceStable(out.items, func(i, j int) bool {
 			a, b := out.items[i], out.items[j]
 			ar, br := selfUsageCostOrder(a.ItemCode), selfUsageCostOrder(b.ItemCode)
 			if ar != br {

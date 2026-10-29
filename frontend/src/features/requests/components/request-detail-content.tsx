@@ -480,8 +480,8 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const writeCacheRate = hasWriteCache ? ((writeCachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const cost = usage.totalCost ?? 0;
 
-          const promptCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_tokens')?.subtotal;
-          const completionCost = usage.costItems?.find((i: any) => i.itemCode === 'completion_tokens')?.subtotal;
+          const promptCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'prompt_tokens')?.subtotal;
+          const completionCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'completion_tokens')?.subtotal;
           const cacheReadCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_cached_tokens')?.subtotal;
           const cacheWriteCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_write_cached_tokens')?.subtotal;
 
@@ -522,6 +522,33 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {usage.costItems?.some((item) => item.image || item.unpriced) && (
+                  <div className='mb-3 flex flex-col gap-2 rounded-md border p-3 text-sm'>
+                    <div className='flex justify-between font-medium'>
+                      <span>{t('price.mode_image_fixed')}</span>
+                    </div>
+                    {usage.costItems
+                      .filter((item) => item.image || item.unpriced)
+                      .map((item, index) => (
+                        <div key={index} className='flex flex-wrap justify-between gap-2 text-xs'>
+                          <span>
+                            {t('price.image.output')} {index + 1} · {item.imageRule || item.image?.tier || t('price.image.unpriced')}
+                            {item.image && (
+                              <>
+                                {' '}
+                                · {item.image.width > 0 ? `${item.image.width} × ${item.image.height} · ` : ''}
+                                {t(`price.image.source.${item.image.source}`)}
+                                {item.image.tierSource &&
+                                  item.image.tierSource !== item.image.source &&
+                                  ` · ${t(`price.image.source.${item.image.tierSource}`)}`}
+                              </>
+                            )}
+                          </span>
+                          <span>{item.unpriced ? t('price.image.unpriced') : formatCurrency(item.subtotal)}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
                 <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
                   <div className='bg-muted/30 flex flex-col justify-center rounded-lg border px-2.5 py-2'>
                     <span className='text-muted-foreground text-xs font-medium'>{t('usageLogs.columns.inputLabel')}</span>

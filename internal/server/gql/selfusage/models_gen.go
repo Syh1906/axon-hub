@@ -8,9 +8,14 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 type SelfUsageCostItem struct {
+	Image                       *objects.ImageOutput `json:"image,omitempty"`
+	ImageRule                   string               `json:"imageRule"`
+	Unpriced                    bool                 `json:"unpriced"`
 	ItemCode                    string               `json:"itemCode"`
 	PromptWriteCacheVariantCode *string              `json:"promptWriteCacheVariantCode,omitempty"`
 	Quantity                    int                  `json:"quantity"`

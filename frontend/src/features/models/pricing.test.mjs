@@ -17,12 +17,70 @@ function moduleURL(path, imports = {}) {
 const paginationURL = moduleURL('../../gql/pagination.ts');
 const schemaURL = moduleURL('../channels/data/schema.ts', { '@/gql/pagination': paginationURL });
 const pricingURL = moduleURL('./data/pricing.ts', { '@/features/channels/data/schema': schemaURL });
-const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog, hasPriceConfiguration } = await import(pricingURL);
+const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog, hasPriceConfiguration, switchImagePricingMode } = await import(pricingURL);
 const { modelCardFromCatalog } = await import(
   moduleURL('./data/catalog-card.ts', { './pricing': pricingURL, './providers.schema': moduleURL('./data/providers.schema.ts') })
 );
 const priceSchema = createPriceValidationSchema((key) => key);
 const item = (itemCode, amount) => ({ itemCode, pricing: { mode: 'usage_per_unit', usagePerUnit: amount } });
+
+test('image mode switches preserve independent rules, order, prices and unfinished drafts through save', () => {
+  const automatic = { automatic: true, rules: ['1K', '2K', '4K'].map((name) => ({ name, fee: '0.02', match: 'all', conditions: [] })) };
+  let manual = switchImagePricingMode(automatic, false);
+  manual.rules = [4, 3, 2, 1].map((n) => ({ name: `自定义${n}`, fee: String(n / 100), match: 'any', conditions: [{ dimension: 'width', operator: 'gt', value: n * 500 }] }));
+  const expected = structuredClone(manual.rules);
+  const returned = switchImagePricingMode(manual, true);
+  assert.deepEqual(returned.rules, automatic.rules);
+  const modelItem = { itemCode: 'prompt_tokens', pricing: { mode: 'image_fixed', image: returned } };
+  const saved = priceSchema.parse({ items: [modelItem] });
+  const reopened = JSON.parse(JSON.stringify(saved)).items[0].pricing.image;
+  assert.deepEqual(switchImagePricingMode(reopened, false).rules, expected);
+  assert.equal(multiplyPriceItems([modelItem], '2')[0].pricing.image.savedRules[0].fee, '0.08');
+  // An incomplete inactive draft must neither become a zero price nor block the active mode.
+  manual.rules[0].fee = '';
+  manual.rules[0].conditions[0].value = 1.5;
+  const withDraft = switchImagePricingMode(manual, true);
+  modelItem.pricing.image = withDraft;
+  const draftSaved = priceSchema.parse({ items: [modelItem] }).items[0].pricing.image;
+  assert.deepEqual(switchImagePricingMode(draftSaved, false).rules, manual.rules);
+  modelItem.pricing.image = switchImagePricingMode(draftSaved, false);
+  assert.equal(priceSchema.safeParse({ items: [modelItem] }).success, false);
+});
+
+test('empty inactive image rules survive save and reopen without default initialization', () => {
+  const automatic = { automatic: true, rules: [{ name: '1K', fee: '0.02', match: 'all', conditions: [] }] };
+  const manual = switchImagePricingMode(automatic, false);
+  manual.rules = [];
+  const returned = switchImagePricingMode(manual, true);
+  const saved = priceSchema.parse({ items: [{ itemCode: 'prompt_tokens', pricing: { mode: 'image_fixed', image: returned } }] });
+  const reopened = JSON.parse(JSON.stringify(saved)).items[0].pricing.image;
+  assert.deepEqual(reopened.savedRules, []);
+  const emptyManual = switchImagePricingMode(reopened, false);
+  assert.deepEqual(emptyManual.rules, []);
+  assert.deepEqual(switchImagePricingMode(emptyManual, true).rules, automatic.rules);
+  // Only a never-configured draft receives initial rules.
+  assert.deepEqual(switchImagePricingMode({ ...automatic, savedRules: null }, false).rules, automatic.rules);
+});
+
+test('image pricing preserves rules on save, scales each fee and validates manual conditions', () => {
+  const imageItem = { itemCode: 'prompt_tokens', pricing: { mode: 'image_fixed', image: { automatic: true, rules: [
+    { name: '1K', fee: '0', match: 'all', conditions: [] },
+    { name: '2K', fee: '0.04', match: 'any', conditions: [{ dimension: 'width', operator: 'gt', value: 1024 }] },
+  ] } } };
+  const parsed = priceSchema.parse({ items: [imageItem] });
+  assert.deepEqual(parsed.items[0].pricing.image, imageItem.pricing.image);
+  assert.equal(multiplyPriceItems([imageItem], '0.5')[0].pricing.image.rules[1].fee, '0.02');
+  const manual = structuredClone(imageItem);
+  manual.pricing.image.automatic = false;
+  assert.equal(priceSchema.safeParse({ items: [manual] }).success, false);
+  manual.pricing.image.rules[0].conditions = [{ dimension: 'width', operator: 'eq', value: 1024 }, { dimension: 'height', operator: 'eq', value: 1024 }];
+  assert.equal(priceSchema.safeParse({ items: [manual] }).success, true);
+  manual.pricing.image.rules[0].conditions[0].value = 0;
+  assert.equal(priceSchema.safeParse({ items: [manual] }).success, false);
+  const duplicate = structuredClone(imageItem);
+  duplicate.pricing.image.rules[1].name = '1K';
+  assert.equal(priceSchema.safeParse({ items: [duplicate] }).success, false);
+});
 
 test('catalog auto-fill preserves zero prices, edited items, tiers and schedules', () => {
   assert.equal(hasPriceConfiguration(undefined), false);

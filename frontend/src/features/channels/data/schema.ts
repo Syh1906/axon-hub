@@ -595,7 +595,7 @@ export const testChannelAPIKeysPayloadSchema = z.object({
 export type TestChannelAPIKeysPayload = z.infer<typeof testChannelAPIKeysPayloadSchema>;
 
 // Pricing Schemas
-export const pricingModeSchema = z.enum(['flat_fee', 'usage_per_unit', 'usage_tiered', 'usage_volume']);
+export const pricingModeSchema = z.enum(['flat_fee', 'image_fixed', 'usage_per_unit', 'usage_tiered', 'usage_volume']);
 export type PricingMode = z.infer<typeof pricingModeSchema>;
 
 export const priceItemCodeSchema = z.enum(['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens']);
@@ -612,8 +612,32 @@ export const tieredPricingSchema = z.object({
 });
 export type TieredPricing = z.infer<typeof tieredPricingSchema>;
 
+const imagePriceRuleSchema = z.object({
+  name: z.string(),
+  fee: z.union([z.string(), z.number()]),
+  match: z.enum(['any', 'all']),
+  conditions: z
+    .array(
+      z.object({
+        dimension: z.enum(['width', 'height']),
+        operator: z.enum(['gt', 'gte', 'eq', 'lte', 'lt']),
+        value: z.number(),
+      })
+    )
+    .nullable()
+    .optional(),
+});
+
+export const imagePricingSchema = z.object({
+  automatic: z.boolean(),
+  rules: z.array(imagePriceRuleSchema),
+  savedRules: z.array(imagePriceRuleSchema.extend({ fee: z.string() })).nullable().optional(),
+});
+export type ImagePricing = z.infer<typeof imagePricingSchema>;
+
 export const pricingSchema = z.object({
   mode: pricingModeSchema,
+  image: imagePricingSchema.nullable().optional(),
   flatFee: z.union([z.string(), z.number()]).nullable().optional(),
   usagePerUnit: z.union([z.string(), z.number()]).nullable().optional(),
   usageTiered: tieredPricingSchema.nullable().optional(),
@@ -684,6 +708,7 @@ export type ModelPrice = z.infer<typeof modelPriceSchema>;
 const pricingInputSchema = pricingSchema.transform(
   (pricing): Pricing => ({
     mode: pricing.mode,
+    image: pricing.mode === 'image_fixed' ? pricing.image : null,
     flatFee: pricing.mode === 'flat_fee' ? (typeof pricing.flatFee === 'string' ? pricing.flatFee.trim() || null : pricing.flatFee) : null,
     usagePerUnit:
       pricing.mode === 'usage_per_unit'

@@ -5,6 +5,9 @@ type TierCost {
 }
 
 type CostItem {
+  image: ImageOutput
+  imageRule: String!
+  unpriced: Boolean!
   itemCode: PriceItemCode!
   promptWriteCacheVariantCode: PromptWriteCacheVariantCode @goField(forceResolver: true)
   quantity: Int!
@@ -19,8 +22,26 @@ input TierCostInput {
 }
 
 input CostItemInput {
+  image: ImageOutputInput
+  imageRule: String
+  unpriced: Boolean
   itemCode: PriceItemCode!
   quantity: Int!
   tierBreakdown: [TierCostInput!]
   subtotal: Decimal!
+}
+
+type ImageOutput {
+	 tierSource: String!
+  width: Int!
+  height: Int!
+  tier: String!
+  source: String!
+}
+input ImageOutputInput {
+	 tierSource: String
+  width: Int!
+  height: Int!
+  tier: String!
+  source: String!
 }

@@ -130,6 +130,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 
 func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Context, response *httpclient.Response) (*httpclient.Response, error) {
 	m.rawResponse = response
+	if response != nil {
+		captureImageCostEvidence(ctx, m.outbound.state, response.Body)
+	}
 	return response, nil
 }
 

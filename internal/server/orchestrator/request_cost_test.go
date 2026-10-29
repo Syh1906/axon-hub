@@ -4,6 +4,7 @@ package orchestrator
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
@@ -16,8 +17,47 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
+	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 )
+
+func TestImageCostPersistsWithoutProviderUsage(t *testing.T) {
+	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIImageGeneration), "image-proxy")
+	state := middleware.inbound.state
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeImageFixed, Image: &objects.ImagePricing{Automatic: true, Rules: []objects.ImagePriceRule{{Name: "2K", Fee: decimal.RequireFromString("0.04"), Match: "all"}}}}}}}
+	state.RequestExec.CostSnapshot = &objects.RequestCostSnapshot{Price: &price, PriceReferenceID: "image-ref", PricedAt: time.Now(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+	state.RawProviderRequest = &httpclient.Request{Body: []byte(`{"resolution":"2k"}`)}
+	// Empty URL avoids any network call; metadata still proves two final outputs.
+	raw := &httpclient.Response{Body: []byte(`{"data":[{"b64_json":"invalid","size":"2048x2048"},{"b64_json":"invalid","size":"2048x2048"}]}`)}
+	executionMiddleware := &persistRequestExecutionMiddleware{outbound: &PersistentOutboundTransformer{state: state}}
+	_, err := executionMiddleware.OnOutboundRawResponse(ctx, raw)
+	require.NoError(t, err)
+	response := &llm.Response{ID: "images", RequestType: llm.RequestTypeImage}
+	_, err = middleware.OnOutboundLlmResponse(ctx, response)
+	require.NoError(t, err)
+	require.Nil(t, response.Usage, "must not invent provider token usage")
+	client := ent.FromContext(ctx)
+	log, err := client.UsageLog.Query().Only(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, log.TotalCost)
+	require.InDelta(t, 0.08, *log.TotalCost, 1e-10)
+	require.Len(t, log.CostItems, 2)
+	require.Len(t, log.CostSnapshot.Images, 2)
+	require.Zero(t, log.TotalTokens)
+}
+
+func TestUnknownImageIsNotRecordedAsFree(t *testing.T) {
+	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIImageGeneration), "image-proxy")
+	state := middleware.inbound.state
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeImageFixed, Image: &objects.ImagePricing{Automatic: true, Rules: []objects.ImagePriceRule{{Name: "1K", Fee: decimal.Zero, Match: "all"}}}}}}}
+	state.RequestExec.CostSnapshot = &objects.RequestCostSnapshot{Price: &price, PriceReferenceID: "image-ref", PricedAt: time.Now(), ManualMultiplier: decimal.NewFromInt(1)}
+	_, err := middleware.OnOutboundLlmResponse(ctx, &llm.Response{ID: "unknown-image", RequestType: llm.RequestTypeImage})
+	require.NoError(t, err)
+	log, err := ent.FromContext(ctx).UsageLog.Query().Only(ctx)
+	require.NoError(t, err)
+	require.Nil(t, log.TotalCost)
+	require.True(t, log.CostItems[0].Unpriced)
+}
 
 func setupUsageCostMiddleware(t *testing.T, format, modelID string) (*persistRequestMiddleware, context.Context, int) {
 	t.Helper()

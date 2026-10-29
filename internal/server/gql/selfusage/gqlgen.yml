@@ -20,6 +20,8 @@ autobind:
   - github.com/99designs/gqlgen/graphql/introspection
 
 models:
+  SelfUsageImageOutput:
+    model: github.com/looplj/axonhub/internal/objects.ImageOutput
   Time:
     model:
       - github.com/99designs/gqlgen/graphql.Time

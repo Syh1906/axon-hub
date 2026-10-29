@@ -53,6 +53,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 			tiers = append(tiers, &SelfUsageTierCost{UpTo: tier.UpTo, Units: tier.Units, Subtotal: tier.Subtotal})
 		}
 		items = append(items, &SelfUsageCostItem{
+			Image: cost.Image, ImageRule: cost.ImageRule, Unpriced: cost.Unpriced,
 			ItemCode: cost.ItemCode, PromptWriteCacheVariantCode: cost.PromptWriteCacheVariantCode,
 			Quantity: cost.Quantity, Subtotal: cost.Subtotal, TierBreakdown: tiers,
 		})

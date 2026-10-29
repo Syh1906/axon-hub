@@ -167,6 +167,7 @@ type AppliedCostMultiplier struct {
 
 // RequestCostSnapshot 在本次请求内复用 Price；持久记录通过不可变的 PriceReferenceID 定位原价格。
 type RequestCostSnapshot struct {
+	Images           []ImageOutput         `json:"images,omitempty"`
 	PriceReferenceID string                `json:"priceReferenceId"`
 	PricedAt         time.Time             `json:"pricedAt"`
 	KeyRef           string                `json:"keyRef,omitempty"`

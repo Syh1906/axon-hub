@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { ImagePriceEditor } from '@/components/image-price-editor';
+import type { ImagePricing } from '@/features/channels/data/schema';
 import { effectivePrice } from '@/features/models/data/pricing';
 
 const priceItemCodes = ['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens'] as const;
 const promptWriteCacheVariantCodes = ['five_min', 'one_hour'] as const;
-type PricingMode = 'flat_fee' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
+type PricingMode = 'flat_fee' | 'image_fixed' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
 
 type PriceEditorFormValues = {
   prices: Array<{
@@ -22,6 +24,7 @@ type PriceEditorFormValues = {
         itemCode: (typeof priceItemCodes)[number];
         pricing: {
           mode: PricingMode;
+          image?: ImagePricing | null;
           flatFee?: string | null;
           usagePerUnit?: string | null;
           usageTiered?: {
@@ -35,6 +38,7 @@ type PriceEditorFormValues = {
           variantCode: (typeof promptWriteCacheVariantCodes)[number];
           pricing: {
             mode: PricingMode;
+            image?: ImagePricing | null;
             flatFee?: string | null;
             usagePerUnit?: string | null;
             usageTiered?: {
@@ -317,6 +321,7 @@ const PriceItemRow = memo(function PriceItemRow({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>
+                    <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>
                     <SelectItem value='usage_per_unit'>{t('price.mode_usage_per_unit')}</SelectItem>
                     <SelectItem value='usage_tiered'>{t('price.mode_usage_tiered')}</SelectItem>
                     <SelectItem value='usage_volume'>{t('price.mode_usage_volume')}</SelectItem>
@@ -354,6 +359,9 @@ const PriceItemRow = memo(function PriceItemRow({
               )}
               rules={{ required: requiredMessage }}
             />
+          )}
+          {pricingMode === 'image_fixed' && (
+            <div className='text-muted-foreground flex h-8 items-center text-xs'>{t('price.image.perImage')}</div>
           )}
           {pricingMode === 'flat_fee' && (
             <FormField
@@ -397,6 +405,9 @@ const PriceItemRow = memo(function PriceItemRow({
           </Button>
         </div>
 
+        {pricingMode === 'image_fixed' && (
+          <ImagePriceEditor name={`${itemsPath}.${itemIndex}.pricing.image`} currencyPrefix={currencyPrefix} multiplier={multiplier} />
+        )}
         {(pricingMode === 'usage_tiered' || pricingMode === 'usage_volume') && (
           <div className='col-span-full mt-2 ml-4 min-w-0 space-y-2 rounded-md border border-dashed p-3'>
             <div className='text-muted-foreground flex items-center justify-between text-xs'>

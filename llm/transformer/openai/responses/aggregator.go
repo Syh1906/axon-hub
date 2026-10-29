@@ -56,6 +56,7 @@ type aggregatedItem struct {
 
 	// For image_generation_call type
 	Result *string
+	Size   *string
 
 	// For message type
 	Content []*aggregatedContentPart
@@ -575,6 +576,9 @@ func (a *streamAggregator) processEvent(ev *StreamEvent) {
 				if ev.Item.Result != nil {
 					item.Result = ev.Item.Result
 				}
+				if ev.Item.Size != nil {
+					item.Size = ev.Item.Size
+				}
 			}
 		}
 
@@ -768,6 +772,7 @@ func (a *streamAggregator) buildResponse() *Response {
 					Status: lo.ToPtr(item.Status),
 					CallID: item.CallID,
 					Result: item.Result,
+					Size:   item.Size,
 				})
 
 			case "compaction", "compaction_summary":

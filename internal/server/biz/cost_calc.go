@@ -141,9 +141,9 @@ func getUpToOrZero(v *int64) int64 {
 
 // ComputeUsageCost calculates total cost and cost items breakdown for the given usage and model price.
 // The now parameter is used for time-based schedule matching.
-func ComputeUsageCost(usage *llm.Usage, price objects.ModelPrice, now time.Time) ([]objects.CostItem, decimal.Decimal) {
+func ComputeUsageCost(usage *llm.Usage, price objects.ModelPrice, now time.Time, images ...[]objects.ImageOutput) ([]objects.CostItem, decimal.Decimal) {
 	effectiveItems := effectiveModelPriceItems(usage, price, now)
-	items, total := computeUsageCostWithItems(usage, effectiveItems)
+	items, total := computeUsageCostWithItems(usage, effectiveItems, images...)
 	if price.Multiplier == nil || price.Multiplier.Equal(decimal.NewFromInt(1)) {
 		return items, total
 	}
@@ -162,7 +162,7 @@ func effectiveModelPriceItems(usage *llm.Usage, price objects.ModelPrice, now ti
 
 	for idx := range price.VolumeTiers {
 		tier := &price.VolumeTiers[idx]
-		if usage.PromptTokens <= tier.Above {
+		if usage == nil || usage.PromptTokens <= tier.Above {
 			break
 		}
 
@@ -179,12 +179,33 @@ func effectiveModelPriceItems(usage *llm.Usage, price objects.ModelPrice, now ti
 	return effectiveItems
 }
 
-func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPriceItem) ([]objects.CostItem, decimal.Decimal) {
+func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPriceItem, images ...[]objects.ImageOutput) ([]objects.CostItem, decimal.Decimal) {
 	var items []objects.CostItem
 
 	total := decimal.Zero
 
 	for _, it := range priceItems {
+		if it.Pricing.Mode == objects.PricingModeImageFixed {
+			if len(images) == 0 || len(images[0]) == 0 {
+				items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true})
+				continue
+			}
+			for _, output := range images[0] {
+				item := objects.CostItem{ItemCode: it.ItemCode, Quantity: 1, Image: &output}
+				if rule := it.Pricing.Image.MatchImage(output); rule != nil {
+					item.ImageRule, item.Subtotal = rule.Name, rule.Fee
+					total = total.Add(rule.Fee)
+				} else {
+					item.Unpriced = true
+				}
+				items = append(items, item)
+			}
+			continue
+		}
+		if usage == nil {
+			items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true})
+			continue
+		}
 		var quantity int64
 
 		switch it.ItemCode {

@@ -5,6 +5,17 @@ import { buildCostBreakdown } from './request-usage-cost-breakdown.ts';
 const item = (itemCode, quantity, subtotal, variant = null, tiers = []) => ({ itemCode, variant, quantity, subtotal, tiers });
 const breakdown = (items, multiplier = 1) => ({ items, multiplier });
 
+test('image unit fees stay per image and unknown images stay unpriced', () => {
+  const image = { width: 2048, height: 2048, tier: '2K', source: 'file' };
+  const result = buildCostBreakdown(0.04, breakdown([
+    { ...item('prompt_tokens', 1, 0.04), image, imageRule: '2K' },
+    { ...item('prompt_tokens', 0, 0), unpriced: true },
+  ]));
+  assert.equal(result.items[0].unitPrice, 0.04);
+  assert.equal(result.items[1].unitPrice, null);
+  assert.equal(result.items[1].unpriced, true);
+});
+
 test('orders known items and preserves other item order while omitting zero items', () => {
   const rows = buildCostBreakdown(4, breakdown([
     item('audio_tokens', 3, 1), item('prompt_write_cached_tokens', 1, 1, 'one_hour'),
