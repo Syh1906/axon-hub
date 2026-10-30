@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, ChevronDown, ChevronRight, Folder, Plus, RefreshCw, Settings2 } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Plus, RefreshCw, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -8,6 +8,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuGroup } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +18,6 @@ import { ApiKeysDialogs } from '@/features/apikeys/components/apikeys-dialogs';
 import { ApiKeysProvider, useApiKeysContext } from '@/features/apikeys/context/apikeys-context';
 import { useApiKey } from '@/features/apikeys/data/apikeys';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
-import { BudgetTime } from '@/features/budgets/budget-table';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { CreateDialog } from './create-dialog';
 import { useManagedGroups, useManagementAPI, type Group, type Member } from './data';
@@ -25,6 +25,8 @@ import { Choice, periods } from './editors';
 import { ManageDialog, type Selection } from './manage-dialog';
 import { Members } from './members';
 import { MoveDialog } from './move-dialog';
+import { subscribePendingRecovery } from './pending';
+import { GroupQuickEdit, GroupToggle } from './quick-edit';
 import { PendingRecovery } from './submission';
 
 function ProfileLoader({ id, onLoaded }: { id: string; onLoaded: () => void }) {
@@ -60,6 +62,9 @@ function GroupPage() {
   const [budget, setBudget] = useState<Group | null>(null);
   const [profile, setProfile] = useState<string | null>(null);
   const [move, setMove] = useState<Group | null>(null);
+  const [recoveryVersion, setRecoveryVersion] = useState(0);
+  const deferRecovery = () => setRecoveryVersion((value) => value + 1);
+  useEffect(() => subscribePendingRecovery(() => setRecoveryVersion((value) => value + 1)), []);
   const groups = query.data?.items ?? [];
   const allGroupsCollapsed = !expanded.has(0) && groups.every((g) => !expanded.has(g.id));
   const selectedCount = mode === 'group' ? selectedGroups.size : selectedKeys.size;
@@ -94,7 +99,7 @@ function GroupPage() {
       val: Number(value),
       currency: settings?.currencyCode || 'USD',
       locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-      minimumFractionDigits: 6,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 8,
     });
   const child = (id: number) => (
@@ -144,7 +149,7 @@ function GroupPage() {
       </Header>
       <Main fixed>
         <div className='flex min-h-0 flex-1 flex-col gap-3'>
-          {!create && !edit && !move && <PendingRecovery />}
+          {!create && !edit && !move && <PendingRecovery key={recoveryVersion} initiallyClosed={recoveryVersion > 0} />}
           <div className='flex flex-wrap items-center gap-2'>
             <Input
               className='w-full sm:max-w-sm'
@@ -177,6 +182,11 @@ function GroupPage() {
             >
               {t('kg.createdAt')} {descending ? '↓' : '↑'}
             </Button>
+            {writable && mode === 'normal' && (
+              <Button size='sm' variant='outline' onClick={() => changeMode('group')}>
+                {t('kg.batchManage')}
+              </Button>
+            )}
             <div className='ml-auto flex gap-2'>
               <Button
                 variant='outline'
@@ -190,62 +200,54 @@ function GroupPage() {
               </Button>
             </div>
           </div>
-          {writable && (
+          {writable && mode !== 'normal' && (
             <div className='bg-muted/20 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2'>
-              {mode === 'normal' ? (
-                <Button size='sm' variant='outline' onClick={() => changeMode('group')}>
-                  {t('kg.batchManage')}
+              <span className='text-sm'>{t('kg.manageObject')}</span>
+              <Tabs value={mode} onValueChange={changeMode}>
+                <TabsList>
+                  <TabsTrigger value='group'>{t('kg.groups')}</TabsTrigger>
+                  <TabsTrigger value='key'>{t('kg.keys')}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <span className='text-sm'>{t('kg.selected', { count: selectedCount })}</span>
+              <Button
+                size='sm'
+                variant='outline'
+                disabled={!selectedCount}
+                onClick={() =>
+                  setEdit(
+                    mode === 'group'
+                      ? { kind: 'group', items: [...selectedGroups.values()] }
+                      : { kind: 'key', items: [...selectedKeys.values()] }
+                  )
+                }
+              >
+                <Settings2 className='size-4' />
+                {t('kg.editSettings')}
+              </Button>
+              {mode === 'group' && (
+                <Button
+                  size='sm'
+                  variant='outline'
+                  disabled={!selectedGroups.size}
+                  onClick={() => setCreate({ kind: 'keys', ids: [...selectedGroups.keys()] })}
+                >
+                  {t('kg.addKey')}
                 </Button>
-              ) : (
-                <>
-                  <span className='text-sm'>{t('kg.manageObject')}</span>
-                  <Tabs value={mode} onValueChange={changeMode}>
-                    <TabsList>
-                      <TabsTrigger value='group'>{t('kg.groups')}</TabsTrigger>
-                      <TabsTrigger value='key'>{t('kg.keys')}</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  <span className='text-sm'>{t('kg.selected', { count: selectedCount })}</span>
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    disabled={!selectedCount}
-                    onClick={() =>
-                      setEdit(
-                        mode === 'group'
-                          ? { kind: 'group', items: [...selectedGroups.values()] }
-                          : { kind: 'key', items: [...selectedKeys.values()] }
-                      )
-                    }
-                  >
-                    <Settings2 className='size-4' />
-                    {t('kg.editSettings')}
-                  </Button>
-                  {mode === 'group' && (
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      disabled={!selectedGroups.size}
-                      onClick={() => setCreate({ kind: 'keys', ids: [...selectedGroups.keys()] })}
-                    >
-                      {t('kg.addKey')}
-                    </Button>
-                  )}
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => {
-                      setSelectedGroups(new Map());
-                      setSelectedKeys(new Map());
-                    }}
-                  >
-                    {t('kg.clearSelection')}
-                  </Button>
-                  <Button className='ml-auto' size='sm' variant='outline' onClick={() => changeMode('normal')}>
-                    {t('kg.exitBatch')}
-                  </Button>
-                </>
               )}
+              <Button
+                size='sm'
+                variant='ghost'
+                onClick={() => {
+                  setSelectedGroups(new Map());
+                  setSelectedKeys(new Map());
+                }}
+              >
+                {t('kg.clearSelection')}
+              </Button>
+              <Button className='ml-auto' size='sm' variant='outline' onClick={() => changeMode('normal')}>
+                {t('kg.exitBatch')}
+              </Button>
             </div>
           )}
           {query.error && (
@@ -318,45 +320,54 @@ function GroupPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <button
-                            className='flex max-w-60 items-center gap-2 text-left'
-                            onClick={() => toggle(g.id)}
-                            aria-expanded={expanded.has(g.id)}
-                          >
-                            <Folder className='text-primary size-5 shrink-0' />
-                            <span className='min-w-0'>
-                              <span className='block truncate font-semibold' title={g.name}>
+                          <div className='flex max-w-60 flex-col items-start'>
+                            <GroupQuickEdit onDeferred={deferRecovery} group={g} kind='name' disabled={!writable}>
+                              <span className='truncate font-semibold' title={g.name}>
                                 {g.name}
                               </span>
-                              <span className='text-muted-foreground block truncate text-xs' title={g.note}>
-                                {g.note || '—'}
+                              {state !== 'enabled' && <Badge variant='outline'>{t('kg.' + state)}</Badge>}
+                            </GroupQuickEdit>
+                            <GroupQuickEdit onDeferred={deferRecovery} group={g} kind='note' disabled={!writable}>
+                              <span className='text-muted-foreground truncate text-xs' title={g.note}>
+                                {g.note || t('kg.quick.optionalNote')}
                               </span>
-                            </span>
-                          </button>
-                          <Badge variant={state === 'enabled' ? 'secondary' : 'outline'} className='mt-1'>
-                            {t('kg.' + state)}
-                          </Badge>
+                            </GroupQuickEdit>
+                          </div>
                         </TableCell>
                         <TableCell>{g.keyCount}</TableCell>
                         <TableCell>
-                          <Button variant='ghost' size='sm' onClick={() => setBudget(g)}>
+                          <GroupQuickEdit onDeferred={deferRecovery} group={g} kind='expiry' disabled={!writable}>
                             {g.budget.expiresAt ? (
-                              <BudgetTime value={g.budget.expiresAt} timezone={g.budget.timezone} />
+                              <span className='flex flex-col'>
+                                <span>
+                                  {new Intl.DateTimeFormat(i18n.language, {
+                                    timeZone: g.budget.timezone,
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                  }).format(new Date(g.budget.expiresAt))}
+                                </span>
+                                <span className={g.budget.expired ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'}>
+                                  {g.budget.expired
+                                    ? t('kg.expired')
+                                    : t('kg.quick.remaining', {
+                                        count: Math.max(
+                                          0,
+                                          Math.ceil((Date.parse(g.budget.expiresAt) - Date.parse(g.budget.serverTime)) / 86400000)
+                                        ),
+                                      })}
+                                </span>
+                              </span>
                             ) : (
                               t('budgets.neverExpires')
                             )}
-                          </Button>
+                          </GroupQuickEdit>
                         </TableCell>
                         {periods.map((p) => {
                           const w = g.budget.windows.find((w) => w.period === p);
                           return (
                             <TableCell key={p} className='text-center'>
-                              <Button
-                                size='sm'
-                                variant='ghost'
-                                className='h-auto px-1 py-2 text-xs tabular-nums'
-                                onClick={() => setBudget(g)}
-                              >
+                              <GroupQuickEdit onDeferred={deferRecovery} group={g} kind={p} disabled={!writable}>
                                 {w && Number(w.limit) > 0 ? (
                                   <span>
                                     {currency(w.available)}
@@ -365,12 +376,13 @@ function GroupPage() {
                                 ) : (
                                   t('budgets.notConfigured')
                                 )}
-                              </Button>
+                              </GroupQuickEdit>
                             </TableCell>
                           );
                         })}
                         <TableCell>
-                          <div className='flex justify-end gap-1'>
+                          <div className='flex items-center justify-end gap-1'>
+                            <GroupToggle group={g} disabled={!writable} />
                             <Button size='sm' variant='outline' asChild>
                               <Link to='/project/key-groups/$groupRef/usage' params={{ groupRef: String(g.id) }} title={t('kg.usageHint')}>
                                 <BarChart3 className='size-4' />
@@ -381,20 +393,26 @@ function GroupPage() {
                               size='sm'
                               variant='outline'
                               disabled={!writable}
+                              aria-label={t('kg.addKey') + ' ' + g.name}
                               onClick={() => setCreate({ kind: 'key', ids: [g.id] })}
                             >
                               <Plus className='size-4' />
-                              {t('kg.addKey')}
                             </Button>
-                            <Button
-                              size='icon'
-                              variant='ghost'
-                              aria-label={t('kg.settings') + ' ' + g.name}
-                              disabled={!writable}
-                              onClick={() => setEdit({ kind: 'group', items: [g] })}
-                            >
-                              <Settings2 className='size-4' />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size='icon' variant='ghost' aria-label={t('kg.settings') + ' ' + g.name}>
+                                  <MoreHorizontal className='size-4' />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align='end'>
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem onSelect={() => setBudget(g)}>{t('kg.quick.advanced')}</DropdownMenuItem>
+                                  <DropdownMenuItem disabled={!writable} onSelect={() => setEdit({ kind: 'group', items: [g] })}>
+                                    {t('kg.editSettings')}
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>

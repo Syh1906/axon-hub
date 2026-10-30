@@ -11,9 +11,9 @@ import { useKeyGroups } from '@/features/apikeys/data/groups';
 import { useManagementAPI, type ManagementRow, type Result } from './data';
 import { csvCell } from './drafts';
 import { managementError } from './errors';
-import { pendingKey, readPending, savePending } from './pending';
+import { notifyPendingRecovery, pendingKey, readPending, savePending } from './pending';
 
-export function useSubmission(restore = false) {
+export function useSubmission(restore = false, options: { verifyGroups?: boolean; notifyCompletion?: boolean } = {}) {
   const { t } = useTranslation();
   const api = useManagementAPI();
   const project = useSelectedProjectId();
@@ -83,15 +83,17 @@ export function useSubmission(restore = false) {
       setFingerprint('');
       pending.current = null;
       savePending(storageKey, null);
+      if (options.notifyCompletion) notifyPendingRecovery();
     } catch (e) {
       setUncertain(true);
       setError((e as Error).message);
+      if (!recover) notifyPendingRecovery();
     } finally {
       setBusy(false);
       running.current = false;
     }
     // 已收到服务端结果后，刷新失败不应把已完成的批次重新标为未知。
-    if (!pending.current) await api.refresh();
+    if (!pending.current) await api.refresh(options.verifyGroups);
   };
   return {
     busy,
@@ -116,10 +118,10 @@ export function useSubmission(restore = false) {
   };
 }
 export type Submission = ReturnType<typeof useSubmission>;
-export function PendingRecovery() {
+export function PendingRecovery({ initiallyClosed = false }: { initiallyClosed?: boolean }) {
   const { t } = useTranslation();
   const flow = useSubmission(true);
-  const [closed, setClosed] = useState(false);
+  const [closed, setClosed] = useState(initiallyClosed);
   if (!flow.uncertain && (closed || !flow.results.length)) return null;
   if (closed) {
     return (

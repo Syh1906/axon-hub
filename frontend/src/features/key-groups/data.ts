@@ -89,7 +89,7 @@ export function useManagementAPI() {
           { where: { idIn: ids.map((id) => buildGUID('APIKey', String(id))) } }
         )
       ).apiKeys.edges.map((e) => e.node),
-    refresh: () =>
+    refresh: (verifyGroups = false) =>
       Promise.all(
         [
           'managedKeyGroups',
@@ -108,7 +108,7 @@ export function useManagementAPI() {
           'requestStatsByAPIKey',
           'tokenStatsByAPIKey',
           'costStatsByAPIKey',
-        ].map((key) => cache.invalidateQueries({ queryKey: [key] }))
+        ].map((key) => cache.invalidateQueries({ queryKey: [key] }, { throwOnError: verifyGroups && key === 'managedKeyGroups' }))
       ),
   };
 }

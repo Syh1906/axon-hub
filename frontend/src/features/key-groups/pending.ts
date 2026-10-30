@@ -2,6 +2,16 @@ import type { ManagementRow } from './data';
 
 export type PendingBatch = { id: string; rows: ManagementRow[] };
 const memoryPending = new Map<string, PendingBatch | null>();
+const recoveryListeners = new Set<() => void>();
+export function subscribePendingRecovery(listener: () => void) {
+  recoveryListeners.add(listener);
+  return () => {
+    recoveryListeners.delete(listener);
+  };
+}
+export function notifyPendingRecovery() {
+  recoveryListeners.forEach((listener) => listener());
+}
 export function pendingKey(project: string | null, user?: string) {
   return `key-management-pending-v1:${user}:${project}`;
 }

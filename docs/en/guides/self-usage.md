@@ -1,5 +1,9 @@
 # API Key self usage
 
+Administrators can edit a group's name or note using the pencil in Project → Key groups, and enable or disable it with the inline switch. Click a quota to set, increase, or remove that period's limit while retaining usage and reset schedules. Click expiry to extend it, choose a date, or remove expiry, then save; renewal does not enable a disabled group. Batch management retains its preview workflow. Cycle settings and quota resets remain available under Advanced in the row menu.
+
+If the submission result was received but the list failed to refresh, use Refresh in the editor without saving again. If the request outcome is unknown, defer recovery and resume the original operation from the page; already successful operations are not repeated.
+
 Select **View usage with an API Key** on the admin sign-in page, or open `/self-usage` directly. Enter a **user** or **personal** API Key; no admin account is needed. Other key types cannot use this page.
 
 The page shows the key name and the system time zone. You can switch languages and themes. The key is stored only in this browser tab's session storage: a refresh in the same tab keeps you signed in, while closing the tab or selecting **Log out** ends the page session. Logging out does not revoke the API Key; revoke it in the admin area if needed.
