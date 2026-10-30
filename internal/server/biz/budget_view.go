@@ -64,6 +64,10 @@ func buildBudgetView(ctx context.Context, db *ent.Client, account *ent.BudgetAcc
 	if err != nil {
 		return nil, err
 	}
+	return buildBudgetViewWithUsage(ctx, db, account, now, usage, true)
+}
+
+func buildBudgetViewWithUsage(ctx context.Context, db *ent.Client, account *ent.BudgetAccount, now time.Time, usage map[budget.Period]budget.Usage, includeRelease bool) (*BudgetView, error) {
 	state := account.State
 	view := &BudgetView{OwnerKind: string(account.OwnerKind), OwnerID: account.OwnerID, Revision: int(account.Revision), Timezone: state.Policy.Timezone,
 		ExpiresAt: state.Policy.ExpiresAt, ServerTime: now, HasLimits: state.HasLimits(), Expired: state.Policy.Expired(now), Windows: []*BudgetWindowView{}}
@@ -88,7 +92,7 @@ func buildBudgetView(ctx context.Context, db *ent.Client, account *ent.BudgetAcc
 		}
 		item := &BudgetWindowView{Period: rule.Period, Mode: rule.Mode, Minute: rule.Minute, Limit: rule.Limit.String(), Settled: u.Settled.String(), Reserved: u.Reserved.String(), Available: available.String(),
 			WindowStart: w.Start, WindowEnd: w.End, ResetAt: clock.ResetAt, CanResetCycle: rule.CanRestartCycle(), Timezone: loc.String()}
-		if rule.Mode == budget.Rolling && u.Settled > 0 {
+		if includeRelease && rule.Mode == budget.Rolling && u.Settled > 0 {
 			query := db.BudgetPosting.Query().Where(budgetposting.ProjectIDEQ(account.ProjectID), budgetposting.AccountIDEQ(account.ID), budgetposting.SettledAtGT(now.Add(-rule.Duration())), budgetposting.AmountGT(0)).
 				Where(func(s *sql.Selector) { s.Where(sql.EQ(s.C(budgetVersionColumns[rule.Period]), clock.ResetVersion)) }).Order(ent.Asc(budgetposting.FieldSettledAt))
 			first, err := query.First(ctx)

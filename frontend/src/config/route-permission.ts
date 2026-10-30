@@ -93,6 +93,11 @@ export const routeConfigs: RouteGroup[] = [
         mode: 'hidden',
       },
       {
+        path: '/project/key-groups',
+        requiredScopes: ['read_api_keys'],
+        mode: 'hidden',
+      },
+      {
         path: '/project/prompts',
         requiredScopes: ['read_prompts'],
         mode: 'hidden',

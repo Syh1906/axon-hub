@@ -1,0 +1,59 @@
+input KeyBudgetPatch {
+  rules: [BudgetRuleInput!]
+  timezone: String
+  setExpiry: Boolean! = false
+  expiresAt: Time
+  revision: Int
+}
+input ManagedKeyInput {
+  name: String!
+  type: APIKeyType! = personal
+  scopes: [String!]
+  allowedIPs: [String!]
+  templateID: Int
+  budget: KeyBudgetPatch
+}
+input KeyManagementRow {
+  rowID: String!
+  action: String!
+  targetID: Int
+  groupRef: Int
+  name: String
+  note: String
+  enabled: Boolean
+  revision: Int
+  budget: KeyBudgetPatch
+  updatedAt: Time
+  keys: [ManagedKeyInput!]
+  templateID: Int
+  allowedIPs: [String!]
+  setAllowedIPs: Boolean! = false
+}
+type KeyManagementResult {
+  rowID: String!
+  success: Boolean!
+  error: String!
+  groupID: Int!
+  keyIDs: [Int!]!
+}
+type ManagedKeyGroup {
+  id: Int!
+  name: String!
+  note: String!
+  enabled: Boolean!
+  revision: Int!
+  keyCount: Int!
+  createdAt: Time!
+  budget: BudgetView!
+}
+type ManagedKeyGroups { items: [ManagedKeyGroup!]!, total: Int!, ungroupedCount: Int! }
+type ManagedKeyPage { items: [APIKey!]!, total: Int! }
+extend type Query {
+  managedKeyGroups(search: String! = "", status: String! = "all", offset: Int! = 0, limit: Int! = 20, descending: Boolean! = true): ManagedKeyGroups!
+  managedGroupKeys(groupRef: Int!, offset: Int! = 0, limit: Int! = 20): ManagedKeyPage!
+  keyManagementResults(operationID: String!): [KeyManagementResult!]!
+}
+extend type Mutation {
+  previewKeyManagement(rows: [KeyManagementRow!]!): [KeyManagementResult!]!
+  applyKeyManagement(operationID: String!, rows: [KeyManagementRow!]!): [KeyManagementResult!]!
+}

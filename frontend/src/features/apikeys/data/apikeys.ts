@@ -695,6 +695,9 @@ export function useCreateApiKey() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       toast.success(t('apikeys.messages.createSuccess'));
     },
     onError: (error) => {
@@ -718,6 +721,9 @@ export function useUpdateApiKey() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
       for (const key of [
         'apiKeyGroups',
@@ -754,6 +760,9 @@ export function useUpdateApiKeyStatus() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
       for (const key of [
         'apiKeyGroups',
@@ -796,6 +805,9 @@ export function useUpdateApiKeyProfiles() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.id] });
       for (const key of [
         'apiKeyGroups',
@@ -833,6 +845,9 @@ export function useBulkDisableApiKeys() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       toast.success(t('apikeys.messages.bulkDisableSuccess', { count: variables.length }));
     },
     onError: () => {
@@ -854,6 +869,9 @@ export function useBulkEnableApiKeys() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       toast.success(t('apikeys.messages.bulkEnableSuccess', { count: variables.length }));
     },
     onError: () => {
@@ -875,6 +893,9 @@ export function useBulkArchiveApiKeys() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       toast.success(t('apikeys.messages.bulkArchiveSuccess', { count: variables.length }));
     },
     onError: () => {
@@ -897,6 +918,9 @@ export function useRotateApiKey() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables] });
       toast.success(t('apikeys.messages.rotateSuccess'));
     },
@@ -954,6 +978,9 @@ export function useCreateApiKeyProfileTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['apiKeyProfileTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey'] });
     },
   });
@@ -978,6 +1005,9 @@ export function useUpdateApiKeyProfileTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['apiKeyProfileTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey'] });
     },
   });
@@ -1000,6 +1030,9 @@ export function useDeleteApiKeyProfileTemplate() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeyProfileTemplates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey'] });
       toast.success(t('apikeys.templates.deleteSuccessMessage', { name: data.deleteApiKeyProfileTemplate.name }));
     },
@@ -1020,6 +1053,9 @@ export function useLoadApiKeyProfileTemplate() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managedKeyGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['managedGroupKeys'] });
+      queryClient.invalidateQueries({ queryKey: ['managementMoveCandidates'] });
       queryClient.invalidateQueries({ queryKey: ['apiKey', variables.apiKeyID] });
     },
   });

@@ -8,6 +8,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetchange"
@@ -141,6 +142,64 @@ func init() {
 			return nil
 		}
 	}()
+	// apikeygroupDescNote is the schema descriptor for note field.
+	apikeygroupDescNote := apikeygroupFields[1].Descriptor()
+	// apikeygroup.DefaultNote holds the default value on creation for the note field.
+	apikeygroup.DefaultNote = apikeygroupDescNote.Default.(string)
+	// apikeygroup.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	apikeygroup.NoteValidator = apikeygroupDescNote.Validators[0].(func(string) error)
+	// apikeygroupDescEnabled is the schema descriptor for enabled field.
+	apikeygroupDescEnabled := apikeygroupFields[2].Descriptor()
+	// apikeygroup.DefaultEnabled holds the default value on creation for the enabled field.
+	apikeygroup.DefaultEnabled = apikeygroupDescEnabled.Default.(bool)
+	// apikeygroupDescRevision is the schema descriptor for revision field.
+	apikeygroupDescRevision := apikeygroupFields[3].Descriptor()
+	// apikeygroup.DefaultRevision holds the default value on creation for the revision field.
+	apikeygroup.DefaultRevision = apikeygroupDescRevision.Default.(int)
+	apikeyoperationMixin := schema.APIKeyOperation{}.Mixin()
+	apikeyoperation.Policy = privacy.NewPolicies(schema.APIKeyOperation{})
+	apikeyoperation.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := apikeyoperation.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	apikeyoperationMixinFields0 := apikeyoperationMixin[0].Fields()
+	_ = apikeyoperationMixinFields0
+	apikeyoperationFields := schema.APIKeyOperation{}.Fields()
+	_ = apikeyoperationFields
+	// apikeyoperationDescCreatedAt is the schema descriptor for created_at field.
+	apikeyoperationDescCreatedAt := apikeyoperationMixinFields0[0].Descriptor()
+	// apikeyoperation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	apikeyoperation.DefaultCreatedAt = apikeyoperationDescCreatedAt.Default.(func() time.Time)
+	// apikeyoperationDescUpdatedAt is the schema descriptor for updated_at field.
+	apikeyoperationDescUpdatedAt := apikeyoperationMixinFields0[1].Descriptor()
+	// apikeyoperation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	apikeyoperation.DefaultUpdatedAt = apikeyoperationDescUpdatedAt.Default.(func() time.Time)
+	// apikeyoperation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	apikeyoperation.UpdateDefaultUpdatedAt = apikeyoperationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// apikeyoperationDescOperationID is the schema descriptor for operation_id field.
+	apikeyoperationDescOperationID := apikeyoperationFields[2].Descriptor()
+	// apikeyoperation.OperationIDValidator is a validator for the "operation_id" field. It is called by the builders before save.
+	apikeyoperation.OperationIDValidator = apikeyoperationDescOperationID.Validators[0].(func(string) error)
+	// apikeyoperationDescRowID is the schema descriptor for row_id field.
+	apikeyoperationDescRowID := apikeyoperationFields[3].Descriptor()
+	// apikeyoperation.RowIDValidator is a validator for the "row_id" field. It is called by the builders before save.
+	apikeyoperation.RowIDValidator = apikeyoperationDescRowID.Validators[0].(func(string) error)
+	// apikeyoperationDescDigest is the schema descriptor for digest field.
+	apikeyoperationDescDigest := apikeyoperationFields[4].Descriptor()
+	// apikeyoperation.DigestValidator is a validator for the "digest" field. It is called by the builders before save.
+	apikeyoperation.DigestValidator = apikeyoperationDescDigest.Validators[0].(func(string) error)
+	// apikeyoperationDescGroupID is the schema descriptor for group_id field.
+	apikeyoperationDescGroupID := apikeyoperationFields[5].Descriptor()
+	// apikeyoperation.DefaultGroupID holds the default value on creation for the group_id field.
+	apikeyoperation.DefaultGroupID = apikeyoperationDescGroupID.Default.(int)
+	// apikeyoperationDescKeyIds is the schema descriptor for key_ids field.
+	apikeyoperationDescKeyIds := apikeyoperationFields[6].Descriptor()
+	// apikeyoperation.DefaultKeyIds holds the default value on creation for the key_ids field.
+	apikeyoperation.DefaultKeyIds = apikeyoperationDescKeyIds.Default.([]int)
 	apikeyprofiletemplateMixin := schema.APIKeyProfileTemplate{}.Mixin()
 	apikeyprofiletemplate.Policy = privacy.NewPolicies(schema.APIKeyProfileTemplate{})
 	apikeyprofiletemplate.Hooks[0] = func(next ent.Mutator) ent.Mutator {

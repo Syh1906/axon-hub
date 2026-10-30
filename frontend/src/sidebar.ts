@@ -14,11 +14,11 @@ import {
   IconNote,
   IconChartBar,
 } from '@tabler/icons-react';
-import { Command } from 'lucide-react';
+import { Command, Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
-import { useRoutePermissions } from '@/hooks/useRoutePermissions';
 import { formatUserName, isCJKName } from '@/lib/utils';
+import { useRoutePermissions } from '@/hooks/useRoutePermissions';
 import { useMe } from '@/features/auth/data/auth';
 import { type SidebarData, type NavGroup, type NavLink } from './components/layout/types';
 
@@ -125,6 +125,11 @@ export function useSidebarData(): SidebarData {
           title: t('sidebar.items.apiKeys'),
           url: '/project/api-keys',
           icon: IconKey,
+        } as NavLink,
+        {
+          title: t('kg.title'),
+          url: '/project/key-groups',
+          icon: Folder,
         } as NavLink,
         {
           title: t('sidebar.items.prompts'),

@@ -70,6 +70,21 @@ func Name(v string) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldEQ(FieldName, v))
 }
 
+// Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
+func Note(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldNote, v))
+}
+
+// Enabled applies equality check predicate on the "enabled" field. It's identical to EnabledEQ.
+func Enabled(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldEnabled, v))
+}
+
+// Revision applies equality check predicate on the "revision" field. It's identical to RevisionEQ.
+func Revision(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldRevision, v))
+}
+
 // ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
 func ProjectID(v int) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldEQ(FieldProjectID, v))
@@ -218,6 +233,121 @@ func NameEqualFold(v string) predicate.APIKeyGroup {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldContainsFold(FieldName, v))
+}
+
+// NoteEQ applies the EQ predicate on the "note" field.
+func NoteEQ(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldNote, v))
+}
+
+// NoteNEQ applies the NEQ predicate on the "note" field.
+func NoteNEQ(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNEQ(FieldNote, v))
+}
+
+// NoteIn applies the In predicate on the "note" field.
+func NoteIn(vs ...string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldIn(FieldNote, vs...))
+}
+
+// NoteNotIn applies the NotIn predicate on the "note" field.
+func NoteNotIn(vs ...string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNotIn(FieldNote, vs...))
+}
+
+// NoteGT applies the GT predicate on the "note" field.
+func NoteGT(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGT(FieldNote, v))
+}
+
+// NoteGTE applies the GTE predicate on the "note" field.
+func NoteGTE(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGTE(FieldNote, v))
+}
+
+// NoteLT applies the LT predicate on the "note" field.
+func NoteLT(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLT(FieldNote, v))
+}
+
+// NoteLTE applies the LTE predicate on the "note" field.
+func NoteLTE(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLTE(FieldNote, v))
+}
+
+// NoteContains applies the Contains predicate on the "note" field.
+func NoteContains(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldContains(FieldNote, v))
+}
+
+// NoteHasPrefix applies the HasPrefix predicate on the "note" field.
+func NoteHasPrefix(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldHasPrefix(FieldNote, v))
+}
+
+// NoteHasSuffix applies the HasSuffix predicate on the "note" field.
+func NoteHasSuffix(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldHasSuffix(FieldNote, v))
+}
+
+// NoteEqualFold applies the EqualFold predicate on the "note" field.
+func NoteEqualFold(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEqualFold(FieldNote, v))
+}
+
+// NoteContainsFold applies the ContainsFold predicate on the "note" field.
+func NoteContainsFold(v string) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldContainsFold(FieldNote, v))
+}
+
+// EnabledEQ applies the EQ predicate on the "enabled" field.
+func EnabledEQ(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldEnabled, v))
+}
+
+// EnabledNEQ applies the NEQ predicate on the "enabled" field.
+func EnabledNEQ(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// RevisionEQ applies the EQ predicate on the "revision" field.
+func RevisionEQ(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldRevision, v))
+}
+
+// RevisionNEQ applies the NEQ predicate on the "revision" field.
+func RevisionNEQ(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNEQ(FieldRevision, v))
+}
+
+// RevisionIn applies the In predicate on the "revision" field.
+func RevisionIn(vs ...int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldIn(FieldRevision, vs...))
+}
+
+// RevisionNotIn applies the NotIn predicate on the "revision" field.
+func RevisionNotIn(vs ...int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNotIn(FieldRevision, vs...))
+}
+
+// RevisionGT applies the GT predicate on the "revision" field.
+func RevisionGT(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGT(FieldRevision, v))
+}
+
+// RevisionGTE applies the GTE predicate on the "revision" field.
+func RevisionGTE(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldGTE(FieldRevision, v))
+}
+
+// RevisionLT applies the LT predicate on the "revision" field.
+func RevisionLT(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLT(FieldRevision, v))
+}
+
+// RevisionLTE applies the LTE predicate on the "revision" field.
+func RevisionLTE(v int) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldLTE(FieldRevision, v))
 }
 
 // ProjectIDEQ applies the EQ predicate on the "project_id" field.

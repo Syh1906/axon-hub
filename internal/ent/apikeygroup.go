@@ -24,6 +24,12 @@ type APIKeyGroup struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// Note holds the value of the "note" field.
+	Note string `json:"note,omitempty"`
+	// Enabled holds the value of the "enabled" field.
+	Enabled bool `json:"enabled,omitempty"`
+	// Revision holds the value of the "revision" field.
+	Revision int `json:"revision,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -57,9 +63,11 @@ func (*APIKeyGroup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikeygroup.FieldID, apikeygroup.FieldProjectID:
+		case apikeygroup.FieldEnabled:
+			values[i] = new(sql.NullBool)
+		case apikeygroup.FieldID, apikeygroup.FieldRevision, apikeygroup.FieldProjectID:
 			values[i] = new(sql.NullInt64)
-		case apikeygroup.FieldName:
+		case apikeygroup.FieldName, apikeygroup.FieldNote:
 			values[i] = new(sql.NullString)
 		case apikeygroup.FieldCreatedAt, apikeygroup.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -101,6 +109,24 @@ func (_m *APIKeyGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case apikeygroup.FieldNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field note", values[i])
+			} else if value.Valid {
+				_m.Note = value.String
+			}
+		case apikeygroup.FieldEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field enabled", values[i])
+			} else if value.Valid {
+				_m.Enabled = value.Bool
+			}
+		case apikeygroup.FieldRevision:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field revision", values[i])
+			} else if value.Valid {
+				_m.Revision = int(value.Int64)
 			}
 		case apikeygroup.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -157,6 +183,15 @@ func (_m *APIKeyGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("note=")
+	builder.WriteString(_m.Note)
+	builder.WriteString(", ")
+	builder.WriteString("enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("revision=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Revision))
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))

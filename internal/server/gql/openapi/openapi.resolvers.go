@@ -29,7 +29,7 @@ func (r *mutationResolver) CreateLLMAPIKey(ctx context.Context, name string) (*A
 }
 
 // UpdateAPIKeyProfiles is the resolver for the updateAPIKeyProfiles field.
-func (r *mutationResolver) UpdateAPIKeyProfiles(ctx context.Context, id *objects.GUID, name *string, input objects.APIKeyProfiles) (*APIKey, error) {
+func (r *mutationResolver) UpdateAPIKeyProfiles(ctx context.Context, id *objects.GUID, name *string, groupRef *int, input objects.APIKeyProfiles) (*APIKey, error) {
 	// Coerce nil ModelMappings to [] before saving. The admin UI's Zod schema
 	// rejects null/undefined for this specific field (other arrays are .nullable),
 	// so OpenAPI clients omitting modelMappings would otherwise produce rows
@@ -45,7 +45,7 @@ func (r *mutationResolver) UpdateAPIKeyProfiles(ctx context.Context, id *objects
 	// within the caller's project) identifies a key as reliably as an id. This
 	// adds no new scope requirement: the update path already queries the key,
 	// so read_api_keys was needed before this resolution step existed.
-	target, err := r.resolveAPIKey(ctx, id, nil, name)
+	target, err := r.resolveAPIKey(ctx, id, nil, name, groupRef)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (r *mutationResolver) LoadAPIKeyProfileTemplate(ctx context.Context, input 
 		return nil, err
 	}
 
-	targetKey, err := r.resolveAPIKey(ctx, input.APIKeyID, nil, input.APIKeyName)
+	targetKey, err := r.resolveAPIKey(ctx, input.APIKeyID, nil, input.APIKeyName, input.APIKeyGroupRef)
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +82,8 @@ func (r *mutationResolver) LoadAPIKeyProfileTemplate(ctx context.Context, input 
 }
 
 // APIKey is the resolver for the apiKey field.
-func (r *queryResolver) APIKey(ctx context.Context, id *objects.GUID, key *string, name *string) (*APIKey, error) {
-	apiKey, err := r.resolveAPIKey(ctx, id, key, name)
+func (r *queryResolver) APIKey(ctx context.Context, id *objects.GUID, key *string, name *string, groupRef *int) (*APIKey, error) {
+	apiKey, err := r.resolveAPIKey(ctx, id, key, name, groupRef)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +92,8 @@ func (r *queryResolver) APIKey(ctx context.Context, id *objects.GUID, key *strin
 }
 
 // APIKeyQuotaUsages is the resolver for the apiKeyQuotaUsages field.
-func (r *queryResolver) APIKeyQuotaUsages(ctx context.Context, apiKeyID *objects.GUID, key *string, name *string) ([]*APIKeyProfileQuotaUsage, error) {
-	apiKey, err := r.resolveAPIKey(ctx, apiKeyID, key, name)
+func (r *queryResolver) APIKeyQuotaUsages(ctx context.Context, apiKeyID *objects.GUID, key *string, name *string, groupRef *int) ([]*APIKeyProfileQuotaUsage, error) {
+	apiKey, err := r.resolveAPIKey(ctx, apiKeyID, key, name, groupRef)
 	if err != nil {
 		return nil, err
 	}

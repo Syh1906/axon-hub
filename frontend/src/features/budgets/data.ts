@@ -68,6 +68,7 @@ export function useBudgetMutation(target: BudgetTarget, reset = false) {
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['keyBudgets'] });
+      await client.invalidateQueries({ queryKey: ['managedKeyGroups'] });
     },
   });
 }

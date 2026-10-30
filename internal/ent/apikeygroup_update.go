@@ -49,6 +49,55 @@ func (_u *APIKeyGroupUpdate) SetNillableName(v *string) *APIKeyGroupUpdate {
 	return _u
 }
 
+// SetNote sets the "note" field.
+func (_u *APIKeyGroupUpdate) SetNote(v string) *APIKeyGroupUpdate {
+	_u.mutation.SetNote(v)
+	return _u
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_u *APIKeyGroupUpdate) SetNillableNote(v *string) *APIKeyGroupUpdate {
+	if v != nil {
+		_u.SetNote(*v)
+	}
+	return _u
+}
+
+// SetEnabled sets the "enabled" field.
+func (_u *APIKeyGroupUpdate) SetEnabled(v bool) *APIKeyGroupUpdate {
+	_u.mutation.SetEnabled(v)
+	return _u
+}
+
+// SetNillableEnabled sets the "enabled" field if the given value is not nil.
+func (_u *APIKeyGroupUpdate) SetNillableEnabled(v *bool) *APIKeyGroupUpdate {
+	if v != nil {
+		_u.SetEnabled(*v)
+	}
+	return _u
+}
+
+// SetRevision sets the "revision" field.
+func (_u *APIKeyGroupUpdate) SetRevision(v int) *APIKeyGroupUpdate {
+	_u.mutation.ResetRevision()
+	_u.mutation.SetRevision(v)
+	return _u
+}
+
+// SetNillableRevision sets the "revision" field if the given value is not nil.
+func (_u *APIKeyGroupUpdate) SetNillableRevision(v *int) *APIKeyGroupUpdate {
+	if v != nil {
+		_u.SetRevision(*v)
+	}
+	return _u
+}
+
+// AddRevision adds value to the "revision" field.
+func (_u *APIKeyGroupUpdate) AddRevision(v int) *APIKeyGroupUpdate {
+	_u.mutation.AddRevision(v)
+	return _u
+}
+
 // Mutation returns the APIKeyGroupMutation object of the builder.
 func (_u *APIKeyGroupUpdate) Mutation() *APIKeyGroupMutation {
 	return _u.mutation
@@ -103,6 +152,11 @@ func (_u *APIKeyGroupUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Note(); ok {
+		if err := apikeygroup.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.note": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKeyGroup.project"`)
 	}
@@ -132,6 +186,18 @@ func (_u *APIKeyGroupUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikeygroup.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Note(); ok {
+		_spec.SetField(apikeygroup.FieldNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Enabled(); ok {
+		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Revision(); ok {
+		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRevision(); ok {
+		_spec.AddField(apikeygroup.FieldRevision, field.TypeInt, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -172,6 +238,55 @@ func (_u *APIKeyGroupUpdateOne) SetNillableName(v *string) *APIKeyGroupUpdateOne
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetNote sets the "note" field.
+func (_u *APIKeyGroupUpdateOne) SetNote(v string) *APIKeyGroupUpdateOne {
+	_u.mutation.SetNote(v)
+	return _u
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_u *APIKeyGroupUpdateOne) SetNillableNote(v *string) *APIKeyGroupUpdateOne {
+	if v != nil {
+		_u.SetNote(*v)
+	}
+	return _u
+}
+
+// SetEnabled sets the "enabled" field.
+func (_u *APIKeyGroupUpdateOne) SetEnabled(v bool) *APIKeyGroupUpdateOne {
+	_u.mutation.SetEnabled(v)
+	return _u
+}
+
+// SetNillableEnabled sets the "enabled" field if the given value is not nil.
+func (_u *APIKeyGroupUpdateOne) SetNillableEnabled(v *bool) *APIKeyGroupUpdateOne {
+	if v != nil {
+		_u.SetEnabled(*v)
+	}
+	return _u
+}
+
+// SetRevision sets the "revision" field.
+func (_u *APIKeyGroupUpdateOne) SetRevision(v int) *APIKeyGroupUpdateOne {
+	_u.mutation.ResetRevision()
+	_u.mutation.SetRevision(v)
+	return _u
+}
+
+// SetNillableRevision sets the "revision" field if the given value is not nil.
+func (_u *APIKeyGroupUpdateOne) SetNillableRevision(v *int) *APIKeyGroupUpdateOne {
+	if v != nil {
+		_u.SetRevision(*v)
+	}
+	return _u
+}
+
+// AddRevision adds value to the "revision" field.
+func (_u *APIKeyGroupUpdateOne) AddRevision(v int) *APIKeyGroupUpdateOne {
+	_u.mutation.AddRevision(v)
 	return _u
 }
 
@@ -242,6 +357,11 @@ func (_u *APIKeyGroupUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Note(); ok {
+		if err := apikeygroup.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.note": %w`, err)}
+		}
+	}
 	if _u.mutation.ProjectCleared() && len(_u.mutation.ProjectIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "APIKeyGroup.project"`)
 	}
@@ -288,6 +408,18 @@ func (_u *APIKeyGroupUpdateOne) sqlSave(ctx context.Context) (_node *APIKeyGroup
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikeygroup.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Note(); ok {
+		_spec.SetField(apikeygroup.FieldNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Enabled(); ok {
+		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Revision(); ok {
+		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRevision(); ok {
+		_spec.AddField(apikeygroup.FieldRevision, field.TypeInt, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &APIKeyGroup{config: _u.config}

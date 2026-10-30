@@ -42,8 +42,9 @@ type LoadAPIKeyProfileTemplateInput struct {
 	TemplateName *string       `json:"templateName,omitempty"`
 	// Target API key. Provide exactly one of apiKeyID or apiKeyName;
 	// apiKeyName resolves within the caller's own project.
-	APIKeyID   *objects.GUID `json:"apiKeyID,omitempty"`
-	APIKeyName *string       `json:"apiKeyName,omitempty"`
+	APIKeyID       *objects.GUID `json:"apiKeyID,omitempty"`
+	APIKeyName     *string       `json:"apiKeyName,omitempty"`
+	APIKeyGroupRef *int          `json:"apiKeyGroupRef,omitempty"`
 }
 
 type Mutation struct {

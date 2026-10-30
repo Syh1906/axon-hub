@@ -52,6 +52,46 @@ func TestAPIKeyGroupAdministration(t *testing.T) {
 	require.True(t, db.APIKeyGroup.Query().Where().ExistX(ctx))
 }
 
+func TestAPIKeyNamesWithinGroup(t *testing.T) {
+	s, db := setupTestAPIKeyService(t, xcache.Config{Mode: xcache.ModeMemory})
+	t.Cleanup(s.Stop)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), db))
+	owner := db.User.Create().SetEmail("names@example.test").SetPassword("fixture").SetIsOwner(true).SaveX(ctx)
+	p := db.Project.Create().SetName("names-project").SaveX(ctx)
+	ctx = contexts.WithProjectID(contexts.WithUser(ctx, owner), p.ID)
+	a, err := s.SaveAPIKeyGroup(ctx, nil, "A")
+	require.NoError(t, err)
+	b, err := s.SaveAPIKeyGroup(ctx, nil, "B")
+	require.NoError(t, err)
+	create := func(group *int) *ent.APIKey {
+		key, err := s.CreateAPIKey(ctx, ent.CreateAPIKeyInput{Name: "Codex", ProjectID: p.ID, GroupRef: group})
+		require.NoError(t, err)
+		return key
+	}
+	ka, kb, ungrouped := create(&a.ID), create(&b.ID), create(nil)
+	for _, group := range []*int{&a.ID, &b.ID, nil} {
+		_, err := s.CreateAPIKey(ctx, ent.CreateAPIKeyInput{Name: "Codex", ProjectID: p.ID, GroupRef: group})
+		require.Error(t, err)
+	}
+	_, err = s.UpdateAPIKey(ctx, ka.ID, ent.UpdateAPIKeyInput{GroupRef: &b.ID})
+	require.Error(t, err)
+	require.Equal(t, a.ID, *db.APIKey.GetX(ctx, ka.ID).GroupRef)
+	_, err = s.UpdateAPIKey(ctx, ka.ID, ent.UpdateAPIKeyInput{ClearGroupRef: true})
+	require.Error(t, err)
+	require.Error(t, s.DeleteAPIKeyGroup(ctx, a.ID))
+	require.NotNil(t, db.APIKey.GetX(ctx, ka.ID).GroupRef)
+	name := "Renamed"
+	_, err = s.UpdateAPIKey(ctx, ka.ID, ent.UpdateAPIKeyInput{Name: &name, GroupRef: &b.ID})
+	require.NoError(t, err)
+	require.Equal(t, b.ID, *db.APIKey.GetX(ctx, ka.ID).GroupRef)
+	_, err = s.GetForRead(ctx, nil, nil, &kb.Name)
+	require.ErrorContains(t, err, "multiple API keys")
+	got, err := s.GetForRead(ctx, &ungrouped.ID, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, ungrouped.ID, got.ID)
+}
+
 func TestConsumptionAPIKeyGroupsCurrentMembership(t *testing.T) {
 	f := newConsumptionFixture(t)
 	group := f.client.APIKeyGroup.Create().SetProjectID(f.project.ID).SetName("recipient").SaveX(f.ctx)

@@ -22,6 +22,10 @@ func NewBudgetService(db *ent.Client) *BudgetService { return &BudgetService{db:
 
 func (s *BudgetService) transaction(ctx context.Context, fn func(context.Context, *ent.Client) error) error {
 	_, err := authz.RunWithSystemBypass(ctx, "budget-accounting", func(ctx context.Context) (bool, error) {
+		// Composite key/group writes own the commit; budget changes join them.
+		if parent := ent.TxFromContext(ctx); parent != nil {
+			return true, fn(ctx, parent.Client())
+		}
 		var tx *ent.Tx
 		var err error
 		if s.db.Driver().Dialect() == dialect.SQLite {

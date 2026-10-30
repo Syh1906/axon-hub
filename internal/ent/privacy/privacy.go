@@ -159,6 +159,30 @@ func (f APIKeyGroupMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mut
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyGroupMutation", m)
 }
 
+// The APIKeyOperationQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type APIKeyOperationQueryRuleFunc func(context.Context, *ent.APIKeyOperationQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f APIKeyOperationQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyOperationQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.APIKeyOperationQuery", q)
+}
+
+// The APIKeyOperationMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type APIKeyOperationMutationRuleFunc func(context.Context, *ent.APIKeyOperationMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f APIKeyOperationMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.APIKeyOperationMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyOperationMutation", m)
+}
+
 // The APIKeyProfileTemplateQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type APIKeyProfileTemplateQueryRuleFunc func(context.Context, *ent.APIKeyProfileTemplateQuery) error
@@ -918,6 +942,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.APIKeyGroupQuery:
 		return q.Filter(), nil
+	case *ent.APIKeyOperationQuery:
+		return q.Filter(), nil
 	case *ent.APIKeyProfileTemplateQuery:
 		return q.Filter(), nil
 	case *ent.BudgetAccountQuery:
@@ -988,6 +1014,8 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.APIKeyMutation:
 		return m.Filter(), nil
 	case *ent.APIKeyGroupMutation:
+		return m.Filter(), nil
+	case *ent.APIKeyOperationMutation:
 		return m.Filter(), nil
 	case *ent.APIKeyProfileTemplateMutation:
 		return m.Filter(), nil

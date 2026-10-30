@@ -33,6 +33,18 @@ func (f APIKeyGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyGroupMutation", m)
 }
 
+// The APIKeyOperationFunc type is an adapter to allow the use of ordinary
+// function as APIKeyOperation mutator.
+type APIKeyOperationFunc func(context.Context, *ent.APIKeyOperationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeyOperationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeyOperationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyOperationMutation", m)
+}
+
 // The APIKeyProfileTemplateFunc type is an adapter to allow the use of ordinary
 // function as APIKeyProfileTemplate mutator.
 type APIKeyProfileTemplateFunc func(context.Context, *ent.APIKeyProfileTemplateMutation) (ent.Value, error)

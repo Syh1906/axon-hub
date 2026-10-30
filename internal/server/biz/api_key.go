@@ -253,8 +253,8 @@ func (s *APIKeyService) CreateLLMAPIKey(ctx context.Context, owner *ent.APIKey, 
 			return err
 		}
 
-		// Names identify keys on the OpenAPI surface (GetForRead resolves a name
-		// within the owner's project), so per-project name uniqueness must hold. The
+		// This endpoint creates ungrouped keys; their names must be unique in
+		// the ungrouped scope. The
 		// privacy mutation policy vets the caller during Save, so an unauthorized
 		// caller is denied before the post-insert check below and cannot use
 		// duplicate-name errors to probe which names exist.
@@ -273,9 +273,9 @@ func (s *APIKeyService) CreateLLMAPIKey(ctx context.Context, owner *ent.APIKey, 
 			return fmt.Errorf("failed to create api key: %w", err)
 		}
 
-		// API key names are unique per project at the application level — there is
+		// API key names are unique per project and group at the application level — there is
 		// no DB unique constraint. After the authorized insert, verify no other live
-		// key in this project shares the name; checking AFTER Save preserves the
+		// ungrouped key in this project shares the name; checking AFTER Save preserves the
 		// privacy-denial ordering (the mutation policy already vetted the caller, so
 		// an unauthorized caller is denied before reaching this check and cannot
 		// probe which names exist). The count is privacy-bypassed because the OpenAPI
@@ -290,6 +290,7 @@ func (s *APIKeyService) CreateLLMAPIKey(ctx context.Context, owner *ent.APIKey, 
 			Where(
 				apikey.NameEQ(name),
 				apikey.ProjectIDEQ(owner.ProjectID),
+				apikey.GroupRefIsNil(),
 			).
 			Count(bypassCtx)
 		if err != nil {
@@ -343,7 +344,7 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 	err = s.RunInTransaction(ctx, func(ctx context.Context) error {
 		client := s.entFromContext(ctx)
 
-		// API key names are unique per project at the application level (there is no
+		// API key names are unique per project and group at the application level (there is no
 		// DB unique constraint). The project row lock serializes same-project name
 		// operations so the live-only check (the soft-delete interceptor filters
 		// deleted_at, so a name is reusable after a soft delete) and the insert are
@@ -351,20 +352,6 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 		// single-writer SQLite default.
 		if err := s.lockProjectForAPIKeyName(ctx, input.ProjectID); err != nil {
 			return err
-		}
-
-		exists, err := client.APIKey.Query().
-			Where(
-				apikey.NameEQ(input.Name),
-				apikey.ProjectIDEQ(input.ProjectID),
-			).
-			Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to check API key name uniqueness: %w", err)
-		}
-
-		if exists {
-			return xerrors.DuplicateNameError("API Key", input.Name)
 		}
 
 		create := client.APIKey.Create().
@@ -403,6 +390,10 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 		created, err := create.Save(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create API key: %w", err)
+		}
+
+		if err := s.checkAPIKeyName(ctx, created.ProjectID, created.GroupRef, created.Name, created.ID); err != nil {
+			return err
 		}
 
 		apiKey = created
@@ -451,18 +442,6 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 			return fmt.Errorf("failed to get API key: %w", err)
 		}
 
-		if input.GroupRef != nil || input.ClearGroupRef {
-			_, err = authz.RunWithSystemBypass(ctx, "api-key-budget-lock", func(lockCtx context.Context) (*ent.BudgetAccount, error) {
-				return LockBudgetAccount(lockCtx, client, apiKey.ProjectID, budgetaccount.OwnerKindKey, id)
-			})
-			if err != nil {
-				return err
-			}
-			apiKey, err = client.APIKey.Get(ctx, id)
-			if err != nil {
-				return err
-			}
-		}
 		if apiKey.Type == apikey.TypeUser || apiKey.Type == apikey.TypePersonal {
 			if len(input.Scopes) > 0 || len(input.AppendScopes) > 0 || input.ClearScopes {
 				return fmt.Errorf("%s type API key cannot update scopes", apiKey.Type)
@@ -483,44 +462,43 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 			}
 		}
 
-		// Renaming: serialize same-project name operations and reject a duplicate
-		// live name (no DB unique constraint backs the name). The project row lock
-		// makes the check-then-update atomic across concurrent writers (PostgreSQL,
-		// MySQL, TiDB); no-op on the single-writer SQLite default.
-		if input.Name != nil && *input.Name != apiKey.Name {
+		// Check the final name and membership together, under the project lock.
+		if input.Name != nil || input.GroupRef != nil || input.ClearGroupRef {
 			if err := s.lockProjectForAPIKeyName(ctx, apiKey.ProjectID); err != nil {
 				return err
 			}
-
-			exists, err := client.APIKey.Query().
-				Where(
-					apikey.NameEQ(*input.Name),
-					apikey.ProjectIDEQ(apiKey.ProjectID),
-					apikey.IDNEQ(id),
-				).
-				Exist(ctx)
+			// A concurrent rename or move may have committed while waiting for the lock.
+			apiKey, err = s.currentAPIKey(ctx, id)
 			if err != nil {
-				return fmt.Errorf("failed to check API key name uniqueness: %w", err)
+				return err
 			}
-
-			if exists {
-				return xerrors.DuplicateNameError("API Key", *input.Name)
+			if input.GroupRef != nil || input.ClearGroupRef {
+				if input.ClearGroupRef && input.GroupRef != nil {
+					return fmt.Errorf("cannot set and clear API key group together")
+				}
+				if err := s.validateAPIKeyGroup(ctx, apiKey.ProjectID, input.GroupRef); err != nil {
+					return err
+				}
 			}
 		}
-
-		update := client.APIKey.UpdateOneID(id).SetNillableName(input.Name)
+		// 与批量操作统一按项目、密钥预算的顺序加锁。
 		if input.GroupRef != nil || input.ClearGroupRef {
-			if err := s.lockProjectForAPIKeyName(ctx, apiKey.ProjectID); err != nil {
+			_, err = authz.RunWithSystemBypass(ctx, "api-key-budget-lock", func(lockCtx context.Context) (*ent.BudgetAccount, error) {
+				return LockBudgetAccount(lockCtx, client, apiKey.ProjectID, budgetaccount.OwnerKindKey, id)
+			})
+			if err != nil {
 				return err
 			}
-			if err := s.validateAPIKeyGroup(ctx, apiKey.ProjectID, input.GroupRef); err != nil {
+			apiKey, err = s.currentAPIKey(ctx, id)
+			if err != nil {
 				return err
 			}
-			if input.ClearGroupRef {
-				update.ClearGroupRef()
-			}
-			update.SetNillableGroupRef(input.GroupRef)
 		}
+		update := client.APIKey.UpdateOneID(id).SetNillableName(input.Name)
+		if input.ClearGroupRef {
+			update.ClearGroupRef()
+		}
+		update.SetNillableGroupRef(input.GroupRef)
 
 		if apiKey.Type == apikey.TypeServiceAccount {
 			if len(input.Scopes) > 0 {
@@ -557,6 +535,12 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 		updated, err := update.Save(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to update API key: %w", err)
+		}
+
+		if input.Name != nil || input.GroupRef != nil || input.ClearGroupRef {
+			if err := s.checkAPIKeyName(ctx, updated.ProjectID, updated.GroupRef, updated.Name, updated.ID); err != nil {
+				return err
+			}
 		}
 
 		result = updated
@@ -1047,12 +1031,19 @@ func (s *APIKeyService) GetAPIKey(ctx context.Context, key string) (*ent.APIKey,
 // key. This is the read-side counterpart to the implicit ent gating used by the
 // update mutations.
 //
-// Name lookups rely on the same project boundary: names are unique within a
-// project (enforced on create/update), so once the privacy filter narrows the
-// query to the caller's project, a name identifies at most one key.
-func (s *APIKeyService) GetForRead(ctx context.Context, id *int, key *string, name *string) (*ent.APIKey, error) {
+// Name lookups remain project-scoped. Names may repeat across groups; an
+// ambiguous lookup must use the stable key ID rather than choosing a match.
+func (s *APIKeyService) GetForRead(ctx context.Context, id *int, key *string, name *string, groupRefs ...*int) (*ent.APIKey, error) {
 	if lo.Count([]bool{id != nil, key != nil, name != nil}, true) != 1 {
 		return nil, fmt.Errorf("exactly one of api key id, key, or name must be provided")
+	}
+
+	var groupRef *int
+	if len(groupRefs) > 0 {
+		groupRef = groupRefs[0]
+	}
+	if groupRef != nil && (name == nil || *groupRef < 0) {
+		return nil, fmt.Errorf("groupRef requires a name and must be non-negative")
 	}
 
 	client := s.entFromContext(ctx)
@@ -1067,6 +1058,14 @@ func (s *APIKeyService) GetForRead(ctx context.Context, id *int, key *string, na
 		q = q.Where(apikey.NameEQ(*name))
 	}
 
+	if groupRef != nil {
+		if *groupRef == 0 {
+			q = q.Where(apikey.GroupRefIsNil())
+		} else {
+			q = q.Where(apikey.GroupRefEQ(*groupRef))
+		}
+	}
+
 	apiKey, err := q.Only(ctx)
 	if err != nil {
 		// Names are unique per project only at the application level (no DB
@@ -1074,7 +1073,7 @@ func (s *APIKeyService) GetForRead(ctx context.Context, id *int, key *string, na
 		// duplicate live names. A name then no longer identifies a single key —
 		// surface an actionable error instead of ent's opaque "not singular".
 		if name != nil && ent.IsNotSingular(err) {
-			return nil, fmt.Errorf("multiple API keys are named %q in this project; use id or key to identify the key", *name)
+			return nil, fmt.Errorf("multiple API keys are named %q across groups in this project; specify groupRef or use id or key to identify the key", *name)
 		}
 
 		return nil, err

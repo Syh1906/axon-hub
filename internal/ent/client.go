@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetchange"
@@ -58,6 +59,8 @@ type Client struct {
 	APIKey *APIKeyClient
 	// APIKeyGroup is the client for interacting with the APIKeyGroup builders.
 	APIKeyGroup *APIKeyGroupClient
+	// APIKeyOperation is the client for interacting with the APIKeyOperation builders.
+	APIKeyOperation *APIKeyOperationClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
 	APIKeyProfileTemplate *APIKeyProfileTemplateClient
 	// BudgetAccount is the client for interacting with the BudgetAccount builders.
@@ -133,6 +136,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
 	c.APIKeyGroup = NewAPIKeyGroupClient(c.config)
+	c.APIKeyOperation = NewAPIKeyOperationClient(c.config)
 	c.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(c.config)
 	c.BudgetAccount = NewBudgetAccountClient(c.config)
 	c.BudgetChange = NewBudgetChangeClient(c.config)
@@ -257,6 +261,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
 		APIKeyGroup:              NewAPIKeyGroupClient(cfg),
+		APIKeyOperation:          NewAPIKeyOperationClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
 		BudgetAccount:            NewBudgetAccountClient(cfg),
 		BudgetChange:             NewBudgetChangeClient(cfg),
@@ -308,6 +313,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:                   cfg,
 		APIKey:                   NewAPIKeyClient(cfg),
 		APIKeyGroup:              NewAPIKeyGroupClient(cfg),
+		APIKeyOperation:          NewAPIKeyOperationClient(cfg),
 		APIKeyProfileTemplate:    NewAPIKeyProfileTemplateClient(cfg),
 		BudgetAccount:            NewBudgetAccountClient(cfg),
 		BudgetChange:             NewBudgetChangeClient(cfg),
@@ -367,14 +373,14 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.APIKeyGroup, c.APIKeyProfileTemplate, c.BudgetAccount,
-		c.BudgetChange, c.BudgetCharge, c.BudgetPosting, c.CacheEffectivenessWindow,
-		c.Channel, c.ChannelModelPrice, c.ChannelModelPriceVersion,
-		c.ChannelOverrideTemplate, c.ChannelProbe, c.ChannelUpstreamStatus,
-		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Project, c.Prompt,
-		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.APIKey, c.APIKeyGroup, c.APIKeyOperation, c.APIKeyProfileTemplate,
+		c.BudgetAccount, c.BudgetChange, c.BudgetCharge, c.BudgetPosting,
+		c.CacheEffectivenessWindow, c.Channel, c.ChannelModelPrice,
+		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
+		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
+		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
+		c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -384,14 +390,14 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.APIKeyGroup, c.APIKeyProfileTemplate, c.BudgetAccount,
-		c.BudgetChange, c.BudgetCharge, c.BudgetPosting, c.CacheEffectivenessWindow,
-		c.Channel, c.ChannelModelPrice, c.ChannelModelPriceVersion,
-		c.ChannelOverrideTemplate, c.ChannelProbe, c.ChannelUpstreamStatus,
-		c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity, c.Project, c.Prompt,
-		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User, c.UserProject,
-		c.UserRole,
+		c.APIKey, c.APIKeyGroup, c.APIKeyOperation, c.APIKeyProfileTemplate,
+		c.BudgetAccount, c.BudgetChange, c.BudgetCharge, c.BudgetPosting,
+		c.CacheEffectivenessWindow, c.Channel, c.ChannelModelPrice,
+		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
+		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
+		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
+		c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -404,6 +410,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.APIKey.mutate(ctx, m)
 	case *APIKeyGroupMutation:
 		return c.APIKeyGroup.mutate(ctx, m)
+	case *APIKeyOperationMutation:
+		return c.APIKeyOperation.mutate(ctx, m)
 	case *APIKeyProfileTemplateMutation:
 		return c.APIKeyProfileTemplate.mutate(ctx, m)
 	case *BudgetAccountMutation:
@@ -799,6 +807,140 @@ func (c *APIKeyGroupClient) mutate(ctx context.Context, m *APIKeyGroupMutation) 
 		return (&APIKeyGroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKeyGroup mutation op: %q", m.Op())
+	}
+}
+
+// APIKeyOperationClient is a client for the APIKeyOperation schema.
+type APIKeyOperationClient struct {
+	config
+}
+
+// NewAPIKeyOperationClient returns a client for the APIKeyOperation from the given config.
+func NewAPIKeyOperationClient(c config) *APIKeyOperationClient {
+	return &APIKeyOperationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `apikeyoperation.Hooks(f(g(h())))`.
+func (c *APIKeyOperationClient) Use(hooks ...Hook) {
+	c.hooks.APIKeyOperation = append(c.hooks.APIKeyOperation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `apikeyoperation.Intercept(f(g(h())))`.
+func (c *APIKeyOperationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.APIKeyOperation = append(c.inters.APIKeyOperation, interceptors...)
+}
+
+// Create returns a builder for creating a APIKeyOperation entity.
+func (c *APIKeyOperationClient) Create() *APIKeyOperationCreate {
+	mutation := newAPIKeyOperationMutation(c.config, OpCreate)
+	return &APIKeyOperationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of APIKeyOperation entities.
+func (c *APIKeyOperationClient) CreateBulk(builders ...*APIKeyOperationCreate) *APIKeyOperationCreateBulk {
+	return &APIKeyOperationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *APIKeyOperationClient) MapCreateBulk(slice any, setFunc func(*APIKeyOperationCreate, int)) *APIKeyOperationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &APIKeyOperationCreateBulk{err: fmt.Errorf("calling to APIKeyOperationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*APIKeyOperationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &APIKeyOperationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for APIKeyOperation.
+func (c *APIKeyOperationClient) Update() *APIKeyOperationUpdate {
+	mutation := newAPIKeyOperationMutation(c.config, OpUpdate)
+	return &APIKeyOperationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *APIKeyOperationClient) UpdateOne(_m *APIKeyOperation) *APIKeyOperationUpdateOne {
+	mutation := newAPIKeyOperationMutation(c.config, OpUpdateOne, withAPIKeyOperation(_m))
+	return &APIKeyOperationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *APIKeyOperationClient) UpdateOneID(id int) *APIKeyOperationUpdateOne {
+	mutation := newAPIKeyOperationMutation(c.config, OpUpdateOne, withAPIKeyOperationID(id))
+	return &APIKeyOperationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for APIKeyOperation.
+func (c *APIKeyOperationClient) Delete() *APIKeyOperationDelete {
+	mutation := newAPIKeyOperationMutation(c.config, OpDelete)
+	return &APIKeyOperationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *APIKeyOperationClient) DeleteOne(_m *APIKeyOperation) *APIKeyOperationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *APIKeyOperationClient) DeleteOneID(id int) *APIKeyOperationDeleteOne {
+	builder := c.Delete().Where(apikeyoperation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &APIKeyOperationDeleteOne{builder}
+}
+
+// Query returns a query builder for APIKeyOperation.
+func (c *APIKeyOperationClient) Query() *APIKeyOperationQuery {
+	return &APIKeyOperationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAPIKeyOperation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a APIKeyOperation entity by its id.
+func (c *APIKeyOperationClient) Get(ctx context.Context, id int) (*APIKeyOperation, error) {
+	return c.Query().Where(apikeyoperation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *APIKeyOperationClient) GetX(ctx context.Context, id int) *APIKeyOperation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *APIKeyOperationClient) Hooks() []Hook {
+	hooks := c.hooks.APIKeyOperation
+	return append(hooks[:len(hooks):len(hooks)], apikeyoperation.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *APIKeyOperationClient) Interceptors() []Interceptor {
+	return c.inters.APIKeyOperation
+}
+
+func (c *APIKeyOperationClient) mutate(ctx context.Context, m *APIKeyOperationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&APIKeyOperationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&APIKeyOperationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&APIKeyOperationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&APIKeyOperationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown APIKeyOperation mutation op: %q", m.Op())
 	}
 }
 
@@ -5860,8 +6002,8 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, APIKeyGroup, APIKeyProfileTemplate, BudgetAccount, BudgetChange,
-		BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
+		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
+		BudgetChange, BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
 		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
 		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
 		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,
@@ -5869,8 +6011,8 @@ type (
 		UserProject, UserRole []ent.Hook
 	}
 	inters struct {
-		APIKey, APIKeyGroup, APIKeyProfileTemplate, BudgetAccount, BudgetChange,
-		BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
+		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
+		BudgetChange, BudgetCharge, BudgetPosting, CacheEffectivenessWindow, Channel,
 		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
 		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
 		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,

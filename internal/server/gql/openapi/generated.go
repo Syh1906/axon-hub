@@ -122,23 +122,23 @@ type ComplexityRoot struct {
 	Mutation struct {
 		CreateLLMAPIKey           func(childComplexity int, name string) int
 		LoadAPIKeyProfileTemplate func(childComplexity int, input LoadAPIKeyProfileTemplateInput) int
-		UpdateAPIKeyProfiles      func(childComplexity int, id *objects.GUID, name *string, input objects.APIKeyProfiles) int
+		UpdateAPIKeyProfiles      func(childComplexity int, id *objects.GUID, name *string, groupRef *int, input objects.APIKeyProfiles) int
 	}
 
 	Query struct {
-		APIKey            func(childComplexity int, id *objects.GUID, key *string, name *string) int
-		APIKeyQuotaUsages func(childComplexity int, apiKeyID *objects.GUID, key *string, name *string) int
+		APIKey            func(childComplexity int, id *objects.GUID, key *string, name *string, groupRef *int) int
+		APIKeyQuotaUsages func(childComplexity int, apiKeyID *objects.GUID, key *string, name *string, groupRef *int) int
 	}
 }
 
 type MutationResolver interface {
 	CreateLLMAPIKey(ctx context.Context, name string) (*APIKey, error)
-	UpdateAPIKeyProfiles(ctx context.Context, id *objects.GUID, name *string, input objects.APIKeyProfiles) (*APIKey, error)
+	UpdateAPIKeyProfiles(ctx context.Context, id *objects.GUID, name *string, groupRef *int, input objects.APIKeyProfiles) (*APIKey, error)
 	LoadAPIKeyProfileTemplate(ctx context.Context, input LoadAPIKeyProfileTemplateInput) (*APIKey, error)
 }
 type QueryResolver interface {
-	APIKey(ctx context.Context, id *objects.GUID, key *string, name *string) (*APIKey, error)
-	APIKeyQuotaUsages(ctx context.Context, apiKeyID *objects.GUID, key *string, name *string) ([]*APIKeyProfileQuotaUsage, error)
+	APIKey(ctx context.Context, id *objects.GUID, key *string, name *string, groupRef *int) (*APIKey, error)
+	APIKeyQuotaUsages(ctx context.Context, apiKeyID *objects.GUID, key *string, name *string, groupRef *int) ([]*APIKeyProfileQuotaUsage, error)
 }
 
 type executableSchema struct {
@@ -425,7 +425,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateAPIKeyProfiles(childComplexity, args["id"].(*objects.GUID), args["name"].(*string), args["input"].(objects.APIKeyProfiles)), true
+		return e.complexity.Mutation.UpdateAPIKeyProfiles(childComplexity, args["id"].(*objects.GUID), args["name"].(*string), args["groupRef"].(*int), args["input"].(objects.APIKeyProfiles)), true
 
 	case "Query.apiKey":
 		if e.complexity.Query.APIKey == nil {
@@ -437,7 +437,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.APIKey(childComplexity, args["id"].(*objects.GUID), args["key"].(*string), args["name"].(*string)), true
+		return e.complexity.Query.APIKey(childComplexity, args["id"].(*objects.GUID), args["key"].(*string), args["name"].(*string), args["groupRef"].(*int)), true
 	case "Query.apiKeyQuotaUsages":
 		if e.complexity.Query.APIKeyQuotaUsages == nil {
 			break
@@ -448,7 +448,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.APIKeyQuotaUsages(childComplexity, args["apiKeyId"].(*objects.GUID), args["key"].(*string), args["name"].(*string)), true
+		return e.complexity.Query.APIKeyQuotaUsages(childComplexity, args["apiKeyId"].(*objects.GUID), args["key"].(*string), args["name"].(*string), args["groupRef"].(*int)), true
 
 	}
 	return 0, false
@@ -617,11 +617,16 @@ func (ec *executionContext) field_Mutation_updateAPIKeyProfiles_args(ctx context
 		return nil, err
 	}
 	args["name"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateAPIKeyProfilesInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyProfiles)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg2
+	args["groupRef"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateAPIKeyProfilesInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐAPIKeyProfiles)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg3
 	return args, nil
 }
 
@@ -654,6 +659,11 @@ func (ec *executionContext) field_Query_apiKeyQuotaUsages_args(ctx context.Conte
 		return nil, err
 	}
 	args["name"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg3
 	return args, nil
 }
 
@@ -675,6 +685,11 @@ func (ec *executionContext) field_Query_apiKey_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg3
 	return args, nil
 }
 
@@ -1948,7 +1963,7 @@ func (ec *executionContext) _Mutation_updateAPIKeyProfiles(ctx context.Context, 
 		ec.fieldContext_Mutation_updateAPIKeyProfiles,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateAPIKeyProfiles(ctx, fc.Args["id"].(*objects.GUID), fc.Args["name"].(*string), fc.Args["input"].(objects.APIKeyProfiles))
+			return ec.resolvers.Mutation().UpdateAPIKeyProfiles(ctx, fc.Args["id"].(*objects.GUID), fc.Args["name"].(*string), fc.Args["groupRef"].(*int), fc.Args["input"].(objects.APIKeyProfiles))
 		},
 		nil,
 		ec.marshalNAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋopenapiᚐAPIKey,
@@ -2054,7 +2069,7 @@ func (ec *executionContext) _Query_apiKey(ctx context.Context, field graphql.Col
 		ec.fieldContext_Query_apiKey,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().APIKey(ctx, fc.Args["id"].(*objects.GUID), fc.Args["key"].(*string), fc.Args["name"].(*string))
+			return ec.resolvers.Query().APIKey(ctx, fc.Args["id"].(*objects.GUID), fc.Args["key"].(*string), fc.Args["name"].(*string), fc.Args["groupRef"].(*int))
 		},
 		nil,
 		ec.marshalNAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋopenapiᚐAPIKey,
@@ -2107,7 +2122,7 @@ func (ec *executionContext) _Query_apiKeyQuotaUsages(ctx context.Context, field 
 		ec.fieldContext_Query_apiKeyQuotaUsages,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().APIKeyQuotaUsages(ctx, fc.Args["apiKeyId"].(*objects.GUID), fc.Args["key"].(*string), fc.Args["name"].(*string))
+			return ec.resolvers.Query().APIKeyQuotaUsages(ctx, fc.Args["apiKeyId"].(*objects.GUID), fc.Args["key"].(*string), fc.Args["name"].(*string), fc.Args["groupRef"].(*int))
 		},
 		nil,
 		ec.marshalNAPIKeyProfileQuotaUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋopenapiᚐAPIKeyProfileQuotaUsageᚄ,
@@ -3944,7 +3959,7 @@ func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"templateID", "templateName", "apiKeyID", "apiKeyName"}
+	fieldsInOrder := [...]string{"templateID", "templateName", "apiKeyID", "apiKeyName", "apiKeyGroupRef"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -3979,6 +3994,13 @@ func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx con
 				return it, err
 			}
 			it.APIKeyName = data
+		case "apiKeyGroupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyGroupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKeyGroupRef = data
 		}
 	}
 
@@ -5830,6 +5852,24 @@ func (ec *executionContext) marshalOInt2ᚕintᚄ(ctx context.Context, sel ast.S
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint64(ctx context.Context, v any) (*int64, error) {

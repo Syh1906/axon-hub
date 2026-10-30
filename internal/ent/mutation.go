@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/apikeyoperation"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetchange"
@@ -60,6 +61,7 @@ const (
 	// Node types.
 	TypeAPIKey                   = "APIKey"
 	TypeAPIKeyGroup              = "APIKeyGroup"
+	TypeAPIKeyOperation          = "APIKeyOperation"
 	TypeAPIKeyProfileTemplate    = "APIKeyProfileTemplate"
 	TypeBudgetAccount            = "BudgetAccount"
 	TypeBudgetChange             = "BudgetChange"
@@ -1462,6 +1464,10 @@ type APIKeyGroupMutation struct {
 	created_at     *time.Time
 	updated_at     *time.Time
 	name           *string
+	note           *string
+	enabled        *bool
+	revision       *int
+	addrevision    *int
 	clearedFields  map[string]struct{}
 	project        *int
 	clearedproject bool
@@ -1676,6 +1682,134 @@ func (m *APIKeyGroupMutation) ResetName() {
 	m.name = nil
 }
 
+// SetNote sets the "note" field.
+func (m *APIKeyGroupMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *APIKeyGroupMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the APIKeyGroup entity.
+// If the APIKeyGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *APIKeyGroupMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *APIKeyGroupMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *APIKeyGroupMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the APIKeyGroup entity.
+// If the APIKeyGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *APIKeyGroupMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetRevision sets the "revision" field.
+func (m *APIKeyGroupMutation) SetRevision(i int) {
+	m.revision = &i
+	m.addrevision = nil
+}
+
+// Revision returns the value of the "revision" field in the mutation.
+func (m *APIKeyGroupMutation) Revision() (r int, exists bool) {
+	v := m.revision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevision returns the old "revision" field's value of the APIKeyGroup entity.
+// If the APIKeyGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupMutation) OldRevision(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevision: %w", err)
+	}
+	return oldValue.Revision, nil
+}
+
+// AddRevision adds i to the "revision" field.
+func (m *APIKeyGroupMutation) AddRevision(i int) {
+	if m.addrevision != nil {
+		*m.addrevision += i
+	} else {
+		m.addrevision = &i
+	}
+}
+
+// AddedRevision returns the value that was added to the "revision" field in this mutation.
+func (m *APIKeyGroupMutation) AddedRevision() (r int, exists bool) {
+	v := m.addrevision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRevision resets all changes to the "revision" field.
+func (m *APIKeyGroupMutation) ResetRevision() {
+	m.revision = nil
+	m.addrevision = nil
+}
+
 // SetProjectID sets the "project_id" field.
 func (m *APIKeyGroupMutation) SetProjectID(i int) {
 	m.project = &i
@@ -1773,7 +1907,7 @@ func (m *APIKeyGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyGroupMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 7)
 	if m.created_at != nil {
 		fields = append(fields, apikeygroup.FieldCreatedAt)
 	}
@@ -1782,6 +1916,15 @@ func (m *APIKeyGroupMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, apikeygroup.FieldName)
+	}
+	if m.note != nil {
+		fields = append(fields, apikeygroup.FieldNote)
+	}
+	if m.enabled != nil {
+		fields = append(fields, apikeygroup.FieldEnabled)
+	}
+	if m.revision != nil {
+		fields = append(fields, apikeygroup.FieldRevision)
 	}
 	if m.project != nil {
 		fields = append(fields, apikeygroup.FieldProjectID)
@@ -1800,6 +1943,12 @@ func (m *APIKeyGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case apikeygroup.FieldName:
 		return m.Name()
+	case apikeygroup.FieldNote:
+		return m.Note()
+	case apikeygroup.FieldEnabled:
+		return m.Enabled()
+	case apikeygroup.FieldRevision:
+		return m.Revision()
 	case apikeygroup.FieldProjectID:
 		return m.ProjectID()
 	}
@@ -1817,6 +1966,12 @@ func (m *APIKeyGroupMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldUpdatedAt(ctx)
 	case apikeygroup.FieldName:
 		return m.OldName(ctx)
+	case apikeygroup.FieldNote:
+		return m.OldNote(ctx)
+	case apikeygroup.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case apikeygroup.FieldRevision:
+		return m.OldRevision(ctx)
 	case apikeygroup.FieldProjectID:
 		return m.OldProjectID(ctx)
 	}
@@ -1849,6 +2004,27 @@ func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
+	case apikeygroup.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case apikeygroup.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case apikeygroup.FieldRevision:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevision(v)
+		return nil
 	case apikeygroup.FieldProjectID:
 		v, ok := value.(int)
 		if !ok {
@@ -1864,6 +2040,9 @@ func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *APIKeyGroupMutation) AddedFields() []string {
 	var fields []string
+	if m.addrevision != nil {
+		fields = append(fields, apikeygroup.FieldRevision)
+	}
 	return fields
 }
 
@@ -1872,6 +2051,8 @@ func (m *APIKeyGroupMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *APIKeyGroupMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case apikeygroup.FieldRevision:
+		return m.AddedRevision()
 	}
 	return nil, false
 }
@@ -1881,6 +2062,13 @@ func (m *APIKeyGroupMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *APIKeyGroupMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case apikeygroup.FieldRevision:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevision(v)
+		return nil
 	}
 	return fmt.Errorf("unknown APIKeyGroup numeric field %s", name)
 }
@@ -1916,6 +2104,15 @@ func (m *APIKeyGroupMutation) ResetField(name string) error {
 		return nil
 	case apikeygroup.FieldName:
 		m.ResetName()
+		return nil
+	case apikeygroup.FieldNote:
+		m.ResetNote()
+		return nil
+	case apikeygroup.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case apikeygroup.FieldRevision:
+		m.ResetRevision()
 		return nil
 	case apikeygroup.FieldProjectID:
 		m.ResetProjectID()
@@ -1996,6 +2193,882 @@ func (m *APIKeyGroupMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKeyGroup edge %s", name)
+}
+
+// APIKeyOperationMutation represents an operation that mutates the APIKeyOperation nodes in the graph.
+type APIKeyOperationMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	created_at    *time.Time
+	updated_at    *time.Time
+	project_id    *int
+	addproject_id *int
+	actor_id      *int
+	addactor_id   *int
+	operation_id  *string
+	row_id        *string
+	digest        *string
+	group_id      *int
+	addgroup_id   *int
+	key_ids       *[]int
+	appendkey_ids []int
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*APIKeyOperation, error)
+	predicates    []predicate.APIKeyOperation
+}
+
+var _ ent.Mutation = (*APIKeyOperationMutation)(nil)
+
+// apikeyoperationOption allows management of the mutation configuration using functional options.
+type apikeyoperationOption func(*APIKeyOperationMutation)
+
+// newAPIKeyOperationMutation creates new mutation for the APIKeyOperation entity.
+func newAPIKeyOperationMutation(c config, op Op, opts ...apikeyoperationOption) *APIKeyOperationMutation {
+	m := &APIKeyOperationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyOperation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeyOperationID sets the ID field of the mutation.
+func withAPIKeyOperationID(id int) apikeyoperationOption {
+	return func(m *APIKeyOperationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeyOperation
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeyOperation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeyOperation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeyOperation sets the old APIKeyOperation of the mutation.
+func withAPIKeyOperation(node *APIKeyOperation) apikeyoperationOption {
+	return func(m *APIKeyOperationMutation) {
+		m.oldValue = func(context.Context) (*APIKeyOperation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyOperationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyOperationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeyOperationMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeyOperationMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeyOperation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *APIKeyOperationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *APIKeyOperationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *APIKeyOperationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *APIKeyOperationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *APIKeyOperationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *APIKeyOperationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *APIKeyOperationMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *APIKeyOperationMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *APIKeyOperationMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *APIKeyOperationMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *APIKeyOperationMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetActorID sets the "actor_id" field.
+func (m *APIKeyOperationMutation) SetActorID(i int) {
+	m.actor_id = &i
+	m.addactor_id = nil
+}
+
+// ActorID returns the value of the "actor_id" field in the mutation.
+func (m *APIKeyOperationMutation) ActorID() (r int, exists bool) {
+	v := m.actor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorID returns the old "actor_id" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldActorID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorID: %w", err)
+	}
+	return oldValue.ActorID, nil
+}
+
+// AddActorID adds i to the "actor_id" field.
+func (m *APIKeyOperationMutation) AddActorID(i int) {
+	if m.addactor_id != nil {
+		*m.addactor_id += i
+	} else {
+		m.addactor_id = &i
+	}
+}
+
+// AddedActorID returns the value that was added to the "actor_id" field in this mutation.
+func (m *APIKeyOperationMutation) AddedActorID() (r int, exists bool) {
+	v := m.addactor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetActorID resets all changes to the "actor_id" field.
+func (m *APIKeyOperationMutation) ResetActorID() {
+	m.actor_id = nil
+	m.addactor_id = nil
+}
+
+// SetOperationID sets the "operation_id" field.
+func (m *APIKeyOperationMutation) SetOperationID(s string) {
+	m.operation_id = &s
+}
+
+// OperationID returns the value of the "operation_id" field in the mutation.
+func (m *APIKeyOperationMutation) OperationID() (r string, exists bool) {
+	v := m.operation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperationID returns the old "operation_id" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldOperationID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperationID: %w", err)
+	}
+	return oldValue.OperationID, nil
+}
+
+// ResetOperationID resets all changes to the "operation_id" field.
+func (m *APIKeyOperationMutation) ResetOperationID() {
+	m.operation_id = nil
+}
+
+// SetRowID sets the "row_id" field.
+func (m *APIKeyOperationMutation) SetRowID(s string) {
+	m.row_id = &s
+}
+
+// RowID returns the value of the "row_id" field in the mutation.
+func (m *APIKeyOperationMutation) RowID() (r string, exists bool) {
+	v := m.row_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRowID returns the old "row_id" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldRowID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRowID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRowID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRowID: %w", err)
+	}
+	return oldValue.RowID, nil
+}
+
+// ResetRowID resets all changes to the "row_id" field.
+func (m *APIKeyOperationMutation) ResetRowID() {
+	m.row_id = nil
+}
+
+// SetDigest sets the "digest" field.
+func (m *APIKeyOperationMutation) SetDigest(s string) {
+	m.digest = &s
+}
+
+// Digest returns the value of the "digest" field in the mutation.
+func (m *APIKeyOperationMutation) Digest() (r string, exists bool) {
+	v := m.digest
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDigest returns the old "digest" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldDigest(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDigest is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDigest requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDigest: %w", err)
+	}
+	return oldValue.Digest, nil
+}
+
+// ResetDigest resets all changes to the "digest" field.
+func (m *APIKeyOperationMutation) ResetDigest() {
+	m.digest = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *APIKeyOperationMutation) SetGroupID(i int) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *APIKeyOperationMutation) GroupID() (r int, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldGroupID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *APIKeyOperationMutation) AddGroupID(i int) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *APIKeyOperationMutation) AddedGroupID() (r int, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *APIKeyOperationMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+}
+
+// SetKeyIds sets the "key_ids" field.
+func (m *APIKeyOperationMutation) SetKeyIds(i []int) {
+	m.key_ids = &i
+	m.appendkey_ids = nil
+}
+
+// KeyIds returns the value of the "key_ids" field in the mutation.
+func (m *APIKeyOperationMutation) KeyIds() (r []int, exists bool) {
+	v := m.key_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyIds returns the old "key_ids" field's value of the APIKeyOperation entity.
+// If the APIKeyOperation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyOperationMutation) OldKeyIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyIds: %w", err)
+	}
+	return oldValue.KeyIds, nil
+}
+
+// AppendKeyIds adds i to the "key_ids" field.
+func (m *APIKeyOperationMutation) AppendKeyIds(i []int) {
+	m.appendkey_ids = append(m.appendkey_ids, i...)
+}
+
+// AppendedKeyIds returns the list of values that were appended to the "key_ids" field in this mutation.
+func (m *APIKeyOperationMutation) AppendedKeyIds() ([]int, bool) {
+	if len(m.appendkey_ids) == 0 {
+		return nil, false
+	}
+	return m.appendkey_ids, true
+}
+
+// ResetKeyIds resets all changes to the "key_ids" field.
+func (m *APIKeyOperationMutation) ResetKeyIds() {
+	m.key_ids = nil
+	m.appendkey_ids = nil
+}
+
+// Where appends a list predicates to the APIKeyOperationMutation builder.
+func (m *APIKeyOperationMutation) Where(ps ...predicate.APIKeyOperation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyOperationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyOperationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyOperation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyOperationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyOperationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyOperation).
+func (m *APIKeyOperationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyOperationMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.created_at != nil {
+		fields = append(fields, apikeyoperation.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, apikeyoperation.FieldUpdatedAt)
+	}
+	if m.project_id != nil {
+		fields = append(fields, apikeyoperation.FieldProjectID)
+	}
+	if m.actor_id != nil {
+		fields = append(fields, apikeyoperation.FieldActorID)
+	}
+	if m.operation_id != nil {
+		fields = append(fields, apikeyoperation.FieldOperationID)
+	}
+	if m.row_id != nil {
+		fields = append(fields, apikeyoperation.FieldRowID)
+	}
+	if m.digest != nil {
+		fields = append(fields, apikeyoperation.FieldDigest)
+	}
+	if m.group_id != nil {
+		fields = append(fields, apikeyoperation.FieldGroupID)
+	}
+	if m.key_ids != nil {
+		fields = append(fields, apikeyoperation.FieldKeyIds)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyOperationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyoperation.FieldCreatedAt:
+		return m.CreatedAt()
+	case apikeyoperation.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case apikeyoperation.FieldProjectID:
+		return m.ProjectID()
+	case apikeyoperation.FieldActorID:
+		return m.ActorID()
+	case apikeyoperation.FieldOperationID:
+		return m.OperationID()
+	case apikeyoperation.FieldRowID:
+		return m.RowID()
+	case apikeyoperation.FieldDigest:
+		return m.Digest()
+	case apikeyoperation.FieldGroupID:
+		return m.GroupID()
+	case apikeyoperation.FieldKeyIds:
+		return m.KeyIds()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyOperationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeyoperation.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case apikeyoperation.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case apikeyoperation.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case apikeyoperation.FieldActorID:
+		return m.OldActorID(ctx)
+	case apikeyoperation.FieldOperationID:
+		return m.OldOperationID(ctx)
+	case apikeyoperation.FieldRowID:
+		return m.OldRowID(ctx)
+	case apikeyoperation.FieldDigest:
+		return m.OldDigest(ctx)
+	case apikeyoperation.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case apikeyoperation.FieldKeyIds:
+		return m.OldKeyIds(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeyOperation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyOperationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeyoperation.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case apikeyoperation.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case apikeyoperation.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case apikeyoperation.FieldActorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorID(v)
+		return nil
+	case apikeyoperation.FieldOperationID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperationID(v)
+		return nil
+	case apikeyoperation.FieldRowID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRowID(v)
+		return nil
+	case apikeyoperation.FieldDigest:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDigest(v)
+		return nil
+	case apikeyoperation.FieldGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case apikeyoperation.FieldKeyIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyIds(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyOperation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyOperationMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, apikeyoperation.FieldProjectID)
+	}
+	if m.addactor_id != nil {
+		fields = append(fields, apikeyoperation.FieldActorID)
+	}
+	if m.addgroup_id != nil {
+		fields = append(fields, apikeyoperation.FieldGroupID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyOperationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyoperation.FieldProjectID:
+		return m.AddedProjectID()
+	case apikeyoperation.FieldActorID:
+		return m.AddedActorID()
+	case apikeyoperation.FieldGroupID:
+		return m.AddedGroupID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyOperationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case apikeyoperation.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case apikeyoperation.FieldActorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActorID(v)
+		return nil
+	case apikeyoperation.FieldGroupID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyOperation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyOperationMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyOperationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyOperationMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown APIKeyOperation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyOperationMutation) ResetField(name string) error {
+	switch name {
+	case apikeyoperation.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case apikeyoperation.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case apikeyoperation.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case apikeyoperation.FieldActorID:
+		m.ResetActorID()
+		return nil
+	case apikeyoperation.FieldOperationID:
+		m.ResetOperationID()
+		return nil
+	case apikeyoperation.FieldRowID:
+		m.ResetRowID()
+		return nil
+	case apikeyoperation.FieldDigest:
+		m.ResetDigest()
+		return nil
+	case apikeyoperation.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case apikeyoperation.FieldKeyIds:
+		m.ResetKeyIds()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyOperation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyOperationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyOperationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyOperationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyOperationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyOperationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyOperationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyOperationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyOperation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyOperationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyOperation edge %s", name)
 }
 
 // APIKeyProfileTemplateMutation represents an operation that mutates the APIKeyProfileTemplate nodes in the graph.
