@@ -92,6 +92,20 @@ func (_c *ChannelCreate) SetNillableBaseURL(v *string) *ChannelCreate {
 	return _c
 }
 
+// SetWebsiteURL sets the "website_url" field.
+func (_c *ChannelCreate) SetWebsiteURL(v string) *ChannelCreate {
+	_c.mutation.SetWebsiteURL(v)
+	return _c
+}
+
+// SetNillableWebsiteURL sets the "website_url" field if the given value is not nil.
+func (_c *ChannelCreate) SetNillableWebsiteURL(v *string) *ChannelCreate {
+	if v != nil {
+		_c.SetWebsiteURL(*v)
+	}
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *ChannelCreate) SetName(v string) *ChannelCreate {
 	_c.mutation.SetName(v)
@@ -484,6 +498,11 @@ func (_c *ChannelCreate) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Channel.type": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.WebsiteURL(); ok {
+		if err := channel.WebsiteURLValidator(v); err != nil {
+			return &ValidationError{Name: "website_url", err: fmt.Errorf(`ent: validator failed for field "Channel.website_url": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Channel.name"`)}
 	}
@@ -556,6 +575,10 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.BaseURL(); ok {
 		_spec.SetField(channel.FieldBaseURL, field.TypeString, value)
 		_node.BaseURL = value
+	}
+	if value, ok := _c.mutation.WebsiteURL(); ok {
+		_spec.SetField(channel.FieldWebsiteURL, field.TypeString, value)
+		_node.WebsiteURL = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(channel.FieldName, field.TypeString, value)
@@ -850,6 +873,24 @@ func (u *ChannelUpsert) UpdateBaseURL() *ChannelUpsert {
 // ClearBaseURL clears the value of the "base_url" field.
 func (u *ChannelUpsert) ClearBaseURL() *ChannelUpsert {
 	u.SetNull(channel.FieldBaseURL)
+	return u
+}
+
+// SetWebsiteURL sets the "website_url" field.
+func (u *ChannelUpsert) SetWebsiteURL(v string) *ChannelUpsert {
+	u.Set(channel.FieldWebsiteURL, v)
+	return u
+}
+
+// UpdateWebsiteURL sets the "website_url" field to the value that was provided on create.
+func (u *ChannelUpsert) UpdateWebsiteURL() *ChannelUpsert {
+	u.SetExcluded(channel.FieldWebsiteURL)
+	return u
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (u *ChannelUpsert) ClearWebsiteURL() *ChannelUpsert {
+	u.SetNull(channel.FieldWebsiteURL)
 	return u
 }
 
@@ -1253,6 +1294,27 @@ func (u *ChannelUpsertOne) UpdateBaseURL() *ChannelUpsertOne {
 func (u *ChannelUpsertOne) ClearBaseURL() *ChannelUpsertOne {
 	return u.Update(func(s *ChannelUpsert) {
 		s.ClearBaseURL()
+	})
+}
+
+// SetWebsiteURL sets the "website_url" field.
+func (u *ChannelUpsertOne) SetWebsiteURL(v string) *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetWebsiteURL(v)
+	})
+}
+
+// UpdateWebsiteURL sets the "website_url" field to the value that was provided on create.
+func (u *ChannelUpsertOne) UpdateWebsiteURL() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateWebsiteURL()
+	})
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (u *ChannelUpsertOne) ClearWebsiteURL() *ChannelUpsertOne {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearWebsiteURL()
 	})
 }
 
@@ -1870,6 +1932,27 @@ func (u *ChannelUpsertBulk) UpdateBaseURL() *ChannelUpsertBulk {
 func (u *ChannelUpsertBulk) ClearBaseURL() *ChannelUpsertBulk {
 	return u.Update(func(s *ChannelUpsert) {
 		s.ClearBaseURL()
+	})
+}
+
+// SetWebsiteURL sets the "website_url" field.
+func (u *ChannelUpsertBulk) SetWebsiteURL(v string) *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.SetWebsiteURL(v)
+	})
+}
+
+// UpdateWebsiteURL sets the "website_url" field to the value that was provided on create.
+func (u *ChannelUpsertBulk) UpdateWebsiteURL() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.UpdateWebsiteURL()
+	})
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (u *ChannelUpsertBulk) ClearWebsiteURL() *ChannelUpsertBulk {
+	return u.Update(func(s *ChannelUpsert) {
+		s.ClearWebsiteURL()
 	})
 }
 

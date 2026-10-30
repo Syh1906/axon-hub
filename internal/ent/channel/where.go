@@ -75,6 +75,11 @@ func BaseURL(v string) predicate.Channel {
 	return predicate.Channel(sql.FieldEQ(FieldBaseURL, v))
 }
 
+// WebsiteURL applies equality check predicate on the "website_url" field. It's identical to WebsiteURLEQ.
+func WebsiteURL(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldEQ(FieldWebsiteURL, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.Channel {
 	return predicate.Channel(sql.FieldEQ(FieldName, v))
@@ -328,6 +333,81 @@ func BaseURLEqualFold(v string) predicate.Channel {
 // BaseURLContainsFold applies the ContainsFold predicate on the "base_url" field.
 func BaseURLContainsFold(v string) predicate.Channel {
 	return predicate.Channel(sql.FieldContainsFold(FieldBaseURL, v))
+}
+
+// WebsiteURLEQ applies the EQ predicate on the "website_url" field.
+func WebsiteURLEQ(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldEQ(FieldWebsiteURL, v))
+}
+
+// WebsiteURLNEQ applies the NEQ predicate on the "website_url" field.
+func WebsiteURLNEQ(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldNEQ(FieldWebsiteURL, v))
+}
+
+// WebsiteURLIn applies the In predicate on the "website_url" field.
+func WebsiteURLIn(vs ...string) predicate.Channel {
+	return predicate.Channel(sql.FieldIn(FieldWebsiteURL, vs...))
+}
+
+// WebsiteURLNotIn applies the NotIn predicate on the "website_url" field.
+func WebsiteURLNotIn(vs ...string) predicate.Channel {
+	return predicate.Channel(sql.FieldNotIn(FieldWebsiteURL, vs...))
+}
+
+// WebsiteURLGT applies the GT predicate on the "website_url" field.
+func WebsiteURLGT(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldGT(FieldWebsiteURL, v))
+}
+
+// WebsiteURLGTE applies the GTE predicate on the "website_url" field.
+func WebsiteURLGTE(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldGTE(FieldWebsiteURL, v))
+}
+
+// WebsiteURLLT applies the LT predicate on the "website_url" field.
+func WebsiteURLLT(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldLT(FieldWebsiteURL, v))
+}
+
+// WebsiteURLLTE applies the LTE predicate on the "website_url" field.
+func WebsiteURLLTE(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldLTE(FieldWebsiteURL, v))
+}
+
+// WebsiteURLContains applies the Contains predicate on the "website_url" field.
+func WebsiteURLContains(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldContains(FieldWebsiteURL, v))
+}
+
+// WebsiteURLHasPrefix applies the HasPrefix predicate on the "website_url" field.
+func WebsiteURLHasPrefix(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldHasPrefix(FieldWebsiteURL, v))
+}
+
+// WebsiteURLHasSuffix applies the HasSuffix predicate on the "website_url" field.
+func WebsiteURLHasSuffix(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldHasSuffix(FieldWebsiteURL, v))
+}
+
+// WebsiteURLIsNil applies the IsNil predicate on the "website_url" field.
+func WebsiteURLIsNil() predicate.Channel {
+	return predicate.Channel(sql.FieldIsNull(FieldWebsiteURL))
+}
+
+// WebsiteURLNotNil applies the NotNil predicate on the "website_url" field.
+func WebsiteURLNotNil() predicate.Channel {
+	return predicate.Channel(sql.FieldNotNull(FieldWebsiteURL))
+}
+
+// WebsiteURLEqualFold applies the EqualFold predicate on the "website_url" field.
+func WebsiteURLEqualFold(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldEqualFold(FieldWebsiteURL, v))
+}
+
+// WebsiteURLContainsFold applies the ContainsFold predicate on the "website_url" field.
+func WebsiteURLContainsFold(v string) predicate.Channel {
+	return predicate.Channel(sql.FieldContainsFold(FieldWebsiteURL, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.

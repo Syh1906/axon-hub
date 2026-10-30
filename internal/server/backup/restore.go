@@ -643,6 +643,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 			case ConflictStrategyOverwrite:
 				update := db.Channel.UpdateOneID(existing.ID).
 					SetNillableBaseURL(baseURL).
+					SetWebsiteURL(chData.WebsiteURL).
 					SetStatus(chData.Status).
 					SetCredentials(credentials).
 					SetSupportedModels(chData.SupportedModels).
@@ -678,6 +679,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 				SetName(chData.Name).
 				SetType(chData.Type).
 				SetNillableBaseURL(baseURL).
+				SetWebsiteURL(chData.WebsiteURL).
 				SetStatus(chData.Status).
 				SetCredentials(credentials).
 				SetSupportedModels(chData.SupportedModels).

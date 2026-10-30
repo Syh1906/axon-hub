@@ -176,25 +176,9 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, gr
 	if err != nil {
 		return selfUsageScope{}, time.Time{}, fmt.Errorf("read self usage timezone: %w", err)
 	}
-	first, err := time.ParseInLocation("2006-01-02", start, loc)
-	if err != nil || first.Format("2006-01-02") != start {
-		return selfUsageScope{}, time.Time{}, fmt.Errorf("invalid_range: start must be YYYY-MM-DD")
-	}
-	last, err := time.ParseInLocation("2006-01-02", end, loc)
-	if err != nil || last.Format("2006-01-02") != end {
-		return selfUsageScope{}, time.Time{}, fmt.Errorf("invalid_range: end must be YYYY-MM-DD")
-	}
-	if last.Before(first) || last.Sub(first).Hours()/24 > selfUsageMaxRangeDays+2 {
-		return selfUsageScope{}, time.Time{}, fmt.Errorf("invalid_range: range must contain 1 to %d days", selfUsageMaxRangeDays)
-	}
-	// Count calendar dates rather than 24-hour periods: a DST transition can
-	// make a local day 23 or 25 hours long.
-	days := 0
-	for d := first; !d.After(last); d = d.AddDate(0, 0, 1) {
-		days++
-		if days > selfUsageMaxRangeDays {
-			return selfUsageScope{}, time.Time{}, fmt.Errorf("invalid_range: range must contain 1 to %d days", selfUsageMaxRangeDays)
-		}
+	first, last, err := selfUsageDateRange(start, end, loc)
+	if err != nil {
+		return selfUsageScope{}, time.Time{}, err
 	}
 	scope, err := authz.RunWithSystemBypass(ctx, "self-usage-group-scope", func(ctx context.Context) (selfUsageScope, error) {
 		result := selfUsageScope{id: fmt.Sprintf("key:%d", key.ID), keyIDs: []int{key.ID}, projectID: key.ProjectID, start: first.UTC(), end: last.AddDate(0, 0, 1).UTC()}
@@ -347,6 +331,10 @@ func (s *SelfUsageService) Stats(ctx context.Context, start, end string, group .
 	if err != nil {
 		return nil, err
 	}
+	return s.statsForScope(ctx, scope, first, start, end)
+}
+
+func (s *SelfUsageService) statsForScope(ctx context.Context, scope selfUsageScope, first time.Time, start, end string) (*SelfUsageStats, error) {
 	return authz.RunWithSystemBypass(ctx, "self-usage", func(ctx context.Context) (*SelfUsageStats, error) {
 		var counts []selfUsageCounts
 		err := scope.requestQuery(s.client).Modify(func(q *sql.Selector) {
@@ -436,6 +424,10 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 	if err != nil {
 		return nil, err
 	}
+	return s.requestsForScope(ctx, scope, model, status, page, pageSize)
+}
+
+func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsageScope, model *string, status string, page, pageSize int) (*SelfUsageRequestPage, error) {
 	if page < 1 || pageSize < 1 || pageSize > 100 || page > int(^uint(0)>>1)/pageSize {
 		return nil, fmt.Errorf("invalid_page: page must be positive and pageSize between 1 and 100")
 	}
@@ -546,4 +538,28 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 		}
 		return result, nil
 	})
+}
+
+func selfUsageDateRange(start, end string, loc *time.Location) (time.Time, time.Time, error) {
+	first, err := time.ParseInLocation("2006-01-02", start, loc)
+	if err != nil || first.Format("2006-01-02") != start {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid_range: start must be YYYY-MM-DD")
+	}
+	last, err := time.ParseInLocation("2006-01-02", end, loc)
+	if err != nil || last.Format("2006-01-02") != end {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid_range: end must be YYYY-MM-DD")
+	}
+	if last.Before(first) || last.Sub(first).Hours()/24 > selfUsageMaxRangeDays+2 {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid_range: range must contain 1 to %d days", selfUsageMaxRangeDays)
+	}
+	// Count calendar dates rather than 24-hour periods: a DST transition can
+	// make a local day 23 or 25 hours long.
+	days := 0
+	for d := first; !d.After(last); d = d.AddDate(0, 0, 1) {
+		days++
+		if days > selfUsageMaxRangeDays {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid_range: range must contain 1 to %d days", selfUsageMaxRangeDays)
+		}
+	}
+	return first, last, nil
 }

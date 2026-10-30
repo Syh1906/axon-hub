@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder, Plus, RefreshCw, Settings2 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { BarChart3, ChevronDown, ChevronRight, Folder, Plus, RefreshCw, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -39,8 +40,8 @@ function ProfileLoader({ id, onLoaded }: { id: string; onLoaded: () => void }) {
 }
 function GroupPage() {
   const { t, i18n } = useTranslation();
-  const { apiKeyPermissions, hasProjectScope } = usePermissions();
-  const writable = apiKeyPermissions.canWrite && hasProjectScope('write_users') && hasProjectScope('write_roles');
+  const { apiKeyPermissions } = usePermissions();
+  const writable = apiKeyPermissions.canWrite;
   const { data: settings } = useGeneralSettings();
   const api = useManagementAPI();
   const [search, setSearch] = useState('');
@@ -365,6 +366,12 @@ function GroupPage() {
                         })}
                         <TableCell>
                           <div className='flex justify-end gap-1'>
+                            <Button size='sm' variant='outline' asChild>
+                              <Link to='/project/key-groups/$groupRef/usage' params={{ groupRef: String(g.id) }} title={t('kg.usageHint')}>
+                                <BarChart3 className='size-4' />
+                                {t('kg.usage')}
+                              </Link>
+                            </Button>
                             <Button
                               size='sm'
                               variant='outline'
@@ -418,6 +425,12 @@ function GroupPage() {
                     —
                   </TableCell>
                   <TableCell className='text-right'>
+                    <Button size='sm' variant='outline' className='mr-1' asChild>
+                      <Link to='/project/key-groups/$groupRef/usage' params={{ groupRef: '0' }}>
+                        <BarChart3 className='size-4' />
+                        {t('kg.usage')}
+                      </Link>
+                    </Button>
                     <Button
                       size='sm'
                       variant='outline'

@@ -1,0 +1,105 @@
+type SelfUsageMeta {
+  groupName: String
+  apiKeyName: String!
+  apiKeyType: String!        # "user" | "personal"
+  currencyCode: String!
+  timezone: String!
+  maxRangeDays: Int!         # 90
+}
+
+"用量汇总；cost 在 usageRecords=0 时为 0，全部未定价时为 null，否则为已知费用之和"
+type SelfUsageSummary {
+  successRequests: Int!
+  failedRequests: Int!
+  inputTokens: Int!
+  outputTokens: Int!
+  cacheReadTokens: Int!
+  cacheWriteTokens: Int!
+  reasoningTokens: Int!
+  totalTokens: Int!
+  cost: Float
+  usageRecords: Int!
+  unpricedRecords: Int!
+}
+
+type SelfUsageModelStat { model: String!, usage: SelfUsageSummary! }
+type SelfUsageDailyStat { date: String!, usage: SelfUsageSummary! }   # date = YYYY-MM-DD（系统时区）
+
+type SelfUsageStats {
+  scopeID: String!
+  apiKeyName: String!
+  groupName: String
+  start: String!
+  end: String!
+  totals: SelfUsageSummary!
+  models: [SelfUsageModelStat!]!   # 费用降序（null 视为最小），再按请求数降序
+  daily: [SelfUsageDailyStat!]!    # 覆盖 start..end 每一天
+}
+
+
+
+type SelfUsageRequest {
+  apiKeyName: String!
+  id: Int!                         # 数字请求 ID，仅作列表 key
+  createdAt: Time!
+  model: String!
+  status: String!
+  requestStatus: String!
+  stream: Boolean!
+  latencyMs: Int
+  firstTokenLatencyMs: Int
+  inputTokens: Int!
+  outputTokens: Int!
+  cacheReadTokens: Int!
+  cacheWriteTokens: Int!
+  reasoningTokens: Int!
+  totalTokens: Int!
+  cost: Float
+  costItems: [SelfUsageCostItem!]!
+  costMultiplier: Float
+  costMultiplierMixed: Boolean!
+  usageRecords: Int!
+  unpricedRecords: Int!
+}
+
+type SelfUsageCostItem {
+  image: SelfUsageImageOutput
+  imageRule: String!
+  unpriced: Boolean!
+  itemCode: String!
+  promptWriteCacheVariantCode: String
+  quantity: Int!
+  subtotal: Float!
+  tierBreakdown: [SelfUsageTierCost!]!
+}
+
+type SelfUsageImageOutput {
+  tierSource: String!
+  width: Int!
+  height: Int!
+  tier: String!
+  source: String!
+}
+
+type SelfUsageTierCost {
+  upTo: Int
+  units: Int!
+  subtotal: Float!
+}
+
+type SelfUsageRequestPage {
+  scopeID: String!
+  apiKeyName: String!
+  groupName: String
+  items: [SelfUsageRequest!]!
+  page: Int!
+  pageSize: Int!
+  total: Int!
+}
+
+
+extend type Query {
+  managedGroupUsageMeta(groupRef: Int!): SelfUsageMeta!
+  managedGroupUsageStats(groupRef: Int!, start: String!, end: String!): SelfUsageStats!
+  managedGroupUsageRequests(groupRef: Int!, start: String!, end: String!, model: String, status: String, page: Int! = 1, pageSize: Int! = 20): SelfUsageRequestPage!
+}

@@ -1,0 +1,45 @@
+type RequestExecutionSelection {
+  channelName: String!
+  provider: String!
+  keyHint: String!
+  keyRemark: String!
+  sessionState: String!
+  strategy: String!
+  priority: Int!
+  candidates: [RequestRoutingCandidate!]!
+}
+
+type RequestRoutingCandidate {
+  channelID: Int!
+  channelName: String!
+  provider: String!
+  priority: Int!
+  models: [String!]!
+  sessionReuse: Boolean!
+}
+
+type RequestExecutionFailure {
+  source: String!
+  code: String!
+  type: String!
+  body: String!
+  bodyTruncated: Boolean!
+}
+
+input RequestLogTimeRangeInput {
+  period: ConsumptionPeriod!
+  "Wall-clock date and time in the configured reporting timezone."
+  start: String
+  end: String
+}
+
+input RequestLogFilterInput {
+  channelTagsIn: [String!]
+  apiKeyGroupRefsIn: [Int!]
+  timeRange: RequestLogTimeRangeInput
+}
+
+extend type Query {
+  requestLogTimezone: String!
+  requestLogs(after: Cursor, first: Int, before: Cursor, last: Int, orderBy: RequestOrder, where: RequestWhereInput, filter: RequestLogFilterInput): RequestConnection!
+}

@@ -390,40 +390,58 @@ func init() {
 	channelDescDeletedAt := channelMixinFields1[0].Descriptor()
 	// channel.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	channel.DefaultDeletedAt = channelDescDeletedAt.Default.(int)
+	// channelDescWebsiteURL is the schema descriptor for website_url field.
+	channelDescWebsiteURL := channelFields[2].Descriptor()
+	// channel.WebsiteURLValidator is a validator for the "website_url" field. It is called by the builders before save.
+	channel.WebsiteURLValidator = func() func(string) error {
+		validators := channelDescWebsiteURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(website_url string) error {
+			for _, fn := range fns {
+				if err := fn(website_url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// channelDescDisabledAPIKeys is the schema descriptor for disabled_api_keys field.
-	channelDescDisabledAPIKeys := channelFields[6].Descriptor()
+	channelDescDisabledAPIKeys := channelFields[7].Descriptor()
 	// channel.DefaultDisabledAPIKeys holds the default value on creation for the disabled_api_keys field.
 	channel.DefaultDisabledAPIKeys = channelDescDisabledAPIKeys.Default.([]objects.DisabledAPIKey)
 	// channelDescManualModels is the schema descriptor for manual_models field.
-	channelDescManualModels := channelFields[8].Descriptor()
+	channelDescManualModels := channelFields[9].Descriptor()
 	// channel.DefaultManualModels holds the default value on creation for the manual_models field.
 	channel.DefaultManualModels = channelDescManualModels.Default.([]string)
 	// channelDescAutoSyncSupportedModels is the schema descriptor for auto_sync_supported_models field.
-	channelDescAutoSyncSupportedModels := channelFields[9].Descriptor()
+	channelDescAutoSyncSupportedModels := channelFields[10].Descriptor()
 	// channel.DefaultAutoSyncSupportedModels holds the default value on creation for the auto_sync_supported_models field.
 	channel.DefaultAutoSyncSupportedModels = channelDescAutoSyncSupportedModels.Default.(bool)
 	// channelDescAutoSyncModelPattern is the schema descriptor for auto_sync_model_pattern field.
-	channelDescAutoSyncModelPattern := channelFields[10].Descriptor()
+	channelDescAutoSyncModelPattern := channelFields[11].Descriptor()
 	// channel.DefaultAutoSyncModelPattern holds the default value on creation for the auto_sync_model_pattern field.
 	channel.DefaultAutoSyncModelPattern = channelDescAutoSyncModelPattern.Default.(string)
 	// channelDescTags is the schema descriptor for tags field.
-	channelDescTags := channelFields[11].Descriptor()
+	channelDescTags := channelFields[12].Descriptor()
 	// channel.DefaultTags holds the default value on creation for the tags field.
 	channel.DefaultTags = channelDescTags.Default.([]string)
 	// channelDescPolicies is the schema descriptor for policies field.
-	channelDescPolicies := channelFields[13].Descriptor()
+	channelDescPolicies := channelFields[14].Descriptor()
 	// channel.DefaultPolicies holds the default value on creation for the policies field.
 	channel.DefaultPolicies = channelDescPolicies.Default.(objects.ChannelPolicies)
 	// channelDescSettings is the schema descriptor for settings field.
-	channelDescSettings := channelFields[14].Descriptor()
+	channelDescSettings := channelFields[15].Descriptor()
 	// channel.DefaultSettings holds the default value on creation for the settings field.
 	channel.DefaultSettings = channelDescSettings.Default.(*objects.ChannelSettings)
 	// channelDescOrderingWeight is the schema descriptor for ordering_weight field.
-	channelDescOrderingWeight := channelFields[15].Descriptor()
+	channelDescOrderingWeight := channelFields[16].Descriptor()
 	// channel.DefaultOrderingWeight holds the default value on creation for the ordering_weight field.
 	channel.DefaultOrderingWeight = channelDescOrderingWeight.Default.(int)
 	// channelDescEndpoints is the schema descriptor for endpoints field.
-	channelDescEndpoints := channelFields[19].Descriptor()
+	channelDescEndpoints := channelFields[20].Descriptor()
 	// channel.DefaultEndpoints holds the default value on creation for the endpoints field.
 	channel.DefaultEndpoints = channelDescEndpoints.Default.([]objects.ChannelEndpoint)
 	channelmodelpriceMixin := schema.ChannelModelPrice{}.Mixin()
@@ -914,15 +932,15 @@ func init() {
 	// request.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
 	request.ExternalIDValidator = requestDescExternalID.Validators[0].(func(string) error)
 	// requestDescStream is the schema descriptor for stream field.
-	requestDescStream := requestFields[16].Descriptor()
+	requestDescStream := requestFields[17].Descriptor()
 	// request.DefaultStream holds the default value on creation for the stream field.
 	request.DefaultStream = requestDescStream.Default.(bool)
 	// requestDescClientIP is the schema descriptor for client_ip field.
-	requestDescClientIP := requestFields[17].Descriptor()
+	requestDescClientIP := requestFields[18].Descriptor()
 	// request.DefaultClientIP holds the default value on creation for the client_ip field.
 	request.DefaultClientIP = requestDescClientIP.Default.(string)
 	// requestDescContentSaved is the schema descriptor for content_saved field.
-	requestDescContentSaved := requestFields[21].Descriptor()
+	requestDescContentSaved := requestFields[22].Descriptor()
 	// request.DefaultContentSaved holds the default value on creation for the content_saved field.
 	request.DefaultContentSaved = requestDescContentSaved.Default.(bool)
 	requestexecutionMixin := schema.RequestExecution{}.Mixin()
@@ -953,19 +971,19 @@ func init() {
 	// requestexecution.DefaultFormat holds the default value on creation for the format field.
 	requestexecution.DefaultFormat = requestexecutionDescFormat.Default.(string)
 	// requestexecutionDescStream is the schema descriptor for stream field.
-	requestexecutionDescStream := requestexecutionFields[15].Descriptor()
+	requestexecutionDescStream := requestexecutionFields[18].Descriptor()
 	// requestexecution.DefaultStream holds the default value on creation for the stream field.
 	requestexecution.DefaultStream = requestexecutionDescStream.Default.(bool)
 	// requestexecutionDescCacheCompatibilityKey is the schema descriptor for cache_compatibility_key field.
-	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[20].Descriptor()
+	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[23].Descriptor()
 	// requestexecution.CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
 	requestexecution.CacheCompatibilityKeyValidator = requestexecutionDescCacheCompatibilityKey.Validators[0].(func(string) error)
 	// requestexecutionDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
-	requestexecutionDescCacheTTLBucket := requestexecutionFields[22].Descriptor()
+	requestexecutionDescCacheTTLBucket := requestexecutionFields[25].Descriptor()
 	// requestexecution.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
 	requestexecution.CacheTTLBucketValidator = requestexecutionDescCacheTTLBucket.Validators[0].(func(string) error)
 	// requestexecutionDescPassThroughApplied is the schema descriptor for pass_through_applied field.
-	requestexecutionDescPassThroughApplied := requestexecutionFields[26].Descriptor()
+	requestexecutionDescPassThroughApplied := requestexecutionFields[29].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
 	roleMixin := schema.Role{}.Mixin()

@@ -17,6 +17,8 @@ schema:
   - channel_upstream.graphql
   - channel_accounts.graphql
   - request_routing.graphql
+  - request_diagnostics.graphql
+  - managed_group_usage.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
   - price.graphql
@@ -83,6 +85,14 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  SelfUsageImageOutput:
+    model: github.com/looplj/axonhub/internal/objects.ImageOutput
+  RequestExecutionSelection:
+    model: github.com/looplj/axonhub/internal/objects.RequestExecutionSelection
+  RequestRoutingCandidate:
+    model: github.com/looplj/axonhub/internal/objects.RequestRoutingCandidate
+  RequestExecutionFailure:
+    model: github.com/looplj/axonhub/internal/objects.RequestExecutionFailure
   ImagePricing:
     model: github.com/looplj/axonhub/internal/objects.ImagePricing
   ImagePricingInput:

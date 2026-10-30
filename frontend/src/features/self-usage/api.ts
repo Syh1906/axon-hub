@@ -67,16 +67,16 @@ export class SelfUsageError extends Error {
   }
 }
 
-const summaryFields = `successRequests failedRequests inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords`;
+export const summaryFields = `successRequests failedRequests inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords`;
 const metaQuery = `query SelfUsageMeta { selfUsageMeta { apiKeyName groupName apiKeyType currencyCode timezone maxRangeDays } }`;
-const statsQuery = `query SelfUsageStats($start: String!, $end: String!, $group: Boolean!) {
+export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, $group: Boolean!) {
   selfUsageStats(start: $start, end: $end, group: $group) {
     scopeID apiKeyName groupName start end totals { ${summaryFields} }
     models { model usage { ${summaryFields} } }
     daily { date usage { ${summaryFields} } }
   }
 }`;
-const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
+export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
   selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
     items { apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
     scopeID apiKeyName groupName page pageSize total

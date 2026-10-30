@@ -317,6 +317,19 @@ func (ts *OutboundPersistentStream) persistExecutionFailure(ctx context.Context,
 	if err != nil {
 		log.Warn(ctx, "Failed to update request execution status from error", log.Cause(err))
 	}
+	// Pre-read failures still belong to the retry loop. Only a returned stream
+	// has left that loop and can no longer be retried.
+	if ts.state.StreamReturned {
+		reason := "stream_returned"
+		if errors.Is(ts.ctx.Err(), context.Canceled) || errors.Is(rawErr, context.Canceled) {
+			reason = "client_canceled"
+		} else if errors.Is(ts.ctx.Err(), context.DeadlineExceeded) || errors.Is(rawErr, context.DeadlineExceeded) {
+			reason = "context_done"
+		}
+		if err := ts.RequestService.SetExecutionRetryDecision(ctx, ts.requestExec.ID, reason); err != nil {
+			log.Warn(ctx, "Failed to persist stream retry decision", log.Cause(err))
+		}
+	}
 }
 
 func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Context, responseBody []byte, meta llm.ResponseMeta) {
@@ -489,6 +502,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 
 	p.state.CurrentCandidate = candidate
 	p.state.StreamCompleted = false
+	ctx = contexts.WithChannelAPIKey(ctx, "")
 	p.refreshCandidateAPIFormat(ctx, candidate, p.state.CurrentModelIndex, llmRequest)
 
 	p.wrapped = selectOutboundForCandidate(candidate)
@@ -689,6 +703,7 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 		return errors.New("no more candidates available for retry")
 	}
 
+	p.recordRetryDecision(ctx, "next_channel")
 	// Reset request execution for the new candidate
 	p.state.RequestExec = nil
 	p.state.PassThroughApplied = false
@@ -796,6 +811,13 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	}
 	candidate := p.state.CurrentCandidate
 
+	decision := "same_channel"
+	if p.retryAddress {
+		decision = "next_address"
+	} else if p.state.CurrentModelIndex+1 < len(candidate.Models) {
+		decision = "next_model"
+	}
+	p.recordRetryDecision(ctx, decision)
 	// Reset request execution for the same channel.
 	p.state.RequestExec = nil
 	p.state.PassThroughApplied = false

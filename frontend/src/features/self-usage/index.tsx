@@ -95,10 +95,10 @@ function Login({
   );
 }
 
-function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: (range: DateRange) => void }) {
+export function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: (range: DateRange) => void }) {
   const { t } = useTranslation();
-  const [preset, setPreset] = useState<DatePreset | 'custom'>('last7');
-  const [draft, setDraft] = useState<DateRange>(() => presetRange('last7', meta.timezone));
+  const [preset, setPreset] = useState<DatePreset | 'custom'>('today');
+  const [draft, setDraft] = useState<DateRange>(() => presetRange('today', meta.timezone));
   const [invalid, setInvalid] = useState(false);
   function applyPreset(value: DatePreset | 'custom') {
     setPreset(value);
@@ -154,7 +154,7 @@ function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: (range:
   );
 }
 
-function Summary({ usage, meta }: { usage: Usage; meta: SelfUsageMeta }) {
+export function Summary({ usage, meta }: { usage: Usage; meta: SelfUsageMeta }) {
   const { t, number, money } = usePageLabels(meta);
   const fields = [
     ['success', usage.successRequests],
@@ -191,7 +191,7 @@ function Summary({ usage, meta }: { usage: Usage; meta: SelfUsageMeta }) {
   );
 }
 
-function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta: SelfUsageMeta }) {
+export function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta: SelfUsageMeta }) {
   const { t, locale, money, number } = usePageLabels(meta);
   const [metric, setMetric] = useState<'requests' | 'tokens' | 'cost'>('requests');
   const points = daily.map(({ date, usage }) => ({
@@ -253,6 +253,7 @@ function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta:
                   <Legend />
                   <Area
                     type='monotone'
+                    dot={points.length === 1}
                     dataKey='success'
                     name={t('selfUsage.summary.success')}
                     stroke='var(--chart-1)'
@@ -261,6 +262,7 @@ function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta:
                   />
                   <Area
                     type='monotone'
+                    dot={points.length === 1}
                     dataKey='failed'
                     name={t('selfUsage.summary.failed')}
                     stroke='var(--chart-2)'
@@ -271,6 +273,7 @@ function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta:
               ) : (
                 <Area
                   type='monotone'
+                  dot={points.length === 1}
                   dataKey='value'
                   stroke='var(--primary)'
                   fill='var(--primary)'
@@ -296,7 +299,7 @@ function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]; meta:
   );
 }
 
-function ModelTable({ models, meta }: { models: { model: string; usage: Usage }[]; meta: SelfUsageMeta }) {
+export function ModelTable({ models, meta }: { models: { model: string; usage: Usage }[]; meta: SelfUsageMeta }) {
   const { t, number, money } = usePageLabels(meta);
   return (
     <Card>
@@ -338,7 +341,7 @@ function ModelTable({ models, meta }: { models: { model: string; usage: Usage }[
   );
 }
 
-function RequestLog({
+export function RequestLog({
   group = false,
   keyValue,
   range,
@@ -348,7 +351,16 @@ function RequestLog({
   expectedScope,
   scopeRevision,
   onScopeMismatch,
+  loadRequests,
+  queryScope,
 }: {
+  loadRequests?: (
+    model: RequestStatus | string | null,
+    status: RequestStatus | null,
+    page: number,
+    signal?: AbortSignal
+  ) => ReturnType<typeof fetchRequests>;
+  queryScope?: readonly unknown[];
   group?: boolean;
   keyValue: string;
   range: DateRange;
@@ -364,8 +376,11 @@ function RequestLog({
   const [status, setStatus] = useState<RequestStatus | null>(null);
   const [page, setPage] = useState(1);
   const result = useQuery({
-    queryKey: ['selfUsage', 'requests', scopeRevision, group, range.start, range.end, model, status, page],
-    queryFn: ({ signal }) => fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group),
+    queryKey: [...(queryScope ?? ['selfUsage']), 'requests', scopeRevision, group, range.start, range.end, model, status, page],
+    queryFn: ({ signal }) =>
+      loadRequests
+        ? loadRequests(model, status, page, signal)
+        : fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group),
     staleTime: 0,
     gcTime: 0,
   });
@@ -563,7 +578,7 @@ function Dashboard({
   // Advance both queries together so old totals and a new group log cannot mix.
   const [scopeRevision, setScopeRevision] = useState(0);
   const syncScope = useCallback(() => setScopeRevision((value) => value + 1), []);
-  const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
+  const [range, setRange] = useState<DateRange>(() => presetRange('today', meta.timezone));
   const stats = useQuery({
     queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end],
     queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group),

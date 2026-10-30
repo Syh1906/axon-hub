@@ -456,6 +456,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         ? {
             type: currentRow.type,
             baseURL: currentRow.baseURL,
+            websiteURL: currentRow.websiteURL ?? '',
             endpoints: currentRow.endpoints ?? [],
             name: currentRow.name,
             policies: currentRow.policies ?? { stream: 'unlimited' },
@@ -482,6 +483,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           ? {
               type: duplicateFromRow.type,
               baseURL: duplicateFromRow.baseURL,
+              websiteURL: duplicateFromRow.websiteURL ?? '',
               endpoints: duplicateFromRow.endpoints ?? [],
               name: duplicateFromRow.name,
               policies: duplicateFromRow.policies ?? { stream: 'unlimited' },
@@ -507,6 +509,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           : {
               type: derivedChannelType,
               baseURL: getDefaultBaseURL(derivedChannelType),
+              websiteURL: '',
               name: '',
               policies: { stream: 'unlimited' },
               credentials: {
@@ -1033,6 +1036,15 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   }, [codexAuthJSONText, form, t]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (values.websiteURL) {
+      try {
+        const url = new URL(values.websiteURL);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('invalid');
+      } catch {
+        form.setError('websiteURL', { message: t('channels.website.invalid') });
+        return;
+      }
+    }
     // Check if there are selected fetched models that haven't been confirmed
     if (selectedFetchedModels.length > 0) {
       toast.error(t('channels.messages.modelsNotConfirmed'));

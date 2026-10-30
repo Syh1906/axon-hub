@@ -17,6 +17,7 @@ interface DateRangePickerProps {
   onCancel?: () => void;
   onConfirm?: (range: DateTimeRangeValue) => void;
   className?: string;
+  placeholder?: string;
 }
 
 export function DateRangePicker(props: DateRangePickerProps) {
@@ -71,7 +72,7 @@ export function DateRangePicker(props: DateRangePickerProps) {
   }, [isControlled, normalizedValue, internalValue, onCancel]);
 
   const currentValue = isControlled ? normalizedValue : internalValue;
-  const label = formatRange(currentValue?.from, currentValue?.to, t('common.filters.dateRange'));
+  const label = formatRange(currentValue?.from, currentValue?.to, props.placeholder ?? t('common.filters.dateRange'));
 
   return (
     <div className={cn('grid gap-2', className)}>

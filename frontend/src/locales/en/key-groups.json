@@ -170,5 +170,8 @@
   "kg.importTargetRequired": "A single-column key list requires exactly one selected group (including Ungrouped), or use a list with a group column. For multiple targets, use Generate list.",
   "kg.pendingBeforeSubmit": "This project has an unresolved batch. Close this form and recover the original batch before submitting; this request has not been sent.",
   "kg.resumePending": "Recover unresolved batch",
-  "kg.deferRecovery": "Close for now and keep the batch"
+  "kg.deferRecovery": "Close for now and keep the batch",
+  "kg.usage": "Usage",
+  "kg.usageHint": "View group usage and request history",
+  "kg.usageDescription": "Usage for keys currently in this group, including disabled keys, within the current project permissions."
 }

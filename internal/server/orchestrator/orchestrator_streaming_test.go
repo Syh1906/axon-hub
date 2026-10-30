@@ -596,6 +596,8 @@ func TestChatCompletionOrchestrator_Process_StreamingError(t *testing.T) {
 
 	dbExec := executions[0]
 	assert.Equal(t, requestexecution.StatusFailed, dbExec.Status, "request execution should be marked as failed on stream error")
+	require.NotNil(t, dbExec.Failure)
+	require.Equal(t, "stream_returned", dbExec.RetryDecision)
 }
 
 // TestChatCompletionOrchestrator_Process_StreamingSuccess_NotMarkedAsError verifies that

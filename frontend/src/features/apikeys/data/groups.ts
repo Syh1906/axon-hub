@@ -4,12 +4,12 @@ import { useSelectedProjectId } from '@/stores/projectStore';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export type KeyGroup = { id: number; name: string; projectID: number };
-export function useKeyGroups() {
+export function useKeyGroups(enabled = true) {
   const project = useSelectedProjectId();
   const { user } = usePermissions();
   return useQuery({
     queryKey: ['apiKeyGroups', user?.id, project],
-    enabled: !!project && !!user,
+    enabled: enabled && !!project && !!user,
     staleTime: 5 * 60_000,
     queryFn: async ({ signal }) =>
       (

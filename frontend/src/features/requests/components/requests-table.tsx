@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-table';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { readColumnOrder, writeColumnOrder, reconcileColumnOrder, isReorderableColumn } from '@/lib/column-order';
 import type { DateTimeRangeValue } from '@/utils/date-range';
 import type { AutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
 import { useIsMobile, MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
@@ -26,11 +27,11 @@ import { ServerSidePagination } from '@/components/server-side-pagination';
 import { Request, RequestConnection } from '../data/schema';
 import { DataTableToolbar } from './data-table-toolbar';
 import { RequestBodyDrawer } from './request-body-drawer';
+import type { RequestDiagnosticTab } from './request-log-cells';
 import { DEFAULT_HIDDEN_COLUMN_IDS, DEFAULT_MOBILE_HIDDEN_COLUMN_IDS, useRequestsColumns } from './requests-columns';
-import { readColumnOrder, writeColumnOrder, reconcileColumnOrder, isReorderableColumn } from '@/lib/column-order';
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'requests-table-column-visibility';
-const COLUMN_VISIBILITY_STORAGE_VERSION = 6;
+const COLUMN_VISIBILITY_STORAGE_VERSION = 7;
 
 const COLUMN_ORDER_STORAGE_KEY = 'requests-table-column-order';
 const COLUMN_ORDER_STORAGE_VERSION = 1;
@@ -53,6 +54,8 @@ interface RequestsTableProps {
   statusFilter: string[];
   sourceFilter: string[];
   channelFilter: string[];
+  channelTagFilter: string[];
+  apiKeyGroupFilter: string[];
   apiKeyFilter: string[];
   modelIDFilter: string;
   dateRange?: DateTimeRangeValue;
@@ -75,6 +78,8 @@ export interface RequestTableFilters {
   statusFilter: string[];
   sourceFilter: string[];
   channelFilter: string[];
+  channelTagFilter: string[];
+  apiKeyGroupFilter: string[];
   apiKeyFilter: string[];
   modelIDFilter: string;
 }
@@ -98,6 +103,8 @@ export function RequestsTable({
   statusFilter,
   sourceFilter,
   channelFilter,
+  channelTagFilter,
+  apiKeyGroupFilter,
   apiKeyFilter,
   modelIDFilter,
   dateRange,
@@ -117,17 +124,32 @@ export function RequestsTable({
 }: RequestsTableProps) {
   const { t } = useTranslation();
 
+  const [drawerInitialTab, setDrawerInitialTab] = useState<RequestDiagnosticTab>('request');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerInitialRequestId, setDrawerInitialRequestId] = useState<string | null>(null);
   const [drawerInitialIndex, setDrawerInitialIndex] = useState(0);
 
-  const handleBodyClick = useCallback((requestId: string, index: number) => {
+  const handleBodyClick = useCallback((requestId: string, index: number, tab: RequestDiagnosticTab = 'request') => {
+    setDrawerInitialTab(tab);
     setDrawerInitialRequestId(requestId);
     setDrawerInitialIndex(index);
     setDrawerOpen(true);
   }, []);
 
-  const requestsColumns = useRequestsColumns({ onBodyClick: handleBodyClick, onViewDetail });
+  const requestsColumns = useRequestsColumns({
+    onBodyClick: handleBodyClick,
+    onViewDetail,
+    onCallerFilter: (kind, value) =>
+      onFiltersChange({
+        statusFilter,
+        sourceFilter,
+        channelFilter,
+        channelTagFilter,
+        modelIDFilter,
+        apiKeyFilter: kind === 'key' ? [value] : [],
+        apiKeyGroupFilter: kind === 'group' ? [value] : [],
+      }),
+  });
   const [sorting, setSorting] = useState<SortingState>([]);
   const isMobile = useIsMobile();
 
@@ -228,7 +250,7 @@ export function RequestsTable({
         reorderableColumnIds: reorderable,
         storedOrder: stored,
         pinnedLast: ['details'],
-      }),
+      })
     );
   }, []);
 
@@ -259,6 +281,8 @@ export function RequestsTable({
     if (channelFilter.length > 0) {
       filters.push({ id: 'channel', value: channelFilter });
     }
+    if (channelTagFilter.length > 0) filters.push({ id: 'channelTag', value: channelTagFilter });
+    if (apiKeyGroupFilter.length > 0) filters.push({ id: 'apiKeyGroup', value: apiKeyGroupFilter });
     if (apiKeyFilter.length > 0) {
       filters.push({ id: 'caller', value: apiKeyFilter });
     }
@@ -266,7 +290,7 @@ export function RequestsTable({
       filters.push({ id: 'modelID', value: modelIDFilter });
     }
     return filters;
-  }, [statusFilter, sourceFilter, channelFilter, apiKeyFilter, modelIDFilter]);
+  }, [statusFilter, sourceFilter, channelFilter, channelTagFilter, apiKeyGroupFilter, apiKeyFilter, modelIDFilter]);
 
   const handleColumnFiltersChange = useCallback(
     (updater: any) => {
@@ -276,6 +300,8 @@ export function RequestsTable({
         statusFilter: getFilterArrayValue(newFilters, 'status'),
         sourceFilter: getFilterArrayValue(newFilters, 'source'),
         channelFilter: getFilterArrayValue(newFilters, 'channel'),
+        channelTagFilter: getFilterArrayValue(newFilters, 'channelTag'),
+        apiKeyGroupFilter: getFilterArrayValue(newFilters, 'apiKeyGroup'),
         apiKeyFilter: getFilterArrayValue(newFilters, 'caller'),
         modelIDFilter: getFilterStringValue(newFilters, 'modelID'),
       });
@@ -414,6 +440,7 @@ export function RequestsTable({
       </div>
 
       <RequestBodyDrawer
+        initialTab={drawerInitialTab}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         initialRequestId={drawerInitialRequestId}

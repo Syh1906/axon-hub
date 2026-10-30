@@ -14,6 +14,8 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
+	"github.com/looplj/axonhub/internal/ent/user"
+	"github.com/looplj/axonhub/internal/scopes"
 )
 
 func (s *APIKeyService) groupProject(ctx context.Context, write bool) (int, error) {
@@ -26,7 +28,7 @@ func (s *APIKeyService) groupProject(ctx context.Context, write bool) (int, erro
 		if !ok {
 			return 0, fmt.Errorf("authenticated user is required")
 		}
-		if err := s.requireProjectAdmin(ctx, user.ID, projectID); err != nil {
+		if err := s.requireAPIKeyGroupWrite(ctx, user.ID, projectID); err != nil {
 			return 0, err
 		}
 	}
@@ -110,13 +112,13 @@ func (s *APIKeyService) DeleteAPIKeyGroup(ctx context.Context, id int) error {
 	})
 }
 
-// Assignment grants group usage visibility, so it requires project administration.
+// Group membership and group management follow API key write permission in the target project.
 func (s *APIKeyService) validateAPIKeyGroup(ctx context.Context, projectID int, id *int) error {
 	user, ok := contexts.GetUser(ctx)
 	if !ok {
 		return fmt.Errorf("authenticated user is required")
 	}
-	if err := s.requireProjectAdmin(ctx, user.ID, projectID); err != nil {
+	if err := s.requireAPIKeyGroupWrite(ctx, user.ID, projectID); err != nil {
 		return err
 	}
 	if id == nil {
@@ -130,4 +132,14 @@ func (s *APIKeyService) validateAPIKeyGroup(ctx context.Context, projectID int, 
 	}
 	_, err := query.Only(ctx)
 	return err
+}
+
+func (s *APIKeyService) requireAPIKeyGroupWrite(ctx context.Context, userID, projectID int) error {
+	currentUser, err := authz.RunWithSystemBypass(ctx, "api-key-group-permission", func(readCtx context.Context) (*ent.User, error) {
+		return s.entFromContext(readCtx).User.Query().Where(user.IDEQ(userID)).WithRoles().WithProjectUsers().Only(readCtx)
+	})
+	if err != nil {
+		return err
+	}
+	return NewPermissionValidator().CanGrantScopes(contexts.WithUser(ctx, currentUser), []string{string(scopes.ScopeWriteAPIKeys)}, &projectID)
 }

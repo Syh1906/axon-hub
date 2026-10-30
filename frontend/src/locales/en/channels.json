@@ -1246,5 +1246,8 @@
   "channels.upstream.billingLimit": "Limit: {{value}}",
   "channels.upstream.billingUsed": "Used: {{value}}",
   "channels.upstream.billingUnknownPeriod": "Limit and usage periods could not be matched; remaining allowance was not calculated.",
-  "channels.upstream.table.account": "Account"
+  "channels.upstream.table.account": "Account",
+  "channels.website.label": "Website URL (optional)",
+  "channels.website.description": "Opens when clicking the channel name. Does not affect API requests. Leave blank to disable navigation.",
+  "channels.website.invalid": "Enter an HTTP or HTTPS website URL without credentials"
 }

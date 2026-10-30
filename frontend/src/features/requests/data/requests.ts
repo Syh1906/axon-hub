@@ -3,6 +3,7 @@ import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { useErrorHandler } from '@/hooks/use-error-handler';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import {
   Request,
@@ -13,18 +14,37 @@ import {
   requestSchema,
 } from './schema';
 
+// Requests expose their reporting timezone without granting system settings access.
+export function useRequestLogTimezone() {
+  const projectId = useSelectedProjectId();
+  const { hasScope } = usePermissions();
+  return useQuery({
+    queryKey: ['request-log-timezone', projectId],
+    enabled: hasScope('read_requests'),
+    queryFn: async () => {
+      const data = await graphqlRequest<{ requestLogTimezone: string }>(`query { requestLogTimezone }`, {}, projectId ? { 'X-Project-ID': projectId } : undefined);
+      return data.requestLogTimezone;
+    },
+  });
+}
+
 // Dynamic GraphQL query builder
 function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChannels: boolean; canViewCallerUser: boolean }) {
   const apiKeyFields = permissions.canViewApiKeys
     ? `
           apiKey {
             groupName
+            groupRef
             id
-            name${permissions.canViewCallerUser ? `
+            name${
+              permissions.canViewCallerUser
+                ? `
             user {
               firstName
               lastName
-            }` : ''}
+            }`
+                : ''
+            }
           }`
     : '';
 
@@ -33,6 +53,8 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                 channel {
                   id
                   name
+                  type
+                  tags
                 }`
     : '';
 
@@ -41,6 +63,8 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   channel {
                     id
                     name
+                  type
+                  tags
                   }`
     : '';
 
@@ -52,8 +76,9 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
       $before: Cursor
       $orderBy: RequestOrder
       $where: RequestWhereInput
+      $filter: RequestLogFilterInput
     ) {
-      requests(first: $first, after: $after, last: $last, before: $before, orderBy: $orderBy, where: $where) {
+      requests: requestLogs(first: $first, after: $after, last: $last, before: $before, orderBy: $orderBy, where: $where, filter: $filter) {
         edges {
           node {
             id
@@ -66,6 +91,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             stream
             status
             clientIP
+            clientStatusCode
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
@@ -78,6 +104,11 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   format
                   status
                   reasoningEffort
+                  responseStatusCode
+                  errorMessage
+                  retryDecision
+                  failure { source code type }
+                  ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState strategy priority }' : ''}
                   passThroughApplied${executionChannelFields}
                 }
                 cursor
@@ -103,6 +134,8 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   totalTokens
                   promptCachedTokens
                   promptWriteCachedTokens
+                  promptWriteCachedTokens5m
+                  promptWriteCachedTokens1h
                   totalCost
                   costPriceMultiplier
                   costItems { image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
@@ -140,12 +173,17 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
     ? `
           apiKey {
             groupName
+            groupRef
             id
-            name${permissions.canViewCallerUser ? `
+            name${
+              permissions.canViewCallerUser
+                ? `
             user {
               firstName
               lastName
-            }` : ''}
+            }`
+                : ''
+            }
         }`
     : '';
 
@@ -154,6 +192,8 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
           channel {
             id
             name
+                  type
+                  tags
           }`
     : '';
 
@@ -168,6 +208,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
           modelID
           stream
           clientIP
+          clientStatusCode
           projectID
           dataStorageID
           contentSaved
@@ -207,12 +248,17 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
     ? `
           apiKey {
             groupName
+            groupRef
             id
-            name${permissions.canViewCallerUser ? `
+            name${
+              permissions.canViewCallerUser
+                ? `
             user {
               firstName
               lastName
-            }` : ''}
+            }`
+                : ''
+            }
         }`
     : '';
 
@@ -221,6 +267,8 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           channel {
             id
             name
+                  type
+                  tags
           }`
     : '';
 
@@ -235,6 +283,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           modelID
           stream
           clientIP
+          clientStatusCode
           projectID
           dataStorageID
           contentSaved
@@ -257,6 +306,8 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
                   name
                   type
                   baseURL
+                  websiteURL
+                  tags
               }`
     : '';
 
@@ -286,12 +337,16 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
                 responseChunks
                 errorMessage
                 responseStatusCode
+                failure { source code type body bodyTruncated }
+                retryDecision
+                ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState strategy priority candidates { channelID channelName provider priority models sessionReuse } }' : ''}
                 status
                 format
                 reasoningEffort
                 stream
                 requestURL
                 passThroughApplied
+                metricsLatencyMs
                 metricsFirstTokenLatencyMs
                 metricsReasoningDurationMs
               }
@@ -311,24 +366,33 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
   `;
 }
 
+// Keep the Ent where input separate from log-specific filters in both list and drawer navigation.
+function requestLogVariables(where: Record<string, any> = {}) {
+  const { channelTagsIn, apiKeyGroupRefsIn, timeRange, ...entWhere } = where;
+  return { where: entWhere, filter: { channelTagsIn, apiKeyGroupRefsIn, timeRange } };
+}
+
 // Query hooks
-export function useRequests(variables?: {
-  first?: number;
-  after?: string;
-  last?: number;
-  before?: string;
-  orderBy?: { field: 'CREATED_AT'; direction: 'ASC' | 'DESC' };
-  where?: {
-    status?: string;
-    source?: string;
-    channelID?: string;
-    channelIDIn?: string[];
-    statusIn?: string[];
-    sourceIn?: string[];
-    projectID?: string;
-    [key: string]: any;
-  };
-}, options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean }) {
+export function useRequests(
+  variables?: {
+    first?: number;
+    after?: string;
+    last?: number;
+    before?: string;
+    orderBy?: { field: 'CREATED_AT'; direction: 'ASC' | 'DESC' };
+    where?: {
+      status?: string;
+      source?: string;
+      channelID?: string;
+      channelIDIn?: string[];
+      statusIn?: string[];
+      sourceIn?: string[];
+      projectID?: string;
+      [key: string]: any;
+    };
+  },
+  options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean }
+) {
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
   const permissions = useRequestPermissions();
@@ -353,7 +417,11 @@ export function useRequests(variables?: {
           },
         };
 
-        const data = await graphqlRequest<{ requests: RequestConnection }>(query, finalVariables, headers);
+        const data = await graphqlRequest<{ requests: RequestConnection }>(
+          query,
+          { ...finalVariables, ...requestLogVariables(finalVariables.where) },
+          headers
+        );
         return requestConnectionSchema.parse(data?.requests);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -391,9 +459,7 @@ export function useRequest(
         const previousRequest = queryClient.getQueryData<Request>(queryKey);
         const shouldUseLightweightPolling = previousRequest?.status === 'processing';
 
-        const query = shouldUseLightweightPolling
-          ? buildRequestDetailPollingQuery(permissions)
-          : buildRequestDetailQuery(permissions);
+        const query = shouldUseLightweightPolling ? buildRequestDetailPollingQuery(permissions) : buildRequestDetailQuery(permissions);
 
         const data = await graphqlRequest<{ node: Request }>(query, { id }, headers);
         if (!data.node) {
@@ -455,9 +521,7 @@ export async function fetchAdjacentRequestPage(params: {
 }): Promise<{ requests: Request[]; pageInfo: RequestConnection['pageInfo'] }> {
   const query = buildRequestsQuery(params.permissions);
   const variables =
-    params.direction === 'older'
-      ? { first: params.pageSize, after: params.cursor }
-      : { last: params.pageSize, before: params.cursor };
+    params.direction === 'older' ? { first: params.pageSize, after: params.cursor } : { last: params.pageSize, before: params.cursor };
 
   const where: Record<string, any> = { ...params.where };
   if (params.projectId) where.projectID = params.projectId;
@@ -465,7 +529,7 @@ export async function fetchAdjacentRequestPage(params: {
   const headers = params.projectId ? { 'X-Project-ID': params.projectId } : undefined;
   const data = await graphqlRequest<{ requests: RequestConnection }>(
     query,
-    { ...variables, where: Object.keys(where).length > 0 ? where : undefined, orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
+    { ...variables, ...requestLogVariables(where), orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
     headers
   );
   const result = requestConnectionSchema.parse(data?.requests);

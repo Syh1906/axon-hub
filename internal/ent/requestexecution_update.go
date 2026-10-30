@@ -113,6 +113,38 @@ func (_u *RequestExecutionUpdate) ClearErrorMessage() *RequestExecutionUpdate {
 	return _u
 }
 
+// SetFailure sets the "failure" field.
+func (_u *RequestExecutionUpdate) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionUpdate {
+	_u.mutation.SetFailure(v)
+	return _u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (_u *RequestExecutionUpdate) ClearFailure() *RequestExecutionUpdate {
+	_u.mutation.ClearFailure()
+	return _u
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (_u *RequestExecutionUpdate) SetRetryDecision(v string) *RequestExecutionUpdate {
+	_u.mutation.SetRetryDecision(v)
+	return _u
+}
+
+// SetNillableRetryDecision sets the "retry_decision" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableRetryDecision(v *string) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetRetryDecision(*v)
+	}
+	return _u
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (_u *RequestExecutionUpdate) ClearRetryDecision() *RequestExecutionUpdate {
+	_u.mutation.ClearRetryDecision()
+	return _u
+}
+
 // SetResponseStatusCode sets the "response_status_code" field.
 func (_u *RequestExecutionUpdate) SetResponseStatusCode(v int) *RequestExecutionUpdate {
 	_u.mutation.ResetResponseStatusCode()
@@ -454,6 +486,21 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.ErrorMessageCleared() {
 		_spec.ClearField(requestexecution.FieldErrorMessage, field.TypeString)
 	}
+	if _u.mutation.SelectionCleared() {
+		_spec.ClearField(requestexecution.FieldSelection, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Failure(); ok {
+		_spec.SetField(requestexecution.FieldFailure, field.TypeJSON, value)
+	}
+	if _u.mutation.FailureCleared() {
+		_spec.ClearField(requestexecution.FieldFailure, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RetryDecision(); ok {
+		_spec.SetField(requestexecution.FieldRetryDecision, field.TypeString, value)
+	}
+	if _u.mutation.RetryDecisionCleared() {
+		_spec.ClearField(requestexecution.FieldRetryDecision, field.TypeString)
+	}
 	if value, ok := _u.mutation.ResponseStatusCode(); ok {
 		_spec.SetField(requestexecution.FieldResponseStatusCode, field.TypeInt, value)
 	}
@@ -638,6 +685,38 @@ func (_u *RequestExecutionUpdateOne) SetNillableErrorMessage(v *string) *Request
 // ClearErrorMessage clears the value of the "error_message" field.
 func (_u *RequestExecutionUpdateOne) ClearErrorMessage() *RequestExecutionUpdateOne {
 	_u.mutation.ClearErrorMessage()
+	return _u
+}
+
+// SetFailure sets the "failure" field.
+func (_u *RequestExecutionUpdateOne) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionUpdateOne {
+	_u.mutation.SetFailure(v)
+	return _u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (_u *RequestExecutionUpdateOne) ClearFailure() *RequestExecutionUpdateOne {
+	_u.mutation.ClearFailure()
+	return _u
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (_u *RequestExecutionUpdateOne) SetRetryDecision(v string) *RequestExecutionUpdateOne {
+	_u.mutation.SetRetryDecision(v)
+	return _u
+}
+
+// SetNillableRetryDecision sets the "retry_decision" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableRetryDecision(v *string) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetRetryDecision(*v)
+	}
+	return _u
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (_u *RequestExecutionUpdateOne) ClearRetryDecision() *RequestExecutionUpdateOne {
+	_u.mutation.ClearRetryDecision()
 	return _u
 }
 
@@ -1011,6 +1090,21 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if _u.mutation.ErrorMessageCleared() {
 		_spec.ClearField(requestexecution.FieldErrorMessage, field.TypeString)
+	}
+	if _u.mutation.SelectionCleared() {
+		_spec.ClearField(requestexecution.FieldSelection, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Failure(); ok {
+		_spec.SetField(requestexecution.FieldFailure, field.TypeJSON, value)
+	}
+	if _u.mutation.FailureCleared() {
+		_spec.ClearField(requestexecution.FieldFailure, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RetryDecision(); ok {
+		_spec.SetField(requestexecution.FieldRetryDecision, field.TypeString, value)
+	}
+	if _u.mutation.RetryDecisionCleared() {
+		_spec.ClearField(requestexecution.FieldRetryDecision, field.TypeString)
 	}
 	if value, ok := _u.mutation.ResponseStatusCode(); ok {
 		_spec.SetField(requestexecution.FieldResponseStatusCode, field.TypeInt, value)

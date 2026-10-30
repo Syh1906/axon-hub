@@ -54,6 +54,8 @@ const (
 	FieldExternalID = "external_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldClientStatusCode holds the string denoting the client_status_code field in the database.
+	FieldClientStatusCode = "client_status_code"
 	// FieldStream holds the string denoting the stream field in the database.
 	FieldStream = "stream"
 	// FieldClientIP holds the string denoting the client_ip field in the database.
@@ -160,6 +162,7 @@ var Columns = []string{
 	FieldRoutingDecision,
 	FieldExternalID,
 	FieldStatus,
+	FieldClientStatusCode,
 	FieldStream,
 	FieldClientIP,
 	FieldMetricsLatencyMs,
@@ -333,6 +336,11 @@ func ByExternalID(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByClientStatusCode orders the results by the client_status_code field.
+func ByClientStatusCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientStatusCode, opts...).ToFunc()
 }
 
 // ByStream orders the results by the stream field.

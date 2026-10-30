@@ -488,6 +488,7 @@ type ComplexityRoot struct {
 		Type                    func(childComplexity int) int
 		UpdatedAt               func(childComplexity int) int
 		UsageLogs               func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
+		WebsiteURL              func(childComplexity int) int
 	}
 
 	ChannelAddressProbe struct {
@@ -1795,6 +1796,9 @@ type ComplexityRoot struct {
 		GetCacheDiagnostics             func(childComplexity int, input *GetCacheDiagnosticsInput) int
 		KeyManagementResults            func(childComplexity int, operationID string) int
 		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
+		ManagedGroupUsageMeta           func(childComplexity int, groupRef int) int
+		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, model *string, status *string, page int, pageSize int) int
+		ManagedGroupUsageStats          func(childComplexity int, groupRef int, start string, end string) int
 		ManagedKeyGroups                func(childComplexity int, search string, status string, offset int, limit int, descending bool) int
 		Me                              func(childComplexity int) int
 		ModelPerformanceStats           func(childComplexity int) int
@@ -1818,6 +1822,8 @@ type ComplexityRoot struct {
 		QueryModels                     func(childComplexity int, input QueryModelsInput) int
 		QueryUnassociatedChannels       func(childComplexity int) int
 		QuotaEnforcementSettings        func(childComplexity int) int
+		RequestLogTimezone              func(childComplexity int) int
+		RequestLogs                     func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) int
 		RequestStats                    func(childComplexity int) int
 		RequestStatsByAPIKey            func(childComplexity int, timeWindow *string) int
 		RequestStatsByChannel           func(childComplexity int, timeWindow *string) int
@@ -1880,6 +1886,7 @@ type ComplexityRoot struct {
 		Channel                    func(childComplexity int) int
 		ChannelID                  func(childComplexity int) int
 		ClientIP                   func(childComplexity int) int
+		ClientStatusCode           func(childComplexity int) int
 		ContentSaved               func(childComplexity int) int
 		ContentSavedAt             func(childComplexity int) int
 		ContentStorageID           func(childComplexity int) int
@@ -1939,6 +1946,7 @@ type ComplexityRoot struct {
 		DataStorageID              func(childComplexity int) int
 		ErrorMessage               func(childComplexity int) int
 		ExternalID                 func(childComplexity int) int
+		Failure                    func(childComplexity int) int
 		Format                     func(childComplexity int) int
 		ID                         func(childComplexity int) int
 		MetricsFirstTokenLatencyMs func(childComplexity int) int
@@ -1956,6 +1964,8 @@ type ComplexityRoot struct {
 		ResponseBody               func(childComplexity int) int
 		ResponseChunks             func(childComplexity int) int
 		ResponseStatusCode         func(childComplexity int) int
+		RetryDecision              func(childComplexity int) int
+		Selection                  func(childComplexity int) int
 		Status                     func(childComplexity int) int
 		Stream                     func(childComplexity int) int
 		UpdatedAt                  func(childComplexity int) int
@@ -1972,12 +1982,40 @@ type ComplexityRoot struct {
 		Node   func(childComplexity int) int
 	}
 
+	RequestExecutionFailure struct {
+		Body          func(childComplexity int) int
+		BodyTruncated func(childComplexity int) int
+		Code          func(childComplexity int) int
+		Source        func(childComplexity int) int
+		Type          func(childComplexity int) int
+	}
+
+	RequestExecutionSelection struct {
+		Candidates   func(childComplexity int) int
+		ChannelName  func(childComplexity int) int
+		KeyHint      func(childComplexity int) int
+		KeyRemark    func(childComplexity int) int
+		Priority     func(childComplexity int) int
+		Provider     func(childComplexity int) int
+		SessionState func(childComplexity int) int
+		Strategy     func(childComplexity int) int
+	}
+
 	RequestMetadata struct {
 		CachedTokens func(childComplexity int) int
 		InputTokens  func(childComplexity int) int
 		ItemCount    func(childComplexity int) int
 		OutputTokens func(childComplexity int) int
 		TotalTokens  func(childComplexity int) int
+	}
+
+	RequestRoutingCandidate struct {
+		ChannelID    func(childComplexity int) int
+		ChannelName  func(childComplexity int) int
+		Models       func(childComplexity int) int
+		Priority     func(childComplexity int) int
+		Provider     func(childComplexity int) int
+		SessionReuse func(childComplexity int) int
 	}
 
 	RequestRoutingDecision struct {
@@ -2109,6 +2147,109 @@ type ComplexityRoot struct {
 		RequestSpans  func(childComplexity int) int
 		ResponseSpans func(childComplexity int) int
 		StartTime     func(childComplexity int) int
+	}
+
+	SelfUsageCostItem struct {
+		Image                       func(childComplexity int) int
+		ImageRule                   func(childComplexity int) int
+		ItemCode                    func(childComplexity int) int
+		PromptWriteCacheVariantCode func(childComplexity int) int
+		Quantity                    func(childComplexity int) int
+		Subtotal                    func(childComplexity int) int
+		TierBreakdown               func(childComplexity int) int
+		Unpriced                    func(childComplexity int) int
+	}
+
+	SelfUsageDailyStat struct {
+		Date  func(childComplexity int) int
+		Usage func(childComplexity int) int
+	}
+
+	SelfUsageImageOutput struct {
+		Height     func(childComplexity int) int
+		Source     func(childComplexity int) int
+		Tier       func(childComplexity int) int
+		TierSource func(childComplexity int) int
+		Width      func(childComplexity int) int
+	}
+
+	SelfUsageMeta struct {
+		APIKeyName   func(childComplexity int) int
+		APIKeyType   func(childComplexity int) int
+		CurrencyCode func(childComplexity int) int
+		GroupName    func(childComplexity int) int
+		MaxRangeDays func(childComplexity int) int
+		Timezone     func(childComplexity int) int
+	}
+
+	SelfUsageModelStat struct {
+		Model func(childComplexity int) int
+		Usage func(childComplexity int) int
+	}
+
+	SelfUsageRequest struct {
+		APIKeyName          func(childComplexity int) int
+		CacheReadTokens     func(childComplexity int) int
+		CacheWriteTokens    func(childComplexity int) int
+		Cost                func(childComplexity int) int
+		CostItems           func(childComplexity int) int
+		CostMultiplier      func(childComplexity int) int
+		CostMultiplierMixed func(childComplexity int) int
+		CreatedAt           func(childComplexity int) int
+		FirstTokenLatencyMs func(childComplexity int) int
+		ID                  func(childComplexity int) int
+		InputTokens         func(childComplexity int) int
+		LatencyMs           func(childComplexity int) int
+		Model               func(childComplexity int) int
+		OutputTokens        func(childComplexity int) int
+		ReasoningTokens     func(childComplexity int) int
+		RequestStatus       func(childComplexity int) int
+		Status              func(childComplexity int) int
+		Stream              func(childComplexity int) int
+		TotalTokens         func(childComplexity int) int
+		UnpricedRecords     func(childComplexity int) int
+		UsageRecords        func(childComplexity int) int
+	}
+
+	SelfUsageRequestPage struct {
+		APIKeyName func(childComplexity int) int
+		GroupName  func(childComplexity int) int
+		Items      func(childComplexity int) int
+		Page       func(childComplexity int) int
+		PageSize   func(childComplexity int) int
+		ScopeID    func(childComplexity int) int
+		Total      func(childComplexity int) int
+	}
+
+	SelfUsageStats struct {
+		APIKeyName func(childComplexity int) int
+		Daily      func(childComplexity int) int
+		End        func(childComplexity int) int
+		GroupName  func(childComplexity int) int
+		Models     func(childComplexity int) int
+		ScopeID    func(childComplexity int) int
+		Start      func(childComplexity int) int
+		Totals     func(childComplexity int) int
+	}
+
+	SelfUsageSummary struct {
+		CacheReadTokens  func(childComplexity int) int
+		CacheWriteTokens func(childComplexity int) int
+		Cost             func(childComplexity int) int
+		FailedRequests   func(childComplexity int) int
+		InputTokens      func(childComplexity int) int
+		OutputTokens     func(childComplexity int) int
+		ReasoningTokens  func(childComplexity int) int
+		SuccessRequests  func(childComplexity int) int
+		TotalTokens      func(childComplexity int) int
+		UnpricedRecords  func(childComplexity int) int
+		UsageRecords     func(childComplexity int) int
+	}
+
+	SelfUsageTierCost struct {
+		Subtotal func(childComplexity int) int
+		Units    func(childComplexity int) int
+		UpTo     func(childComplexity int) int
 	}
 
 	SignInPayload struct {
@@ -2969,6 +3110,11 @@ type QueryResolver interface {
 	ChannelProbeData(ctx context.Context, input biz.GetChannelProbeDataInput) ([]*biz.ChannelProbeData, error)
 	ChannelUpstreamStates(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelUpstreamState, error)
 	ChannelUpstreamRefreshTargets(ctx context.Context) ([]*objects.GUID, error)
+	RequestLogTimezone(ctx context.Context) (string, error)
+	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
+	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
+	ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string) (*biz.SelfUsageStats, error)
+	ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error)
 	AnalyticsMetadata(ctx context.Context) (*AnalyticsMetadata, error)
 	AnalyticsOverview(ctx context.Context, filter *AnalyticsFilter) (*AnalyticsOverview, error)
 	AnalyticsDailyStats(ctx context.Context, filter *AnalyticsFilter) ([]*AnalyticsDailyStat, error)
@@ -3015,6 +3161,8 @@ type RequestExecutionResolver interface {
 	RequestBody(ctx context.Context, obj *ent.RequestExecution) (objects.JSONRawMessage, error)
 	ResponseBody(ctx context.Context, obj *ent.RequestExecution) (objects.JSONRawMessage, error)
 	ResponseChunks(ctx context.Context, obj *ent.RequestExecution) ([]objects.JSONRawMessage, error)
+
+	Selection(ctx context.Context, obj *ent.RequestExecution) (*objects.RequestExecutionSelection, error)
 
 	Channel(ctx context.Context, obj *ent.RequestExecution) (*ent.Channel, error)
 }
@@ -4681,6 +4829,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Channel.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
+	case "Channel.websiteURL":
+		if e.complexity.Channel.WebsiteURL == nil {
+			break
+		}
+
+		return e.complexity.Channel.WebsiteURL(childComplexity), true
 
 	case "ChannelAddressProbe.errorCode":
 		if e.complexity.ChannelAddressProbe.ErrorCode == nil {
@@ -10810,6 +10964,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ManagedGroupKeys(childComplexity, args["groupRef"].(int), args["offset"].(int), args["limit"].(int)), true
+	case "Query.managedGroupUsageMeta":
+		if e.complexity.Query.ManagedGroupUsageMeta == nil {
+			break
+		}
+
+		args, err := ec.field_Query_managedGroupUsageMeta_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ManagedGroupUsageMeta(childComplexity, args["groupRef"].(int)), true
+	case "Query.managedGroupUsageRequests":
+		if e.complexity.Query.ManagedGroupUsageRequests == nil {
+			break
+		}
+
+		args, err := ec.field_Query_managedGroupUsageRequests_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ManagedGroupUsageRequests(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["model"].(*string), args["status"].(*string), args["page"].(int), args["pageSize"].(int)), true
+	case "Query.managedGroupUsageStats":
+		if e.complexity.Query.ManagedGroupUsageStats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_managedGroupUsageStats_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ManagedGroupUsageStats(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string)), true
 	case "Query.managedKeyGroups":
 		if e.complexity.Query.ManagedKeyGroups == nil {
 			break
@@ -11018,6 +11205,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.QuotaEnforcementSettings(childComplexity), true
+	case "Query.requestLogTimezone":
+		if e.complexity.Query.RequestLogTimezone == nil {
+			break
+		}
+
+		return e.complexity.Query.RequestLogTimezone(childComplexity), true
+	case "Query.requestLogs":
+		if e.complexity.Query.RequestLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_requestLogs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.RequestLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.RequestOrder), args["where"].(*ent.RequestWhereInput), args["filter"].(*RequestLogFilterInput)), true
 	case "Query.requestStats":
 		if e.complexity.Query.RequestStats == nil {
 			break
@@ -11385,6 +11589,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ClientIP(childComplexity), true
+	case "Request.clientStatusCode":
+		if e.complexity.Request.ClientStatusCode == nil {
+			break
+		}
+
+		return e.complexity.Request.ClientStatusCode(childComplexity), true
 	case "Request.contentSaved":
 		if e.complexity.Request.ContentSaved == nil {
 			break
@@ -11681,6 +11891,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecution.ExternalID(childComplexity), true
+	case "RequestExecution.failure":
+		if e.complexity.RequestExecution.Failure == nil {
+			break
+		}
+
+		return e.complexity.RequestExecution.Failure(childComplexity), true
 	case "RequestExecution.format":
 		if e.complexity.RequestExecution.Format == nil {
 			break
@@ -11783,6 +11999,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecution.ResponseStatusCode(childComplexity), true
+	case "RequestExecution.retryDecision":
+		if e.complexity.RequestExecution.RetryDecision == nil {
+			break
+		}
+
+		return e.complexity.RequestExecution.RetryDecision(childComplexity), true
+	case "RequestExecution.selection":
+		if e.complexity.RequestExecution.Selection == nil {
+			break
+		}
+
+		return e.complexity.RequestExecution.Selection(childComplexity), true
 	case "RequestExecution.status":
 		if e.complexity.RequestExecution.Status == nil {
 			break
@@ -11834,6 +12062,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RequestExecutionEdge.Node(childComplexity), true
 
+	case "RequestExecutionFailure.body":
+		if e.complexity.RequestExecutionFailure.Body == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionFailure.Body(childComplexity), true
+	case "RequestExecutionFailure.bodyTruncated":
+		if e.complexity.RequestExecutionFailure.BodyTruncated == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionFailure.BodyTruncated(childComplexity), true
+	case "RequestExecutionFailure.code":
+		if e.complexity.RequestExecutionFailure.Code == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionFailure.Code(childComplexity), true
+	case "RequestExecutionFailure.source":
+		if e.complexity.RequestExecutionFailure.Source == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionFailure.Source(childComplexity), true
+	case "RequestExecutionFailure.type":
+		if e.complexity.RequestExecutionFailure.Type == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionFailure.Type(childComplexity), true
+
+	case "RequestExecutionSelection.candidates":
+		if e.complexity.RequestExecutionSelection.Candidates == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.Candidates(childComplexity), true
+	case "RequestExecutionSelection.channelName":
+		if e.complexity.RequestExecutionSelection.ChannelName == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.ChannelName(childComplexity), true
+	case "RequestExecutionSelection.keyHint":
+		if e.complexity.RequestExecutionSelection.KeyHint == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.KeyHint(childComplexity), true
+	case "RequestExecutionSelection.keyRemark":
+		if e.complexity.RequestExecutionSelection.KeyRemark == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.KeyRemark(childComplexity), true
+	case "RequestExecutionSelection.priority":
+		if e.complexity.RequestExecutionSelection.Priority == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.Priority(childComplexity), true
+	case "RequestExecutionSelection.provider":
+		if e.complexity.RequestExecutionSelection.Provider == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.Provider(childComplexity), true
+	case "RequestExecutionSelection.sessionState":
+		if e.complexity.RequestExecutionSelection.SessionState == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.SessionState(childComplexity), true
+	case "RequestExecutionSelection.strategy":
+		if e.complexity.RequestExecutionSelection.Strategy == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.Strategy(childComplexity), true
+
 	case "RequestMetadata.cachedTokens":
 		if e.complexity.RequestMetadata.CachedTokens == nil {
 			break
@@ -11864,6 +12172,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestMetadata.TotalTokens(childComplexity), true
+
+	case "RequestRoutingCandidate.channelID":
+		if e.complexity.RequestRoutingCandidate.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.ChannelID(childComplexity), true
+	case "RequestRoutingCandidate.channelName":
+		if e.complexity.RequestRoutingCandidate.ChannelName == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.ChannelName(childComplexity), true
+	case "RequestRoutingCandidate.models":
+		if e.complexity.RequestRoutingCandidate.Models == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.Models(childComplexity), true
+	case "RequestRoutingCandidate.priority":
+		if e.complexity.RequestRoutingCandidate.Priority == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.Priority(childComplexity), true
+	case "RequestRoutingCandidate.provider":
+		if e.complexity.RequestRoutingCandidate.Provider == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.Provider(childComplexity), true
+	case "RequestRoutingCandidate.sessionReuse":
+		if e.complexity.RequestRoutingCandidate.SessionReuse == nil {
+			break
+		}
+
+		return e.complexity.RequestRoutingCandidate.SessionReuse(childComplexity), true
 
 	case "RequestRoutingDecision.consecutiveFailovers":
 		if e.complexity.RequestRoutingDecision.ConsecutiveFailovers == nil {
@@ -12349,6 +12694,454 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Segment.StartTime(childComplexity), true
+
+	case "SelfUsageCostItem.image":
+		if e.complexity.SelfUsageCostItem.Image == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.Image(childComplexity), true
+	case "SelfUsageCostItem.imageRule":
+		if e.complexity.SelfUsageCostItem.ImageRule == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.ImageRule(childComplexity), true
+	case "SelfUsageCostItem.itemCode":
+		if e.complexity.SelfUsageCostItem.ItemCode == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.ItemCode(childComplexity), true
+	case "SelfUsageCostItem.promptWriteCacheVariantCode":
+		if e.complexity.SelfUsageCostItem.PromptWriteCacheVariantCode == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.PromptWriteCacheVariantCode(childComplexity), true
+	case "SelfUsageCostItem.quantity":
+		if e.complexity.SelfUsageCostItem.Quantity == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.Quantity(childComplexity), true
+	case "SelfUsageCostItem.subtotal":
+		if e.complexity.SelfUsageCostItem.Subtotal == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.Subtotal(childComplexity), true
+	case "SelfUsageCostItem.tierBreakdown":
+		if e.complexity.SelfUsageCostItem.TierBreakdown == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.TierBreakdown(childComplexity), true
+	case "SelfUsageCostItem.unpriced":
+		if e.complexity.SelfUsageCostItem.Unpriced == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.Unpriced(childComplexity), true
+
+	case "SelfUsageDailyStat.date":
+		if e.complexity.SelfUsageDailyStat.Date == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageDailyStat.Date(childComplexity), true
+	case "SelfUsageDailyStat.usage":
+		if e.complexity.SelfUsageDailyStat.Usage == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageDailyStat.Usage(childComplexity), true
+
+	case "SelfUsageImageOutput.height":
+		if e.complexity.SelfUsageImageOutput.Height == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.Height(childComplexity), true
+	case "SelfUsageImageOutput.source":
+		if e.complexity.SelfUsageImageOutput.Source == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.Source(childComplexity), true
+	case "SelfUsageImageOutput.tier":
+		if e.complexity.SelfUsageImageOutput.Tier == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.Tier(childComplexity), true
+	case "SelfUsageImageOutput.tierSource":
+		if e.complexity.SelfUsageImageOutput.TierSource == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.TierSource(childComplexity), true
+	case "SelfUsageImageOutput.width":
+		if e.complexity.SelfUsageImageOutput.Width == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.Width(childComplexity), true
+
+	case "SelfUsageMeta.apiKeyName":
+		if e.complexity.SelfUsageMeta.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.APIKeyName(childComplexity), true
+	case "SelfUsageMeta.apiKeyType":
+		if e.complexity.SelfUsageMeta.APIKeyType == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.APIKeyType(childComplexity), true
+	case "SelfUsageMeta.currencyCode":
+		if e.complexity.SelfUsageMeta.CurrencyCode == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.CurrencyCode(childComplexity), true
+	case "SelfUsageMeta.groupName":
+		if e.complexity.SelfUsageMeta.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.GroupName(childComplexity), true
+	case "SelfUsageMeta.maxRangeDays":
+		if e.complexity.SelfUsageMeta.MaxRangeDays == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.MaxRangeDays(childComplexity), true
+	case "SelfUsageMeta.timezone":
+		if e.complexity.SelfUsageMeta.Timezone == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageMeta.Timezone(childComplexity), true
+
+	case "SelfUsageModelStat.model":
+		if e.complexity.SelfUsageModelStat.Model == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelStat.Model(childComplexity), true
+	case "SelfUsageModelStat.usage":
+		if e.complexity.SelfUsageModelStat.Usage == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelStat.Usage(childComplexity), true
+
+	case "SelfUsageRequest.apiKeyName":
+		if e.complexity.SelfUsageRequest.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.APIKeyName(childComplexity), true
+	case "SelfUsageRequest.cacheReadTokens":
+		if e.complexity.SelfUsageRequest.CacheReadTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CacheReadTokens(childComplexity), true
+	case "SelfUsageRequest.cacheWriteTokens":
+		if e.complexity.SelfUsageRequest.CacheWriteTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CacheWriteTokens(childComplexity), true
+	case "SelfUsageRequest.cost":
+		if e.complexity.SelfUsageRequest.Cost == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.Cost(childComplexity), true
+	case "SelfUsageRequest.costItems":
+		if e.complexity.SelfUsageRequest.CostItems == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CostItems(childComplexity), true
+	case "SelfUsageRequest.costMultiplier":
+		if e.complexity.SelfUsageRequest.CostMultiplier == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CostMultiplier(childComplexity), true
+	case "SelfUsageRequest.costMultiplierMixed":
+		if e.complexity.SelfUsageRequest.CostMultiplierMixed == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CostMultiplierMixed(childComplexity), true
+	case "SelfUsageRequest.createdAt":
+		if e.complexity.SelfUsageRequest.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.CreatedAt(childComplexity), true
+	case "SelfUsageRequest.firstTokenLatencyMs":
+		if e.complexity.SelfUsageRequest.FirstTokenLatencyMs == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.FirstTokenLatencyMs(childComplexity), true
+	case "SelfUsageRequest.id":
+		if e.complexity.SelfUsageRequest.ID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ID(childComplexity), true
+	case "SelfUsageRequest.inputTokens":
+		if e.complexity.SelfUsageRequest.InputTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.InputTokens(childComplexity), true
+	case "SelfUsageRequest.latencyMs":
+		if e.complexity.SelfUsageRequest.LatencyMs == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.LatencyMs(childComplexity), true
+	case "SelfUsageRequest.model":
+		if e.complexity.SelfUsageRequest.Model == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.Model(childComplexity), true
+	case "SelfUsageRequest.outputTokens":
+		if e.complexity.SelfUsageRequest.OutputTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.OutputTokens(childComplexity), true
+	case "SelfUsageRequest.reasoningTokens":
+		if e.complexity.SelfUsageRequest.ReasoningTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ReasoningTokens(childComplexity), true
+	case "SelfUsageRequest.requestStatus":
+		if e.complexity.SelfUsageRequest.RequestStatus == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.RequestStatus(childComplexity), true
+	case "SelfUsageRequest.status":
+		if e.complexity.SelfUsageRequest.Status == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.Status(childComplexity), true
+	case "SelfUsageRequest.stream":
+		if e.complexity.SelfUsageRequest.Stream == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.Stream(childComplexity), true
+	case "SelfUsageRequest.totalTokens":
+		if e.complexity.SelfUsageRequest.TotalTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.TotalTokens(childComplexity), true
+	case "SelfUsageRequest.unpricedRecords":
+		if e.complexity.SelfUsageRequest.UnpricedRecords == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.UnpricedRecords(childComplexity), true
+	case "SelfUsageRequest.usageRecords":
+		if e.complexity.SelfUsageRequest.UsageRecords == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.UsageRecords(childComplexity), true
+
+	case "SelfUsageRequestPage.apiKeyName":
+		if e.complexity.SelfUsageRequestPage.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.APIKeyName(childComplexity), true
+	case "SelfUsageRequestPage.groupName":
+		if e.complexity.SelfUsageRequestPage.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.GroupName(childComplexity), true
+	case "SelfUsageRequestPage.items":
+		if e.complexity.SelfUsageRequestPage.Items == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.Items(childComplexity), true
+	case "SelfUsageRequestPage.page":
+		if e.complexity.SelfUsageRequestPage.Page == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.Page(childComplexity), true
+	case "SelfUsageRequestPage.pageSize":
+		if e.complexity.SelfUsageRequestPage.PageSize == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.PageSize(childComplexity), true
+	case "SelfUsageRequestPage.scopeID":
+		if e.complexity.SelfUsageRequestPage.ScopeID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.ScopeID(childComplexity), true
+	case "SelfUsageRequestPage.total":
+		if e.complexity.SelfUsageRequestPage.Total == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.Total(childComplexity), true
+
+	case "SelfUsageStats.apiKeyName":
+		if e.complexity.SelfUsageStats.APIKeyName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.APIKeyName(childComplexity), true
+	case "SelfUsageStats.daily":
+		if e.complexity.SelfUsageStats.Daily == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.Daily(childComplexity), true
+	case "SelfUsageStats.end":
+		if e.complexity.SelfUsageStats.End == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.End(childComplexity), true
+	case "SelfUsageStats.groupName":
+		if e.complexity.SelfUsageStats.GroupName == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.GroupName(childComplexity), true
+	case "SelfUsageStats.models":
+		if e.complexity.SelfUsageStats.Models == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.Models(childComplexity), true
+	case "SelfUsageStats.scopeID":
+		if e.complexity.SelfUsageStats.ScopeID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.ScopeID(childComplexity), true
+	case "SelfUsageStats.start":
+		if e.complexity.SelfUsageStats.Start == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.Start(childComplexity), true
+	case "SelfUsageStats.totals":
+		if e.complexity.SelfUsageStats.Totals == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageStats.Totals(childComplexity), true
+
+	case "SelfUsageSummary.cacheReadTokens":
+		if e.complexity.SelfUsageSummary.CacheReadTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.CacheReadTokens(childComplexity), true
+	case "SelfUsageSummary.cacheWriteTokens":
+		if e.complexity.SelfUsageSummary.CacheWriteTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.CacheWriteTokens(childComplexity), true
+	case "SelfUsageSummary.cost":
+		if e.complexity.SelfUsageSummary.Cost == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.Cost(childComplexity), true
+	case "SelfUsageSummary.failedRequests":
+		if e.complexity.SelfUsageSummary.FailedRequests == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.FailedRequests(childComplexity), true
+	case "SelfUsageSummary.inputTokens":
+		if e.complexity.SelfUsageSummary.InputTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.InputTokens(childComplexity), true
+	case "SelfUsageSummary.outputTokens":
+		if e.complexity.SelfUsageSummary.OutputTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.OutputTokens(childComplexity), true
+	case "SelfUsageSummary.reasoningTokens":
+		if e.complexity.SelfUsageSummary.ReasoningTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.ReasoningTokens(childComplexity), true
+	case "SelfUsageSummary.successRequests":
+		if e.complexity.SelfUsageSummary.SuccessRequests == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.SuccessRequests(childComplexity), true
+	case "SelfUsageSummary.totalTokens":
+		if e.complexity.SelfUsageSummary.TotalTokens == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.TotalTokens(childComplexity), true
+	case "SelfUsageSummary.unpricedRecords":
+		if e.complexity.SelfUsageSummary.UnpricedRecords == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.UnpricedRecords(childComplexity), true
+	case "SelfUsageSummary.usageRecords":
+		if e.complexity.SelfUsageSummary.UsageRecords == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageSummary.UsageRecords(childComplexity), true
+
+	case "SelfUsageTierCost.subtotal":
+		if e.complexity.SelfUsageTierCost.Subtotal == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageTierCost.Subtotal(childComplexity), true
+	case "SelfUsageTierCost.units":
+		if e.complexity.SelfUsageTierCost.Units == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageTierCost.Units(childComplexity), true
+	case "SelfUsageTierCost.upTo":
+		if e.complexity.SelfUsageTierCost.UpTo == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageTierCost.UpTo(childComplexity), true
 
 	case "SignInPayload.token":
 		if e.complexity.SignInPayload.Token == nil {
@@ -14585,6 +15378,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRemoveUserFromProjectInput,
 		ec.unmarshalInputRequestExecutionOrder,
 		ec.unmarshalInputRequestExecutionWhereInput,
+		ec.unmarshalInputRequestLogFilterInput,
+		ec.unmarshalInputRequestLogTimeRangeInput,
 		ec.unmarshalInputRequestOrder,
 		ec.unmarshalInputRequestWhereInput,
 		ec.unmarshalInputRestoreOptionsInput,
@@ -14759,7 +15554,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -14786,6 +15581,8 @@ var sources = []*ast.Source{
 	{Name: "channel_upstream.graphql", Input: sourceData("channel_upstream.graphql"), BuiltIn: false},
 	{Name: "channel_accounts.graphql", Input: sourceData("channel_accounts.graphql"), BuiltIn: false},
 	{Name: "request_routing.graphql", Input: sourceData("request_routing.graphql"), BuiltIn: false},
+	{Name: "request_diagnostics.graphql", Input: sourceData("request_diagnostics.graphql"), BuiltIn: false},
+	{Name: "managed_group_usage.graphql", Input: sourceData("managed_group_usage.graphql"), BuiltIn: false},
 	{Name: "prompt.graphql", Input: sourceData("prompt.graphql"), BuiltIn: false},
 	{Name: "prompt_protection_rule.graphql", Input: sourceData("prompt_protection_rule.graphql"), BuiltIn: false},
 	{Name: "price.graphql", Input: sourceData("price.graphql"), BuiltIn: false},
@@ -17665,6 +18462,79 @@ func (ec *executionContext) field_Query_managedGroupKeys_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_managedGroupUsageMeta_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_managedGroupUsageRequests_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "start", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["start"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "end", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["end"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "model", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["model"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["status"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["page"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "pageSize", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["pageSize"] = arg6
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_managedGroupUsageStats_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "start", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["start"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "end", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["end"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_managedKeyGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -17976,6 +18846,47 @@ func (ec *executionContext) field_Query_queryModels_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_requestLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOCursor2ᚖentgoᚗioᚋcontribᚋentgqlᚐCursor)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "first", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOCursor2ᚖentgoᚗioᚋcontribᚋentgqlᚐCursor)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "last", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "orderBy", ec.unmarshalORequestOrder2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestOrder)
+	if err != nil {
+		return nil, err
+	}
+	args["orderBy"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "where", ec.unmarshalORequestWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestWhereInput)
+	if err != nil {
+		return nil, err
+	}
+	args["where"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalORequestLogFilterInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogFilterInput)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg6
 	return args, nil
 }
 
@@ -23524,6 +24435,8 @@ func (ec *executionContext) fieldContext_ApplyChannelOverrideTemplatePayload_cha
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -25502,6 +26415,8 @@ func (ec *executionContext) fieldContext_BulkImportChannelsResult_channels(_ con
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -25655,6 +26570,8 @@ func (ec *executionContext) fieldContext_BulkUpdateChannelOrderingResult_channel
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -25907,6 +26824,35 @@ func (ec *executionContext) _Channel_baseURL(ctx context.Context, field graphql.
 }
 
 func (ec *executionContext) fieldContext_Channel_baseURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Channel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Channel_websiteURL(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Channel_websiteURL,
+		func(ctx context.Context) (any, error) {
+			return obj.WebsiteURL, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Channel_websiteURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Channel",
 		Field:      field,
@@ -27526,6 +28472,8 @@ func (ec *executionContext) fieldContext_ChannelEdge_node(_ context.Context, fie
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -28724,6 +29672,8 @@ func (ec *executionContext) fieldContext_ChannelModelPrice_channel(_ context.Con
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -30717,6 +31667,8 @@ func (ec *executionContext) fieldContext_ChannelProbe_channel(_ context.Context,
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -34296,6 +35248,8 @@ func (ec *executionContext) fieldContext_ClearChannelOverrideTemplatesPayload_ch
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -41553,6 +42507,8 @@ func (ec *executionContext) fieldContext_ModelChannelConnection_channel(_ contex
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43005,6 +43961,8 @@ func (ec *executionContext) fieldContext_Mutation_createChannel(ctx context.Cont
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43112,6 +44070,8 @@ func (ec *executionContext) fieldContext_Mutation_duplicateChannel(ctx context.C
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43219,6 +44179,8 @@ func (ec *executionContext) fieldContext_Mutation_bulkCreateChannels(ctx context
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43326,6 +44288,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannel(ctx context.Cont
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43433,6 +44397,8 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelEndpoints(ctx conte
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -43540,6 +44506,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelStatus(ctx contex
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -48826,6 +49794,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelPriorities(ctx co
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -48933,6 +49903,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelTagPriorities(ctx
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -55605,6 +56577,8 @@ func (ec *executionContext) fieldContext_ProviderQuotaStatus_channel(_ context.C
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -56993,6 +57967,8 @@ func (ec *executionContext) fieldContext_Query_allChannelSummarys(ctx context.Co
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -59810,6 +60786,255 @@ func (ec *executionContext) fieldContext_Query_channelUpstreamRefreshTargets(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_requestLogTimezone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_requestLogTimezone,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().RequestLogTimezone(ctx)
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_requestLogTimezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_requestLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_requestLogs,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().RequestLogs(ctx, fc.Args["after"].(*entgql.Cursor[int]), fc.Args["first"].(*int), fc.Args["before"].(*entgql.Cursor[int]), fc.Args["last"].(*int), fc.Args["orderBy"].(*ent.RequestOrder), fc.Args["where"].(*ent.RequestWhereInput), fc.Args["filter"].(*RequestLogFilterInput))
+		},
+		nil,
+		ec.marshalNRequestConnection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestConnection,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_requestLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_RequestConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_RequestConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_RequestConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_requestLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_managedGroupUsageMeta(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_managedGroupUsageMeta,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ManagedGroupUsageMeta(ctx, fc.Args["groupRef"].(int))
+		},
+		nil,
+		ec.marshalNSelfUsageMeta2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageMeta,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_managedGroupUsageMeta(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "groupName":
+				return ec.fieldContext_SelfUsageMeta_groupName(ctx, field)
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageMeta_apiKeyName(ctx, field)
+			case "apiKeyType":
+				return ec.fieldContext_SelfUsageMeta_apiKeyType(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_SelfUsageMeta_currencyCode(ctx, field)
+			case "timezone":
+				return ec.fieldContext_SelfUsageMeta_timezone(ctx, field)
+			case "maxRangeDays":
+				return ec.fieldContext_SelfUsageMeta_maxRangeDays(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageMeta", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_managedGroupUsageMeta_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_managedGroupUsageStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_managedGroupUsageStats,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ManagedGroupUsageStats(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string))
+		},
+		nil,
+		ec.marshalNSelfUsageStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageStats,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_managedGroupUsageStats(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scopeID":
+				return ec.fieldContext_SelfUsageStats_scopeID(ctx, field)
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageStats_apiKeyName(ctx, field)
+			case "groupName":
+				return ec.fieldContext_SelfUsageStats_groupName(ctx, field)
+			case "start":
+				return ec.fieldContext_SelfUsageStats_start(ctx, field)
+			case "end":
+				return ec.fieldContext_SelfUsageStats_end(ctx, field)
+			case "totals":
+				return ec.fieldContext_SelfUsageStats_totals(ctx, field)
+			case "models":
+				return ec.fieldContext_SelfUsageStats_models(ctx, field)
+			case "daily":
+				return ec.fieldContext_SelfUsageStats_daily(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageStats", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_managedGroupUsageStats_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_managedGroupUsageRequests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_managedGroupUsageRequests,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ManagedGroupUsageRequests(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["model"].(*string), fc.Args["status"].(*string), fc.Args["page"].(int), fc.Args["pageSize"].(int))
+		},
+		nil,
+		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestPage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_managedGroupUsageRequests(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scopeID":
+				return ec.fieldContext_SelfUsageRequestPage_scopeID(ctx, field)
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageRequestPage_apiKeyName(ctx, field)
+			case "groupName":
+				return ec.fieldContext_SelfUsageRequestPage_groupName(ctx, field)
+			case "items":
+				return ec.fieldContext_SelfUsageRequestPage_items(ctx, field)
+			case "page":
+				return ec.fieldContext_SelfUsageRequestPage_page(ctx, field)
+			case "pageSize":
+				return ec.fieldContext_SelfUsageRequestPage_pageSize(ctx, field)
+			case "total":
+				return ec.fieldContext_SelfUsageRequestPage_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageRequestPage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_managedGroupUsageRequests_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_analyticsMetadata(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -61677,6 +62902,35 @@ func (ec *executionContext) fieldContext_Request_status(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_clientStatusCode(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_clientStatusCode,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientStatusCode, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_clientStatusCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_stream(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -62267,6 +63521,8 @@ func (ec *executionContext) fieldContext_Request_channel(_ context.Context, fiel
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -62697,6 +63953,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_externalID(ctx, field)
 			case "status":
 				return ec.fieldContext_Request_status(ctx, field)
+			case "clientStatusCode":
+				return ec.fieldContext_Request_clientStatusCode(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -63200,6 +64458,123 @@ func (ec *executionContext) fieldContext_RequestExecution_errorMessage(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestExecution_selection(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecution_selection,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.RequestExecution().Selection(ctx, obj)
+		},
+		nil,
+		ec.marshalORequestExecutionSelection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestExecutionSelection,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecution_selection(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecution",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelName":
+				return ec.fieldContext_RequestExecutionSelection_channelName(ctx, field)
+			case "provider":
+				return ec.fieldContext_RequestExecutionSelection_provider(ctx, field)
+			case "keyHint":
+				return ec.fieldContext_RequestExecutionSelection_keyHint(ctx, field)
+			case "keyRemark":
+				return ec.fieldContext_RequestExecutionSelection_keyRemark(ctx, field)
+			case "sessionState":
+				return ec.fieldContext_RequestExecutionSelection_sessionState(ctx, field)
+			case "strategy":
+				return ec.fieldContext_RequestExecutionSelection_strategy(ctx, field)
+			case "priority":
+				return ec.fieldContext_RequestExecutionSelection_priority(ctx, field)
+			case "candidates":
+				return ec.fieldContext_RequestExecutionSelection_candidates(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestExecutionSelection", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecution_failure(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecution_failure,
+		func(ctx context.Context) (any, error) {
+			return obj.Failure, nil
+		},
+		nil,
+		ec.marshalORequestExecutionFailure2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestExecutionFailure,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecution_failure(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "source":
+				return ec.fieldContext_RequestExecutionFailure_source(ctx, field)
+			case "code":
+				return ec.fieldContext_RequestExecutionFailure_code(ctx, field)
+			case "type":
+				return ec.fieldContext_RequestExecutionFailure_type(ctx, field)
+			case "body":
+				return ec.fieldContext_RequestExecutionFailure_body(ctx, field)
+			case "bodyTruncated":
+				return ec.fieldContext_RequestExecutionFailure_bodyTruncated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestExecutionFailure", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecution_retryDecision(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecution_retryDecision,
+		func(ctx context.Context) (any, error) {
+			return obj.RetryDecision, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecution_retryDecision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestExecution_responseStatusCode(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -63523,6 +64898,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_externalID(ctx, field)
 			case "status":
 				return ec.fieldContext_Request_status(ctx, field)
+			case "clientStatusCode":
+				return ec.fieldContext_Request_clientStatusCode(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -63596,6 +64973,8 @@ func (ec *executionContext) fieldContext_RequestExecution_channel(_ context.Cont
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -63867,6 +65246,12 @@ func (ec *executionContext) fieldContext_RequestExecutionEdge_node(_ context.Con
 				return ec.fieldContext_RequestExecution_responseChunks(ctx, field)
 			case "errorMessage":
 				return ec.fieldContext_RequestExecution_errorMessage(ctx, field)
+			case "selection":
+				return ec.fieldContext_RequestExecution_selection(ctx, field)
+			case "failure":
+				return ec.fieldContext_RequestExecution_failure(ctx, field)
+			case "retryDecision":
+				return ec.fieldContext_RequestExecution_retryDecision(ctx, field)
 			case "responseStatusCode":
 				return ec.fieldContext_RequestExecution_responseStatusCode(ctx, field)
 			case "status":
@@ -63922,6 +65307,397 @@ func (ec *executionContext) fieldContext_RequestExecutionEdge_cursor(_ context.C
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Cursor does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionFailure_source(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionFailure_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionFailure_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionFailure_code(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionFailure_code,
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionFailure_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionFailure_type(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionFailure_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionFailure_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionFailure_body(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionFailure_body,
+		func(ctx context.Context) (any, error) {
+			return obj.Body, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionFailure_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionFailure_bodyTruncated(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionFailure_bodyTruncated,
+		func(ctx context.Context) (any, error) {
+			return obj.BodyTruncated, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionFailure_bodyTruncated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_channelName(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_channelName,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_provider(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_keyHint(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_keyHint,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyHint, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_keyHint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_keyRemark(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_keyRemark,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyRemark, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_keyRemark(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_sessionState(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_sessionState,
+		func(ctx context.Context) (any, error) {
+			return obj.SessionState, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_sessionState(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_strategy(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_strategy,
+		func(ctx context.Context) (any, error) {
+			return obj.Strategy, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_strategy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_priority(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_priority,
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_candidates(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_candidates,
+		func(ctx context.Context) (any, error) {
+			return obj.Candidates, nil
+		},
+		nil,
+		ec.marshalNRequestRoutingCandidate2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestRoutingCandidateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_candidates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_RequestRoutingCandidate_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_RequestRoutingCandidate_channelName(ctx, field)
+			case "provider":
+				return ec.fieldContext_RequestRoutingCandidate_provider(ctx, field)
+			case "priority":
+				return ec.fieldContext_RequestRoutingCandidate_priority(ctx, field)
+			case "models":
+				return ec.fieldContext_RequestRoutingCandidate_models(ctx, field)
+			case "sessionReuse":
+				return ec.fieldContext_RequestRoutingCandidate_sessionReuse(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestRoutingCandidate", field.Name)
 		},
 	}
 	return fc, nil
@@ -64067,6 +65843,180 @@ func (ec *executionContext) fieldContext_RequestMetadata_cachedTokens(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_channelID(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_channelName(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_channelName,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_provider(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_priority(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_priority,
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_models(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_models,
+		func(ctx context.Context) (any, error) {
+			return obj.Models, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestRoutingCandidate_sessionReuse(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestRoutingCandidate_sessionReuse,
+		func(ctx context.Context) (any, error) {
+			return obj.SessionReuse, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestRoutingCandidate_sessionReuse(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestRoutingCandidate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -66526,6 +68476,2289 @@ func (ec *executionContext) fieldContext_Segment_duration(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_image(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_image,
+		func(ctx context.Context) (any, error) {
+			return obj.Image, nil
+		},
+		nil,
+		ec.marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_image(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tierSource":
+				return ec.fieldContext_SelfUsageImageOutput_tierSource(ctx, field)
+			case "width":
+				return ec.fieldContext_SelfUsageImageOutput_width(ctx, field)
+			case "height":
+				return ec.fieldContext_SelfUsageImageOutput_height(ctx, field)
+			case "tier":
+				return ec.fieldContext_SelfUsageImageOutput_tier(ctx, field)
+			case "source":
+				return ec.fieldContext_SelfUsageImageOutput_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageImageOutput", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_imageRule(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_imageRule,
+		func(ctx context.Context) (any, error) {
+			return obj.ImageRule, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_imageRule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_unpriced(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_unpriced,
+		func(ctx context.Context) (any, error) {
+			return obj.Unpriced, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_unpriced(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_itemCode(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_itemCode,
+		func(ctx context.Context) (any, error) {
+			return obj.ItemCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_itemCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_promptWriteCacheVariantCode(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_promptWriteCacheVariantCode,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptWriteCacheVariantCode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_promptWriteCacheVariantCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_quantity(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_quantity,
+		func(ctx context.Context) (any, error) {
+			return obj.Quantity, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_subtotal(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_subtotal,
+		func(ctx context.Context) (any, error) {
+			return obj.Subtotal, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_subtotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_tierBreakdown(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_tierBreakdown,
+		func(ctx context.Context) (any, error) {
+			return obj.TierBreakdown, nil
+		},
+		nil,
+		ec.marshalNSelfUsageTierCost2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageTierCostᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_tierBreakdown(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "upTo":
+				return ec.fieldContext_SelfUsageTierCost_upTo(ctx, field)
+			case "units":
+				return ec.fieldContext_SelfUsageTierCost_units(ctx, field)
+			case "subtotal":
+				return ec.fieldContext_SelfUsageTierCost_subtotal(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageTierCost", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageDailyStat_date(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageDailyStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageDailyStat_date,
+		func(ctx context.Context) (any, error) {
+			return obj.Date, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageDailyStat_date(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageDailyStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageDailyStat_usage(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageDailyStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageDailyStat_usage,
+		func(ctx context.Context) (any, error) {
+			return obj.Usage, nil
+		},
+		nil,
+		ec.marshalNSelfUsageSummary2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageSummary,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageDailyStat_usage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageDailyStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "successRequests":
+				return ec.fieldContext_SelfUsageSummary_successRequests(ctx, field)
+			case "failedRequests":
+				return ec.fieldContext_SelfUsageSummary_failedRequests(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_SelfUsageSummary_inputTokens(ctx, field)
+			case "outputTokens":
+				return ec.fieldContext_SelfUsageSummary_outputTokens(ctx, field)
+			case "cacheReadTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheReadTokens(ctx, field)
+			case "cacheWriteTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheWriteTokens(ctx, field)
+			case "reasoningTokens":
+				return ec.fieldContext_SelfUsageSummary_reasoningTokens(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_SelfUsageSummary_totalTokens(ctx, field)
+			case "cost":
+				return ec.fieldContext_SelfUsageSummary_cost(ctx, field)
+			case "usageRecords":
+				return ec.fieldContext_SelfUsageSummary_usageRecords(ctx, field)
+			case "unpricedRecords":
+				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_tierSource(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_tierSource,
+		func(ctx context.Context) (any, error) {
+			return obj.TierSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_tierSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_width(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_width,
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_height(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_height,
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_tier(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_tier,
+		func(ctx context.Context) (any, error) {
+			return obj.Tier, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_tier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_source(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_groupName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_apiKeyType(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_apiKeyType,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_apiKeyType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_currencyCode(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_currencyCode,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_timezone(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageMeta_maxRangeDays(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageMeta) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageMeta_maxRangeDays,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxRangeDays, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageMeta_maxRangeDays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageMeta",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelStat_model(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelStat_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelStat_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelStat_usage(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelStat_usage,
+		func(ctx context.Context) (any, error) {
+			return obj.Usage, nil
+		},
+		nil,
+		ec.marshalNSelfUsageSummary2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageSummary,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "successRequests":
+				return ec.fieldContext_SelfUsageSummary_successRequests(ctx, field)
+			case "failedRequests":
+				return ec.fieldContext_SelfUsageSummary_failedRequests(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_SelfUsageSummary_inputTokens(ctx, field)
+			case "outputTokens":
+				return ec.fieldContext_SelfUsageSummary_outputTokens(ctx, field)
+			case "cacheReadTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheReadTokens(ctx, field)
+			case "cacheWriteTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheWriteTokens(ctx, field)
+			case "reasoningTokens":
+				return ec.fieldContext_SelfUsageSummary_reasoningTokens(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_SelfUsageSummary_totalTokens(ctx, field)
+			case "cost":
+				return ec.fieldContext_SelfUsageSummary_cost(ctx, field)
+			case "usageRecords":
+				return ec.fieldContext_SelfUsageSummary_usageRecords(ctx, field)
+			case "unpricedRecords":
+				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_id(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_createdAt(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_model(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_status(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_requestStatus(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_requestStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestStatus, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_requestStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_stream(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_stream,
+		func(ctx context.Context) (any, error) {
+			return obj.Stream, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_stream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_latencyMs(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_latencyMs,
+		func(ctx context.Context) (any, error) {
+			return obj.LatencyMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_latencyMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_firstTokenLatencyMs(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_firstTokenLatencyMs,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstTokenLatencyMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_firstTokenLatencyMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_inputTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_inputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_outputTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_outputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_cacheReadTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_cacheReadTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheReadTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_cacheReadTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_cacheWriteTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_cacheWriteTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheWriteTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_cacheWriteTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_reasoningTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_reasoningTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_reasoningTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_totalTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_totalTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_totalTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_cost(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_cost,
+		func(ctx context.Context) (any, error) {
+			return obj.Cost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_cost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_costItems(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_costItems,
+		func(ctx context.Context) (any, error) {
+			return obj.CostItems, nil
+		},
+		nil,
+		ec.marshalNSelfUsageCostItem2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageCostItemᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_costItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "image":
+				return ec.fieldContext_SelfUsageCostItem_image(ctx, field)
+			case "imageRule":
+				return ec.fieldContext_SelfUsageCostItem_imageRule(ctx, field)
+			case "unpriced":
+				return ec.fieldContext_SelfUsageCostItem_unpriced(ctx, field)
+			case "itemCode":
+				return ec.fieldContext_SelfUsageCostItem_itemCode(ctx, field)
+			case "promptWriteCacheVariantCode":
+				return ec.fieldContext_SelfUsageCostItem_promptWriteCacheVariantCode(ctx, field)
+			case "quantity":
+				return ec.fieldContext_SelfUsageCostItem_quantity(ctx, field)
+			case "subtotal":
+				return ec.fieldContext_SelfUsageCostItem_subtotal(ctx, field)
+			case "tierBreakdown":
+				return ec.fieldContext_SelfUsageCostItem_tierBreakdown(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageCostItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_costMultiplier(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_costMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.CostMultiplier, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_costMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_costMultiplierMixed(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_costMultiplierMixed,
+		func(ctx context.Context) (any, error) {
+			return obj.CostMultiplierMixed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_costMultiplierMixed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_usageRecords(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_usageRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_usageRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_unpricedRecords(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_unpricedRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_unpricedRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_scopeID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_scopeID,
+		func(ctx context.Context) (any, error) {
+			return obj.ScopeID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_scopeID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_groupName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_items(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNSelfUsageRequest2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "apiKeyName":
+				return ec.fieldContext_SelfUsageRequest_apiKeyName(ctx, field)
+			case "id":
+				return ec.fieldContext_SelfUsageRequest_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_SelfUsageRequest_createdAt(ctx, field)
+			case "model":
+				return ec.fieldContext_SelfUsageRequest_model(ctx, field)
+			case "status":
+				return ec.fieldContext_SelfUsageRequest_status(ctx, field)
+			case "requestStatus":
+				return ec.fieldContext_SelfUsageRequest_requestStatus(ctx, field)
+			case "stream":
+				return ec.fieldContext_SelfUsageRequest_stream(ctx, field)
+			case "latencyMs":
+				return ec.fieldContext_SelfUsageRequest_latencyMs(ctx, field)
+			case "firstTokenLatencyMs":
+				return ec.fieldContext_SelfUsageRequest_firstTokenLatencyMs(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_SelfUsageRequest_inputTokens(ctx, field)
+			case "outputTokens":
+				return ec.fieldContext_SelfUsageRequest_outputTokens(ctx, field)
+			case "cacheReadTokens":
+				return ec.fieldContext_SelfUsageRequest_cacheReadTokens(ctx, field)
+			case "cacheWriteTokens":
+				return ec.fieldContext_SelfUsageRequest_cacheWriteTokens(ctx, field)
+			case "reasoningTokens":
+				return ec.fieldContext_SelfUsageRequest_reasoningTokens(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_SelfUsageRequest_totalTokens(ctx, field)
+			case "cost":
+				return ec.fieldContext_SelfUsageRequest_cost(ctx, field)
+			case "costItems":
+				return ec.fieldContext_SelfUsageRequest_costItems(ctx, field)
+			case "costMultiplier":
+				return ec.fieldContext_SelfUsageRequest_costMultiplier(ctx, field)
+			case "costMultiplierMixed":
+				return ec.fieldContext_SelfUsageRequest_costMultiplierMixed(ctx, field)
+			case "usageRecords":
+				return ec.fieldContext_SelfUsageRequest_usageRecords(ctx, field)
+			case "unpricedRecords":
+				return ec.fieldContext_SelfUsageRequest_unpricedRecords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageRequest", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_page(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_page,
+		func(ctx context.Context) (any, error) {
+			return obj.Page, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_page(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_pageSize(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_pageSize,
+		func(ctx context.Context) (any, error) {
+			return obj.PageSize, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_pageSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_total(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_scopeID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_scopeID,
+		func(ctx context.Context) (any, error) {
+			return obj.ScopeID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_scopeID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_apiKeyName,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKeyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_apiKeyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_groupName(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_groupName,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_groupName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_start(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_start,
+		func(ctx context.Context) (any, error) {
+			return obj.Start, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_start(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_end(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_end,
+		func(ctx context.Context) (any, error) {
+			return obj.End, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_end(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_totals(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_totals,
+		func(ctx context.Context) (any, error) {
+			return obj.Totals, nil
+		},
+		nil,
+		ec.marshalNSelfUsageSummary2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageSummary,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_totals(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "successRequests":
+				return ec.fieldContext_SelfUsageSummary_successRequests(ctx, field)
+			case "failedRequests":
+				return ec.fieldContext_SelfUsageSummary_failedRequests(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_SelfUsageSummary_inputTokens(ctx, field)
+			case "outputTokens":
+				return ec.fieldContext_SelfUsageSummary_outputTokens(ctx, field)
+			case "cacheReadTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheReadTokens(ctx, field)
+			case "cacheWriteTokens":
+				return ec.fieldContext_SelfUsageSummary_cacheWriteTokens(ctx, field)
+			case "reasoningTokens":
+				return ec.fieldContext_SelfUsageSummary_reasoningTokens(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_SelfUsageSummary_totalTokens(ctx, field)
+			case "cost":
+				return ec.fieldContext_SelfUsageSummary_cost(ctx, field)
+			case "usageRecords":
+				return ec.fieldContext_SelfUsageSummary_usageRecords(ctx, field)
+			case "unpricedRecords":
+				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_models(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_models,
+		func(ctx context.Context) (any, error) {
+			return obj.Models, nil
+		},
+		nil,
+		ec.marshalNSelfUsageModelStat2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelStatᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "model":
+				return ec.fieldContext_SelfUsageModelStat_model(ctx, field)
+			case "usage":
+				return ec.fieldContext_SelfUsageModelStat_usage(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageModelStat", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageStats_daily(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageStats_daily,
+		func(ctx context.Context) (any, error) {
+			return obj.Daily, nil
+		},
+		nil,
+		ec.marshalNSelfUsageDailyStat2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageDailyStatᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageStats_daily(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "date":
+				return ec.fieldContext_SelfUsageDailyStat_date(ctx, field)
+			case "usage":
+				return ec.fieldContext_SelfUsageDailyStat_usage(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageDailyStat", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_successRequests(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_successRequests,
+		func(ctx context.Context) (any, error) {
+			return obj.SuccessRequests, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_successRequests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_failedRequests(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_failedRequests,
+		func(ctx context.Context) (any, error) {
+			return obj.FailedRequests, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_failedRequests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_inputTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_inputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_outputTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_outputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_cacheReadTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_cacheReadTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheReadTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_cacheReadTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_cacheWriteTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_cacheWriteTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheWriteTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_cacheWriteTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_reasoningTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_reasoningTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_reasoningTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_totalTokens(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_totalTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_totalTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_cost(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_cost,
+		func(ctx context.Context) (any, error) {
+			return obj.Cost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_cost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_usageRecords(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_usageRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_usageRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageSummary_unpricedRecords(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageSummary_unpricedRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageSummary_unpricedRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageTierCost_upTo(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageTierCost) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageTierCost_upTo,
+		func(ctx context.Context) (any, error) {
+			return obj.UpTo, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageTierCost_upTo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageTierCost",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageTierCost_units(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageTierCost) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageTierCost_units,
+		func(ctx context.Context) (any, error) {
+			return obj.Units, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageTierCost_units(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageTierCost",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageTierCost_subtotal(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageTierCost) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageTierCost_subtotal,
+		func(ctx context.Context) (any, error) {
+			return obj.Subtotal, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageTierCost_subtotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageTierCost",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -71651,6 +75884,8 @@ func (ec *executionContext) fieldContext_UnassociatedChannel_channel(_ context.C
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -73745,6 +77980,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_externalID(ctx, field)
 			case "status":
 				return ec.fieldContext_Request_status(ctx, field)
+			case "clientStatusCode":
+				return ec.fieldContext_Request_clientStatusCode(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -73883,6 +78120,8 @@ func (ec *executionContext) fieldContext_UsageLog_channel(_ context.Context, fie
 				return ec.fieldContext_Channel_type(ctx, field)
 			case "baseURL":
 				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
 			case "name":
 				return ec.fieldContext_Channel_name(ctx, field)
 			case "status":
@@ -84462,7 +88701,7 @@ func (ec *executionContext) unmarshalInputChannelWhereInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "type", "typeNEQ", "typeIn", "typeNotIn", "baseURL", "baseURLNEQ", "baseURLIn", "baseURLNotIn", "baseURLGT", "baseURLGTE", "baseURLLT", "baseURLLTE", "baseURLContains", "baseURLHasPrefix", "baseURLHasSuffix", "baseURLIsNil", "baseURLNotNil", "baseURLEqualFold", "baseURLContainsFold", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "autoSyncSupportedModels", "autoSyncSupportedModelsNEQ", "autoSyncModelPattern", "autoSyncModelPatternNEQ", "autoSyncModelPatternIn", "autoSyncModelPatternNotIn", "autoSyncModelPatternGT", "autoSyncModelPatternGTE", "autoSyncModelPatternLT", "autoSyncModelPatternLTE", "autoSyncModelPatternContains", "autoSyncModelPatternHasPrefix", "autoSyncModelPatternHasSuffix", "autoSyncModelPatternIsNil", "autoSyncModelPatternNotNil", "autoSyncModelPatternEqualFold", "autoSyncModelPatternContainsFold", "defaultTestModel", "defaultTestModelNEQ", "defaultTestModelIn", "defaultTestModelNotIn", "defaultTestModelGT", "defaultTestModelGTE", "defaultTestModelLT", "defaultTestModelLTE", "defaultTestModelContains", "defaultTestModelHasPrefix", "defaultTestModelHasSuffix", "defaultTestModelEqualFold", "defaultTestModelContainsFold", "orderingWeight", "orderingWeightNEQ", "orderingWeightIn", "orderingWeightNotIn", "orderingWeightGT", "orderingWeightGTE", "orderingWeightLT", "orderingWeightLTE", "errorMessage", "errorMessageNEQ", "errorMessageIn", "errorMessageNotIn", "errorMessageGT", "errorMessageGTE", "errorMessageLT", "errorMessageLTE", "errorMessageContains", "errorMessageHasPrefix", "errorMessageHasSuffix", "errorMessageIsNil", "errorMessageNotNil", "errorMessageEqualFold", "errorMessageContainsFold", "autoDisabledAt", "autoDisabledAtNEQ", "autoDisabledAtIn", "autoDisabledAtNotIn", "autoDisabledAtGT", "autoDisabledAtGTE", "autoDisabledAtLT", "autoDisabledAtLTE", "autoDisabledAtIsNil", "autoDisabledAtNotNil", "remark", "remarkNEQ", "remarkIn", "remarkNotIn", "remarkGT", "remarkGTE", "remarkLT", "remarkLTE", "remarkContains", "remarkHasPrefix", "remarkHasSuffix", "remarkIsNil", "remarkNotNil", "remarkEqualFold", "remarkContainsFold", "hasRequests", "hasRequestsWith", "hasExecutions", "hasExecutionsWith", "hasUsageLogs", "hasUsageLogsWith", "hasChannelProbes", "hasChannelProbesWith", "hasChannelModelPrices", "hasChannelModelPricesWith", "hasProviderQuotaStatus", "hasProviderQuotaStatusWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "type", "typeNEQ", "typeIn", "typeNotIn", "baseURL", "baseURLNEQ", "baseURLIn", "baseURLNotIn", "baseURLGT", "baseURLGTE", "baseURLLT", "baseURLLTE", "baseURLContains", "baseURLHasPrefix", "baseURLHasSuffix", "baseURLIsNil", "baseURLNotNil", "baseURLEqualFold", "baseURLContainsFold", "websiteURL", "websiteURLNEQ", "websiteURLIn", "websiteURLNotIn", "websiteURLGT", "websiteURLGTE", "websiteURLLT", "websiteURLLTE", "websiteURLContains", "websiteURLHasPrefix", "websiteURLHasSuffix", "websiteURLIsNil", "websiteURLNotNil", "websiteURLEqualFold", "websiteURLContainsFold", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "autoSyncSupportedModels", "autoSyncSupportedModelsNEQ", "autoSyncModelPattern", "autoSyncModelPatternNEQ", "autoSyncModelPatternIn", "autoSyncModelPatternNotIn", "autoSyncModelPatternGT", "autoSyncModelPatternGTE", "autoSyncModelPatternLT", "autoSyncModelPatternLTE", "autoSyncModelPatternContains", "autoSyncModelPatternHasPrefix", "autoSyncModelPatternHasSuffix", "autoSyncModelPatternIsNil", "autoSyncModelPatternNotNil", "autoSyncModelPatternEqualFold", "autoSyncModelPatternContainsFold", "defaultTestModel", "defaultTestModelNEQ", "defaultTestModelIn", "defaultTestModelNotIn", "defaultTestModelGT", "defaultTestModelGTE", "defaultTestModelLT", "defaultTestModelLTE", "defaultTestModelContains", "defaultTestModelHasPrefix", "defaultTestModelHasSuffix", "defaultTestModelEqualFold", "defaultTestModelContainsFold", "orderingWeight", "orderingWeightNEQ", "orderingWeightIn", "orderingWeightNotIn", "orderingWeightGT", "orderingWeightGTE", "orderingWeightLT", "orderingWeightLTE", "errorMessage", "errorMessageNEQ", "errorMessageIn", "errorMessageNotIn", "errorMessageGT", "errorMessageGTE", "errorMessageLT", "errorMessageLTE", "errorMessageContains", "errorMessageHasPrefix", "errorMessageHasSuffix", "errorMessageIsNil", "errorMessageNotNil", "errorMessageEqualFold", "errorMessageContainsFold", "autoDisabledAt", "autoDisabledAtNEQ", "autoDisabledAtIn", "autoDisabledAtNotIn", "autoDisabledAtGT", "autoDisabledAtGTE", "autoDisabledAtLT", "autoDisabledAtLTE", "autoDisabledAtIsNil", "autoDisabledAtNotNil", "remark", "remarkNEQ", "remarkIn", "remarkNotIn", "remarkGT", "remarkGTE", "remarkLT", "remarkLTE", "remarkContains", "remarkHasPrefix", "remarkHasSuffix", "remarkIsNil", "remarkNotNil", "remarkEqualFold", "remarkContainsFold", "hasRequests", "hasRequestsWith", "hasExecutions", "hasExecutionsWith", "hasUsageLogs", "hasUsageLogsWith", "hasChannelProbes", "hasChannelProbesWith", "hasChannelModelPrices", "hasChannelModelPricesWith", "hasProviderQuotaStatus", "hasProviderQuotaStatusWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -84823,6 +89062,111 @@ func (ec *executionContext) unmarshalInputChannelWhereInput(ctx context.Context,
 				return it, err
 			}
 			it.BaseURLContainsFold = data
+		case "websiteURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURL"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURL = data
+		case "websiteURLNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLNEQ = data
+		case "websiteURLIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLIn = data
+		case "websiteURLNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLNotIn = data
+		case "websiteURLGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLGT = data
+		case "websiteURLGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLGTE = data
+		case "websiteURLLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLLT = data
+		case "websiteURLLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLLTE = data
+		case "websiteURLContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLContains = data
+		case "websiteURLHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLHasPrefix = data
+		case "websiteURLHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLHasSuffix = data
+		case "websiteURLIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLIsNil = data
+		case "websiteURLNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLNotNil = data
+		case "websiteURLEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLEqualFold = data
+		case "websiteURLContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURLContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURLContainsFold = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -86078,7 +90422,7 @@ func (ec *executionContext) unmarshalInputCreateChannelInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"type", "baseURL", "name", "credentials", "supportedModels", "manualModels", "autoSyncSupportedModels", "autoSyncModelPattern", "tags", "defaultTestModel", "policies", "settings", "orderingWeight", "remark", "endpoints"}
+	fieldsInOrder := [...]string{"type", "baseURL", "websiteURL", "name", "credentials", "supportedModels", "manualModels", "autoSyncSupportedModels", "autoSyncModelPattern", "tags", "defaultTestModel", "policies", "settings", "orderingWeight", "remark", "endpoints"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -86099,6 +90443,13 @@ func (ec *executionContext) unmarshalInputCreateChannelInput(ctx context.Context
 				return it, err
 			}
 			it.BaseURL = data
+		case "websiteURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURL"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURL = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -86634,7 +90985,7 @@ func (ec *executionContext) unmarshalInputCreateRequestInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"source", "modelID", "reasoningEffort", "format", "requestHeaders", "requestBody", "responseBody", "responseChunks", "externalID", "status", "stream", "clientIP", "metricsLatencyMs", "metricsFirstTokenLatencyMs", "metricsReasoningDurationMs", "contentSaved", "contentStorageID", "contentStorageKey", "contentSavedAt", "apiKeyID", "projectID", "traceID", "dataStorageID", "channelID"}
+	fieldsInOrder := [...]string{"source", "modelID", "reasoningEffort", "format", "requestHeaders", "requestBody", "responseBody", "responseChunks", "externalID", "status", "clientStatusCode", "stream", "clientIP", "metricsLatencyMs", "metricsFirstTokenLatencyMs", "metricsReasoningDurationMs", "contentSaved", "contentStorageID", "contentStorageKey", "contentSavedAt", "apiKeyID", "projectID", "traceID", "dataStorageID", "channelID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -86711,6 +91062,13 @@ func (ec *executionContext) unmarshalInputCreateRequestInput(ctx context.Context
 				return it, err
 			}
 			it.Status = data
+		case "clientStatusCode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCode"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCode = data
 		case "stream":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stream"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -95161,7 +99519,7 @@ func (ec *executionContext) unmarshalInputRequestExecutionWhereInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "projectIDGT", "projectIDGTE", "projectIDLT", "projectIDLTE", "requestID", "requestIDNEQ", "requestIDIn", "requestIDNotIn", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "errorMessage", "errorMessageNEQ", "errorMessageIn", "errorMessageNotIn", "errorMessageGT", "errorMessageGTE", "errorMessageLT", "errorMessageLTE", "errorMessageContains", "errorMessageHasPrefix", "errorMessageHasSuffix", "errorMessageIsNil", "errorMessageNotNil", "errorMessageEqualFold", "errorMessageContainsFold", "responseStatusCode", "responseStatusCodeNEQ", "responseStatusCodeIn", "responseStatusCodeNotIn", "responseStatusCodeGT", "responseStatusCodeGTE", "responseStatusCodeLT", "responseStatusCodeLTE", "responseStatusCodeIsNil", "responseStatusCodeNotNil", "status", "statusNEQ", "statusIn", "statusNotIn", "stream", "streamNEQ", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "requestURL", "requestURLNEQ", "requestURLIn", "requestURLNotIn", "requestURLGT", "requestURLGTE", "requestURLLT", "requestURLLTE", "requestURLContains", "requestURLHasPrefix", "requestURLHasSuffix", "requestURLIsNil", "requestURLNotNil", "requestURLEqualFold", "requestURLContainsFold", "passThroughApplied", "passThroughAppliedNEQ", "hasRequest", "hasRequestWith", "hasChannel", "hasChannelWith", "hasDataStorage", "hasDataStorageWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "projectIDGT", "projectIDGTE", "projectIDLT", "projectIDLTE", "requestID", "requestIDNEQ", "requestIDIn", "requestIDNotIn", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "errorMessage", "errorMessageNEQ", "errorMessageIn", "errorMessageNotIn", "errorMessageGT", "errorMessageGTE", "errorMessageLT", "errorMessageLTE", "errorMessageContains", "errorMessageHasPrefix", "errorMessageHasSuffix", "errorMessageIsNil", "errorMessageNotNil", "errorMessageEqualFold", "errorMessageContainsFold", "retryDecision", "retryDecisionNEQ", "retryDecisionIn", "retryDecisionNotIn", "retryDecisionGT", "retryDecisionGTE", "retryDecisionLT", "retryDecisionLTE", "retryDecisionContains", "retryDecisionHasPrefix", "retryDecisionHasSuffix", "retryDecisionIsNil", "retryDecisionNotNil", "retryDecisionEqualFold", "retryDecisionContainsFold", "responseStatusCode", "responseStatusCodeNEQ", "responseStatusCodeIn", "responseStatusCodeNotIn", "responseStatusCodeGT", "responseStatusCodeGTE", "responseStatusCodeLT", "responseStatusCodeLTE", "responseStatusCodeIsNil", "responseStatusCodeNotNil", "status", "statusNEQ", "statusIn", "statusNotIn", "stream", "streamNEQ", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "requestURL", "requestURLNEQ", "requestURLIn", "requestURLNotIn", "requestURLGT", "requestURLGTE", "requestURLLT", "requestURLLTE", "requestURLContains", "requestURLHasPrefix", "requestURLHasSuffix", "requestURLIsNil", "requestURLNotNil", "requestURLEqualFold", "requestURLContainsFold", "passThroughApplied", "passThroughAppliedNEQ", "hasRequest", "hasRequestWith", "hasChannel", "hasChannelWith", "hasDataStorage", "hasDataStorageWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -96102,6 +100460,111 @@ func (ec *executionContext) unmarshalInputRequestExecutionWhereInput(ctx context
 				return it, err
 			}
 			it.ErrorMessageContainsFold = data
+		case "retryDecision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecision"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecision = data
+		case "retryDecisionNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionNEQ = data
+		case "retryDecisionIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionIn = data
+		case "retryDecisionNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionNotIn = data
+		case "retryDecisionGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionGT = data
+		case "retryDecisionGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionGTE = data
+		case "retryDecisionLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionLT = data
+		case "retryDecisionLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionLTE = data
+		case "retryDecisionContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionContains = data
+		case "retryDecisionHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionHasPrefix = data
+		case "retryDecisionHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionHasSuffix = data
+		case "retryDecisionIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionIsNil = data
+		case "retryDecisionNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionNotNil = data
+		case "retryDecisionEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionEqualFold = data
+		case "retryDecisionContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("retryDecisionContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RetryDecisionContainsFold = data
 		case "responseStatusCode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responseStatusCode"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -96591,6 +101054,88 @@ func (ec *executionContext) unmarshalInputRequestExecutionWhereInput(ctx context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputRequestLogFilterInput(ctx context.Context, obj any) (RequestLogFilterInput, error) {
+	var it RequestLogFilterInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"channelTagsIn", "apiKeyGroupRefsIn", "timeRange"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "channelTagsIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelTagsIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelTagsIn = data
+		case "apiKeyGroupRefsIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyGroupRefsIn"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKeyGroupRefsIn = data
+		case "timeRange":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeRange"))
+			data, err := ec.unmarshalORequestLogTimeRangeInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogTimeRangeInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TimeRange = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputRequestLogTimeRangeInput(ctx context.Context, obj any) (RequestLogTimeRangeInput, error) {
+	var it RequestLogTimeRangeInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"period", "start", "end"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "period":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("period"))
+			data, err := ec.unmarshalNConsumptionPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPeriod(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Period = data
+		case "start":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("start"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Start = data
+		case "end":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("end"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.End = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRequestOrder(ctx context.Context, obj any) (ent.RequestOrder, error) {
 	var it ent.RequestOrder
 	asMap := map[string]any{}
@@ -96636,7 +101181,7 @@ func (ec *executionContext) unmarshalInputRequestWhereInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "traceID", "traceIDNEQ", "traceIDIn", "traceIDNotIn", "traceIDIsNil", "traceIDNotNil", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "stream", "streamNEQ", "clientIP", "clientIPNEQ", "clientIPIn", "clientIPNotIn", "clientIPGT", "clientIPGTE", "clientIPLT", "clientIPLTE", "clientIPContains", "clientIPHasPrefix", "clientIPHasSuffix", "clientIPEqualFold", "clientIPContainsFold", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "contentSaved", "contentSavedNEQ", "contentStorageID", "contentStorageIDNEQ", "contentStorageIDIn", "contentStorageIDNotIn", "contentStorageIDGT", "contentStorageIDGTE", "contentStorageIDLT", "contentStorageIDLTE", "contentStorageIDIsNil", "contentStorageIDNotNil", "contentStorageKey", "contentStorageKeyNEQ", "contentStorageKeyIn", "contentStorageKeyNotIn", "contentStorageKeyGT", "contentStorageKeyGTE", "contentStorageKeyLT", "contentStorageKeyLTE", "contentStorageKeyContains", "contentStorageKeyHasPrefix", "contentStorageKeyHasSuffix", "contentStorageKeyIsNil", "contentStorageKeyNotNil", "contentStorageKeyEqualFold", "contentStorageKeyContainsFold", "contentSavedAt", "contentSavedAtNEQ", "contentSavedAtIn", "contentSavedAtNotIn", "contentSavedAtGT", "contentSavedAtGTE", "contentSavedAtLT", "contentSavedAtLTE", "contentSavedAtIsNil", "contentSavedAtNotNil", "hasAPIKey", "hasAPIKeyWith", "hasProject", "hasProjectWith", "hasTrace", "hasTraceWith", "hasDataStorage", "hasDataStorageWith", "hasExecutions", "hasExecutionsWith", "hasChannel", "hasChannelWith", "hasUsageLogs", "hasUsageLogsWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "traceID", "traceIDNEQ", "traceIDIn", "traceIDNotIn", "traceIDIsNil", "traceIDNotNil", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "clientStatusCode", "clientStatusCodeNEQ", "clientStatusCodeIn", "clientStatusCodeNotIn", "clientStatusCodeGT", "clientStatusCodeGTE", "clientStatusCodeLT", "clientStatusCodeLTE", "clientStatusCodeIsNil", "clientStatusCodeNotNil", "stream", "streamNEQ", "clientIP", "clientIPNEQ", "clientIPIn", "clientIPNotIn", "clientIPGT", "clientIPGTE", "clientIPLT", "clientIPLTE", "clientIPContains", "clientIPHasPrefix", "clientIPHasSuffix", "clientIPEqualFold", "clientIPContainsFold", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "contentSaved", "contentSavedNEQ", "contentStorageID", "contentStorageIDNEQ", "contentStorageIDIn", "contentStorageIDNotIn", "contentStorageIDGT", "contentStorageIDGTE", "contentStorageIDLT", "contentStorageIDLTE", "contentStorageIDIsNil", "contentStorageIDNotNil", "contentStorageKey", "contentStorageKeyNEQ", "contentStorageKeyIn", "contentStorageKeyNotIn", "contentStorageKeyGT", "contentStorageKeyGTE", "contentStorageKeyLT", "contentStorageKeyLTE", "contentStorageKeyContains", "contentStorageKeyHasPrefix", "contentStorageKeyHasSuffix", "contentStorageKeyIsNil", "contentStorageKeyNotNil", "contentStorageKeyEqualFold", "contentStorageKeyContainsFold", "contentSavedAt", "contentSavedAtNEQ", "contentSavedAtIn", "contentSavedAtNotIn", "contentSavedAtGT", "contentSavedAtGTE", "contentSavedAtLT", "contentSavedAtLTE", "contentSavedAtIsNil", "contentSavedAtNotNil", "hasAPIKey", "hasAPIKeyWith", "hasProject", "hasProjectWith", "hasTrace", "hasTraceWith", "hasDataStorage", "hasDataStorageWith", "hasExecutions", "hasExecutionsWith", "hasChannel", "hasChannelWith", "hasUsageLogs", "hasUsageLogsWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -97588,6 +102133,76 @@ func (ec *executionContext) unmarshalInputRequestWhereInput(ctx context.Context,
 				return it, err
 			}
 			it.StatusNotIn = data
+		case "clientStatusCode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCode"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCode = data
+		case "clientStatusCodeNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeNEQ = data
+		case "clientStatusCodeIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeIn"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeIn = data
+		case "clientStatusCodeNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeNotIn"))
+			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeNotIn = data
+		case "clientStatusCodeGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeGT"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeGT = data
+		case "clientStatusCodeGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeGTE"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeGTE = data
+		case "clientStatusCodeLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeLT"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeLT = data
+		case "clientStatusCodeLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeLTE"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeLTE = data
+		case "clientStatusCodeIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeIsNil = data
+		case "clientStatusCodeNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCodeNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCodeNotNil = data
 		case "stream":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stream"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -101217,7 +105832,7 @@ func (ec *executionContext) unmarshalInputUpdateChannelInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"type", "baseURL", "clearBaseURL", "name", "status", "credentials", "supportedModels", "appendSupportedModels", "manualModels", "appendManualModels", "clearManualModels", "autoSyncSupportedModels", "autoSyncModelPattern", "clearAutoSyncModelPattern", "tags", "appendTags", "clearTags", "defaultTestModel", "policies", "clearPolicies", "settings", "clearSettings", "orderingWeight", "errorMessage", "clearErrorMessage", "remark", "clearRemark", "endpoints", "appendEndpoints", "clearEndpoints"}
+	fieldsInOrder := [...]string{"type", "baseURL", "clearBaseURL", "websiteURL", "clearWebsiteURL", "name", "status", "credentials", "supportedModels", "appendSupportedModels", "manualModels", "appendManualModels", "clearManualModels", "autoSyncSupportedModels", "autoSyncModelPattern", "clearAutoSyncModelPattern", "tags", "appendTags", "clearTags", "defaultTestModel", "policies", "clearPolicies", "settings", "clearSettings", "orderingWeight", "errorMessage", "clearErrorMessage", "remark", "clearRemark", "endpoints", "appendEndpoints", "clearEndpoints"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -101245,6 +105860,20 @@ func (ec *executionContext) unmarshalInputUpdateChannelInput(ctx context.Context
 				return it, err
 			}
 			it.ClearBaseURL = data
+		case "websiteURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("websiteURL"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebsiteURL = data
+		case "clearWebsiteURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearWebsiteURL"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearWebsiteURL = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -102403,7 +107032,7 @@ func (ec *executionContext) unmarshalInputUpdateRequestInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"requestHeaders", "appendRequestHeaders", "clearRequestHeaders", "responseBody", "appendResponseBody", "clearResponseBody", "responseChunks", "appendResponseChunks", "clearResponseChunks", "externalID", "clearExternalID", "status", "metricsLatencyMs", "clearMetricsLatencyMs", "metricsFirstTokenLatencyMs", "clearMetricsFirstTokenLatencyMs", "metricsReasoningDurationMs", "clearMetricsReasoningDurationMs", "contentSaved", "contentStorageID", "clearContentStorageID", "contentStorageKey", "clearContentStorageKey", "contentSavedAt", "clearContentSavedAt", "channelID", "clearChannel"}
+	fieldsInOrder := [...]string{"requestHeaders", "appendRequestHeaders", "clearRequestHeaders", "responseBody", "appendResponseBody", "clearResponseBody", "responseChunks", "appendResponseChunks", "clearResponseChunks", "externalID", "clearExternalID", "status", "clientStatusCode", "clearClientStatusCode", "metricsLatencyMs", "clearMetricsLatencyMs", "metricsFirstTokenLatencyMs", "clearMetricsFirstTokenLatencyMs", "metricsReasoningDurationMs", "clearMetricsReasoningDurationMs", "contentSaved", "contentStorageID", "clearContentStorageID", "contentStorageKey", "clearContentStorageKey", "contentSavedAt", "clearContentSavedAt", "channelID", "clearChannel"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -102494,6 +107123,20 @@ func (ec *executionContext) unmarshalInputUpdateRequestInput(ctx context.Context
 				return it, err
 			}
 			it.Status = data
+		case "clientStatusCode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientStatusCode"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientStatusCode = data
+		case "clearClientStatusCode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearClientStatusCode"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearClientStatusCode = data
 		case "metricsLatencyMs":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("metricsLatencyMs"))
 			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
@@ -110001,6 +114644,8 @@ func (ec *executionContext) _Channel(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "baseURL":
 			out.Values[i] = ec._Channel_baseURL(ctx, field, obj)
+		case "websiteURL":
+			out.Values[i] = ec._Channel_websiteURL(ctx, field, obj)
 		case "name":
 			out.Values[i] = ec._Channel_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -122716,6 +127361,116 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "requestLogTimezone":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_requestLogTimezone(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "requestLogs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_requestLogs(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "managedGroupUsageMeta":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_managedGroupUsageMeta(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "managedGroupUsageStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_managedGroupUsageStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "managedGroupUsageRequests":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_managedGroupUsageRequests(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "analyticsMetadata":
 			field := field
 
@@ -123695,6 +128450,8 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "clientStatusCode":
+			out.Values[i] = ec._Request_clientStatusCode(ctx, field, obj)
 		case "stream":
 			out.Values[i] = ec._Request_stream(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -124413,6 +129170,43 @@ func (ec *executionContext) _RequestExecution(ctx context.Context, sel ast.Selec
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "errorMessage":
 			out.Values[i] = ec._RequestExecution_errorMessage(ctx, field, obj)
+		case "selection":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._RequestExecution_selection(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "failure":
+			out.Values[i] = ec._RequestExecution_failure(ctx, field, obj)
+		case "retryDecision":
+			out.Values[i] = ec._RequestExecution_retryDecision(ctx, field, obj)
 		case "responseStatusCode":
 			out.Values[i] = ec._RequestExecution_responseStatusCode(ctx, field, obj)
 		case "status":
@@ -124652,6 +129446,139 @@ func (ec *executionContext) _RequestExecutionEdge(ctx context.Context, sel ast.S
 	return out
 }
 
+var requestExecutionFailureImplementors = []string{"RequestExecutionFailure"}
+
+func (ec *executionContext) _RequestExecutionFailure(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestExecutionFailure) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestExecutionFailureImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestExecutionFailure")
+		case "source":
+			out.Values[i] = ec._RequestExecutionFailure_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "code":
+			out.Values[i] = ec._RequestExecutionFailure_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._RequestExecutionFailure_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "body":
+			out.Values[i] = ec._RequestExecutionFailure_body(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bodyTruncated":
+			out.Values[i] = ec._RequestExecutionFailure_bodyTruncated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestExecutionSelectionImplementors = []string{"RequestExecutionSelection"}
+
+func (ec *executionContext) _RequestExecutionSelection(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestExecutionSelection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestExecutionSelectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestExecutionSelection")
+		case "channelName":
+			out.Values[i] = ec._RequestExecutionSelection_channelName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "provider":
+			out.Values[i] = ec._RequestExecutionSelection_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyHint":
+			out.Values[i] = ec._RequestExecutionSelection_keyHint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyRemark":
+			out.Values[i] = ec._RequestExecutionSelection_keyRemark(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sessionState":
+			out.Values[i] = ec._RequestExecutionSelection_sessionState(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "strategy":
+			out.Values[i] = ec._RequestExecutionSelection_strategy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priority":
+			out.Values[i] = ec._RequestExecutionSelection_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "candidates":
+			out.Values[i] = ec._RequestExecutionSelection_candidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var requestMetadataImplementors = []string{"RequestMetadata"}
 
 func (ec *executionContext) _RequestMetadata(ctx context.Context, sel ast.SelectionSet, obj *biz.RequestMetadata) graphql.Marshaler {
@@ -124673,6 +129600,70 @@ func (ec *executionContext) _RequestMetadata(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._RequestMetadata_totalTokens(ctx, field, obj)
 		case "cachedTokens":
 			out.Values[i] = ec._RequestMetadata_cachedTokens(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestRoutingCandidateImplementors = []string{"RequestRoutingCandidate"}
+
+func (ec *executionContext) _RequestRoutingCandidate(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestRoutingCandidate) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestRoutingCandidateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestRoutingCandidate")
+		case "channelID":
+			out.Values[i] = ec._RequestRoutingCandidate_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelName":
+			out.Values[i] = ec._RequestRoutingCandidate_channelName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "provider":
+			out.Values[i] = ec._RequestRoutingCandidate_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priority":
+			out.Values[i] = ec._RequestRoutingCandidate_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "models":
+			out.Values[i] = ec._RequestRoutingCandidate_models(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sessionReuse":
+			out.Values[i] = ec._RequestRoutingCandidate_sessionReuse(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -125838,6 +130829,678 @@ func (ec *executionContext) _Segment(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Segment_duration(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageCostItemImplementors = []string{"SelfUsageCostItem"}
+
+func (ec *executionContext) _SelfUsageCostItem(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageCostItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageCostItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageCostItem")
+		case "image":
+			out.Values[i] = ec._SelfUsageCostItem_image(ctx, field, obj)
+		case "imageRule":
+			out.Values[i] = ec._SelfUsageCostItem_imageRule(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpriced":
+			out.Values[i] = ec._SelfUsageCostItem_unpriced(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "itemCode":
+			out.Values[i] = ec._SelfUsageCostItem_itemCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptWriteCacheVariantCode":
+			out.Values[i] = ec._SelfUsageCostItem_promptWriteCacheVariantCode(ctx, field, obj)
+		case "quantity":
+			out.Values[i] = ec._SelfUsageCostItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subtotal":
+			out.Values[i] = ec._SelfUsageCostItem_subtotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tierBreakdown":
+			out.Values[i] = ec._SelfUsageCostItem_tierBreakdown(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageDailyStatImplementors = []string{"SelfUsageDailyStat"}
+
+func (ec *executionContext) _SelfUsageDailyStat(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageDailyStat) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageDailyStatImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageDailyStat")
+		case "date":
+			out.Values[i] = ec._SelfUsageDailyStat_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usage":
+			out.Values[i] = ec._SelfUsageDailyStat_usage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageImageOutputImplementors = []string{"SelfUsageImageOutput"}
+
+func (ec *executionContext) _SelfUsageImageOutput(ctx context.Context, sel ast.SelectionSet, obj *objects.ImageOutput) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageImageOutputImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageImageOutput")
+		case "tierSource":
+			out.Values[i] = ec._SelfUsageImageOutput_tierSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "width":
+			out.Values[i] = ec._SelfUsageImageOutput_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._SelfUsageImageOutput_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tier":
+			out.Values[i] = ec._SelfUsageImageOutput_tier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._SelfUsageImageOutput_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageMetaImplementors = []string{"SelfUsageMeta"}
+
+func (ec *executionContext) _SelfUsageMeta(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageMeta")
+		case "groupName":
+			out.Values[i] = ec._SelfUsageMeta_groupName(ctx, field, obj)
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageMeta_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKeyType":
+			out.Values[i] = ec._SelfUsageMeta_apiKeyType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currencyCode":
+			out.Values[i] = ec._SelfUsageMeta_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._SelfUsageMeta_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxRangeDays":
+			out.Values[i] = ec._SelfUsageMeta_maxRangeDays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageModelStatImplementors = []string{"SelfUsageModelStat"}
+
+func (ec *executionContext) _SelfUsageModelStat(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageModelStat) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageModelStatImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageModelStat")
+		case "model":
+			out.Values[i] = ec._SelfUsageModelStat_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usage":
+			out.Values[i] = ec._SelfUsageModelStat_usage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageRequestImplementors = []string{"SelfUsageRequest"}
+
+func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageRequest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageRequestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageRequest_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "id":
+			out.Values[i] = ec._SelfUsageRequest_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._SelfUsageRequest_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._SelfUsageRequest_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._SelfUsageRequest_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestStatus":
+			out.Values[i] = ec._SelfUsageRequest_requestStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stream":
+			out.Values[i] = ec._SelfUsageRequest_stream(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "latencyMs":
+			out.Values[i] = ec._SelfUsageRequest_latencyMs(ctx, field, obj)
+		case "firstTokenLatencyMs":
+			out.Values[i] = ec._SelfUsageRequest_firstTokenLatencyMs(ctx, field, obj)
+		case "inputTokens":
+			out.Values[i] = ec._SelfUsageRequest_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._SelfUsageRequest_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheReadTokens":
+			out.Values[i] = ec._SelfUsageRequest_cacheReadTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheWriteTokens":
+			out.Values[i] = ec._SelfUsageRequest_cacheWriteTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningTokens":
+			out.Values[i] = ec._SelfUsageRequest_reasoningTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalTokens":
+			out.Values[i] = ec._SelfUsageRequest_totalTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cost":
+			out.Values[i] = ec._SelfUsageRequest_cost(ctx, field, obj)
+		case "costItems":
+			out.Values[i] = ec._SelfUsageRequest_costItems(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "costMultiplier":
+			out.Values[i] = ec._SelfUsageRequest_costMultiplier(ctx, field, obj)
+		case "costMultiplierMixed":
+			out.Values[i] = ec._SelfUsageRequest_costMultiplierMixed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageRecords":
+			out.Values[i] = ec._SelfUsageRequest_usageRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedRecords":
+			out.Values[i] = ec._SelfUsageRequest_unpricedRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageRequestPageImplementors = []string{"SelfUsageRequestPage"}
+
+func (ec *executionContext) _SelfUsageRequestPage(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageRequestPage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageRequestPageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageRequestPage")
+		case "scopeID":
+			out.Values[i] = ec._SelfUsageRequestPage_scopeID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageRequestPage_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupName":
+			out.Values[i] = ec._SelfUsageRequestPage_groupName(ctx, field, obj)
+		case "items":
+			out.Values[i] = ec._SelfUsageRequestPage_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "page":
+			out.Values[i] = ec._SelfUsageRequestPage_page(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageSize":
+			out.Values[i] = ec._SelfUsageRequestPage_pageSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._SelfUsageRequestPage_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageStatsImplementors = []string{"SelfUsageStats"}
+
+func (ec *executionContext) _SelfUsageStats(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageStats")
+		case "scopeID":
+			out.Values[i] = ec._SelfUsageStats_scopeID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKeyName":
+			out.Values[i] = ec._SelfUsageStats_apiKeyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupName":
+			out.Values[i] = ec._SelfUsageStats_groupName(ctx, field, obj)
+		case "start":
+			out.Values[i] = ec._SelfUsageStats_start(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "end":
+			out.Values[i] = ec._SelfUsageStats_end(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totals":
+			out.Values[i] = ec._SelfUsageStats_totals(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "models":
+			out.Values[i] = ec._SelfUsageStats_models(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "daily":
+			out.Values[i] = ec._SelfUsageStats_daily(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageSummaryImplementors = []string{"SelfUsageSummary"}
+
+func (ec *executionContext) _SelfUsageSummary(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageSummary")
+		case "successRequests":
+			out.Values[i] = ec._SelfUsageSummary_successRequests(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failedRequests":
+			out.Values[i] = ec._SelfUsageSummary_failedRequests(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._SelfUsageSummary_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._SelfUsageSummary_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheReadTokens":
+			out.Values[i] = ec._SelfUsageSummary_cacheReadTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheWriteTokens":
+			out.Values[i] = ec._SelfUsageSummary_cacheWriteTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningTokens":
+			out.Values[i] = ec._SelfUsageSummary_reasoningTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalTokens":
+			out.Values[i] = ec._SelfUsageSummary_totalTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cost":
+			out.Values[i] = ec._SelfUsageSummary_cost(ctx, field, obj)
+		case "usageRecords":
+			out.Values[i] = ec._SelfUsageSummary_usageRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedRecords":
+			out.Values[i] = ec._SelfUsageSummary_unpricedRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var selfUsageTierCostImplementors = []string{"SelfUsageTierCost"}
+
+func (ec *executionContext) _SelfUsageTierCost(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageTierCost) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageTierCostImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageTierCost")
+		case "upTo":
+			out.Values[i] = ec._SelfUsageTierCost_upTo(ctx, field, obj)
+		case "units":
+			out.Values[i] = ec._SelfUsageTierCost_units(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subtotal":
+			out.Values[i] = ec._SelfUsageTierCost_subtotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -137347,6 +143010,54 @@ func (ec *executionContext) marshalNRequestOrderField2ᚖgithubᚗcomᚋlooplj�
 	return v
 }
 
+func (ec *executionContext) marshalNRequestRoutingCandidate2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestRoutingCandidate(ctx context.Context, sel ast.SelectionSet, v objects.RequestRoutingCandidate) graphql.Marshaler {
+	return ec._RequestRoutingCandidate(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRequestRoutingCandidate2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestRoutingCandidateᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.RequestRoutingCandidate) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNRequestRoutingCandidate2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestRoutingCandidate(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNRequestSource2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋrequestᚐSource(ctx context.Context, v any) (request.Source, error) {
 	var res request.Source
 	err := res.UnmarshalGQL(v)
@@ -137856,6 +143567,292 @@ func (ec *executionContext) marshalNSegment2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Segment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSelfUsageCostItem2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageCostItem(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageCostItem) graphql.Marshaler {
+	return ec._SelfUsageCostItem(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageCostItem2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageCostItemᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageCostItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageCostItem2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageCostItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSelfUsageDailyStat2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageDailyStat(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageDailyStat) graphql.Marshaler {
+	return ec._SelfUsageDailyStat(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageDailyStat2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageDailyStatᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageDailyStat) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageDailyStat2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageDailyStat(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSelfUsageMeta2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageMeta(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageMeta) graphql.Marshaler {
+	return ec._SelfUsageMeta(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageMeta2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageMeta(ctx context.Context, sel ast.SelectionSet, v *biz.SelfUsageMeta) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SelfUsageMeta(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSelfUsageModelStat2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelStat(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageModelStat) graphql.Marshaler {
+	return ec._SelfUsageModelStat(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageModelStat2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelStatᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageModelStat) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageModelStat2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelStat(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSelfUsageRequest2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequest(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageRequest) graphql.Marshaler {
+	return ec._SelfUsageRequest(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageRequest2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageRequest) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageRequest2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequest(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSelfUsageRequestPage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestPage(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageRequestPage) graphql.Marshaler {
+	return ec._SelfUsageRequestPage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestPage(ctx context.Context, sel ast.SelectionSet, v *biz.SelfUsageRequestPage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SelfUsageRequestPage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSelfUsageStats2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageStats(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageStats) graphql.Marshaler {
+	return ec._SelfUsageStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageStats(ctx context.Context, sel ast.SelectionSet, v *biz.SelfUsageStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SelfUsageStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSelfUsageSummary2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageSummary(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageSummary) graphql.Marshaler {
+	return ec._SelfUsageSummary(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageTierCost2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageTierCost(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageTierCost) graphql.Marshaler {
+	return ec._SelfUsageTierCost(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageTierCost2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageTierCostᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageTierCost) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageTierCost2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageTierCost(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNSpan2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSpan(ctx context.Context, sel ast.SelectionSet, v biz.Span) graphql.Marshaler {
@@ -144903,12 +150900,26 @@ func (ec *executionContext) marshalORequestExecutionEdge2ᚖgithubᚗcomᚋloopl
 	return ec._RequestExecutionEdge(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalORequestExecutionFailure2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestExecutionFailure(ctx context.Context, sel ast.SelectionSet, v *objects.RequestExecutionFailure) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestExecutionFailure(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalORequestExecutionOrder2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestExecutionOrder(ctx context.Context, v any) (*ent.RequestExecutionOrder, error) {
 	if v == nil {
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputRequestExecutionOrder(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORequestExecutionSelection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestExecutionSelection(ctx context.Context, sel ast.SelectionSet, v *objects.RequestExecutionSelection) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestExecutionSelection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalORequestExecutionStatus2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋrequestexecutionᚐStatusᚄ(ctx context.Context, v any) ([]requestexecution.Status, error) {
@@ -145015,6 +151026,22 @@ func (ec *executionContext) unmarshalORequestExecutionWhereInput2ᚖgithubᚗcom
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputRequestExecutionWhereInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalORequestLogFilterInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogFilterInput(ctx context.Context, v any) (*RequestLogFilterInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputRequestLogFilterInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalORequestLogTimeRangeInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogTimeRangeInput(ctx context.Context, v any) (*RequestLogTimeRangeInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputRequestLogTimeRangeInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -145544,6 +151571,13 @@ func (ec *executionContext) marshalOSegment2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Segment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, sel ast.SelectionSet, v *objects.ImageOutput) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SelfUsageImageOutput(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOSpan2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSpanᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.Span) graphql.Marshaler {

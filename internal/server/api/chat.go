@@ -15,6 +15,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -91,6 +92,19 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 	// log.Debug(ctx, "Chat completion request", log.Any("request", genericReq))
 
 	result, err := handlers.ChatCompletionOrchestrator.Process(ctx, genericReq)
+	if result.RequestID > 0 {
+		defer func() {
+			// Capture the status actually committed by the HTTP writer, including SSE.
+			if !c.Writer.Written() {
+				return
+			}
+			persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			if err := handlers.ChatCompletionOrchestrator.RequestService.SetRequestClientStatus(persistCtx, result.RequestID, c.Writer.Status()); err != nil {
+				log.Warn(ctx, "Failed to persist client response status", log.Cause(err))
+			}
+		}()
+	}
 	if err != nil {
 		log.Error(ctx, "Error processing chat completion", log.Cause(err))
 

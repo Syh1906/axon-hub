@@ -188,6 +188,32 @@ func (_c *RequestExecutionCreate) SetNillableErrorMessage(v *string) *RequestExe
 	return _c
 }
 
+// SetSelection sets the "selection" field.
+func (_c *RequestExecutionCreate) SetSelection(v *objects.RequestExecutionSelection) *RequestExecutionCreate {
+	_c.mutation.SetSelection(v)
+	return _c
+}
+
+// SetFailure sets the "failure" field.
+func (_c *RequestExecutionCreate) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionCreate {
+	_c.mutation.SetFailure(v)
+	return _c
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (_c *RequestExecutionCreate) SetRetryDecision(v string) *RequestExecutionCreate {
+	_c.mutation.SetRetryDecision(v)
+	return _c
+}
+
+// SetNillableRetryDecision sets the "retry_decision" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableRetryDecision(v *string) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetRetryDecision(*v)
+	}
+	return _c
+}
+
 // SetResponseStatusCode sets the "response_status_code" field.
 func (_c *RequestExecutionCreate) SetResponseStatusCode(v int) *RequestExecutionCreate {
 	_c.mutation.SetResponseStatusCode(v)
@@ -568,6 +594,18 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 		_spec.SetField(requestexecution.FieldErrorMessage, field.TypeString, value)
 		_node.ErrorMessage = value
 	}
+	if value, ok := _c.mutation.Selection(); ok {
+		_spec.SetField(requestexecution.FieldSelection, field.TypeJSON, value)
+		_node.Selection = value
+	}
+	if value, ok := _c.mutation.Failure(); ok {
+		_spec.SetField(requestexecution.FieldFailure, field.TypeJSON, value)
+		_node.Failure = value
+	}
+	if value, ok := _c.mutation.RetryDecision(); ok {
+		_spec.SetField(requestexecution.FieldRetryDecision, field.TypeString, value)
+		_node.RetryDecision = value
+	}
 	if value, ok := _c.mutation.ResponseStatusCode(); ok {
 		_spec.SetField(requestexecution.FieldResponseStatusCode, field.TypeInt, value)
 		_node.ResponseStatusCode = &value
@@ -811,6 +849,42 @@ func (u *RequestExecutionUpsert) ClearErrorMessage() *RequestExecutionUpsert {
 	return u
 }
 
+// SetFailure sets the "failure" field.
+func (u *RequestExecutionUpsert) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldFailure, v)
+	return u
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateFailure() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldFailure)
+	return u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestExecutionUpsert) ClearFailure() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldFailure)
+	return u
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (u *RequestExecutionUpsert) SetRetryDecision(v string) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldRetryDecision, v)
+	return u
+}
+
+// UpdateRetryDecision sets the "retry_decision" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateRetryDecision() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldRetryDecision)
+	return u
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (u *RequestExecutionUpsert) ClearRetryDecision() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldRetryDecision)
+	return u
+}
+
 // SetResponseStatusCode sets the "response_status_code" field.
 func (u *RequestExecutionUpsert) SetResponseStatusCode(v int) *RequestExecutionUpsert {
 	u.Set(requestexecution.FieldResponseStatusCode, v)
@@ -1050,6 +1124,9 @@ func (u *RequestExecutionUpsertOne) UpdateNewValues() *RequestExecutionUpsertOne
 		if _, exists := u.create.mutation.RequestBody(); exists {
 			s.SetIgnore(requestexecution.FieldRequestBody)
 		}
+		if _, exists := u.create.mutation.Selection(); exists {
+			s.SetIgnore(requestexecution.FieldSelection)
+		}
 		if _, exists := u.create.mutation.Stream(); exists {
 			s.SetIgnore(requestexecution.FieldStream)
 		}
@@ -1188,6 +1265,48 @@ func (u *RequestExecutionUpsertOne) UpdateErrorMessage() *RequestExecutionUpsert
 func (u *RequestExecutionUpsertOne) ClearErrorMessage() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearErrorMessage()
+	})
+}
+
+// SetFailure sets the "failure" field.
+func (u *RequestExecutionUpsertOne) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetFailure(v)
+	})
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateFailure() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateFailure()
+	})
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestExecutionUpsertOne) ClearFailure() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearFailure()
+	})
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (u *RequestExecutionUpsertOne) SetRetryDecision(v string) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetRetryDecision(v)
+	})
+}
+
+// UpdateRetryDecision sets the "retry_decision" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateRetryDecision() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateRetryDecision()
+	})
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (u *RequestExecutionUpsertOne) ClearRetryDecision() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearRetryDecision()
 	})
 }
 
@@ -1628,6 +1747,9 @@ func (u *RequestExecutionUpsertBulk) UpdateNewValues() *RequestExecutionUpsertBu
 			if _, exists := b.mutation.RequestBody(); exists {
 				s.SetIgnore(requestexecution.FieldRequestBody)
 			}
+			if _, exists := b.mutation.Selection(); exists {
+				s.SetIgnore(requestexecution.FieldSelection)
+			}
 			if _, exists := b.mutation.Stream(); exists {
 				s.SetIgnore(requestexecution.FieldStream)
 			}
@@ -1767,6 +1889,48 @@ func (u *RequestExecutionUpsertBulk) UpdateErrorMessage() *RequestExecutionUpser
 func (u *RequestExecutionUpsertBulk) ClearErrorMessage() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearErrorMessage()
+	})
+}
+
+// SetFailure sets the "failure" field.
+func (u *RequestExecutionUpsertBulk) SetFailure(v *objects.RequestExecutionFailure) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetFailure(v)
+	})
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateFailure() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateFailure()
+	})
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestExecutionUpsertBulk) ClearFailure() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearFailure()
+	})
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (u *RequestExecutionUpsertBulk) SetRetryDecision(v string) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetRetryDecision(v)
+	})
+}
+
+// UpdateRetryDecision sets the "retry_decision" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateRetryDecision() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateRetryDecision()
+	})
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (u *RequestExecutionUpsertBulk) ClearRetryDecision() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearRetryDecision()
 	})
 }
 

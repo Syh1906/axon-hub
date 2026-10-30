@@ -31,6 +31,7 @@ type healthGateRequestDecision struct {
 	traceID       int
 	sticky        bool
 	owner         biz.SessionOwner
+	lookupFailed  bool
 	found         bool
 	ownerOpen     bool
 	probeEligible bool
@@ -73,6 +74,7 @@ func (s *LoadBalancedSelector) healthGateSessionDecision(ctx context.Context, mo
 	}
 	owner, found, err := provider.GetSessionOwner(ctx, d.threadID, d.traceID)
 	if err != nil {
+		d.lookupFailed = true
 		log.Warn(ctx, "failed to read health gate session owner", log.Cause(err))
 		return d, false
 	}

@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"time"
 
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/pkg/xerrors"
@@ -103,6 +105,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		format,
 		state.PassThroughApplied,
 		cacheSample,
+		executionSelection(ctx, state),
 	)
 	if err != nil {
 		return nil, err
@@ -132,6 +135,12 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 	m.rawResponse = response
 	if response != nil {
 		captureImageCostEvidence(ctx, m.outbound.state, response.Body)
+		state := m.outbound.state
+		if state != nil && state.RequestExec != nil {
+			if err := state.RequestService.SetExecutionUpstreamStatus(ctx, state.RequestExec.ID, response.StatusCode); err != nil {
+				log.Warn(ctx, "Failed to persist upstream response status", log.Cause(err))
+			}
+		}
 	}
 	return response, nil
 }
@@ -244,22 +253,48 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 }
 
 // ExtractErrorInfo extracts HTTP status code and sanitized response body from error.
-func ExtractErrorInfo(err error) *biz.ExecutionErrorInfo {
-	httpErr, ok := xerrors.As[*httpclient.Error](err)
-	if !ok {
-		// Classified errors (e.g. upstream transport failures) carry their own status code.
-		if respErr, ok := xerrors.As[*llm.ResponseError](err); ok && respErr.StatusCode != 0 {
-			statusCode := respErr.StatusCode
+func ExtractErrorInfo(err error) *biz.ExecutionErrorInfo { return extractExecutionErrorInfo(err, "") }
 
-			return &biz.ExecutionErrorInfo{StatusCode: &statusCode}
-		}
-
+func extractExecutionErrorInfo(err error, secret string) *biz.ExecutionErrorInfo {
+	if err == nil {
 		return nil
 	}
-
-	return &biz.ExecutionErrorInfo{
-		StatusCode: &httpErr.StatusCode,
+	failure := &objects.RequestExecutionFailure{Source: "gateway"}
+	info := &biz.ExecutionErrorInfo{Failure: failure}
+	if httpErr, ok := xerrors.As[*httpclient.Error](err); ok {
+		info.StatusCode = &httpErr.StatusCode
+		failure.Source = "upstream_http"
+		failure.Body, failure.BodyTruncated = sanitizedDiagnosticBody(httpErr.Body, secret)
+		for _, path := range []string{"error.code", "errors.0.code", "code"} {
+			if code := gjson.GetBytes(httpErr.Body, path); code.Exists() {
+				failure.Code = sanitizeDiagnosticText(code.String(), secret)
+				break
+			}
+		}
+		failure.Type = sanitizeDiagnosticText(gjson.GetBytes(httpErr.Body, "error.type").String(), secret)
+		return info
 	}
+	if respErr, ok := xerrors.As[*llm.ResponseError](err); ok {
+		if respErr.StatusCode != 0 {
+			info.StatusCode = &respErr.StatusCode
+		}
+		failure.Source = "structured_error"
+		failure.Code = sanitizeDiagnosticText(respErr.Detail.Code, secret)
+		failure.Type = sanitizeDiagnosticText(respErr.Detail.Type, secret)
+		if respErr.Detail.Code == ErrCodeUpstreamStreamInterrupted {
+			failure.Source = "transport"
+		}
+	}
+	if IsUpstreamTransportError(err) {
+		failure.Source = "transport"
+	}
+	if errors.Is(err, context.Canceled) {
+		failure.Source = "client_canceled"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		failure.Source = "timeout"
+	}
+	return info
 }
 
 // ExtractErrorMessage extracts HTTP error message from error.

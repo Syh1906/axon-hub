@@ -773,6 +773,11 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, channel.FieldBaseURL)
 				fieldSeen[channel.FieldBaseURL] = struct{}{}
 			}
+		case "websiteURL":
+			if _, ok := fieldSeen[channel.FieldWebsiteURL]; !ok {
+				selectedFields = append(selectedFields, channel.FieldWebsiteURL)
+				fieldSeen[channel.FieldWebsiteURL] = struct{}{}
+			}
 		case "name":
 			if _, ok := fieldSeen[channel.FieldName]; !ok {
 				selectedFields = append(selectedFields, channel.FieldName)
@@ -3842,6 +3847,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldStatus)
 				fieldSeen[request.FieldStatus] = struct{}{}
 			}
+		case "clientStatusCode":
+			if _, ok := fieldSeen[request.FieldClientStatusCode]; !ok {
+				selectedFields = append(selectedFields, request.FieldClientStatusCode)
+				fieldSeen[request.FieldClientStatusCode] = struct{}{}
+			}
 		case "stream":
 			if _, ok := fieldSeen[request.FieldStream]; !ok {
 				selectedFields = append(selectedFields, request.FieldStream)
@@ -4085,6 +4095,21 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 			if _, ok := fieldSeen[requestexecution.FieldErrorMessage]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldErrorMessage)
 				fieldSeen[requestexecution.FieldErrorMessage] = struct{}{}
+			}
+		case "selection":
+			if _, ok := fieldSeen[requestexecution.FieldSelection]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldSelection)
+				fieldSeen[requestexecution.FieldSelection] = struct{}{}
+			}
+		case "failure":
+			if _, ok := fieldSeen[requestexecution.FieldFailure]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldFailure)
+				fieldSeen[requestexecution.FieldFailure] = struct{}{}
+			}
+		case "retryDecision":
+			if _, ok := fieldSeen[requestexecution.FieldRetryDecision]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldRetryDecision)
+				fieldSeen[requestexecution.FieldRetryDecision] = struct{}{}
 			}
 		case "responseStatusCode":
 			if _, ok := fieldSeen[requestexecution.FieldResponseStatusCode]; !ok {

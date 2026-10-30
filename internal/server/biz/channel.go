@@ -627,6 +627,7 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 	createBuilder := svc.entFromContext(ctx).Channel.Create().
 		SetType(input.Type).
 		SetNillableBaseURL(input.BaseURL).
+		SetNillableWebsiteURL(input.WebsiteURL).
 		SetNillableRemark(input.Remark).
 		SetName(input.Name).
 		SetCredentials(input.Credentials).
@@ -1065,6 +1066,7 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		mut := db.Channel.UpdateOneID(id).
 			SetNillableType(input.Type).
 			SetNillableBaseURL(input.BaseURL).
+			SetNillableWebsiteURL(input.WebsiteURL).
 			SetNillableName(input.Name).
 			SetNillableDefaultTestModel(input.DefaultTestModel).
 			SetNillableOrderingWeight(input.OrderingWeight).

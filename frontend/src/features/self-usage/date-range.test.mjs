@@ -25,6 +25,7 @@ test('spring and fall DST transitions retain calendar days', () => {
   });
   assert.equal(calendarDay(new Date('2026-03-08T18:00:00Z'), 'Asia/Kathmandu'), '2026-03-08');
   assert.equal(chartDay('2026-03-08', 'en-US'), '03/08');
+  assert.equal(chartDay('2026-10-30', 'zh-CN'), '10/30');
 });
 
 test('custom spans count inclusive calendar days and reject invalid dates', () => {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"syscall"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
@@ -93,13 +94,14 @@ func persistRequestExecutionFailure(
 	}
 
 	failure := ClassifyUpstreamTransportError(rawErr)
+	key, _ := contexts.GetChannelAPIKey(ctx)
 
 	return requestService.UpdateRequestExecutionStatusWithMetrics(
 		ctx,
 		executionID,
 		status,
-		ExtractErrorMessage(failure),
-		ExtractErrorInfo(failure),
+		sanitizeDiagnosticText(ExtractErrorMessage(failure), key),
+		extractExecutionErrorInfo(failure, key),
 		metrics,
 	)
 }

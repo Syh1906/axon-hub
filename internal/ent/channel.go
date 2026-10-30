@@ -30,6 +30,8 @@ type Channel struct {
 	Type channel.Type `json:"type,omitempty"`
 	// BaseURL holds the value of the "base_url" field.
 	BaseURL string `json:"base_url,omitempty"`
+	// WebsiteURL holds the value of the "website_url" field.
+	WebsiteURL string `json:"website_url,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Status holds the value of the "status" field.
@@ -178,7 +180,7 @@ func (*Channel) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case channel.FieldID, channel.FieldDeletedAt, channel.FieldOrderingWeight:
 			values[i] = new(sql.NullInt64)
-		case channel.FieldType, channel.FieldBaseURL, channel.FieldName, channel.FieldStatus, channel.FieldAutoSyncModelPattern, channel.FieldDefaultTestModel, channel.FieldErrorMessage, channel.FieldRemark:
+		case channel.FieldType, channel.FieldBaseURL, channel.FieldWebsiteURL, channel.FieldName, channel.FieldStatus, channel.FieldAutoSyncModelPattern, channel.FieldDefaultTestModel, channel.FieldErrorMessage, channel.FieldRemark:
 			values[i] = new(sql.NullString)
 		case channel.FieldCreatedAt, channel.FieldUpdatedAt, channel.FieldAutoDisabledAt:
 			values[i] = new(sql.NullTime)
@@ -232,6 +234,12 @@ func (_m *Channel) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field base_url", values[i])
 			} else if value.Valid {
 				_m.BaseURL = value.String
+			}
+		case channel.FieldWebsiteURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field website_url", values[i])
+			} else if value.Valid {
+				_m.WebsiteURL = value.String
 			}
 		case channel.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -447,6 +455,9 @@ func (_m *Channel) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("base_url=")
 	builder.WriteString(_m.BaseURL)
+	builder.WriteString(", ")
+	builder.WriteString("website_url=")
+	builder.WriteString(_m.WebsiteURL)
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

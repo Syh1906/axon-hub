@@ -516,6 +516,19 @@ type RemoveUserFromProjectInput struct {
 	UserID    objects.GUID `json:"userId"`
 }
 
+type RequestLogFilterInput struct {
+	ChannelTagsIn     []string                  `json:"channelTagsIn,omitempty"`
+	APIKeyGroupRefsIn []int                     `json:"apiKeyGroupRefsIn,omitempty"`
+	TimeRange         *RequestLogTimeRangeInput `json:"timeRange,omitempty"`
+}
+
+type RequestLogTimeRangeInput struct {
+	Period biz.ConsumptionPeriod `json:"period"`
+	// Wall-clock date and time in the configured reporting timezone.
+	Start *string `json:"start,omitempty"`
+	End   *string `json:"end,omitempty"`
+}
+
 type RequestStats struct {
 	RequestsToday     int `json:"requestsToday"`
 	RequestsThisWeek  int `json:"requestsThisWeek"`

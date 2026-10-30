@@ -165,6 +165,7 @@ func (c *APIKeyProfileTemplateUpdateOne) SetInput(i UpdateAPIKeyProfileTemplateI
 type CreateChannelInput struct {
 	Type                    channel.Type
 	BaseURL                 *string
+	WebsiteURL              *string
 	Name                    string
 	Credentials             objects.ChannelCredentials
 	SupportedModels         []string
@@ -185,6 +186,9 @@ func (i *CreateChannelInput) Mutate(m *ChannelMutation) {
 	m.SetType(i.Type)
 	if v := i.BaseURL; v != nil {
 		m.SetBaseURL(*v)
+	}
+	if v := i.WebsiteURL; v != nil {
+		m.SetWebsiteURL(*v)
 	}
 	m.SetName(i.Name)
 	m.SetCredentials(i.Credentials)
@@ -232,6 +236,8 @@ type UpdateChannelInput struct {
 	Type                      *channel.Type
 	ClearBaseURL              bool
 	BaseURL                   *string
+	ClearWebsiteURL           bool
+	WebsiteURL                *string
 	Name                      *string
 	Status                    *channel.Status
 	Credentials               *objects.ChannelCredentials
@@ -271,6 +277,12 @@ func (i *UpdateChannelInput) Mutate(m *ChannelMutation) {
 	}
 	if v := i.BaseURL; v != nil {
 		m.SetBaseURL(*v)
+	}
+	if i.ClearWebsiteURL {
+		m.ClearWebsiteURL()
+	}
+	if v := i.WebsiteURL; v != nil {
+		m.SetWebsiteURL(*v)
 	}
 	if v := i.Name; v != nil {
 		m.SetName(*v)
@@ -965,6 +977,7 @@ type CreateRequestInput struct {
 	ResponseChunks             []objects.JSONRawMessage
 	ExternalID                 *string
 	Status                     request.Status
+	ClientStatusCode           *int
 	Stream                     *bool
 	ClientIP                   *string
 	MetricsLatencyMs           *int64
@@ -1009,6 +1022,9 @@ func (i *CreateRequestInput) Mutate(m *RequestMutation) {
 		m.SetExternalID(*v)
 	}
 	m.SetStatus(i.Status)
+	if v := i.ClientStatusCode; v != nil {
+		m.SetClientStatusCode(*v)
+	}
 	if v := i.Stream; v != nil {
 		m.SetStream(*v)
 	}
@@ -1071,6 +1087,8 @@ type UpdateRequestInput struct {
 	ClearExternalID                 bool
 	ExternalID                      *string
 	Status                          *request.Status
+	ClearClientStatusCode           bool
+	ClientStatusCode                *int
 	ClearMetricsLatencyMs           bool
 	MetricsLatencyMs                *int64
 	ClearMetricsFirstTokenLatencyMs bool
@@ -1125,6 +1143,12 @@ func (i *UpdateRequestInput) Mutate(m *RequestMutation) {
 	}
 	if v := i.Status; v != nil {
 		m.SetStatus(*v)
+	}
+	if i.ClearClientStatusCode {
+		m.ClearClientStatusCode()
+	}
+	if v := i.ClientStatusCode; v != nil {
+		m.SetClientStatusCode(*v)
 	}
 	if i.ClearMetricsLatencyMs {
 		m.ClearMetricsLatencyMs()

@@ -313,6 +313,7 @@ func (s *RequestService) CreateRequestExecution(
 	format llm.APIFormat,
 	passThroughApplied bool,
 	cacheSample *usageanalytics.CacheSample,
+	selection *objects.RequestExecutionSelection,
 ) (*ent.RequestExecution, error) {
 	// Decide whether to store the channel request body
 	storeRequestBody := true
@@ -383,6 +384,9 @@ func (s *RequestService) CreateRequestExecution(
 		SetRequestHeaders(requestHeadersBytes).
 		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID)).
 		SetPassThroughApplied(passThroughApplied)
+	if selection != nil {
+		mut.SetSelection(selection)
+	}
 
 	if cacheSample != nil {
 		mut.SetCacheCompatibilityKey(cacheSample.CompatibilityKey).
@@ -395,7 +399,7 @@ func (s *RequestService) CreateRequestExecution(
 	}
 
 	if channelRequest.URL != "" {
-		mut = mut.SetRequestURL(channelRequest.URL)
+		mut = mut.SetRequestURL(diagnosticRequestURL(channelRequest.URL))
 	}
 
 	// Use the same data storage as the request
@@ -860,6 +864,7 @@ func (s *RequestService) UpdateRequestExecutionCanceled(
 // ExecutionErrorInfo holds error details for a failed request execution.
 type ExecutionErrorInfo struct {
 	StatusCode *int
+	Failure    *objects.RequestExecutionFailure
 }
 
 // UpdateRequestExecutionFailed updates request execution status to failed with error message and optional error details.
@@ -905,7 +910,28 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 		upd = upd.SetErrorMessage(errorMsg)
 	}
 
-	if errorInfo != nil && errorInfo.StatusCode != nil {
+	if errorInfo != nil && errorInfo.Failure != nil {
+		failure := *errorInfo.Failure
+		if failure.Body != "" {
+			policy, err := s.SystemService.StoragePolicy(ctx)
+			if err != nil {
+				log.Warn(ctx, "Failed to read error body storage policy", log.Cause(err))
+			}
+			if err != nil || !policy.StoreResponseBody {
+				failure.Body, failure.BodyTruncated = "", false
+			}
+		}
+		// The raw-error middleware runs before the transformed-error finalizer.
+		// Keep the original provider evidence when finalization writes metrics/status again.
+		existing, err := client.RequestExecution.Query().Where(requestexecution.IDEQ(executionID)).Select(requestexecution.FieldFailure).Only(ctx)
+		if err != nil {
+			return err
+		}
+		if existing.Failure == nil {
+			upd.SetFailure(&failure)
+		}
+	}
+	if errorInfo != nil && errorInfo.StatusCode != nil && (errorInfo.Failure == nil || errorInfo.Failure.Source == "upstream_http") {
 		upd = upd.SetResponseStatusCode(*errorInfo.StatusCode)
 	}
 

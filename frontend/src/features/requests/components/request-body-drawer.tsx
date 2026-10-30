@@ -2,22 +2,13 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, ChevronsDownUp, ChevronsUpDown, Copy, Terminal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  FileText,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Copy,
-  Terminal,
-} from 'lucide-react';
 import { toast } from 'sonner';
+import { useSelectedProjectId } from '@/stores/projectStore';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { extractNumberID, cn } from '@/lib/utils';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
-import { useSelectedProjectId } from '@/stores/projectStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,13 +19,16 @@ import { JsonViewer } from '@/components/json-tree-view';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { useRequest, fetchAdjacentRequestPage } from '../data';
 import { Request, RequestConnection } from '../data/schema';
-import { CurlPreviewDialog } from './curl-preview-dialog';
-import { RequestConversationViewer } from './request-conversation-viewer';
-import { getStatusColor } from './help';
 import { generateRequestCurl } from '../utils/curl-generator';
 import { parseRequestConversation } from '../utils/request-conversation';
+import { CurlPreviewDialog } from './curl-preview-dialog';
+import { getStatusColor } from './help';
+import { RequestConversationViewer } from './request-conversation-viewer';
+import { RequestDiagnostics } from './request-diagnostics';
+import type { RequestDiagnosticTab } from './request-log-cells';
 
 interface RequestBodyDrawerProps {
+  initialTab?: RequestDiagnosticTab;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** ID of the request that was clicked. */
@@ -53,6 +47,7 @@ interface RequestBodyDrawerProps {
 const OPEN_ANIMATION_DELAY_MS = 520;
 
 export function RequestBodyDrawer({
+  initialTab = 'request',
   open,
   onOpenChange,
   initialRequestId,
@@ -117,7 +112,11 @@ export function RequestBodyDrawer({
   }, [open, initialRequestId]);
 
   // ── fetch detail for current request ──────────────────────────────────────
-  const { data: request, isLoading, isFetching } = useRequest(currentRequestId ?? '', {
+  const {
+    data: request,
+    isLoading,
+    isFetching,
+  } = useRequest(currentRequestId ?? '', {
     projectId: effectiveProjectId,
     enabled: open && canRenderBody && !!currentRequestId,
   });
@@ -133,7 +132,10 @@ export function RequestBodyDrawer({
   const displayedRequest = displayedRequestRef.current;
 
   // ── active tab ─────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('request');
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  useEffect(() => {
+    if (open) setActiveTab(initialTab);
+  }, [open, initialRequestId, initialTab]);
   const [requestBodyView, setRequestBodyView] = useState<'conversation' | 'json'>('conversation');
 
   // Use the conversation view only when the body actually parses as a conversation.
@@ -211,9 +213,7 @@ export function RequestBodyDrawer({
         return merged;
       });
       setNavPageInfo((p) =>
-        p
-          ? { ...p, hasNextPage: result.pageInfo.hasNextPage, endCursor: result.pageInfo.endCursor }
-          : result.pageInfo
+        p ? { ...p, hasNextPage: result.pageInfo.hasNextPage, endCursor: result.pageInfo.endCursor } : result.pageInfo
       );
     } finally {
       setIsLoadingMore(false);
@@ -245,9 +245,7 @@ export function RequestBodyDrawer({
         return merged;
       });
       setNavPageInfo((p) =>
-        p
-          ? { ...p, hasPreviousPage: result.pageInfo.hasPreviousPage, startCursor: result.pageInfo.startCursor }
-          : result.pageInfo
+        p ? { ...p, hasPreviousPage: result.pageInfo.hasPreviousPage, startCursor: result.pageInfo.startCursor } : result.pageInfo
       );
     } finally {
       setIsLoadingMore(false);
@@ -276,10 +274,7 @@ export function RequestBodyDrawer({
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side='right'
-        className='flex w-[min(100vw,clamp(500px,50vw,800px))] max-w-none flex-col gap-0 p-0 sm:max-w-none'
-      >
+      <SheetContent side='right' className='flex w-[min(100vw,clamp(500px,50vw,800px))] max-w-none flex-col gap-0 p-0 sm:max-w-none'>
         {/* Header */}
         <SheetHeader className='flex-shrink-0 border-b px-6 py-4'>
           <div className='flex items-center justify-between pr-6'>
@@ -318,12 +313,7 @@ export function RequestBodyDrawer({
               >
                 <ChevronRight className='h-4 w-4' />
               </Button>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={handleViewDetail}
-                className='ml-1 h-7 text-xs'
-              >
+              <Button variant='outline' size='sm' onClick={handleViewDetail} className='ml-1 h-7 text-xs'>
                 <ExternalLink className='mr-1 h-3.5 w-3.5' />
                 {t('requests.drawer.viewDetail')}
               </Button>
@@ -335,36 +325,30 @@ export function RequestBodyDrawer({
         <div className='flex min-h-0 flex-1 flex-col'>
           {displayedRequest && canRenderBody ? (
             <div className='relative flex min-h-0 flex-1 flex-col'>
-              {isFetching && (
-                <div className='absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-primary/40' />
-              )}
+              {isFetching && <div className='bg-primary/40 absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse' />}
               <Tabs value={activeTab} onValueChange={setActiveTab} className='flex h-full flex-col'>
                 {/* Tab bar + action buttons */}
                 <div className='mx-6 mt-4 flex flex-shrink-0 items-center gap-2'>
-                  <TabsList className='grid flex-1 grid-cols-2'>
+                  <TabsList className='grid min-w-0 flex-1 grid-cols-4'>
                     <TabsTrigger value='request'>{t('requests.detail.tabs.request')}</TabsTrigger>
                     <TabsTrigger value='response'>{t('requests.detail.tabs.response')}</TabsTrigger>
+                    <TabsTrigger value='routing'>{t('requests.diagnostics.routing')}</TabsTrigger>
+                    <TabsTrigger value='errors'>{t('requests.diagnostics.errors')}</TabsTrigger>
                   </TabsList>
                   <Button
                     variant='outline'
                     size='icon'
-                    className='h-9 w-9 flex-shrink-0'
+                    className={`h-9 w-9 flex-shrink-0 ${activeTab === 'routing' || activeTab === 'errors' ? 'hidden' : ''}`}
                     onClick={() => setGlobalExpanded((v) => !v)}
                     title={globalExpanded ? t('requests.drawer.collapseAll') : t('requests.drawer.expandAll')}
                   >
-                    {globalExpanded ? (
-                      <ChevronsDownUp className='h-4 w-4' />
-                    ) : (
-                      <ChevronsUpDown className='h-4 w-4' />
-                    )}
+                    {globalExpanded ? <ChevronsDownUp className='h-4 w-4' /> : <ChevronsUpDown className='h-4 w-4' />}
                   </Button>
                   <Button
                     variant='outline'
                     size='icon'
-                    className='h-9 w-9 flex-shrink-0'
-                    onClick={() =>
-                      copyBody(activeTab === 'request' ? displayedRequest.requestBody : displayedRequest.responseBody)
-                    }
+                    className={`h-9 w-9 flex-shrink-0 ${activeTab === 'routing' || activeTab === 'errors' ? 'hidden' : ''}`}
+                    onClick={() => copyBody(activeTab === 'request' ? displayedRequest.requestBody : displayedRequest.responseBody)}
                     title={t('requests.actions.copy')}
                   >
                     <Copy className='h-4 w-4' />
@@ -382,7 +366,7 @@ export function RequestBodyDrawer({
                   )}
                 </div>
 
-                <TabsContent value='request' className='m-0 min-h-0 flex-1 px-6 pb-6 pt-4'>
+                <TabsContent value='request' className='m-0 min-h-0 flex-1 px-6 pt-4 pb-6'>
                   <div className='bg-muted/40 border-border mb-3 inline-flex h-8 items-center rounded-md border p-0.5'>
                     <button
                       type='button'
@@ -437,7 +421,7 @@ export function RequestBodyDrawer({
                   )}
                 </TabsContent>
 
-                <TabsContent value='response' className='m-0 min-h-0 flex-1 px-6 pb-6 pt-4'>
+                <TabsContent value='response' className='m-0 min-h-0 flex-1 px-6 pt-4 pb-6'>
                   <ScrollArea className='bg-muted/20 h-full w-full rounded-lg border p-4'>
                     {displayedRequest.responseBody ? (
                       <JsonViewer
@@ -457,6 +441,21 @@ export function RequestBodyDrawer({
                     )}
                   </ScrollArea>
                 </TabsContent>
+                {(activeTab === 'routing' || activeTab === 'errors') && (
+                  <TabsContent value={activeTab} className='m-0 min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6'>
+                    {displayedRequest.id === currentRequestId ? (
+                      <RequestDiagnostics
+                        key={displayedRequest.id}
+                        request={displayedRequest}
+                        mode={activeTab}
+                        projectId={effectiveProjectId}
+                        onModeChange={setActiveTab}
+                      />
+                    ) : (
+                      <Skeleton className='h-48' />
+                    )}
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           ) : isLoading || !canRenderBody ? (

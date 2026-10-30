@@ -88,7 +88,7 @@ fork 改动，由用户决定。
 - 再次限定复审：只追踪既有缺陷修复和直接影响，补齐混合列数／无明确目标导入的归属校验、旧入口移组候选缓存失效。独立复核闭环；本轮仅新增导入测试（1 用例、9 断言）及修改文件定向类型检查通过，复用其余既有验收证据，未启动服务或扩大审查范围。
 
 - 状态：实现与定向复审完成，未发布。项目内可选分组、分组管理与默认筛选；请求及统计统一显示密钥与分组，无分组回退用户。使用者可凭组内有效 Key 查看整组用量，管理端用量统计和排行榜增加分组维度。
-- 归属：仅密钥保存可空 `group_ref`，按当前关系汇总历史，移组不改写请求；无分组排除在分组统计外。赋予组内用量查看的归属修改仅项目管理员可执行；自助端每次查询重新核实当前归属及项目。
+- 归属：仅密钥保存可空 `group_ref`，按当前关系汇总历史，移组不改写请求；无分组排除在分组统计外。分组查看与用量页使用 `read_api_keys`，分组编辑及归属修改使用目标项目的 `write_api_keys`，与 API 密钥页面绑定，不再额外要求 `write_users` / `write_roles`；特殊类型 Key 创建仍沿用 API 密钥的原有授权检查；自助端每次查询重新核实当前归属及项目。
 - 代码：`internal/ent/schema/api_key_group.go`、`internal/server/biz/api_key_group*.go`、`api_key_labels.go`、`self_usage.go`、`consumption*.go`，对应 GraphQL、密钥页、请求展示和统计前端。备份 1.6 按项目及分组名称恢复关联，包含空组、备注和启停；恢复旧格式沿用原默认值，新格式由旧程序拒绝而非静默忽略分组停用。
 - 升级：Ent 托管分组表、可空列和项目内唯一索引，不新增 data migration 版本。已核对直接上游 `v1.0.0-beta10-fork.7`／`b205ae8e` 无同名定义。SQLite 覆盖旧密钥保持无分组、重复升级、项目内唯一约束；MySQL／PostgreSQL 实例升级未验证。
 - 验证：组员历史聚合、移组与缓存更新、自助项目隔离、管理权限、跨项目拒绝、删除清空成员、备份恢复及默认筛选存储均有回归测试。使用与取舍见[中文说明](zh/guides/self-usage.md)及[英文说明](en/guides/self-usage.md)。
@@ -660,6 +660,20 @@ fork 改动，由用户决定。
 - 同步上游注意：与上游 OpenAPI `apiKeyQuotaUsages` 功能不重叠，不修改其权限；新路由组在
   `internal/server/routes.go` 追加。上游 PR #2510 重做管理端分析页，本页不复用管理端分析组件，
   避免交叉冲突。
+
+### 请求筛选与逐次诊断
+
+- 状态：2026-10-30 实现、自检、独立限定复审及用户人工验收完成，未发布；沿用已确认的请求筛选、错误详情、渠道官网和分组用量入口方案。渠道名称保持原全局唯一约束。
+- 请求页默认“今天”，支持昨天、本周、本月、全部及含秒的指定时间，按系统报表时区计算；渠道标签、渠道、密钥组（含未分组）和 Key 可组合筛选，同项多选为 OR，不同项为 AND。条件保存在 URL，改变条件回到第一页；调用方名称可直接筛选。
+- 表格将 HTTP 状态及重试数放入状态区域；渠道以两行展示，会话状态、全部标签和实际 Key 的备注／末四位可查看；服务商为独立列。模型 ID 可完整复制；缓存读写分别展示，命中率不把写入相加；流式速度扣除首字耗时，非流式为整次平均，缺失数据不补造。
+- 每次执行保存选路与密钥快照、错误来源、脱敏错误响应和实际重试／停止动作。原始错误响应遵循响应体存储策略，最多 64 KiB；旧记录显示“未记录”。返回客户端的状态与上游状态分开，选路快照受 `read_channels` 保护。流中只有转换后的结构化错误时不伪称拿到了原始上游响应。
+- 独立复审修正：请求报表时区通过 `read_requests` 权限单独查询，项目查询携带项目标识；每次尝试清理前次 Key，避免跨凭据类型重试残留；已返回客户端的流断开或取消时记录停止原因，预读失败仍沿原重试流程处理。三项问题已由独立审查复核关闭。
+- 渠道官网独立于 API 地址，选填且只接受无账号密码的 HTTP(S) URL；未填时名称不跳外链。保存、复制渠道和备份恢复保留官网字段。
+- 分组行新增用量入口，管理账号直接查询当前项目的当前成员 Key 历史，停用 Key 与空组均可查看，不借用有效 Key 登录自助端。分组、单 Key 及自助用量页统一默认“今天”；复用自助页的统计组件，管理查询缓存按账号、项目、分组隔离；自助端认证和按调用 Key 限定范围的机制不变。
+- 代码：`internal/objects/request_diagnostics.go`、`internal/server/biz/request_log_filters.go`、`managed_group_usage.go`、`internal/server/orchestrator/request_diagnostics.go`、`diagnostic_redaction.go`、对应 GraphQL schema，以及 `frontend/src/features/requests/`、`frontend/src/features/key-groups/usage.tsx` 和渠道表单。
+- 升级：新增可空 `channels.website_url`、`requests.client_status_code`、`request_executions.selection/failure/retry_decision`，由 Ent 托管；无独立 data migration、无名称索引变化，不改已发布迁移。历史快照不回填。SQLite 已完成旧表升级、重复升级和旧值保留验证，MySQL／PostgreSQL 实例尚未验证。
+- 验证：主模块新增筛选组合／夏令时边界、分组权限／停用 Key、选路快照／换 Key、错误脱敏和官网 URL 用例；`llm/` 的 `go test ./pipeline` 覆盖实际停止重试原因；前端 Node 用例验证流速缺失值。真实页面使用隔离 SQLite 示例数据验收，不访问真实供应商。截图与本轮记录在 `output/implementation/axon-request-filters-20261030/`。
+- 同步上游注意：核对 Ent 字段／GraphQL 同名类型、执行中间件记录顺序、停止重试观察接口，以及分组权限是否再次引入用户／角色管理的额外条件。
 
 ### 请求成本明细悬浮
 

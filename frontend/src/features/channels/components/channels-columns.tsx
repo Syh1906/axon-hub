@@ -49,8 +49,8 @@ import { Channel } from '../data/schema';
 import { channelDisplayPriority } from '../utils/channel-priority';
 import { ChannelHealthCell } from './channel-health-cell';
 import { ChannelLimiterCell } from './channel-limiter-cell';
-import { ChannelRoutingValueCell } from './channel-routing-value-cell';
 import { ChannelPriorityCell } from './channel-priority-cell';
+import { ChannelRoutingValueCell } from './channel-routing-value-cell';
 import { ChannelUpstreamBalanceCell, ChannelUpstreamMultiplierCell } from './channel-upstream-cell';
 import { ChannelsStatusDialog } from './channels-status-dialog';
 
@@ -448,10 +448,11 @@ const ExpandCell = ({ row }: { row: any }) => (
 
 // ExpandCell.displayName = 'ExpandCell'; // Removed since it's not memoized now, but can keep if desired
 
-function getChannelWebsiteURL(baseURL: string): string | null {
+function getChannelWebsiteURL(websiteURL?: string | null): string | null {
+  if (!websiteURL) return null;
   try {
-    const url = new URL(baseURL);
-    return url.origin;
+    const url = new URL(websiteURL);
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : null;
   } catch {
     return null;
   }
@@ -479,7 +480,7 @@ const NameCell = memo(({ row }: { row: Row<Channel> }) => {
   const hasError = channel.errorMessage != null;
   const disabledKeysCount = channel.disabledAPIKeys?.length ?? 0;
   const hasDisabledKeys = disabledKeysCount > 0;
-  const websiteURL = getChannelWebsiteURL(channel.baseURL);
+  const websiteURL = getChannelWebsiteURL(channel.websiteURL);
   const openHealthGate = () => {
     setCurrentRow(channel);
     setOpen('healthGate');
@@ -1056,7 +1057,9 @@ export const createColumns = (
       id: 'costMultiplier',
       accessorFn: (channel) => channel.settings?.modelPriceMultiplier ?? '1',
       header: ({ column }) => (
-        <span title={t('channels.upstream.sortHint')}><DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' /></span>
+        <span title={t('channels.upstream.sortHint')}>
+          <DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' />
+        </span>
       ),
       cell: ({ row }) => <ChannelUpstreamMultiplierCell channel={row.original} canWrite={canWrite} />,
       meta: { className: 'w-40 min-w-40 text-center' },

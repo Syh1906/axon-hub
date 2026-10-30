@@ -33,7 +33,8 @@ type ChannelModelsCandidate struct {
 	// from this slice whenever the current model changes.
 	modelAPIFormats    []string
 	healthGate         *healthGateCandidateInfo
-	TraceSticky        bool // selected from the last successful trace or thread channel
+	SessionState       string // captured session selection, not prompt cache use
+	TraceSticky        bool   // selected from the last successful trace or thread channel
 	ModelRoutingPolicy *ModelRoutingPolicy
 }
 
@@ -714,8 +715,11 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		requiredCount = 1 + retryPolicy.MaxChannelRetries
 	}
 
+	markCandidateSessionState(candidates, "disabled")
 	if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
-		if stickyCandidate, remainingCandidates := s.selectTraceStickyCandidate(ctx, candidates); stickyCandidate != nil {
+		stickyCandidate, remainingCandidates, sessionState := s.selectTraceStickyCandidate(ctx, candidates)
+		markCandidateSessionState(candidates, sessionState)
+		if stickyCandidate != nil {
 			stickyCandidate.TraceSticky = true
 
 			fallbackCount := max(requiredCount-1, 0)
@@ -748,41 +752,44 @@ func resolveLoadBalancer(loadBalancers map[string]*LoadBalancer, strategy string
 // selectTraceStickyCandidate selects the previous trace channel first, then
 // the previous thread channel. A sticky channel must already be a
 // valid candidate after every request-level filter has run.
-func (s *LoadBalancedSelector) selectTraceStickyCandidate(
-	ctx context.Context,
-	candidates []*ChannelModelsCandidate,
-) (*ChannelModelsCandidate, []*ChannelModelsCandidate) {
+func (s *LoadBalancedSelector) selectTraceStickyCandidate(ctx context.Context, candidates []*ChannelModelsCandidate) (*ChannelModelsCandidate, []*ChannelModelsCandidate, string) {
 	if s.previousChannelProvider == nil || len(candidates) == 0 {
-		return nil, candidates
+		return nil, candidates, "unrecorded"
 	}
-
+	state := "new"
 	if trace, ok := contexts.GetTrace(ctx); ok && trace != nil {
-		channelID, err := s.previousChannelProvider.GetPreviousChannelID(ctx, trace.ID)
+		id, err := s.previousChannelProvider.GetPreviousChannelID(ctx, trace.ID)
 		if err != nil {
 			log.Warn(ctx, "failed to get previous trace channel", log.Int("trace_id", trace.ID), log.Cause(err))
-		} else if stickyCandidate, remainingCandidates := extractStickyCandidate(candidates, channelID); stickyCandidate != nil {
-			return stickyCandidate, remainingCandidates
+			state = "unrecorded"
+		} else if id != 0 {
+			state = "switched"
+			if selected, remaining := extractStickyCandidate(candidates, id); selected != nil {
+				return selected, remaining, "reused"
+			}
 		}
 	}
-
 	threadID := 0
 	if thread, ok := contexts.GetThread(ctx); ok && thread != nil {
 		threadID = thread.ID
 	} else if trace, ok := contexts.GetTrace(ctx); ok && trace != nil {
 		threadID = trace.ThreadID
 	}
-
 	if threadID == 0 {
-		return nil, candidates
+		return nil, candidates, state
 	}
-
-	channelID, err := s.previousChannelProvider.GetPreviousChannelIDByThread(ctx, threadID)
+	id, err := s.previousChannelProvider.GetPreviousChannelIDByThread(ctx, threadID)
 	if err != nil {
 		log.Warn(ctx, "failed to get previous thread channel", log.Int("thread_id", threadID), log.Cause(err))
-		return nil, candidates
+		return nil, candidates, "unrecorded"
 	}
-
-	return extractStickyCandidate(candidates, channelID)
+	if id != 0 {
+		state = "switched"
+		if selected, remaining := extractStickyCandidate(candidates, id); selected != nil {
+			return selected, remaining, "reused"
+		}
+	}
+	return nil, candidates, state
 }
 
 // extractStickyCandidate returns the highest-priority candidate for channelID

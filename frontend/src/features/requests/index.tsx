@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_END_TIME,
   DEFAULT_START_TIME,
-  buildDateRangeWhereClause,
   isSameTime,
   normalizeDateTimeRangeValue,
   type DateTimeRangeValue,
@@ -16,14 +15,19 @@ import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import useInterval from '@/hooks/useInterval';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
+import type { ConsumptionPeriod } from '@/features/consumption/data/consumption';
 import { RequestsTable, type RequestTableFilters } from './components';
+import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
-import { useRequests } from './data';
+import { useRequests, useRequestLogTimezone } from './data';
 
 const REQUEST_FILTER_SEARCH_KEYS = {
   status: 'status',
   source: 'source',
   channel: 'channel',
+  channelTag: 'channelTag',
+  apiKeyGroup: 'apiKeyGroup',
+  period: 'period',
   apiKey: 'apiKey',
   modelID: 'modelID',
   createdAtFrom: 'createdAtFrom',
@@ -148,6 +152,8 @@ function parseRequestSearchFilters(search: Record<string, unknown>): RequestSear
     statusFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.status]),
     sourceFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.source]),
     channelFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.channel]),
+    channelTagFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.channelTag]),
+    apiKeyGroupFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.apiKeyGroup]),
     apiKeyFilter: getSearchStringArray(search[REQUEST_FILTER_SEARCH_KEYS.apiKey]),
     modelIDFilter: getSearchString(search[REQUEST_FILTER_SEARCH_KEYS.modelID]),
     dateRange: hasDateRange
@@ -182,17 +188,28 @@ function RequestsContent() {
     defaultPageSize: 20,
     pageSizeStorageKey: 'requests-table-page-size',
   });
-  const { statusFilter, sourceFilter, channelFilter, apiKeyFilter, modelIDFilter, dateRange } = useMemo(
-    () => parseRequestSearchFilters(currentSearch),
-    [currentSearch]
-  );
+  const { statusFilter, sourceFilter, channelFilter, channelTagFilter, apiKeyGroupFilter, apiKeyFilter, modelIDFilter, dateRange } =
+    useMemo(() => parseRequestSearchFilters(currentSearch), [currentSearch]);
+  const { data: timezone } = useRequestLogTimezone();
+  const rawPeriod = getSearchString(currentSearch.period);
+  const period: ConsumptionPeriod = dateRange
+    ? 'CUSTOM'
+    : ['TODAY', 'YESTERDAY', 'WEEK', 'MONTH', 'ALL'].includes(rawPeriod)
+      ? (rawPeriod as ConsumptionPeriod)
+      : 'TODAY';
   const debouncedModelIDFilter = useDebounce(modelIDFilter, 300);
   const [autoRefreshInterval, setAutoRefreshInterval] = useAutoRefreshInterval('requests-auto-refresh-interval-ms');
 
   // Build where clause with filters
   const whereClause = (() => {
     const where: { [key: string]: any } = {
-      ...buildDateRangeWhereClause(dateRange),
+      timeRange: {
+        period,
+        ...(dateRange?.from && { start: `${formatSearchDate(dateRange.from)}T${formatSearchTime(dateRange.startTime)}` }),
+        ...(dateRange?.to && { end: `${formatSearchDate(dateRange.to)}T${formatSearchTime(dateRange.endTime)}` }),
+      },
+      ...(channelTagFilter.length > 0 && { channelTagsIn: channelTagFilter }),
+      ...(apiKeyGroupFilter.length > 0 && { apiKeyGroupRefsIn: apiKeyGroupFilter.map(Number) }),
     };
     if (statusFilter.length > 0) {
       where.statusIn = statusFilter;
@@ -272,6 +289,8 @@ function RequestsContent() {
         setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.status, filters.statusFilter);
         setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.source, filters.sourceFilter);
         setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.channel, filters.channelFilter);
+        setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.channelTag, filters.channelTagFilter);
+        setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.apiKeyGroup, filters.apiKeyGroupFilter);
         setSearchStringArray(draft, REQUEST_FILTER_SEARCH_KEYS.apiKey, filters.apiKeyFilter);
         setSearchString(draft, REQUEST_FILTER_SEARCH_KEYS.modelID, filters.modelIDFilter);
       });
@@ -283,6 +302,7 @@ function RequestsContent() {
     (range: DateTimeRangeValue | undefined) => {
       updateRequestSearch((draft) => {
         const normalizedRange = range ? normalizeDateTimeRangeValue(range) : undefined;
+        draft.period = normalizedRange?.from || normalizedRange?.to ? 'CUSTOM' : 'ALL';
 
         if (!normalizedRange || (!normalizedRange.from && !normalizedRange.to)) {
           delete draft[REQUEST_FILTER_SEARCH_KEYS.createdAtFrom];
@@ -337,6 +357,18 @@ function RequestsContent() {
 
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
+      <RequestDateFilter
+        period={period}
+        range={dateRange}
+        timezone={timezone ?? '…'}
+        onRangeChange={handleDateRangeChange}
+        onPeriodChange={(value) =>
+          updateRequestSearch((draft) => {
+            for (const key of ['createdAtFrom', 'createdAtTo', 'createdAtStartTime', 'createdAtEndTime']) delete draft[key];
+            draft.period = value;
+          })
+        }
+      />
       <RequestsTable
         data={requests}
         loading={isLoading}
@@ -346,6 +378,8 @@ function RequestsContent() {
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
         channelFilter={channelFilter}
+        channelTagFilter={channelTagFilter}
+        apiKeyGroupFilter={apiKeyGroupFilter}
         apiKeyFilter={apiKeyFilter}
         modelIDFilter={modelIDFilter}
         dateRange={dateRange}

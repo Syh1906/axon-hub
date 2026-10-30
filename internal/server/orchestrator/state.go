@@ -61,6 +61,8 @@ type PersistenceState struct {
 	// versus a stream that completed successfully but the client disconnected
 	// immediately after receiving the last chunk.
 	StreamCompleted bool
+	// StreamReturned marks that the retry loop handed the stream to its caller.
+	StreamReturned bool
 
 	// RawProviderResponse stores the raw provider response for non-stream response pass-through.
 	RawProviderResponse *httpclient.Response

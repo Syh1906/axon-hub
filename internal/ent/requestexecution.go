@@ -52,6 +52,12 @@ type RequestExecution struct {
 	ResponseChunks []objects.JSONRawMessage `json:"response_chunks,omitempty"`
 	// ErrorMessage holds the value of the "error_message" field.
 	ErrorMessage string `json:"error_message,omitempty"`
+	// Selection holds the value of the "selection" field.
+	Selection *objects.RequestExecutionSelection `json:"selection,omitempty"`
+	// Failure holds the value of the "failure" field.
+	Failure *objects.RequestExecutionFailure `json:"failure,omitempty"`
+	// RetryDecision holds the value of the "retry_decision" field.
+	RetryDecision string `json:"retry_decision,omitempty"`
 	// HTTP status code from the upstream provider
 	ResponseStatusCode *int `json:"response_status_code,omitempty"`
 	// Status holds the value of the "status" field.
@@ -139,13 +145,13 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldRequestHeaders:
+		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldSelection, requestexecution.FieldFailure, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
 		case requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
 		case requestexecution.FieldID, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
 			values[i] = new(sql.NullInt64)
-		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldErrorMessage, requestexecution.FieldStatus, requestexecution.FieldCacheCompatibilityKey, requestexecution.FieldCacheTTLBucket, requestexecution.FieldRequestURL:
+		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldErrorMessage, requestexecution.FieldRetryDecision, requestexecution.FieldStatus, requestexecution.FieldCacheCompatibilityKey, requestexecution.FieldCacheTTLBucket, requestexecution.FieldRequestURL:
 			values[i] = new(sql.NullString)
 		case requestexecution.FieldCreatedAt, requestexecution.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -268,6 +274,28 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field error_message", values[i])
 			} else if value.Valid {
 				_m.ErrorMessage = value.String
+			}
+		case requestexecution.FieldSelection:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field selection", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Selection); err != nil {
+					return fmt.Errorf("unmarshal field selection: %w", err)
+				}
+			}
+		case requestexecution.FieldFailure:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field failure", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Failure); err != nil {
+					return fmt.Errorf("unmarshal field failure: %w", err)
+				}
+			}
+		case requestexecution.FieldRetryDecision:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field retry_decision", values[i])
+			} else if value.Valid {
+				_m.RetryDecision = value.String
 			}
 		case requestexecution.FieldResponseStatusCode:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -461,6 +489,15 @@ func (_m *RequestExecution) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("error_message=")
 	builder.WriteString(_m.ErrorMessage)
+	builder.WriteString(", ")
+	builder.WriteString("selection=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Selection))
+	builder.WriteString(", ")
+	builder.WriteString("failure=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Failure))
+	builder.WriteString(", ")
+	builder.WriteString("retry_decision=")
+	builder.WriteString(_m.RetryDecision)
 	builder.WriteString(", ")
 	if v := _m.ResponseStatusCode; v != nil {
 		builder.WriteString("response_status_code=")

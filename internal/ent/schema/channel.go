@@ -112,6 +112,7 @@ func (Channel) Fields() []ent.Field {
 				entgql.OrderField("TYPE"),
 			),
 		field.String("base_url").Optional(),
+		field.String("website_url").Optional().MaxLen(2048).Validate(objects.ValidateChannelWebsite),
 		field.String("name").
 			Annotations(
 				entgql.OrderField("NAME"),

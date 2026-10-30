@@ -91,6 +91,7 @@ const CREATE_CHANNEL_MUTATION = `
       createdAt
       updatedAt
       baseURL
+      websiteURL
       name
       status
       policies {
@@ -181,6 +182,7 @@ const DUPLICATE_CHANNEL_MUTATION = `
       createdAt
       updatedAt
       baseURL
+      websiteURL
       name
       status
       policies {
@@ -271,6 +273,7 @@ const BULK_CREATE_CHANNELS_MUTATION = `
       createdAt
       updatedAt
       baseURL
+      websiteURL
       name
       status
       policies {
@@ -361,6 +364,7 @@ const UPDATE_CHANNEL_MUTATION = `
       createdAt
       updatedAt
       baseURL
+      websiteURL
       name
       status
       policies {
@@ -565,6 +569,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
         updatedAt
         type
         baseURL
+        websiteURL
         name
         status
           supportedModels
@@ -802,6 +807,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
         updatedAt
         type
         baseURL
+        websiteURL
         name
         status
         supportedModels

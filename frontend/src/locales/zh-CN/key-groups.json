@@ -170,5 +170,8 @@
   "kg.importTargetRequired": "单列密钥清单需要明确选择一个目标分组（可选“未分组”），或改用包含分组列的清单；多个目标请用“生成清单”。",
   "kg.pendingBeforeSubmit": "此项目还有结果未确认的批次。请关闭当前表单，从恢复入口核对原批次后再提交；当前请求尚未发送。",
   "kg.resumePending": "恢复未确认的批次",
-  "kg.deferRecovery": "暂时关闭，保留原批次"
+  "kg.deferRecovery": "暂时关闭，保留原批次",
+  "kg.usage": "用量",
+  "kg.usageHint": "查看此分组的用量与请求记录",
+  "kg.usageDescription": "按当前分组内的密钥统计，包含停用密钥；数据范围遵循当前项目权限。"
 }

@@ -110,6 +110,11 @@ func ExternalID(v string) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldExternalID, v))
 }
 
+// ClientStatusCode applies equality check predicate on the "client_status_code" field. It's identical to ClientStatusCodeEQ.
+func ClientStatusCode(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldClientStatusCode, v))
+}
+
 // Stream applies equality check predicate on the "stream" field. It's identical to StreamEQ.
 func Stream(v bool) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldStream, v))
@@ -733,6 +738,56 @@ func StatusIn(vs ...Status) predicate.Request {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Request {
 	return predicate.Request(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// ClientStatusCodeEQ applies the EQ predicate on the "client_status_code" field.
+func ClientStatusCodeEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeNEQ applies the NEQ predicate on the "client_status_code" field.
+func ClientStatusCodeNEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeIn applies the In predicate on the "client_status_code" field.
+func ClientStatusCodeIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldClientStatusCode, vs...))
+}
+
+// ClientStatusCodeNotIn applies the NotIn predicate on the "client_status_code" field.
+func ClientStatusCodeNotIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldClientStatusCode, vs...))
+}
+
+// ClientStatusCodeGT applies the GT predicate on the "client_status_code" field.
+func ClientStatusCodeGT(v int) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeGTE applies the GTE predicate on the "client_status_code" field.
+func ClientStatusCodeGTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeLT applies the LT predicate on the "client_status_code" field.
+func ClientStatusCodeLT(v int) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeLTE applies the LTE predicate on the "client_status_code" field.
+func ClientStatusCodeLTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldClientStatusCode, v))
+}
+
+// ClientStatusCodeIsNil applies the IsNil predicate on the "client_status_code" field.
+func ClientStatusCodeIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldClientStatusCode))
+}
+
+// ClientStatusCodeNotNil applies the NotNil predicate on the "client_status_code" field.
+func ClientStatusCodeNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldClientStatusCode))
 }
 
 // StreamEQ applies the EQ predicate on the "stream" field.

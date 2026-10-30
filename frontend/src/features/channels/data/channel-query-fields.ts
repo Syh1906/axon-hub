@@ -4,6 +4,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           updatedAt
           type
           baseURL
+          websiteURL
           name
           status
           policies {
@@ -156,6 +157,7 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
           updatedAt
           type
           baseURL
+          websiteURL
           name
           status
           defaultTestModel

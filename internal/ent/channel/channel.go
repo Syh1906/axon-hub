@@ -29,6 +29,8 @@ const (
 	FieldType = "type"
 	// FieldBaseURL holds the string denoting the base_url field in the database.
 	FieldBaseURL = "base_url"
+	// FieldWebsiteURL holds the string denoting the website_url field in the database.
+	FieldWebsiteURL = "website_url"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -140,6 +142,7 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldType,
 	FieldBaseURL,
+	FieldWebsiteURL,
 	FieldName,
 	FieldStatus,
 	FieldCredentials,
@@ -187,6 +190,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
 	DefaultDeletedAt int
+	// WebsiteURLValidator is a validator for the "website_url" field. It is called by the builders before save.
+	WebsiteURLValidator func(string) error
 	// DefaultDisabledAPIKeys holds the default value on creation for the "disabled_api_keys" field.
 	DefaultDisabledAPIKeys []objects.DisabledAPIKey
 	// DefaultManualModels holds the default value on creation for the "manual_models" field.
@@ -357,6 +362,11 @@ func ByType(opts ...sql.OrderTermOption) OrderOption {
 // ByBaseURL orders the results by the base_url field.
 func ByBaseURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBaseURL, opts...).ToFunc()
+}
+
+// ByWebsiteURL orders the results by the website_url field.
+func ByWebsiteURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWebsiteURL, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.

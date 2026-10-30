@@ -60,6 +60,7 @@ import { Route as AuthenticatedProjectApiKeysIndexRouteImport } from './routes/_
 import { Route as AuthenticatedProjectTracesTraceIdRouteImport } from './routes/_authenticated/project/traces/$traceId'
 import { Route as AuthenticatedProjectThreadsThreadIdRouteImport } from './routes/_authenticated/project/threads/$threadId'
 import { Route as AuthenticatedProjectRequestsRequestIdRouteImport } from './routes/_authenticated/project/requests/$requestId'
+import { Route as AuthenticatedProjectKeyGroupsGroupRefUsageRouteImport } from './routes/_authenticated/project/key-groups/$groupRef/usage'
 
 const SelfUsageRoute = SelfUsageRouteImport.update({
   id: '/self-usage',
@@ -349,6 +350,12 @@ const AuthenticatedProjectRequestsRequestIdRoute =
     path: '/project/requests/$requestId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProjectKeyGroupsGroupRefUsageRoute =
+  AuthenticatedProjectKeyGroupsGroupRefUsageRouteImport.update({
+    id: '/project/key-groups/$groupRef/usage',
+    path: '/project/key-groups/$groupRef/usage',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -401,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/project/traces/': typeof AuthenticatedProjectTracesIndexRoute
   '/project/usage-stats/': typeof AuthenticatedProjectUsageStatsIndexRoute
   '/project/users/': typeof AuthenticatedProjectUsersIndexRoute
+  '/project/key-groups/$groupRef/usage': typeof AuthenticatedProjectKeyGroupsGroupRefUsageRoute
 }
 export interface FileRoutesByTo {
   '/self-usage': typeof SelfUsageRoute
@@ -452,6 +460,7 @@ export interface FileRoutesByTo {
   '/project/traces': typeof AuthenticatedProjectTracesIndexRoute
   '/project/usage-stats': typeof AuthenticatedProjectUsageStatsIndexRoute
   '/project/users': typeof AuthenticatedProjectUsersIndexRoute
+  '/project/key-groups/$groupRef/usage': typeof AuthenticatedProjectKeyGroupsGroupRefUsageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -506,6 +515,7 @@ export interface FileRoutesById {
   '/_authenticated/project/traces/': typeof AuthenticatedProjectTracesIndexRoute
   '/_authenticated/project/usage-stats/': typeof AuthenticatedProjectUsageStatsIndexRoute
   '/_authenticated/project/users/': typeof AuthenticatedProjectUsersIndexRoute
+  '/_authenticated/project/key-groups/$groupRef/usage': typeof AuthenticatedProjectKeyGroupsGroupRefUsageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -560,6 +570,7 @@ export interface FileRouteTypes {
     | '/project/traces/'
     | '/project/usage-stats/'
     | '/project/users/'
+    | '/project/key-groups/$groupRef/usage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/self-usage'
@@ -611,6 +622,7 @@ export interface FileRouteTypes {
     | '/project/traces'
     | '/project/usage-stats'
     | '/project/users'
+    | '/project/key-groups/$groupRef/usage'
   id:
     | '__root__'
     | '/_authenticated'
@@ -664,6 +676,7 @@ export interface FileRouteTypes {
     | '/_authenticated/project/traces/'
     | '/_authenticated/project/usage-stats/'
     | '/_authenticated/project/users/'
+    | '/_authenticated/project/key-groups/$groupRef/usage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1040,6 +1053,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectRequestsRequestIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/project/key-groups/$groupRef/usage': {
+      id: '/_authenticated/project/key-groups/$groupRef/usage'
+      path: '/project/key-groups/$groupRef/usage'
+      fullPath: '/project/key-groups/$groupRef/usage'
+      preLoaderRoute: typeof AuthenticatedProjectKeyGroupsGroupRefUsageRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -1101,6 +1121,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjectTracesIndexRoute: typeof AuthenticatedProjectTracesIndexRoute
   AuthenticatedProjectUsageStatsIndexRoute: typeof AuthenticatedProjectUsageStatsIndexRoute
   AuthenticatedProjectUsersIndexRoute: typeof AuthenticatedProjectUsersIndexRoute
+  AuthenticatedProjectKeyGroupsGroupRefUsageRoute: typeof AuthenticatedProjectKeyGroupsGroupRefUsageRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1147,6 +1168,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectUsageStatsIndexRoute:
     AuthenticatedProjectUsageStatsIndexRoute,
   AuthenticatedProjectUsersIndexRoute: AuthenticatedProjectUsersIndexRoute,
+  AuthenticatedProjectKeyGroupsGroupRefUsageRoute:
+    AuthenticatedProjectKeyGroupsGroupRefUsageRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -73,6 +73,9 @@ func (RequestExecution) Fields() []ent.Field {
 			entgql.Directives(forceResolver()),
 		),
 		field.String("error_message").Optional(),
+		field.JSON("selection", &objects.RequestExecutionSelection{}).Optional().Immutable().Annotations(entgql.Directives(forceResolver())),
+		field.JSON("failure", &objects.RequestExecutionFailure{}).Optional(),
+		field.String("retry_decision").Optional(),
 		field.Int("response_status_code").Optional().Nillable().
 			Comment("HTTP status code from the upstream provider"),
 		// The status of the request execution.

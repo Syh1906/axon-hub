@@ -110,6 +110,11 @@ func ErrorMessage(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldErrorMessage, v))
 }
 
+// RetryDecision applies equality check predicate on the "retry_decision" field. It's identical to RetryDecisionEQ.
+func RetryDecision(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldRetryDecision, v))
+}
+
 // ResponseStatusCode applies equality check predicate on the "response_status_code" field. It's identical to ResponseStatusCodeEQ.
 func ResponseStatusCode(v int) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldResponseStatusCode, v))
@@ -753,6 +758,101 @@ func ErrorMessageEqualFold(v string) predicate.RequestExecution {
 // ErrorMessageContainsFold applies the ContainsFold predicate on the "error_message" field.
 func ErrorMessageContainsFold(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldContainsFold(FieldErrorMessage, v))
+}
+
+// SelectionIsNil applies the IsNil predicate on the "selection" field.
+func SelectionIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldSelection))
+}
+
+// SelectionNotNil applies the NotNil predicate on the "selection" field.
+func SelectionNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldSelection))
+}
+
+// FailureIsNil applies the IsNil predicate on the "failure" field.
+func FailureIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldFailure))
+}
+
+// FailureNotNil applies the NotNil predicate on the "failure" field.
+func FailureNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldFailure))
+}
+
+// RetryDecisionEQ applies the EQ predicate on the "retry_decision" field.
+func RetryDecisionEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldRetryDecision, v))
+}
+
+// RetryDecisionNEQ applies the NEQ predicate on the "retry_decision" field.
+func RetryDecisionNEQ(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldRetryDecision, v))
+}
+
+// RetryDecisionIn applies the In predicate on the "retry_decision" field.
+func RetryDecisionIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldRetryDecision, vs...))
+}
+
+// RetryDecisionNotIn applies the NotIn predicate on the "retry_decision" field.
+func RetryDecisionNotIn(vs ...string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldRetryDecision, vs...))
+}
+
+// RetryDecisionGT applies the GT predicate on the "retry_decision" field.
+func RetryDecisionGT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldRetryDecision, v))
+}
+
+// RetryDecisionGTE applies the GTE predicate on the "retry_decision" field.
+func RetryDecisionGTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldRetryDecision, v))
+}
+
+// RetryDecisionLT applies the LT predicate on the "retry_decision" field.
+func RetryDecisionLT(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldRetryDecision, v))
+}
+
+// RetryDecisionLTE applies the LTE predicate on the "retry_decision" field.
+func RetryDecisionLTE(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldRetryDecision, v))
+}
+
+// RetryDecisionContains applies the Contains predicate on the "retry_decision" field.
+func RetryDecisionContains(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContains(FieldRetryDecision, v))
+}
+
+// RetryDecisionHasPrefix applies the HasPrefix predicate on the "retry_decision" field.
+func RetryDecisionHasPrefix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasPrefix(FieldRetryDecision, v))
+}
+
+// RetryDecisionHasSuffix applies the HasSuffix predicate on the "retry_decision" field.
+func RetryDecisionHasSuffix(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldHasSuffix(FieldRetryDecision, v))
+}
+
+// RetryDecisionIsNil applies the IsNil predicate on the "retry_decision" field.
+func RetryDecisionIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldRetryDecision))
+}
+
+// RetryDecisionNotNil applies the NotNil predicate on the "retry_decision" field.
+func RetryDecisionNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldRetryDecision))
+}
+
+// RetryDecisionEqualFold applies the EqualFold predicate on the "retry_decision" field.
+func RetryDecisionEqualFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEqualFold(FieldRetryDecision, v))
+}
+
+// RetryDecisionContainsFold applies the ContainsFold predicate on the "retry_decision" field.
+func RetryDecisionContainsFold(v string) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldContainsFold(FieldRetryDecision, v))
 }
 
 // ResponseStatusCodeEQ applies the EQ predicate on the "response_status_code" field.

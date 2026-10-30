@@ -24,6 +24,16 @@ type Retryable interface {
 	NextChannel(ctx context.Context) error
 }
 
+// RetryStopObserver receives the pipeline's actual terminal retry decision.
+// Observers must not change routing or propagate diagnostic persistence failures.
+type RetryStopObserver interface{ OnRetryStopped(context.Context, string) }
+
+func (p *pipeline) notifyRetryStopped(ctx context.Context, reason string) {
+	if observer, ok := p.Outbound.(RetryStopObserver); ok {
+		observer.OnRetryStopped(ctx, reason)
+	}
+}
+
 // ChannelRetryable interface for transformers that support same-channel retry.
 type ChannelRetryable interface {
 	// CanRetry returns true if the transformer can retry for current channel given the error that occurred.
@@ -300,11 +310,13 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 
 		lastErr = err
 		if errors.Is(lastErr, ErrPreCommitBufferExceeded) || errors.Is(lastErr, httpclient.ErrStreamEventTooLarge) {
+			p.notifyRetryStopped(ctx, "response_size_limit")
 			return nil, lastErr
 		}
 
 		// Stop retrying if the context is canceled or the deadline is exceeded.
 		if ctx.Err() != nil {
+			p.notifyRetryStopped(ctx, "context_done")
 			return nil, lastErr
 		}
 
@@ -359,6 +371,15 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 
 		// If no retry strategy worked, break and return last error
 		if !canRetry {
+			reason := "no_retry_available"
+			if p.maxChannelRetries == 0 && p.getMaxSameChannelRetries() == 0 {
+				reason = "retry_disabled"
+			} else if channelSwitches >= p.maxChannelRetries && sameChannelRetries >= p.getMaxSameChannelRetries() {
+				reason = "retry_limit"
+			} else if retryable, ok := p.Outbound.(Retryable); ok && !retryable.HasMoreChannels() {
+				reason = "candidates_exhausted"
+			}
+			p.notifyRetryStopped(ctx, reason)
 			break
 		}
 

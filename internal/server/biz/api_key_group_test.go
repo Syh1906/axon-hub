@@ -52,6 +52,32 @@ func TestAPIKeyGroupAdministration(t *testing.T) {
 	require.True(t, db.APIKeyGroup.Query().Where().ExistX(ctx))
 }
 
+func TestAPIKeyGroupUsesAPIKeyWritePermission(t *testing.T) {
+	s, db := setupTestAPIKeyService(t, xcache.Config{Mode: xcache.ModeMemory})
+	t.Cleanup(s.Stop)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	seed := authz.WithTestBypass(ent.NewContext(context.Background(), db))
+	actor := db.User.Create().SetEmail("key-writer@example.test").SetPassword("fixture").SaveX(seed)
+	project := db.Project.Create().SetName("writer-project").SaveX(seed)
+	other := db.Project.Create().SetName("other-project").SaveX(seed)
+	db.UserProject.Create().SetUserID(actor.ID).SetProjectID(project.ID).SetScopes([]string{string(scopes.ScopeReadAPIKeys), string(scopes.ScopeWriteAPIKeys)}).SaveX(seed)
+	actor = db.User.Query().Where().WithProjectUsers().OnlyX(seed)
+	ctx := contexts.WithProjectID(contexts.WithUser(ent.NewContext(context.Background(), db), actor), project.ID)
+	ctx, err := authz.WithPrincipal(ctx, authz.Principal{Type: authz.PrincipalTypeUser, UserID: &actor.ID})
+	require.NoError(t, err)
+	group, err := s.SaveAPIKeyGroup(ctx, nil, "key-managed")
+	require.NoError(t, err, "write_api_keys alone permits group management without write_users/write_roles")
+	personal := apikey.TypePersonal
+	key, err := s.CreateAPIKey(ctx, ent.CreateAPIKeyInput{Name: "personal", ProjectID: project.ID, Type: &personal, GroupRef: &group.ID})
+	require.NoError(t, err)
+	require.Equal(t, group.ID, *key.GroupRef)
+	_, err = s.SaveAPIKeyGroup(contexts.WithProjectID(ctx, other.ID), nil, "foreign")
+	require.Error(t, err)
+	db.UserProject.Update().Where().SetScopes([]string{string(scopes.ScopeReadAPIKeys)}).ExecX(seed)
+	_, err = s.SaveAPIKeyGroup(ctx, nil, "read-only")
+	require.Error(t, err, "permissions are reloaded for writes")
+}
+
 func TestAPIKeyNamesWithinGroup(t *testing.T) {
 	s, db := setupTestAPIKeyService(t, xcache.Config{Mode: xcache.ModeMemory})
 	t.Cleanup(s.Stop)

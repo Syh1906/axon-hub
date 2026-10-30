@@ -73,7 +73,9 @@ func TestExtractErrorMessageAndInfo_ClassifiedTransportError(t *testing.T) {
 	require.NotNil(t, info.StatusCode)
 	require.Equal(t, http.StatusBadGateway, *info.StatusCode)
 
-	// Plain errors keep the previous behavior.
+	// Plain errors are recorded as gateway failures without an upstream status.
 	require.Equal(t, "boom", ExtractErrorMessage(errors.New("boom")))
-	require.Nil(t, ExtractErrorInfo(errors.New("boom")))
+	plain := ExtractErrorInfo(errors.New("boom"))
+	require.Nil(t, plain.StatusCode)
+	require.Equal(t, "gateway", plain.Failure.Source)
 }

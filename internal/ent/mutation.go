@@ -9513,6 +9513,7 @@ type ChannelMutation struct {
 	adddeleted_at                *int
 	_type                        *channel.Type
 	base_url                     *string
+	website_url                  *string
 	name                         *string
 	status                       *channel.Status
 	credentials                  *objects.ChannelCredentials
@@ -9872,6 +9873,55 @@ func (m *ChannelMutation) BaseURLCleared() bool {
 func (m *ChannelMutation) ResetBaseURL() {
 	m.base_url = nil
 	delete(m.clearedFields, channel.FieldBaseURL)
+}
+
+// SetWebsiteURL sets the "website_url" field.
+func (m *ChannelMutation) SetWebsiteURL(s string) {
+	m.website_url = &s
+}
+
+// WebsiteURL returns the value of the "website_url" field in the mutation.
+func (m *ChannelMutation) WebsiteURL() (r string, exists bool) {
+	v := m.website_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWebsiteURL returns the old "website_url" field's value of the Channel entity.
+// If the Channel object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMutation) OldWebsiteURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWebsiteURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWebsiteURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWebsiteURL: %w", err)
+	}
+	return oldValue.WebsiteURL, nil
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (m *ChannelMutation) ClearWebsiteURL() {
+	m.website_url = nil
+	m.clearedFields[channel.FieldWebsiteURL] = struct{}{}
+}
+
+// WebsiteURLCleared returns if the "website_url" field was cleared in this mutation.
+func (m *ChannelMutation) WebsiteURLCleared() bool {
+	_, ok := m.clearedFields[channel.FieldWebsiteURL]
+	return ok
+}
+
+// ResetWebsiteURL resets all changes to the "website_url" field.
+func (m *ChannelMutation) ResetWebsiteURL() {
+	m.website_url = nil
+	delete(m.clearedFields, channel.FieldWebsiteURL)
 }
 
 // SetName sets the "name" field.
@@ -11161,7 +11211,7 @@ func (m *ChannelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, channel.FieldCreatedAt)
 	}
@@ -11176,6 +11226,9 @@ func (m *ChannelMutation) Fields() []string {
 	}
 	if m.base_url != nil {
 		fields = append(fields, channel.FieldBaseURL)
+	}
+	if m.website_url != nil {
+		fields = append(fields, channel.FieldWebsiteURL)
 	}
 	if m.name != nil {
 		fields = append(fields, channel.FieldName)
@@ -11249,6 +11302,8 @@ func (m *ChannelMutation) Field(name string) (ent.Value, bool) {
 		return m.GetType()
 	case channel.FieldBaseURL:
 		return m.BaseURL()
+	case channel.FieldWebsiteURL:
+		return m.WebsiteURL()
 	case channel.FieldName:
 		return m.Name()
 	case channel.FieldStatus:
@@ -11304,6 +11359,8 @@ func (m *ChannelMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldType(ctx)
 	case channel.FieldBaseURL:
 		return m.OldBaseURL(ctx)
+	case channel.FieldWebsiteURL:
+		return m.OldWebsiteURL(ctx)
 	case channel.FieldName:
 		return m.OldName(ctx)
 	case channel.FieldStatus:
@@ -11383,6 +11440,13 @@ func (m *ChannelMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBaseURL(v)
+		return nil
+	case channel.FieldWebsiteURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWebsiteURL(v)
 		return nil
 	case channel.FieldName:
 		v, ok := value.(string)
@@ -11570,6 +11634,9 @@ func (m *ChannelMutation) ClearedFields() []string {
 	if m.FieldCleared(channel.FieldBaseURL) {
 		fields = append(fields, channel.FieldBaseURL)
 	}
+	if m.FieldCleared(channel.FieldWebsiteURL) {
+		fields = append(fields, channel.FieldWebsiteURL)
+	}
 	if m.FieldCleared(channel.FieldUpstreamCredentials) {
 		fields = append(fields, channel.FieldUpstreamCredentials)
 	}
@@ -11619,6 +11686,9 @@ func (m *ChannelMutation) ClearField(name string) error {
 	switch name {
 	case channel.FieldBaseURL:
 		m.ClearBaseURL()
+		return nil
+	case channel.FieldWebsiteURL:
+		m.ClearWebsiteURL()
 		return nil
 	case channel.FieldUpstreamCredentials:
 		m.ClearUpstreamCredentials()
@@ -11675,6 +11745,9 @@ func (m *ChannelMutation) ResetField(name string) error {
 		return nil
 	case channel.FieldBaseURL:
 		m.ResetBaseURL()
+		return nil
+	case channel.FieldWebsiteURL:
+		m.ResetWebsiteURL()
 		return nil
 	case channel.FieldName:
 		m.ResetName()
@@ -24853,6 +24926,8 @@ type RequestMutation struct {
 	routing_decision                  **objects.RequestRoutingDecision
 	external_id                       *string
 	status                            *request.Status
+	client_status_code                *int
+	addclient_status_code             *int
 	stream                            *bool
 	client_ip                         *string
 	metrics_latency_ms                *int64
@@ -25827,6 +25902,76 @@ func (m *RequestMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetClientStatusCode sets the "client_status_code" field.
+func (m *RequestMutation) SetClientStatusCode(i int) {
+	m.client_status_code = &i
+	m.addclient_status_code = nil
+}
+
+// ClientStatusCode returns the value of the "client_status_code" field in the mutation.
+func (m *RequestMutation) ClientStatusCode() (r int, exists bool) {
+	v := m.client_status_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientStatusCode returns the old "client_status_code" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldClientStatusCode(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientStatusCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientStatusCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientStatusCode: %w", err)
+	}
+	return oldValue.ClientStatusCode, nil
+}
+
+// AddClientStatusCode adds i to the "client_status_code" field.
+func (m *RequestMutation) AddClientStatusCode(i int) {
+	if m.addclient_status_code != nil {
+		*m.addclient_status_code += i
+	} else {
+		m.addclient_status_code = &i
+	}
+}
+
+// AddedClientStatusCode returns the value that was added to the "client_status_code" field in this mutation.
+func (m *RequestMutation) AddedClientStatusCode() (r int, exists bool) {
+	v := m.addclient_status_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (m *RequestMutation) ClearClientStatusCode() {
+	m.client_status_code = nil
+	m.addclient_status_code = nil
+	m.clearedFields[request.FieldClientStatusCode] = struct{}{}
+}
+
+// ClientStatusCodeCleared returns if the "client_status_code" field was cleared in this mutation.
+func (m *RequestMutation) ClientStatusCodeCleared() bool {
+	_, ok := m.clearedFields[request.FieldClientStatusCode]
+	return ok
+}
+
+// ResetClientStatusCode resets all changes to the "client_status_code" field.
+func (m *RequestMutation) ResetClientStatusCode() {
+	m.client_status_code = nil
+	m.addclient_status_code = nil
+	delete(m.clearedFields, request.FieldClientStatusCode)
+}
+
 // SetStream sets the "stream" field.
 func (m *RequestMutation) SetStream(b bool) {
 	m.stream = &b
@@ -26590,7 +26735,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 28)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -26644,6 +26789,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, request.FieldStatus)
+	}
+	if m.client_status_code != nil {
+		fields = append(fields, request.FieldClientStatusCode)
 	}
 	if m.stream != nil {
 		fields = append(fields, request.FieldStream)
@@ -26716,6 +26864,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ExternalID()
 	case request.FieldStatus:
 		return m.Status()
+	case request.FieldClientStatusCode:
+		return m.ClientStatusCode()
 	case request.FieldStream:
 		return m.Stream()
 	case request.FieldClientIP:
@@ -26779,6 +26929,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldExternalID(ctx)
 	case request.FieldStatus:
 		return m.OldStatus(ctx)
+	case request.FieldClientStatusCode:
+		return m.OldClientStatusCode(ctx)
 	case request.FieldStream:
 		return m.OldStream(ctx)
 	case request.FieldClientIP:
@@ -26932,6 +27084,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case request.FieldClientStatusCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientStatusCode(v)
+		return nil
 	case request.FieldStream:
 		v, ok := value.(bool)
 		if !ok {
@@ -27003,6 +27162,9 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *RequestMutation) AddedFields() []string {
 	var fields []string
+	if m.addclient_status_code != nil {
+		fields = append(fields, request.FieldClientStatusCode)
+	}
 	if m.addmetrics_latency_ms != nil {
 		fields = append(fields, request.FieldMetricsLatencyMs)
 	}
@@ -27023,6 +27185,8 @@ func (m *RequestMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *RequestMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case request.FieldClientStatusCode:
+		return m.AddedClientStatusCode()
 	case request.FieldMetricsLatencyMs:
 		return m.AddedMetricsLatencyMs()
 	case request.FieldMetricsFirstTokenLatencyMs:
@@ -27040,6 +27204,13 @@ func (m *RequestMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *RequestMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case request.FieldClientStatusCode:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClientStatusCode(v)
+		return nil
 	case request.FieldMetricsLatencyMs:
 		v, ok := value.(int64)
 		if !ok {
@@ -27106,6 +27277,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldExternalID) {
 		fields = append(fields, request.FieldExternalID)
 	}
+	if m.FieldCleared(request.FieldClientStatusCode) {
+		fields = append(fields, request.FieldClientStatusCode)
+	}
 	if m.FieldCleared(request.FieldMetricsLatencyMs) {
 		fields = append(fields, request.FieldMetricsLatencyMs)
 	}
@@ -27167,6 +27341,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldExternalID:
 		m.ClearExternalID()
+		return nil
+	case request.FieldClientStatusCode:
+		m.ClearClientStatusCode()
 		return nil
 	case request.FieldMetricsLatencyMs:
 		m.ClearMetricsLatencyMs()
@@ -27247,6 +27424,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case request.FieldClientStatusCode:
+		m.ResetClientStatusCode()
 		return nil
 	case request.FieldStream:
 		m.ResetStream()
@@ -27501,6 +27681,9 @@ type RequestExecutionMutation struct {
 	response_chunks                   *[]objects.JSONRawMessage
 	appendresponse_chunks             []objects.JSONRawMessage
 	error_message                     *string
+	selection                         **objects.RequestExecutionSelection
+	failure                           **objects.RequestExecutionFailure
+	retry_decision                    *string
 	response_status_code              *int
 	addresponse_status_code           *int
 	status                            *requestexecution.Status
@@ -28341,6 +28524,153 @@ func (m *RequestExecutionMutation) ErrorMessageCleared() bool {
 func (m *RequestExecutionMutation) ResetErrorMessage() {
 	m.error_message = nil
 	delete(m.clearedFields, requestexecution.FieldErrorMessage)
+}
+
+// SetSelection sets the "selection" field.
+func (m *RequestExecutionMutation) SetSelection(oes *objects.RequestExecutionSelection) {
+	m.selection = &oes
+}
+
+// Selection returns the value of the "selection" field in the mutation.
+func (m *RequestExecutionMutation) Selection() (r *objects.RequestExecutionSelection, exists bool) {
+	v := m.selection
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSelection returns the old "selection" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldSelection(ctx context.Context) (v *objects.RequestExecutionSelection, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSelection is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSelection requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSelection: %w", err)
+	}
+	return oldValue.Selection, nil
+}
+
+// ClearSelection clears the value of the "selection" field.
+func (m *RequestExecutionMutation) ClearSelection() {
+	m.selection = nil
+	m.clearedFields[requestexecution.FieldSelection] = struct{}{}
+}
+
+// SelectionCleared returns if the "selection" field was cleared in this mutation.
+func (m *RequestExecutionMutation) SelectionCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldSelection]
+	return ok
+}
+
+// ResetSelection resets all changes to the "selection" field.
+func (m *RequestExecutionMutation) ResetSelection() {
+	m.selection = nil
+	delete(m.clearedFields, requestexecution.FieldSelection)
+}
+
+// SetFailure sets the "failure" field.
+func (m *RequestExecutionMutation) SetFailure(oef *objects.RequestExecutionFailure) {
+	m.failure = &oef
+}
+
+// Failure returns the value of the "failure" field in the mutation.
+func (m *RequestExecutionMutation) Failure() (r *objects.RequestExecutionFailure, exists bool) {
+	v := m.failure
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailure returns the old "failure" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldFailure(ctx context.Context) (v *objects.RequestExecutionFailure, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailure is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailure requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailure: %w", err)
+	}
+	return oldValue.Failure, nil
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (m *RequestExecutionMutation) ClearFailure() {
+	m.failure = nil
+	m.clearedFields[requestexecution.FieldFailure] = struct{}{}
+}
+
+// FailureCleared returns if the "failure" field was cleared in this mutation.
+func (m *RequestExecutionMutation) FailureCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldFailure]
+	return ok
+}
+
+// ResetFailure resets all changes to the "failure" field.
+func (m *RequestExecutionMutation) ResetFailure() {
+	m.failure = nil
+	delete(m.clearedFields, requestexecution.FieldFailure)
+}
+
+// SetRetryDecision sets the "retry_decision" field.
+func (m *RequestExecutionMutation) SetRetryDecision(s string) {
+	m.retry_decision = &s
+}
+
+// RetryDecision returns the value of the "retry_decision" field in the mutation.
+func (m *RequestExecutionMutation) RetryDecision() (r string, exists bool) {
+	v := m.retry_decision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetryDecision returns the old "retry_decision" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldRetryDecision(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetryDecision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetryDecision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetryDecision: %w", err)
+	}
+	return oldValue.RetryDecision, nil
+}
+
+// ClearRetryDecision clears the value of the "retry_decision" field.
+func (m *RequestExecutionMutation) ClearRetryDecision() {
+	m.retry_decision = nil
+	m.clearedFields[requestexecution.FieldRetryDecision] = struct{}{}
+}
+
+// RetryDecisionCleared returns if the "retry_decision" field was cleared in this mutation.
+func (m *RequestExecutionMutation) RetryDecisionCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldRetryDecision]
+	return ok
+}
+
+// ResetRetryDecision resets all changes to the "retry_decision" field.
+func (m *RequestExecutionMutation) ResetRetryDecision() {
+	m.retry_decision = nil
+	delete(m.clearedFields, requestexecution.FieldRetryDecision)
 }
 
 // SetResponseStatusCode sets the "response_status_code" field.
@@ -29247,7 +29577,7 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
@@ -29292,6 +29622,15 @@ func (m *RequestExecutionMutation) Fields() []string {
 	}
 	if m.error_message != nil {
 		fields = append(fields, requestexecution.FieldErrorMessage)
+	}
+	if m.selection != nil {
+		fields = append(fields, requestexecution.FieldSelection)
+	}
+	if m.failure != nil {
+		fields = append(fields, requestexecution.FieldFailure)
+	}
+	if m.retry_decision != nil {
+		fields = append(fields, requestexecution.FieldRetryDecision)
 	}
 	if m.response_status_code != nil {
 		fields = append(fields, requestexecution.FieldResponseStatusCode)
@@ -29373,6 +29712,12 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.ResponseChunks()
 	case requestexecution.FieldErrorMessage:
 		return m.ErrorMessage()
+	case requestexecution.FieldSelection:
+		return m.Selection()
+	case requestexecution.FieldFailure:
+		return m.Failure()
+	case requestexecution.FieldRetryDecision:
+		return m.RetryDecision()
 	case requestexecution.FieldResponseStatusCode:
 		return m.ResponseStatusCode()
 	case requestexecution.FieldStatus:
@@ -29440,6 +29785,12 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldResponseChunks(ctx)
 	case requestexecution.FieldErrorMessage:
 		return m.OldErrorMessage(ctx)
+	case requestexecution.FieldSelection:
+		return m.OldSelection(ctx)
+	case requestexecution.FieldFailure:
+		return m.OldFailure(ctx)
+	case requestexecution.FieldRetryDecision:
+		return m.OldRetryDecision(ctx)
 	case requestexecution.FieldResponseStatusCode:
 		return m.OldResponseStatusCode(ctx)
 	case requestexecution.FieldStatus:
@@ -29581,6 +29932,27 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetErrorMessage(v)
+		return nil
+	case requestexecution.FieldSelection:
+		v, ok := value.(*objects.RequestExecutionSelection)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSelection(v)
+		return nil
+	case requestexecution.FieldFailure:
+		v, ok := value.(*objects.RequestExecutionFailure)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailure(v)
+		return nil
+	case requestexecution.FieldRetryDecision:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetryDecision(v)
 		return nil
 	case requestexecution.FieldResponseStatusCode:
 		v, ok := value.(int)
@@ -29821,6 +30193,15 @@ func (m *RequestExecutionMutation) ClearedFields() []string {
 	if m.FieldCleared(requestexecution.FieldErrorMessage) {
 		fields = append(fields, requestexecution.FieldErrorMessage)
 	}
+	if m.FieldCleared(requestexecution.FieldSelection) {
+		fields = append(fields, requestexecution.FieldSelection)
+	}
+	if m.FieldCleared(requestexecution.FieldFailure) {
+		fields = append(fields, requestexecution.FieldFailure)
+	}
+	if m.FieldCleared(requestexecution.FieldRetryDecision) {
+		fields = append(fields, requestexecution.FieldRetryDecision)
+	}
 	if m.FieldCleared(requestexecution.FieldResponseStatusCode) {
 		fields = append(fields, requestexecution.FieldResponseStatusCode)
 	}
@@ -29891,6 +30272,15 @@ func (m *RequestExecutionMutation) ClearField(name string) error {
 		return nil
 	case requestexecution.FieldErrorMessage:
 		m.ClearErrorMessage()
+		return nil
+	case requestexecution.FieldSelection:
+		m.ClearSelection()
+		return nil
+	case requestexecution.FieldFailure:
+		m.ClearFailure()
+		return nil
+	case requestexecution.FieldRetryDecision:
+		m.ClearRetryDecision()
 		return nil
 	case requestexecution.FieldResponseStatusCode:
 		m.ClearResponseStatusCode()
@@ -29977,6 +30367,15 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldErrorMessage:
 		m.ResetErrorMessage()
+		return nil
+	case requestexecution.FieldSelection:
+		m.ResetSelection()
+		return nil
+	case requestexecution.FieldFailure:
+		m.ResetFailure()
+		return nil
+	case requestexecution.FieldRetryDecision:
+		m.ResetRetryDecision()
 		return nil
 	case requestexecution.FieldResponseStatusCode:
 		m.ResetResponseStatusCode()

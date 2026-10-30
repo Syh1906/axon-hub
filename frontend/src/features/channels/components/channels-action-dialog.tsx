@@ -891,6 +891,29 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         )}
                       />
 
+                      <FormField
+                        control={form.control}
+                        name='websiteURL'
+                        render={({ field }) => (
+                          <FormItem className='grid grid-cols-1 items-start gap-y-2 lg:grid-cols-[120px_1fr] lg:gap-x-4'>
+                            <FormLabel className='lg:pt-2'>{t('channels.website.label')}</FormLabel>
+                            <div className='flex min-w-0 flex-col gap-2'>
+                              <FormControl>
+                                <Input
+                                  type='url'
+                                  placeholder='https://www.example.com'
+                                  maxLength={2048}
+                                  {...field}
+                                  value={field.value ?? ''}
+                                />
+                              </FormControl>
+                              <FormDescription>{t('channels.website.description')}</FormDescription>
+                              <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+
                       <details className='rounded-md border p-3'>
                         <summary className='cursor-pointer text-sm font-medium'>{t('channels.endpoints.title')}</summary>
                         <div className='mt-3'>

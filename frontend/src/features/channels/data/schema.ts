@@ -547,6 +547,7 @@ export const channelSchema = z.object({
   updatedAt: z.string(),
   type: channelTypeSchema,
   baseURL: z.string(),
+  websiteURL: z.string().nullable().optional(),
   name: z.string(),
   status: channelStatusSchema,
   policies: channelPoliciesSchema.optional().nullable(),
@@ -636,7 +637,10 @@ const imagePriceRuleSchema = z.object({
 export const imagePricingSchema = z.object({
   automatic: z.boolean(),
   rules: z.array(imagePriceRuleSchema),
-  savedRules: z.array(imagePriceRuleSchema.extend({ fee: z.string() })).nullable().optional(),
+  savedRules: z
+    .array(imagePriceRuleSchema.extend({ fee: z.string() }))
+    .nullable()
+    .optional(),
 });
 export type ImagePricing = z.infer<typeof imagePricingSchema>;
 
@@ -816,6 +820,7 @@ export const createChannelInputSchema = z
   .object({
     type: channelTypeSchema,
     baseURL: z.url('Please enter a valid URL'),
+    websiteURL: z.string().trim().max(2048).optional(),
     name: z.string().min(1, 'Name is required'),
     policies: channelPoliciesSchema.optional(),
     supportedModels: z.array(z.string()).min(0, 'At least one supported model is required'),
@@ -909,6 +914,7 @@ export const updateChannelInputSchema = z
   .object({
     type: channelTypeSchema.optional(),
     baseURL: z.string().url('Please enter a valid URL').optional(),
+    websiteURL: z.string().trim().max(2048).optional(),
     name: z.string().min(1, 'Name is required').optional(),
     policies: channelPoliciesSchema.optional(),
     supportedModels: z.array(z.string()).min(1, 'At least one supported model is required').optional(),

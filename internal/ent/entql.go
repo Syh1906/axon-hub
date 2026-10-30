@@ -273,6 +273,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			channel.FieldDeletedAt:               {Type: field.TypeInt, Column: channel.FieldDeletedAt},
 			channel.FieldType:                    {Type: field.TypeEnum, Column: channel.FieldType},
 			channel.FieldBaseURL:                 {Type: field.TypeString, Column: channel.FieldBaseURL},
+			channel.FieldWebsiteURL:              {Type: field.TypeString, Column: channel.FieldWebsiteURL},
 			channel.FieldName:                    {Type: field.TypeString, Column: channel.FieldName},
 			channel.FieldStatus:                  {Type: field.TypeEnum, Column: channel.FieldStatus},
 			channel.FieldCredentials:             {Type: field.TypeJSON, Column: channel.FieldCredentials},
@@ -610,6 +611,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldRoutingDecision:            {Type: field.TypeJSON, Column: request.FieldRoutingDecision},
 			request.FieldExternalID:                 {Type: field.TypeString, Column: request.FieldExternalID},
 			request.FieldStatus:                     {Type: field.TypeEnum, Column: request.FieldStatus},
+			request.FieldClientStatusCode:           {Type: field.TypeInt, Column: request.FieldClientStatusCode},
 			request.FieldStream:                     {Type: field.TypeBool, Column: request.FieldStream},
 			request.FieldClientIP:                   {Type: field.TypeString, Column: request.FieldClientIP},
 			request.FieldMetricsLatencyMs:           {Type: field.TypeInt64, Column: request.FieldMetricsLatencyMs},
@@ -647,6 +649,9 @@ var schemaGraph = func() *sqlgraph.Schema {
 			requestexecution.FieldResponseBody:               {Type: field.TypeJSON, Column: requestexecution.FieldResponseBody},
 			requestexecution.FieldResponseChunks:             {Type: field.TypeJSON, Column: requestexecution.FieldResponseChunks},
 			requestexecution.FieldErrorMessage:               {Type: field.TypeString, Column: requestexecution.FieldErrorMessage},
+			requestexecution.FieldSelection:                  {Type: field.TypeJSON, Column: requestexecution.FieldSelection},
+			requestexecution.FieldFailure:                    {Type: field.TypeJSON, Column: requestexecution.FieldFailure},
+			requestexecution.FieldRetryDecision:              {Type: field.TypeString, Column: requestexecution.FieldRetryDecision},
 			requestexecution.FieldResponseStatusCode:         {Type: field.TypeInt, Column: requestexecution.FieldResponseStatusCode},
 			requestexecution.FieldStatus:                     {Type: field.TypeEnum, Column: requestexecution.FieldStatus},
 			requestexecution.FieldStream:                     {Type: field.TypeBool, Column: requestexecution.FieldStream},
@@ -2622,6 +2627,11 @@ func (f *ChannelFilter) WhereBaseURL(p entql.StringP) {
 	f.Where(p.Field(channel.FieldBaseURL))
 }
 
+// WhereWebsiteURL applies the entql string predicate on the website_url field.
+func (f *ChannelFilter) WhereWebsiteURL(p entql.StringP) {
+	f.Where(p.Field(channel.FieldWebsiteURL))
+}
+
 // WhereName applies the entql string predicate on the name field.
 func (f *ChannelFilter) WhereName(p entql.StringP) {
 	f.Where(p.Field(channel.FieldName))
@@ -4391,6 +4401,11 @@ func (f *RequestFilter) WhereStatus(p entql.StringP) {
 	f.Where(p.Field(request.FieldStatus))
 }
 
+// WhereClientStatusCode applies the entql int predicate on the client_status_code field.
+func (f *RequestFilter) WhereClientStatusCode(p entql.IntP) {
+	f.Where(p.Field(request.FieldClientStatusCode))
+}
+
 // WhereStream applies the entql bool predicate on the stream field.
 func (f *RequestFilter) WhereStream(p entql.BoolP) {
 	f.Where(p.Field(request.FieldStream))
@@ -4647,6 +4662,21 @@ func (f *RequestExecutionFilter) WhereResponseChunks(p entql.BytesP) {
 // WhereErrorMessage applies the entql string predicate on the error_message field.
 func (f *RequestExecutionFilter) WhereErrorMessage(p entql.StringP) {
 	f.Where(p.Field(requestexecution.FieldErrorMessage))
+}
+
+// WhereSelection applies the entql json.RawMessage predicate on the selection field.
+func (f *RequestExecutionFilter) WhereSelection(p entql.BytesP) {
+	f.Where(p.Field(requestexecution.FieldSelection))
+}
+
+// WhereFailure applies the entql json.RawMessage predicate on the failure field.
+func (f *RequestExecutionFilter) WhereFailure(p entql.BytesP) {
+	f.Where(p.Field(requestexecution.FieldFailure))
+}
+
+// WhereRetryDecision applies the entql string predicate on the retry_decision field.
+func (f *RequestExecutionFilter) WhereRetryDecision(p entql.StringP) {
+	f.Where(p.Field(requestexecution.FieldRetryDecision))
 }
 
 // WhereResponseStatusCode applies the entql int predicate on the response_status_code field.

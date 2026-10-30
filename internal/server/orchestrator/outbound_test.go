@@ -15,6 +15,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	entchannel "github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/enttest"
@@ -649,7 +650,7 @@ func TestSelectOutboundForCandidate(t *testing.T) {
 }
 
 func TestPersistentOutboundTransformer_TransformRequest_ResetsStreamCompletedForNewAttempt(t *testing.T) {
-	ctx := context.Background()
+	ctx := contexts.WithChannelAPIKey(context.Background(), "previous-key-a123")
 
 	channel := &biz.Channel{
 		Channel: &ent.Channel{
@@ -686,6 +687,9 @@ func TestPersistentOutboundTransformer_TransformRequest_ResetsStreamCompletedFor
 	_, err := processor.TransformRequest(ctx, llmRequest)
 	require.NoError(t, err)
 	require.False(t, processor.state.StreamCompleted)
+	key, _ := contexts.GetChannelAPIKey(ctx)
+	require.Empty(t, key)
+	require.Empty(t, executionSelection(ctx, processor.state).KeyHint)
 }
 
 func TestPersistentOutboundTransformer_CanRetry(t *testing.T) {
@@ -1482,66 +1486,87 @@ func TestPersistentOutboundTransformer_CanRetry_429_WithMultipleModels(t *testin
 // were already captured and persist a classified error, so operators can tell "stalled
 // before the first byte" from "cut after N tokens" and the status code is not lost.
 func TestOutboundPersistentStream_Close_TransportErrorKeepsMetricsAndClassifiesError(t *testing.T) {
-	ctx := authz.WithTestBypass(context.Background())
+	for _, tc := range []struct {
+		name      string
+		returned  bool
+		streamErr error
+		decision  string
+	}{
+		{"returned stream interrupted", true, fmt.Errorf("read body: %w", io.ErrUnexpectedEOF), "stream_returned"},
+		{"pre-read remains retryable", false, fmt.Errorf("read body: %w", io.ErrUnexpectedEOF), ""},
+		{"returned stream canceled", true, context.Canceled, "client_canceled"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := authz.WithTestBypass(context.Background())
 
-	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
-	defer client.Close()
+			client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
+			defer client.Close()
 
-	ctx = ent.NewContext(ctx, client)
-	project := createTestProject(t, ctx, client)
-	ch := createTestChannel(t, ctx, client)
-	_, requestService, _, usageLogService := setupTestServices(t, client)
+			ctx = ent.NewContext(ctx, client)
+			project := createTestProject(t, ctx, client)
+			ch := createTestChannel(t, ctx, client)
+			_, requestService, _, usageLogService := setupTestServices(t, client)
 
-	req, err := client.Request.Create().
-		SetProjectID(project.ID).
-		SetChannelID(ch.ID).
-		SetModelID("gpt-4.1").
-		SetStatus(request.StatusPending).
-		SetRequestBody([]byte(`{"stream":true}`)).
-		Save(ctx)
-	require.NoError(t, err)
+			req, err := client.Request.Create().
+				SetProjectID(project.ID).
+				SetChannelID(ch.ID).
+				SetModelID("gpt-4.1").
+				SetStatus(request.StatusPending).
+				SetRequestBody([]byte(`{"stream":true}`)).
+				Save(ctx)
+			require.NoError(t, err)
 
-	exec, err := client.RequestExecution.Create().
-		SetRequestID(req.ID).
-		SetProjectID(project.ID).
-		SetChannelID(ch.ID).
-		SetModelID("gpt-4.1").
-		SetRequestBody([]byte(`{"stream":true}`)).
-		SetFormat("openai/chat_completions").
-		SetStatus(requestexecution.StatusPending).
-		SetStream(true).
-		Save(ctx)
-	require.NoError(t, err)
+			exec, err := client.RequestExecution.Create().
+				SetRequestID(req.ID).
+				SetProjectID(project.ID).
+				SetChannelID(ch.ID).
+				SetModelID("gpt-4.1").
+				SetRequestBody([]byte(`{"stream":true}`)).
+				SetFormat("openai/chat_completions").
+				SetStatus(requestexecution.StatusPending).
+				SetStream(true).
+				Save(ctx)
+			require.NoError(t, err)
 
-	stream := &sliceEventStream{
-		events: []*httpclient.StreamEvent{
-			{Data: []byte(`{"id":"1","choices":[{"delta":{"content":"He"}}]}`)},
-		},
-		err: fmt.Errorf("read body: %w", io.ErrUnexpectedEOF),
+			stream := &sliceEventStream{
+				events: []*httpclient.StreamEvent{
+					{Data: []byte(`{"id":"1","choices":[{"delta":{"content":"He"}}]}`)},
+				},
+				err: tc.streamErr,
+			}
+
+			start := time.Now().Add(-1500 * time.Millisecond)
+			firstToken := start.Add(400 * time.Millisecond)
+			perf := &biz.PerformanceRecord{StartTime: start, FirstTokenTime: &firstToken, Stream: true}
+			transformer := &mockTransformer{apiFormat: llm.APIFormatOpenAIResponse}
+
+			persistentStream := NewOutboundPersistentStream(ctx, stream, req, exec, requestService, usageLogService, transformer, perf, &PersistenceState{StreamReturned: tc.returned})
+			for persistentStream.Next() {
+				_ = persistentStream.Current()
+			}
+			require.NoError(t, persistentStream.Close())
+
+			dbExec, err := client.RequestExecution.Get(ctx, exec.ID)
+			require.NoError(t, err)
+			if tc.streamErr == context.Canceled {
+				require.Equal(t, requestexecution.StatusCanceled, dbExec.Status)
+				require.Equal(t, "client_canceled", dbExec.Failure.Source)
+			} else {
+				require.Equal(t, requestexecution.StatusFailed, dbExec.Status)
+				require.Contains(t, dbExec.ErrorMessage, "Upstream provider closed the connection before the response completed")
+				require.Contains(t, dbExec.ErrorMessage, "unexpected EOF")
+				require.Equal(t, "transport", dbExec.Failure.Source)
+				require.Equal(t, ErrCodeUpstreamStreamInterrupted, dbExec.Failure.Code)
+			}
+			require.Nil(t, dbExec.ResponseStatusCode)
+			require.Equal(t, tc.decision, dbExec.RetryDecision)
+			require.NotNil(t, dbExec.MetricsFirstTokenLatencyMs)
+			require.Equal(t, int64(400), *dbExec.MetricsFirstTokenLatencyMs)
+			require.NotNil(t, dbExec.MetricsLatencyMs)
+			require.GreaterOrEqual(t, *dbExec.MetricsLatencyMs, int64(1500))
+
+		})
 	}
-
-	start := time.Now().Add(-1500 * time.Millisecond)
-	firstToken := start.Add(400 * time.Millisecond)
-	perf := &biz.PerformanceRecord{StartTime: start, FirstTokenTime: &firstToken, Stream: true}
-	transformer := &mockTransformer{apiFormat: llm.APIFormatOpenAIResponse}
-
-	persistentStream := NewOutboundPersistentStream(ctx, stream, req, exec, requestService, usageLogService, transformer, perf, &PersistenceState{})
-	for persistentStream.Next() {
-		_ = persistentStream.Current()
-	}
-	require.NoError(t, persistentStream.Close())
-
-	dbExec, err := client.RequestExecution.Get(ctx, exec.ID)
-	require.NoError(t, err)
-	require.Equal(t, requestexecution.StatusFailed, dbExec.Status)
-	require.Contains(t, dbExec.ErrorMessage, "Upstream provider closed the connection before the response completed")
-	require.Contains(t, dbExec.ErrorMessage, "unexpected EOF")
-	require.NotNil(t, dbExec.ResponseStatusCode)
-	require.Equal(t, http.StatusBadGateway, *dbExec.ResponseStatusCode)
-	require.NotNil(t, dbExec.MetricsFirstTokenLatencyMs)
-	require.Equal(t, int64(400), *dbExec.MetricsFirstTokenLatencyMs)
-	require.NotNil(t, dbExec.MetricsLatencyMs)
-	require.GreaterOrEqual(t, *dbExec.MetricsLatencyMs, int64(1500))
 }
 
 // rawErrorTransformer returns a normalized error so the wrapper's raw attachment is observable.

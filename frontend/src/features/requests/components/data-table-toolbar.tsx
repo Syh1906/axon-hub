@@ -1,13 +1,13 @@
 ﻿import { useMemo, useState } from 'react';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import { Table } from '@tanstack/react-table';
-import { Filter, GripVertical, X } from 'lucide-react';
+import { Filter, GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '@/stores/authStore';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import type { DateTimeRangeValue } from '@/utils/date-range';
 import type { AutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useRequestPermissions } from '@/hooks/useRequestPermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,10 +16,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { AutoRefreshControl } from '@/components/auto-refresh-control';
 import { DataTableColumnOrderDialog } from '@/components/data-table-column-order-dialog';
 import { DataTableFacetedFilter } from '@/components/data-table-faceted-filter';
-import { DateRangePicker } from '@/components/date-range-picker';
 import { useApiKeyOptions, useApiKeyOptionsByIDs } from '@/features/apikeys/data';
-import { useMe } from '@/features/auth/data/auth';
+import { useKeyGroups } from '@/features/apikeys/data/groups';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
+import { getProviderFromChannelType } from '@/features/channels/data/config_providers';
 import { RequestStatus } from '../data/schema';
 import { DataTableViewOptions } from './data-table-view-options';
 import { MODEL_ID_COLUMN } from './requests-columns';
@@ -48,6 +48,8 @@ interface RequestFilterControlsProps {
   requestSources: { value: string; label: string }[];
   canViewChannels: boolean;
   channelOptions: { value: string; label: string }[];
+  channelTagOptions: { value: string; label: string }[];
+  apiKeyGroupOptions: { value: string; label: string }[];
   isFetchingChannels: boolean;
   showArchivedChannels: boolean;
   handleToggleShowArchivedChannels: (checked: boolean) => void;
@@ -70,15 +72,14 @@ interface RequestFilterControlsProps {
  */
 function RequestFilterControls({
   table,
-  dateRange,
-  onDateRangeChange,
   onResetFilters,
   isFiltered,
-  hasDateRange,
   requestStatuses,
   requestSources,
   canViewChannels,
   channelOptions,
+  channelTagOptions,
+  apiKeyGroupOptions,
   isFetchingChannels,
   showArchivedChannels,
   handleToggleShowArchivedChannels,
@@ -142,12 +143,26 @@ function RequestFilterControls({
       {table.getColumn('source') && (
         <DataTableFacetedFilter column={table.getColumn('source')} title={t('requests.filters.source')} options={requestSources} />
       )}
+      {canViewChannels && (
+        <DataTableFacetedFilter
+          column={table.getColumn('channelTag')}
+          title={t('requests.filters.channelTag')}
+          options={channelTagOptions}
+        />
+      )}
       {canViewChannels && table.getColumn('channel') && (channelOptions.length > 0 || isFetchingChannels) && (
         <DataTableFacetedFilter
           column={table.getColumn('channel')}
           title={t('requests.filters.channel')}
           options={channelOptions}
           footer={channelFooter}
+        />
+      )}
+      {canViewApiKeys && (
+        <DataTableFacetedFilter
+          column={table.getColumn('apiKeyGroup')}
+          title={t('requests.filters.apiKeyGroup')}
+          options={apiKeyGroupOptions}
         />
       )}
       {canViewApiKeys && table.getColumn('caller') && (
@@ -163,27 +178,6 @@ function RequestFilterControls({
           onLoadMore={onLoadMoreApiKeys}
           footer={apiKeyFooter}
         />
-      )}
-      <DateRangePicker
-        value={dateRange}
-        onChange={(range) => {
-          onDateRangeChange?.(range);
-          onCloseAfterAction?.();
-        }}
-        className={isMobile ? 'w-full' : 'max-w-[150px] min-w-0 sm:max-w-none'}
-      />
-      {hasDateRange && (
-        <Button
-          variant='ghost'
-          onClick={() => {
-            onDateRangeChange?.(undefined);
-            onCloseAfterAction?.();
-          }}
-          className='h-8 px-2'
-          size='sm'
-        >
-          <X className='h-4 w-4' />
-        </Button>
       )}
       {isFiltered && (
         <Button
@@ -277,15 +271,8 @@ export function DataTableToolbar<TData>({
     }
   };
 
-  const { user: authUser } = useAuthStore((state) => state.auth);
-  const { data: meData } = useMe();
-  const user = meData || authUser;
-  const userScopes = user?.scopes || [];
-  const isOwner = user?.isOwner || false;
+  const { canViewChannels, canViewApiKeys } = useRequestPermissions();
   const selectedProjectId = useSelectedProjectId();
-
-  const canViewChannels = isOwner || userScopes.includes('*') || userScopes.includes('read_channels');
-  const canViewApiKeys = isOwner || userScopes.includes('*') || userScopes.includes('read_api_keys');
 
   const { data: channelsData, isFetching: isFetchingChannels } = useAllChannelSummarys(selectedProjectId, {
     enabled: canViewChannels,
@@ -308,14 +295,22 @@ export function DataTableToolbar<TData>({
   });
   const isFetchingApiKeys = isFetchingApiKeyOptions || isFetchingSelectedApiKeys;
 
+  const { data: groups } = useKeyGroups(canViewApiKeys);
+  const apiKeyGroupOptions = [
+    { value: '0', label: t('requests.filters.ungrouped') },
+    ...(groups ?? []).map((group) => ({ value: String(group.id), label: group.name })),
+  ];
+  const channelTagOptions = [...new Set(channelsData?.edges.flatMap((edge) => edge.node.tags ?? []) ?? [])]
+    .sort()
+    .map((tag) => ({ value: tag, label: tag }));
   const channelOptions = useMemo(() => {
     if (!canViewChannels || !channelsData?.edges) return [];
 
     return channelsData.edges.map((edge) => ({
       value: edge.node.id,
-      label: edge.node.name,
+      label: `${edge.node.name} · ${t(`channels.providers.${getProviderFromChannelType(edge.node.type) ?? edge.node.type}`, { defaultValue: edge.node.type })}`,
     }));
-  }, [canViewChannels, channelsData]);
+  }, [canViewChannels, channelsData, t]);
 
   const apiKeyOptions = useMemo(() => {
     if (!canViewApiKeys) return [];
@@ -408,6 +403,8 @@ export function DataTableToolbar<TData>({
               requestSources={requestSources}
               canViewChannels={canViewChannels}
               channelOptions={channelOptions}
+              channelTagOptions={channelTagOptions}
+              apiKeyGroupOptions={apiKeyGroupOptions}
               isFetchingChannels={isFetchingChannels}
               showArchivedChannels={showArchivedChannels}
               handleToggleShowArchivedChannels={handleToggleShowArchivedChannels}
@@ -440,6 +437,8 @@ export function DataTableToolbar<TData>({
         requestSources={requestSources}
         canViewChannels={canViewChannels}
         channelOptions={channelOptions}
+        channelTagOptions={channelTagOptions}
+        apiKeyGroupOptions={apiKeyGroupOptions}
         isFetchingChannels={isFetchingChannels}
         showArchivedChannels={showArchivedChannels}
         handleToggleShowArchivedChannels={handleToggleShowArchivedChannels}

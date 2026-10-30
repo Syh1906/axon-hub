@@ -96,6 +96,7 @@ func (Request) Fields() []ent.Field {
 			MaxLen(512),
 		// The status of the request.
 		field.Enum("status").Values("pending", "processing", "completed", "failed", "canceled"),
+		field.Int("client_status_code").Optional().Nillable(),
 		// Whether the request is a streaming request
 		field.Bool("stream").Default(false).Immutable(),
 		field.String("client_ip").Default("").Immutable(),

@@ -37,6 +37,8 @@ export const usageLogSchema = z.object({
   promptAudioTokens: z.number().nullable().optional(),
   promptCachedTokens: z.number().nullable().optional(),
   promptWriteCachedTokens: z.number().nullable().optional(),
+  promptWriteCachedTokens5m: z.number().nullable().optional(),
+  promptWriteCachedTokens1h: z.number().nullable().optional(),
   completionAudioTokens: z.number().nullable().optional(),
   completionReasoningTokens: z.number().nullable().optional(),
   completionAcceptedPredictionTokens: z.number().nullable().optional(),

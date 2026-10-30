@@ -10,9 +10,11 @@ import (
 	"fmt"
 
 	"entgo.io/contrib/entgql"
+	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/scopes"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/samber/lo"
 )
@@ -763,6 +765,14 @@ func (r *requestExecutionResolver) ResponseChunks(ctx context.Context, obj *ent.
 	}
 
 	return value, nil
+}
+
+// Selection is the resolver for the selection field.
+func (r *requestExecutionResolver) Selection(ctx context.Context, obj *ent.RequestExecution) (*objects.RequestExecutionSelection, error) {
+	if !authz.HasScope(ctx, scopes.ScopeReadChannels) {
+		return nil, nil
+	}
+	return obj.Selection, nil
 }
 
 // Channel is the resolver for the channel field.

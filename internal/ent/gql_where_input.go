@@ -923,6 +923,23 @@ type ChannelWhereInput struct {
 	BaseURLEqualFold    *string  `json:"baseURLEqualFold,omitempty"`
 	BaseURLContainsFold *string  `json:"baseURLContainsFold,omitempty"`
 
+	// "website_url" field predicates.
+	WebsiteURL             *string  `json:"websiteURL,omitempty"`
+	WebsiteURLNEQ          *string  `json:"websiteURLNEQ,omitempty"`
+	WebsiteURLIn           []string `json:"websiteURLIn,omitempty"`
+	WebsiteURLNotIn        []string `json:"websiteURLNotIn,omitempty"`
+	WebsiteURLGT           *string  `json:"websiteURLGT,omitempty"`
+	WebsiteURLGTE          *string  `json:"websiteURLGTE,omitempty"`
+	WebsiteURLLT           *string  `json:"websiteURLLT,omitempty"`
+	WebsiteURLLTE          *string  `json:"websiteURLLTE,omitempty"`
+	WebsiteURLContains     *string  `json:"websiteURLContains,omitempty"`
+	WebsiteURLHasPrefix    *string  `json:"websiteURLHasPrefix,omitempty"`
+	WebsiteURLHasSuffix    *string  `json:"websiteURLHasSuffix,omitempty"`
+	WebsiteURLIsNil        bool     `json:"websiteURLIsNil,omitempty"`
+	WebsiteURLNotNil       bool     `json:"websiteURLNotNil,omitempty"`
+	WebsiteURLEqualFold    *string  `json:"websiteURLEqualFold,omitempty"`
+	WebsiteURLContainsFold *string  `json:"websiteURLContainsFold,omitempty"`
+
 	// "name" field predicates.
 	Name             *string  `json:"name,omitempty"`
 	NameNEQ          *string  `json:"nameNEQ,omitempty"`
@@ -1260,6 +1277,51 @@ func (i *ChannelWhereInput) P() (predicate.Channel, error) {
 	}
 	if i.BaseURLContainsFold != nil {
 		predicates = append(predicates, channel.BaseURLContainsFold(*i.BaseURLContainsFold))
+	}
+	if i.WebsiteURL != nil {
+		predicates = append(predicates, channel.WebsiteURLEQ(*i.WebsiteURL))
+	}
+	if i.WebsiteURLNEQ != nil {
+		predicates = append(predicates, channel.WebsiteURLNEQ(*i.WebsiteURLNEQ))
+	}
+	if len(i.WebsiteURLIn) > 0 {
+		predicates = append(predicates, channel.WebsiteURLIn(i.WebsiteURLIn...))
+	}
+	if len(i.WebsiteURLNotIn) > 0 {
+		predicates = append(predicates, channel.WebsiteURLNotIn(i.WebsiteURLNotIn...))
+	}
+	if i.WebsiteURLGT != nil {
+		predicates = append(predicates, channel.WebsiteURLGT(*i.WebsiteURLGT))
+	}
+	if i.WebsiteURLGTE != nil {
+		predicates = append(predicates, channel.WebsiteURLGTE(*i.WebsiteURLGTE))
+	}
+	if i.WebsiteURLLT != nil {
+		predicates = append(predicates, channel.WebsiteURLLT(*i.WebsiteURLLT))
+	}
+	if i.WebsiteURLLTE != nil {
+		predicates = append(predicates, channel.WebsiteURLLTE(*i.WebsiteURLLTE))
+	}
+	if i.WebsiteURLContains != nil {
+		predicates = append(predicates, channel.WebsiteURLContains(*i.WebsiteURLContains))
+	}
+	if i.WebsiteURLHasPrefix != nil {
+		predicates = append(predicates, channel.WebsiteURLHasPrefix(*i.WebsiteURLHasPrefix))
+	}
+	if i.WebsiteURLHasSuffix != nil {
+		predicates = append(predicates, channel.WebsiteURLHasSuffix(*i.WebsiteURLHasSuffix))
+	}
+	if i.WebsiteURLIsNil {
+		predicates = append(predicates, channel.WebsiteURLIsNil())
+	}
+	if i.WebsiteURLNotNil {
+		predicates = append(predicates, channel.WebsiteURLNotNil())
+	}
+	if i.WebsiteURLEqualFold != nil {
+		predicates = append(predicates, channel.WebsiteURLEqualFold(*i.WebsiteURLEqualFold))
+	}
+	if i.WebsiteURLContainsFold != nil {
+		predicates = append(predicates, channel.WebsiteURLContainsFold(*i.WebsiteURLContainsFold))
 	}
 	if i.Name != nil {
 		predicates = append(predicates, channel.NameEQ(*i.Name))
@@ -6740,6 +6802,18 @@ type RequestWhereInput struct {
 	StatusIn    []request.Status `json:"statusIn,omitempty"`
 	StatusNotIn []request.Status `json:"statusNotIn,omitempty"`
 
+	// "client_status_code" field predicates.
+	ClientStatusCode       *int  `json:"clientStatusCode,omitempty"`
+	ClientStatusCodeNEQ    *int  `json:"clientStatusCodeNEQ,omitempty"`
+	ClientStatusCodeIn     []int `json:"clientStatusCodeIn,omitempty"`
+	ClientStatusCodeNotIn  []int `json:"clientStatusCodeNotIn,omitempty"`
+	ClientStatusCodeGT     *int  `json:"clientStatusCodeGT,omitempty"`
+	ClientStatusCodeGTE    *int  `json:"clientStatusCodeGTE,omitempty"`
+	ClientStatusCodeLT     *int  `json:"clientStatusCodeLT,omitempty"`
+	ClientStatusCodeLTE    *int  `json:"clientStatusCodeLTE,omitempty"`
+	ClientStatusCodeIsNil  bool  `json:"clientStatusCodeIsNil,omitempty"`
+	ClientStatusCodeNotNil bool  `json:"clientStatusCodeNotNil,omitempty"`
+
 	// "stream" field predicates.
 	Stream    *bool `json:"stream,omitempty"`
 	StreamNEQ *bool `json:"streamNEQ,omitempty"`
@@ -7288,6 +7362,36 @@ func (i *RequestWhereInput) P() (predicate.Request, error) {
 	if len(i.StatusNotIn) > 0 {
 		predicates = append(predicates, request.StatusNotIn(i.StatusNotIn...))
 	}
+	if i.ClientStatusCode != nil {
+		predicates = append(predicates, request.ClientStatusCodeEQ(*i.ClientStatusCode))
+	}
+	if i.ClientStatusCodeNEQ != nil {
+		predicates = append(predicates, request.ClientStatusCodeNEQ(*i.ClientStatusCodeNEQ))
+	}
+	if len(i.ClientStatusCodeIn) > 0 {
+		predicates = append(predicates, request.ClientStatusCodeIn(i.ClientStatusCodeIn...))
+	}
+	if len(i.ClientStatusCodeNotIn) > 0 {
+		predicates = append(predicates, request.ClientStatusCodeNotIn(i.ClientStatusCodeNotIn...))
+	}
+	if i.ClientStatusCodeGT != nil {
+		predicates = append(predicates, request.ClientStatusCodeGT(*i.ClientStatusCodeGT))
+	}
+	if i.ClientStatusCodeGTE != nil {
+		predicates = append(predicates, request.ClientStatusCodeGTE(*i.ClientStatusCodeGTE))
+	}
+	if i.ClientStatusCodeLT != nil {
+		predicates = append(predicates, request.ClientStatusCodeLT(*i.ClientStatusCodeLT))
+	}
+	if i.ClientStatusCodeLTE != nil {
+		predicates = append(predicates, request.ClientStatusCodeLTE(*i.ClientStatusCodeLTE))
+	}
+	if i.ClientStatusCodeIsNil {
+		predicates = append(predicates, request.ClientStatusCodeIsNil())
+	}
+	if i.ClientStatusCodeNotNil {
+		predicates = append(predicates, request.ClientStatusCodeNotNil())
+	}
 	if i.Stream != nil {
 		predicates = append(predicates, request.StreamEQ(*i.Stream))
 	}
@@ -7821,6 +7925,23 @@ type RequestExecutionWhereInput struct {
 	ErrorMessageEqualFold    *string  `json:"errorMessageEqualFold,omitempty"`
 	ErrorMessageContainsFold *string  `json:"errorMessageContainsFold,omitempty"`
 
+	// "retry_decision" field predicates.
+	RetryDecision             *string  `json:"retryDecision,omitempty"`
+	RetryDecisionNEQ          *string  `json:"retryDecisionNEQ,omitempty"`
+	RetryDecisionIn           []string `json:"retryDecisionIn,omitempty"`
+	RetryDecisionNotIn        []string `json:"retryDecisionNotIn,omitempty"`
+	RetryDecisionGT           *string  `json:"retryDecisionGT,omitempty"`
+	RetryDecisionGTE          *string  `json:"retryDecisionGTE,omitempty"`
+	RetryDecisionLT           *string  `json:"retryDecisionLT,omitempty"`
+	RetryDecisionLTE          *string  `json:"retryDecisionLTE,omitempty"`
+	RetryDecisionContains     *string  `json:"retryDecisionContains,omitempty"`
+	RetryDecisionHasPrefix    *string  `json:"retryDecisionHasPrefix,omitempty"`
+	RetryDecisionHasSuffix    *string  `json:"retryDecisionHasSuffix,omitempty"`
+	RetryDecisionIsNil        bool     `json:"retryDecisionIsNil,omitempty"`
+	RetryDecisionNotNil       bool     `json:"retryDecisionNotNil,omitempty"`
+	RetryDecisionEqualFold    *string  `json:"retryDecisionEqualFold,omitempty"`
+	RetryDecisionContainsFold *string  `json:"retryDecisionContainsFold,omitempty"`
+
 	// "response_status_code" field predicates.
 	ResponseStatusCode       *int  `json:"responseStatusCode,omitempty"`
 	ResponseStatusCodeNEQ    *int  `json:"responseStatusCodeNEQ,omitempty"`
@@ -8340,6 +8461,51 @@ func (i *RequestExecutionWhereInput) P() (predicate.RequestExecution, error) {
 	}
 	if i.ErrorMessageContainsFold != nil {
 		predicates = append(predicates, requestexecution.ErrorMessageContainsFold(*i.ErrorMessageContainsFold))
+	}
+	if i.RetryDecision != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionEQ(*i.RetryDecision))
+	}
+	if i.RetryDecisionNEQ != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionNEQ(*i.RetryDecisionNEQ))
+	}
+	if len(i.RetryDecisionIn) > 0 {
+		predicates = append(predicates, requestexecution.RetryDecisionIn(i.RetryDecisionIn...))
+	}
+	if len(i.RetryDecisionNotIn) > 0 {
+		predicates = append(predicates, requestexecution.RetryDecisionNotIn(i.RetryDecisionNotIn...))
+	}
+	if i.RetryDecisionGT != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionGT(*i.RetryDecisionGT))
+	}
+	if i.RetryDecisionGTE != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionGTE(*i.RetryDecisionGTE))
+	}
+	if i.RetryDecisionLT != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionLT(*i.RetryDecisionLT))
+	}
+	if i.RetryDecisionLTE != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionLTE(*i.RetryDecisionLTE))
+	}
+	if i.RetryDecisionContains != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionContains(*i.RetryDecisionContains))
+	}
+	if i.RetryDecisionHasPrefix != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionHasPrefix(*i.RetryDecisionHasPrefix))
+	}
+	if i.RetryDecisionHasSuffix != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionHasSuffix(*i.RetryDecisionHasSuffix))
+	}
+	if i.RetryDecisionIsNil {
+		predicates = append(predicates, requestexecution.RetryDecisionIsNil())
+	}
+	if i.RetryDecisionNotNil {
+		predicates = append(predicates, requestexecution.RetryDecisionNotNil())
+	}
+	if i.RetryDecisionEqualFold != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionEqualFold(*i.RetryDecisionEqualFold))
+	}
+	if i.RetryDecisionContainsFold != nil {
+		predicates = append(predicates, requestexecution.RetryDecisionContainsFold(*i.RetryDecisionContainsFold))
 	}
 	if i.ResponseStatusCode != nil {
 		predicates = append(predicates, requestexecution.ResponseStatusCodeEQ(*i.ResponseStatusCode))

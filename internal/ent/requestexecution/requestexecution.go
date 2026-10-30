@@ -47,6 +47,12 @@ const (
 	FieldResponseChunks = "response_chunks"
 	// FieldErrorMessage holds the string denoting the error_message field in the database.
 	FieldErrorMessage = "error_message"
+	// FieldSelection holds the string denoting the selection field in the database.
+	FieldSelection = "selection"
+	// FieldFailure holds the string denoting the failure field in the database.
+	FieldFailure = "failure"
+	// FieldRetryDecision holds the string denoting the retry_decision field in the database.
+	FieldRetryDecision = "retry_decision"
 	// FieldResponseStatusCode holds the string denoting the response_status_code field in the database.
 	FieldResponseStatusCode = "response_status_code"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -124,6 +130,9 @@ var Columns = []string{
 	FieldResponseBody,
 	FieldResponseChunks,
 	FieldErrorMessage,
+	FieldSelection,
+	FieldFailure,
+	FieldRetryDecision,
 	FieldResponseStatusCode,
 	FieldStatus,
 	FieldStream,
@@ -260,6 +269,11 @@ func ByReasoningEffort(opts ...sql.OrderTermOption) OrderOption {
 // ByErrorMessage orders the results by the error_message field.
 func ByErrorMessage(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldErrorMessage, opts...).ToFunc()
+}
+
+// ByRetryDecision orders the results by the retry_decision field.
+func ByRetryDecision(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetryDecision, opts...).ToFunc()
 }
 
 // ByResponseStatusCode orders the results by the response_status_code field.

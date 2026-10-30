@@ -175,6 +175,7 @@ func (processor *ChatCompletionOrchestrator) WithProxy(proxy *httpclient.ProxyCo
 }
 
 type ChatCompletionResult struct {
+	RequestID            int
 	ChatCompletion       *httpclient.Response
 	ChatCompletionStream streams.Stream[*httpclient.StreamEvent]
 }
@@ -370,16 +371,26 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 			}
 		}
 
-		return ChatCompletionResult{}, healthGateTracker.finalize(ctx, err, false)
+		requestID := 0
+		if state.Request != nil {
+			requestID = state.Request.ID
+		}
+		return ChatCompletionResult{RequestID: requestID}, healthGateTracker.finalize(ctx, err, false)
 	}
 	healthGateTracker.finalize(ctx, nil, result.Stream)
 
+	requestID := 0
+	if state.Request != nil {
+		requestID = state.Request.ID
+	}
 	// Return result based on stream type
 	if result.Stream {
+		state.StreamReturned = true
 		if preparedResponsesBody != nil {
 			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
 		}
 		return ChatCompletionResult{
+			RequestID:            requestID,
 			ChatCompletion:       nil,
 			ChatCompletionStream: result.EventStream,
 		}, nil
@@ -389,6 +400,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	}
 
 	return ChatCompletionResult{
+		RequestID:            requestID,
 		ChatCompletion:       result.Response,
 		ChatCompletionStream: nil,
 	}, nil

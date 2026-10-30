@@ -44,5 +44,5 @@ export function validRange(range: DateRange, maxDays = 90): boolean {
 export function chartDay(value: string, locale: string): string {
   const day = dayNumber(value);
   if (day === null) return value;
-  return new Date(day * 86_400_000).toLocaleDateString(locale, { month: '2-digit', day: '2-digit', timeZone: 'UTC' });
+  return new Intl.DateTimeFormat(locale, { month: '2-digit', day: '2-digit', timeZone: 'UTC' }).format(new Date(day * 86_400_000));
 }

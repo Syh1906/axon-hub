@@ -160,6 +160,33 @@ func (_u *RequestUpdate) SetNillableStatus(v *request.Status) *RequestUpdate {
 	return _u
 }
 
+// SetClientStatusCode sets the "client_status_code" field.
+func (_u *RequestUpdate) SetClientStatusCode(v int) *RequestUpdate {
+	_u.mutation.ResetClientStatusCode()
+	_u.mutation.SetClientStatusCode(v)
+	return _u
+}
+
+// SetNillableClientStatusCode sets the "client_status_code" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableClientStatusCode(v *int) *RequestUpdate {
+	if v != nil {
+		_u.SetClientStatusCode(*v)
+	}
+	return _u
+}
+
+// AddClientStatusCode adds value to the "client_status_code" field.
+func (_u *RequestUpdate) AddClientStatusCode(v int) *RequestUpdate {
+	_u.mutation.AddClientStatusCode(v)
+	return _u
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (_u *RequestUpdate) ClearClientStatusCode() *RequestUpdate {
+	_u.mutation.ClearClientStatusCode()
+	return _u
+}
+
 // SetMetricsLatencyMs sets the "metrics_latency_ms" field.
 func (_u *RequestUpdate) SetMetricsLatencyMs(v int64) *RequestUpdate {
 	_u.mutation.ResetMetricsLatencyMs()
@@ -542,6 +569,15 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(request.FieldStatus, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.ClientStatusCode(); ok {
+		_spec.SetField(request.FieldClientStatusCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedClientStatusCode(); ok {
+		_spec.AddField(request.FieldClientStatusCode, field.TypeInt, value)
+	}
+	if _u.mutation.ClientStatusCodeCleared() {
+		_spec.ClearField(request.FieldClientStatusCode, field.TypeInt)
+	}
 	if value, ok := _u.mutation.MetricsLatencyMs(); ok {
 		_spec.SetField(request.FieldMetricsLatencyMs, field.TypeInt64, value)
 	}
@@ -857,6 +893,33 @@ func (_u *RequestUpdateOne) SetNillableStatus(v *request.Status) *RequestUpdateO
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetClientStatusCode sets the "client_status_code" field.
+func (_u *RequestUpdateOne) SetClientStatusCode(v int) *RequestUpdateOne {
+	_u.mutation.ResetClientStatusCode()
+	_u.mutation.SetClientStatusCode(v)
+	return _u
+}
+
+// SetNillableClientStatusCode sets the "client_status_code" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableClientStatusCode(v *int) *RequestUpdateOne {
+	if v != nil {
+		_u.SetClientStatusCode(*v)
+	}
+	return _u
+}
+
+// AddClientStatusCode adds value to the "client_status_code" field.
+func (_u *RequestUpdateOne) AddClientStatusCode(v int) *RequestUpdateOne {
+	_u.mutation.AddClientStatusCode(v)
+	return _u
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (_u *RequestUpdateOne) ClearClientStatusCode() *RequestUpdateOne {
+	_u.mutation.ClearClientStatusCode()
 	return _u
 }
 
@@ -1271,6 +1334,15 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(request.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ClientStatusCode(); ok {
+		_spec.SetField(request.FieldClientStatusCode, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedClientStatusCode(); ok {
+		_spec.AddField(request.FieldClientStatusCode, field.TypeInt, value)
+	}
+	if _u.mutation.ClientStatusCodeCleared() {
+		_spec.ClearField(request.FieldClientStatusCode, field.TypeInt)
 	}
 	if value, ok := _u.mutation.MetricsLatencyMs(); ok {
 		_spec.SetField(request.FieldMetricsLatencyMs, field.TypeInt64, value)

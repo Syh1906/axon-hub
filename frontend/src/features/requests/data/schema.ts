@@ -16,6 +16,35 @@ export type RequestSource = z.infer<typeof requestSourceSchema>;
 export const requestExecutionStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed', 'canceled']);
 export type RequestExecutionStatus = z.infer<typeof requestExecutionStatusSchema>;
 
+export const executionSelectionSchema = z.object({
+  channelName: z.string(),
+  provider: z.string(),
+  keyHint: z.string(),
+  keyRemark: z.string(),
+  sessionState: z.string(),
+  strategy: z.string(),
+  priority: z.number(),
+  candidates: z
+    .array(
+      z.object({
+        channelID: z.number(),
+        channelName: z.string(),
+        provider: z.string(),
+        priority: z.number(),
+        models: z.array(z.string()),
+        sessionReuse: z.boolean(),
+      })
+    )
+    .optional(),
+});
+export const executionFailureSchema = z.object({
+  source: z.string(),
+  code: z.string(),
+  type: z.string(),
+  body: z.string().optional(),
+  bodyTruncated: z.boolean().optional(),
+});
+
 // Request Execution
 export const requestExecutionSchema = z.object({
   id: z.string(),
@@ -32,6 +61,9 @@ export const requestExecutionSchema = z.object({
   responseChunks: z.array(z.any()).nullable(), // [JSONRawMessage!]
   errorMessage: z.string().nullable(),
   responseStatusCode: z.number().nullable().optional(),
+  selection: executionSelectionSchema.nullable().optional(),
+  failure: executionFailureSchema.nullable().optional(),
+  retryDecision: z.string().nullable().optional(),
   status: requestExecutionStatusSchema,
   format: z.string().optional(),
   reasoningEffort: z.string().nullable().optional(),
@@ -87,6 +119,7 @@ export const requestSchema = z.object({
   responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
   routingDecision: requestRoutingDecisionSchema.nullable().optional(),
   status: requestStatusSchema,
+  clientStatusCode: z.number().nullable().optional(),
   format: z.string().optional(),
   clientIP: z.string().nullable().optional(),
   stream: z.boolean().nullable(),

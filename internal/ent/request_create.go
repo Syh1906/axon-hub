@@ -226,6 +226,20 @@ func (_c *RequestCreate) SetStatus(v request.Status) *RequestCreate {
 	return _c
 }
 
+// SetClientStatusCode sets the "client_status_code" field.
+func (_c *RequestCreate) SetClientStatusCode(v int) *RequestCreate {
+	_c.mutation.SetClientStatusCode(v)
+	return _c
+}
+
+// SetNillableClientStatusCode sets the "client_status_code" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableClientStatusCode(v *int) *RequestCreate {
+	if v != nil {
+		_c.SetClientStatusCode(*v)
+	}
+	return _c
+}
+
 // SetStream sets the "stream" field.
 func (_c *RequestCreate) SetStream(v bool) *RequestCreate {
 	_c.mutation.SetStream(v)
@@ -611,6 +625,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 		_spec.SetField(request.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.ClientStatusCode(); ok {
+		_spec.SetField(request.FieldClientStatusCode, field.TypeInt, value)
+		_node.ClientStatusCode = &value
+	}
 	if value, ok := _c.mutation.Stream(); ok {
 		_spec.SetField(request.FieldStream, field.TypeBool, value)
 		_node.Stream = value
@@ -945,6 +963,30 @@ func (u *RequestUpsert) SetStatus(v request.Status) *RequestUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *RequestUpsert) UpdateStatus() *RequestUpsert {
 	u.SetExcluded(request.FieldStatus)
+	return u
+}
+
+// SetClientStatusCode sets the "client_status_code" field.
+func (u *RequestUpsert) SetClientStatusCode(v int) *RequestUpsert {
+	u.Set(request.FieldClientStatusCode, v)
+	return u
+}
+
+// UpdateClientStatusCode sets the "client_status_code" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateClientStatusCode() *RequestUpsert {
+	u.SetExcluded(request.FieldClientStatusCode)
+	return u
+}
+
+// AddClientStatusCode adds v to the "client_status_code" field.
+func (u *RequestUpsert) AddClientStatusCode(v int) *RequestUpsert {
+	u.Add(request.FieldClientStatusCode, v)
+	return u
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (u *RequestUpsert) ClearClientStatusCode() *RequestUpsert {
+	u.SetNull(request.FieldClientStatusCode)
 	return u
 }
 
@@ -1321,6 +1363,34 @@ func (u *RequestUpsertOne) SetStatus(v request.Status) *RequestUpsertOne {
 func (u *RequestUpsertOne) UpdateStatus() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetClientStatusCode sets the "client_status_code" field.
+func (u *RequestUpsertOne) SetClientStatusCode(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetClientStatusCode(v)
+	})
+}
+
+// AddClientStatusCode adds v to the "client_status_code" field.
+func (u *RequestUpsertOne) AddClientStatusCode(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddClientStatusCode(v)
+	})
+}
+
+// UpdateClientStatusCode sets the "client_status_code" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateClientStatusCode() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateClientStatusCode()
+	})
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (u *RequestUpsertOne) ClearClientStatusCode() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearClientStatusCode()
 	})
 }
 
@@ -1887,6 +1957,34 @@ func (u *RequestUpsertBulk) SetStatus(v request.Status) *RequestUpsertBulk {
 func (u *RequestUpsertBulk) UpdateStatus() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetClientStatusCode sets the "client_status_code" field.
+func (u *RequestUpsertBulk) SetClientStatusCode(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetClientStatusCode(v)
+	})
+}
+
+// AddClientStatusCode adds v to the "client_status_code" field.
+func (u *RequestUpsertBulk) AddClientStatusCode(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddClientStatusCode(v)
+	})
+}
+
+// UpdateClientStatusCode sets the "client_status_code" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateClientStatusCode() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateClientStatusCode()
+	})
+}
+
+// ClearClientStatusCode clears the value of the "client_status_code" field.
+func (u *RequestUpsertBulk) ClearClientStatusCode() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearClientStatusCode()
 	})
 }
 

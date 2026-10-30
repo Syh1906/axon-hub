@@ -1246,5 +1246,8 @@
   "channels.upstream.billingLimit": "限额：{{value}}",
   "channels.upstream.billingUsed": "已用：{{value}}",
   "channels.upstream.billingUnknownPeriod": "无法确认限额与用量周期一致，未推算剩余额度。",
-  "channels.upstream.table.account": "账号归属"
+  "channels.upstream.table.account": "账号归属",
+  "channels.website.label": "官网地址（选填）",
+  "channels.website.description": "点击渠道名称时打开此地址，不影响 API 请求。留空时渠道名称不跳转。",
+  "channels.website.invalid": "请输入不含登录凭据的 HTTP 或 HTTPS 官网地址"
 }

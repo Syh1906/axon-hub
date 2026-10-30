@@ -1,39 +1,45 @@
 'use client';
 
-import { apiKeyOwnerLabel } from '@/components/api-key-identity';
-import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { IconArrowsExchange, IconArrowsJoin2, IconClockHour1, IconRoute } from '@tabler/icons-react';
-import { Ban, FileText } from 'lucide-react';
-import { zhCN, enUS } from 'date-fns/locale';
+import { IconArrowsExchange, IconClockHour1, IconRoute } from '@tabler/icons-react';
+import { Ban, FileText, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
-import { RequestIdCell, TokensCell, ReadCacheCell, WriteCacheCell, CostCell, DurationCell } from '@/components/request-usage-cells';
+import { TokensCell, CostCell } from '@/components/request-usage-cells';
 import { useGeneralSettings, useSecuritySettings, useUpdateSecuritySettings } from '@/features/system/data/system';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { Request } from '../data/schema';
-import { calculateTokensPerSecond, getTokensPerSecondValue } from '../utils/tokens-per-second';
-import { getStatusColor } from './help';
+import { useRequestLogTimezone } from '../data/requests';
+import {
+  RequestLogStatusCell,
+  RequestChannelCell,
+  RequestCacheCell,
+  RequestDurationCell,
+  requestProvider,
+  type RequestDiagnosticTab,
+} from './request-log-cells';
 
 interface UseRequestsColumnsOptions {
-  onBodyClick?: (requestId: string, index: number) => void;
+  onBodyClick?: (requestId: string, index: number, tab?: RequestDiagnosticTab) => void;
+  onCallerFilter?: (kind: 'key' | 'group', value: string) => void;
   onViewDetail?: (requestId: string) => void;
 }
 
-export const DEFAULT_HIDDEN_COLUMN_IDS = ['status', 'source', 'apiFormat', 'clientIP', 'tokensPerSecond', 'writeCache'];
+export const DEFAULT_HIDDEN_COLUMN_IDS = ['status', 'source', 'channelTag', 'apiKeyGroup', 'apiFormat', 'clientIP'];
 
 export const DEFAULT_MOBILE_HIDDEN_COLUMN_IDS = [
   ...DEFAULT_HIDDEN_COLUMN_IDS,
   'channel',
   'tokens',
-  'readCache',
-  'writeCache',
+  'cache',
+  'provider',
   'cost',
   'duration',
   'caller',
@@ -43,9 +49,9 @@ export const MODEL_ID_COLUMN = 'modelID' as const;
 
 export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnDef<Request>[] {
   const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
   const permissions = useRequestPermissions();
   const { hasSystemScope } = usePermissions();
+  const { data: timezone } = useRequestLogTimezone();
   const { data: settings } = useGeneralSettings();
   const { data: securitySettings } = useSecuritySettings();
   const updateSecuritySettings = useUpdateSecuritySettings();
@@ -95,7 +101,9 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.id')} />,
       enableSorting: true,
       enableHiding: false,
-      cell: ({ row }) => <RequestIdCell id={row.original.id} status={row.original.status} stream={!!row.original.stream} onClick={() => options?.onBodyClick?.(row.original.id, row.index)} />,
+      cell: ({ row }) => (
+        <RequestLogStatusCell request={row.original} onOpen={(tab) => options?.onBodyClick?.(row.original.id, row.index, tab)} />
+      ),
     },
     {
       id: 'status',
@@ -104,6 +112,14 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       filterFn: (row, id, value) => value.includes(row.getValue(id)),
       cell: () => null,
     },
+    {
+      id: 'channelTag',
+      accessorFn: (row: Request) => row.channel?.tags ?? [],
+      getUniqueValues: (row: Request) => row.channel?.tags ?? [],
+      enableHiding: false,
+      cell: () => null,
+    },
+    { id: 'apiKeyGroup', accessorFn: (row: Request) => String(row.apiKey?.groupRef ?? 0), enableHiding: false, cell: () => null },
     {
       id: 'modelID',
       accessorFn: (row) => row.modelID,
@@ -132,15 +148,25 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
             ? t('requests.tooltips.outboundProtocolMatching', { protocol: outboundFormat })
             : t('requests.tooltips.outboundProtocolConverted', { protocol: outboundFormat });
 
+        const copyModelID = async () => {
+          try {
+            await copyTextToClipboard(request.modelID);
+            toast.success(t('requests.actions.copied'));
+          } catch {
+            toast.error(t('requests.diagnostics.copyFailed'));
+          }
+        };
         const modelLabel =
           executionModelIds.length > 0 ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type='button'
-                  className='flex w-fit cursor-help items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
+                  onClick={copyModelID}
+                  aria-label={t('requests.diagnostics.copyModel', { model: request.modelID })}
+                  className='flex max-w-[180px] cursor-pointer items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
                 >
-                  <span>{originalModelId}</span>
+                  <span className='truncate'>{originalModelId}</span>
                   <IconRoute className='h-3.5 w-3.5 opacity-80' />
                 </button>
               </TooltipTrigger>
@@ -154,7 +180,15 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               </TooltipContent>
             </Tooltip>
           ) : (
-            <span className='font-mono text-xs font-medium'>{originalModelId}</span>
+            <button
+              type='button'
+              onClick={copyModelID}
+              className='flex max-w-[180px] items-center gap-1.5 text-left font-mono text-xs font-medium'
+              aria-label={t('requests.diagnostics.copyModel', { model: request.modelID })}
+            >
+              <span className='truncate'>{originalModelId}</span>
+              <Copy className='text-muted-foreground size-3 shrink-0' />
+            </button>
           );
 
         return (
@@ -198,7 +232,9 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     <IconRoute className='h-3.5 w-3.5' />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{t(passThroughApplied ? 'requests.tooltips.passThroughApplied' : 'requests.tooltips.passThroughNotApplied')}</TooltipContent>
+                <TooltipContent>
+                  {t(passThroughApplied ? 'requests.tooltips.passThroughApplied' : 'requests.tooltips.passThroughNotApplied')}
+                </TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -208,12 +244,16 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                     }`}
                     tabIndex={0}
                     role='img'
-                    aria-label={t(oneHourPromptCache ? 'requests.tooltips.oneHourPromptCacheApplied' : 'requests.tooltips.oneHourPromptCacheNotApplied')}
+                    aria-label={t(
+                      oneHourPromptCache ? 'requests.tooltips.oneHourPromptCacheApplied' : 'requests.tooltips.oneHourPromptCacheNotApplied'
+                    )}
                   >
                     <IconClockHour1 className='h-3.5 w-3.5' />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{t(oneHourPromptCache ? 'requests.tooltips.oneHourPromptCacheApplied' : 'requests.tooltips.oneHourPromptCacheNotApplied')}</TooltipContent>
+                <TooltipContent>
+                  {t(oneHourPromptCache ? 'requests.tooltips.oneHourPromptCacheApplied' : 'requests.tooltips.oneHourPromptCacheNotApplied')}
+                </TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -307,76 +347,28 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
             header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.channel')} />,
             enableSorting: false,
             enableHiding: true,
-            cell: ({ row }) => {
-              const request = row.original;
-              const executions = request.executions?.edges?.flatMap((edge) => (edge.node ? [edge.node] : [])) ?? [];
-              const finalExecution = executions[0];
-              const channel = finalExecution?.channel ?? request.channel;
-
-              if (!channel) return <span className='text-muted-foreground font-mono text-xs'>-</span>;
-
-              const hasMultipleChannels = executions.some((exe) => exe.channel?.id && exe.channel.id !== channel.id);
-
-              if (executions.length > 1 || hasMultipleChannels) {
-                const sortedExecutions = [...executions].sort((a, b) => {
-                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                  return dateB - dateA;
-                });
-
-                return (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type='button'
-                        className='flex w-fit cursor-help items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-800/50 dark:bg-rose-900/30 dark:text-rose-300 dark:hover:bg-rose-900/50'
-                      >
-                        <span>{channel.name}</span>
-                        <IconArrowsJoin2 className='h-3.5 w-3.5 opacity-80' />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side='right' className='border-rose-200 bg-white p-0 dark:bg-zinc-900'>
-                      <div className='flex min-w-[240px] flex-col'>
-                        <div className='flex flex-col gap-1 border-b bg-rose-50/50 p-3 dark:bg-rose-900/10'>
-                          <div className='flex items-center gap-2 text-xs font-bold tracking-wider text-rose-900 uppercase dark:text-rose-300'>
-                            <IconArrowsJoin2 className='h-3.5 w-3.5' />
-                            {t('requests.columns.retryProcess')}
-                          </div>
-                        </div>
-                        <div className='flex flex-col gap-1 p-2'>
-                          {sortedExecutions.map((exe, idx) => (
-                            <div
-                              key={exe.id || idx}
-                              className='hover:bg-muted/50 flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors'
-                            >
-                              <Badge className={`${getStatusColor(exe.status || '')} h-5 shrink-0 px-1.5 text-[10px] font-bold uppercase`}>
-                                {exe.status ? t(`requests.status.${exe.status}`) : t('requests.columns.unknown')}
-                              </Badge>
-                              <div className='flex min-w-0 flex-col'>
-                                <span className='text-foreground truncate text-xs font-semibold'>
-                                  {exe.channel?.name || t('requests.columns.unknown')}
-                                </span>
-                                {exe.createdAt && (
-                                  <span className='text-muted-foreground text-[10px]'>
-                                    {format(new Date(exe.createdAt), 'HH:mm:ss', { locale })}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              }
-
-              return <span className='font-mono text-xs'>{channel.name}</span>;
-            },
+            cell: ({ row }) => (
+              <RequestChannelCell request={row.original} onOpen={() => options?.onBodyClick?.(row.original.id, row.index, 'routing')} />
+            ),
             filterFn: (row, _id, value) => {
               if (value.length === 0) return true;
               const channel = row.original.executions?.edges?.[0]?.node?.channel ?? row.original.channel;
               return !!channel?.id && value.includes(channel.id);
+            },
+          },
+          {
+            id: 'provider',
+            accessorFn: requestProvider,
+            header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.provider')} />,
+            enableSorting: false,
+            enableHiding: true,
+            cell: ({ row }) => {
+              const provider = requestProvider(row.original);
+              return (
+                <span className='text-xs whitespace-nowrap'>
+                  {provider ? t(`channels.providers.${provider}`, { defaultValue: provider }) : '—'}
+                </span>
+              );
             },
           },
         ] as ColumnDef<Request>[])
@@ -390,7 +382,15 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.tokens')} />,
       cell: ({ row }) => {
         const log = row.original.usageLogs?.edges?.[0]?.node;
-        return log ? <TokensCell prompt={log.promptTokens || 0} completion={log.completionTokens || 0} reasoning={log.completionReasoningTokens || 0} /> : <div className='text-muted-foreground text-xs'>-</div>;
+        return log ? (
+          <TokensCell
+            prompt={log.promptTokens || 0}
+            completion={log.completionTokens || 0}
+            reasoning={log.completionReasoningTokens || 0}
+          />
+        ) : (
+          <div className='text-muted-foreground text-xs'>-</div>
+        );
       },
       enableSorting: true,
       enableHiding: true,
@@ -405,36 +405,12 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       },
     },
     {
-      id: 'readCache',
-      accessorFn: (row) => row.usageLogs?.edges?.[0]?.node?.promptCachedTokens || 0,
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.readCache')} />,
-      cell: ({ row }) => {
-        const log = row.original.usageLogs?.edges?.[0]?.node;
-        return log ? <ReadCacheCell cached={log.promptCachedTokens || 0} prompt={log.promptTokens || 0} /> : <div className='text-muted-foreground text-xs'>-</div>;
-      },
+      id: 'cache',
+      accessorFn: (row) => row.usageLogs?.edges?.[0]?.node?.promptCachedTokens ?? null,
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.cache')} />,
+      cell: ({ row }) => <RequestCacheCell request={row.original} />,
       enableSorting: true,
       enableHiding: true,
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.usageLogs?.edges?.[0]?.node?.promptCachedTokens || 0;
-        const b = rowB.original.usageLogs?.edges?.[0]?.node?.promptCachedTokens || 0;
-        return a - b;
-      },
-    },
-    {
-      id: 'writeCache',
-      accessorFn: (row) => row.usageLogs?.edges?.[0]?.node?.promptWriteCachedTokens || 0,
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.writeCache')} />,
-      cell: ({ row }) => {
-        const log = row.original.usageLogs?.edges?.[0]?.node;
-        return log ? <WriteCacheCell writeCached={log.promptWriteCachedTokens || 0} prompt={log.promptTokens || 0} /> : <div className='text-muted-foreground text-xs'>-</div>;
-      },
-      enableSorting: true,
-      enableHiding: true,
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.usageLogs?.edges?.[0]?.node?.promptWriteCachedTokens || 0;
-        const b = rowB.original.usageLogs?.edges?.[0]?.node?.promptWriteCachedTokens || 0;
-        return a - b;
-      },
     },
     {
       id: 'cost',
@@ -444,10 +420,30 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       enableHiding: true,
       cell: ({ row }) => {
         const log = row.original.usageLogs?.edges?.[0]?.node;
-        return <CostCell total={log?.totalCost ?? null} currencyCode={settings?.currencyCode ?? 'USD'} breakdown={log ? {
-          items: (log.costItems ?? []).map((item) => ({ image: item.image, imageRule: item.imageRule, unpriced: item.unpriced, itemCode: item.itemCode, variant: item.promptWriteCacheVariantCode ?? null, quantity: item.quantity, subtotal: item.subtotal, tiers: item.tierBreakdown ?? [] })),
-          multiplier: log.costPriceMultiplier ?? 'mixed',
-        } : null} emptyLabel='-' />;
+        return (
+          <CostCell
+            total={log?.totalCost ?? null}
+            currencyCode={settings?.currencyCode ?? 'USD'}
+            breakdown={
+              log
+                ? {
+                    items: (log.costItems ?? []).map((item) => ({
+                      image: item.image,
+                      imageRule: item.imageRule,
+                      unpriced: item.unpriced,
+                      itemCode: item.itemCode,
+                      variant: item.promptWriteCacheVariantCode ?? null,
+                      quantity: item.quantity,
+                      subtotal: item.subtotal,
+                      tiers: item.tierBreakdown ?? [],
+                    })),
+                    multiplier: log.costPriceMultiplier ?? 'mixed',
+                  }
+                : null
+            }
+            emptyLabel='-'
+          />
+        );
       },
     },
     {
@@ -456,17 +452,8 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.duration')} />,
       enableSorting: true,
       enableHiding: true,
-      cell: ({ row }) => <DurationCell status={row.original.status} stream={!!row.original.stream} latencyMs={row.original.metricsLatencyMs ?? null} firstTokenLatencyMs={row.original.metricsFirstTokenLatencyMs ?? null} />,
+      cell: ({ row }) => <RequestDurationCell request={row.original} />,
       sortingFn: (rowA, rowB) => (rowA.original.metricsLatencyMs ?? 0) - (rowB.original.metricsLatencyMs ?? 0),
-    },
-    {
-      id: 'tokensPerSecond',
-      accessorFn: (row) => getTokensPerSecondValue(row) ?? 0,
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.tokensPerSecond')} />,
-      enableSorting: true,
-      enableHiding: true,
-      cell: ({ row }) => <span className='font-mono text-xs'>{calculateTokensPerSecond(row.original)}</span>,
-      sortingFn: (rowA, rowB) => (getTokensPerSecondValue(rowA.original) ?? 0) - (getTokensPerSecondValue(rowB.original) ?? 0),
     },
     {
       id: 'caller',
@@ -480,12 +467,28 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
           return <Badge variant='secondary'>{t(`requests.source.${request.source}`)}</Badge>;
         }
 
-        const callerName = apiKeyOwnerLabel(request.apiKey ?? {});
-
         return (
           <div className='flex min-w-[120px] flex-col gap-0.5'>
-            <span className='font-mono text-xs'>{request.apiKey?.name || '-'}</span>
-            {callerName && <span className='text-muted-foreground text-xs'>{callerName}</span>}
+            {request.apiKey?.id ? (
+              <button
+                type='button'
+                className='text-primary max-w-[160px] truncate text-left text-xs hover:underline'
+                onClick={() => options?.onCallerFilter?.('key', request.apiKey!.id!)}
+              >
+                {request.apiKey.name}
+              </button>
+            ) : (
+              <span>—</span>
+            )}
+            {request.apiKey && (
+              <button
+                type='button'
+                className='text-muted-foreground max-w-[160px] truncate text-left text-xs hover:underline'
+                onClick={() => options?.onCallerFilter?.('group', String(request.apiKey?.groupRef ?? 0))}
+              >
+                {request.apiKey.groupName || t('requests.filters.ungrouped')}
+              </button>
+            )}
           </div>
         );
       },
@@ -498,7 +501,16 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       enableHiding: true,
       cell: ({ row }) => (
         <span className='text-xs whitespace-nowrap'>
-          {format(new Date(row.original.createdAt), 'yyyy-MM-dd HH:mm:ss', { locale })}
+          {timezone ? new Intl.DateTimeFormat(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-GB', {
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23',
+          }).format(new Date(row.original.createdAt)) : '—'}
         </span>
       ),
     },

@@ -99,6 +99,26 @@ func (_u *ChannelUpdate) ClearBaseURL() *ChannelUpdate {
 	return _u
 }
 
+// SetWebsiteURL sets the "website_url" field.
+func (_u *ChannelUpdate) SetWebsiteURL(v string) *ChannelUpdate {
+	_u.mutation.SetWebsiteURL(v)
+	return _u
+}
+
+// SetNillableWebsiteURL sets the "website_url" field if the given value is not nil.
+func (_u *ChannelUpdate) SetNillableWebsiteURL(v *string) *ChannelUpdate {
+	if v != nil {
+		_u.SetWebsiteURL(*v)
+	}
+	return _u
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (_u *ChannelUpdate) ClearWebsiteURL() *ChannelUpdate {
+	_u.mutation.ClearWebsiteURL()
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *ChannelUpdate) SetName(v string) *ChannelUpdate {
 	_u.mutation.SetName(v)
@@ -693,6 +713,11 @@ func (_u *ChannelUpdate) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Channel.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.WebsiteURL(); ok {
+		if err := channel.WebsiteURLValidator(v); err != nil {
+			return &ValidationError{Name: "website_url", err: fmt.Errorf(`ent: validator failed for field "Channel.website_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := channel.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Channel.status": %w`, err)}
@@ -736,6 +761,12 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.BaseURLCleared() {
 		_spec.ClearField(channel.FieldBaseURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.WebsiteURL(); ok {
+		_spec.SetField(channel.FieldWebsiteURL, field.TypeString, value)
+	}
+	if _u.mutation.WebsiteURLCleared() {
+		_spec.ClearField(channel.FieldWebsiteURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(channel.FieldName, field.TypeString, value)
@@ -1231,6 +1262,26 @@ func (_u *ChannelUpdateOne) SetNillableBaseURL(v *string) *ChannelUpdateOne {
 // ClearBaseURL clears the value of the "base_url" field.
 func (_u *ChannelUpdateOne) ClearBaseURL() *ChannelUpdateOne {
 	_u.mutation.ClearBaseURL()
+	return _u
+}
+
+// SetWebsiteURL sets the "website_url" field.
+func (_u *ChannelUpdateOne) SetWebsiteURL(v string) *ChannelUpdateOne {
+	_u.mutation.SetWebsiteURL(v)
+	return _u
+}
+
+// SetNillableWebsiteURL sets the "website_url" field if the given value is not nil.
+func (_u *ChannelUpdateOne) SetNillableWebsiteURL(v *string) *ChannelUpdateOne {
+	if v != nil {
+		_u.SetWebsiteURL(*v)
+	}
+	return _u
+}
+
+// ClearWebsiteURL clears the value of the "website_url" field.
+func (_u *ChannelUpdateOne) ClearWebsiteURL() *ChannelUpdateOne {
+	_u.mutation.ClearWebsiteURL()
 	return _u
 }
 
@@ -1841,6 +1892,11 @@ func (_u *ChannelUpdateOne) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Channel.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.WebsiteURL(); ok {
+		if err := channel.WebsiteURLValidator(v); err != nil {
+			return &ValidationError{Name: "website_url", err: fmt.Errorf(`ent: validator failed for field "Channel.website_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := channel.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Channel.status": %w`, err)}
@@ -1901,6 +1957,12 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	}
 	if _u.mutation.BaseURLCleared() {
 		_spec.ClearField(channel.FieldBaseURL, field.TypeString)
+	}
+	if value, ok := _u.mutation.WebsiteURL(); ok {
+		_spec.SetField(channel.FieldWebsiteURL, field.TypeString, value)
+	}
+	if _u.mutation.WebsiteURLCleared() {
+		_spec.ClearField(channel.FieldWebsiteURL, field.TypeString)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(channel.FieldName, field.TypeString, value)
