@@ -23,6 +23,7 @@ type BackupData struct {
 	Models             []*BackupModel             `json:"models"`
 	ChannelModelPrices []*BackupChannelModelPrice `json:"channel_model_prices,omitempty"`
 	APIKeys            []*BackupAPIKey            `json:"api_keys,omitempty"`
+	APIKeyGroups       []*BackupAPIKeyGroup       `json:"api_key_groups,omitempty"`
 	UsageRequests      []*BackupUsageRequest      `json:"usage_requests,omitempty"`
 	UsageLogs          []*BackupUsageLog          `json:"usage_logs,omitempty"`
 }
@@ -55,6 +56,13 @@ type BackupAPIKey struct {
 
 	ProjectName string `json:"project_name"`
 	GroupName   string `json:"group_name,omitempty"`
+}
+
+type BackupAPIKeyGroup struct {
+	ProjectName string `json:"project_name"`
+	Name        string `json:"name"`
+	Note        string `json:"note"`
+	Enabled     bool   `json:"enabled"`
 }
 
 type BackupChannelModelPrice struct {
@@ -207,7 +215,8 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 }
 
 const (
-	BackupVersion   = "1.5"
+	BackupVersion   = "1.6"
+	BackupVersionV6 = "1.5"
 	BackupVersionV5 = "1.4"
 	BackupVersionV4 = "1.3"
 	BackupVersionV1 = "1.0"

@@ -13,13 +13,13 @@ import (
 // name. guidID rejects wrong-typed GUIDs; GetForRead enforces exactly-one-of
 // and the read_api_keys / own-project privacy policy, so foreign or missing
 // keys surface as NotFound.
-func (r *Resolver) resolveAPIKey(ctx context.Context, id *objects.GUID, key *string, name *string) (*ent.APIKey, error) {
+func (r *Resolver) resolveAPIKey(ctx context.Context, id *objects.GUID, key *string, name *string, groupRefs ...*int) (*ent.APIKey, error) {
 	keyID, err := guidID(id, ent.TypeAPIKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.apiKeyService.GetForRead(ctx, keyID, key, name)
+	return r.apiKeyService.GetForRead(ctx, keyID, key, name, groupRefs...)
 }
 
 // resolveTemplate is the template counterpart of resolveAPIKey (id or name).

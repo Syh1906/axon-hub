@@ -61,6 +61,8 @@ func TestBudgetBackupRestoresBalancesAndDetachedHistory(t *testing.T) {
 			require.Len(t, snapshot.BudgetPostings, 2)
 			if detached {
 				require.Empty(t, snapshot.BudgetAccounts[0].ProjectName)
+				require.Len(t, snapshot.APIKeyGroups, 1)
+				require.Empty(t, snapshot.APIKeyGroups[0].ProjectName)
 			} else {
 				target := db.Project.Create().SetName("target-budget").SaveX(ctx)
 				snapshot.APIKeys[0].ProjectName = target.Name

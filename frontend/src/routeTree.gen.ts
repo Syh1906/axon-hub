@@ -55,6 +55,7 @@ import { Route as AuthenticatedProjectRolesIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedProjectRequestsIndexRouteImport } from './routes/_authenticated/project/requests/index'
 import { Route as AuthenticatedProjectPromptsIndexRouteImport } from './routes/_authenticated/project/prompts/index'
 import { Route as AuthenticatedProjectPlaygroundIndexRouteImport } from './routes/_authenticated/project/playground/index'
+import { Route as AuthenticatedProjectKeyGroupsIndexRouteImport } from './routes/_authenticated/project/key-groups/index'
 import { Route as AuthenticatedProjectApiKeysIndexRouteImport } from './routes/_authenticated/project/api-keys/index'
 import { Route as AuthenticatedProjectTracesTraceIdRouteImport } from './routes/_authenticated/project/traces/$traceId'
 import { Route as AuthenticatedProjectThreadsThreadIdRouteImport } from './routes/_authenticated/project/threads/$threadId'
@@ -318,6 +319,12 @@ const AuthenticatedProjectPlaygroundIndexRoute =
     path: '/project/playground/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProjectKeyGroupsIndexRoute =
+  AuthenticatedProjectKeyGroupsIndexRouteImport.update({
+    id: '/project/key-groups/',
+    path: '/project/key-groups/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectApiKeysIndexRoute =
   AuthenticatedProjectApiKeysIndexRouteImport.update({
     id: '/project/api-keys/',
@@ -385,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/project/threads/$threadId': typeof AuthenticatedProjectThreadsThreadIdRoute
   '/project/traces/$traceId': typeof AuthenticatedProjectTracesTraceIdRoute
   '/project/api-keys/': typeof AuthenticatedProjectApiKeysIndexRoute
+  '/project/key-groups/': typeof AuthenticatedProjectKeyGroupsIndexRoute
   '/project/playground/': typeof AuthenticatedProjectPlaygroundIndexRoute
   '/project/prompts/': typeof AuthenticatedProjectPromptsIndexRoute
   '/project/requests/': typeof AuthenticatedProjectRequestsIndexRoute
@@ -435,6 +443,7 @@ export interface FileRoutesByTo {
   '/project/threads/$threadId': typeof AuthenticatedProjectThreadsThreadIdRoute
   '/project/traces/$traceId': typeof AuthenticatedProjectTracesTraceIdRoute
   '/project/api-keys': typeof AuthenticatedProjectApiKeysIndexRoute
+  '/project/key-groups': typeof AuthenticatedProjectKeyGroupsIndexRoute
   '/project/playground': typeof AuthenticatedProjectPlaygroundIndexRoute
   '/project/prompts': typeof AuthenticatedProjectPromptsIndexRoute
   '/project/requests': typeof AuthenticatedProjectRequestsIndexRoute
@@ -488,6 +497,7 @@ export interface FileRoutesById {
   '/_authenticated/project/threads/$threadId': typeof AuthenticatedProjectThreadsThreadIdRoute
   '/_authenticated/project/traces/$traceId': typeof AuthenticatedProjectTracesTraceIdRoute
   '/_authenticated/project/api-keys/': typeof AuthenticatedProjectApiKeysIndexRoute
+  '/_authenticated/project/key-groups/': typeof AuthenticatedProjectKeyGroupsIndexRoute
   '/_authenticated/project/playground/': typeof AuthenticatedProjectPlaygroundIndexRoute
   '/_authenticated/project/prompts/': typeof AuthenticatedProjectPromptsIndexRoute
   '/_authenticated/project/requests/': typeof AuthenticatedProjectRequestsIndexRoute
@@ -541,6 +551,7 @@ export interface FileRouteTypes {
     | '/project/threads/$threadId'
     | '/project/traces/$traceId'
     | '/project/api-keys/'
+    | '/project/key-groups/'
     | '/project/playground/'
     | '/project/prompts/'
     | '/project/requests/'
@@ -591,6 +602,7 @@ export interface FileRouteTypes {
     | '/project/threads/$threadId'
     | '/project/traces/$traceId'
     | '/project/api-keys'
+    | '/project/key-groups'
     | '/project/playground'
     | '/project/prompts'
     | '/project/requests'
@@ -643,6 +655,7 @@ export interface FileRouteTypes {
     | '/_authenticated/project/threads/$threadId'
     | '/_authenticated/project/traces/$traceId'
     | '/_authenticated/project/api-keys/'
+    | '/_authenticated/project/key-groups/'
     | '/_authenticated/project/playground/'
     | '/_authenticated/project/prompts/'
     | '/_authenticated/project/requests/'
@@ -992,6 +1005,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectPlaygroundIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/project/key-groups/': {
+      id: '/_authenticated/project/key-groups/'
+      path: '/project/key-groups'
+      fullPath: '/project/key-groups/'
+      preLoaderRoute: typeof AuthenticatedProjectKeyGroupsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/project/api-keys/': {
       id: '/_authenticated/project/api-keys/'
       path: '/project/api-keys'
@@ -1072,6 +1092,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjectThreadsThreadIdRoute: typeof AuthenticatedProjectThreadsThreadIdRoute
   AuthenticatedProjectTracesTraceIdRoute: typeof AuthenticatedProjectTracesTraceIdRoute
   AuthenticatedProjectApiKeysIndexRoute: typeof AuthenticatedProjectApiKeysIndexRoute
+  AuthenticatedProjectKeyGroupsIndexRoute: typeof AuthenticatedProjectKeyGroupsIndexRoute
   AuthenticatedProjectPlaygroundIndexRoute: typeof AuthenticatedProjectPlaygroundIndexRoute
   AuthenticatedProjectPromptsIndexRoute: typeof AuthenticatedProjectPromptsIndexRoute
   AuthenticatedProjectRequestsIndexRoute: typeof AuthenticatedProjectRequestsIndexRoute
@@ -1113,6 +1134,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectTracesTraceIdRoute:
     AuthenticatedProjectTracesTraceIdRoute,
   AuthenticatedProjectApiKeysIndexRoute: AuthenticatedProjectApiKeysIndexRoute,
+  AuthenticatedProjectKeyGroupsIndexRoute:
+    AuthenticatedProjectKeyGroupsIndexRoute,
   AuthenticatedProjectPlaygroundIndexRoute:
     AuthenticatedProjectPlaygroundIndexRoute,
   AuthenticatedProjectPromptsIndexRoute: AuthenticatedProjectPromptsIndexRoute,

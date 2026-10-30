@@ -57,6 +57,48 @@ func (_c *APIKeyGroupCreate) SetName(v string) *APIKeyGroupCreate {
 	return _c
 }
 
+// SetNote sets the "note" field.
+func (_c *APIKeyGroupCreate) SetNote(v string) *APIKeyGroupCreate {
+	_c.mutation.SetNote(v)
+	return _c
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_c *APIKeyGroupCreate) SetNillableNote(v *string) *APIKeyGroupCreate {
+	if v != nil {
+		_c.SetNote(*v)
+	}
+	return _c
+}
+
+// SetEnabled sets the "enabled" field.
+func (_c *APIKeyGroupCreate) SetEnabled(v bool) *APIKeyGroupCreate {
+	_c.mutation.SetEnabled(v)
+	return _c
+}
+
+// SetNillableEnabled sets the "enabled" field if the given value is not nil.
+func (_c *APIKeyGroupCreate) SetNillableEnabled(v *bool) *APIKeyGroupCreate {
+	if v != nil {
+		_c.SetEnabled(*v)
+	}
+	return _c
+}
+
+// SetRevision sets the "revision" field.
+func (_c *APIKeyGroupCreate) SetRevision(v int) *APIKeyGroupCreate {
+	_c.mutation.SetRevision(v)
+	return _c
+}
+
+// SetNillableRevision sets the "revision" field if the given value is not nil.
+func (_c *APIKeyGroupCreate) SetNillableRevision(v *int) *APIKeyGroupCreate {
+	if v != nil {
+		_c.SetRevision(*v)
+	}
+	return _c
+}
+
 // SetProjectID sets the "project_id" field.
 func (_c *APIKeyGroupCreate) SetProjectID(v int) *APIKeyGroupCreate {
 	_c.mutation.SetProjectID(v)
@@ -119,6 +161,18 @@ func (_c *APIKeyGroupCreate) defaults() error {
 		v := apikeygroup.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Note(); !ok {
+		v := apikeygroup.DefaultNote
+		_c.mutation.SetNote(v)
+	}
+	if _, ok := _c.mutation.Enabled(); !ok {
+		v := apikeygroup.DefaultEnabled
+		_c.mutation.SetEnabled(v)
+	}
+	if _, ok := _c.mutation.Revision(); !ok {
+		v := apikeygroup.DefaultRevision
+		_c.mutation.SetRevision(v)
+	}
 	return nil
 }
 
@@ -131,6 +185,20 @@ func (_c *APIKeyGroupCreate) check() error {
 		if err := apikeygroup.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Note(); !ok {
+		return &ValidationError{Name: "note", err: errors.New(`ent: missing required field "APIKeyGroup.note"`)}
+	}
+	if v, ok := _c.mutation.Note(); ok {
+		if err := apikeygroup.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "APIKeyGroup.note": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Enabled(); !ok {
+		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "APIKeyGroup.enabled"`)}
+	}
+	if _, ok := _c.mutation.Revision(); !ok {
+		return &ValidationError{Name: "revision", err: errors.New(`ent: missing required field "APIKeyGroup.revision"`)}
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "APIKeyGroup.project_id"`)}
@@ -176,6 +244,18 @@ func (_c *APIKeyGroupCreate) createSpec() (*APIKeyGroup, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(apikeygroup.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.Note(); ok {
+		_spec.SetField(apikeygroup.FieldNote, field.TypeString, value)
+		_node.Note = value
+	}
+	if value, ok := _c.mutation.Enabled(); ok {
+		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
+		_node.Enabled = value
+	}
+	if value, ok := _c.mutation.Revision(); ok {
+		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
+		_node.Revision = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -270,6 +350,48 @@ func (u *APIKeyGroupUpsert) UpdateName() *APIKeyGroupUpsert {
 	return u
 }
 
+// SetNote sets the "note" field.
+func (u *APIKeyGroupUpsert) SetNote(v string) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldNote, v)
+	return u
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateNote() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldNote)
+	return u
+}
+
+// SetEnabled sets the "enabled" field.
+func (u *APIKeyGroupUpsert) SetEnabled(v bool) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldEnabled, v)
+	return u
+}
+
+// UpdateEnabled sets the "enabled" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateEnabled() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldEnabled)
+	return u
+}
+
+// SetRevision sets the "revision" field.
+func (u *APIKeyGroupUpsert) SetRevision(v int) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldRevision, v)
+	return u
+}
+
+// UpdateRevision sets the "revision" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateRevision() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldRevision)
+	return u
+}
+
+// AddRevision adds v to the "revision" field.
+func (u *APIKeyGroupUpsert) AddRevision(v int) *APIKeyGroupUpsert {
+	u.Add(apikeygroup.FieldRevision, v)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -343,6 +465,55 @@ func (u *APIKeyGroupUpsertOne) SetName(v string) *APIKeyGroupUpsertOne {
 func (u *APIKeyGroupUpsertOne) UpdateName() *APIKeyGroupUpsertOne {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetNote sets the "note" field.
+func (u *APIKeyGroupUpsertOne) SetNote(v string) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetNote(v)
+	})
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateNote() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateNote()
+	})
+}
+
+// SetEnabled sets the "enabled" field.
+func (u *APIKeyGroupUpsertOne) SetEnabled(v bool) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetEnabled(v)
+	})
+}
+
+// UpdateEnabled sets the "enabled" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateEnabled() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateEnabled()
+	})
+}
+
+// SetRevision sets the "revision" field.
+func (u *APIKeyGroupUpsertOne) SetRevision(v int) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetRevision(v)
+	})
+}
+
+// AddRevision adds v to the "revision" field.
+func (u *APIKeyGroupUpsertOne) AddRevision(v int) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.AddRevision(v)
+	})
+}
+
+// UpdateRevision sets the "revision" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateRevision() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateRevision()
 	})
 }
 
@@ -585,6 +756,55 @@ func (u *APIKeyGroupUpsertBulk) SetName(v string) *APIKeyGroupUpsertBulk {
 func (u *APIKeyGroupUpsertBulk) UpdateName() *APIKeyGroupUpsertBulk {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetNote sets the "note" field.
+func (u *APIKeyGroupUpsertBulk) SetNote(v string) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetNote(v)
+	})
+}
+
+// UpdateNote sets the "note" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateNote() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateNote()
+	})
+}
+
+// SetEnabled sets the "enabled" field.
+func (u *APIKeyGroupUpsertBulk) SetEnabled(v bool) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetEnabled(v)
+	})
+}
+
+// UpdateEnabled sets the "enabled" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateEnabled() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateEnabled()
+	})
+}
+
+// SetRevision sets the "revision" field.
+func (u *APIKeyGroupUpsertBulk) SetRevision(v int) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetRevision(v)
+	})
+}
+
+// AddRevision adds v to the "revision" field.
+func (u *APIKeyGroupUpsertBulk) AddRevision(v int) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.AddRevision(v)
+	})
+}
+
+// UpdateRevision sets the "revision" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateRevision() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateRevision()
 	})
 }
 

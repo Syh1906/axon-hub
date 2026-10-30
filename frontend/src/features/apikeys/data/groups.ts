@@ -36,6 +36,8 @@ export function useSaveKeyGroup() {
       await Promise.all(
         [
           'apiKeyGroups',
+          'managedKeyGroups',
+          'managedGroupKeys',
           'apiKeys',
           'apiKey',
           'consumption',
@@ -62,6 +64,9 @@ export function useDeleteKeyGroup() {
       await Promise.all(
         [
           'apiKeyGroups',
+          'managedKeyGroups',
+          'managedGroupKeys',
+          'managementMoveCandidates',
           'apiKeys',
           'apiKey',
           'consumption',

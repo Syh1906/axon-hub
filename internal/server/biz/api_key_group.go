@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -47,15 +50,25 @@ func (s *APIKeyService) SaveAPIKeyGroup(ctx context.Context, id *int, name strin
 	if name == "" || len([]rune(name)) > 128 {
 		return nil, fmt.Errorf("group name must contain 1 to 128 characters")
 	}
-	client := s.entFromContext(ctx)
-	if id == nil {
-		return client.APIKeyGroup.Create().SetProjectID(projectID).SetName(name).Save(ctx)
-	}
-	group, err := client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*id), apikeygroup.ProjectIDEQ(projectID)).Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return group.Update().SetName(name).Save(ctx)
+	var result *ent.APIKeyGroup
+	err = s.RunInTransaction(ctx, func(ctx context.Context) error {
+		if err := s.lockProjectForAPIKeyName(ctx, projectID); err != nil {
+			return err
+		}
+		client := s.entFromContext(ctx)
+		if id == nil {
+			var err error
+			result, err = client.APIKeyGroup.Create().SetProjectID(projectID).SetName(name).Save(ctx)
+			return err
+		}
+		group, err := client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*id), apikeygroup.ProjectIDEQ(projectID)).Only(ctx)
+		if err != nil {
+			return err
+		}
+		result, err = group.Update().SetName(name).AddRevision(1).Save(ctx)
+		return err
+	})
+	return result, err
 }
 
 func (s *APIKeyService) DeleteAPIKeyGroup(ctx context.Context, id int) error {
@@ -78,7 +91,19 @@ func (s *APIKeyService) DeleteAPIKeyGroup(ctx context.Context, id int) error {
 		if err != nil {
 			return err
 		}
-		if _, err := client.APIKey.Update().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefEQ(id)).ClearGroupRef().Save(ctx); err != nil {
+		// Group administration applies to every member, including personal keys
+		// hidden from the administrator's ordinary key list.
+		memberCtx := authz.WithSystemBypass(ctx, "delete-key-group-membership")
+		members, err := client.APIKey.Query().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefEQ(id)).Select(apikey.FieldName).All(memberCtx)
+		if err != nil {
+			return err
+		}
+		for _, member := range members {
+			if err := s.checkAPIKeyName(ctx, projectID, nil, member.Name, member.ID); err != nil {
+				return fmt.Errorf("cannot move group members to ungrouped: %w", err)
+			}
+		}
+		if _, err := client.APIKey.Update().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefEQ(id)).ClearGroupRef().Save(memberCtx); err != nil {
 			return err
 		}
 		return client.APIKeyGroup.DeleteOne(group).Exec(ctx)
@@ -97,6 +122,12 @@ func (s *APIKeyService) validateAPIKeyGroup(ctx context.Context, projectID int, 
 	if id == nil {
 		return nil
 	}
-	_, err := s.entFromContext(ctx).APIKeyGroup.Query().Where(apikeygroup.IDEQ(*id), apikeygroup.ProjectIDEQ(projectID)).Only(ctx)
+	client := s.entFromContext(ctx)
+	query := client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(*id), apikeygroup.ProjectIDEQ(projectID))
+	// 等待项目锁期间目标组可能已被删除，不能沿用旧事务快照。
+	if client.Driver().Dialect() != dialect.SQLite {
+		query.Unique(false).Modify(func(q *sql.Selector) { q.ForUpdate() })
+	}
+	_, err := query.Only(ctx)
 	return err
 }

@@ -12,6 +12,9 @@ type APIKey func(*sql.Selector)
 // APIKeyGroup is the predicate function for apikeygroup builders.
 type APIKeyGroup func(*sql.Selector)
 
+// APIKeyOperation is the predicate function for apikeyoperation builders.
+type APIKeyOperation func(*sql.Selector)
+
 // APIKeyProfileTemplate is the predicate function for apikeyprofiletemplate builders.
 type APIKeyProfileTemplate func(*sql.Selector)
 

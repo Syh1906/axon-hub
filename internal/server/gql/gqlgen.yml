@@ -25,6 +25,7 @@ schema:
   - analytics.graphql
   - consumption.graphql
   - api_key_group.graphql
+  - key_management.graphql
   - budget_types.graphql
   - budget.graphql
 
@@ -947,3 +948,31 @@ models:
   BudgetView:
     model:
       - github.com/looplj/axonhub/internal/server/biz.BudgetView
+
+  KeyBudgetPatch:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.KeyBudgetPatch
+
+  ManagedKeyInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ManagedKeyInput
+
+  KeyManagementRow:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.KeyManagementRow
+
+  KeyManagementResult:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.KeyManagementResult
+
+  ManagedKeyGroup:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ManagedKeyGroup
+
+  ManagedKeyGroups:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ManagedKeyGroups
+
+  ManagedKeyPage:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.ManagedKeyPage

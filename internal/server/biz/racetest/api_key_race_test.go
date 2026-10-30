@@ -90,6 +90,101 @@ func TestAPIKeyNameRace(t *testing.T) {
 	}
 }
 
+func TestAPIKeyGroupNameRace(t *testing.T) {
+	for _, d := range raceDialects {
+		dsn := os.Getenv(d.envVar)
+		if dsn == "" {
+			continue
+		}
+		t.Run(d.name, func(t *testing.T) {
+			client := db.NewEntClient(db.Config{Dialect: d.dialect, DSN: dsn})
+			defer client.Close()
+			svc := biz.NewAPIKeyService(biz.APIKeyServiceParams{Ent: client, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}, KeyPrefix: "ah"})
+			defer svc.Stop()
+			ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+			user := client.User.Create().SetEmail(uuid.NewString() + "@example.test").SetPassword("fixture").SetIsOwner(true).SaveX(ctx)
+			project := client.Project.Create().SetName("group-race-" + uuid.NewString()).SaveX(ctx)
+			ctx = contexts.WithProjectID(contexts.WithUser(ctx, user), project.ID)
+			groups := []*ent.APIKeyGroup{client.APIKeyGroup.Create().SetProjectID(project.ID).SetName("A").SaveX(ctx), client.APIKeyGroup.Create().SetProjectID(project.ID).SetName("B").SaveX(ctx)}
+			var wg sync.WaitGroup
+			start := make(chan struct{})
+			for i := 0; i < raceConcurrency; i++ {
+				wg.Add(1)
+				go func(index int) {
+					defer wg.Done()
+					defer func() {
+						if recovered := recover(); recovered != nil {
+							t.Errorf("分组并发测试发生 panic: %v", recovered)
+						}
+					}()
+					<-start
+					_, _ = svc.CreateAPIKey(ctx, ent.CreateAPIKeyInput{Name: "same", ProjectID: project.ID, GroupRef: &groups[index%2].ID})
+				}(i)
+			}
+			close(start)
+			wg.Wait()
+			for _, group := range groups {
+				count := client.APIKey.Query().Where(apikey.ProjectIDEQ(project.ID), apikey.GroupRefEQ(group.ID), apikey.NameEQ("same")).CountX(ctx)
+				require.LessOrEqual(t, count, 1, "concurrent writers must never create duplicates in a group")
+				if count == 0 { // SQLite contention may reject all attempts for one group.
+					_, err := svc.CreateAPIKey(ctx, ent.CreateAPIKeyInput{Name: "same", ProjectID: project.ID, GroupRef: &group.ID})
+					require.NoError(t, err)
+				}
+			}
+			require.Equal(t, 2, client.APIKey.Query().Where(apikey.ProjectIDEQ(project.ID), apikey.NameEQ("same")).CountX(ctx))
+		})
+	}
+}
+
+func TestAPIKeyGroupMoveRace(t *testing.T) {
+	for _, d := range raceDialects {
+		dsn := os.Getenv(d.envVar)
+		if dsn == "" {
+			continue
+		}
+		t.Run(d.name, func(t *testing.T) {
+			client := db.NewEntClient(db.Config{Dialect: d.dialect, DSN: dsn})
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			svc := biz.NewAPIKeyService(biz.APIKeyServiceParams{Ent: client, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}, KeyPrefix: "ah"})
+			t.Cleanup(svc.Stop)
+			ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+			owner := client.User.Create().SetEmail(uuid.NewString() + "@example.test").SetPassword("fixture").SetIsOwner(true).SaveX(ctx)
+			p := client.Project.Create().SetName("move-race-" + uuid.NewString()).SaveX(ctx)
+			ctx = contexts.WithProjectID(contexts.WithUser(ctx, owner), p.ID)
+			target := client.APIKeyGroup.Create().SetProjectID(p.ID).SetName("target").SaveX(ctx)
+			keys := make([]*ent.APIKey, raceConcurrency)
+			for i := range keys {
+				group := client.APIKeyGroup.Create().SetProjectID(p.ID).SetName(fmt.Sprintf("source-%d", i)).SaveX(ctx)
+				keys[i] = client.APIKey.Create().SetProjectID(p.ID).SetUserID(owner.ID).SetName("same").SetKey(uuid.NewString()).SetGroupRef(group.ID).SaveX(ctx)
+			}
+			var wg sync.WaitGroup
+			start := make(chan struct{})
+			for _, key := range keys {
+				wg.Add(1)
+				go func(id int) {
+					defer wg.Done()
+					defer func() {
+						if recovered := recover(); recovered != nil {
+							t.Errorf("并发移组发生 panic: %v", recovered)
+						}
+					}()
+					<-start
+					_, _ = svc.UpdateAPIKey(ctx, id, ent.UpdateAPIKeyInput{GroupRef: &target.ID})
+				}(key.ID)
+			}
+			close(start)
+			wg.Wait()
+			count := client.APIKey.Query().Where(apikey.ProjectIDEQ(p.ID), apikey.GroupRefEQ(target.ID), apikey.NameEQ("same")).CountX(ctx)
+			require.LessOrEqual(t, count, 1, "并发移入同一组不能留下同名密钥")
+			if count == 0 {
+				_, err := svc.UpdateAPIKey(ctx, keys[0].ID, ent.UpdateAPIKeyInput{GroupRef: &target.ID})
+				require.NoError(t, err)
+			}
+			require.Equal(t, 1, client.APIKey.Query().Where(apikey.GroupRefEQ(target.ID)).CountX(ctx))
+		})
+	}
+}
+
 func runAPIKeyNameRace(t *testing.T, dialect, dsn string) {
 	t.Helper()
 

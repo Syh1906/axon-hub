@@ -88,6 +88,9 @@ func (svc *BackupService) writeBackupToWriter(ctx context.Context, opts BackupOp
 	if err := svc.streamChannelModelPrices(ctx, o, opts); err != nil {
 		return err
 	}
+	if err := svc.streamAPIKeyGroups(ctx, o, opts); err != nil {
+		return err
+	}
 	if err := svc.streamAPIKeys(ctx, o, opts); err != nil {
 		return err
 	}

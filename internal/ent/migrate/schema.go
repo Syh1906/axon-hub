@@ -73,6 +73,9 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "note", Type: field.TypeString, Size: 1024, Default: ""},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "revision", Type: field.TypeInt, Default: 0},
 		{Name: "project_id", Type: field.TypeInt},
 	}
 	// APIKeyGroupsTable holds the schema information for the "api_key_groups" table.
@@ -83,7 +86,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_key_groups_projects_api_key_groups",
-				Columns:    []*schema.Column{APIKeyGroupsColumns[4]},
+				Columns:    []*schema.Column{APIKeyGroupsColumns[7]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -92,7 +95,33 @@ var (
 			{
 				Name:    "api_key_groups_by_project_name",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeyGroupsColumns[4], APIKeyGroupsColumns[3]},
+				Columns: []*schema.Column{APIKeyGroupsColumns[7], APIKeyGroupsColumns[3]},
+			},
+		},
+	}
+	// APIKeyOperationsColumns holds the columns for the "api_key_operations" table.
+	APIKeyOperationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "actor_id", Type: field.TypeInt},
+		{Name: "operation_id", Type: field.TypeString, Size: 64},
+		{Name: "row_id", Type: field.TypeString, Size: 64},
+		{Name: "digest", Type: field.TypeString, Size: 64},
+		{Name: "group_id", Type: field.TypeInt, Default: 0},
+		{Name: "key_ids", Type: field.TypeJSON},
+	}
+	// APIKeyOperationsTable holds the schema information for the "api_key_operations" table.
+	APIKeyOperationsTable = &schema.Table{
+		Name:       "api_key_operations",
+		Columns:    APIKeyOperationsColumns,
+		PrimaryKey: []*schema.Column{APIKeyOperationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "api_key_operations_by_submission",
+				Unique:  true,
+				Columns: []*schema.Column{APIKeyOperationsColumns[3], APIKeyOperationsColumns[4], APIKeyOperationsColumns[5], APIKeyOperationsColumns[6]},
 			},
 		},
 	}
@@ -1298,6 +1327,7 @@ var (
 	Tables = []*schema.Table{
 		APIKeysTable,
 		APIKeyGroupsTable,
+		APIKeyOperationsTable,
 		APIKeyProfileTemplatesTable,
 		BudgetAccountsTable,
 		BudgetChangesTable,

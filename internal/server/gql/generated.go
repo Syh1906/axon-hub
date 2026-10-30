@@ -1130,6 +1130,36 @@ type ComplexityRoot struct {
 		User    func(childComplexity int) int
 	}
 
+	KeyManagementResult struct {
+		Error   func(childComplexity int) int
+		GroupID func(childComplexity int) int
+		KeyIDs  func(childComplexity int) int
+		RowID   func(childComplexity int) int
+		Success func(childComplexity int) int
+	}
+
+	ManagedKeyGroup struct {
+		Budget    func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Enabled   func(childComplexity int) int
+		ID        func(childComplexity int) int
+		KeyCount  func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Note      func(childComplexity int) int
+		Revision  func(childComplexity int) int
+	}
+
+	ManagedKeyGroups struct {
+		Items          func(childComplexity int) int
+		Total          func(childComplexity int) int
+		UngroupedCount func(childComplexity int) int
+	}
+
+	ManagedKeyPage struct {
+		Items func(childComplexity int) int
+		Total func(childComplexity int) int
+	}
+
 	Model struct {
 		AssociatedChannelCount func(childComplexity int) int
 		CreatedAt              func(childComplexity int) int
@@ -1296,6 +1326,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddUserToProject                      func(childComplexity int, input AddUserToProjectInput) int
 		ApplyChannelOverrideTemplate          func(childComplexity int, input ApplyChannelOverrideTemplateInput) int
+		ApplyKeyManagement                    func(childComplexity int, operationID string, rows []*biz.KeyManagementRow) int
 		ArchiveThread                         func(childComplexity int, id objects.GUID) int
 		ArchiveTrace                          func(childComplexity int, id objects.GUID) int
 		Backup                                func(childComplexity int, input backup.BackupOptions) int
@@ -1358,6 +1389,7 @@ type ComplexityRoot struct {
 		EnableChannelAPIKey                   func(childComplexity int, channelID objects.GUID, key string) int
 		EnableSelectedChannelAPIKeys          func(childComplexity int, channelID objects.GUID, keys []string) int
 		LoadAPIKeyProfileTemplate             func(childComplexity int, input LoadAPIKeyProfileTemplateInput) int
+		PreviewKeyManagement                  func(childComplexity int, rows []*biz.KeyManagementRow) int
 		PreviewPromptProtectionRule           func(childComplexity int, input PromptProtectionRulePreviewInput) int
 		ProbeChannelAddress                   func(childComplexity int, url string, channelID *objects.GUID) int
 		RefreshChannelUpstreams               func(childComplexity int, channelIds []*objects.GUID, force bool, includeDisabled bool, keyRef string) int
@@ -1761,6 +1793,9 @@ type ComplexityRoot struct {
 		FastestModels                   func(childComplexity int, input FastestChannelsInput) int
 		FetchModels                     func(childComplexity int, input biz.FetchModelsInput) int
 		GetCacheDiagnostics             func(childComplexity int, input *GetCacheDiagnosticsInput) int
+		KeyManagementResults            func(childComplexity int, operationID string) int
+		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
+		ManagedKeyGroups                func(childComplexity int, search string, status string, offset int, limit int, descending bool) int
 		Me                              func(childComplexity int) int
 		ModelPerformanceStats           func(childComplexity int) int
 		Models                          func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ModelOrder, where *ent.ModelWhereInput) int
@@ -2821,6 +2856,8 @@ type MutationResolver interface {
 	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal) ([]*ent.ChannelModelPrice, error)
 	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
 	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
+	PreviewKeyManagement(ctx context.Context, rows []*biz.KeyManagementRow) ([]*biz.KeyManagementResult, error)
+	ApplyKeyManagement(ctx context.Context, operationID string, rows []*biz.KeyManagementRow) ([]*biz.KeyManagementResult, error)
 	SaveAPIKeyBudget(ctx context.Context, kind string, ownerID int, input biz.BudgetSettingsInput) (*biz.BudgetView, error)
 	ResetAPIKeyBudget(ctx context.Context, kind string, ownerID int, input biz.BudgetResetInput) (*biz.BudgetView, error)
 }
@@ -2944,6 +2981,9 @@ type QueryResolver interface {
 	ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error)
 	APIKeyGroupOptions(ctx context.Context) ([]*APIKeyGroupOption, error)
+	ManagedKeyGroups(ctx context.Context, search string, status string, offset int, limit int, descending bool) (*biz.ManagedKeyGroups, error)
+	ManagedGroupKeys(ctx context.Context, groupRef int, offset int, limit int) (*biz.ManagedKeyPage, error)
+	KeyManagementResults(ctx context.Context, operationID string) ([]*biz.KeyManagementResult, error)
 	PreviewAPIKeyBudgetReset(ctx context.Context, kind string, ownerID int, input biz.BudgetResetInput) (*biz.BudgetView, error)
 	APIKeyBudget(ctx context.Context, kind string, ownerID int) (*biz.BudgetView, error)
 }
@@ -7030,6 +7070,118 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
+	case "KeyManagementResult.error":
+		if e.complexity.KeyManagementResult.Error == nil {
+			break
+		}
+
+		return e.complexity.KeyManagementResult.Error(childComplexity), true
+	case "KeyManagementResult.groupID":
+		if e.complexity.KeyManagementResult.GroupID == nil {
+			break
+		}
+
+		return e.complexity.KeyManagementResult.GroupID(childComplexity), true
+	case "KeyManagementResult.keyIDs":
+		if e.complexity.KeyManagementResult.KeyIDs == nil {
+			break
+		}
+
+		return e.complexity.KeyManagementResult.KeyIDs(childComplexity), true
+	case "KeyManagementResult.rowID":
+		if e.complexity.KeyManagementResult.RowID == nil {
+			break
+		}
+
+		return e.complexity.KeyManagementResult.RowID(childComplexity), true
+	case "KeyManagementResult.success":
+		if e.complexity.KeyManagementResult.Success == nil {
+			break
+		}
+
+		return e.complexity.KeyManagementResult.Success(childComplexity), true
+
+	case "ManagedKeyGroup.budget":
+		if e.complexity.ManagedKeyGroup.Budget == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.Budget(childComplexity), true
+	case "ManagedKeyGroup.createdAt":
+		if e.complexity.ManagedKeyGroup.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.CreatedAt(childComplexity), true
+	case "ManagedKeyGroup.enabled":
+		if e.complexity.ManagedKeyGroup.Enabled == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.Enabled(childComplexity), true
+	case "ManagedKeyGroup.id":
+		if e.complexity.ManagedKeyGroup.ID == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.ID(childComplexity), true
+	case "ManagedKeyGroup.keyCount":
+		if e.complexity.ManagedKeyGroup.KeyCount == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.KeyCount(childComplexity), true
+	case "ManagedKeyGroup.name":
+		if e.complexity.ManagedKeyGroup.Name == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.Name(childComplexity), true
+	case "ManagedKeyGroup.note":
+		if e.complexity.ManagedKeyGroup.Note == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.Note(childComplexity), true
+	case "ManagedKeyGroup.revision":
+		if e.complexity.ManagedKeyGroup.Revision == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.Revision(childComplexity), true
+
+	case "ManagedKeyGroups.items":
+		if e.complexity.ManagedKeyGroups.Items == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroups.Items(childComplexity), true
+	case "ManagedKeyGroups.total":
+		if e.complexity.ManagedKeyGroups.Total == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroups.Total(childComplexity), true
+	case "ManagedKeyGroups.ungroupedCount":
+		if e.complexity.ManagedKeyGroups.UngroupedCount == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroups.UngroupedCount(childComplexity), true
+
+	case "ManagedKeyPage.items":
+		if e.complexity.ManagedKeyPage.Items == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyPage.Items(childComplexity), true
+	case "ManagedKeyPage.total":
+		if e.complexity.ManagedKeyPage.Total == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyPage.Total(childComplexity), true
+
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
 			break
@@ -7639,6 +7791,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ApplyChannelOverrideTemplate(childComplexity, args["input"].(ApplyChannelOverrideTemplateInput)), true
+	case "Mutation.applyKeyManagement":
+		if e.complexity.Mutation.ApplyKeyManagement == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_applyKeyManagement_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ApplyKeyManagement(childComplexity, args["operationID"].(string), args["rows"].([]*biz.KeyManagementRow)), true
 	case "Mutation.archiveThread":
 		if e.complexity.Mutation.ArchiveThread == nil {
 			break
@@ -8316,6 +8479,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LoadAPIKeyProfileTemplate(childComplexity, args["input"].(LoadAPIKeyProfileTemplateInput)), true
+	case "Mutation.previewKeyManagement":
+		if e.complexity.Mutation.PreviewKeyManagement == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_previewKeyManagement_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PreviewKeyManagement(childComplexity, args["rows"].([]*biz.KeyManagementRow)), true
 	case "Mutation.previewPromptProtectionRule":
 		if e.complexity.Mutation.PreviewPromptProtectionRule == nil {
 			break
@@ -10614,6 +10788,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetCacheDiagnostics(childComplexity, args["input"].(*GetCacheDiagnosticsInput)), true
+	case "Query.keyManagementResults":
+		if e.complexity.Query.KeyManagementResults == nil {
+			break
+		}
+
+		args, err := ec.field_Query_keyManagementResults_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.KeyManagementResults(childComplexity, args["operationID"].(string)), true
+	case "Query.managedGroupKeys":
+		if e.complexity.Query.ManagedGroupKeys == nil {
+			break
+		}
+
+		args, err := ec.field_Query_managedGroupKeys_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ManagedGroupKeys(childComplexity, args["groupRef"].(int), args["offset"].(int), args["limit"].(int)), true
+	case "Query.managedKeyGroups":
+		if e.complexity.Query.ManagedKeyGroups == nil {
+			break
+		}
+
+		args, err := ec.field_Query_managedKeyGroups_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ManagedKeyGroups(childComplexity, args["search"].(string), args["status"].(string), args["offset"].(int), args["limit"].(int), args["descending"].(bool)), true
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
 			break
@@ -14324,7 +14531,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputImagePriceRuleInput,
 		ec.unmarshalInputImagePricingInput,
 		ec.unmarshalInputInitializeSystemInput,
+		ec.unmarshalInputKeyBudgetPatch,
+		ec.unmarshalInputKeyManagementRow,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
+		ec.unmarshalInputManagedKeyInput,
 		ec.unmarshalInputModelAssociationInput,
 		ec.unmarshalInputModelAssociationWhenInput,
 		ec.unmarshalInputModelCardInput,
@@ -14549,7 +14759,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -14584,6 +14794,7 @@ var sources = []*ast.Source{
 	{Name: "analytics.graphql", Input: sourceData("analytics.graphql"), BuiltIn: false},
 	{Name: "consumption.graphql", Input: sourceData("consumption.graphql"), BuiltIn: false},
 	{Name: "api_key_group.graphql", Input: sourceData("api_key_group.graphql"), BuiltIn: false},
+	{Name: "key_management.graphql", Input: sourceData("key_management.graphql"), BuiltIn: false},
 	{Name: "budget_types.graphql", Input: sourceData("budget_types.graphql"), BuiltIn: false},
 	{Name: "budget.graphql", Input: sourceData("budget.graphql"), BuiltIn: false},
 }
@@ -14828,6 +15039,22 @@ func (ec *executionContext) field_Mutation_applyChannelOverrideTemplate_args(ctx
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_applyKeyManagement_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "operationID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["operationID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "rows", ec.unmarshalNKeyManagementRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRowᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["rows"] = arg1
 	return args, nil
 }
 
@@ -15534,6 +15761,17 @@ func (ec *executionContext) field_Mutation_loadApiKeyProfileTemplate_args(ctx co
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_previewKeyManagement_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "rows", ec.unmarshalNKeyManagementRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRowᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["rows"] = arg0
 	return args, nil
 }
 
@@ -17392,6 +17630,69 @@ func (ec *executionContext) field_Query_getCacheDiagnostics_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_keyManagementResults_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "operationID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["operationID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_managedGroupKeys_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupRef", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["groupRef"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_managedKeyGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "search", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["status"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "descending", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["descending"] = arg4
 	return args, nil
 }
 
@@ -39007,6 +39308,606 @@ func (ec *executionContext) fieldContext_InitializeSystemPayload_token(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _KeyManagementResult_rowID(ctx context.Context, field graphql.CollectedField, obj *biz.KeyManagementResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyManagementResult_rowID,
+		func(ctx context.Context) (any, error) {
+			return obj.RowID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyManagementResult_rowID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyManagementResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyManagementResult_success(ctx context.Context, field graphql.CollectedField, obj *biz.KeyManagementResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyManagementResult_success,
+		func(ctx context.Context) (any, error) {
+			return obj.Success, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyManagementResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyManagementResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyManagementResult_error(ctx context.Context, field graphql.CollectedField, obj *biz.KeyManagementResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyManagementResult_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyManagementResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyManagementResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyManagementResult_groupID(ctx context.Context, field graphql.CollectedField, obj *biz.KeyManagementResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyManagementResult_groupID,
+		func(ctx context.Context) (any, error) {
+			return obj.GroupID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyManagementResult_groupID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyManagementResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KeyManagementResult_keyIDs(ctx context.Context, field graphql.CollectedField, obj *biz.KeyManagementResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KeyManagementResult_keyIDs,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyIDs, nil
+		},
+		nil,
+		ec.marshalNInt2ᚕintᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KeyManagementResult_keyIDs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KeyManagementResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_id(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_name(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_note(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_note,
+		func(ctx context.Context) (any, error) {
+			return obj.Note, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_enabled(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_revision(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_keyCount(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_keyCount,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_keyCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_createdAt(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroup_budget(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_budget,
+		func(ctx context.Context) (any, error) {
+			return obj.Budget, nil
+		},
+		nil,
+		ec.marshalNBudgetView2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_budget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ownerKind":
+				return ec.fieldContext_BudgetView_ownerKind(ctx, field)
+			case "ownerID":
+				return ec.fieldContext_BudgetView_ownerID(ctx, field)
+			case "revision":
+				return ec.fieldContext_BudgetView_revision(ctx, field)
+			case "timezone":
+				return ec.fieldContext_BudgetView_timezone(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_BudgetView_expiresAt(ctx, field)
+			case "accountingStartedAt":
+				return ec.fieldContext_BudgetView_accountingStartedAt(ctx, field)
+			case "serverTime":
+				return ec.fieldContext_BudgetView_serverTime(ctx, field)
+			case "hasLimits":
+				return ec.fieldContext_BudgetView_hasLimits(ctx, field)
+			case "expired":
+				return ec.fieldContext_BudgetView_expired(ctx, field)
+			case "windows":
+				return ec.fieldContext_BudgetView_windows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BudgetView", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroups_items(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroups_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNManagedKeyGroup2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroupᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroups_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ManagedKeyGroup_id(ctx, field)
+			case "name":
+				return ec.fieldContext_ManagedKeyGroup_name(ctx, field)
+			case "note":
+				return ec.fieldContext_ManagedKeyGroup_note(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ManagedKeyGroup_enabled(ctx, field)
+			case "revision":
+				return ec.fieldContext_ManagedKeyGroup_revision(ctx, field)
+			case "keyCount":
+				return ec.fieldContext_ManagedKeyGroup_keyCount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ManagedKeyGroup_createdAt(ctx, field)
+			case "budget":
+				return ec.fieldContext_ManagedKeyGroup_budget(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ManagedKeyGroup", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroups_total(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroups_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroups_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroups_ungroupedCount(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroups_ungroupedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UngroupedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroups_ungroupedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyPage_items(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyPage_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNAPIKey2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKeyᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyPage_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_APIKey_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_APIKey_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "groupRef":
+				return ec.fieldContext_APIKey_groupRef(ctx, field)
+			case "userID":
+				return ec.fieldContext_APIKey_userID(ctx, field)
+			case "projectID":
+				return ec.fieldContext_APIKey_projectID(ctx, field)
+			case "key":
+				return ec.fieldContext_APIKey_key(ctx, field)
+			case "name":
+				return ec.fieldContext_APIKey_name(ctx, field)
+			case "type":
+				return ec.fieldContext_APIKey_type(ctx, field)
+			case "status":
+				return ec.fieldContext_APIKey_status(ctx, field)
+			case "scopes":
+				return ec.fieldContext_APIKey_scopes(ctx, field)
+			case "profiles":
+				return ec.fieldContext_APIKey_profiles(ctx, field)
+			case "allowedIps":
+				return ec.fieldContext_APIKey_allowedIps(ctx, field)
+			case "user":
+				return ec.fieldContext_APIKey_user(ctx, field)
+			case "project":
+				return ec.fieldContext_APIKey_project(ctx, field)
+			case "requests":
+				return ec.fieldContext_APIKey_requests(ctx, field)
+			case "groupName":
+				return ec.fieldContext_APIKey_groupName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_APIKey_displayName(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyPage_total(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyPage_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyPage_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Model_id(ctx context.Context, field graphql.CollectedField, obj *ent.Model) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -49514,6 +50415,112 @@ func (ec *executionContext) fieldContext_Mutation_deleteAPIKeyGroup(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_previewKeyManagement(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_previewKeyManagement,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().PreviewKeyManagement(ctx, fc.Args["rows"].([]*biz.KeyManagementRow))
+		},
+		nil,
+		ec.marshalNKeyManagementResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_previewKeyManagement(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "rowID":
+				return ec.fieldContext_KeyManagementResult_rowID(ctx, field)
+			case "success":
+				return ec.fieldContext_KeyManagementResult_success(ctx, field)
+			case "error":
+				return ec.fieldContext_KeyManagementResult_error(ctx, field)
+			case "groupID":
+				return ec.fieldContext_KeyManagementResult_groupID(ctx, field)
+			case "keyIDs":
+				return ec.fieldContext_KeyManagementResult_keyIDs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyManagementResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_previewKeyManagement_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_applyKeyManagement(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_applyKeyManagement,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ApplyKeyManagement(ctx, fc.Args["operationID"].(string), fc.Args["rows"].([]*biz.KeyManagementRow))
+		},
+		nil,
+		ec.marshalNKeyManagementResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_applyKeyManagement(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "rowID":
+				return ec.fieldContext_KeyManagementResult_rowID(ctx, field)
+			case "success":
+				return ec.fieldContext_KeyManagementResult_success(ctx, field)
+			case "error":
+				return ec.fieldContext_KeyManagementResult_error(ctx, field)
+			case "groupID":
+				return ec.fieldContext_KeyManagementResult_groupID(ctx, field)
+			case "keyIDs":
+				return ec.fieldContext_KeyManagementResult_keyIDs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyManagementResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_applyKeyManagement_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_saveAPIKeyBudget(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -59373,6 +60380,155 @@ func (ec *executionContext) fieldContext_Query_apiKeyGroupOptions(_ context.Cont
 			}
 			return nil, fmt.Errorf("no field named %q was found under type APIKeyGroupOption", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_managedKeyGroups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_managedKeyGroups,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ManagedKeyGroups(ctx, fc.Args["search"].(string), fc.Args["status"].(string), fc.Args["offset"].(int), fc.Args["limit"].(int), fc.Args["descending"].(bool))
+		},
+		nil,
+		ec.marshalNManagedKeyGroups2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroups,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_managedKeyGroups(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "items":
+				return ec.fieldContext_ManagedKeyGroups_items(ctx, field)
+			case "total":
+				return ec.fieldContext_ManagedKeyGroups_total(ctx, field)
+			case "ungroupedCount":
+				return ec.fieldContext_ManagedKeyGroups_ungroupedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ManagedKeyGroups", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_managedKeyGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_managedGroupKeys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_managedGroupKeys,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ManagedGroupKeys(ctx, fc.Args["groupRef"].(int), fc.Args["offset"].(int), fc.Args["limit"].(int))
+		},
+		nil,
+		ec.marshalNManagedKeyPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyPage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_managedGroupKeys(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "items":
+				return ec.fieldContext_ManagedKeyPage_items(ctx, field)
+			case "total":
+				return ec.fieldContext_ManagedKeyPage_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ManagedKeyPage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_managedGroupKeys_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_keyManagementResults(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_keyManagementResults,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().KeyManagementResults(ctx, fc.Args["operationID"].(string))
+		},
+		nil,
+		ec.marshalNKeyManagementResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_keyManagementResults(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "rowID":
+				return ec.fieldContext_KeyManagementResult_rowID(ctx, field)
+			case "success":
+				return ec.fieldContext_KeyManagementResult_success(ctx, field)
+			case "error":
+				return ec.fieldContext_KeyManagementResult_error(ctx, field)
+			case "groupID":
+				return ec.fieldContext_KeyManagementResult_groupID(ctx, field)
+			case "keyIDs":
+				return ec.fieldContext_KeyManagementResult_keyIDs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyManagementResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_keyManagementResults_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -87639,6 +88795,187 @@ func (ec *executionContext) unmarshalInputInitializeSystemInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputKeyBudgetPatch(ctx context.Context, obj any) (biz.KeyBudgetPatch, error) {
+	var it biz.KeyBudgetPatch
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["setExpiry"]; !present {
+		asMap["setExpiry"] = false
+	}
+
+	fieldsInOrder := [...]string{"rules", "timezone", "setExpiry", "expiresAt", "revision"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "rules":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rules"))
+			data, err := ec.unmarshalOBudgetRuleInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Rules = data
+		case "timezone":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timezone"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timezone = data
+		case "setExpiry":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setExpiry"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetExpiry = data
+		case "expiresAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expiresAt"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpiresAt = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, obj any) (biz.KeyManagementRow, error) {
+	var it biz.KeyManagementRow
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["setAllowedIPs"]; !present {
+		asMap["setAllowedIPs"] = false
+	}
+
+	fieldsInOrder := [...]string{"rowID", "action", "targetID", "groupRef", "name", "note", "enabled", "revision", "budget", "updatedAt", "keys", "templateID", "allowedIPs", "setAllowedIPs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "rowID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rowID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RowID = data
+		case "action":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("action"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Action = data
+		case "targetID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetID"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetID = data
+		case "groupRef":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupRef"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupRef = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "note":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("note"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Note = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		case "budget":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("budget"))
+			data, err := ec.unmarshalOKeyBudgetPatch2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyBudgetPatch(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Budget = data
+		case "updatedAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAt"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UpdatedAt = data
+		case "keys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keys"))
+			data, err := ec.unmarshalOManagedKeyInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Keys = data
+		case "templateID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("templateID"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TemplateID = data
+		case "allowedIPs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedIPs"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowedIPs = data
+		case "setAllowedIPs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setAllowedIPs"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetAllowedIPs = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx context.Context, obj any) (LoadAPIKeyProfileTemplateInput, error) {
 	var it LoadAPIKeyProfileTemplateInput
 	asMap := map[string]any{}
@@ -87667,6 +89004,72 @@ func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx con
 				return it, err
 			}
 			it.APIKeyID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputManagedKeyInput(ctx context.Context, obj any) (biz.ManagedKeyInput, error) {
+	var it biz.ManagedKeyInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["type"]; !present {
+		asMap["type"] = "personal"
+	}
+
+	fieldsInOrder := [...]string{"name", "type", "scopes", "allowedIPs", "templateID", "budget"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNAPIKeyType2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋapikeyᚐType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "scopes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scopes"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Scopes = data
+		case "allowedIPs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedIPs"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowedIPs = data
+		case "templateID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("templateID"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TemplateID = data
+		case "budget":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("budget"))
+			data, err := ec.unmarshalOKeyBudgetPatch2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyBudgetPatch(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Budget = data
 		}
 	}
 
@@ -114371,6 +115774,232 @@ func (ec *executionContext) _InitializeSystemPayload(ctx context.Context, sel as
 	return out
 }
 
+var keyManagementResultImplementors = []string{"KeyManagementResult"}
+
+func (ec *executionContext) _KeyManagementResult(ctx context.Context, sel ast.SelectionSet, obj *biz.KeyManagementResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, keyManagementResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KeyManagementResult")
+		case "rowID":
+			out.Values[i] = ec._KeyManagementResult_rowID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "success":
+			out.Values[i] = ec._KeyManagementResult_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._KeyManagementResult_error(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groupID":
+			out.Values[i] = ec._KeyManagementResult_groupID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyIDs":
+			out.Values[i] = ec._KeyManagementResult_keyIDs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var managedKeyGroupImplementors = []string{"ManagedKeyGroup"}
+
+func (ec *executionContext) _ManagedKeyGroup(ctx context.Context, sel ast.SelectionSet, obj *biz.ManagedKeyGroup) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, managedKeyGroupImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ManagedKeyGroup")
+		case "id":
+			out.Values[i] = ec._ManagedKeyGroup_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ManagedKeyGroup_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "note":
+			out.Values[i] = ec._ManagedKeyGroup_note(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._ManagedKeyGroup_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._ManagedKeyGroup_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyCount":
+			out.Values[i] = ec._ManagedKeyGroup_keyCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._ManagedKeyGroup_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "budget":
+			out.Values[i] = ec._ManagedKeyGroup_budget(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var managedKeyGroupsImplementors = []string{"ManagedKeyGroups"}
+
+func (ec *executionContext) _ManagedKeyGroups(ctx context.Context, sel ast.SelectionSet, obj *biz.ManagedKeyGroups) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, managedKeyGroupsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ManagedKeyGroups")
+		case "items":
+			out.Values[i] = ec._ManagedKeyGroups_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._ManagedKeyGroups_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ungroupedCount":
+			out.Values[i] = ec._ManagedKeyGroups_ungroupedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var managedKeyPageImplementors = []string{"ManagedKeyPage"}
+
+func (ec *executionContext) _ManagedKeyPage(ctx context.Context, sel ast.SelectionSet, obj *biz.ManagedKeyPage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, managedKeyPageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ManagedKeyPage")
+		case "items":
+			out.Values[i] = ec._ManagedKeyPage_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._ManagedKeyPage_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var modelImplementors = []string{"Model", "Node"}
 
 func (ec *executionContext) _Model(ctx context.Context, sel ast.SelectionSet, obj *ent.Model) graphql.Marshaler {
@@ -116592,6 +118221,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteAPIKeyGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteAPIKeyGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "previewKeyManagement":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_previewKeyManagement(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "applyKeyManagement":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_applyKeyManagement(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -121325,6 +122968,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_apiKeyGroupOptions(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "managedKeyGroups":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_managedKeyGroups(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "managedGroupKeys":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_managedGroupKeys(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "keyManagementResults":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_keyManagementResults(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -129560,6 +131269,50 @@ func (ec *executionContext) marshalNAPIKey2githubᚗcomᚋloopljᚋaxonhubᚋint
 	return ec._APIKey(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNAPIKey2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.APIKey) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKey(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKey(ctx context.Context, sel ast.SelectionSet, v *ent.APIKey) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -133506,6 +135259,36 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v any) ([]int, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]int, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.SelectionSet, v []int) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx context.Context, v any) (objects.JSONRawMessage, error) {
 	var res objects.JSONRawMessage
 	err := res.UnmarshalGQL(v)
@@ -133538,9 +135321,170 @@ func (ec *executionContext) marshalNJSONRawMessageInput2githubᚗcomᚋloopljᚋ
 	return v
 }
 
+func (ec *executionContext) marshalNKeyManagementResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.KeyManagementResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNKeyManagementResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNKeyManagementResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementResult(ctx context.Context, sel ast.SelectionSet, v *biz.KeyManagementResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KeyManagementResult(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNKeyManagementRow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRowᚄ(ctx context.Context, v any) ([]*biz.KeyManagementRow, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*biz.KeyManagementRow, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNKeyManagementRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRow(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNKeyManagementRow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyManagementRow(ctx context.Context, v any) (*biz.KeyManagementRow, error) {
+	res, err := ec.unmarshalInputKeyManagementRow(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNLoadApiKeyProfileTemplateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐLoadAPIKeyProfileTemplateInput(ctx context.Context, v any) (LoadAPIKeyProfileTemplateInput, error) {
 	res, err := ec.unmarshalInputLoadApiKeyProfileTemplateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNManagedKeyGroup2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroupᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ManagedKeyGroup) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNManagedKeyGroup2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroup(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNManagedKeyGroup2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroup(ctx context.Context, sel ast.SelectionSet, v *biz.ManagedKeyGroup) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ManagedKeyGroup(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNManagedKeyGroups2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroups(ctx context.Context, sel ast.SelectionSet, v biz.ManagedKeyGroups) graphql.Marshaler {
+	return ec._ManagedKeyGroups(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNManagedKeyGroups2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroups(ctx context.Context, sel ast.SelectionSet, v *biz.ManagedKeyGroups) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ManagedKeyGroups(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNManagedKeyInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyInput(ctx context.Context, v any) (*biz.ManagedKeyInput, error) {
+	res, err := ec.unmarshalInputManagedKeyInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNManagedKeyPage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyPage(ctx context.Context, sel ast.SelectionSet, v biz.ManagedKeyPage) graphql.Marshaler {
+	return ec._ManagedKeyPage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNManagedKeyPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyPage(ctx context.Context, sel ast.SelectionSet, v *biz.ManagedKeyPage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ManagedKeyPage(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNMap2map(ctx context.Context, v any) (map[string]any, error) {
@@ -138309,6 +140253,24 @@ func (ec *executionContext) marshalOBudgetRule2ᚖgithubᚗcomᚋloopljᚋaxonhu
 	return ec._BudgetRule(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOBudgetRuleInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInputᚄ(ctx context.Context, v any) ([]*biz.BudgetRuleInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*biz.BudgetRuleInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNBudgetRuleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) unmarshalOCapabilityPolicy2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCapabilityPolicy(ctx context.Context, v any) (objects.CapabilityPolicy, error) {
 	tmp, err := graphql.UnmarshalString(v)
 	res := objects.CapabilityPolicy(tmp)
@@ -140763,6 +142725,32 @@ func (ec *executionContext) marshalOJSONRawMessageInput2ᚕgithubᚗcomᚋlooplj
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOKeyBudgetPatch2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐKeyBudgetPatch(ctx context.Context, v any) (*biz.KeyBudgetPatch, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputKeyBudgetPatch(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOManagedKeyInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyInputᚄ(ctx context.Context, v any) ([]*biz.ManagedKeyInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*biz.ManagedKeyInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNManagedKeyInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOModel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐModel(ctx context.Context, sel ast.SelectionSet, v *ent.Model) graphql.Marshaler {

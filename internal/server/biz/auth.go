@@ -214,6 +214,9 @@ func (s *AuthService) AuthenticateAPIKey(ctx context.Context, key string) (*ent.
 	if apiKey.Status != apikey.StatusEnabled {
 		return nil, fmt.Errorf("api key not enabled: %w", ErrInvalidAPIKey)
 	}
+	if err := s.APIKeyService.CheckAPIKeyGroupEnabled(ctx, apiKey.ID, apiKey.ProjectID); err != nil {
+		return nil, err
+	}
 
 	proj, err := apiKey.Project(ctx)
 	if err != nil {

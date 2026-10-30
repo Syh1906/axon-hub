@@ -245,7 +245,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_HappyPath(t *testing.T) {
 		},
 	}
 
-	got, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, input)
+	got, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, input)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.NotNil(t, got.Profiles)
@@ -273,7 +273,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_NormalizesNilModelMappings(t *test
 		},
 	}
 
-	got, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, input)
+	got, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, input)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.NotNil(t, got.Profiles)
@@ -290,7 +290,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_CrossProjectDenied(t *testing.T) {
 	})
 
 	// 用其他项目的 key id：privacy 层的 read filter 应让 Get 找不到。
-	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, objects.APIKeyProfiles{
+	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, nil, objects.APIKeyProfiles{
 		ActiveProfile: "X",
 		Profiles:      []objects.APIKeyProfile{{Name: "X"}},
 	})
@@ -302,7 +302,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_MissingWriteScopeDenied(t *testing
 		string(scopes.ScopeReadAPIKeys), // 缺 write
 	})
 
-	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, objects.APIKeyProfiles{
+	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, objects.APIKeyProfiles{
 		ActiveProfile: "Default",
 		Profiles:      []objects.APIKeyProfile{{Name: "Default"}},
 	})
@@ -398,7 +398,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_ByID(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	got, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil)
+	got, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "Default", got[0].ProfileName)
@@ -424,7 +424,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_ByKey(t *testing.T) {
 
 	keyVal := fx.targetKey.Key
 
-	got, err := qr.APIKeyQuotaUsages(ctx, nil, &keyVal, nil)
+	got, err := qr.APIKeyQuotaUsages(ctx, nil, &keyVal, nil, nil)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "Default", got[0].ProfileName)
@@ -439,7 +439,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_NoQuotaReturnsEmpty(t *testing.T) {
 	qr := &queryResolver{mr.Resolver}
 
 	// targetKey fixture has a "Default" profile without quota.
-	got, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil)
+	got, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Empty(t, got)
@@ -453,7 +453,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_CrossProjectDenied_ByID(t *testing.T)
 	qr := &queryResolver{mr.Resolver}
 
 	// Foreign-project key id is filtered out by the privacy project boundary.
-	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, nil)
+	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, nil, nil)
 	require.Error(t, err)
 }
 
@@ -468,7 +468,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_CrossProjectDenied_ByKey(t *testing.T
 	// so existence is not leaked (uniform NotFound).
 	otherVal := fx.otherKey.Key
 
-	_, err := qr.APIKeyQuotaUsages(ctx, nil, &otherVal, nil)
+	_, err := qr.APIKeyQuotaUsages(ctx, nil, &otherVal, nil, nil)
 	require.Error(t, err)
 }
 
@@ -479,7 +479,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_MissingReadScopeDenied(t *testing.T) 
 
 	qr := &queryResolver{mr.Resolver}
 
-	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil)
+	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, nil)
 	require.Error(t, err)
 }
 
@@ -491,12 +491,12 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_RequiresExactlyOneArg(t *testing.T) {
 	qr := &queryResolver{mr.Resolver}
 
 	// Neither provided.
-	_, err := qr.APIKeyQuotaUsages(ctx, nil, nil, nil)
+	_, err := qr.APIKeyQuotaUsages(ctx, nil, nil, nil, nil)
 	require.Error(t, err)
 
 	// Both provided.
 	keyVal := fx.targetKey.Key
-	_, err = qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, &keyVal, nil)
+	_, err = qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, &keyVal, nil, nil)
 	require.Error(t, err)
 }
 
@@ -508,7 +508,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_InvalidGUIDType(t *testing.T) {
 	qr := &queryResolver{mr.Resolver}
 
 	// A GUID of the wrong type must be rejected before any DB lookup.
-	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, nil)
+	_, err := qr.APIKeyQuotaUsages(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, nil, nil)
 	require.Error(t, err)
 }
 
@@ -523,7 +523,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_ByName(t *testing.T) {
 		Profiles:      []objects.APIKeyProfile{{Name: "Default"}},
 	}
 
-	got, err := mr.UpdateAPIKeyProfiles(ctx, nil, lo.ToPtr(fx.targetKey.Name), input)
+	got, err := mr.UpdateAPIKeyProfiles(ctx, nil, lo.ToPtr(fx.targetKey.Name), nil, input)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, fx.targetKey.Name, got.Name)
@@ -544,11 +544,11 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_RequiresExactlyOneIdentifier(t *te
 	}
 
 	// Neither provided.
-	_, err := mr.UpdateAPIKeyProfiles(ctx, nil, nil, input)
+	_, err := mr.UpdateAPIKeyProfiles(ctx, nil, nil, nil, input)
 	require.Error(t, err)
 
 	// Both provided.
-	_, err = mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, lo.ToPtr(fx.targetKey.Name), input)
+	_, err = mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, lo.ToPtr(fx.targetKey.Name), nil, input)
 	require.Error(t, err)
 }
 
@@ -559,7 +559,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_ByName_CrossProjectDenied(t *testi
 	})
 
 	// 外项目的 key name 在 privacy 项目过滤下不可见 → NotFound，不泄露存在性。
-	_, err := mr.UpdateAPIKeyProfiles(ctx, nil, lo.ToPtr(fx.otherKey.Name), objects.APIKeyProfiles{
+	_, err := mr.UpdateAPIKeyProfiles(ctx, nil, lo.ToPtr(fx.otherKey.Name), nil, objects.APIKeyProfiles{
 		ActiveProfile: "X",
 		Profiles:      []objects.APIKeyProfile{{Name: "X"}},
 	})
@@ -572,7 +572,7 @@ func TestOpenAPIResolver_UpdateAPIKeyProfiles_InvalidGUIDType(t *testing.T) {
 		string(scopes.ScopeWriteAPIKeys),
 	})
 
-	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, objects.APIKeyProfiles{
+	_, err := mr.UpdateAPIKeyProfiles(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, nil, objects.APIKeyProfiles{
 		ActiveProfile: "Default",
 		Profiles:      []objects.APIKeyProfile{{Name: "Default"}},
 	})
@@ -679,7 +679,7 @@ func TestOpenAPIResolver_APIKeyQuotaUsages_ByName(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	got, err := qr.APIKeyQuotaUsages(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name))
+	got, err := qr.APIKeyQuotaUsages(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name), nil)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "Default", got[0].ProfileName)
@@ -692,7 +692,7 @@ func TestOpenAPIResolver_APIKey_ByID(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	got, err := qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil)
+	got, err := qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, fx.targetKey.ID, got.ID.ID)
 	require.Equal(t, fx.targetKey.Key, got.Key)
@@ -707,7 +707,7 @@ func TestOpenAPIResolver_APIKey_ByKey(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	got, err := qr.APIKey(ctx, nil, lo.ToPtr(fx.targetKey.Key), nil)
+	got, err := qr.APIKey(ctx, nil, lo.ToPtr(fx.targetKey.Key), nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, fx.targetKey.ID, got.ID.ID)
 	require.Equal(t, fx.targetKey.Name, got.Name)
@@ -721,12 +721,33 @@ func TestOpenAPIResolver_APIKey_ByName(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	got, err := qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name))
+	got, err := qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name), nil)
 	require.NoError(t, err)
 	require.Equal(t, fx.targetKey.ID, got.ID.ID)
 	require.Equal(t, fx.targetKey.Key, got.Key)
 	require.Equal(t, fx.targetKey.Name, got.Name)
 	require.NotNil(t, got.Profiles)
+}
+
+func TestOpenAPIResolver_APIKey_GroupScopedName(t *testing.T) {
+	mr, fx, ctx, db := setupOpenAPI(t, []string{string(scopes.ScopeReadAPIKeys)})
+	seed := authz.WithTestBypass(ent.NewContext(context.Background(), db))
+	group := db.APIKeyGroup.Create().SetProjectID(fx.project.ID).SetName("recipient").SaveX(seed)
+	grouped := db.APIKey.Create().SetProjectID(fx.project.ID).SetUserID(fx.user.ID).
+		SetName(fx.targetKey.Name).SetKey("fixture-grouped-key").SetGroupRef(group.ID).SaveX(seed)
+	qr := &queryResolver{mr.Resolver}
+	_, err := qr.APIKey(ctx, nil, nil, &fx.targetKey.Name, nil)
+	require.ErrorContains(t, err, "multiple API keys")
+	got, err := qr.APIKey(ctx, nil, nil, &fx.targetKey.Name, &group.ID)
+	require.NoError(t, err)
+	require.Equal(t, grouped.ID, got.ID.ID)
+	got, err = qr.APIKey(ctx, nil, nil, &fx.targetKey.Name, lo.ToPtr(0))
+	require.NoError(t, err)
+	require.Equal(t, fx.targetKey.ID, got.ID.ID)
+	_, err = qr.APIKey(ctx, nil, nil, &fx.targetKey.Name, lo.ToPtr(-1))
+	require.Error(t, err)
+	_, err = qr.APIKey(ctx, nil, nil, &fx.otherKey.Name, lo.ToPtr(0))
+	require.Error(t, err)
 }
 
 func TestOpenAPIResolver_APIKey_RequiresExactlyOneArg(t *testing.T) {
@@ -737,14 +758,14 @@ func TestOpenAPIResolver_APIKey_RequiresExactlyOneArg(t *testing.T) {
 	qr := &queryResolver{mr.Resolver}
 
 	// None provided.
-	_, err := qr.APIKey(ctx, nil, nil, nil)
+	_, err := qr.APIKey(ctx, nil, nil, nil, nil)
 	require.Error(t, err)
 
 	// Two provided.
-	_, err = qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, lo.ToPtr(fx.targetKey.Key), nil)
+	_, err = qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.targetKey.ID}, lo.ToPtr(fx.targetKey.Key), nil, nil)
 	require.Error(t, err)
 
-	_, err = qr.APIKey(ctx, nil, lo.ToPtr(fx.targetKey.Key), lo.ToPtr(fx.targetKey.Name))
+	_, err = qr.APIKey(ctx, nil, lo.ToPtr(fx.targetKey.Key), lo.ToPtr(fx.targetKey.Name), nil)
 	require.Error(t, err)
 }
 
@@ -756,10 +777,10 @@ func TestOpenAPIResolver_APIKey_CrossProjectDenied(t *testing.T) {
 	qr := &queryResolver{mr.Resolver}
 
 	// Foreign-project key stays invisible no matter which identifier is used.
-	_, err := qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, nil)
+	_, err := qr.APIKey(ctx, &objects.GUID{Type: ent.TypeAPIKey, ID: fx.otherKey.ID}, nil, nil, nil)
 	require.Error(t, err)
 
-	_, err = qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.otherKey.Name))
+	_, err = qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.otherKey.Name), nil)
 	require.Error(t, err)
 }
 
@@ -770,7 +791,7 @@ func TestOpenAPIResolver_APIKey_MissingReadScopeDenied(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	_, err := qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name))
+	_, err := qr.APIKey(ctx, nil, nil, lo.ToPtr(fx.targetKey.Name), nil)
 	require.Error(t, err)
 }
 
@@ -781,7 +802,7 @@ func TestOpenAPIResolver_APIKey_InvalidGUIDType(t *testing.T) {
 
 	qr := &queryResolver{mr.Resolver}
 
-	_, err := qr.APIKey(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, nil)
+	_, err := qr.APIKey(ctx, &objects.GUID{Type: "Channel", ID: fx.targetKey.ID}, nil, nil, nil)
 	require.Error(t, err)
 }
 

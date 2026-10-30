@@ -18,6 +18,9 @@ func (APIKeyGroup) Mixin() []ent.Mixin { return []ent.Mixin{TimeMixin{}} }
 func (APIKeyGroup) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").NotEmpty().MaxLen(128),
+		field.String("note").Default("").MaxLen(1024),
+		field.Bool("enabled").Default(true),
+		field.Int("revision").Default(0),
 		field.Int("project_id").Immutable(),
 	}
 }
