@@ -26,7 +26,7 @@ func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOut
 		return biz.HealthGateOutcomeSuccess
 	}
 	if errors.Is(err, errSkipCandidateByCircuitBreaker) || errors.Is(err, errSkipCandidateByHealthGate) ||
-		isChannelQueueError(err) || isLocalRPMExhaustedError(err) {
+		isChannelQueueError(err) || isLocalRPMExhaustedError(err) || biz.IsBudgetDenied(err) || biz.IsBudgetDenied(err) {
 		return biz.HealthGateOutcomeNeutral
 	}
 	if healthGatePipelineTimeout(ctx) {

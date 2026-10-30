@@ -12,6 +12,7 @@ import { RequestIdCell, TokensCell, ReadCacheCell, WriteCacheCell, CostCell, Dur
 import { ThemeSwitch } from '@/components/theme-switch';
 import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatus, type SelfUsageMeta, type Usage } from './api';
 import type { SelfUsageIdentity } from './api';
+import { SelfUsageBudgets } from './components/budgets';
 import { Cost } from './components/cost';
 import { PageError } from './components/page-error';
 import { displayCost } from './cost/format';
@@ -578,6 +579,7 @@ function Dashboard({
   }, [stats.error, onUnauthorized]);
   return (
     <div className='space-y-6'>
+      <SelfUsageBudgets keyValue={keyValue} meta={meta} onUnauthorized={onUnauthorized} />
       {meta.groupName && (
         <div className='flex items-center gap-2'>
           <Button variant={group ? 'outline' : 'default'} onClick={() => setGroup(false)}>

@@ -40,7 +40,7 @@ func (svc *BackupService) Restore(ctx context.Context, data []byte, opts Restore
 		return err
 	}
 
-	if !lo.Contains([]string{BackupVersion, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
+	if !lo.Contains([]string{BackupVersion, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
 		log.Warn(ctx, "backup version mismatch",
 			log.String("expected", BackupVersion),
 			log.String("got", backupData.Version))
@@ -130,6 +130,11 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 		}
 	}
 
+	if opts.IncludeAPIKeys {
+		if err := svc.restoreBudgets(ctx, db, backupData); err != nil {
+			return err
+		}
+	}
 	if opts.IncludeUsageStats || opts.IncludeRequestLogs {
 		if err := svc.restoreUsageData(ctx, db, backupData.UsageRequests, backupData.UsageLogs, opts); err != nil {
 			return err

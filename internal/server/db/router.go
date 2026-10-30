@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -34,6 +36,18 @@ func (d *routerDriver) Query(ctx context.Context, query string, args, v any) err
 
 func (d *routerDriver) Tx(ctx context.Context) (dialect.Tx, error) {
 	return d.master.Tx(ctx)
+}
+
+// Budget transactions need a current committed snapshot after acquiring their
+// account locks. Preserve those options when read replicas are configured.
+func (d *routerDriver) BeginTx(ctx context.Context, opts *sql.TxOptions) (dialect.Tx, error) {
+	driver, ok := d.master.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (dialect.Tx, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("master driver does not support transaction options")
+	}
+	return driver.BeginTx(ctx, opts)
 }
 
 func (d *routerDriver) Close() error {

@@ -107,3 +107,5 @@ type SelfUsageRequestPage {
   pageSize: Int!
   total: Int!
 }
+
+extend type Query { selfUsageBudgets: [BudgetView!]! }

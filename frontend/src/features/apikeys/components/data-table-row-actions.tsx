@@ -4,9 +4,17 @@ import { Row } from '@tanstack/react-table';
 import { IconUserOff, IconUserCheck, IconEdit, IconSettings, IconArchive, IconCheck, IconRefresh } from '@tabler/icons-react';
 import { BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BudgetDialog } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKey } from '../data/schema';
 import { ApiKeyTokenChartDialog } from './api-key-token-chart-dialog';
@@ -18,10 +26,12 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
-  const { apiKeyPermissions } = usePermissions();
+  const { apiKeyPermissions, hasProjectScope } = usePermissions();
+  const canResetBudget = apiKeyPermissions.canWrite && hasProjectScope('write_users') && hasProjectScope('write_roles');
   const apiKey = row.original;
   const [open, setOpen] = React.useState(false);
   const [chartOpen, setChartOpen] = React.useState(false);
+  const [budgetMode, setBudgetMode] = React.useState<'settings' | 'usage' | 'reset' | null>(null);
 
   // Don't show menu if user has no permissions
   if (!apiKeyPermissions.canRead && !apiKeyPermissions.canWrite) {
@@ -72,6 +82,20 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align='end' className='w-[160px]'>
+          {(['settings', 'usage', 'reset'] as const)
+            .filter((mode) => mode !== 'reset' || canResetBudget)
+            .map((mode) => (
+              <DropdownMenuItem
+                key={mode}
+                onClick={() => {
+                  setOpen(false);
+                  setTimeout(() => setBudgetMode(mode), 0);
+                }}
+              >
+                {t(mode === 'settings' ? 'budgets.title' : mode === 'usage' ? 'budgets.showUsage' : 'budgets.reset')}
+              </DropdownMenuItem>
+            ))}
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleViewChart}>
             <BarChart3 className='mr-2 h-4 w-4' />
             {t('apikeys.actions.viewTokenChart')}
@@ -107,7 +131,10 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                   )}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => handleArchive(apiKey)} className={apiKey.status === 'archived' ? 'text-green-600' : 'text-orange-600'}>
+              <DropdownMenuItem
+                onClick={() => handleArchive(apiKey)}
+                className={apiKey.status === 'archived' ? 'text-green-600' : 'text-orange-600'}
+              >
                 {apiKey.status === 'archived' ? <IconCheck className='mr-2 h-4 w-4' /> : <IconArchive className='mr-2 h-4 w-4' />}
                 {apiKey.status === 'archived' ? t('common.buttons.restore') : t('common.buttons.archive')}
               </DropdownMenuItem>
@@ -120,6 +147,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {budgetMode && (
+        <BudgetDialog
+          target={{ kind: 'key', ownerID: Number(extractNumberID(apiKey.id)), name: apiKey.displayName || apiKey.name }}
+          initialView={budgetMode}
+          onClose={() => setBudgetMode(null)}
+        />
+      )}
       <ApiKeyTokenChartDialog apiKey={apiKey} open={chartOpen} onOpenChange={setChartOpen} />
     </>
   );

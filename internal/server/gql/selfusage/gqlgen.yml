@@ -1,5 +1,6 @@
 schema:
   - selfusage.graphql
+  - ../budget_types.graphql
 
 omit_gqlgen_version_in_file_notice: true
 
@@ -25,3 +26,27 @@ models:
   Time:
     model:
       - github.com/99designs/gqlgen/graphql.Time
+  BudgetPeriod:
+    model:
+      - github.com/looplj/axonhub/internal/pkg/budget.Period
+  BudgetMode:
+    model:
+      - github.com/looplj/axonhub/internal/pkg/budget.Mode
+  BudgetRule:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetRuleInput
+  BudgetRuleInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetRuleInput
+  BudgetSettingsInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetSettingsInput
+  BudgetResetInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetResetInput
+  BudgetWindow:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetWindowView
+  BudgetView:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.BudgetView

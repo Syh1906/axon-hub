@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { APIKeyIdentity } from '@/components/api-key-identity';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import LongText from '@/components/long-text';
+import { BudgetButton } from '@/features/budgets/budget-dialog';
 import { openSelfUsagePage } from '@/features/self-usage/session';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKey } from '../data/schema';
@@ -238,6 +239,24 @@ export const createColumns = (
     accessorFn: (row) => row.profiles?.activeProfile || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title={t('apikeys.columns.activeProfile')} />,
     cell: ({ row }) => <ActiveProfileCell apiKey={row.original} canWrite={canWrite} />,
+    enableSorting: false,
+  },
+  {
+    id: 'budget',
+    header: () => <div className='text-center'>{t('budgets.title')}</div>,
+    cell: ({ row }) => (
+      <div className='flex justify-center'>
+        <BudgetButton
+          summary
+          target={{
+            kind: 'key',
+            ownerID: Number(extractNumberID(row.original.id)),
+            groupID: row.original.groupRef ?? undefined,
+            name: row.original.displayName || row.original.name,
+          }}
+        />
+      </div>
+    ),
     enableSorting: false,
   },
   {

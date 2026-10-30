@@ -8,6 +8,8 @@ package selfusage
 import (
 	"context"
 	"fmt"
+
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 // SelfUsageMeta is the resolver for the selfUsageMeta field.
@@ -75,6 +77,11 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 		items = append(items, toRequest(item))
 	}
 	return &SelfUsageRequestPage{ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
+}
+
+// SelfUsageBudgets is the resolver for the selfUsageBudgets field.
+func (r *queryResolver) SelfUsageBudgets(ctx context.Context) ([]*biz.BudgetView, error) {
+	return r.selfUsage.Budgets(ctx)
 }
 
 // Query returns QueryResolver implementation.

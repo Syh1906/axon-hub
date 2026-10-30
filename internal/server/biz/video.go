@@ -11,6 +11,8 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/transformer"
 	zenmuxtransformer "github.com/looplj/axonhub/llm/transformer/zenmux"
@@ -57,6 +59,34 @@ func (s *VideoService) GetTask(ctx context.Context, requestID int) (*llm.Respons
 		// non-fatal: return data anyway
 	}
 
+	if status == request.StatusCompleted || status == request.StatusFailed {
+		client := s.RequestService.entFromContext(ctx)
+		execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).Order(ent.Desc(requestexecution.FieldID)).First(ctx)
+		if execErr == nil {
+			usage := video.Usage
+			if usage == nil && status == request.StatusCompleted && execution.CostSnapshot != nil {
+				price, priceErr := s.RequestService.UsageLogService.budgetSnapshotPrice(ctx, execution.CostSnapshot)
+				if priceErr != nil {
+					return nil, priceErr
+				}
+				if price != nil {
+					items := effectiveModelPriceItems(nil, *price, execution.CostSnapshot.PricedAt)
+					flatOnly := len(items) > 0
+					for _, item := range items {
+						flatOnly = flatOnly && item.Pricing.Mode == objects.PricingModeFlatFee
+					}
+					if flatOnly {
+						usage = &llm.Usage{}
+					}
+				}
+			}
+			if _, err := s.RequestService.UsageLogService.CreateUsageLogFromRequest(ctx, task, execution, usage); err != nil {
+				log.Warn(ctx, "settle video budget", log.Cause(err))
+			}
+		} else if !ent.IsNotFound(execErr) {
+			return nil, execErr
+		}
+	}
 	return video, nil
 }
 
@@ -223,4 +253,40 @@ func mapVideoStatusToRequestStatus(status string) request.Status {
 	default:
 		return request.StatusProcessing
 	}
+}
+
+func (s *VideoService) pollBudgetTask(ctx context.Context, task *objects.BudgetAsyncTask) (*llm.Response, error) {
+	ch, err := s.ChannelService.GetChannel(ctx, task.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	outbound, ok := ch.Outbounds[task.Format].(transformer.VideoTaskOutbound)
+	if !ok {
+		return nil, fmt.Errorf("channel cannot query saved video task format")
+	}
+	req, err := outbound.BuildGetVideoTaskRequest(ctx, task.ExternalID)
+	if err != nil {
+		return nil, err
+	}
+	response, err := ch.HTTPClient.Do(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return outbound.ParseGetVideoTaskResponse(ctx, response)
+}
+
+func completedVideoUsage(usage *llm.Usage, completed bool, snapshot *objects.RequestCostSnapshot) *llm.Usage {
+	if usage != nil || !completed || snapshot == nil || snapshot.Price == nil {
+		return usage
+	}
+	items := effectiveModelPriceItems(nil, *snapshot.Price, snapshot.PricedAt)
+	if len(items) == 0 {
+		return nil
+	}
+	for _, item := range items {
+		if item.Pricing.Mode != objects.PricingModeFlatFee {
+			return nil
+		}
+	}
+	return &llm.Usage{}
 }

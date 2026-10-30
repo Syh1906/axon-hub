@@ -184,6 +184,7 @@ export function ApiKeysCreateDialog() {
               )}
             </div>
 
+            <p className='text-muted-foreground text-sm'>{t('budgets.afterCreate')}</p>
             <DialogFooter className='flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end'>
               <div className='flex w-full gap-2 sm:w-auto'>
                 <Button type='button' variant='outline' onClick={handleClose} disabled={isSubmitting}>

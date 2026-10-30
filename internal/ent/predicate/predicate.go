@@ -15,6 +15,18 @@ type APIKeyGroup func(*sql.Selector)
 // APIKeyProfileTemplate is the predicate function for apikeyprofiletemplate builders.
 type APIKeyProfileTemplate func(*sql.Selector)
 
+// BudgetAccount is the predicate function for budgetaccount builders.
+type BudgetAccount func(*sql.Selector)
+
+// BudgetChange is the predicate function for budgetchange builders.
+type BudgetChange func(*sql.Selector)
+
+// BudgetCharge is the predicate function for budgetcharge builders.
+type BudgetCharge func(*sql.Selector)
+
+// BudgetPosting is the predicate function for budgetposting builders.
+type BudgetPosting func(*sql.Selector)
+
 // CacheEffectivenessWindow is the predicate function for cacheeffectivenesswindow builders.
 type CacheEffectivenessWindow func(*sql.Selector)
 

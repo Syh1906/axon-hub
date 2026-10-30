@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 )
 
 func (s *APIKeyService) groupProject(ctx context.Context, write bool) (int, error) {
@@ -66,6 +68,12 @@ func (s *APIKeyService) DeleteAPIKeyGroup(ctx context.Context, id int) error {
 			return err
 		}
 		client := s.entFromContext(ctx)
+		_, err := authz.RunWithSystemBypass(ctx, "api-key-group-budget-lock", func(lockCtx context.Context) (*ent.BudgetAccount, error) {
+			return LockBudgetAccount(lockCtx, client, projectID, budgetaccount.OwnerKindGroup, id)
+		})
+		if err != nil {
+			return err
+		}
 		group, err := client.APIKeyGroup.Query().Where(apikeygroup.IDEQ(id), apikeygroup.ProjectIDEQ(projectID)).Only(ctx)
 		if err != nil {
 			return err

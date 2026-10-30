@@ -80,6 +80,16 @@ func (m *persistRequestMiddleware) OnOutboundLlmResponse(ctx context.Context, ll
 
 	// Determine usage to log - unified in Response.Usage for all request types.
 	usageToLog := llmResp.Usage
+	if llmResp.Video != nil {
+		if err := state.UsageLogService.BudgetService.RecordAsyncTask(persistCtx, state.RequestExec, llmResp.ID); err != nil {
+			log.Error(persistCtx, "persist accepted video budget task", log.Cause(err))
+			state.BudgetStop = &biz.BudgetDenied{Scope: "key", Reason: "accounting_unavailable"}
+			return nil, state.BudgetStop
+		}
+		if llmResp.Video.Status != "succeeded" {
+			return llmResp, nil
+		}
+	}
 	m.injectUsageCost(ctx, llmResp)
 
 	_, err := state.UsageLogService.CreateUsageLogFromRequest(persistCtx, state.Request, state.RequestExec, usageToLog)

@@ -11,6 +11,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
+	"github.com/looplj/axonhub/internal/ent/budgetchange"
+	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/budgetposting"
 	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
@@ -174,6 +178,114 @@ func (f TraverseAPIKeyProfileTemplate) Traverse(ctx context.Context, q ent.Query
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyProfileTemplateQuery", q)
+}
+
+// The BudgetAccountFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BudgetAccountFunc func(context.Context, *ent.BudgetAccountQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BudgetAccountFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BudgetAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BudgetAccountQuery", q)
+}
+
+// The TraverseBudgetAccount type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBudgetAccount func(context.Context, *ent.BudgetAccountQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBudgetAccount) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBudgetAccount) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BudgetAccountQuery", q)
+}
+
+// The BudgetChangeFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BudgetChangeFunc func(context.Context, *ent.BudgetChangeQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BudgetChangeFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BudgetChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BudgetChangeQuery", q)
+}
+
+// The TraverseBudgetChange type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBudgetChange func(context.Context, *ent.BudgetChangeQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBudgetChange) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBudgetChange) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BudgetChangeQuery", q)
+}
+
+// The BudgetChargeFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BudgetChargeFunc func(context.Context, *ent.BudgetChargeQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BudgetChargeFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BudgetChargeQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BudgetChargeQuery", q)
+}
+
+// The TraverseBudgetCharge type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBudgetCharge func(context.Context, *ent.BudgetChargeQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBudgetCharge) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBudgetCharge) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetChargeQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BudgetChargeQuery", q)
+}
+
+// The BudgetPostingFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BudgetPostingFunc func(context.Context, *ent.BudgetPostingQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BudgetPostingFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BudgetPostingQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BudgetPostingQuery", q)
+}
+
+// The TraverseBudgetPosting type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBudgetPosting func(context.Context, *ent.BudgetPostingQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBudgetPosting) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBudgetPosting) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetPostingQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BudgetPostingQuery", q)
 }
 
 // The CacheEffectivenessWindowFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -860,6 +972,14 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.APIKeyGroupQuery, predicate.APIKeyGroup, apikeygroup.OrderOption]{typ: ent.TypeAPIKeyGroup, tq: q}, nil
 	case *ent.APIKeyProfileTemplateQuery:
 		return &query[*ent.APIKeyProfileTemplateQuery, predicate.APIKeyProfileTemplate, apikeyprofiletemplate.OrderOption]{typ: ent.TypeAPIKeyProfileTemplate, tq: q}, nil
+	case *ent.BudgetAccountQuery:
+		return &query[*ent.BudgetAccountQuery, predicate.BudgetAccount, budgetaccount.OrderOption]{typ: ent.TypeBudgetAccount, tq: q}, nil
+	case *ent.BudgetChangeQuery:
+		return &query[*ent.BudgetChangeQuery, predicate.BudgetChange, budgetchange.OrderOption]{typ: ent.TypeBudgetChange, tq: q}, nil
+	case *ent.BudgetChargeQuery:
+		return &query[*ent.BudgetChargeQuery, predicate.BudgetCharge, budgetcharge.OrderOption]{typ: ent.TypeBudgetCharge, tq: q}, nil
+	case *ent.BudgetPostingQuery:
+		return &query[*ent.BudgetPostingQuery, predicate.BudgetPosting, budgetposting.OrderOption]{typ: ent.TypeBudgetPosting, tq: q}, nil
 	case *ent.CacheEffectivenessWindowQuery:
 		return &query[*ent.CacheEffectivenessWindowQuery, predicate.CacheEffectivenessWindow, cacheeffectivenesswindow.OrderOption]{typ: ent.TypeCacheEffectivenessWindow, tq: q}, nil
 	case *ent.ChannelQuery:

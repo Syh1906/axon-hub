@@ -19,6 +19,9 @@ var Module = fx.Module("biz",
 	fx.Provide(NewSelfUsageService),
 	fx.Provide(NewConsumptionService),
 	fx.Provide(NewUsageLogService),
+	fx.Invoke(func(lc fx.Lifecycle, svc *UsageLogService, s *scheduler.Scheduler, video *VideoService) {
+		lc.Append(fx.Hook{OnStart: func(ctx context.Context) error { return svc.RegisterBudgetRecovery(ctx, s, video) }})
+	}),
 	fx.Provide(NewVideoService),
 	fx.Provide(NewUserService),
 	fx.Provide(NewInvitationService),

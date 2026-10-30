@@ -72,7 +72,7 @@ func repeatedSelfUsageField(op *graphql.OperationContext) string {
 					continue
 				}
 				switch node.Name {
-				case "selfUsageMeta", "selfUsageStats", "selfUsageRequests":
+				case "selfUsageMeta", "selfUsageStats", "selfUsageRequests", "selfUsageBudgets":
 					counts[node.Name]++
 					if counts[node.Name] > 1 {
 						return node.Name

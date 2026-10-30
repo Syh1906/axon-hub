@@ -54,7 +54,7 @@ func (svc *BackupService) doBackup(ctx context.Context, opts BackupOptions) ([]b
 // doBackupToWriter streams a compact JSON backup to w without accumulating
 // the full dataset in memory. Each entity type is processed sequentially in
 // batch-sized pages using an ID-cursor.
-func (svc *BackupService) doBackupToWriter(ctx context.Context, opts BackupOptions, w io.Writer) error {
+func (svc *BackupService) writeBackupToWriter(ctx context.Context, opts BackupOptions, w io.Writer) error {
 	o := &objWriter{w: w}
 
 	if _, err := w.Write([]byte("{")); err != nil {
@@ -89,6 +89,9 @@ func (svc *BackupService) doBackupToWriter(ctx context.Context, opts BackupOptio
 		return err
 	}
 	if err := svc.streamAPIKeys(ctx, o, opts); err != nil {
+		return err
+	}
+	if err := svc.streamBudgets(ctx, o, opts); err != nil {
 		return err
 	}
 	if err := svc.streamUsageRequests(ctx, o, opts); err != nil {

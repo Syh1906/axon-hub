@@ -16,6 +16,8 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/internal/server/biz"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -47,7 +49,47 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	BudgetRule struct {
+		Limit  func(childComplexity int) int
+		Minute func(childComplexity int) int
+		Mode   func(childComplexity int) int
+		Period func(childComplexity int) int
+	}
+
+	BudgetView struct {
+		AccountingStartedAt func(childComplexity int) int
+		Expired             func(childComplexity int) int
+		ExpiresAt           func(childComplexity int) int
+		HasLimits           func(childComplexity int) int
+		OwnerID             func(childComplexity int) int
+		OwnerKind           func(childComplexity int) int
+		Revision            func(childComplexity int) int
+		ServerTime          func(childComplexity int) int
+		Timezone            func(childComplexity int) int
+		Windows             func(childComplexity int) int
+	}
+
+	BudgetWindow struct {
+		Available         func(childComplexity int) int
+		CanResetCycle     func(childComplexity int) int
+		EffectiveSchedule func(childComplexity int) int
+		Limit             func(childComplexity int) int
+		Minute            func(childComplexity int) int
+		Mode              func(childComplexity int) int
+		NextReleaseAt     func(childComplexity int) int
+		PendingAt         func(childComplexity int) int
+		PendingRule       func(childComplexity int) int
+		Period            func(childComplexity int) int
+		Reserved          func(childComplexity int) int
+		ResetAt           func(childComplexity int) int
+		Settled           func(childComplexity int) int
+		Timezone          func(childComplexity int) int
+		WindowEnd         func(childComplexity int) int
+		WindowStart       func(childComplexity int) int
+	}
+
 	Query struct {
+		SelfUsageBudgets  func(childComplexity int) int
 		SelfUsageMeta     func(childComplexity int) int
 		SelfUsageRequests func(childComplexity int, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) int
 		SelfUsageStats    func(childComplexity int, start string, end string, group bool) int
@@ -161,6 +203,7 @@ type QueryResolver interface {
 	SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, error)
 	SelfUsageStats(ctx context.Context, start string, end string, group bool) (*SelfUsageStats, error)
 	SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error)
+	SelfUsageBudgets(ctx context.Context) ([]*biz.BudgetView, error)
 }
 
 type executableSchema struct {
@@ -182,6 +225,195 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "BudgetRule.limit":
+		if e.complexity.BudgetRule.Limit == nil {
+			break
+		}
+
+		return e.complexity.BudgetRule.Limit(childComplexity), true
+	case "BudgetRule.minute":
+		if e.complexity.BudgetRule.Minute == nil {
+			break
+		}
+
+		return e.complexity.BudgetRule.Minute(childComplexity), true
+	case "BudgetRule.mode":
+		if e.complexity.BudgetRule.Mode == nil {
+			break
+		}
+
+		return e.complexity.BudgetRule.Mode(childComplexity), true
+	case "BudgetRule.period":
+		if e.complexity.BudgetRule.Period == nil {
+			break
+		}
+
+		return e.complexity.BudgetRule.Period(childComplexity), true
+
+	case "BudgetView.accountingStartedAt":
+		if e.complexity.BudgetView.AccountingStartedAt == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.AccountingStartedAt(childComplexity), true
+	case "BudgetView.expired":
+		if e.complexity.BudgetView.Expired == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.Expired(childComplexity), true
+	case "BudgetView.expiresAt":
+		if e.complexity.BudgetView.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.ExpiresAt(childComplexity), true
+	case "BudgetView.hasLimits":
+		if e.complexity.BudgetView.HasLimits == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.HasLimits(childComplexity), true
+	case "BudgetView.ownerID":
+		if e.complexity.BudgetView.OwnerID == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.OwnerID(childComplexity), true
+	case "BudgetView.ownerKind":
+		if e.complexity.BudgetView.OwnerKind == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.OwnerKind(childComplexity), true
+	case "BudgetView.revision":
+		if e.complexity.BudgetView.Revision == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.Revision(childComplexity), true
+	case "BudgetView.serverTime":
+		if e.complexity.BudgetView.ServerTime == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.ServerTime(childComplexity), true
+	case "BudgetView.timezone":
+		if e.complexity.BudgetView.Timezone == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.Timezone(childComplexity), true
+	case "BudgetView.windows":
+		if e.complexity.BudgetView.Windows == nil {
+			break
+		}
+
+		return e.complexity.BudgetView.Windows(childComplexity), true
+
+	case "BudgetWindow.available":
+		if e.complexity.BudgetWindow.Available == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Available(childComplexity), true
+	case "BudgetWindow.canResetCycle":
+		if e.complexity.BudgetWindow.CanResetCycle == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.CanResetCycle(childComplexity), true
+	case "BudgetWindow.effectiveSchedule":
+		if e.complexity.BudgetWindow.EffectiveSchedule == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.EffectiveSchedule(childComplexity), true
+	case "BudgetWindow.limit":
+		if e.complexity.BudgetWindow.Limit == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Limit(childComplexity), true
+	case "BudgetWindow.minute":
+		if e.complexity.BudgetWindow.Minute == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Minute(childComplexity), true
+	case "BudgetWindow.mode":
+		if e.complexity.BudgetWindow.Mode == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Mode(childComplexity), true
+	case "BudgetWindow.nextReleaseAt":
+		if e.complexity.BudgetWindow.NextReleaseAt == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.NextReleaseAt(childComplexity), true
+	case "BudgetWindow.pendingAt":
+		if e.complexity.BudgetWindow.PendingAt == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.PendingAt(childComplexity), true
+	case "BudgetWindow.pendingRule":
+		if e.complexity.BudgetWindow.PendingRule == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.PendingRule(childComplexity), true
+	case "BudgetWindow.period":
+		if e.complexity.BudgetWindow.Period == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Period(childComplexity), true
+	case "BudgetWindow.reserved":
+		if e.complexity.BudgetWindow.Reserved == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Reserved(childComplexity), true
+	case "BudgetWindow.resetAt":
+		if e.complexity.BudgetWindow.ResetAt == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.ResetAt(childComplexity), true
+	case "BudgetWindow.settled":
+		if e.complexity.BudgetWindow.Settled == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Settled(childComplexity), true
+	case "BudgetWindow.timezone":
+		if e.complexity.BudgetWindow.Timezone == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.Timezone(childComplexity), true
+	case "BudgetWindow.windowEnd":
+		if e.complexity.BudgetWindow.WindowEnd == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.WindowEnd(childComplexity), true
+	case "BudgetWindow.windowStart":
+		if e.complexity.BudgetWindow.WindowStart == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.WindowStart(childComplexity), true
+
+	case "Query.selfUsageBudgets":
+		if e.complexity.Query.SelfUsageBudgets == nil {
+			break
+		}
+
+		return e.complexity.Query.SelfUsageBudgets(childComplexity), true
 	case "Query.selfUsageMeta":
 		if e.complexity.Query.SelfUsageMeta == nil {
 			break
@@ -666,7 +898,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
-	inputUnmarshalMap := graphql.BuildUnmarshalerMap()
+	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputBudgetResetInput,
+		ec.unmarshalInputBudgetRuleInput,
+		ec.unmarshalInputBudgetSettingsInput,
+	)
 	first := true
 
 	switch opCtx.Operation.Operation {
@@ -760,6 +996,22 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "selfusage.graphql", Input: sourceData("selfusage.graphql"), BuiltIn: false},
+	{Name: "../budget_types.graphql", Input: `enum BudgetPeriod { five_hour daily weekly monthly total }
+enum BudgetMode { fixed rolling }
+type BudgetRule { period: BudgetPeriod! mode: BudgetMode! limit: String! minute: Int! }
+input BudgetRuleInput { restoreCalendar: Boolean! = false period: BudgetPeriod! mode: BudgetMode! limit: String! minute: Int! }
+input BudgetSettingsInput { rules: [BudgetRuleInput!]! timezone: String! expiresAt: Time revision: Int! operationID: String! }
+input BudgetResetInput { periods: [BudgetPeriod!]! resetCycle: Boolean! revision: Int! operationID: String! }
+type BudgetWindow {
+ period: BudgetPeriod! mode: BudgetMode! minute: Int! limit: String! settled: String! reserved: String! available: String!
+ windowStart: Time windowEnd: Time nextReleaseAt: Time resetAt: Time canResetCycle: Boolean!
+ effectiveSchedule: String! timezone: String! pendingRule: BudgetRule pendingAt: Time
+}
+type BudgetView {
+ ownerKind: String! ownerID: Int! revision: Int! timezone: String! expiresAt: Time accountingStartedAt: Time
+ serverTime: Time! hasLimits: Boolean! expired: Boolean! windows: [BudgetWindow!]!
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -891,6 +1143,920 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _BudgetRule_period(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetRuleInput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetRule_period,
+		func(ctx context.Context) (any, error) {
+			return obj.Period, nil
+		},
+		nil,
+		ec.marshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetRule_period(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type BudgetPeriod does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetRule_mode(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetRuleInput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetRule_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNBudgetMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐMode,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetRule_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type BudgetMode does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetRule_limit(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetRuleInput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetRule_limit,
+		func(ctx context.Context) (any, error) {
+			return obj.Limit, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetRule_limit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetRule_minute(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetRuleInput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetRule_minute,
+		func(ctx context.Context) (any, error) {
+			return obj.Minute, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetRule_minute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetRule",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_ownerKind(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_ownerKind,
+		func(ctx context.Context) (any, error) {
+			return obj.OwnerKind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_ownerKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_ownerID(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_ownerID,
+		func(ctx context.Context) (any, error) {
+			return obj.OwnerID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_ownerID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_revision(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_timezone(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_expiresAt(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_expiresAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_accountingStartedAt(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_accountingStartedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountingStartedAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_accountingStartedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_serverTime(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_serverTime,
+		func(ctx context.Context) (any, error) {
+			return obj.ServerTime, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_serverTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_hasLimits(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_hasLimits,
+		func(ctx context.Context) (any, error) {
+			return obj.HasLimits, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_hasLimits(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_expired(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_expired,
+		func(ctx context.Context) (any, error) {
+			return obj.Expired, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_expired(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetView_windows(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetView_windows,
+		func(ctx context.Context) (any, error) {
+			return obj.Windows, nil
+		},
+		nil,
+		ec.marshalNBudgetWindow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetWindowViewᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetView_windows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "period":
+				return ec.fieldContext_BudgetWindow_period(ctx, field)
+			case "mode":
+				return ec.fieldContext_BudgetWindow_mode(ctx, field)
+			case "minute":
+				return ec.fieldContext_BudgetWindow_minute(ctx, field)
+			case "limit":
+				return ec.fieldContext_BudgetWindow_limit(ctx, field)
+			case "settled":
+				return ec.fieldContext_BudgetWindow_settled(ctx, field)
+			case "reserved":
+				return ec.fieldContext_BudgetWindow_reserved(ctx, field)
+			case "available":
+				return ec.fieldContext_BudgetWindow_available(ctx, field)
+			case "windowStart":
+				return ec.fieldContext_BudgetWindow_windowStart(ctx, field)
+			case "windowEnd":
+				return ec.fieldContext_BudgetWindow_windowEnd(ctx, field)
+			case "nextReleaseAt":
+				return ec.fieldContext_BudgetWindow_nextReleaseAt(ctx, field)
+			case "resetAt":
+				return ec.fieldContext_BudgetWindow_resetAt(ctx, field)
+			case "canResetCycle":
+				return ec.fieldContext_BudgetWindow_canResetCycle(ctx, field)
+			case "effectiveSchedule":
+				return ec.fieldContext_BudgetWindow_effectiveSchedule(ctx, field)
+			case "timezone":
+				return ec.fieldContext_BudgetWindow_timezone(ctx, field)
+			case "pendingRule":
+				return ec.fieldContext_BudgetWindow_pendingRule(ctx, field)
+			case "pendingAt":
+				return ec.fieldContext_BudgetWindow_pendingAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BudgetWindow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_period(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_period,
+		func(ctx context.Context) (any, error) {
+			return obj.Period, nil
+		},
+		nil,
+		ec.marshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_period(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type BudgetPeriod does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_mode(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNBudgetMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐMode,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type BudgetMode does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_minute(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_minute,
+		func(ctx context.Context) (any, error) {
+			return obj.Minute, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_minute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_limit(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_limit,
+		func(ctx context.Context) (any, error) {
+			return obj.Limit, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_limit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_settled(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_settled,
+		func(ctx context.Context) (any, error) {
+			return obj.Settled, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_settled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_reserved(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_reserved,
+		func(ctx context.Context) (any, error) {
+			return obj.Reserved, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_reserved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_available(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_available,
+		func(ctx context.Context) (any, error) {
+			return obj.Available, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_available(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_windowStart(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_windowStart,
+		func(ctx context.Context) (any, error) {
+			return obj.WindowStart, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_windowStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_windowEnd(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_windowEnd,
+		func(ctx context.Context) (any, error) {
+			return obj.WindowEnd, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_windowEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_nextReleaseAt(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_nextReleaseAt,
+		func(ctx context.Context) (any, error) {
+			return obj.NextReleaseAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_nextReleaseAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_resetAt(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_resetAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ResetAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_resetAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_canResetCycle(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_canResetCycle,
+		func(ctx context.Context) (any, error) {
+			return obj.CanResetCycle, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_canResetCycle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_effectiveSchedule(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_effectiveSchedule,
+		func(ctx context.Context) (any, error) {
+			return obj.EffectiveSchedule, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_effectiveSchedule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_timezone(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_pendingRule(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_pendingRule,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingRule, nil
+		},
+		nil,
+		ec.marshalOBudgetRule2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInput,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_pendingRule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "period":
+				return ec.fieldContext_BudgetRule_period(ctx, field)
+			case "mode":
+				return ec.fieldContext_BudgetRule_mode(ctx, field)
+			case "limit":
+				return ec.fieldContext_BudgetRule_limit(ctx, field)
+			case "minute":
+				return ec.fieldContext_BudgetRule_minute(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BudgetRule", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_pendingAt(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_pendingAt,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_pendingAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _Query_selfUsageMeta(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -1047,6 +2213,57 @@ func (ec *executionContext) fieldContext_Query_selfUsageRequests(ctx context.Con
 	if fc.Args, err = ec.field_Query_selfUsageRequests_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_selfUsageBudgets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_selfUsageBudgets,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().SelfUsageBudgets(ctx)
+		},
+		nil,
+		ec.marshalNBudgetView2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetViewᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_selfUsageBudgets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ownerKind":
+				return ec.fieldContext_BudgetView_ownerKind(ctx, field)
+			case "ownerID":
+				return ec.fieldContext_BudgetView_ownerID(ctx, field)
+			case "revision":
+				return ec.fieldContext_BudgetView_revision(ctx, field)
+			case "timezone":
+				return ec.fieldContext_BudgetView_timezone(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_BudgetView_expiresAt(ctx, field)
+			case "accountingStartedAt":
+				return ec.fieldContext_BudgetView_accountingStartedAt(ctx, field)
+			case "serverTime":
+				return ec.fieldContext_BudgetView_serverTime(ctx, field)
+			case "hasLimits":
+				return ec.fieldContext_BudgetView_hasLimits(ctx, field)
+			case "expired":
+				return ec.fieldContext_BudgetView_expired(ctx, field)
+			case "windows":
+				return ec.fieldContext_BudgetView_windows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BudgetView", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -4888,6 +6105,168 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputBudgetResetInput(ctx context.Context, obj any) (biz.BudgetResetInput, error) {
+	var it biz.BudgetResetInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"periods", "resetCycle", "revision", "operationID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "periods":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("periods"))
+			data, err := ec.unmarshalNBudgetPeriod2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriodᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Periods = data
+		case "resetCycle":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("resetCycle"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResetCycle = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		case "operationID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operationID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OperationID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputBudgetRuleInput(ctx context.Context, obj any) (biz.BudgetRuleInput, error) {
+	var it biz.BudgetRuleInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["restoreCalendar"]; !present {
+		asMap["restoreCalendar"] = false
+	}
+
+	fieldsInOrder := [...]string{"restoreCalendar", "period", "mode", "limit", "minute"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "restoreCalendar":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("restoreCalendar"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RestoreCalendar = data
+		case "period":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("period"))
+			data, err := ec.unmarshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Period = data
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalNBudgetMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "limit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Limit = data
+		case "minute":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minute"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Minute = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputBudgetSettingsInput(ctx context.Context, obj any) (biz.BudgetSettingsInput, error) {
+	var it biz.BudgetSettingsInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"rules", "timezone", "expiresAt", "revision", "operationID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "rules":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rules"))
+			data, err := ec.unmarshalNBudgetRuleInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Rules = data
+		case "timezone":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timezone"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timezone = data
+		case "expiresAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expiresAt"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpiresAt = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		case "operationID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operationID"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OperationID = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4895,6 +6274,234 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var budgetRuleImplementors = []string{"BudgetRule"}
+
+func (ec *executionContext) _BudgetRule(ctx context.Context, sel ast.SelectionSet, obj *biz.BudgetRuleInput) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, budgetRuleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BudgetRule")
+		case "period":
+			out.Values[i] = ec._BudgetRule_period(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mode":
+			out.Values[i] = ec._BudgetRule_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "limit":
+			out.Values[i] = ec._BudgetRule_limit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minute":
+			out.Values[i] = ec._BudgetRule_minute(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var budgetViewImplementors = []string{"BudgetView"}
+
+func (ec *executionContext) _BudgetView(ctx context.Context, sel ast.SelectionSet, obj *biz.BudgetView) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, budgetViewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BudgetView")
+		case "ownerKind":
+			out.Values[i] = ec._BudgetView_ownerKind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ownerID":
+			out.Values[i] = ec._BudgetView_ownerID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._BudgetView_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._BudgetView_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._BudgetView_expiresAt(ctx, field, obj)
+		case "accountingStartedAt":
+			out.Values[i] = ec._BudgetView_accountingStartedAt(ctx, field, obj)
+		case "serverTime":
+			out.Values[i] = ec._BudgetView_serverTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasLimits":
+			out.Values[i] = ec._BudgetView_hasLimits(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expired":
+			out.Values[i] = ec._BudgetView_expired(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "windows":
+			out.Values[i] = ec._BudgetView_windows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var budgetWindowImplementors = []string{"BudgetWindow"}
+
+func (ec *executionContext) _BudgetWindow(ctx context.Context, sel ast.SelectionSet, obj *biz.BudgetWindowView) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, budgetWindowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BudgetWindow")
+		case "period":
+			out.Values[i] = ec._BudgetWindow_period(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mode":
+			out.Values[i] = ec._BudgetWindow_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minute":
+			out.Values[i] = ec._BudgetWindow_minute(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "limit":
+			out.Values[i] = ec._BudgetWindow_limit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "settled":
+			out.Values[i] = ec._BudgetWindow_settled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reserved":
+			out.Values[i] = ec._BudgetWindow_reserved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "available":
+			out.Values[i] = ec._BudgetWindow_available(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "windowStart":
+			out.Values[i] = ec._BudgetWindow_windowStart(ctx, field, obj)
+		case "windowEnd":
+			out.Values[i] = ec._BudgetWindow_windowEnd(ctx, field, obj)
+		case "nextReleaseAt":
+			out.Values[i] = ec._BudgetWindow_nextReleaseAt(ctx, field, obj)
+		case "resetAt":
+			out.Values[i] = ec._BudgetWindow_resetAt(ctx, field, obj)
+		case "canResetCycle":
+			out.Values[i] = ec._BudgetWindow_canResetCycle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "effectiveSchedule":
+			out.Values[i] = ec._BudgetWindow_effectiveSchedule(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._BudgetWindow_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pendingRule":
+			out.Values[i] = ec._BudgetWindow_pendingRule(ctx, field, obj)
+		case "pendingAt":
+			out.Values[i] = ec._BudgetWindow_pendingAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var queryImplementors = []string{"Query"}
 
@@ -4969,6 +6576,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_selfUsageRequests(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "selfUsageBudgets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_selfUsageBudgets(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -6035,6 +7664,227 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNBudgetMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐMode(ctx context.Context, v any) (budget.Mode, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := budget.Mode(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBudgetMode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐMode(ctx context.Context, sel ast.SelectionSet, v budget.Mode) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx context.Context, v any) (budget.Period, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := budget.Period(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx context.Context, sel ast.SelectionSet, v budget.Period) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNBudgetPeriod2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriodᚄ(ctx context.Context, v any) ([]budget.Period, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]budget.Period, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNBudgetPeriod2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriodᚄ(ctx context.Context, sel ast.SelectionSet, v []budget.Period) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNBudgetRuleInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInputᚄ(ctx context.Context, v any) ([]*biz.BudgetRuleInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*biz.BudgetRuleInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNBudgetRuleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNBudgetRuleInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInput(ctx context.Context, v any) (*biz.BudgetRuleInput, error) {
+	res, err := ec.unmarshalInputBudgetRuleInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBudgetView2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetViewᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.BudgetView) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBudgetView2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBudgetView2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView(ctx context.Context, sel ast.SelectionSet, v *biz.BudgetView) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BudgetView(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBudgetWindow2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetWindowViewᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.BudgetWindowView) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBudgetWindow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetWindowView(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBudgetWindow2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetWindowView(ctx context.Context, sel ast.SelectionSet, v *biz.BudgetWindowView) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BudgetWindow(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
 	res, err := graphql.UnmarshalFloatContext(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6714,6 +8564,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) marshalOBudgetRule2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetRuleInput(ctx context.Context, sel ast.SelectionSet, v *biz.BudgetRuleInput) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._BudgetRule(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
 	if v == nil {
 		return nil, nil
@@ -6787,6 +8644,24 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalString(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalTime(*v)
 	return res
 }
 

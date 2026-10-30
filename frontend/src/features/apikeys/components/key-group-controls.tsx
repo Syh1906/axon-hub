@@ -7,13 +7,44 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DataTableFacetedFilter } from '@/components/data-table-faceted-filter';
+import { BudgetButton } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { readDefaultGroups, saveDefaultGroups, selectedGroupOptions } from '../data/default-groups';
 import { useKeyGroups, useSaveKeyGroup, useDeleteKeyGroup } from '../data/groups';
 
 export function KeyGroupFilter({ defaults = false }: { defaults?: boolean }) {
+  return defaults ? <KeyGroupDefaults /> : <KeyGroupQuickFilter />;
+}
+
+function KeyGroupQuickFilter() {
   const { t } = useTranslation();
-  const { groupFilters, setGroupFilters, groupStorageKey } = useApiKeysContext();
+  const { groupFilters, setGroupFilters } = useApiKeysContext();
+  const groups = useKeyGroups();
+  const options = [{ id: 0, name: t('apikeys.groups.none') }, ...(groups.data ?? [])];
+  const unavailable = selectedGroupOptions(groupFilters, options, (id) => t('apikeys.groups.unavailable', { id })).filter(
+    (option) => !options.some((existing) => existing.id === option.id)
+  );
+  return (
+    <DataTableFacetedFilter
+      title={t('apikeys.groups.title')}
+      options={[...options, ...unavailable].map((group) => ({ value: String(group.id), label: group.name }))}
+      value={groupFilters.map(String)}
+      onValueChange={(values) => setGroupFilters(values.map(Number))}
+      footer={
+        groups.error ? (
+          <p role='alert' className='p-2 text-sm'>
+            {groups.error.message}
+          </p>
+        ) : undefined
+      }
+    />
+  );
+}
+
+function KeyGroupDefaults() {
+  const { t } = useTranslation();
+  const { setGroupFilters, groupStorageKey } = useApiKeysContext();
   const groups = useKeyGroups();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<number[]>([]);
@@ -26,19 +57,18 @@ export function KeyGroupFilter({ defaults = false }: { defaults?: boolean }) {
         variant='outline'
         size='sm'
         onClick={() => {
-          setDraft(defaults ? readDefaultGroups(groupStorageKey) : groupFilters);
+          setDraft(readDefaultGroups(groupStorageKey));
           setSearch('');
           setOpen(true);
         }}
       >
-        {t(defaults ? 'apikeys.groups.defaults' : 'apikeys.groups.title')}
-        {!defaults && groupFilters.length > 0 ? ` (${groupFilters.length})` : ''}
+        {t('apikeys.groups.defaults')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className='sm:max-w-md'>
+        <DialogContent className='sm:max-w-xl'>
           <DialogHeader>
-            <DialogTitle>{t(defaults ? 'apikeys.groups.defaults' : 'apikeys.groups.title')}</DialogTitle>
-            <DialogDescription>{t(defaults ? 'apikeys.groups.defaultHelp' : 'apikeys.groups.filterHelp')}</DialogDescription>
+            <DialogTitle>{t('apikeys.groups.defaults')}</DialogTitle>
+            <DialogDescription>{t('apikeys.groups.defaultHelp')}</DialogDescription>
           </DialogHeader>
           {selected.length > 0 && (
             <div className='flex max-h-24 flex-wrap gap-1 overflow-auto'>
@@ -88,7 +118,7 @@ export function KeyGroupFilter({ defaults = false }: { defaults?: boolean }) {
             <Button
               onClick={() => {
                 try {
-                  if (defaults) saveDefaultGroups(groupStorageKey, draft);
+                  saveDefaultGroups(groupStorageKey, draft);
                   setGroupFilters(draft);
                   setOpen(false);
                 } catch {
@@ -96,7 +126,7 @@ export function KeyGroupFilter({ defaults = false }: { defaults?: boolean }) {
                 }
               }}
             >
-              {t(defaults ? 'apikeys.groups.saveApply' : 'apikeys.groups.apply')}
+              {t('apikeys.groups.saveApply')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -132,7 +162,7 @@ export function KeyGroupManager() {
         {t('apikeys.groups.title')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className='sm:max-w-md'>
+        <DialogContent className='sm:max-w-xl'>
           <DialogHeader>
             <DialogTitle>{t('apikeys.groups.title')}</DialogTitle>
             <DialogDescription>{t('apikeys.groups.manageHelp')}</DialogDescription>
@@ -171,6 +201,7 @@ export function KeyGroupManager() {
                 >
                   {t('common.buttons.edit')}
                 </Button>
+                <BudgetButton target={{ kind: 'group', ownerID: g.id, name: g.name }} />
                 <Button variant='ghost' size='sm' disabled={pending} onClick={() => setDeleting(g.id)}>
                   {t('common.buttons.delete')}
                 </Button>

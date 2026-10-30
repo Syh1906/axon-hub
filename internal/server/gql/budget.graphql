@@ -1,0 +1,5 @@
+extend type Query { previewAPIKeyBudgetReset(kind: String!, ownerID: Int!, input: BudgetResetInput!): BudgetView!  apiKeyBudget(kind: String!, ownerID: Int!): BudgetView! }
+extend type Mutation {
+ saveAPIKeyBudget(kind: String!, ownerID: Int!, input: BudgetSettingsInput!): BudgetView!
+ resetAPIKeyBudget(kind: String!, ownerID: Int!, input: BudgetResetInput!): BudgetView!
+}

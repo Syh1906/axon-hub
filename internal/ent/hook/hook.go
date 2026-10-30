@@ -45,6 +45,54 @@ func (f APIKeyProfileTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyProfileTemplateMutation", m)
 }
 
+// The BudgetAccountFunc type is an adapter to allow the use of ordinary
+// function as BudgetAccount mutator.
+type BudgetAccountFunc func(context.Context, *ent.BudgetAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetAccountMutation", m)
+}
+
+// The BudgetChangeFunc type is an adapter to allow the use of ordinary
+// function as BudgetChange mutator.
+type BudgetChangeFunc func(context.Context, *ent.BudgetChangeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetChangeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetChangeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetChangeMutation", m)
+}
+
+// The BudgetChargeFunc type is an adapter to allow the use of ordinary
+// function as BudgetCharge mutator.
+type BudgetChargeFunc func(context.Context, *ent.BudgetChargeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetChargeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetChargeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetChargeMutation", m)
+}
+
+// The BudgetPostingFunc type is an adapter to allow the use of ordinary
+// function as BudgetPosting mutator.
+type BudgetPostingFunc func(context.Context, *ent.BudgetPostingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BudgetPostingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BudgetPostingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BudgetPostingMutation", m)
+}
+
 // The CacheEffectivenessWindowFunc type is an adapter to allow the use of ordinary
 // function as CacheEffectivenessWindow mutator.
 type CacheEffectivenessWindowFunc func(context.Context, *ent.CacheEffectivenessWindowMutation) (ent.Value, error)

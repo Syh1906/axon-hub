@@ -57,6 +57,8 @@
 | [转换流程](development/transformation-flow.md) | 请求/响应转换流程详解 |
 | [授权编码规范](development/authz-coding-guidelines.md) | 权限相关代码编写规范 |
 | [用量统计与消耗排行榜](development/consumption-statistics.md) | CCH 字段映射、计算口径、只读权限与升级边界 |
+| [密钥与分组限额方案](../solutions/api-key-group-budgets.md) | 待实施：CCH 五窗口限额、刷新与有效期、共享预算和请求调度 |
+- [密钥与分组额度实现及验证](../solutions/api-key-group-budgets-implementation.md)
 
 ### ❓ 常见问题
 

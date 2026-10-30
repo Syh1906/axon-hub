@@ -12,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/llm"
 )
 
@@ -21,6 +22,7 @@ type UsageLogService struct {
 
 	SystemService  *SystemService
 	ChannelService *ChannelService
+	BudgetService  *BudgetService
 
 	// OnUsageLogCreated is called after a usage log is successfully created.
 	// Used to invalidate caches that depend on usage log data.
@@ -98,11 +100,13 @@ func NewUsageLogService(ent *ent.Client, systemService *SystemService, channelSe
 		},
 		SystemService:  systemService,
 		ChannelService: channelService,
+		BudgetService:  NewBudgetService(ent),
 	}
 }
 
 // CreateUsageLogParams represents the parameters for creating a usage log.
 type CreateUsageLogParams struct {
+	SettledCost   *budget.Amount
 	CostSnapshot  *objects.RequestCostSnapshot
 	RequestID     int
 	ProjectID     int
@@ -116,7 +120,7 @@ type CreateUsageLogParams struct {
 
 // CreateUsageLog creates a new usage log record from LLM response usage data.
 func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsageLogParams) (*ent.UsageLog, error) {
-	if params.Usage == nil && !hasImagePricingSnapshot(params.CostSnapshot) {
+	if params.Usage == nil && params.SettledCost == nil && !hasImagePricingSnapshot(params.CostSnapshot) {
 		return nil, nil // No usage data to log
 	}
 	// Keep missing provider usage distinct during billing; zero token columns are
@@ -172,6 +176,9 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 	)
 
 	costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, providerUsage, params.CostSnapshot)
+	if params.SettledCost != nil {
+		totalCost = lo.ToPtr(params.SettledCost.Decimal().InexactFloat64())
+	}
 	if params.CostSnapshot != nil {
 		mut.SetCostSnapshot(params.CostSnapshot)
 	}
@@ -212,11 +219,15 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 	requestExec *ent.RequestExecution,
 	usage *llm.Usage,
 ) (*ent.UsageLog, error) {
+	return s.createUsageLogFromRequest(ctx, request, requestExec, usage, nil)
+}
+
+func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request *ent.Request, requestExec *ent.RequestExecution, usage *llm.Usage, recordedCost *budget.Amount) (*ent.UsageLog, error) {
 	if request == nil || requestExec == nil {
 		return nil, nil
 	}
 
-	return s.CreateUsageLog(ctx, CreateUsageLogParams{
+	params := CreateUsageLogParams{
 		CostSnapshot:  requestExec.CostSnapshot,
 		RequestID:     request.ID,
 		ProjectID:     request.ProjectID,
@@ -226,5 +237,32 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 		Source:        usagelog.Source(request.Source),
 		Format:        request.Format,
 		APIKeyID:      lo.ToPtr(request.APIKeyID),
+	}
+	cost := recordedCost
+	var err error
+	if cost == nil {
+		cost, err = s.actualBudgetCost(ctx, usage, requestExec.CostSnapshot)
+	}
+	params.SettledCost = cost
+	if evidenceErr := s.BudgetService.RecordUsage(ctx, requestExec.ID, usage, requestExec.CostSnapshot, cost); evidenceErr != nil {
+		return nil, evidenceErr
+	}
+	if err != nil {
+		return nil, err
+	}
+	result, handled, err := s.BudgetService.Settle(ctx, requestExec.ID, cost, func(ctx context.Context, client *ent.Client) (*ent.UsageLog, error) {
+		writer := *s
+		writer.OnUsageLogCreated = nil
+		return writer.CreateUsageLog(ent.NewContext(ctx, client), params)
 	})
+	if err != nil {
+		return nil, err
+	}
+	if !handled {
+		return s.CreateUsageLog(ctx, params)
+	}
+	if result != nil && s.OnUsageLogCreated != nil {
+		s.OnUsageLogCreated()
+	}
+	return result, nil
 }

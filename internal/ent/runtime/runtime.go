@@ -9,6 +9,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
+	"github.com/looplj/axonhub/internal/ent/budgetchange"
+	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/budgetposting"
 	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
@@ -180,6 +184,99 @@ func init() {
 	apikeyprofiletemplateDescProfile := apikeyprofiletemplateFields[3].Descriptor()
 	// apikeyprofiletemplate.DefaultProfile holds the default value on creation for the profile field.
 	apikeyprofiletemplate.DefaultProfile = apikeyprofiletemplateDescProfile.Default.(*objects.APIKeyProfile)
+	budgetaccountMixin := schema.BudgetAccount{}.Mixin()
+	budgetaccount.Policy = privacy.NewPolicies(schema.BudgetAccount{})
+	budgetaccount.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := budgetaccount.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	budgetaccountMixinFields0 := budgetaccountMixin[0].Fields()
+	_ = budgetaccountMixinFields0
+	budgetaccountFields := schema.BudgetAccount{}.Fields()
+	_ = budgetaccountFields
+	// budgetaccountDescCreatedAt is the schema descriptor for created_at field.
+	budgetaccountDescCreatedAt := budgetaccountMixinFields0[0].Descriptor()
+	// budgetaccount.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budgetaccount.DefaultCreatedAt = budgetaccountDescCreatedAt.Default.(func() time.Time)
+	// budgetaccountDescUpdatedAt is the schema descriptor for updated_at field.
+	budgetaccountDescUpdatedAt := budgetaccountMixinFields0[1].Descriptor()
+	// budgetaccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	budgetaccount.DefaultUpdatedAt = budgetaccountDescUpdatedAt.Default.(func() time.Time)
+	// budgetaccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	budgetaccount.UpdateDefaultUpdatedAt = budgetaccountDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// budgetaccountDescReserved is the schema descriptor for reserved field.
+	budgetaccountDescReserved := budgetaccountFields[4].Descriptor()
+	// budgetaccount.DefaultReserved holds the default value on creation for the reserved field.
+	budgetaccount.DefaultReserved = budgetaccountDescReserved.Default.(int64)
+	// budgetaccountDescRevision is the schema descriptor for revision field.
+	budgetaccountDescRevision := budgetaccountFields[5].Descriptor()
+	// budgetaccount.DefaultRevision holds the default value on creation for the revision field.
+	budgetaccount.DefaultRevision = budgetaccountDescRevision.Default.(int64)
+	budgetchangeMixin := schema.BudgetChange{}.Mixin()
+	budgetchange.Policy = privacy.NewPolicies(schema.BudgetChange{})
+	budgetchange.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := budgetchange.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	budgetchangeMixinFields0 := budgetchangeMixin[0].Fields()
+	_ = budgetchangeMixinFields0
+	budgetchangeFields := schema.BudgetChange{}.Fields()
+	_ = budgetchangeFields
+	// budgetchangeDescCreatedAt is the schema descriptor for created_at field.
+	budgetchangeDescCreatedAt := budgetchangeMixinFields0[0].Descriptor()
+	// budgetchange.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budgetchange.DefaultCreatedAt = budgetchangeDescCreatedAt.Default.(func() time.Time)
+	// budgetchangeDescUpdatedAt is the schema descriptor for updated_at field.
+	budgetchangeDescUpdatedAt := budgetchangeMixinFields0[1].Descriptor()
+	// budgetchange.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	budgetchange.DefaultUpdatedAt = budgetchangeDescUpdatedAt.Default.(func() time.Time)
+	// budgetchange.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	budgetchange.UpdateDefaultUpdatedAt = budgetchangeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// budgetchangeDescOperationID is the schema descriptor for operation_id field.
+	budgetchangeDescOperationID := budgetchangeFields[3].Descriptor()
+	// budgetchange.OperationIDValidator is a validator for the "operation_id" field. It is called by the builders before save.
+	budgetchange.OperationIDValidator = budgetchangeDescOperationID.Validators[0].(func(string) error)
+	budgetchargeMixin := schema.BudgetCharge{}.Mixin()
+	budgetcharge.Policy = privacy.NewPolicies(schema.BudgetCharge{})
+	budgetcharge.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := budgetcharge.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	budgetchargeMixinFields0 := budgetchargeMixin[0].Fields()
+	_ = budgetchargeMixinFields0
+	budgetchargeFields := schema.BudgetCharge{}.Fields()
+	_ = budgetchargeFields
+	// budgetchargeDescCreatedAt is the schema descriptor for created_at field.
+	budgetchargeDescCreatedAt := budgetchargeMixinFields0[0].Descriptor()
+	// budgetcharge.DefaultCreatedAt holds the default value on creation for the created_at field.
+	budgetcharge.DefaultCreatedAt = budgetchargeDescCreatedAt.Default.(func() time.Time)
+	// budgetchargeDescUpdatedAt is the schema descriptor for updated_at field.
+	budgetchargeDescUpdatedAt := budgetchargeMixinFields0[1].Descriptor()
+	// budgetcharge.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	budgetcharge.DefaultUpdatedAt = budgetchargeDescUpdatedAt.Default.(func() time.Time)
+	// budgetcharge.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	budgetcharge.UpdateDefaultUpdatedAt = budgetchargeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	budgetposting.Policy = privacy.NewPolicies(schema.BudgetPosting{})
+	budgetposting.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := budgetposting.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
 	cacheeffectivenesswindow.Policy = privacy.NewPolicies(schema.CacheEffectivenessWindow{})
 	cacheeffectivenesswindow.Hooks[0] = func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {

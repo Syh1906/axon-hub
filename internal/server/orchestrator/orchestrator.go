@@ -317,6 +317,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		// reached upstream.
 		withChannelLimiter(outbound, processor.channelLimiterManager, processor.channelLimiterMetrics),
 		// Strict single-instance RPM admission for every outbound attempt.
+		withBudgetAdmission(outbound),
 		withRateLimitAdmission(outbound, processor.rateLimitTracker),
 		// Rate limit tracking middleware for TPM and provider cooldown signals.
 		withRateLimitTracking(outbound, processor.rateLimitTracker),
@@ -337,6 +338,9 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 	result, err := pipe.Process(ctx, request)
 	if err != nil {
+		if endErr := outbound.endBudgetAttempt(ctx); endErr != nil {
+			log.Error(ctx, "close budget attempt", log.Cause(endErr))
+		}
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, time.Second*10)
 		defer cancel()
 
@@ -395,6 +399,9 @@ func maybeEvaluateChannelAPIKeyRulesOnFailure(
 	outbound *PersistentOutboundTransformer,
 	rawErr error,
 ) {
+	if biz.IsBudgetDenied(rawErr) {
+		return
+	}
 	if outbound == nil || outbound.state == nil || outbound.state.ChannelService == nil {
 		return
 	}

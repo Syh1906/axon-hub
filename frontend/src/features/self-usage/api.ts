@@ -1,3 +1,5 @@
+import { budgetFields, type BudgetView } from '@/features/budgets/data';
+
 export type SelfUsageMeta = {
   apiKeyName: string;
   groupName: string | null;
@@ -128,4 +130,15 @@ export async function fetchRequests(
       signal
     )
   ).selfUsageRequests;
+}
+
+export async function fetchBudgets(key: string, signal?: AbortSignal) {
+  return (
+    await execute<{ selfUsageBudgets: BudgetView[] }>(
+      key,
+      `query SelfUsageBudgets { selfUsageBudgets { ${budgetFields} } }`,
+      undefined,
+      signal
+    )
+  ).selfUsageBudgets;
 }

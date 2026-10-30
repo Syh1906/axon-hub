@@ -3,12 +3,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { extractNumberID } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { ScopesSelect } from '@/components/scopes-select';
+import { BudgetButton } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { useUpdateApiKey } from '../data/apikeys';
 import { UpdateApiKeyInput, updateApiKeyInputSchemaFactory } from '../data/schema';
@@ -128,6 +130,19 @@ export function ApiKeysEditDialog() {
               />
             )}
             <KeyGroupField value={form.watch('groupRef')} onChange={(id) => form.setValue('groupRef', id)} container={dialogContent} />
+            {selectedApiKey && (
+              <div className='flex items-center justify-between gap-3 rounded-lg border p-3'>
+                <span className='text-muted-foreground text-sm'>{t('budgets.manageSeparately')}</span>
+                <BudgetButton
+                  target={{
+                    kind: 'key',
+                    ownerID: Number(extractNumberID(selectedApiKey.id)),
+                    name: selectedApiKey.displayName || selectedApiKey.name,
+                  }}
+                />
+              </div>
+            )}
+
             <div className='space-y-3 rounded-lg border p-4'>
               <div className='flex items-center justify-between'>
                 <div className='space-y-0.5'>

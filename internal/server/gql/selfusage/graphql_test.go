@@ -17,12 +17,15 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/intercept"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/user"
+	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/server/middleware"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -223,6 +226,7 @@ func TestGraphqlHandlerSelfUsageFieldBudget(t *testing.T) {
 		variables                  map[string]any
 		reject                     bool
 	}{
+		{"aliased budgets", `{ a: selfUsageBudgets { ownerID } b: selfUsageBudgets { ownerID } }`, "", nil, true},
 		{"aliased requests", `{ first: selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } second: selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } }`, "", nil, true},
 		{"same response name", `{ selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } }`, "", nil, true},
 		{"named fragment", `query { selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } ...More } fragment More on Query { ...Nested } fragment Nested on Query { alias: selfUsageRequests(start:"2026-01-01",end:"2026-01-01") { total } }`, "", nil, true},
@@ -285,4 +289,47 @@ func TestRepeatedSelfUsageFieldFragmentCycle(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBudgetSelfUsageReturnsOnlyCurrentKeyAndGroup(t *testing.T) {
+	db := enttest.NewEntClient(t, "sqlite3", "file:self_budget_isolation?mode=memory&_fk=1")
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	seed := authz.WithTestBypass(context.Background())
+	p := db.Project.Create().SetName("current").SaveX(seed)
+	other := db.Project.Create().SetName("other").SaveX(seed)
+	group := db.APIKeyGroup.Create().SetProjectID(p.ID).SetName("shared").SaveX(seed)
+	key := db.APIKey.Create().SetName("self").SetKey("fixture-self-budget").SetProjectID(p.ID).SetGroupRef(group.ID).SaveX(seed)
+	otherKey := db.APIKey.Create().SetName("other").SetKey("fixture-other-budget").SetProjectID(other.ID).SaveX(seed)
+	for _, target := range []struct {
+		project, id int
+		kind        budgetaccount.OwnerKind
+	}{{p.ID, key.ID, budgetaccount.OwnerKindKey}, {p.ID, group.ID, budgetaccount.OwnerKindGroup}, {other.ID, otherKey.ID, budgetaccount.OwnerKindKey}} {
+		state := budget.NewState()
+		state.Policy.StartedAt = time.Now().UTC()
+		state.Policy.Rules = []budget.Rule{{Period: budget.Total, Mode: budget.Fixed, Limit: 100000000}}
+		db.BudgetAccount.Create().SetProjectID(target.project).SetOwnerKind(target.kind).SetOwnerID(target.id).SetState(state).SaveX(seed)
+	}
+	service := biz.NewSelfUsageService(db, biz.NewSystemService(biz.SystemServiceParams{Ent: db, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}}))
+	handler := NewGraphqlHandlers(Dependencies{SelfUsageService: service}).Graphql
+	ctx := contexts.WithAPIKey(context.Background(), key)
+	payload, err := json.Marshal(map[string]string{"query": "{ selfUsageBudgets { ownerKind ownerID windows { period limit settled reserved available } } }"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", bytes.NewReader(payload)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	var result struct {
+		Data struct {
+			Views []*biz.BudgetView `json:"selfUsageBudgets"`
+		}
+		Errors []any
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Data.Views, 2)
+	require.Equal(t, "key", result.Data.Views[0].OwnerKind)
+	require.Equal(t, key.ID, result.Data.Views[0].OwnerID)
+	require.Equal(t, "group", result.Data.Views[1].OwnerKind)
+	require.Equal(t, group.ID, result.Data.Views[1].OwnerID)
+	require.Equal(t, "1.00000000", result.Data.Views[0].Windows[0].Available)
 }

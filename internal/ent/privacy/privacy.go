@@ -183,6 +183,102 @@ func (f APIKeyProfileTemplateMutationRuleFunc) EvalMutation(ctx context.Context,
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.APIKeyProfileTemplateMutation", m)
 }
 
+// The BudgetAccountQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type BudgetAccountQueryRuleFunc func(context.Context, *ent.BudgetAccountQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f BudgetAccountQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.BudgetAccountQuery", q)
+}
+
+// The BudgetAccountMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type BudgetAccountMutationRuleFunc func(context.Context, *ent.BudgetAccountMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f BudgetAccountMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.BudgetAccountMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.BudgetAccountMutation", m)
+}
+
+// The BudgetChangeQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type BudgetChangeQueryRuleFunc func(context.Context, *ent.BudgetChangeQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f BudgetChangeQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetChangeQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.BudgetChangeQuery", q)
+}
+
+// The BudgetChangeMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type BudgetChangeMutationRuleFunc func(context.Context, *ent.BudgetChangeMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f BudgetChangeMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.BudgetChangeMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.BudgetChangeMutation", m)
+}
+
+// The BudgetChargeQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type BudgetChargeQueryRuleFunc func(context.Context, *ent.BudgetChargeQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f BudgetChargeQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetChargeQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.BudgetChargeQuery", q)
+}
+
+// The BudgetChargeMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type BudgetChargeMutationRuleFunc func(context.Context, *ent.BudgetChargeMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f BudgetChargeMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.BudgetChargeMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.BudgetChargeMutation", m)
+}
+
+// The BudgetPostingQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type BudgetPostingQueryRuleFunc func(context.Context, *ent.BudgetPostingQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f BudgetPostingQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BudgetPostingQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.BudgetPostingQuery", q)
+}
+
+// The BudgetPostingMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type BudgetPostingMutationRuleFunc func(context.Context, *ent.BudgetPostingMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f BudgetPostingMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.BudgetPostingMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.BudgetPostingMutation", m)
+}
+
 // The CacheEffectivenessWindowQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type CacheEffectivenessWindowQueryRuleFunc func(context.Context, *ent.CacheEffectivenessWindowQuery) error
@@ -824,6 +920,14 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.APIKeyProfileTemplateQuery:
 		return q.Filter(), nil
+	case *ent.BudgetAccountQuery:
+		return q.Filter(), nil
+	case *ent.BudgetChangeQuery:
+		return q.Filter(), nil
+	case *ent.BudgetChargeQuery:
+		return q.Filter(), nil
+	case *ent.BudgetPostingQuery:
+		return q.Filter(), nil
 	case *ent.CacheEffectivenessWindowQuery:
 		return q.Filter(), nil
 	case *ent.ChannelQuery:
@@ -886,6 +990,14 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.APIKeyGroupMutation:
 		return m.Filter(), nil
 	case *ent.APIKeyProfileTemplateMutation:
+		return m.Filter(), nil
+	case *ent.BudgetAccountMutation:
+		return m.Filter(), nil
+	case *ent.BudgetChangeMutation:
+		return m.Filter(), nil
+	case *ent.BudgetChargeMutation:
+		return m.Filter(), nil
+	case *ent.BudgetPostingMutation:
 		return m.Filter(), nil
 	case *ent.CacheEffectivenessWindowMutation:
 		return m.Filter(), nil

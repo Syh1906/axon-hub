@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/user"
@@ -47,6 +48,7 @@ type APIKeyServiceParams struct {
 	CacheConfig    xcache.Config
 	Ent            *ent.Client
 	ProjectService *ProjectService
+	SystemService  *SystemService
 	KeyPrefix      string `name:"api_key_prefix"`
 }
 
@@ -54,6 +56,7 @@ type APIKeyService struct {
 	*AbstractService
 
 	ProjectService *ProjectService
+	SystemService  *SystemService
 	APIKeyCache    *live.IndexedCache[string, *ent.APIKey]
 	apiKeyNotifier watcher.Notifier[live.CacheEvent[string]]
 	keyPrefix      string
@@ -65,6 +68,7 @@ func NewAPIKeyService(params APIKeyServiceParams) *APIKeyService {
 			db: params.Ent,
 		},
 		ProjectService: params.ProjectService,
+		SystemService:  params.SystemService,
 		keyPrefix:      params.KeyPrefix,
 	}
 
@@ -447,6 +451,18 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 			return fmt.Errorf("failed to get API key: %w", err)
 		}
 
+		if input.GroupRef != nil || input.ClearGroupRef {
+			_, err = authz.RunWithSystemBypass(ctx, "api-key-budget-lock", func(lockCtx context.Context) (*ent.BudgetAccount, error) {
+				return LockBudgetAccount(lockCtx, client, apiKey.ProjectID, budgetaccount.OwnerKindKey, id)
+			})
+			if err != nil {
+				return err
+			}
+			apiKey, err = client.APIKey.Get(ctx, id)
+			if err != nil {
+				return err
+			}
+		}
 		if apiKey.Type == apikey.TypeUser || apiKey.Type == apikey.TypePersonal {
 			if len(input.Scopes) > 0 || len(input.AppendScopes) > 0 || input.ClearScopes {
 				return fmt.Errorf("%s type API key cannot update scopes", apiKey.Type)

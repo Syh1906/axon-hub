@@ -128,6 +128,141 @@ var (
 			},
 		},
 	}
+	// BudgetAccountsColumns holds the columns for the "budget_accounts" table.
+	BudgetAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "owner_kind", Type: field.TypeEnum, Enums: []string{"key", "group"}},
+		{Name: "owner_id", Type: field.TypeInt},
+		{Name: "state", Type: field.TypeJSON},
+		{Name: "reserved", Type: field.TypeInt64, Default: 0},
+		{Name: "revision", Type: field.TypeInt64, Default: 0},
+	}
+	// BudgetAccountsTable holds the schema information for the "budget_accounts" table.
+	BudgetAccountsTable = &schema.Table{
+		Name:       "budget_accounts",
+		Columns:    BudgetAccountsColumns,
+		PrimaryKey: []*schema.Column{BudgetAccountsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budget_accounts_by_owner",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetAccountsColumns[3], BudgetAccountsColumns[4], BudgetAccountsColumns[5]},
+			},
+		},
+	}
+	// BudgetChangesColumns holds the columns for the "budget_changes" table.
+	BudgetChangesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "account_id", Type: field.TypeInt},
+		{Name: "actor_id", Type: field.TypeInt},
+		{Name: "operation_id", Type: field.TypeString, Size: 64},
+		{Name: "operation", Type: field.TypeEnum, Enums: []string{"configure", "reset"}},
+		{Name: "before", Type: field.TypeJSON},
+		{Name: "after", Type: field.TypeJSON},
+	}
+	// BudgetChangesTable holds the schema information for the "budget_changes" table.
+	BudgetChangesTable = &schema.Table{
+		Name:       "budget_changes",
+		Columns:    BudgetChangesColumns,
+		PrimaryKey: []*schema.Column{BudgetChangesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budget_changes_by_operation",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetChangesColumns[3], BudgetChangesColumns[6]},
+			},
+			{
+				Name:    "budget_changes_by_account_time",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetChangesColumns[3], BudgetChangesColumns[4], BudgetChangesColumns[1]},
+			},
+		},
+	}
+	// BudgetChargesColumns holds the columns for the "budget_charges" table.
+	BudgetChargesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "execution_id", Type: field.TypeInt},
+		{Name: "request_id", Type: field.TypeInt},
+		{Name: "key_id", Type: field.TypeInt},
+		{Name: "group_id", Type: field.TypeInt, Nullable: true},
+		{Name: "key_account_id", Type: field.TypeInt},
+		{Name: "group_account_id", Type: field.TypeInt, Nullable: true},
+		{Name: "estimate", Type: field.TypeInt64},
+		{Name: "actual", Type: field.TypeInt64, Nullable: true},
+		{Name: "usage", Type: field.TypeJSON, Nullable: true},
+		{Name: "async_task", Type: field.TypeJSON, Nullable: true},
+		{Name: "cost_snapshot", Type: field.TypeJSON, Nullable: true},
+		{Name: "usage_log_id", Type: field.TypeInt, Nullable: true},
+		{Name: "key_versions", Type: field.TypeJSON},
+		{Name: "group_versions", Type: field.TypeJSON},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"prepared", "sent", "unknown", "settled", "released"}, Default: "prepared"},
+		{Name: "check_after", Type: field.TypeTime},
+		{Name: "settled_at", Type: field.TypeTime, Nullable: true},
+	}
+	// BudgetChargesTable holds the schema information for the "budget_charges" table.
+	BudgetChargesTable = &schema.Table{
+		Name:       "budget_charges",
+		Columns:    BudgetChargesColumns,
+		PrimaryKey: []*schema.Column{BudgetChargesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budget_charges_by_execution",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetChargesColumns[4]},
+			},
+			{
+				Name:    "budget_charges_by_request",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetChargesColumns[3], BudgetChargesColumns[5]},
+			},
+			{
+				Name:    "budget_charges_by_recovery_time",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetChargesColumns[19], BudgetChargesColumns[18]},
+			},
+		},
+	}
+	// BudgetPostingsColumns holds the columns for the "budget_postings" table.
+	BudgetPostingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "account_id", Type: field.TypeInt},
+		{Name: "charge_id", Type: field.TypeInt},
+		{Name: "amount", Type: field.TypeInt64},
+		{Name: "settled_at", Type: field.TypeTime},
+		{Name: "five_hour_version", Type: field.TypeInt64},
+		{Name: "daily_version", Type: field.TypeInt64},
+		{Name: "weekly_version", Type: field.TypeInt64},
+		{Name: "monthly_version", Type: field.TypeInt64},
+		{Name: "total_version", Type: field.TypeInt64},
+	}
+	// BudgetPostingsTable holds the schema information for the "budget_postings" table.
+	BudgetPostingsTable = &schema.Table{
+		Name:       "budget_postings",
+		Columns:    BudgetPostingsColumns,
+		PrimaryKey: []*schema.Column{BudgetPostingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "budget_postings_by_account_charge",
+				Unique:  true,
+				Columns: []*schema.Column{BudgetPostingsColumns[2], BudgetPostingsColumns[3]},
+			},
+			{
+				Name:    "budget_postings_by_account_time",
+				Unique:  false,
+				Columns: []*schema.Column{BudgetPostingsColumns[1], BudgetPostingsColumns[2], BudgetPostingsColumns[5]},
+			},
+		},
+	}
 	// CacheEffectivenessWindowsColumns holds the columns for the "cache_effectiveness_windows" table.
 	CacheEffectivenessWindowsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1164,6 +1299,10 @@ var (
 		APIKeysTable,
 		APIKeyGroupsTable,
 		APIKeyProfileTemplatesTable,
+		BudgetAccountsTable,
+		BudgetChangesTable,
+		BudgetChargesTable,
+		BudgetPostingsTable,
 		CacheEffectivenessWindowsTable,
 		ChannelsTable,
 		ChannelModelPricesTable,

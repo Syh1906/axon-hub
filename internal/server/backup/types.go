@@ -11,6 +11,10 @@ import (
 )
 
 type BackupData struct {
+	BudgetAccounts     []*BackupBudgetAccount     `json:"budget_accounts,omitempty"`
+	BudgetCharges      []*ent.BudgetCharge        `json:"budget_charges,omitempty"`
+	BudgetPostings     []*ent.BudgetPosting       `json:"budget_postings,omitempty"`
+	BudgetChanges      []*ent.BudgetChange        `json:"budget_changes,omitempty"`
 	Version            string                     `json:"version"`
 	Timestamp          time.Time                  `json:"timestamp"`
 	SystemConfigs      []*BackupSystemConfig      `json:"system_configs,omitempty"`
@@ -203,7 +207,8 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 }
 
 const (
-	BackupVersion   = "1.4"
+	BackupVersion   = "1.5"
+	BackupVersionV5 = "1.4"
 	BackupVersionV4 = "1.3"
 	BackupVersionV1 = "1.0"
 	BackupVersionV2 = "1.1"

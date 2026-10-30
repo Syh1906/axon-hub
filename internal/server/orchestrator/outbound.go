@@ -32,9 +32,10 @@ type OutboundPersistentStream struct {
 	RequestService  *biz.RequestService
 	UsageLogService *biz.UsageLogService
 
-	stream      streams.Stream[*httpclient.StreamEvent]
-	request     *ent.Request
-	requestExec *ent.RequestExecution
+	stream             streams.Stream[*httpclient.StreamEvent]
+	request            *ent.Request
+	requestExec        *ent.RequestExecution
+	rawProviderRequest *httpclient.Request
 
 	transformer    transformer.Outbound
 	perf           *biz.PerformanceRecord
@@ -57,17 +58,18 @@ func NewOutboundPersistentStream(
 	state *PersistenceState,
 ) *OutboundPersistentStream {
 	s := &OutboundPersistentStream{
-		ctx:             ctx,
-		stream:          stream,
-		request:         request,
-		requestExec:     requestExec,
-		RequestService:  requestService,
-		UsageLogService: usageLogService,
-		transformer:     outboundTransformer,
-		perf:            perf,
-		responseChunks:  make([]*httpclient.StreamEvent, 0),
-		closed:          false,
-		state:           state,
+		ctx:                ctx,
+		stream:             stream,
+		request:            request,
+		requestExec:        requestExec,
+		rawProviderRequest: state.RawProviderRequest,
+		RequestService:     requestService,
+		UsageLogService:    usageLogService,
+		transformer:        outboundTransformer,
+		perf:               perf,
+		responseChunks:     make([]*httpclient.StreamEvent, 0),
+		closed:             false,
+		state:              state,
 	}
 
 	return s
@@ -132,6 +134,7 @@ func (ts *OutboundPersistentStream) Close() error {
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
+		ts.persistPartialUsage(persistCtx)
 		ts.persistFailureChunks(persistCtx)
 
 		ts.persistExecutionFailure(persistCtx, streamErr)
@@ -145,7 +148,7 @@ func (ts *OutboundPersistentStream) Close() error {
 	aggregatedCompleted := false
 
 	if len(ts.responseChunks) > 0 {
-		responseBody, meta, aggErr = ts.transformer.AggregateStreamChunks(context.WithoutCancel(ctx), ts.state.RawProviderRequest, ts.responseChunks)
+		responseBody, meta, aggErr = ts.transformer.AggregateStreamChunks(context.WithoutCancel(ctx), ts.rawProviderRequest, ts.responseChunks)
 		aggregatedCompleted = aggErr == nil && isCompletedAggregated(meta)
 		ts.logFinalizationDecision(ctx, "aggregated_outbound_chunks", streamErr, ctxErr, aggregatedCompleted, aggErr)
 		if aggregatedCompleted {
@@ -165,6 +168,7 @@ func (ts *OutboundPersistentStream) Close() error {
 		defer cancel()
 
 		// Keep partial chunks for debugging even when the request fails/cancels.
+		ts.persistPartialUsage(persistCtx)
 		ts.persistFailureChunks(persistCtx)
 
 		errToReport := streamErr
@@ -187,6 +191,7 @@ func (ts *OutboundPersistentStream) Close() error {
 
 		// Upstream dropped mid-stream (clean EOF, no terminal). Persist what we
 		// buffered so operators can inspect the truncated generation.
+		ts.persistPartialUsage(persistCtx)
 		ts.persistFailureChunks(persistCtx)
 
 		errToReport := ErrStreamIncomplete
@@ -255,7 +260,7 @@ func (ts *OutboundPersistentStream) persistResponseChunks(ctx context.Context) {
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		responseBody, meta, err := ts.transformer.AggregateStreamChunks(persistCtx, ts.state.RawProviderRequest, ts.responseChunks)
+		responseBody, meta, err := ts.transformer.AggregateStreamChunks(persistCtx, ts.rawProviderRequest, ts.responseChunks)
 		if err != nil {
 			log.Warn(persistCtx, "Failed to aggregate chunks using transformer", log.Cause(err))
 			return
@@ -320,7 +325,10 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 	}
 
 	// Try to create usage log from aggregated response
-	captureImageCostEvidence(ctx, ts.state, responseBody)
+	costState := *ts.state
+	costState.RequestExec = ts.requestExec
+	costState.RawProviderRequest = ts.rawProviderRequest
+	captureImageCostEvidence(ctx, &costState, responseBody)
 	if usage := meta.Usage; usage != nil || biz.NeedsImageCostEvidence(ts.requestExec.CostSnapshot) {
 		_, err := ts.UsageLogService.CreateUsageLogFromRequest(ctx, ts.request, ts.requestExec, usage)
 		if err != nil {
@@ -662,6 +670,12 @@ func (p *PersistentOutboundTransformer) resetPassThroughStreamState() {
 // NextChannel moves to the next available candidate for retry.
 // It implements the pipeline.Retryable interface.
 func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
+	if p.state.BudgetStop != nil {
+		return p.state.BudgetStop
+	}
+	if err := p.endBudgetAttempt(ctx); err != nil {
+		return err
+	}
 	// Cancel any in-flight pass-through stream goroutine from the previous attempt
 	// so it exits promptly and releases its upstream HTTP connection.
 	p.resetPassThroughStreamState()
@@ -701,6 +715,13 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 // It implements the pipeline.ChannelRetryable interface, it just check the error is retryable, the
 // pipeline will ensure the maxSameChannelRetries is not exceeded.
 func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
+	if biz.IsBudgetDenied(err) {
+		var denied *biz.BudgetDenied
+		if errors.As(err, &denied) && !denied.CandidateOnly {
+			p.state.BudgetStop = err
+		}
+		return false
+	}
 	p.retryAddress = false
 	if p.state.CurrentCandidate == nil {
 		return false
@@ -770,6 +791,9 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 // This will reset the request execution for the same channel, so that the same request can be retried.
 // It will try the next model in the same channel if available.
 func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) error {
+	if err := p.endBudgetAttempt(ctx); err != nil {
+		return err
+	}
 	candidate := p.state.CurrentCandidate
 
 	// Reset request execution for the same channel.
@@ -855,10 +879,10 @@ func (p *PersistentOutboundTransformer) CustomizeExecutor(executor pipeline.Exec
 		outbound = channel.Outbound
 	}
 	if custom, ok := outbound.(pipeline.ChannelCustomizedExecutor); ok {
-		return custom.CustomizeExecutor(customizedExecutor)
+		customizedExecutor = custom.CustomizeExecutor(customizedExecutor)
 	}
 
-	return customizedExecutor
+	return p.budgetExecutor(customizedExecutor)
 }
 
 func finalizeTransportRequest(p *PersistentOutboundTransformer) pipeline.Middleware {
@@ -878,4 +902,23 @@ func finalizeTransportRequest(p *PersistentOutboundTransformer) pipeline.Middlew
 		}
 		return request, nil
 	})
+}
+
+// Billing evidence can be valid even when the response stream failed. Preserve
+// the failure status while settling confirmed usage exactly once.
+func (ts *OutboundPersistentStream) persistPartialUsage(ctx context.Context) {
+	if ts.requestExec == nil || len(ts.responseChunks) == 0 {
+		return
+	}
+	body, meta, err := ts.transformer.AggregateStreamChunks(ctx, ts.rawProviderRequest, ts.responseChunks)
+	if err != nil || meta.Usage == nil {
+		return
+	}
+	costState := *ts.state
+	costState.RequestExec = ts.requestExec
+	costState.RawProviderRequest = ts.rawProviderRequest
+	captureImageCostEvidence(ctx, &costState, body)
+	if _, err = ts.UsageLogService.CreateUsageLogFromRequest(ctx, ts.request, ts.requestExec, meta.Usage); err != nil {
+		log.Warn(ctx, "settle failed stream usage", log.Cause(err))
+	}
 }

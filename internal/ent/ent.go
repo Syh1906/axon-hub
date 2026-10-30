@@ -15,6 +15,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
+	"github.com/looplj/axonhub/internal/ent/budgetchange"
+	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/budgetposting"
 	"github.com/looplj/axonhub/internal/ent/cacheeffectivenesswindow"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
@@ -103,6 +107,10 @@ func checkColumn(t, c string) error {
 			apikey.Table:                   apikey.ValidColumn,
 			apikeygroup.Table:              apikeygroup.ValidColumn,
 			apikeyprofiletemplate.Table:    apikeyprofiletemplate.ValidColumn,
+			budgetaccount.Table:            budgetaccount.ValidColumn,
+			budgetchange.Table:             budgetchange.ValidColumn,
+			budgetcharge.Table:             budgetcharge.ValidColumn,
+			budgetposting.Table:            budgetposting.ValidColumn,
 			cacheeffectivenesswindow.Table: cacheeffectivenesswindow.ValidColumn,
 			channel.Table:                  channel.ValidColumn,
 			channelmodelprice.Table:        channelmodelprice.ValidColumn,

@@ -1,0 +1,15 @@
+enum BudgetPeriod { five_hour daily weekly monthly total }
+enum BudgetMode { fixed rolling }
+type BudgetRule { period: BudgetPeriod! mode: BudgetMode! limit: String! minute: Int! }
+input BudgetRuleInput { restoreCalendar: Boolean! = false period: BudgetPeriod! mode: BudgetMode! limit: String! minute: Int! }
+input BudgetSettingsInput { rules: [BudgetRuleInput!]! timezone: String! expiresAt: Time revision: Int! operationID: String! }
+input BudgetResetInput { periods: [BudgetPeriod!]! resetCycle: Boolean! revision: Int! operationID: String! }
+type BudgetWindow {
+ period: BudgetPeriod! mode: BudgetMode! minute: Int! limit: String! settled: String! reserved: String! available: String!
+ windowStart: Time windowEnd: Time nextReleaseAt: Time resetAt: Time canResetCycle: Boolean!
+ effectiveSchedule: String! timezone: String! pendingRule: BudgetRule pendingAt: Time
+}
+type BudgetView {
+ ownerKind: String! ownerID: Int! revision: Int! timezone: String! expiresAt: Time accountingStartedAt: Time
+ serverTime: Time! hasLimits: Boolean! expired: Boolean! windows: [BudgetWindow!]!
+}

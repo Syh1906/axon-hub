@@ -58,6 +58,8 @@ Welcome to the AxonHub documentation center! This index will help you quickly fi
 | [Transformation Flow](development/transformation-flow.md) | Request/response transformation process |
 | [Authz Coding Guidelines](development/authz-coding-guidelines.md) | Guidelines for writing authorization code |
 | [Usage statistics and consumption leaderboard](development/consumption-statistics.md) | CCH metric mapping, calculations, read permission and upgrade boundaries |
+| [API key and group budget proposal (Chinese)](../solutions/api-key-group-budgets.md) | Proposed, not implemented: five spending windows, resets, expiration, shared budgets and request admission |
+- [API key and group budget implementation and verification](../solutions/api-key-group-budgets-implementation.md)
 
 ### ❓ FAQ
 

@@ -18,6 +18,14 @@ type Tx struct {
 	APIKeyGroup *APIKeyGroupClient
 	// APIKeyProfileTemplate is the client for interacting with the APIKeyProfileTemplate builders.
 	APIKeyProfileTemplate *APIKeyProfileTemplateClient
+	// BudgetAccount is the client for interacting with the BudgetAccount builders.
+	BudgetAccount *BudgetAccountClient
+	// BudgetChange is the client for interacting with the BudgetChange builders.
+	BudgetChange *BudgetChangeClient
+	// BudgetCharge is the client for interacting with the BudgetCharge builders.
+	BudgetCharge *BudgetChargeClient
+	// BudgetPosting is the client for interacting with the BudgetPosting builders.
+	BudgetPosting *BudgetPostingClient
 	// CacheEffectivenessWindow is the client for interacting with the CacheEffectivenessWindow builders.
 	CacheEffectivenessWindow *CacheEffectivenessWindowClient
 	// Channel is the client for interacting with the Channel builders.
@@ -202,6 +210,10 @@ func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
 	tx.APIKeyGroup = NewAPIKeyGroupClient(tx.config)
 	tx.APIKeyProfileTemplate = NewAPIKeyProfileTemplateClient(tx.config)
+	tx.BudgetAccount = NewBudgetAccountClient(tx.config)
+	tx.BudgetChange = NewBudgetChangeClient(tx.config)
+	tx.BudgetCharge = NewBudgetChargeClient(tx.config)
+	tx.BudgetPosting = NewBudgetPostingClient(tx.config)
 	tx.CacheEffectivenessWindow = NewCacheEffectivenessWindowClient(tx.config)
 	tx.Channel = NewChannelClient(tx.config)
 	tx.ChannelModelPrice = NewChannelModelPriceClient(tx.config)

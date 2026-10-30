@@ -228,6 +228,13 @@ func (s *AuthService) AuthenticateAPIKey(ctx context.Context, key string) (*ent.
 		return nil, fmt.Errorf("noauth api key is only available when api auth is disabled: %w", ErrInvalidAPIKey)
 	}
 
+	expired, err := NewBudgetService(s.APIKeyService.db).KeyExpired(ctx, apiKey.ProjectID, apiKey.ID)
+	if err != nil {
+		return nil, fmt.Errorf("check api key expiry: %w", err)
+	}
+	if expired {
+		return nil, fmt.Errorf("api key expired: %w", ErrInvalidAPIKey)
+	}
 	return apiKey, nil
 }
 

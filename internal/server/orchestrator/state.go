@@ -42,6 +42,7 @@ type PersistenceState struct {
 	// Persistence state
 	Request     *ent.Request
 	RequestExec *ent.RequestExecution
+	BudgetStop  error
 
 	// ChannelModelsCandidates is the primary state for channel selection
 	ChannelModelsCandidates []*ChannelModelsCandidate

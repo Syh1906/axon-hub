@@ -105,6 +105,8 @@ var skipMutationTransaction = entgql.SkipIfHasFields(
 	"verifyChannelUpstreamAccount",
 	"saveChannelUpstreamAccount",
 	"probeChannelAddress",
+	"saveAPIKeyBudget",
+	"resetAPIKeyBudget",
 )
 
 func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {

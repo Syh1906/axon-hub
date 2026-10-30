@@ -50,6 +50,7 @@ func setupTestAPIKeyService(t *testing.T, cacheConfig xcache.Config) (*APIKeySer
 		CacheConfig:    cacheConfig,
 		Ent:            client,
 		ProjectService: projectService,
+		SystemService:  NewSystemService(SystemServiceParams{Ent: client, CacheConfig: cacheConfig}),
 		KeyPrefix:      "ah",
 	})
 
