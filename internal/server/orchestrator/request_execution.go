@@ -106,6 +106,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		state.PassThroughApplied,
 		cacheSample,
 		executionSelection(ctx, state),
+		candidate.ModelCard,
 	)
 	if err != nil {
 		return nil, err

@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import type { BudgetPeriod } from '@/features/budgets/data';
+import type { BudgetPeriod, BudgetView } from '@/features/budgets/data';
 import { extendBudgetExpiry } from '@/features/budgets/expiry';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { useManagementAPI, type Group, type ManagementRow } from './data';
@@ -18,8 +18,30 @@ import { localExpiry as toLocal, expiryInstant } from './quick-edit-date';
 import { useSubmission } from './submission';
 
 type EditKind = 'name' | 'note' | 'expiry' | BudgetPeriod;
-function useQuickSave(group: Group, onSaved?: () => void) {
-  const flow = useSubmission(false, { verifyGroups: true, notifyCompletion: true });
+export type QuickEditTarget = {
+  kind: 'group' | 'key';
+  name: string;
+  note?: string;
+  groupRef?: number;
+  budget?: BudgetView;
+  row: Pick<ManagementRow, 'action' | 'targetID' | 'rowID' | 'revision' | 'updatedAt'>;
+};
+function groupTarget(group: Group): QuickEditTarget {
+  return {
+    kind: 'group',
+    name: group.name,
+    note: group.note,
+    budget: group.budget,
+    row: { action: 'updateGroup', targetID: group.id, rowID: String(group.id), revision: group.revision },
+  };
+}
+
+export function useQuickSave(target: QuickEditTarget, onSaved?: () => void) {
+  const flow = useSubmission(false, {
+    verifyGroups: target.kind === 'group',
+    verifyKey: target.kind === 'key' ? { ownerID: target.row.targetID!, groupRef: target.groupRef ?? 0 } : undefined,
+    notifyCompletion: true,
+  });
   const api = useManagementAPI();
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
@@ -51,7 +73,10 @@ function useQuickSave(group: Group, onSaved?: () => void) {
     retryRead: async () => {
       setSaving(true);
       try {
-        await api.refresh(true);
+        await api.refresh(
+          target.kind === 'group',
+          target.kind === 'key' ? { ownerID: target.row.targetID!, groupRef: target.groupRef ?? 0 } : undefined
+        );
         setReadError(false);
       } catch {
         setReadError(true);
@@ -62,20 +87,24 @@ function useQuickSave(group: Group, onSaved?: () => void) {
     message: flow.error || (result && !result.success ? result.error : ''),
     save: (patch: Partial<ManagementRow>) => {
       flow.clear();
-      return execute(false, [{ ...patch, action: 'updateGroup', targetID: group.id, rowID: String(group.id), revision: group.revision }]);
+      return execute(false, [{ ...target.row, ...patch }]);
     },
   };
 }
 
 export function GroupToggle({ group, disabled }: { group: Group; disabled: boolean }) {
+  return <QuickToggle target={groupTarget(group)} enabled={group.enabled} disabled={disabled} />;
+}
+
+export function QuickToggle({ target, enabled, disabled }: { target: QuickEditTarget; enabled: boolean; disabled: boolean }) {
   const { t } = useTranslation();
-  const flow = useQuickSave(group);
+  const flow = useQuickSave(target);
   return (
     <div className='flex flex-col items-end gap-1'>
       <Switch
-        checked={group.enabled}
+        checked={enabled}
         disabled={disabled || flow.busy || flow.uncertain || flow.readError}
-        aria-label={t('kg.quick.toggle', { name: group.name })}
+        aria-label={t(target.kind === 'group' ? 'kg.quick.toggle' : 'kg.quick.toggleKey', { name: target.name })}
         onCheckedChange={(enabled) => void flow.save({ enabled })}
       />
       {flow.message && (
@@ -104,12 +133,25 @@ export function GroupToggle({ group, disabled }: { group: Group; disabled: boole
 
 export function GroupQuickEdit({
   group,
+  ...props
+}: {
+  group: Group;
+  kind: EditKind;
+  disabled: boolean;
+  children: ReactNode;
+  onDeferred: () => void;
+}) {
+  return <QuickEdit target={groupTarget(group)} {...props} />;
+}
+
+export function QuickEdit({
+  target,
   kind,
   disabled,
   children,
   onDeferred,
 }: {
-  group: Group;
+  target: QuickEditTarget;
   kind: EditKind;
   disabled: boolean;
   children: ReactNode;
@@ -142,19 +184,19 @@ export function GroupQuickEdit({
           {(kind === 'name' || kind === 'note') && !disabled && <Pencil className='text-muted-foreground size-3 shrink-0' />}
         </button>
       </PopoverTrigger>
-      {open && <QuickForm group={group} kind={kind} onClose={close} onLock={setLocked} onPendingChange={setUncertain} />}
+      {open && <QuickForm target={target} kind={kind} onClose={close} onLock={setLocked} onPendingChange={setUncertain} />}
     </Popover>
   );
 }
 
 function QuickForm({
-  group,
+  target,
   kind,
   onClose,
   onLock,
   onPendingChange,
 }: {
-  group: Group;
+  target: QuickEditTarget;
   kind: EditKind;
   onClose: () => void;
   onLock: (locked: boolean) => void;
@@ -163,7 +205,7 @@ function QuickForm({
   const { t, i18n } = useTranslation();
   const id = useId();
   // Capture the revision with the values being edited, rather than silently overwriting newer changes.
-  const [snapshot] = useState(group);
+  const [snapshot] = useState(target);
   const flow = useQuickSave(snapshot, onClose);
   useEffect(() => {
     onLock(flow.busy);
@@ -172,14 +214,14 @@ function QuickForm({
   const { data: settings } = useGeneralSettings();
   const basic = kind === 'name' || kind === 'note';
   const expiry = kind === 'expiry';
-  const window = snapshot.budget.windows.find((w) => w.period === kind);
+  const window = snapshot.budget?.windows.find((w) => w.period === kind);
   const [name, setName] = useState(snapshot.name);
-  const [note, setNote] = useState(snapshot.note);
+  const [note, setNote] = useState(snapshot.note ?? '');
   const [mode, setMode] = useState('set');
   const [amount, setAmount] = useState(window?.limit ?? '0');
-  const [date, setDate] = useState(toLocal(snapshot.budget.expiresAt));
-  const [never, setNever] = useState(!snapshot.budget.expiresAt);
-  const parsedExpiry = expiryInstant(date, snapshot.budget.expiresAt);
+  const [date, setDate] = useState(toLocal(snapshot.budget?.expiresAt ?? null));
+  const [never, setNever] = useState(!snapshot.budget?.expiresAt);
+  const parsedExpiry = expiryInstant(date, snapshot.budget?.expiresAt);
   const validExpiry = Number.isFinite(parsedExpiry.getTime());
   const validAmount = /^\d+(\.\d{1,8})?$/.test(amount);
   const limit = validAmount ? new Decimal(amount).plus(mode === 'add' ? (window?.limit ?? '0') : '0').toFixed() : null;
@@ -190,7 +232,11 @@ function QuickForm({
     : expiry
       ? never || (!!date && validExpiry)
       : !!limit && (mode !== 'add' || new Decimal(amount).greaterThan(0));
-  const title = basic ? t('kg.quick.basic') : expiry ? t('budgets.expiry') : t('budgets.periods.' + kind) + ' · ' + t('kg.limit');
+  const title = basic
+    ? t(snapshot.kind === 'group' ? 'kg.quick.basic' : 'kg.keyName')
+    : expiry
+      ? t('budgets.expiry')
+      : t('budgets.periods.' + kind) + ' · ' + t('kg.limit');
   const money = (value: string) =>
     t('currencies.format', {
       val: Number(value),
@@ -202,15 +248,18 @@ function QuickForm({
   function save() {
     if (!valid) return;
     if (basic)
-      void flow.save({ ...(name.trim() !== snapshot.name ? { name: name.trim() } : {}), ...(note !== snapshot.note ? { note } : {}) });
+      void flow.save({
+        ...(name.trim() !== snapshot.name ? { name: name.trim() } : {}),
+        ...(snapshot.kind === 'group' && note !== snapshot.note ? { note } : {}),
+      });
     else if (expiry)
       void flow.save({
-        budget: { revision: snapshot.budget.revision, setExpiry: true, expiresAt: never ? null : parsedExpiry.toISOString() },
+        budget: { revision: snapshot.budget?.revision, setExpiry: true, expiresAt: never ? null : parsedExpiry.toISOString() },
       });
     else if (window && limit !== null)
       void flow.save({
         budget: {
-          revision: snapshot.budget.revision,
+          revision: snapshot.budget?.revision,
           rules: [
             {
               period: window.period,
@@ -253,20 +302,24 @@ function QuickForm({
             <>
               <Label htmlFor={id + 'name'}>{t('kg.field.name')}</Label>
               <Input id={id + 'name'} autoFocus={kind === 'name'} value={name} onChange={(e) => setName(e.target.value)} />
-              <Label htmlFor={id + 'note'}>{t('kg.note')}</Label>
-              <Textarea
-                id={id + 'note'}
-                autoFocus={kind === 'note'}
-                rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t('kg.quick.optionalNote')}
-              />
+              {snapshot.kind === 'group' && (
+                <>
+                  <Label htmlFor={id + 'note'}>{t('kg.note')}</Label>
+                  <Textarea
+                    id={id + 'note'}
+                    autoFocus={kind === 'note'}
+                    rows={3}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={t('kg.quick.optionalNote')}
+                  />
+                </>
+              )}
             </>
           ) : expiry ? (
             <>
               <p className='text-muted-foreground text-xs'>
-                {t('kg.quick.current')}: {toLocal(snapshot.budget.expiresAt).replace('T', ' ') || t('budgets.neverExpires')}
+                {t('kg.quick.current')}: {toLocal(snapshot.budget?.expiresAt ?? null).replace('T', ' ') || t('budgets.neverExpires')}
               </p>
               <div className='flex flex-wrap gap-1'>
                 {[0, 1, 3, 12].map((months) => (
@@ -276,7 +329,7 @@ function QuickForm({
                     variant='outline'
                     size='sm'
                     onClick={() => {
-                      const base = snapshot.budget.expiresAt ?? '';
+                      const base = snapshot.budget?.expiresAt ?? '';
                       const next = extendBudgetExpiry(base, months);
                       if (!months) next.setDate(next.getDate() + 7);
                       setDate(toLocal(next.toISOString()));

@@ -35,6 +35,7 @@ type UserProjectInfo {
 }
 
 extend type Query {
+    systemDisplayTimezone: String!
     me: UserInfo!
     myProjects: [Project!]!
 }

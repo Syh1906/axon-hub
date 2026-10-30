@@ -1,5 +1,5 @@
+import { SystemTime } from '@/components/system-time';
 import { useCallback, useState } from 'react';
-import { format } from 'date-fns';
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -133,9 +133,9 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className='text-muted-foreground cursor-help text-sm'>{format(date, 'yyyy-MM-dd')}</div>
+            <div className='text-muted-foreground cursor-help text-sm'>{<SystemTime value={date} pattern="yyyy-MM-dd" />}</div>
           </TooltipTrigger>
-          <TooltipContent>{format(date, 'yyyy-MM-dd HH:mm:ss')}</TooltipContent>
+          <TooltipContent>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm:ss" />}</TooltipContent>
         </Tooltip>
       );
     },

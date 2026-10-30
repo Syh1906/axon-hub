@@ -1,7 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 import { useMemo, useState, useEffect } from 'react';
-import { format } from 'date-fns';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { zhCN, enUS } from 'date-fns/locale';
 import { ArrowLeft, FileText, Activity, List, GitBranch, Waypoints, Maximize2, X, Wrench, MessageSquare, ChevronDown } from 'lucide-react';
 import { IconArchive, IconPin, IconRotate } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -39,7 +38,6 @@ export default function TraceDetailPage() {
   const { t, i18n } = useTranslation();
   const { traceId } = useParams({ from: '/_authenticated/project/traces/$traceId' });
   const navigate = useNavigate();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
   const [selectedTrace, setSelectedTrace] = useState<Segment | null>(null);
   const [selectedSpan, setSelectedSpan] = useState<Span | null>(null);
   const [selectedSpanType, setSelectedSpanType] = useState<'request' | 'response' | null>(null);
@@ -189,7 +187,7 @@ export default function TraceDetailPage() {
                   <div className='mt-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm'>
                     <p className='text-muted-foreground truncate max-w-[120px] sm:max-w-none'>{trace.traceID}</p>
                     <span className='text-muted-foreground hidden sm:inline'>•</span>
-                    <p className='text-muted-foreground text-[10px] sm:text-xs hidden sm:inline'>{format(new Date(trace.createdAt), 'yyyy-MM-dd HH:mm:ss', { locale })}</p>
+                    <p className='text-muted-foreground text-[10px] sm:text-xs hidden sm:inline'>{<SystemTime value={new Date(trace.createdAt)} pattern="yyyy-MM-dd HH:mm:ss" />}</p>
                   </div>
                 </div>
               </div>

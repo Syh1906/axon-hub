@@ -99,6 +99,13 @@ fork 改动，由用户决定。
 
 ### 用量统计与消耗排行榜
 
+- 同轮独立复审（2026-10-31，`gpt-6.1-sol / max`）：原 15 项无漏项；补齐无 `read_settings` 用户的渠道统计币种字段、刷新模式在浏览器存储拒绝时的局部容错。受限账号 CNY 页面与存储故障注入通过；日期／草稿／列表／刷新 24 项、追加 Go 定向回归通过，TypeScript 无新增。保留时区注入与未部署限制，详见本轮实施与验收记录。
+
+
+- 2026-10-31 阶段增量（验收后提交，未部署）：项目 `read_api_keys`／`read_requests` 可查看授权项目内个人 Key／请求，用量统计按 `read_requests` 开放，保留跨项目及写入隔离。默认密钥分组、模型展开、整体缓存命中率卡与列；渠道今日请求／费用、请求历史倍率快照；两列表滚动加载／回顶收起，平稳与逐条刷新；普通记录按系统时区显示。仪表盘成本卡支持全部／月／周／日，仅显示金额。
+- 同轮密钥交互：三个预算菜单图标；组内单密钥名称／有效期／五周期额度／启停就地修改，设置直接保存，单次添加无需手动预检。无新增数据库迁移。定向 Go 回归、前端行为测试及真实本地浏览器联调通过；TypeScript 与基线同为 172 项诊断，无新增。浏览器注入强制 UTC、未部署及历史缺价不回填限制见[本轮实施与验收](solutions/usage-request-improvements-20261031.md)。
+
+
 - 状态：纳入 `v1.0.0-beta10-fork.7.syh.6`，实现提交 `83a82092`，2026-10-29 本地隔离验收通过。项目用量统计新增用户／Key 切换；管理区新增用户／密钥／渠道的消耗榜、缓存榜及模型展开，共用今天、昨天、本周、本月、全部、指定日期。系统级 `read_leaderboard` 只授予查看，项目所有者不自动获得全站权限。实际发布状态见下方独立发版条目。
 - 来源与边界：按 CCH `0c508eaa` 迁移字段、缓存触发请求分母、成功率分类、首字节输出速度及缓存系数的整数计算；Key 维度扩展其用户榜。保留 AxonHub 历史成本，不改变定价或路由。完整契约及直接来源见[统计说明](zh/development/consumption-statistics.md)与[英文说明](en/development/consumption-statistics.md)。
 - 代码：`internal/server/biz/consumption*.go`、`internal/pkg/usageanalytics/`、`internal/server/gql/consumption.graphql`、`llm/httpclient/first_byte.go`、请求执行采集和 `frontend/src/features/consumption/`。首字节观察覆盖 HTTP/SSE、Responses WebSocket 分片及 Vertex 请求转换。菜单、路由、接口及缓存前均执行权限检查；管理员统计明确区分项目筛选与顶部当前项目。
@@ -519,6 +526,7 @@ fork 改动，由用户决定。
   清除后不会从旧摘要恢复。已有渠道价格、历史价格版本和旧逐项阶梯计算不变。
 - 渠道：既有自动补缺逻辑复制完整模型价格（含阶梯和缓存变体），不覆盖已有渠道价格；
   渠道引用、编辑及倍率衔接见「渠道标准价格引用与持久倍率」。
+- 请求回退（2026-10-31，已实现并通过阶段验收）：渠道缺少实际出站模型价格时，使用选路已解析的模型标准价，支持正则匹配与上游模型别名；显式渠道零价仍优先。执行快照内保存模型完整价格与输出上限，响应费用、用量日志和预算共用，不回填历史未计价记录。无新增 schema 或 migration。新增 `request_cost_snapshot_test.go` 覆盖请求及 Key 用量一致、价格持久化、零价优先；编排层覆盖匹配模型到执行的传递，原有费用／图片／预算／备份定向回归通过。记录见[本轮实施与验收](solutions/usage-request-improvements-20261031.md)。
 - 提交：`93e5878e`（权威模型定价与全量阶梯）；`2eca7c59`（渠道完整价格引用、倍率衔接与阶梯填充交互）。
   `bf37dae1`（Anthropic 官方目录一小时写缓存价）。
 - 代码：`frontend/src/features/models/components/models-price-editor.tsx`、

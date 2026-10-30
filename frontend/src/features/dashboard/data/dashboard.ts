@@ -639,3 +639,35 @@ export function useChannelPerformanceStats() {
     refetchInterval: 300000, // Refetch every 5 minutes
   });
 }
+
+const dashboardCostPeriodSchema = z.object({ totalCost: z.number(), usageCount: z.number(), unpricedCount: z.number() });
+const dashboardCostStatsSchema = z.object({
+  allTime: dashboardCostPeriodSchema,
+  thisMonth: dashboardCostPeriodSchema,
+  thisWeek: dashboardCostPeriodSchema,
+  today: dashboardCostPeriodSchema,
+  timezone: z.string(),
+  currencyCode: z.string(),
+});
+
+export function useDashboardCostStats() {
+  return useQuery({
+    queryKey: ['dashboardCostStats'],
+    queryFn: async () => {
+      const data = await graphqlRequest<{ dashboardCostStats: z.infer<typeof dashboardCostStatsSchema> }>(`
+        query DashboardCostStats {
+          dashboardCostStats {
+            allTime { totalCost usageCount unpricedCount }
+            thisMonth { totalCost usageCount unpricedCount }
+            thisWeek { totalCost usageCount unpricedCount }
+            today { totalCost usageCount unpricedCount }
+            timezone
+            currencyCode
+          }
+        }
+      `);
+      return dashboardCostStatsSchema.parse(data.dashboardCostStats);
+    },
+    refetchInterval: 300000,
+  });
+}

@@ -1,7 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { zhCN, enUS } from 'date-fns/locale';
 import { ArrowLeft, Activity, RefreshCw, FileText, Eye, EyeOff } from 'lucide-react';
 import { IconArchive, IconPin, IconRotate } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -44,7 +43,6 @@ export default function ThreadDetailPage() {
   };
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
   
   // 合并 Drawer 相关状态
   const [drawerState, setDrawerState] = useState<{
@@ -153,7 +151,7 @@ export default function ThreadDetailPage() {
     );
   }
 
-  const createdAtLabel = format(thread.createdAt, 'yyyy-MM-dd HH:mm:ss', { locale });
+  const createdAtLabel = <SystemTime value={thread.createdAt} pattern="yyyy-MM-dd HH:mm:ss" />;
 
   return (
     <div className='flex h-full flex-col'>

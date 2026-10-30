@@ -13,7 +13,10 @@ import { csvCell } from './drafts';
 import { managementError } from './errors';
 import { notifyPendingRecovery, pendingKey, readPending, savePending } from './pending';
 
-export function useSubmission(restore = false, options: { verifyGroups?: boolean; notifyCompletion?: boolean } = {}) {
+export function useSubmission(
+  restore = false,
+  options: { verifyGroups?: boolean; verifyKey?: { ownerID: number; groupRef: number }; notifyCompletion?: boolean } = {}
+) {
   const { t } = useTranslation();
   const api = useManagementAPI();
   const project = useSelectedProjectId();
@@ -93,7 +96,7 @@ export function useSubmission(restore = false, options: { verifyGroups?: boolean
       running.current = false;
     }
     // 已收到服务端结果后，刷新失败不应把已完成的批次重新标为未知。
-    if (!pending.current) await api.refresh(options.verifyGroups);
+    if (!pending.current) await api.refresh(options.verifyGroups, options.verifyKey);
   };
   return {
     busy,
@@ -158,7 +161,7 @@ export function PendingRecovery({ initiallyClosed = false }: { initiallyClosed?:
     </Dialog>
   );
 }
-export function SubmissionActions({ flow, rows }: { flow: Submission; rows: ManagementRow[] }) {
+export function SubmissionActions({ flow, rows, directLabel }: { flow: Submission; rows: ManagementRow[]; directLabel?: string }) {
   const { t } = useTranslation();
   const valid = flow.valid(rows);
   const approved = rows.filter((r) => flow.preview.some((p) => p.rowID === r.rowID && p.success));
@@ -180,14 +183,19 @@ export function SubmissionActions({ flow, rows }: { flow: Submission; rows: Mana
         </>
       ) : (
         <div className='flex flex-wrap items-center justify-end gap-3'>
-          {valid && (
+          {!directLabel && valid && (
             <span className='text-sm'>{t('kg.previewCount', { valid: approved.length, invalid: rows.length - approved.length })}</span>
           )}
-          <Button variant='outline' disabled={flow.busy || rows.length === 0 || rows.length > 100} onClick={() => flow.inspect(rows)}>
-            {t('kg.preflight')}
-          </Button>
-          <Button disabled={flow.busy || !valid || approved.length === 0} onClick={() => flow.execute(false, approved)}>
-            {flow.busy ? t('kg.working') : t('kg.submitValid', { count: approved.length })}
+          {!directLabel && (
+            <Button variant='outline' disabled={flow.busy || rows.length === 0 || rows.length > 100} onClick={() => flow.inspect(rows)}>
+              {t('kg.preflight')}
+            </Button>
+          )}
+          <Button
+            disabled={flow.busy || (directLabel ? rows.length === 0 : !valid || approved.length === 0)}
+            onClick={() => flow.execute(false, directLabel ? rows : approved)}
+          >
+            {flow.busy ? t('kg.working') : (directLabel ?? t('kg.submitValid', { count: approved.length }))}
           </Button>
         </div>
       )}

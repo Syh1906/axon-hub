@@ -105,5 +105,6 @@
   "dashboard.stats.user": "User",
   "dashboard.stats.requestCount": "Requests",
   "dashboard.stats.tokenCount": "Tokens",
-  "dashboard.stats.userCost": "Cost"
+  "dashboard.stats.userCost": "Cost",
+  "dashboard.cards.costStats": "Cost statistics"
 }

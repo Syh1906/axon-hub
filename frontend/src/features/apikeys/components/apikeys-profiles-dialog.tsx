@@ -1,11 +1,10 @@
+import { SystemTime } from '@/components/system-time';
 import { ChannelPriorityEditor } from './channel-priority-editor';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { format, type Locale } from 'date-fns';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconPlus, IconTrash, IconSettings, IconChevronDown, IconChevronUp, IconInfoCircle } from '@tabler/icons-react';
 import { useQueryModels } from '@/gql/models';
-import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { extractNumberID } from '@/lib/utils';
@@ -85,14 +84,13 @@ interface ApiKeyProfilesDialogProps {
 }
 
 export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = false, initialData }: ApiKeyProfilesDialogProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { selectedApiKey } = useApiKeysContext();
   const selectedProjectId = useSelectedProjectId();
   const { data: availableModels, mutateAsync: fetchModels } = useQueryModels();
   const [templateLoadPending, setTemplateLoadPending] = useState(false);
   // 用于解决 Dialog 内 Popover 无法滚动的问题
   const [dialogContent, setDialogContent] = useState<HTMLDivElement | null>(null);
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
   const apiKeyId = selectedApiKey?.id ?? '';
   const quotaUsagesQuery = useApiKeyQuotaUsages(apiKeyId, {
     enabled: open && !!apiKeyId,
@@ -361,7 +359,6 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
                               canRemove={profileFields.length > 1}
                               availableModels={availableModels?.map((model) => model.id) || []}
                               t={t}
-                              locale={locale}
                               quotaUsageByProfileName={quotaUsageByProfileName}
                               defaultExpanded={isActive}
                               portalContainer={dialogContent}
@@ -458,7 +455,6 @@ interface ProfileCardProps {
   canRemove: boolean;
   availableModels: string[];
   t: (key: string) => string;
-  locale: Locale;
   quotaUsageByProfileName: Map<string, ApiKeyProfileQuotaUsage>;
   defaultExpanded?: boolean;
   /** Popover Portal 容器元素，解决 Dialog 内无法滚动的问题 */
@@ -475,7 +471,6 @@ function ProfileCard({
   canRemove,
   availableModels,
   t,
-  locale,
   quotaUsageByProfileName,
   defaultExpanded = false,
   portalContainer,
@@ -884,10 +879,10 @@ function ProfileCard({
                     <div className='text-muted-foreground grid gap-2 text-xs md:grid-cols-2'>
                       <div>
                         {t('common.filters.startTime')}{' '}
-                        {quotaUsage.window.start ? format(quotaUsage.window.start, 'PPpp', { locale }) : '-'}
+                        {quotaUsage.window.start ? <SystemTime value={quotaUsage.window.start} pattern="PPpp" /> : '-'}
                       </div>
                       <div>
-                        {t('common.filters.endTime')} {quotaUsageEnd ? format(quotaUsageEnd, 'PPpp', { locale }) : '-'}
+                        {t('common.filters.endTime')} {quotaUsageEnd ? <SystemTime value={quotaUsageEnd} pattern="PPpp" /> : '-'}
                       </div>
                     </div>
                   </div>

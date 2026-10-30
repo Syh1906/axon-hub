@@ -1,17 +1,18 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useDevelopersData, useRefreshProvidersCatalog } from '../data/providers';
 
 export function ModelsCatalogStatus() {
-  const { t, i18n } = useTranslation();
+  const { format: formatTime } = useSystemTime();
+  const { t } = useTranslation();
   const catalog = useDevelopersData();
   const refreshCatalog = useRefreshProvidersCatalog();
   const source = catalog.data ? catalog.source : 'fallback';
   const fetchedAt = catalog.fetchedAt;
-  const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const formattedFetchedAt = fetchedAt
-    ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(fetchedAt))
+    ? formatTime(fetchedAt, 'PPpp')
     : '';
 
   return (

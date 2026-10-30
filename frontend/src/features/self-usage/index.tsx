@@ -14,6 +14,7 @@ import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatu
 import type { SelfUsageIdentity } from './api';
 import { SelfUsageBudgets } from './components/budgets';
 import { Cost } from './components/cost';
+import { CacheHitCard } from './components/cache-hit-card';
 import { PageError } from './components/page-error';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
@@ -154,7 +155,7 @@ export function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: 
   );
 }
 
-export function Summary({ usage, meta }: { usage: Usage; meta: SelfUsageMeta }) {
+export function Summary({ usage, meta, models }: { usage: Usage; meta: SelfUsageMeta; models: { model: string; usage: Usage }[] }) {
   const { t, number, money } = usePageLabels(meta);
   const fields = [
     ['success', usage.successRequests],
@@ -186,6 +187,7 @@ export function Summary({ usage, meta }: { usage: Usage; meta: SelfUsageMeta }) 
             <Cost value={usage.cost} unpriced={usage.unpricedRecords} money={money} />
           </CardContent>
         </Card>
+        <CacheHitCard usage={usage} models={models} />
       </div>
     </section>
   );
@@ -617,7 +619,7 @@ function Dashboard({
       )}
       {stats.data && (
         <>
-          <Summary usage={stats.data.totals} meta={meta} />
+          <Summary usage={stats.data.totals} meta={meta} models={stats.data.models} />
           <Trend daily={stats.data.daily} meta={meta} />
           <ModelTable models={stats.data.models} meta={meta} />
         </>

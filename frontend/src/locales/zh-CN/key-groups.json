@@ -2,7 +2,7 @@
   "kg.quick.readFailed": "提交结果已收到，但列表刷新失败。请重试刷新，无需再次保存。",
   "kg.quick.invalidExpiry": "请输入有效的本地日期时间；夏令时跳过的时刻无法使用。",
   "kg.quick.remaining": "{{count}} 天后到期",
-  "kg.quick.saved": "分组设置已保存",
+  "kg.quick.saved": "设置已保存",
   "kg.quick.toggle": "启停分组 {{name}}",
   "kg.quick.basic": "编辑分组信息",
   "kg.quick.optionalNote": "备注可留空",
@@ -193,5 +193,10 @@
   "kg.deferRecovery": "暂时关闭，保留原批次",
   "kg.usage": "用量",
   "kg.usageHint": "查看此分组的用量与请求记录",
-  "kg.usageDescription": "按当前分组内的密钥统计，包含停用密钥；数据范围遵循当前项目权限。"
+  "kg.usageDescription": "按当前分组内的密钥统计，包含停用密钥；数据范围遵循当前项目权限。",
+  "kg.quick.toggleKey": "启用或停用密钥 {{name}}",
+  "kg.quick.keySettings": "密钥设置",
+  "kg.quick.keySettingsHelp": "直接修改并保存；独立额度与有效期可在列表中点击调整。",
+  "kg.quick.templateHelp": "未选择模板时保留现有配置；选择模板后在保存时应用。",
+  "kg.quick.ipsHelp": "每行一个 IP 或网段；留空表示不限制。"
 }

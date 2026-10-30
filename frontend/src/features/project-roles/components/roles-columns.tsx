@@ -1,6 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 'use client';
 
-import { format } from 'date-fns';
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,7 +70,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: t('common.columns.createdAt'),
       cell: ({ row }) => {
         const date = row.getValue('createdAt') as Date;
-        return <div className='text-muted-foreground'>{format(date, 'yyyy-MM-dd HH:mm')}</div>;
+        return <div className='text-muted-foreground'>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm" />}</div>;
       },
     },
     {
@@ -78,7 +78,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: t('common.columns.updatedAt'),
       cell: ({ row }) => {
         const date = row.getValue('updatedAt') as Date;
-        return <div className='text-muted-foreground'>{format(date, 'yyyy-MM-dd HH:mm')}</div>;
+        return <div className='text-muted-foreground'>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm" />}</div>;
       },
     },
     {

@@ -14,13 +14,56 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/enttest"
+	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/openai"
 )
+
+func TestMatchedModelPriceReachesPersistedExecution(t *testing.T) {
+	ctx, client := setupTest(t)
+	channels := createTestChannels(t, ctx, client)
+	channelService := newTestChannelServiceForChannels(client)
+	system := newTestSystemService(client)
+	requestService := newTestRequestServiceForChannels(client, system)
+	price := &objects.ModelPrice{Items: []objects.ModelPriceItem{{
+		ItemCode: objects.PriceItemCodeUsage,
+		Pricing:  objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(2))},
+	}}}
+	client.Model.Create().SetDeveloper("test").SetModelID(`^gpt-\d+-astra$`).SetMatchType(objects.ModelMatchRegex).
+		SetName("Astra rule").SetIcon("test").SetGroup("test").SetStatus(model.StatusEnabled).
+		SetModelCard(&objects.ModelCard{Price: price, Limit: objects.ModelCardLimit{Output: 16384}}).
+		SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{
+			Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: channels[0].ID, ModelID: "gpt-4"},
+		}}}).SaveX(ctx)
+	candidates, err := NewDefaultSelector(channelService, newTestModelService(client), system).Select(ctx, &llm.Request{Model: "gpt-6-astra"})
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "gpt-4", candidates[0].Models[0].ActualModel)
+	req := client.Request.Create().SetProjectID(1).SetModelID("gpt-6-astra").SetStatus("processing").
+		SetFormat(string(llm.APIFormatOpenAIChatCompletion)).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+	state := &PersistenceState{
+		Request: req, RequestService: requestService, SystemService: system,
+		ChannelModelsCandidates: candidates, CurrentCandidate: candidates[0],
+	}
+	wrapped, err := openai.NewOutboundTransformer("https://example.com", "fixture")
+	require.NoError(t, err)
+	middleware := &persistRequestExecutionMiddleware{outbound: &PersistentOutboundTransformer{state: state, wrapped: wrapped}}
+	_, err = middleware.OnOutboundRawRequest(ctx, &httpclient.Request{Body: []byte(`{"model":"gpt-4"}`)})
+	require.NoError(t, err)
+	execution := client.RequestExecution.GetX(ctx, state.RequestExec.ID)
+	require.NotNil(t, execution.CostSnapshot.ModelPrice)
+	require.Nil(t, execution.CostSnapshot.Price, "the transient price is not required after a database reload")
+	require.Equal(t, int64(16384), execution.CostSnapshot.ModelOutputLimit)
+	usage := &llm.Usage{PromptTokens: 1000000, TotalTokens: 1000000}
+	requestService.UsageLogService.InjectUsageCost(ctx, execution.ChannelID, execution.ModelID, usage, execution.CostSnapshot)
+	require.NotNil(t, usage.Cost)
+	require.Equal(t, 2.0, *usage.Cost)
+}
 
 func TestImageCostPersistsWithoutProviderUsage(t *testing.T) {
 	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIImageGeneration), "image-proxy")

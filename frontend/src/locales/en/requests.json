@@ -247,5 +247,11 @@
   "requests.diagnostics.decisions.client_canceled": "Client canceled the request",
   "requests.diagnostics.decisions.budget_denied": "Budget checks prevented further attempts",
   "requests.diagnostics.hints.quota": "The upstream explicitly reported insufficient quota. Check the account associated with the actual key used.",
-  "requests.diagnostics.hints.rateLimit": "The upstream explicitly reported a rate limit. Check the account limits and retry history."
+  "requests.diagnostics.hints.rateLimit": "The upstream explicitly reported a rate limit. Check the account limits and retry history.",
+  "requests.diagnostics.mixedMultiplier": "Mixed",
+  "requests.diagnostics.requestMultiplier": "Request multiplier",
+  "requests.refresh.paused": "Auto refresh paused while browsing history",
+  "requests.refresh.mode": "Update mode",
+  "requests.refresh.steady": "Steady updates",
+  "requests.refresh.sequential": "Sequential"
 }

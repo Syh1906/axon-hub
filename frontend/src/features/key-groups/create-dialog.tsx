@@ -503,7 +503,11 @@ export function CreateDialog({
             <p className='mr-auto text-sm'>
               {t('kg.createCount', { groups: groups ? rows.length : new Set(rows.map((r) => r.groupRef)).size, keys: keyCount })}
             </p>
-            <SubmissionActions flow={flow} rows={rows} />
+            <SubmissionActions
+              flow={flow}
+              rows={!batch && rows.some((row) => (groups && !row.name) || row.keys?.some((key) => !key.name.trim())) ? [] : rows}
+              directLabel={!batch ? t(groups ? 'kg.createGroup' : 'kg.addKey') : undefined}
+            />
             <Button variant='ghost' disabled={flow.busy} onClick={onClose}>
               {t('common.buttons.close')}
             </Button>

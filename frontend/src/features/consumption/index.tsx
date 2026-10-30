@@ -25,7 +25,7 @@ import {
 export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'leaderboard' | 'usage' }) {
   const { t, i18n } = useTranslation();
   const isLeaderboard = view === 'leaderboard';
-  const [dimension, setDimension] = useState<ConsumptionDimension>('USER');
+  const [dimension, setDimension] = useState<ConsumptionDimension>(isLeaderboard ? 'USER' : 'API_KEY_GROUP');
   const [metric, setMetric] = useState<ConsumptionMetric>('COST');
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
@@ -196,7 +196,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                   dimension={dimension}
                   metric={metric}
                   currencyCode={data.currencyCode}
-                  expandable={isLeaderboard}
+                  expandable
                 />
               ) : (
                 <div className='text-muted-foreground flex min-h-64 flex-col items-center justify-center gap-3 p-6'>

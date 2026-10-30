@@ -30,6 +30,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
     return [
       { key: 'requestCount', format: 'number' },
       { key: 'totalTokens', format: 'tokens' },
+      { key: 'cacheHitRate', format: 'percent', tooltip: 'cacheHitRateHelp' },
       { key: 'totalCost', format: 'currency' },
     ];
   return [

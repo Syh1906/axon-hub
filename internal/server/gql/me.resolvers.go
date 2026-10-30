@@ -108,6 +108,11 @@ func (r *mutationResolver) UnlinkOIDCIdentity(ctx context.Context, id objects.GU
 	return true, nil
 }
 
+// SystemDisplayTimezone is the resolver for the systemDisplayTimezone field.
+func (r *queryResolver) SystemDisplayTimezone(ctx context.Context) (string, error) {
+	return r.systemService.DisplayTimezone(ctx)
+}
+
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*objects.UserInfo, error) {
 	// Get current user from context

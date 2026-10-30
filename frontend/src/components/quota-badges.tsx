@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { format } from 'date-fns';
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Zap, Battery, BatteryLow, BatteryMedium, BatteryFull, BatteryWarning } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -385,6 +385,7 @@ function PeriodQuotaEstimate({ limits }: { limits: ProviderQuotaLimit[] }) {
 }
 
 function QuotaRow({ channel, enforcementMode, allowedChannelIDs }: { channel: ProviderQuotaChannel; enforcementMode?: QuotaEnforcementMode | null; allowedChannelIDs?: string[] | null }) {
+  const { format } = useSystemTime();
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [isResetting, setIsResetting] = useState(false);
@@ -539,11 +540,11 @@ function QuotaRow({ channel, enforcementMode, allowedChannelIDs }: { channel: Pr
     const date = new Date(timestamp * 1000);
     const now = new Date();
 
-    if (date.toDateString() === now.toDateString()) {
-      return `${t('quota.label.today')}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    if (format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')) {
+      return `${t('quota.label.today')}, ${format(date, 'HH:mm')}`;
     }
 
-    if (date.getFullYear() === now.getFullYear()) {
+    if (format(date, 'yyyy') === format(now, 'yyyy')) {
       return format(date, 'MM-dd HH:mm');
     }
 

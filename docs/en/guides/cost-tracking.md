@@ -8,9 +8,13 @@ Cost tracking in AxonHub helps you monitor and control your AI spending across a
 
 ### Usage statistics and consumption leaderboard
 
-Project **Usage statistics** summarizes requests, tokens and costs by user or API key. The admin **Consumption leaderboard** adds user/key/channel cost and cache rankings with expandable model details. Both pages support Today, Yesterday, This week, This month, All time and Custom dates in the system timezone; weeks start on Monday.
+Project **Usage statistics** defaults to key groups, with user and API key alternatives and expandable per-model requests, tokens, cache-hit rate and costs. The admin **Consumption leaderboard** adds user/key/channel cost and cache rankings with expandable model details. Both pages support Today, Yesterday, This week, This month, All time and Custom dates in the system timezone; weeks start on Monday.
 
-Project statistics retain owner access. The system-wide leaderboard requires the system-level `read_leaderboard` permission and has no separate management permission. Cache-hit rate only includes requests with cache reads or writes. Cache coefficients normally lag by 15–20 minutes; missing historical samples display an em dash. See [statistics semantics](../development/consumption-statistics.md) for fields, formulas, deleted-entity behavior and upgrades.
+Project statistics require `read_requests` for the current project. The system-wide leaderboard requires the system-level `read_leaderboard` permission and has no separate management permission. Overall cache-hit rate divides all cache-read tokens by all input tokens. Cache rankings still include only requests with cache reads or writes. Cache coefficients normally lag by 15–20 minutes; missing historical samples display an em dash. See [statistics semantics](../development/consumption-statistics.md) for fields, formulas, deleted-entity behavior and upgrades.
+
+### Dashboard cost card
+
+Cost statistics sits between token statistics and today's requests. All time, this month, this week and today use stored usage costs; today follows the system timezone's calendar day. Historical costs are not recalculated. The card shows only the amount and period tabs; entirely unpriced usage displays an em dash. Access follows the dashboard's `read_dashboard` permission.
 
 ## Features
 
@@ -118,7 +122,9 @@ Local base prices must match the upstream base pricing and exclude group multipl
 
 ### Model Pricing
 
-Configure pricing for each channel and model in the admin dashboard:
+Request pricing first uses the channel price for the actual outbound model. When that channel entry is absent, it uses the standard price of the model resolved for the request. Both exact and regex matching are supported, including when routing maps the model to a different upstream ID. An explicit zero channel price still takes precedence. If neither source has a price, cost remains unknown rather than zero.
+
+Maintain default prices on the **Models** page. To override a price for a channel:
 
 1. Go to **Channels** → **Model Prices**
 2. Set pricing items for each model:
@@ -149,20 +155,21 @@ With [Force 1-Hour Prompt Cache](channel-management.md#force-1-hour-prompt-cache
    - If `WriteCached5MinTokens` or `WriteCached1HourTokens` are present, use corresponding variant pricing
    - Otherwise, use the default cache write price
 
-3. **Price Versioning**:
-   - Each price change creates a new version record
-   - Usage logs reference the specific price version via `cost_price_reference_id`
+3. **Request-time Pricing**:
+   - Channel prices reference an immutable version through `cost_price_reference_id`.
+   - Model defaults store the complete price and model output limit in the execution cost snapshot, without creating a channel override.
+   - Response cost, request logs, key usage and budget settlement share that price and the selected channel/key multiplier. Later price edits do not reprice historical requests; previously unpriced records are not backfilled automatically.
 
 ### API Response (`usage.cost`)
 
-Whether a cost appears on the client response is controlled by the **Inject usage.cost** setting in system settings, which is off by default. When the setting is on and the channel has a price configured for the model, AxonHub calculates the request cost from the channel model price and writes it to `usage.cost` on the client response.
+Whether a cost appears on the client response is controlled by the **Inject usage.cost** setting in system settings, which is off by default. When the setting is on and the execution has a usable channel or resolved-model price, AxonHub calculates cost from the captured price and multiplier and writes it to `usage.cost` on the client response.
 
 A few notes:
 
-- The number is AxonHub's own calculation from the channel model price, not the upstream provider's bill.
+- The number is AxonHub's own calculation from the applied price and multiplier, not the upstream provider's bill.
 - `usage.cost` or `cost_details` returned by the upstream is dropped and never forwarded to the client (except on pass-through requests).
 - With the setting off, clients do not see `cost` on the normal request path.
-- `cost` is omitted when no price is configured, the response has no `usage`, or the setting is off.
+- `cost` is omitted when neither the channel nor the resolved model has a usable price, the response has no `usage`, or the setting is off.
 
 #### Pass-through and binary endpoints
 

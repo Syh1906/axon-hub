@@ -89,7 +89,7 @@ export function useManagementAPI() {
           { where: { idIn: ids.map((id) => buildGUID('APIKey', String(id))) } }
         )
       ).apiKeys.edges.map((e) => e.node),
-    refresh: (verifyGroups = false) =>
+    refresh: (verifyGroups = false, verifyKey?: { ownerID: number; groupRef: number }) =>
       Promise.all(
         [
           'managedKeyGroups',
@@ -108,7 +108,19 @@ export function useManagementAPI() {
           'requestStatsByAPIKey',
           'tokenStatsByAPIKey',
           'costStatsByAPIKey',
-        ].map((key) => cache.invalidateQueries({ queryKey: [key] }, { throwOnError: verifyGroups && key === 'managedKeyGroups' }))
+        ].map((key) => {
+          if (verifyKey && (key === 'managedGroupKeys' || key === 'keyBudgets')) {
+            const matches = (query: { queryKey: readonly unknown[] }) =>
+              key === 'managedGroupKeys'
+                ? query.queryKey[2] === project && query.queryKey[3] === verifyKey.groupRef
+                : query.queryKey[2] === project && query.queryKey[3] === 'key' && query.queryKey[4] === verifyKey.ownerID;
+            return Promise.all([
+              cache.invalidateQueries({ queryKey: [key], predicate: matches }, { throwOnError: true }),
+              cache.invalidateQueries({ queryKey: [key], predicate: (query) => !matches(query) }),
+            ]);
+          }
+          return cache.invalidateQueries({ queryKey: [key] }, { throwOnError: verifyGroups && key === 'managedKeyGroups' });
+        })
       ),
   };
 }

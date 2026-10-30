@@ -1,5 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 import { useEffect, useMemo, useState } from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { IconRefresh, IconRefreshOff, IconKey, IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { enUS, zhCN } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -301,7 +302,7 @@ export function ChannelsDisabledAPIKeysDialog({ open, onOpenChange }: ChannelsDi
                             </Tooltip>
                           </div>
                           <div className='text-muted-foreground flex items-center gap-2 text-xs'>
-                            <span>{format(new Date(dk.disabledAt), 'yyyy-MM-dd HH:mm:ss')}</span>
+                            <span>{<SystemTime value={new Date(dk.disabledAt)} pattern="yyyy-MM-dd HH:mm:ss" />}</span>
                             {dk.reason && (
                               <>
                                 <span>•</span>

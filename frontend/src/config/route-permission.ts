@@ -116,7 +116,6 @@ export const routeConfigs: RouteGroup[] = [
         path: '/project/usage-stats',
         requiredScopes: ['read_requests'],
         mode: 'hidden',
-        requireProjectOwner: true,
       },
       {
         path: '/project/traces',

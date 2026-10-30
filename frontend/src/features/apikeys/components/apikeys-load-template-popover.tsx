@@ -1,7 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale/zh-CN';
 import { IconFileDownload, IconLoader2, IconTemplate, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -39,10 +38,8 @@ function TemplateItem({
   onDelete: (template: ApiKeyProfileTemplate) => void;
   isDeleting: boolean;
 }) {
-  const { t, i18n } = useTranslation();
-  const createdDate = format(new Date(template.createdAt), 'PP', {
-    locale: i18n.language?.startsWith('zh') ? zhCN : undefined,
-  });
+  const { t } = useTranslation();
+  const createdDate = <SystemTime value={new Date(template.createdAt)} pattern="PP" />;
 
   return (
     <div className='hover:bg-muted/50 flex items-start gap-3 rounded-md px-3 py-2.5 transition-colors'>

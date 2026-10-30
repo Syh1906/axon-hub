@@ -1,3 +1,4 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useState } from 'react';
 import { Database, RefreshCw, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -93,6 +94,7 @@ export function ChannelsUpstreamDialog({ channel, onClose }: { channel: Channel;
 }
 
 function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
+  const { format: formatTime } = useSystemTime();
   const { t } = useTranslation();
   const formatBalance = useBalanceLabel();
   const { channelPermissions } = usePermissions();
@@ -222,7 +224,7 @@ function UpstreamKeyDetails({ state }: { state: ChannelUpstreamState }) {
                           <p className='text-muted-foreground text-xs'>
                             {t(`channels.upstream.kinds.${balance.kind}`)}
                             {balance.expiresAt &&
-                              ` · ${t('channels.upstream.expires', { time: new Date(balance.expiresAt).toLocaleDateString() })}`}
+                              ` · ${t('channels.upstream.expires', { time: formatTime(balance.expiresAt, 'yyyy-MM-dd') })}`}
                           </p>
                         </div>
                       ))}

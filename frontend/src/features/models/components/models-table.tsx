@@ -1,5 +1,5 @@
+import { SystemTime } from '@/components/system-time';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { format } from 'date-fns';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -362,11 +362,11 @@ export function ModelsTable({
                                                 </div>
                                                 <div className='flex justify-between'>
                                                   <span className='text-muted-foreground'>{t('common.columns.createdAt')}:</span>
-                                                  <span>{format(model.createdAt, 'yyyy-MM-dd HH:mm')}</span>
+                                                  <span>{<SystemTime value={model.createdAt} pattern="yyyy-MM-dd HH:mm" />}</span>
                                                 </div>
                                                 <div className='flex justify-between'>
                                                   <span className='text-muted-foreground'>{t('common.columns.updatedAt')}:</span>
-                                                  <span>{format(model.updatedAt, 'yyyy-MM-dd HH:mm')}</span>
+                                                  <span>{<SystemTime value={model.updatedAt} pattern="yyyy-MM-dd HH:mm" />}</span>
                                                 </div>
                                                 {model.remark && (
                                                   <div className='flex justify-between'>

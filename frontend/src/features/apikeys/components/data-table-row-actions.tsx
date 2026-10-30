@@ -2,7 +2,7 @@ import React from 'react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Row } from '@tanstack/react-table';
 import { IconUserOff, IconUserCheck, IconEdit, IconSettings, IconArchive, IconCheck, IconRefresh } from '@tabler/icons-react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Wallet, ChartNoAxesCombined, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -92,6 +92,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                   setTimeout(() => setBudgetMode(mode), 0);
                 }}
               >
+                {mode === 'settings' ? <Wallet className='mr-2 size-4' /> : mode === 'usage' ? <ChartNoAxesCombined className='mr-2 size-4' /> : <RotateCcw className='mr-2 size-4' />}
                 {t(mode === 'settings' ? 'budgets.title' : mode === 'usage' ? 'budgets.showUsage' : 'budgets.reset')}
               </DropdownMenuItem>
             ))}

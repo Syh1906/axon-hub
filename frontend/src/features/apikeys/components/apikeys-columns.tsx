@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { SystemTime } from '@/components/system-time';
 import { ColumnDef, Table, Row } from '@tanstack/react-table';
 import { BarChart3, Copy, Eye, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -264,7 +264,7 @@ export const createColumns = (
     header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.createdAt')} />,
     cell: ({ row }) => {
       const date = row.getValue('createdAt') as Date;
-      return <div className='text-muted-foreground'>{format(date, 'yyyy-MM-dd HH:mm')}</div>;
+      return <div className='text-muted-foreground'>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm" />}</div>;
     },
   },
   {
@@ -272,7 +272,7 @@ export const createColumns = (
     header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.updatedAt')} />,
     cell: ({ row }) => {
       const date = row.getValue('updatedAt') as Date;
-      return <div className='text-muted-foreground'>{format(date, 'yyyy-MM-dd HH:mm')}</div>;
+      return <div className='text-muted-foreground'>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm" />}</div>;
     },
   },
   {

@@ -111,7 +111,7 @@ function GroupPage() {
       onSelect={selectKeys}
       writable={writable}
       onAdd={() => setCreate({ kind: 'key', ids: [id] })}
-      onEdit={(key) => setEdit({ kind: 'key', items: [key] })}
+      onDeferred={deferRecovery}
       onProfile={setProfile}
       onMove={
         id > 0

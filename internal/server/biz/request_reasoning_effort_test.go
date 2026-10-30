@@ -150,6 +150,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		false,
 		nil,
 		nil,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, execution.ReasoningEffort)
@@ -168,6 +169,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		false,
 		nil,
 		nil,
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, responsesExecution.ReasoningEffort)
@@ -184,6 +186,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		},
 		llm.APIFormatAnthropicMessage,
 		false,
+		nil,
 		nil,
 		nil,
 	)

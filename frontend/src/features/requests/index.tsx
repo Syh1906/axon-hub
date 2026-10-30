@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,7 +19,7 @@ import type { ConsumptionPeriod } from '@/features/consumption/data/consumption'
 import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
-import { useRequests, useRequestLogTimezone } from './data';
+import { useInfiniteRequests, useRequestLogTimezone } from './data';
 
 const REQUEST_FILTER_SEARCH_KEYS = {
   status: 'status',
@@ -184,7 +184,7 @@ function RequestsContent() {
   const currentSearch = useRouterState({
     select: (state) => (state.location.search ?? {}) as Record<string, unknown>,
   });
-  const { pageSize, setCursors, setPageSize, resetCursor, paginationArgs, cursorHistory } = usePaginationSearch({
+  const { pageSize } = usePaginationSearch({
     defaultPageSize: 20,
     pageSizeStorageKey: 'requests-table-page-size',
   });
@@ -229,43 +229,29 @@ function RequestsContent() {
     return Object.keys(where).length > 0 ? where : undefined;
   })();
 
-  const { data, isLoading, refetch } = useRequests({
-    ...paginationArgs,
-    where: whereClause,
-    orderBy: {
-      field: 'CREATED_AT',
-      direction: 'DESC',
-    },
-  });
-
-  const requests = data?.edges?.map((edge) => edge.node) || [];
+  const [atTop, setAtTop] = useState(true);
+  const query = useInfiniteRequests(whereClause, pageSize);
+  const { data, isLoading, refetch } = query;
+  const requests = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data?.edges]);
   const pageInfo = data?.pageInfo;
-
-  const isFirstPage = !paginationArgs.after && cursorHistory.length === 0;
-
   const autoRefreshResumeKey = useInterval(
-    () => {
-      refetch();
-    },
-    isFirstPage ? autoRefreshInterval : null,
+    () => { if (!query.isFetching) void refetch(); },
+    atTop ? autoRefreshInterval : null,
     { refreshOnResume: true }
   );
-
-  const handleNextPage = () => {
-    if (data?.pageInfo?.hasNextPage && data?.pageInfo?.endCursor) {
-      setCursors(data.pageInfo.startCursor ?? undefined, data.pageInfo.endCursor ?? undefined, 'after');
-    }
-  };
-
-  const handlePreviousPage = () => {
-    if (data?.pageInfo?.hasPreviousPage) {
-      setCursors(data.pageInfo.startCursor ?? undefined, data.pageInfo.endCursor ?? undefined, 'before');
-    }
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    resetCursor();
+  const scroll = {
+    resetKey: query.resetKey,
+    loadingMore: query.isFetchingNextPage,
+    fetching: query.isFetching,
+    hasMore: !!query.hasNextPage,
+    error: query.isError,
+    onLoadMore: query.loadMore,
+    onTrim: query.trimAfter,
+    onReset: query.resetToTop,
+    onAtTopChange: (value: boolean) => {
+      setAtTop(value);
+      if (!value) query.pauseRefresh();
+    },
   };
 
   const updateRequestSearch = useCallback(
@@ -384,15 +370,12 @@ function RequestsContent() {
         modelIDFilter={modelIDFilter}
         dateRange={dateRange}
         queryWhere={whereClause}
-        onNextPage={handleNextPage}
-        onPreviousPage={handlePreviousPage}
-        onPageSizeChange={handlePageSizeChange}
+        scroll={scroll}
         onFiltersChange={handleFiltersChange}
         onDateRangeChange={handleDateRangeChange}
         onResetFilters={handleResetFilters}
         onViewDetail={handleViewDetail}
-        onRefresh={refetch}
-        showRefresh={isFirstPage}
+        showRefresh={atTop}
         autoRefreshInterval={autoRefreshInterval}
         autoRefreshResumeKey={autoRefreshResumeKey}
         onAutoRefreshIntervalChange={setAutoRefreshInterval}

@@ -418,5 +418,10 @@
   "auth.signIn.footer.selfUsage": "View usage with an API Key",
   "settings.nav.appearance": "Appearance",
   "settings.nav.display": "Display",
-  "settings.nav.notifications": "Notifications"
+  "settings.nav.notifications": "Notifications",
+  "common.incremental.loaded": "Loaded {{count}} of {{total}}",
+  "common.incremental.retry": "Loading failed. Retry",
+  "common.incremental.scrollMore": "Scroll down to load more",
+  "common.incremental.end": "All loaded",
+  "common.incremental.backToTop": "Back to top and collapse"
 }

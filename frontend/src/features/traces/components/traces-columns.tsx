@@ -1,9 +1,8 @@
+import { SystemTime } from '@/components/system-time';
 'use client';
 
 import { useCallback } from 'react';
-import { format } from 'date-fns';
 import { ColumnDef } from '@tanstack/react-table';
-import { zhCN, enUS } from 'date-fns/locale';
 import { FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
@@ -78,8 +77,7 @@ function TraceActionButtons({ trace }: { trace: Trace }) {
 }
 
 export function useTracesColumns(): ColumnDef<Trace>[] {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
+  const { t } = useTranslation();
   const { navigateWithSearch } = usePaginationSearch({ defaultPageSize: 20 });
 
   const columns: ColumnDef<Trace>[] = [
@@ -196,7 +194,7 @@ export function useTracesColumns(): ColumnDef<Trace>[] {
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.createdAt')} />,
       cell: ({ row }) => {
         const date = new Date(row.getValue('createdAt'));
-        return <div className='text-xs'>{format(date, 'yyyy-MM-dd HH:mm:ss', { locale })}</div>;
+        return <div className='text-xs'>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm:ss" />}</div>;
       },
     },
     // {

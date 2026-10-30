@@ -148,6 +148,10 @@ extend type UsageLog {
   costSnapshot: RequestCostSnapshot
 }
 
+extend type RequestExecution {
+  costSnapshot: RequestCostSnapshot
+}
+
 extend type Query {
   channelUpstreamStates(channelIds: [ID!]!): [ChannelUpstreamState!]!
   channelUpstreamRefreshTargets: [ID!]!

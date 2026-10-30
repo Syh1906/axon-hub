@@ -67,7 +67,7 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       {stats.isPending && <p role='status'>{t('selfUsage.loading')}</p>}
       {stats.data && (
         <>
-          <Summary usage={stats.data.totals} meta={meta} />
+          <Summary usage={stats.data.totals} meta={meta} models={stats.data.models} />
           <Trend daily={stats.data.daily} meta={meta} />
           <ModelTable models={stats.data.models} meta={meta} />
         </>

@@ -1,0 +1,18 @@
+type DashboardCostPeriod {
+  totalCost: Float!
+  usageCount: Int!
+  unpricedCount: Int!
+}
+
+type DashboardCostStats {
+  allTime: DashboardCostPeriod!
+  thisMonth: DashboardCostPeriod!
+  thisWeek: DashboardCostPeriod!
+  today: DashboardCostPeriod!
+  timezone: String!
+  currencyCode: String!
+}
+
+extend type Query {
+  dashboardCostStats: DashboardCostStats!
+}

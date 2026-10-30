@@ -19,11 +19,13 @@ import { useTranslation } from 'react-i18next';
 import { readColumnOrder, writeColumnOrder, reconcileColumnOrder, isReorderableColumn } from '@/lib/column-order';
 import type { DateTimeRangeValue } from '@/utils/date-range';
 import type { AutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
+import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { useIsMobile, MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { useAnimatedList } from '@/hooks/useAnimatedList';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
-import { ServerSidePagination } from '@/components/server-side-pagination';
+import { IncrementalListFooter } from '@/components/incremental-list-footer';
 import { Request, RequestConnection } from '../data/schema';
 import { DataTableToolbar } from './data-table-toolbar';
 import { RequestBodyDrawer } from './request-body-drawer';
@@ -60,14 +62,11 @@ interface RequestsTableProps {
   modelIDFilter: string;
   dateRange?: DateTimeRangeValue;
   queryWhere?: Record<string, any>;
-  onNextPage: () => void;
-  onPreviousPage: () => void;
-  onPageSizeChange: (pageSize: number) => void;
+  scroll: IncrementalScrollOptions;
   onFiltersChange: (filters: RequestTableFilters) => void;
   onDateRangeChange: (range: DateTimeRangeValue | undefined) => void;
   onResetFilters: () => void;
   onViewDetail: (requestId: string) => void;
-  onRefresh: () => void;
   showRefresh: boolean;
   autoRefreshInterval?: AutoRefreshInterval;
   autoRefreshResumeKey?: number;
@@ -109,20 +108,26 @@ export function RequestsTable({
   modelIDFilter,
   dateRange,
   queryWhere,
-  onNextPage,
-  onPreviousPage,
-  onPageSizeChange,
+  scroll,
   onFiltersChange,
   onDateRangeChange,
   onResetFilters,
   onViewDetail,
-  onRefresh,
   showRefresh,
   autoRefreshInterval = null,
   autoRefreshResumeKey = 0,
   onAutoRefreshIntervalChange,
 }: RequestsTableProps) {
   const { t } = useTranslation();
+  const scrolling = useIncrementalScroll(scroll);
+  const [refreshMode, setRefreshMode] = useState(() => {
+    try {
+      return localStorage.getItem('requests-refresh-mode') === 'sequential' ? 'sequential' : 'steady';
+    } catch {
+      return 'steady';
+    }
+  });
+  const animate = refreshMode === 'sequential' && showRefresh && autoRefreshInterval !== null;
 
   const [drawerInitialTab, setDrawerInitialTab] = useState<RequestDiagnosticTab>('request');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -268,7 +273,7 @@ export function RequestsTable({
     () => JSON.stringify({ queryWhere: queryWhere ?? null, autoRefreshResumeKey }),
     [queryWhere, autoRefreshResumeKey]
   );
-  const displayedData = useAnimatedList(data, showRefresh && autoRefreshInterval !== null, pageSize, animationResetKey);
+  const displayedData = useAnimatedList(data, animate, pageSize, animationResetKey);
 
   const columnFilters = useMemo<ColumnFiltersState>(() => {
     const filters: ColumnFiltersState = [];
@@ -355,14 +360,47 @@ export function RequestsTable({
         dateRange={dateRange}
         onDateRangeChange={onDateRangeChange}
         onResetFilters={onResetFilters}
-        onRefresh={onRefresh}
-        showRefresh={showRefresh}
+        onRefresh={scrolling.backToTop}
+        showRefresh
+        refreshControls={
+          <>
+            {!showRefresh && autoRefreshInterval !== null && (
+              <span className='text-muted-foreground text-xs'>{t('requests.refresh.paused')}</span>
+            )}
+            <Select
+              value={refreshMode}
+              onValueChange={(value) => {
+                setRefreshMode(value);
+                try {
+                  localStorage.setItem('requests-refresh-mode', value);
+                } catch {
+                  // Keep the in-memory choice when browser storage is unavailable.
+                }
+              }}
+            >
+              <SelectTrigger className='h-8 w-28' aria-label={t('requests.refresh.mode')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value='steady'>{t('requests.refresh.steady')}</SelectItem>
+                  <SelectItem value='sequential'>{t('requests.refresh.sequential')}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </>
+        }
         autoRefreshInterval={autoRefreshInterval}
         onAutoRefreshIntervalChange={onAutoRefreshIntervalChange}
         enableColumnOrdering
         getColumnLabel={(id) => t(`requests.columns.${id}`, { defaultValue: id })}
       />
-      <div className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)] sm:mt-4'>
+      <div
+        ref={scrolling.containerRef}
+        onScroll={scrolling.onScroll}
+        data-testid='requests-scroll'
+        className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)] sm:mt-4'
+      >
         <div className='min-w-max'>
           <Table data-testid='requests-table' className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'>
             <TableHeader className='sticky top-0 z-20 bg-[var(--table-header)] shadow-sm'>
@@ -390,10 +428,11 @@ export function RequestsTable({
                   {table.getRowModel().rows.map((row) => (
                     <MotionTableRow
                       key={row.id}
+                      data-scroll-index={row.index}
                       data-state={row.getIsSelected() && 'selected'}
-                      initial={{ opacity: 0, y: -20, height: 0 }}
+                      initial={animate ? { opacity: 0, y: -20, height: 0 } : false}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
+                      exit={animate ? { opacity: 0, height: 0 } : undefined}
                       transition={{
                         type: 'spring',
                         stiffness: 500,
@@ -401,7 +440,7 @@ export function RequestsTable({
                         mass: 1,
                         opacity: { duration: 0.2 },
                       }}
-                      layout
+                      layout={animate}
                       className='group/row hover:bg-muted/50 data-[state=selected]:bg-muted'
                     >
                       {row.getVisibleCells().map((cell) => (
@@ -425,19 +464,18 @@ export function RequestsTable({
             </TableBody>
           </Table>
         </div>
+        <div ref={scrolling.sentinelRef} className='h-px' />
       </div>
-      <div className='mt-2 flex-shrink-0 sm:mt-4'>
-        <ServerSidePagination
-          pageInfo={pageInfo}
-          pageSize={pageSize}
-          dataLength={data.length}
-          totalCount={totalCount}
-          selectedRows={table.getFilteredSelectedRowModel().rows.length}
-          onNextPage={onNextPage}
-          onPreviousPage={onPreviousPage}
-          onPageSizeChange={onPageSizeChange}
-        />
-      </div>
+      <IncrementalListFooter
+        loaded={data.length}
+        total={totalCount}
+        loading={scroll.loadingMore}
+        hasMore={scroll.hasMore}
+        error={scroll.error}
+        atTop={scrolling.atTop}
+        onLoadMore={scroll.onLoadMore}
+        onBackToTop={scrolling.backToTop}
+      />
 
       <RequestBodyDrawer
         initialTab={drawerInitialTab}

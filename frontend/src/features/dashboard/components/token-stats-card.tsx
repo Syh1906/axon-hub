@@ -1,3 +1,4 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useState } from 'react';
 import { BarChart4 } from 'lucide-react';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -12,29 +13,16 @@ import { useTokenStats } from '../data/dashboard';
 
 type TimeRange = 'allTime' | 'thisMonth' | 'thisWeek' | 'thisDay';
 
-function formatLastUpdated(timestamp: string | null, locale: string): string {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return date.toLocaleString(locale, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
 interface LastUpdatedInfoProps {
   lastUpdated: string | null;
-  locale: string;
   t: (key: string, options?: Record<string, string>) => string;
 }
 
-function LastUpdatedInfo({ lastUpdated, locale, t }: LastUpdatedInfoProps) {
+function LastUpdatedInfo({ lastUpdated, t }: LastUpdatedInfoProps) {
+  const { format } = useSystemTime();
   if (!lastUpdated) return null;
 
-  const formattedTime = formatLastUpdated(lastUpdated, locale);
+  const formattedTime = format(lastUpdated, 'PPpp');
   const label = t('dashboard.stats.updated', { time: formattedTime });
 
   return (
@@ -70,7 +58,7 @@ function LastUpdatedInfo({ lastUpdated, locale, t }: LastUpdatedInfoProps) {
 }
 
 export function TokenStatsCard() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { data: stats, isLoading, error } = useTokenStats();
   const [timeRange, setTimeRange] = useState<TimeRange>('thisDay');
 
@@ -171,7 +159,7 @@ export function TokenStatsCard() {
           {timeRange === 'allTime' && (
             <LastUpdatedInfo
               lastUpdated={stats?.lastUpdated ?? null}
-              locale={i18n.language}
+
               t={t}
             />
           )}

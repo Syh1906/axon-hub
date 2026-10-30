@@ -1,3 +1,4 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -173,6 +174,7 @@ function AccountForm({
 }
 
 export function ChannelAccountsPanel({ state }: { state: ChannelUpstreamState }) {
+  const { format: formatTime } = useSystemTime();
   const { t } = useTranslation();
   const { channelPermissions } = usePermissions();
   const { setOpen } = useChannels();
@@ -274,7 +276,7 @@ export function ChannelAccountsPanel({ state }: { state: ChannelUpstreamState })
               )}
               {account.updatedAt && (
                 <p className='text-muted-foreground text-xs'>
-                  {t('channels.upstream.updatedAt', { time: new Date(account.updatedAt).toLocaleString() })}
+                  {t('channels.upstream.updatedAt', { time: formatTime(account.updatedAt) })}
                   {!account.complete && ` · ${t('channels.accounts.previousResult')}`}
                 </p>
               )}

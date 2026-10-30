@@ -539,7 +539,18 @@ export const channelHealthGateStatusSchema = channelHealthGateSummarySchema.exte
 export type ChannelHealthGateStatus = z.infer<typeof channelHealthGateStatusSchema>;
 
 // Channel
+export const channelTodayUsageSchema = z.object({
+  channelId: z.string(),
+  requestCount: z.number(),
+  unpricedCount: z.number(),
+  totalCost: z.number(),
+  timezone: z.string(),
+  currencyCode: z.string(),
+});
+
 export const channelSchema = z.object({
+  todayUsage: channelTodayUsageSchema.optional(),
+  todayUsageError: z.boolean().optional(),
   upstreamState: channelUpstreamStateSchema.optional(),
   upstreamLoadError: z.boolean().optional(),
   id: z.string(),

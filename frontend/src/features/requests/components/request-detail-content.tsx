@@ -1,8 +1,7 @@
+import { SystemTime } from '@/components/system-time';
 import { apiKeyLabel } from '@/components/api-key-identity';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { format } from 'date-fns';
 import { DashboardIcon } from '@radix-ui/react-icons';
-import { zhCN, enUS } from 'date-fns/locale';
 import { Copy, Clock, Key, Database, FileText, Layers, Download, Terminal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -36,7 +35,6 @@ interface RequestDetailContentProps {
 
 export function RequestDetailContent({ requestId, projectId, previewRequest, isPreviewStreaming = false }: RequestDetailContentProps) {
   const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
 
   const [showResponseChunks, setShowResponseChunks] = useState(false);
   const [showExecutionChunks, setShowExecutionChunks] = useState(false);
@@ -908,7 +906,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {t('requests.dialogs.requestDetail.fields.startTime')}
                               </span>
                               <p className='text-muted-foreground font-mono text-sm'>
-                                {execution.createdAt ? format(new Date(execution.createdAt), 'yyyy-MM-dd HH:mm:ss', { locale }) : t('requests.columns.unknown')}
+                                {execution.createdAt ? <SystemTime value={new Date(execution.createdAt)} pattern="yyyy-MM-dd HH:mm:ss" /> : t('requests.columns.unknown')}
                               </p>
                             </div>
                             <div className='bg-background space-y-2 rounded-lg border p-3'>
@@ -919,7 +917,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                               <p className='text-muted-foreground font-mono text-sm'>
                                 {execution.status === 'completed' || execution.status === 'failed'
                                   ? execution.updatedAt
-                                    ? format(new Date(execution.updatedAt), 'yyyy-MM-dd HH:mm:ss', { locale })
+                                    ? <SystemTime value={new Date(execution.updatedAt)} pattern="yyyy-MM-dd HH:mm:ss" />
                                     : t('requests.columns.unknown')
                                   : '-'}
                               </p>
@@ -959,7 +957,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
                           {(execution.requestHeaders || execution.requestBody) && (
                             <div className='flex justify-end'>
-                              <Button variant='outline' size='sm' onClick={() => showExecutionCurlPreview(execution.requestHeaders, execution.requestBody, execution.channel, execution.format, execution.requestURL)} className='hover:bg-primary hover:text-primary-foreground'>
+                              <Button variant='outline' size='sm' onClick={() => showExecutionCurlPreview(execution.requestHeaders, execution.requestBody, execution.channel, execution.execution.requestURL)} className='hover:bg-primary hover:text-primary-foreground'>
                                 <Terminal className='mr-2 h-4 w-4' />
                                 {t('requests.actions.copyCurl')}
                               </Button>

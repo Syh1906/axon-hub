@@ -183,7 +183,7 @@ type AppliedCostMultiplier struct {
 	ObservedAt *time.Time           `json:"observedAt,omitempty"`
 }
 
-// RequestCostSnapshot 在本次请求内复用 Price；持久记录通过不可变的 PriceReferenceID 定位原价格。
+// RequestCostSnapshot 保留请求时的计价依据：渠道价格引用不可变版本，模型默认价直接保存副本。
 type RequestCostSnapshot struct {
 	Images           []ImageOutput         `json:"images,omitempty"`
 	PriceReferenceID string                `json:"priceReferenceId"`
@@ -193,6 +193,19 @@ type RequestCostSnapshot struct {
 	Applied          AppliedCostMultiplier `json:"applied"`
 	ManualMultiplier decimal.Decimal       `json:"manualMultiplier"`
 	Price            *ModelPrice           `json:"-"`
+	ModelPrice       *ModelPrice           `json:"modelPrice,omitempty"`
+	ModelOutputLimit int64                 `json:"modelOutputLimit,omitempty"`
+}
+
+// CurrentPrice 返回本次执行已加载的价格，或持久化的模型默认价格。
+func (s *RequestCostSnapshot) CurrentPrice() *ModelPrice {
+	if s == nil {
+		return nil
+	}
+	if s.Price != nil {
+		return s.Price
+	}
+	return s.ModelPrice
 }
 
 // DisplayMultiplier 返回实际费用项目共同使用的倍率；混合倍率不能反推统一原价。

@@ -775,6 +775,15 @@ type ComplexityRoot struct {
 		Pattern     func(childComplexity int) int
 	}
 
+	ChannelTodayUsage struct {
+		ChannelID     func(childComplexity int) int
+		CurrencyCode  func(childComplexity int) int
+		RequestCount  func(childComplexity int) int
+		Timezone      func(childComplexity int) int
+		TotalCost     func(childComplexity int) int
+		UnpricedCount func(childComplexity int) int
+	}
+
 	ChannelTypeCount struct {
 		Count            func(childComplexity int) int
 		PrimaryAPIFormat func(childComplexity int) int
@@ -936,6 +945,21 @@ type ComplexityRoot struct {
 	DailyTimeRange struct {
 		End   func(childComplexity int) int
 		Start func(childComplexity int) int
+	}
+
+	DashboardCostPeriod struct {
+		TotalCost     func(childComplexity int) int
+		UnpricedCount func(childComplexity int) int
+		UsageCount    func(childComplexity int) int
+	}
+
+	DashboardCostStats struct {
+		AllTime      func(childComplexity int) int
+		CurrencyCode func(childComplexity int) int
+		ThisMonth    func(childComplexity int) int
+		ThisWeek     func(childComplexity int) int
+		Timezone     func(childComplexity int) int
+		Today        func(childComplexity int) int
 	}
 
 	DashboardOverview struct {
@@ -1776,6 +1800,7 @@ type ComplexityRoot struct {
 		ChannelPerformanceStats         func(childComplexity int) int
 		ChannelProbeData                func(childComplexity int, input biz.GetChannelProbeDataInput) int
 		ChannelSuccessRates             func(childComplexity int, timeWindow *string, limit *int) int
+		ChannelTodayUsage               func(childComplexity int, channelIds []*objects.GUID) int
 		ChannelUpstreamRefreshTargets   func(childComplexity int) int
 		ChannelUpstreamStates           func(childComplexity int, channelIds []*objects.GUID) int
 		Channels                        func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOrder, where *ent.ChannelWhereInput) int
@@ -1787,6 +1812,7 @@ type ComplexityRoot struct {
 		CostStatsByModel                func(childComplexity int, timeWindow *string) int
 		CountChannelsByType             func(childComplexity int, input CountChannelsByTypeInput) int
 		DailyRequestStats               func(childComplexity int) int
+		DashboardCostStats              func(childComplexity int) int
 		DashboardOverview               func(childComplexity int) int
 		DataStorages                    func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.DataStorageOrder, where *ent.DataStorageWhereInput) int
 		DefaultDataStorageID            func(childComplexity int) int
@@ -1834,6 +1860,7 @@ type ComplexityRoot struct {
 		SecuritySettings                func(childComplexity int) int
 		StoragePolicy                   func(childComplexity int) int
 		SystemChannelSettings           func(childComplexity int) int
+		SystemDisplayTimezone           func(childComplexity int) int
 		SystemGeneralSettings           func(childComplexity int) int
 		SystemModelSettings             func(childComplexity int) int
 		SystemStatus                    func(childComplexity int) int
@@ -1941,6 +1968,7 @@ type ComplexityRoot struct {
 	RequestExecution struct {
 		Channel                    func(childComplexity int) int
 		ChannelID                  func(childComplexity int) int
+		CostSnapshot               func(childComplexity int) int
 		CreatedAt                  func(childComplexity int) int
 		DataStorage                func(childComplexity int) int
 		DataStorageID              func(childComplexity int) int
@@ -3074,7 +3102,9 @@ type QueryResolver interface {
 	CostStatsByModel(ctx context.Context, timeWindow *string) ([]*CostStatsByModel, error)
 	CostStatsByAPIKey(ctx context.Context, timeWindow *string) ([]*CostStatsByAPIKey, error)
 	UsageStatsByUser(ctx context.Context, timeWindow *string) ([]*UsageStatsByUser, error)
+	DashboardCostStats(ctx context.Context) (*biz.DashboardCostStats, error)
 	AllScopes(ctx context.Context, level *string) ([]*ScopeInfo, error)
+	SystemDisplayTimezone(ctx context.Context) (string, error)
 	Me(ctx context.Context) (*objects.UserInfo, error)
 	MyProjects(ctx context.Context) ([]*ent.Project, error)
 	PreviewGcCleanup(ctx context.Context, input gc.TriggerGcCleanupInput) ([]*gc.GcCleanupPreviewItem, error)
@@ -3110,6 +3140,7 @@ type QueryResolver interface {
 	ChannelProbeData(ctx context.Context, input biz.GetChannelProbeDataInput) ([]*biz.ChannelProbeData, error)
 	ChannelUpstreamStates(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelUpstreamState, error)
 	ChannelUpstreamRefreshTargets(ctx context.Context) ([]*objects.GUID, error)
+	ChannelTodayUsage(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelTodayUsage, error)
 	RequestLogTimezone(ctx context.Context) (string, error)
 	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
 	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
@@ -5911,6 +5942,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ChannelTagsRegexAssociation.Pattern(childComplexity), true
 
+	case "ChannelTodayUsage.channelId":
+		if e.complexity.ChannelTodayUsage.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.ChannelID(childComplexity), true
+	case "ChannelTodayUsage.currencyCode":
+		if e.complexity.ChannelTodayUsage.CurrencyCode == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.CurrencyCode(childComplexity), true
+	case "ChannelTodayUsage.requestCount":
+		if e.complexity.ChannelTodayUsage.RequestCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.RequestCount(childComplexity), true
+	case "ChannelTodayUsage.timezone":
+		if e.complexity.ChannelTodayUsage.Timezone == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.Timezone(childComplexity), true
+	case "ChannelTodayUsage.totalCost":
+		if e.complexity.ChannelTodayUsage.TotalCost == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.TotalCost(childComplexity), true
+	case "ChannelTodayUsage.unpricedCount":
+		if e.complexity.ChannelTodayUsage.UnpricedCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.UnpricedCount(childComplexity), true
+
 	case "ChannelTypeCount.count":
 		if e.complexity.ChannelTypeCount.Count == nil {
 			break
@@ -6531,6 +6599,62 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DailyTimeRange.Start(childComplexity), true
+
+	case "DashboardCostPeriod.totalCost":
+		if e.complexity.DashboardCostPeriod.TotalCost == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostPeriod.TotalCost(childComplexity), true
+	case "DashboardCostPeriod.unpricedCount":
+		if e.complexity.DashboardCostPeriod.UnpricedCount == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostPeriod.UnpricedCount(childComplexity), true
+	case "DashboardCostPeriod.usageCount":
+		if e.complexity.DashboardCostPeriod.UsageCount == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostPeriod.UsageCount(childComplexity), true
+
+	case "DashboardCostStats.allTime":
+		if e.complexity.DashboardCostStats.AllTime == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.AllTime(childComplexity), true
+	case "DashboardCostStats.currencyCode":
+		if e.complexity.DashboardCostStats.CurrencyCode == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.CurrencyCode(childComplexity), true
+	case "DashboardCostStats.thisMonth":
+		if e.complexity.DashboardCostStats.ThisMonth == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.ThisMonth(childComplexity), true
+	case "DashboardCostStats.thisWeek":
+		if e.complexity.DashboardCostStats.ThisWeek == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.ThisWeek(childComplexity), true
+	case "DashboardCostStats.timezone":
+		if e.complexity.DashboardCostStats.Timezone == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.Timezone(childComplexity), true
+	case "DashboardCostStats.today":
+		if e.complexity.DashboardCostStats.Today == nil {
+			break
+		}
+
+		return e.complexity.DashboardCostStats.Today(childComplexity), true
 
 	case "DashboardOverview.averageResponseTime":
 		if e.complexity.DashboardOverview.AverageResponseTime == nil {
@@ -10769,6 +10893,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ChannelSuccessRates(childComplexity, args["timeWindow"].(*string), args["limit"].(*int)), true
+	case "Query.channelTodayUsage":
+		if e.complexity.Query.ChannelTodayUsage == nil {
+			break
+		}
+
+		args, err := ec.field_Query_channelTodayUsage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ChannelTodayUsage(childComplexity, args["channelIds"].([]*objects.GUID)), true
 	case "Query.channelUpstreamRefreshTargets":
 		if e.complexity.Query.ChannelUpstreamRefreshTargets == nil {
 			break
@@ -10875,6 +11010,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.DailyRequestStats(childComplexity), true
+	case "Query.dashboardCostStats":
+		if e.complexity.Query.DashboardCostStats == nil {
+			break
+		}
+
+		return e.complexity.Query.DashboardCostStats(childComplexity), true
 	case "Query.dashboardOverview":
 		if e.complexity.Query.DashboardOverview == nil {
 			break
@@ -11307,6 +11448,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SystemChannelSettings(childComplexity), true
+	case "Query.systemDisplayTimezone":
+		if e.complexity.Query.SystemDisplayTimezone == nil {
+			break
+		}
+
+		return e.complexity.Query.SystemDisplayTimezone(childComplexity), true
 	case "Query.systemGeneralSettings":
 		if e.complexity.Query.SystemGeneralSettings == nil {
 			break
@@ -11861,6 +12008,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecution.ChannelID(childComplexity), true
+	case "RequestExecution.costSnapshot":
+		if e.complexity.RequestExecution.CostSnapshot == nil {
+			break
+		}
+
+		return e.complexity.RequestExecution.CostSnapshot(childComplexity), true
 	case "RequestExecution.createdAt":
 		if e.complexity.RequestExecution.CreatedAt == nil {
 			break
@@ -15554,7 +15707,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -15569,6 +15722,7 @@ var sources = []*ast.Source{
 	{Name: "axonhub.graphql", Input: sourceData("axonhub.graphql"), BuiltIn: false},
 	{Name: "ent.graphql", Input: sourceData("ent.graphql"), BuiltIn: false},
 	{Name: "dashboard.graphql", Input: sourceData("dashboard.graphql"), BuiltIn: false},
+	{Name: "dashboard_cost.graphql", Input: sourceData("dashboard_cost.graphql"), BuiltIn: false},
 	{Name: "scopes.graphql", Input: sourceData("scopes.graphql"), BuiltIn: false},
 	{Name: "me.graphql", Input: sourceData("me.graphql"), BuiltIn: false},
 	{Name: "system.graphql", Input: sourceData("system.graphql"), BuiltIn: false},
@@ -15579,6 +15733,7 @@ var sources = []*ast.Source{
 	{Name: "channel_health_gate.graphql", Input: sourceData("channel_health_gate.graphql"), BuiltIn: false},
 	{Name: "channel_routing.graphql", Input: sourceData("channel_routing.graphql"), BuiltIn: false},
 	{Name: "channel_upstream.graphql", Input: sourceData("channel_upstream.graphql"), BuiltIn: false},
+	{Name: "channel_usage.graphql", Input: sourceData("channel_usage.graphql"), BuiltIn: false},
 	{Name: "channel_accounts.graphql", Input: sourceData("channel_accounts.graphql"), BuiltIn: false},
 	{Name: "request_routing.graphql", Input: sourceData("request_routing.graphql"), BuiltIn: false},
 	{Name: "request_diagnostics.graphql", Input: sourceData("request_diagnostics.graphql"), BuiltIn: false},
@@ -18234,6 +18389,17 @@ func (ec *executionContext) field_Query_channelSuccessRates_args(ctx context.Con
 		return nil, err
 	}
 	args["limit"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_channelTodayUsage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelIds", ec.unmarshalNID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["channelIds"] = arg0
 	return args, nil
 }
 
@@ -33639,6 +33805,180 @@ func (ec *executionContext) fieldContext_ChannelTagsRegexAssociation_pattern(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelTodayUsage_channelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_channelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_requestCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_requestCount,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_requestCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_unpricedCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_unpricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_unpricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_totalCost(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_totalCost,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCost, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_totalCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_timezone(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_currencyCode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_currencyCode,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelTypeCount_type(ctx context.Context, field graphql.CollectedField, obj *ChannelTypeCount) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36847,6 +37187,299 @@ func (ec *executionContext) _DailyTimeRange_end(ctx context.Context, field graph
 func (ec *executionContext) fieldContext_DailyTimeRange_end(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "DailyTimeRange",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostPeriod_totalCost(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostPeriod) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostPeriod_totalCost,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCost, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostPeriod_totalCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostPeriod",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostPeriod_usageCount(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostPeriod) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostPeriod_usageCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostPeriod_usageCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostPeriod",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostPeriod_unpricedCount(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostPeriod) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostPeriod_unpricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostPeriod_unpricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostPeriod",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_allTime(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_allTime,
+		func(ctx context.Context) (any, error) {
+			return obj.AllTime, nil
+		},
+		nil,
+		ec.marshalNDashboardCostPeriod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_allTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalCost":
+				return ec.fieldContext_DashboardCostPeriod_totalCost(ctx, field)
+			case "usageCount":
+				return ec.fieldContext_DashboardCostPeriod_usageCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_DashboardCostPeriod_unpricedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardCostPeriod", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_thisMonth(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_thisMonth,
+		func(ctx context.Context) (any, error) {
+			return obj.ThisMonth, nil
+		},
+		nil,
+		ec.marshalNDashboardCostPeriod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_thisMonth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalCost":
+				return ec.fieldContext_DashboardCostPeriod_totalCost(ctx, field)
+			case "usageCount":
+				return ec.fieldContext_DashboardCostPeriod_usageCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_DashboardCostPeriod_unpricedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardCostPeriod", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_thisWeek(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_thisWeek,
+		func(ctx context.Context) (any, error) {
+			return obj.ThisWeek, nil
+		},
+		nil,
+		ec.marshalNDashboardCostPeriod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_thisWeek(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalCost":
+				return ec.fieldContext_DashboardCostPeriod_totalCost(ctx, field)
+			case "usageCount":
+				return ec.fieldContext_DashboardCostPeriod_usageCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_DashboardCostPeriod_unpricedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardCostPeriod", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_today(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_today,
+		func(ctx context.Context) (any, error) {
+			return obj.Today, nil
+		},
+		nil,
+		ec.marshalNDashboardCostPeriod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostPeriod,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_today(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalCost":
+				return ec.fieldContext_DashboardCostPeriod_totalCost(ctx, field)
+			case "usageCount":
+				return ec.fieldContext_DashboardCostPeriod_usageCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_DashboardCostPeriod_unpricedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardCostPeriod", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_timezone(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardCostStats_currencyCode(ctx context.Context, field graphql.CollectedField, obj *biz.DashboardCostStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardCostStats_currencyCode,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardCostStats_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardCostStats",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -59254,6 +59887,49 @@ func (ec *executionContext) fieldContext_Query_usageStatsByUser(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_dashboardCostStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_dashboardCostStats,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().DashboardCostStats(ctx)
+		},
+		nil,
+		ec.marshalNDashboardCostStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostStats,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_dashboardCostStats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "allTime":
+				return ec.fieldContext_DashboardCostStats_allTime(ctx, field)
+			case "thisMonth":
+				return ec.fieldContext_DashboardCostStats_thisMonth(ctx, field)
+			case "thisWeek":
+				return ec.fieldContext_DashboardCostStats_thisWeek(ctx, field)
+			case "today":
+				return ec.fieldContext_DashboardCostStats_today(ctx, field)
+			case "timezone":
+				return ec.fieldContext_DashboardCostStats_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_DashboardCostStats_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardCostStats", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_allScopes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -59299,6 +59975,35 @@ func (ec *executionContext) fieldContext_Query_allScopes(ctx context.Context, fi
 	if fc.Args, err = ec.field_Query_allScopes_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_systemDisplayTimezone(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_systemDisplayTimezone,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().SystemDisplayTimezone(ctx)
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_systemDisplayTimezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -60782,6 +61487,61 @@ func (ec *executionContext) fieldContext_Query_channelUpstreamRefreshTargets(_ c
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_channelTodayUsage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_channelTodayUsage,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ChannelTodayUsage(ctx, fc.Args["channelIds"].([]*objects.GUID))
+		},
+		nil,
+		ec.marshalNChannelTodayUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_channelTodayUsage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelId":
+				return ec.fieldContext_ChannelTodayUsage_channelId(ctx, field)
+			case "requestCount":
+				return ec.fieldContext_ChannelTodayUsage_requestCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_ChannelTodayUsage_unpricedCount(ctx, field)
+			case "totalCost":
+				return ec.fieldContext_ChannelTodayUsage_totalCost(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ChannelTodayUsage_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ChannelTodayUsage_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelTodayUsage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_channelTodayUsage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -65089,6 +65849,47 @@ func (ec *executionContext) fieldContext_RequestExecution_dataStorage(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestExecution_costSnapshot(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecution_costSnapshot,
+		func(ctx context.Context) (any, error) {
+			return obj.CostSnapshot, nil
+		},
+		nil,
+		ec.marshalORequestCostSnapshot2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestCostSnapshot,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecution_costSnapshot(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "priceReferenceId":
+				return ec.fieldContext_RequestCostSnapshot_priceReferenceId(ctx, field)
+			case "pricedAt":
+				return ec.fieldContext_RequestCostSnapshot_pricedAt(ctx, field)
+			case "keyLabel":
+				return ec.fieldContext_RequestCostSnapshot_keyLabel(ctx, field)
+			case "applied":
+				return ec.fieldContext_RequestCostSnapshot_applied(ctx, field)
+			case "manualMultiplier":
+				return ec.fieldContext_RequestCostSnapshot_manualMultiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestCostSnapshot", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestExecutionConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecutionConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -65276,6 +66077,8 @@ func (ec *executionContext) fieldContext_RequestExecutionEdge_node(_ context.Con
 				return ec.fieldContext_RequestExecution_channel(ctx, field)
 			case "dataStorage":
 				return ec.fieldContext_RequestExecution_dataStorage(ctx, field)
+			case "costSnapshot":
+				return ec.fieldContext_RequestExecution_costSnapshot(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RequestExecution", field.Name)
 		},
@@ -117713,6 +118516,70 @@ func (ec *executionContext) _ChannelTagsRegexAssociation(ctx context.Context, se
 	return out
 }
 
+var channelTodayUsageImplementors = []string{"ChannelTodayUsage"}
+
+func (ec *executionContext) _ChannelTodayUsage(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelTodayUsage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelTodayUsageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelTodayUsage")
+		case "channelId":
+			out.Values[i] = ec._ChannelTodayUsage_channelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestCount":
+			out.Values[i] = ec._ChannelTodayUsage_requestCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedCount":
+			out.Values[i] = ec._ChannelTodayUsage_unpricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCost":
+			out.Values[i] = ec._ChannelTodayUsage_totalCost(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._ChannelTodayUsage_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currencyCode":
+			out.Values[i] = ec._ChannelTodayUsage_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var channelTypeCountImplementors = []string{"ChannelTypeCount"}
 
 func (ec *executionContext) _ChannelTypeCount(ctx context.Context, sel ast.SelectionSet, obj *ChannelTypeCount) graphql.Marshaler {
@@ -118878,6 +119745,119 @@ func (ec *executionContext) _DailyTimeRange(ctx context.Context, sel ast.Selecti
 			}
 		case "end":
 			out.Values[i] = ec._DailyTimeRange_end(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dashboardCostPeriodImplementors = []string{"DashboardCostPeriod"}
+
+func (ec *executionContext) _DashboardCostPeriod(ctx context.Context, sel ast.SelectionSet, obj *biz.DashboardCostPeriod) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dashboardCostPeriodImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DashboardCostPeriod")
+		case "totalCost":
+			out.Values[i] = ec._DashboardCostPeriod_totalCost(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageCount":
+			out.Values[i] = ec._DashboardCostPeriod_usageCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedCount":
+			out.Values[i] = ec._DashboardCostPeriod_unpricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dashboardCostStatsImplementors = []string{"DashboardCostStats"}
+
+func (ec *executionContext) _DashboardCostStats(ctx context.Context, sel ast.SelectionSet, obj *biz.DashboardCostStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dashboardCostStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DashboardCostStats")
+		case "allTime":
+			out.Values[i] = ec._DashboardCostStats_allTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "thisMonth":
+			out.Values[i] = ec._DashboardCostStats_thisMonth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "thisWeek":
+			out.Values[i] = ec._DashboardCostStats_thisWeek(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "today":
+			out.Values[i] = ec._DashboardCostStats_today(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._DashboardCostStats_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currencyCode":
+			out.Values[i] = ec._DashboardCostStats_currencyCode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -126575,6 +127555,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "dashboardCostStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_dashboardCostStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "allScopes":
 			field := field
 
@@ -126585,6 +127587,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_allScopes(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "systemDisplayTimezone":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_systemDisplayTimezone(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -127349,6 +128373,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_channelUpstreamRefreshTargets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "channelTodayUsage":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_channelTodayUsage(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -129336,6 +130382,8 @@ func (ec *executionContext) _RequestExecution(ctx context.Context, sel ast.Selec
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "costSnapshot":
+			out.Values[i] = ec._RequestExecution_costSnapshot(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -139207,6 +140255,60 @@ func (ec *executionContext) unmarshalNChannelTagPriorityUpdateInput2ᚖgithubᚗ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNChannelTodayUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.ChannelTodayUsage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNChannelTodayUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNChannelTodayUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsage(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelTodayUsage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ChannelTodayUsage(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNChannelType2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋchannelᚐType(ctx context.Context, v any) (channel.Type, error) {
 	var res channel.Type
 	err := res.UnmarshalGQL(v)
@@ -140156,6 +141258,30 @@ func (ec *executionContext) marshalNDailyRequestStats2ᚖgithubᚗcomᚋlooplj�
 		return graphql.Null
 	}
 	return ec._DailyRequestStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDashboardCostPeriod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostPeriod(ctx context.Context, sel ast.SelectionSet, v *biz.DashboardCostPeriod) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DashboardCostPeriod(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDashboardCostStats2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostStats(ctx context.Context, sel ast.SelectionSet, v biz.DashboardCostStats) graphql.Marshaler {
+	return ec._DashboardCostStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDashboardCostStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐDashboardCostStats(ctx context.Context, sel ast.SelectionSet, v *biz.DashboardCostStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DashboardCostStats(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDashboardOverview2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐDashboardOverview(ctx context.Context, sel ast.SelectionSet, v DashboardOverview) graphql.Marshaler {

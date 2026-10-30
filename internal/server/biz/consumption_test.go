@@ -86,8 +86,8 @@ func TestConsumptionCountsModelsAndCacheDenominator(t *testing.T) {
 		require.Len(t, entry.Models, 2)
 		require.Equal(t, "model-b", entry.Models[0].Model)
 		require.Equal(t, 1.0, *entry.Metrics.SuccessRate)
-		require.Equal(t, 100.0, *entry.Metrics.AvgTokensPerSecond) // missing first-byte samples excluded
-		require.Equal(t, 0.8, *entry.Metrics.CacheHitRate)         // denominator is 1000, not 3000 or 1900
+		require.Equal(t, 100.0, *entry.Metrics.AvgTokensPerSecond)        // missing first-byte samples excluded
+		require.InDelta(t, 800.0/3000, *entry.Metrics.CacheHitRate, 1e-9) // all input, including cache misses
 	}
 	result, err := f.service.Leaderboard(ctx, ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey, Metric: ConsumptionMetricCache, Period: ConsumptionPeriodAll})
 	require.NoError(t, err)

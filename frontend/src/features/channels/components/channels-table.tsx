@@ -19,10 +19,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
-import { ServerSidePagination } from '@/components/server-side-pagination';
+import { IncrementalListFooter } from '@/components/incremental-list-footer';
+import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { useChannels } from '../context/channels-context';
 import type { ChannelListColumnVisibility } from '../data/channels';
-import { Channel, ChannelConnection } from '../data/schema';
+import { Channel } from '../data/schema';
 import type { ChannelTypeGroup } from '../utils/group-channel-types';
 import { ChannelExpandedRow } from './channel-expanded-row';
 import { ChannelsDefaultSort } from './channels-default-sort';
@@ -42,7 +43,6 @@ interface DataTableProps {
   columns: ColumnDef<Channel>[];
   loading?: boolean;
   data: Channel[];
-  pageInfo?: ChannelConnection['pageInfo'];
   pageSize: number;
   totalCount?: number;
   nameFilter: string;
@@ -59,10 +59,7 @@ interface DataTableProps {
   onExitErrorOnlyMode?: () => void;
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
-  onNextPage: () => void;
-  onPreviousPage: () => void;
-  onPageSizeChange: (pageSize: number) => void;
-  onResetCursor?: () => void;
+  scroll: IncrementalScrollOptions;
   onNameFilterChange: (filter: string) => void;
   onTypeFilterChange: (filters: string[]) => void;
   onStatusFilterChange: (filters: string[]) => void;
@@ -77,7 +74,6 @@ export function ChannelsTable({
   columns,
   loading,
   data,
-  pageInfo,
   pageSize,
   totalCount,
   nameFilter,
@@ -94,10 +90,7 @@ export function ChannelsTable({
   sorting,
   onSortingChange,
   onExitErrorOnlyMode,
-  onNextPage,
-  onPreviousPage,
-  onPageSizeChange,
-  onResetCursor,
+  scroll,
   onNameFilterChange,
   onTypeFilterChange,
   onStatusFilterChange,
@@ -108,6 +101,7 @@ export function ChannelsTable({
   canWrite = true,
 }: DataTableProps) {
   const { t } = useTranslation();
+  const scrolling = useIncrementalScroll(scroll);
   const { setSelectedChannels, setResetRowSelection, setOpen } = useChannels();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [expanded, setExpanded] = useState<ExpandedState>({});
@@ -294,7 +288,7 @@ export function ChannelsTable({
         onApplyProvider={onApplyProvider}
       />
       <p className='text-muted-foreground mt-2 text-xs'>{t('channels.routing.clickHint')}</p>
-      <div className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'>
+      <div ref={scrolling.containerRef} onScroll={scrolling.onScroll} data-testid='channels-scroll' className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'>
         <div className='min-w-[1100px]'>
           <Table data-testid='channels-table' className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'>
             <TableHeader className='sticky top-0 z-20 bg-[var(--table-header)] shadow-sm'>
@@ -324,6 +318,7 @@ export function ChannelsTable({
                     <React.Fragment key={row.id}>
                       <MotionTableRow
                         key={row.id}
+                        data-scroll-index={row.index}
                         data-state={row.getIsSelected() && 'selected'}
                         className='group/row table-row-stable h-[88px] rounded-xl border-0 !bg-[var(--table-background)]'
                       >
@@ -378,20 +373,9 @@ export function ChannelsTable({
             </TableBody>
           </Table>
         </div>
+        <div ref={scrolling.sentinelRef} className='h-px' />
       </div>
-      <div className='mt-4 flex-shrink-0'>
-        <ServerSidePagination
-          pageInfo={pageInfo}
-          pageSize={pageSize}
-          dataLength={data.length}
-          totalCount={totalCount}
-          selectedRows={selectedCount}
-          onNextPage={onNextPage}
-          onPreviousPage={onPreviousPage}
-          onPageSizeChange={onPageSizeChange}
-          onResetCursor={onResetCursor}
-        />
-      </div>
+      <IncrementalListFooter loaded={data.length} total={totalCount} loading={scroll.loadingMore} hasMore={scroll.hasMore} error={scroll.error} atTop={scrolling.atTop} onLoadMore={scroll.onLoadMore} onBackToTop={scrolling.backToTop} />
       {/* Floating Bulk Actions Bar */}
       {selectedCount > 0 && canWrite && (
         <div className='fixed bottom-6 left-1/2 z-50 -translate-x-1/2'>

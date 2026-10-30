@@ -418,5 +418,10 @@
   "auth.signIn.footer.selfUsage": "使用 API Key 查看用量",
   "settings.nav.appearance": "外观",
   "settings.nav.display": "显示",
-  "settings.nav.notifications": "通知"
+  "settings.nav.notifications": "通知",
+  "common.incremental.loaded": "已加载 {{count}} / {{total}} 条",
+  "common.incremental.retry": "加载失败，点击重试",
+  "common.incremental.scrollMore": "向下滚动加载更多",
+  "common.incremental.end": "已加载全部",
+  "common.incremental.backToTop": "回到顶部并收起"
 }

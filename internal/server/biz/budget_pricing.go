@@ -20,7 +20,8 @@ import (
 // It is an estimate, not a provider-token upper bound. Actual costs are never capped.
 func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExecution, req *llm.Request, raw *httpclient.Request, promptTokens int64) (budget.Amount, error) {
 	snap := execution.CostSnapshot
-	if snap == nil || snap.Price == nil || snap.PriceReferenceID == "" {
+	currentPrice := snap.CurrentPrice()
+	if currentPrice == nil {
 		return 0, fmt.Errorf("the selected model has no price")
 	}
 	if req == nil {
@@ -64,7 +65,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	if output < 0 {
 		return 0, fmt.Errorf("invalid output limit")
 	}
-	price := *snap.Price
+	price := *currentPrice
 	estimatedUsage := &llm.Usage{PromptTokens: promptTokens, CompletionTokens: output, TotalTokens: promptTokens + output}
 	effective := effectiveModelPriceItems(estimatedUsage, price, snap.PricedAt)
 	if len(effective) == 0 {
@@ -75,6 +76,9 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 		if item.ItemCode == objects.PriceItemCodeCompletion && item.Pricing.Mode != objects.PricingModeFlatFee && item.Pricing.Mode != objects.PricingModeImageFixed {
 			needsOutput = needsOutput || budgetPricingPositive(item.Pricing)
 		}
+	}
+	if needsOutput && output == 0 {
+		output = snap.ModelOutputLimit
 	}
 	if needsOutput && output == 0 {
 		var card *ent.Model
@@ -90,10 +94,10 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			return 0, fmt.Errorf("an output limit is required for budget estimation")
 		}
 		output = int64(card.ModelCard.Limit.Output)
-		estimatedUsage.CompletionTokens = output
-		estimatedUsage.TotalTokens = promptTokens + output
-		effective = effectiveModelPriceItems(estimatedUsage, price, snap.PricedAt)
 	}
+	estimatedUsage.CompletionTokens = output
+	estimatedUsage.TotalTokens = promptTokens + output
+	effective = effectiveModelPriceItems(estimatedUsage, price, snap.PricedAt)
 	total := decimal.Zero
 	for _, item := range effective {
 		multiplier := snap.Applied.Value
@@ -141,7 +145,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 }
 
 func (s *UsageLogService) actualBudgetCost(ctx context.Context, usage *llm.Usage, snapshot *objects.RequestCostSnapshot) (*budget.Amount, error) {
-	if snapshot == nil || snapshot.PriceReferenceID == "" {
+	if snapshot == nil {
 		return nil, nil
 	}
 	price, err := s.budgetSnapshotPrice(ctx, snapshot)
@@ -179,11 +183,14 @@ func budgetPricingPositive(pricing objects.Pricing) bool {
 }
 
 func (s *UsageLogService) budgetSnapshotPrice(ctx context.Context, snapshot *objects.RequestCostSnapshot) (*objects.ModelPrice, error) {
-	if snapshot == nil || snapshot.PriceReferenceID == "" {
+	if snapshot == nil {
 		return nil, nil
 	}
-	price := snapshot.Price
+	price := snapshot.CurrentPrice()
 	if price == nil {
+		if snapshot.PriceReferenceID == "" {
+			return nil, nil
+		}
 		version, err := authz.RunWithSystemBypass(ctx, "budget-settlement-price", func(ctx context.Context) (*ent.ChannelModelPriceVersion, error) {
 			return s.db.ChannelModelPriceVersion.Query().Where(channelmodelpriceversion.ReferenceID(snapshot.PriceReferenceID)).Only(ctx)
 		})

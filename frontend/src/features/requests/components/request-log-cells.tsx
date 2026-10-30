@@ -69,19 +69,31 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   const tags = channel?.tags ?? [];
   const state = selection?.sessionState || 'unrecorded';
   const Icon = SESSION_ICONS[state as keyof typeof SESSION_ICONS] ?? CircleHelp;
+  const iconColor =
+    state === 'new' ? 'text-green-600 dark:text-green-400' : state === 'reused' ? 'text-blue-600 dark:text-blue-400' : 'text-primary';
   const provider = requestProvider(request);
+  const usage = request.usageLogs?.edges?.[0]?.node;
+  const multiplier = execution?.costSnapshot
+    ? usage?.totalCost != null
+      ? (usage.costPriceMultiplier ?? 'mixed')
+      : execution.costSnapshot.applied.value
+    : undefined;
+  const multiplierLabel = multiplier === 'mixed' ? t('requests.diagnostics.mixedMultiplier') : multiplier == null ? '—' : `×${multiplier}`;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type='button'
           onClick={onOpen}
-          className='flex w-[142px] min-w-0 flex-col gap-1.5 rounded-md text-left'
+          className='flex w-[170px] min-w-0 flex-col gap-1.5 rounded-md text-left'
           aria-label={t('requests.diagnostics.openRouting', { name })}
         >
           <span className='flex w-full items-center gap-1.5'>
-            <Icon className='text-primary size-4 shrink-0' />
+            <Icon className={`size-4 shrink-0 ${iconColor}`} />
             <span className='truncate text-sm font-medium'>{name}</span>
+            <Badge variant='outline' className='shrink-0 px-1 text-[10px]'>
+              {multiplierLabel}
+            </Badge>
           </span>
           <span className='flex h-5 w-full min-w-0 items-center gap-1'>
             {tags.length ? (
@@ -119,6 +131,9 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
           </p>
           <p className='break-words'>
             {t('requests.diagnostics.tags')}: {tags.join(' / ') || '—'}
+          </p>
+          <p>
+            {t('requests.diagnostics.requestMultiplier')}: {multiplier == null ? t('requests.diagnostics.unrecorded') : multiplierLabel}
           </p>
           <p className='text-muted-foreground'>{t('requests.diagnostics.openRoutingHint')}</p>
         </div>

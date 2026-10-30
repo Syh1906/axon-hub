@@ -1,5 +1,4 @@
-import { format } from 'date-fns';
-import { zhCN, enUS } from 'date-fns/locale';
+import { SystemTime } from '@/components/system-time';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, User, Bot, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,9 +13,8 @@ interface TraceCardProps {
 }
 
 export function TraceCard({ trace, onViewTrace, index }: TraceCardProps) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language === 'zh' ? zhCN : enUS;
-  const createdAtLabel = format(trace.createdAt, 'yyyy-MM-dd HH:mm:ss', { locale });
+  const { t } = useTranslation();
+  const createdAtLabel = <SystemTime value={trace.createdAt} pattern="yyyy-MM-dd HH:mm:ss" />;
   const isArchived = trace.status === 'archived';
 
   return (

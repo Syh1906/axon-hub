@@ -1,5 +1,5 @@
+import { SystemTime } from '@/components/system-time';
 import { memo } from 'react';
-import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
@@ -33,7 +33,7 @@ export const ChannelHealthCell = memo(({ points }: ChannelHealthCellProps) => {
         const isError = hasRequests && successRate < 0.5;
         const isIdle = !hasRequests;
 
-        const probeTime = format(new Date(point.timestamp * 1000), 'MM-dd HH:mm');
+        const probeTime = <SystemTime value={new Date(point.timestamp * 1000)} pattern="MM-dd HH:mm" />;
 
         return (
           <Tooltip key={`${point.timestamp}-${index}`}>

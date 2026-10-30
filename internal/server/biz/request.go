@@ -314,6 +314,7 @@ func (s *RequestService) CreateRequestExecution(
 	passThroughApplied bool,
 	cacheSample *usageanalytics.CacheSample,
 	selection *objects.RequestExecutionSelection,
+	modelCard *objects.ModelCard,
 ) (*ent.RequestExecution, error) {
 	// Decide whether to store the channel request body
 	storeRequestBody := true
@@ -382,7 +383,7 @@ func (s *RequestService) CreateRequestExecution(
 		SetStatus(requestexecution.StatusProcessing).
 		SetStream(request.Stream).
 		SetRequestHeaders(requestHeadersBytes).
-		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID)).
+		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID, modelCard)).
 		SetPassThroughApplied(passThroughApplied)
 	if selection != nil {
 		mut.SetSelection(selection)

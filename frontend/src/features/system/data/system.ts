@@ -1159,6 +1159,10 @@ export function useUpdateGeneralSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['generalSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['system-display-timezone'] });
+      queryClient.invalidateQueries({ queryKey: ['request-log-timezone'] });
+      queryClient.invalidateQueries({ queryKey: ['channel-today-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardCostStats'] });
       toast.success(i18n.t('common.success.systemUpdated'));
     },
     onError: () => {

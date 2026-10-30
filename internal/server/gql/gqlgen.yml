@@ -5,6 +5,7 @@ schema:
   - axonhub.graphql
   - ent.graphql
   - dashboard.graphql
+  - dashboard_cost.graphql
   - scopes.graphql
   - me.graphql
   - system.graphql
@@ -15,6 +16,7 @@ schema:
   - channel_health_gate.graphql
   - channel_routing.graphql
   - channel_upstream.graphql
+  - channel_usage.graphql
   - channel_accounts.graphql
   - request_routing.graphql
   - request_diagnostics.graphql
@@ -85,6 +87,9 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  ChannelTodayUsage:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ChannelTodayUsage
   SelfUsageImageOutput:
     model: github.com/looplj/axonhub/internal/objects.ImageOutput
   RequestExecutionSelection:
@@ -986,3 +991,10 @@ models:
   ManagedKeyPage:
     model:
       - github.com/looplj/axonhub/internal/server/biz.ManagedKeyPage
+
+  DashboardCostPeriod:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.DashboardCostPeriod
+  DashboardCostStats:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.DashboardCostStats

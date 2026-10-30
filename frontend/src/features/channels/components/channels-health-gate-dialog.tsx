@@ -1,5 +1,5 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -17,12 +17,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function displayTime(value: string): string {
-  const time = new Date(value);
-  return Number.isNaN(time.getTime()) ? value : format(time, 'yyyy-MM-dd HH:mm:ss');
-}
-
 export function ChannelsHealthGateDialog({ open, onOpenChange }: Props) {
+  const { format: formatTime } = useSystemTime();
   const { t } = useTranslation();
   const { currentRow } = useChannels();
   const { channelPermissions } = usePermissions();
@@ -135,7 +131,7 @@ export function ChannelsHealthGateDialog({ open, onOpenChange }: Props) {
                                       </div>
                                     )}
                                     {model.state === 'probing' && <div>{t('channels.healthGate.readyToProbe')}</div>}
-                                    <div>{t('channels.healthGate.nextProbeAt', { time: displayTime(model.openUntil) })}</div>
+                                    <div>{t('channels.healthGate.nextProbeAt', { time: formatTime(model.openUntil) })}</div>
                                   </div>
                                 ) : (
                                   t('channels.healthGate.empty')
@@ -147,7 +143,7 @@ export function ChannelsHealthGateDialog({ open, onOpenChange }: Props) {
                                     {model.lastError && <div>{model.lastError}</div>}
                                     <div className='text-muted-foreground'>
                                       {model.lastStatusCode ? t('channels.healthGate.statusCode', { code: model.lastStatusCode }) : null}
-                                      {model.lastErrorAt ? ` · ${displayTime(model.lastErrorAt)}` : null}
+                                      {model.lastErrorAt ? ` · ${formatTime(model.lastErrorAt)}` : null}
                                     </div>
                                   </div>
                                 ) : (
@@ -193,7 +189,7 @@ export function ChannelsHealthGateDialog({ open, onOpenChange }: Props) {
                         {' · '}
                         {t('channels.healthGate.statusCode', { code: key.errorCode })}
                         {' · '}
-                        {displayTime(key.disabledAt)}
+                        {formatTime(key.disabledAt)}
                         {key.reason && <p className='text-muted-foreground break-words'>{key.reason}</p>}
                       </li>
                     ))}

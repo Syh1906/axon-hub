@@ -1249,5 +1249,11 @@
   "channels.upstream.table.account": "账号归属",
   "channels.website.label": "官网地址（选填）",
   "channels.website.description": "点击渠道名称时打开此地址，不影响 API 请求。留空时渠道名称不跳转。",
-  "channels.website.invalid": "请输入不含登录凭据的 HTTP 或 HTTPS 官网地址"
+  "channels.website.invalid": "请输入不含登录凭据的 HTTP 或 HTTPS 官网地址",
+  "channels.columns.todayUsage": "今日用量",
+  "channels.todayUsage.requests": "{{count}} 次请求",
+  "channels.todayUsage.unpriced": "未计价",
+  "channels.todayUsage.loadFailed": "读取失败",
+  "channels.todayUsage.timezone": "按 {{timezone}} 的今天统计",
+  "channels.todayUsage.partial": "{{count}} 次请求尚未计价，金额仅包含已计价部分"
 }

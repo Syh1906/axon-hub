@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState } from 'react';
 import { Cross2Icon } from '@radix-ui/react-icons';
+import type { ReactNode } from 'react';
 import { Table } from '@tanstack/react-table';
 import { Filter, GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +32,7 @@ interface DataTableToolbarProps<TData> {
   onResetFilters?: () => void;
   onRefresh?: () => void;
   showRefresh?: boolean;
+  refreshControls?: ReactNode;
   autoRefreshInterval?: AutoRefreshInterval;
   onAutoRefreshIntervalChange?: (interval: AutoRefreshInterval) => void;
   enableColumnOrdering?: boolean;
@@ -203,6 +205,7 @@ export function DataTableToolbar<TData>({
   onResetFilters,
   onRefresh,
   showRefresh = false,
+  refreshControls,
   autoRefreshInterval = null,
   onAutoRefreshIntervalChange,
   enableColumnOrdering,
@@ -455,6 +458,7 @@ export function DataTableToolbar<TData>({
       />
       <div className='hidden flex-1 sm:block' />
       <div className='flex shrink-0 flex-wrap items-center gap-2'>
+        {refreshControls}
         {showRefresh && onRefresh && onAutoRefreshIntervalChange && (
           <AutoRefreshControl interval={autoRefreshInterval} onIntervalChange={onAutoRefreshIntervalChange} onRefresh={onRefresh} />
         )}

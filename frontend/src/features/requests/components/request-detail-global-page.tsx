@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { SystemTime } from '@/components/system-time';
 import { useParams, useRouter } from '@tanstack/react-router';
 import { ArrowLeft, Copy, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -59,7 +59,7 @@ export default function RequestDetailGlobalPage() {
                 <div className='mt-1 flex items-center gap-2'>
                   <p className='text-muted-foreground text-sm'>{request.modelID || t('requests.columns.unknown')}</p>
                   <span className='text-muted-foreground text-xs'>•</span>
-                  <p className='text-muted-foreground text-xs'>{format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm:ss')}</p>
+                  <p className='text-muted-foreground text-xs'>{<SystemTime value={new Date(request.createdAt)} pattern="yyyy-MM-dd HH:mm:ss" />}</p>
                 </div>
               )}
             </div>

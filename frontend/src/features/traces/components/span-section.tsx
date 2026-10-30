@@ -1,5 +1,5 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 import { useMemo } from 'react';
-import { format } from 'date-fns';
 import { Activity } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '@/utils/format-number';
@@ -16,6 +16,7 @@ interface SpanSectionProps {
 
 export function SpanSection({ selectedTrace, selectedSpan, selectedSpanType }: SpanSectionProps) {
   const { t } = useTranslation();
+  const { format: formatTime } = useSystemTime();
 
   const spanSections = useMemo(() => {
     if (!selectedSpan?.value) return [];
@@ -245,8 +246,8 @@ export function SpanSection({ selectedTrace, selectedSpan, selectedSpanType }: S
                   <span>•</span>
                   <span>
                     {t('traces.detail.segmentTime', {
-                      start: format(new Date(selectedTrace.startTime), 'HH:mm:ss.SSS'),
-                      end: format(new Date(selectedTrace.endTime), 'HH:mm:ss.SSS'),
+                      start: formatTime(new Date(selectedTrace.startTime), 'HH:mm:ss.SSS'),
+                      end: formatTime(new Date(selectedTrace.endTime), 'HH:mm:ss.SSS'),
                     })}
                   </span>
                 </>

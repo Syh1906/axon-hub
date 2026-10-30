@@ -1249,5 +1249,11 @@
   "channels.upstream.table.account": "Account",
   "channels.website.label": "Website URL (optional)",
   "channels.website.description": "Opens when clicking the channel name. Does not affect API requests. Leave blank to disable navigation.",
-  "channels.website.invalid": "Enter an HTTP or HTTPS website URL without credentials"
+  "channels.website.invalid": "Enter an HTTP or HTTPS website URL without credentials",
+  "channels.columns.todayUsage": "Today",
+  "channels.todayUsage.requests": "{{count}} requests",
+  "channels.todayUsage.unpriced": "Unpriced",
+  "channels.todayUsage.loadFailed": "Failed to load",
+  "channels.todayUsage.timezone": "Today in {{timezone}}",
+  "channels.todayUsage.partial": "{{count}} requests are unpriced; amount includes priced usage only"
 }

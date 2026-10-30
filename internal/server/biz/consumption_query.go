@@ -60,6 +60,7 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
 	}
 	query.AppendSelect(sql.As(sql.Count("*"), "usage_count"))
+	query.AppendSelect(sql.As(sql.Count(table.C("total_cost")), "priced_count"))
 	return query.As("usage")
 }
 
@@ -139,6 +140,10 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 		if input.Metric == ConsumptionMetricCache {
 			q.Where(sql.ExprP(cacheCondition))
 		}
+		cacheInput := "COALESCE(SUM(" + u.C("prompt_tokens") + "), 0)"
+		if input.Metric == ConsumptionMetricCache {
+			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
+		}
 		status, message, code := execution.C("status"), "LOWER(COALESCE("+execution.C("error_message")+", ''))", execution.C("response_status_code")
 		byteLatency, duration := execution.C("metrics_first_byte_latency_ms"), execution.C("metrics_latency_ms")
 		firstToken := execution.C("metrics_first_token_latency_ms")
@@ -171,7 +176,7 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 			sql.As("COALESCE(SUM("+u.C("total_cost")+"), 0)", "cost"),
 			sql.As("SUM(CASE WHEN "+cacheCondition+" THEN 1 ELSE 0 END)", "cache_requests"),
 			sql.As("SUM(CASE WHEN "+cacheCondition+" THEN "+cacheRead+" ELSE 0 END)", "cache_read"),
-			sql.As("COALESCE(SUM(CASE WHEN "+cacheCondition+" THEN "+u.C("prompt_tokens")+" ELSE 0 END), 0)", "cache_input"),
+			sql.As(cacheInput, "cache_input"),
 			sql.As("COALESCE(SUM(CASE WHEN "+cacheWrite+" > 0 THEN "+u.C("total_cost")+" ELSE 0 END), 0)", "cache_creation_cost"),
 			sql.As("COALESCE(SUM("+outcome+"), 0)", "success_count"),
 			sql.As("COUNT("+outcome+")", "outcome_count"),

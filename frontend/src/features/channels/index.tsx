@@ -16,9 +16,10 @@ import { ChannelsTable } from './components/channels-table';
 import { ChannelsTypeTabs } from './components/channels-type-tabs';
 import ChannelsProvider, { useChannels } from './context/channels-context';
 import { useChannelUpstreamStates, useRefreshUpstreamOnPage } from './data/channel-upstream';
+import { useChannelTodayUsage } from './data/channel-usage';
 import {
   DEFAULT_CHANNEL_COLUMN_VISIBILITY,
-  useQueryChannels,
+  useInfiniteChannels,
   useAllChannelSummarys,
   useChannelTypes,
   useErrorChannelsCount,
@@ -44,7 +45,7 @@ function ChannelsContent() {
   useProvidersData();
   const { channelPermissions } = usePermissions();
   const { showTypeTabs, setShowTypeTabs, selectedTag: tagFilter, setSelectedTag: setTagFilter } = useChannels();
-  const { pageSize, setCursors, setPageSize, resetCursor, paginationArgs } = usePaginationSearch({
+  const { pageSize, resetCursor } = usePaginationSearch({
     defaultPageSize: 20,
     pageSizeStorageKey: 'channels-table-page-size',
   });
@@ -179,14 +180,10 @@ function ChannelsContent() {
     }
   }, [sorting]);
 
-  const {
-    data: queryData,
-    isLoading,
-    isPlaceholderData,
-    error: _error,
-  } = useQueryChannels(
+  const [atTop, setAtTop] = useState(true);
+  const query = useInfiniteChannels(
     {
-      ...paginationArgs,
+      first: pageSize,
       where: whereClause,
       orderBy: currentOrderBy,
       routingOrder:
@@ -200,8 +197,10 @@ function ChannelsContent() {
       healthGateAbnormal: showHealthGateAbnormal || undefined,
       columnVisibility,
     },
-    { disableAutoFetch: tagQueryBlocked }
+    !tagQueryBlocked,
+    atTop
   );
+  const { data: queryData, isLoading, isPlaceholderData } = query;
   const filtersPending = nameFilter !== debouncedNameFilter;
   const data = tagQueryBlocked || isPlaceholderData || filtersPending ? EMPTY_CHANNEL_PAGE : queryData;
 
@@ -211,6 +210,7 @@ function ChannelsContent() {
 
   const { data: probeData } = useChannelProbeData(channelIDs, { enabled: columnVisibility.health !== false });
   const upstreamQuery = useChannelUpstreamStates(channelIDs);
+  const todayUsageQuery = useChannelTodayUsage(channelIDs);
   useRefreshUpstreamOnPage(channelIDs, channelPermissions.canWrite && upstreamQuery.isSuccess);
 
   const channelsWithProbeData = useMemo(() => {
@@ -223,27 +223,25 @@ function ChannelsContent() {
       probePoints: probeMap.get(edge.node.id) || [],
       upstreamState: upstreamQuery.data?.find((state) => state.channelId === edge.node.id),
       upstreamLoadError: upstreamQuery.isError,
+      todayUsage: todayUsageQuery.data?.find((usage) => usage.channelId === edge.node.id),
+      todayUsageError: todayUsageQuery.isError,
     }));
-  }, [data?.edges, probeData, upstreamQuery.data, upstreamQuery.isError]);
+  }, [data?.edges, probeData, upstreamQuery.data, upstreamQuery.isError, todayUsageQuery.data, todayUsageQuery.isError]);
 
-  const handleNextPage = useCallback(() => {
-    if (data?.pageInfo?.hasNextPage && data?.pageInfo?.endCursor) {
-      setCursors(data.pageInfo.startCursor ?? undefined, data.pageInfo.endCursor ?? undefined, 'after');
-    }
-  }, [data?.pageInfo, setCursors]);
-
-  const handlePreviousPage = useCallback(() => {
-    if (data?.pageInfo?.hasPreviousPage) {
-      setCursors(data.pageInfo.startCursor ?? undefined, data.pageInfo.endCursor ?? undefined, 'before');
-    }
-  }, [data?.pageInfo, setCursors]);
-
-  const handlePageSizeChange = useCallback(
-    (newPageSize: number) => {
-      setPageSize(newPageSize);
+  const scroll = {
+    resetKey: query.resetKey,
+    loadingMore: query.isFetchingNextPage,
+    fetching: query.isFetching,
+    hasMore: !!query.hasNextPage,
+    error: query.isError,
+    onLoadMore: query.loadMore,
+    onTrim: query.trimAfter,
+    onReset: query.resetToTop,
+    onAtTopChange: (value: boolean) => {
+      setAtTop(value);
+      if (!value) query.pauseRefresh();
     },
-    [setPageSize]
-  );
+  };
 
   // A cursor encodes the previous order's value, so it is meaningless once the order changes.
   const handleSortingChange = useCallback(
@@ -360,7 +358,6 @@ function ChannelsContent() {
         loading={isLoading || isPlaceholderData || filtersPending || (tagFilter.length > 1 && tagChannels.isLoading)}
         data={channelsWithProbeData}
         columns={columns}
-        pageInfo={data?.pageInfo}
         pageSize={pageSize}
         totalCount={data?.totalCount}
         nameFilter={nameFilter}
@@ -380,10 +377,7 @@ function ChannelsContent() {
         sorting={sorting}
         onSortingChange={handleSortingChange}
         onExitErrorOnlyMode={handleExitErrorOnlyMode}
-        onNextPage={handleNextPage}
-        onPreviousPage={handlePreviousPage}
-        onPageSizeChange={handlePageSizeChange}
-        onResetCursor={resetCursor}
+        scroll={scroll}
         onNameFilterChange={handleNameFilterChange}
         onTypeFilterChange={handleTypeFilterChange}
         onStatusFilterChange={handleStatusFilterChange}

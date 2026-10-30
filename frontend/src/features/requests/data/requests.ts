@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCursorList } from '@/hooks/use-cursor-list';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
@@ -107,6 +108,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   responseStatusCode
                   errorMessage
                   retryDecision
+                  costSnapshot { applied { value } }
                   failure { source code type }
                   ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState strategy priority }' : ''}
                   passThroughApplied${executionChannelFields}
@@ -373,6 +375,23 @@ function requestLogVariables(where: Record<string, any> = {}) {
 }
 
 // Query hooks
+export function useInfiniteRequests(where: Record<string, any> | undefined, pageSize: number) {
+  const permissions = useRequestPermissions();
+  const projectId = useSelectedProjectId();
+  return useCursorList({
+    queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId],
+    fetchPage: async (after, signal) => {
+      const data = await graphqlRequest<{ requests: RequestConnection }>(buildRequestsQuery(permissions), {
+        first: pageSize,
+        after,
+        orderBy: { field: 'CREATED_AT', direction: 'DESC' },
+        ...requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) }),
+      }, projectId ? { 'X-Project-ID': projectId } : undefined, { signal });
+      return requestConnectionSchema.parse(data.requests);
+    },
+  });
+}
+
 export function useRequests(
   variables?: {
     first?: number;

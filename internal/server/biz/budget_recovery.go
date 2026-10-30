@@ -144,7 +144,7 @@ func (s *BudgetService) RecordAsyncTask(ctx context.Context, execution *ent.Requ
 		task := &objects.BudgetAsyncTask{ChannelID: execution.ChannelID, ExternalID: externalID, Format: execution.Format}
 		update := db.BudgetCharge.UpdateOneID(charge.ID).SetAsyncTask(task).SetStatus(budgetcharge.StatusUnknown)
 		if execution.CostSnapshot != nil {
-			task.Price = execution.CostSnapshot.Price
+			task.Price = execution.CostSnapshot.CurrentPrice()
 			update.SetCostSnapshot(execution.CostSnapshot)
 		}
 		return update.Exec(ctx)

@@ -36,6 +36,7 @@ type ChannelModelsCandidate struct {
 	SessionState       string // captured session selection, not prompt cache use
 	TraceSticky        bool   // selected from the last successful trace or thread channel
 	ModelRoutingPolicy *ModelRoutingPolicy
+	ModelCard          *objects.ModelCard // resolved model's standard price and output limit
 }
 
 // ModelRoutingPolicy contains model-level overrides carried from model
@@ -181,6 +182,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 	}
 	for _, candidate := range candidates {
 		candidate.ModelRoutingPolicy = modelRoutingPolicy
+		candidate.ModelCard = model.ModelCard
 	}
 
 	if log.DebugEnabled(ctx) {

@@ -3,10 +3,11 @@ package biz
 import "github.com/looplj/axonhub/internal/objects"
 
 func hasImagePricingSnapshot(snapshot *objects.RequestCostSnapshot) bool {
-	if snapshot == nil || snapshot.Price == nil {
+	price := snapshot.CurrentPrice()
+	if price == nil {
 		return false
 	}
-	for _, item := range effectiveModelPriceItems(nil, *snapshot.Price, snapshot.PricedAt) {
+	for _, item := range effectiveModelPriceItems(nil, *price, snapshot.PricedAt) {
 		if item.Pricing.Mode == objects.PricingModeImageFixed {
 			return true
 		}

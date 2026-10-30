@@ -1,0 +1,12 @@
+type ChannelTodayUsage {
+  channelId: ID!
+  requestCount: Int!
+  unpricedCount: Int!
+  totalCost: Float!
+  timezone: String!
+  currencyCode: String!
+}
+
+extend type Query {
+  channelTodayUsage(channelIds: [ID!]!): [ChannelTodayUsage!]!
+}

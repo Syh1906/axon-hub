@@ -1,5 +1,5 @@
+import { SystemTime } from '@/components/system-time';
 import { memo } from 'react';
-import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { CHANNEL_CONFIGS } from '../data/config_channels';
@@ -41,11 +41,11 @@ export const ChannelExpandedRow = memo(({ channel: listChannel, columnsLength, g
               </div>
               <div className='flex justify-between'>
                 <span className='text-muted-foreground'>{t('common.columns.createdAt')}:</span>
-                <span>{format(channel.createdAt, 'yyyy-MM-dd HH:mm')}</span>
+                <span>{<SystemTime value={channel.createdAt} pattern="yyyy-MM-dd HH:mm" />}</span>
               </div>
               <div className='flex justify-between'>
                 <span className='text-muted-foreground'>{t('common.columns.updatedAt')}:</span>
-                <span>{format(channel.updatedAt, 'yyyy-MM-dd HH:mm')}</span>
+                <span>{<SystemTime value={channel.updatedAt} pattern="yyyy-MM-dd HH:mm" />}</span>
               </div>
             </div>
           </div>

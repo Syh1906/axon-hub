@@ -53,5 +53,10 @@
   "selfUsage.requests.empty": "No requests in this range.",
   "selfUsage.requests.page": "Page {{page}} of {{pages}} · {{total}} requests",
   "selfUsage.requests.previous": "Previous",
-  "selfUsage.requests.next": "Next"
+  "selfUsage.requests.next": "Next",
+  "selfUsage.cacheHit.title": "Overall cache hit rate",
+  "selfUsage.cacheHit.hint": "Hover for model details",
+  "selfUsage.cacheHit.models": "Cache hit rate by model",
+  "selfUsage.cacheHit.empty": "No model usage",
+  "selfUsage.cacheHit.formula": "Cache read tokens / all input tokens, weighted by token totals."
 }

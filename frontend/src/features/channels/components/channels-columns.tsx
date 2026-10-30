@@ -1,5 +1,5 @@
+import { SystemTime } from '@/components/system-time';
 import { useCallback, useState, memo } from 'react';
-import { format } from 'date-fns';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
 import {
@@ -52,6 +52,7 @@ import { ChannelLimiterCell } from './channel-limiter-cell';
 import { ChannelPriorityCell } from './channel-priority-cell';
 import { ChannelRoutingValueCell } from './channel-routing-value-cell';
 import { ChannelUpstreamBalanceCell, ChannelUpstreamMultiplierCell } from './channel-upstream-cell';
+import { ChannelTodayUsageCell } from './channel-today-usage-cell';
 import { ChannelsStatusDialog } from './channels-status-dialog';
 
 const QUOTA_VISIBLE_LIMIT = 5;
@@ -848,9 +849,9 @@ const CreatedAtCell = memo(({ row }: { row: Row<Channel> }) => {
     <div className='flex justify-center'>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className='text-muted-foreground cursor-help text-sm'>{format(date, 'yyyy-MM-dd')}</div>
+          <div className='text-muted-foreground cursor-help text-sm'>{<SystemTime value={date} pattern="yyyy-MM-dd" />}</div>
         </TooltipTrigger>
-        <TooltipContent>{format(date, 'yyyy-MM-dd HH:mm:ss')}</TooltipContent>
+        <TooltipContent>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm:ss" />}</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -1050,6 +1051,14 @@ export const createColumns = (
       ),
       cell: ({ row }) => <ChannelUpstreamBalanceCell channel={row.original} />,
       meta: { className: 'w-40 min-w-40 text-center' },
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'todayUsage',
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.todayUsage')} className='justify-center' />,
+      cell: ({ row }) => <ChannelTodayUsageCell channel={row.original} />,
+      meta: { className: 'w-32 min-w-32 text-center' },
       enableSorting: false,
       enableHiding: true,
     },

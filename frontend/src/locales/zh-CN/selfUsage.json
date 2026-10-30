@@ -53,5 +53,10 @@
   "selfUsage.requests.empty": "此范围内没有请求。",
   "selfUsage.requests.page": "第 {{page}} / {{pages}} 页 · 共 {{total}} 条请求",
   "selfUsage.requests.previous": "上一页",
-  "selfUsage.requests.next": "下一页"
+  "selfUsage.requests.next": "下一页",
+  "selfUsage.cacheHit.title": "整体缓存命中率",
+  "selfUsage.cacheHit.hint": "悬浮查看各模型",
+  "selfUsage.cacheHit.models": "各模型缓存命中率",
+  "selfUsage.cacheHit.empty": "暂无模型用量",
+  "selfUsage.cacheHit.formula": "缓存读取 Token ÷ 全部输入 Token；整体按词元总量计算。"
 }

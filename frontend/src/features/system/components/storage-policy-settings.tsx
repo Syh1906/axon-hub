@@ -1,3 +1,4 @@
+import { useSystemTime } from '@/hooks/use-system-time';
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -43,9 +44,6 @@ function formatPreviewCount(count: number, locale?: string) {
   return count.toLocaleString(locale || undefined);
 }
 
-function formatPreviewDate(cutoffTime: string, locale?: string) {
-  return new Date(cutoffTime).toLocaleDateString(locale || undefined);
-}
 
 function joinTypeLabels(labels: string[], locale?: string) {
   try {
@@ -131,6 +129,7 @@ function cleanupOption(options: CleanupOption[], resourceType: string): CleanupO
 }
 
 export function StoragePolicySettings() {
+  const { format: formatTime } = useSystemTime();
   const { t, i18n } = useTranslation();
   const { isLoading, setIsLoading } = useSystemContext();
 
@@ -467,7 +466,7 @@ export function StoragePolicySettings() {
                                 {t('system.storage.policy.runCleanupPreviewItem', {
                                   count: formatPreviewCount(item.estimatedCount, i18n.language),
                                   resourceType: resourceTypeLabel(item.resourceType),
-                                  date: formatPreviewDate(item.cutoffTime, i18n.language),
+                                  date: formatTime(item.cutoffTime, 'yyyy-MM-dd'),
                                 })}
                               </li>
                             ))}
@@ -488,7 +487,7 @@ export function StoragePolicySettings() {
                                 <div className='text-sm'>
                                   {t('system.storage.policy.runCleanupPreviewBodyRange', {
                                     count: formatPreviewCount(group.count, i18n.language),
-                                    date: formatPreviewDate(group.cutoffTime, i18n.language),
+                                    date: formatTime(group.cutoffTime, 'yyyy-MM-dd'),
                                   })}
                                 </div>
                                 <div className='text-sm'>

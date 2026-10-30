@@ -247,5 +247,11 @@
   "requests.diagnostics.decisions.client_canceled": "客户端已取消请求",
   "requests.diagnostics.decisions.budget_denied": "额度检查阻止继续调用",
   "requests.diagnostics.hints.quota": "上游明确返回额度不足代码，请检查本次实际密钥所属账户的额度。",
-  "requests.diagnostics.hints.rateLimit": "上游明确返回限流代码，请查看该账户的速率限制和重试记录。"
+  "requests.diagnostics.hints.rateLimit": "上游明确返回限流代码，请查看该账户的速率限制和重试记录。",
+  "requests.diagnostics.mixedMultiplier": "混合倍率",
+  "requests.diagnostics.requestMultiplier": "本次请求倍率",
+  "requests.refresh.paused": "浏览历史中，自动刷新已暂停",
+  "requests.refresh.mode": "更新方式",
+  "requests.refresh.steady": "平稳更新",
+  "requests.refresh.sequential": "逐条插入"
 }

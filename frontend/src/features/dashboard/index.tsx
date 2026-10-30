@@ -20,6 +20,7 @@ import { TokensByChannelChart } from './components/tokens-by-channel-chart';
 import { TokensByModelChart } from './components/tokens-by-model-chart';
 import { SuccessRateCard } from './components/success-rate-card';
 import { TodayRequestsCard } from './components/today-requests-card';
+import { CostStatsCard } from './components/cost-stats-card';
 import { TokenStatsCard } from './components/token-stats-card';
 import { TotalRequestsCard } from './components/total-requests-card';
 import { FastestChannelsCard } from './components/fastest-channels-card';
@@ -121,7 +122,8 @@ export default function DashboardPage() {
           <Skeleton className='h-8 w-[200px]' />
         </div>
         <div className='space-y-4'>
-          <div className='grid gap-4 md:grid-cols-1 lg:grid-cols-4'>
+          <div className='grid gap-4 md:grid-cols-1 lg:grid-cols-3 2xl:grid-cols-5'>
+            <Skeleton className='h-[180px]' />
             <Skeleton className='h-[180px]' />
             <Skeleton className='h-[180px]' />
             <Skeleton className='h-[180px]' />
@@ -153,10 +155,11 @@ export default function DashboardPage() {
       {/* 概览部分 - 始终展示 */}
       <section className='space-y-4'>
         {/* <h2 className='text-2xl font-bold tracking-tight'>{t('dashboard.sections.overview')}</h2> */}
-        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-4'>
+        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5'>
           <TotalRequestsCard />
           <SuccessRateCard />
           <TokenStatsCard />
+          <CostStatsCard />
           <TodayRequestsCard />
         </div>
         <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>

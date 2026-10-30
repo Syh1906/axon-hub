@@ -62,6 +62,7 @@ export const requestExecutionSchema = z.object({
   errorMessage: z.string().nullable(),
   responseStatusCode: z.number().nullable().optional(),
   selection: executionSelectionSchema.nullable().optional(),
+  costSnapshot: z.object({ applied: z.object({ value: z.number() }) }).nullable().optional(),
   failure: executionFailureSchema.nullable().optional(),
   retryDecision: z.string().nullable().optional(),
   status: requestExecutionStatusSchema,

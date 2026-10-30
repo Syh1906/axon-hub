@@ -1,63 +1,21 @@
 import { useState } from 'react';
-import { Copy, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { extractNumberID } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BudgetButton } from '@/features/budgets/budget-dialog';
-import { useManagementAPI, useManagedMembers, type Member } from './data';
+import { BudgetDialog } from '@/features/budgets/budget-dialog';
+import { useManagedMembers, type Member } from './data';
+import { periods } from './editors';
+import { KeySettingsDialog } from './key-settings-dialog';
+import { MemberRow } from './member-row';
 
-function Credential({ id }: { id: string }) {
-  const { t } = useTranslation();
-  const api = useManagementAPI();
-  const [value, setValue] = useState<string>();
-  const [visible, setVisible] = useState(false);
-  const [busy, setBusy] = useState(false);
-  async function access(copy: boolean) {
-    setBusy(true);
-    try {
-      const secret = value ?? (await api.credentials([Number(extractNumberID(id))]))[0]?.key;
-      if (!secret) throw new Error(t('kg.resultsUnavailable'));
-      if (copy) {
-        await navigator.clipboard.writeText(secret);
-        toast.success(t('kg.copied'));
-      } else {
-        setValue(secret);
-        setVisible(true);
-      }
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className='flex max-w-60 items-center gap-1'>
-      <code className='bg-muted max-w-32 truncate rounded px-2 py-1'>{visible ? value : '••••••••'}</code>
-      <Button
-        variant='ghost'
-        size='icon'
-        disabled={busy}
-        aria-label={t(visible ? 'kg.hide' : 'kg.reveal')}
-        onClick={() => (visible ? setVisible(false) : access(false))}
-      >
-        {visible ? <EyeOff className='size-4' /> : <Eye className='size-4' />}
-      </Button>
-      <Button variant='ghost' size='icon' disabled={busy} aria-label={t('kg.copyKey')} onClick={() => access(true)}>
-        <Copy className='size-4' />
-      </Button>
-    </div>
-  );
-}
 export function Members({
   groupRef,
   selecting,
   selected,
   onSelect,
-  onEdit,
+  onDeferred,
   onProfile,
   writable,
   onAdd,
@@ -67,7 +25,7 @@ export function Members({
   selecting: boolean;
   selected: Map<string, Member>;
   onSelect: (keys: Member[], checked: boolean) => void;
-  onEdit: (member: Member) => void;
+  onDeferred: () => void;
   onProfile: (id: string) => void;
   writable: boolean;
   onAdd: () => void;
@@ -75,6 +33,8 @@ export function Members({
 }) {
   const { t } = useTranslation();
   const [offset, setOffset] = useState(0);
+  const [editing, setEditing] = useState<Member | null>(null);
+  const [budget, setBudget] = useState<Member | null>(null);
   const query = useManagedMembers(groupRef, offset);
   const items = query.data?.items ?? [];
   return (
@@ -104,7 +64,7 @@ export function Members({
         </div>
       )}
       <div className='max-h-96 overflow-auto'>
-        <Table className='min-w-[860px]'>
+        <Table className='min-w-[1280px]'>
           <TableHeader>
             <TableRow>
               {selecting && (
@@ -116,48 +76,35 @@ export function Members({
                   />
                 </TableHead>
               )}
-              {['keyName', 'credential', 'activeProfile', 'individualBudget', 'status', 'actions'].map((k) => (
-                <TableHead key={k}>{t('kg.' + k)}</TableHead>
+              {['keyName', 'credential', 'activeProfile'].map((key) => (
+                <TableHead key={key}>{t('kg.' + key)}</TableHead>
               ))}
+              <TableHead>{t('budgets.expiry')}</TableHead>
+              {periods.map((period) => (
+                <TableHead key={period}>{t('budgets.periods.' + period)}</TableHead>
+              ))}
+              <TableHead>{t('kg.status')}</TableHead>
+              <TableHead>{t('kg.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((k) => (
-              <TableRow key={k.id}>
-                {selecting && (
-                  <TableCell>
-                    <Checkbox aria-label={k.name} checked={selected.has(k.id)} onCheckedChange={(v) => onSelect([k], !!v)} />
-                  </TableCell>
-                )}
-                <TableCell className='max-w-40 truncate font-medium' title={k.name}>
-                  {k.name}
-                </TableCell>
-                <TableCell>
-                  <Credential id={k.id} />
-                </TableCell>
-                <TableCell>
-                  <Button variant='link' size='sm' onClick={() => onProfile(k.id)}>
-                    {k.profiles?.activeProfile || t('kg.defaultProfile')}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <BudgetButton summary target={{ kind: 'key', ownerID: Number(extractNumberID(k.id)), name: k.name }} />
-                </TableCell>
-                <TableCell>
-                  <Badge variant={k.status === 'enabled' ? 'secondary' : 'outline'}>
-                    {t(k.status === 'enabled' ? 'kg.keyEnabled' : 'kg.' + k.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button size='sm' variant='outline' disabled={!writable} onClick={() => onEdit(k)}>
-                    {t('kg.settings')}
-                  </Button>
-                </TableCell>
-              </TableRow>
+            {items.map((member) => (
+              <MemberRow
+                key={member.id}
+                member={member}
+                selecting={selecting}
+                selected={selected.has(member.id)}
+                onSelect={(checked) => onSelect([member], checked)}
+                onEdit={() => setEditing(member)}
+                onProfile={() => onProfile(member.id)}
+                onBudget={() => setBudget(member)}
+                onDeferred={onDeferred}
+                writable={writable}
+              />
             ))}
             {!query.isPending && !query.error && !items.length && (
               <TableRow>
-                <TableCell colSpan={selecting ? 7 : 6} className='py-6 text-center'>
+                <TableCell colSpan={selecting ? 12 : 11} className='py-6 text-center'>
                   {t('kg.emptyGroup')}{' '}
                   {writable && (
                     <Button size='sm' variant='link' onClick={onAdd}>
@@ -182,6 +129,13 @@ export function Members({
           </Button>
         </div>
       </div>
+      {editing && <KeySettingsDialog member={editing} onClose={() => setEditing(null)} onDeferred={onDeferred} />}
+      {budget && (
+        <BudgetDialog
+          target={{ kind: 'key', ownerID: Number(extractNumberID(budget.id)), name: budget.name }}
+          onClose={() => setBudget(null)}
+        />
+      )}
     </div>
   );
 }

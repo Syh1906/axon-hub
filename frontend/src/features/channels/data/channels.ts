@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useCursorList } from '@/hooks/use-cursor-list';
 import { z } from 'zod';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
@@ -1114,6 +1115,21 @@ export function useQueryChannels(
   }, [handleError, result.data, result.error, result.isPlaceholderData, t]);
 
   return result;
+}
+
+export function useInfiniteChannels(variables: NonNullable<Parameters<typeof useQueryChannels>[0]>, enabled: boolean, atTop: boolean) {
+  const { columnVisibility, ...input } = variables;
+  return useCursorList({
+    queryKey: ['channels', 'infinite', input, columnVisibility],
+    enabled,
+    interval: atTop ? 5000 : false,
+    fetchPage: async (after, signal) => {
+      const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(buildQueryChannelsQuery(columnVisibility), {
+        input: { ...input, after },
+      }, undefined, { signal });
+      return channelConnectionSchema.parse(data.queryChannels);
+    },
+  });
 }
 
 export function useChannelDetails(channelID?: string, options?: { enabled?: boolean }) {

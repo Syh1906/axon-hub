@@ -1,3 +1,4 @@
+import { SystemTime } from '@/components/system-time';
 'use client';
 
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
@@ -96,7 +97,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: t('common.columns.createdAt'),
       cell: ({ row }) => {
         const date = new Date(row.getValue('createdAt'));
-        return date.toLocaleDateString();
+        return <SystemTime value={date} pattern="yyyy-MM-dd" />;
       },
     },
     {
@@ -104,7 +105,7 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: t('common.columns.updatedAt'),
       cell: ({ row }) => {
         const date = new Date(row.getValue('updatedAt'));
-        return date.toLocaleDateString();
+        return <SystemTime value={date} pattern="yyyy-MM-dd" />;
       },
     },
     {

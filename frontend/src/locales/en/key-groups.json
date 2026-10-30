@@ -2,7 +2,7 @@
   "kg.quick.readFailed": "The submission result was received, but the list could not refresh. Retry refresh without saving again.",
   "kg.quick.invalidExpiry": "Enter a valid local date and time. Times skipped by daylight saving cannot be used.",
   "kg.quick.remaining": "Expires in {{count}} days",
-  "kg.quick.saved": "Group settings saved",
+  "kg.quick.saved": "Settings saved",
   "kg.quick.toggle": "Toggle group {{name}}",
   "kg.quick.basic": "Edit group information",
   "kg.quick.optionalNote": "Optional note",
@@ -193,5 +193,10 @@
   "kg.deferRecovery": "Close for now and keep the batch",
   "kg.usage": "Usage",
   "kg.usageHint": "View group usage and request history",
-  "kg.usageDescription": "Usage for keys currently in this group, including disabled keys, within the current project permissions."
+  "kg.usageDescription": "Usage for keys currently in this group, including disabled keys, within the current project permissions.",
+  "kg.quick.toggleKey": "Enable or disable key {{name}}",
+  "kg.quick.keySettings": "Key settings",
+  "kg.quick.keySettingsHelp": "Edit and save directly. Click limits and expiry in the list to adjust them.",
+  "kg.quick.templateHelp": "Leave unselected to keep the current profile. A selected template is applied when saved.",
+  "kg.quick.ipsHelp": "One IP address or network per line. Leave empty for no restriction."
 }

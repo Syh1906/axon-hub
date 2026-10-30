@@ -70,7 +70,7 @@ func (s *ConsumptionService) Projects(ctx context.Context) ([]*ConsumptionProjec
 	})
 }
 
-// UsageStatistics preserves the existing owner-only access of the usage page.
+// UsageStatistics reports only the current project for authorized request readers.
 func (s *ConsumptionService) UsageStatistics(ctx context.Context, input ConsumptionFilter) (*ConsumptionResult, error) {
 	user, ok := contexts.GetUser(ctx)
 	if !ok || user == nil {
@@ -80,15 +80,8 @@ func (s *ConsumptionService) UsageStatistics(ctx context.Context, input Consumpt
 	if !ok || projectID <= 0 {
 		return nil, fmt.Errorf("project context is required")
 	}
-	owner := user.IsOwner
-	for _, membership := range user.Edges.ProjectUsers {
-		if membership.ProjectID == projectID && membership.IsOwner {
-			owner = true
-			break
-		}
-	}
-	if !owner {
-		return nil, fmt.Errorf("only project owners can view usage statistics")
+	if err := authz.RequireScope(ctx, scopes.ScopeReadRequests); err != nil {
+		return nil, err
 	}
 	if input.Dimension == ConsumptionDimensionChannel || input.Metric != ConsumptionMetricCost {
 		return nil, fmt.Errorf("usage statistics supports user, API key and API key group cost summaries")

@@ -1,7 +1,6 @@
+import { SystemTime } from '@/components/system-time';
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { IconCopy, IconLoader2, IconPencil, IconPlus, IconTemplate, IconTrash, IconUpload } from '@tabler/icons-react';
-import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import {
@@ -43,9 +42,8 @@ function TemplateItem({
   isEditing: boolean;
   onCopy: (template: ApiKeyProfileTemplate) => void;
 }) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language?.startsWith('zh') ? zhCN : enUS;
-  const createdDate = format(new Date(template.createdAt), 'PP', { locale });
+  const { t } = useTranslation();
+  const createdDate = <SystemTime value={new Date(template.createdAt)} pattern="PP" />;
   const mappingCount = template.profile?.modelMappings?.length ?? 0;
 
   return (

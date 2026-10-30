@@ -8,10 +8,12 @@ Fields and algorithms are ported from `claude-code-hub` commit `0c508eaa`: `src/
 
 | Route | Data scope | Permission |
 | --- | --- | --- |
-| `/project/usage-stats` | Current project, explicitly sent through `X-Project-ID` | Existing project-owner or system-owner access |
+| `/project/usage-stats` | Current project, explicitly sent through `X-Project-ID` | Current-project `read_requests` or system owner |
 | `/leaderboard` | All projects by default, with an optional project filter | System-level `read_leaderboard` or system owner |
 
 There is no leaderboard management permission. Navigation, route guards and backend queries enforce read access. A project-level grant does not grant system-wide access. `consumptionProjects` provides project filter options without requiring project administration privileges. The leaderboard ignores the ambient project selected in the global header. Authorization runs before cache reads.
+
+Project usage defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
 
 ## Dates and interaction
 
@@ -31,11 +33,13 @@ Costs sum stored historical `total_cost` values without repricing old requests o
 
 As in CCH, deleted users and channels are excluded from their respective rankings. The key extension also excludes deleted keys. A retained user's ranking can still include retained requests from that user's deleted keys. The leaderboard provides no deletion or historical cost editing operations.
 
+Overall cache-hit rate in cost rankings and usage summaries divides all cache-read tokens by all input tokens, including cache misses; a zero denominator displays an em dash. The cache ranking retains its cache-triggered request denominator.
+
 ## Model details
 
 | Ranking | Model fields |
 | --- | --- |
-| User/key cost | Model, request count, total tokens, cost |
+| User/key/group cost | Model, request count, total tokens, overall cache-hit rate, cost |
 | Channel cost | Model, requests, cost, total tokens, success rate, average first-token latency, average output speed, cost/request, cost/million tokens, cache coefficient |
 | User/key cache | Model, cache-triggered requests, hit rate, cache-read tokens, total input tokens; model cost displays an em dash |
 | Channel cache | Model, cache-triggered requests, hit rate, cache coefficient, cache-read tokens, total input tokens |
