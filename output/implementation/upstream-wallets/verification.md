@@ -1,6 +1,6 @@
 # 上游钱包补齐：实现与验收记录
 
-2026-10-30，独立工作树 `codex/upstream-wallets`，基线 `be9b673f`。未提交、未合并、未发布；工作树保留，最终合并和回收等待用户确认。主工作树的代码、未提交改动及原服务未改动。
+2026-10-30，独立工作树 `codex/upstream-wallets`，基线 `be9b673f`。下文按阶段保留实现与复审记录；最终状态已按用户授权合入 `release/v1.0.x`，未发布／部署，合并验收见文末。其他任务的未提交资料及原服务未改动。
 
 ## 实现结果
 
@@ -97,3 +97,18 @@ GraphQL 追加账号 `balanceErrorCode`，已同步 Go 对象、schema、生成�
 实际页面证据：[账号余额](account-balance-independent.png)、[账号关联与分组分别展示](account-key-group-independent.png)、[手动关联](manual-account-association.png)、[筛选后当前页](refresh-filtered-page.png)、[窄屏](refresh-filtered-mobile.png)。
 
 三个本轮服务及浏览器页已关闭、端口释放、视口恢复，临时库与夹具按 verification-cleanup 清理；生成器产生的纯换行差异在内容一致检查后恢复。主工作树及原服务未改动。本工作树保留，尚未提交、合并、发布或更新线上旧版。
+
+## 合入维护分支验收（2026-10-30）
+
+用户明确批准提交、合入主分支并在确认后清理临时工作树。本仓库的长期维护分支为 `release/v1.0.x`。合并前主线为 `a69dc0e0`（新增密钥分组管理），主工作树无未提交代码，另有 183 个其他任务的未跟踪资料。
+
+实现及设计／验收资料提交为 `7ddfdbe3`。先在功能工作树整合 `a69dc0e0`，共享的维护台账与 GraphQL 生成文件自动合并，无冲突；再次执行 `go run ../gqlgen/generate.go`，生成结果与自动合并内容一致。整合提交为 `9dc1c358`，随后主工作树已成功快进到该提交。
+
+合并结果检查：
+
+- `go test ./internal/server/biz/upstream ./internal/server/gql -count=1`：通过。
+- `go test ./internal/server/biz -run 'Test(NewAPI|ChannelAccounts|ChannelAccount|Wallet|Sub2APIDefaultAccount|Upstream|AppliedUpstream|RequestCostSnapshot|KeyManagementAtomicRowsAndReplay|APIKeyGroupAdministration)' -count=1`：通过。
+- `node --test frontend/src/features/channels/data/channel-upstream-refresh.test.mjs frontend/src/features/key-groups/drafts.test.mjs`：12/12 通过。
+- `git diff --check`、暂存差异检查、无未解决冲突检查通过。主工作树与已验证功能分支代码树完全一致，原主线提交仍包含在历史中；183 个原未跟踪文件列表保持一致，没有暂存或覆盖这些文件。
+
+此前外置的 8 张修复截图已复制到本目录，链接改为相对路径，避免清理工作树后丢失验收材料。未运行 lint/build，未重复无改动范围的浏览器验收；真实厂商账号未联调与全站 TypeScript 未通过的限制仍保持。此次仅合并本地源码，不推送远程、不打发布 tag、不部署线上。临时工作树随后通过 Codex 的受管归档流程回收，并保留可恢复记录。
