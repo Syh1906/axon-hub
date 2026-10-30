@@ -136,6 +136,7 @@
   "kg.search": "搜索分组、备注或密钥名称",
   "kg.createdAt": "创建时间",
   "kg.collapse": "收起全部",
+  "kg.expand": "展开全部",
   "kg.batchManage": "批量管理",
   "kg.manageObject": "管理对象",
   "kg.clearSelection": "清空选择",

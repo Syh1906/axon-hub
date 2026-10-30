@@ -136,6 +136,7 @@
   "kg.search": "Search group, note or key name",
   "kg.createdAt": "Created",
   "kg.collapse": "Collapse all",
+  "kg.expand": "Expand all",
   "kg.batchManage": "Bulk manage",
   "kg.manageObject": "Manage",
   "kg.clearSelection": "Clear selection",

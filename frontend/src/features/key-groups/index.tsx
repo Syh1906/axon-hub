@@ -61,6 +61,7 @@ function GroupPage() {
   const [profile, setProfile] = useState<string | null>(null);
   const [move, setMove] = useState<Group | null>(null);
   const groups = query.data?.items ?? [];
+  const allGroupsCollapsed = !expanded.has(0) && groups.every((g) => !expanded.has(g.id));
   const selectedCount = mode === 'group' ? selectedGroups.size : selectedKeys.size;
   function changeMode(next: string) {
     setMode(next);
@@ -177,8 +178,12 @@ function GroupPage() {
               {t('kg.createdAt')} {descending ? '↓' : '↑'}
             </Button>
             <div className='ml-auto flex gap-2'>
-              <Button variant='outline' size='sm' onClick={() => setExpanded(new Set())}>
-                {t('kg.collapse')}
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setExpanded(allGroupsCollapsed ? new Set([0, ...groups.map((g) => g.id)]) : new Set())}
+              >
+                {t(allGroupsCollapsed ? 'kg.expand' : 'kg.collapse')}
               </Button>
               <Button variant='outline' size='icon' aria-label={t('kg.reload')} onClick={() => api.refresh()}>
                 <RefreshCw className='size-4' />
