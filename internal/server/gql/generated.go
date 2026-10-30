@@ -781,16 +781,19 @@ type ComplexityRoot struct {
 	}
 
 	ChannelUpstreamAccountState struct {
-		AccountID  func(childComplexity int) int
-		Balance    func(childComplexity int) int
-		Complete   func(childComplexity int) int
-		HasToken   func(childComplexity int) int
-		KeyCount   func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Provider   func(childComplexity int) int
-		Ref        func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
-		VerifiedAt func(childComplexity int) int
+		AccountID        func(childComplexity int) int
+		AutoCreated      func(childComplexity int) int
+		Balance          func(childComplexity int) int
+		BalanceErrorCode func(childComplexity int) int
+		Balances         func(childComplexity int) int
+		Complete         func(childComplexity int) int
+		HasToken         func(childComplexity int) int
+		KeyCount         func(childComplexity int) int
+		Name             func(childComplexity int) int
+		Provider         func(childComplexity int) int
+		Ref              func(childComplexity int) int
+		UpdatedAt        func(childComplexity int) int
+		VerifiedAt       func(childComplexity int) int
 	}
 
 	ChannelUpstreamAddress struct {
@@ -2380,6 +2383,8 @@ type ComplexityRoot struct {
 		Limit      func(childComplexity int) int
 		Unit       func(childComplexity int) int
 		Unlimited  func(childComplexity int) int
+		UsageEnd   func(childComplexity int) int
+		UsageStart func(childComplexity int) int
 		Used       func(childComplexity int) int
 	}
 
@@ -5737,12 +5742,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelUpstreamAccountState.AccountID(childComplexity), true
+	case "ChannelUpstreamAccountState.autoCreated":
+		if e.complexity.ChannelUpstreamAccountState.AutoCreated == nil {
+			break
+		}
+
+		return e.complexity.ChannelUpstreamAccountState.AutoCreated(childComplexity), true
 	case "ChannelUpstreamAccountState.balance":
 		if e.complexity.ChannelUpstreamAccountState.Balance == nil {
 			break
 		}
 
 		return e.complexity.ChannelUpstreamAccountState.Balance(childComplexity), true
+	case "ChannelUpstreamAccountState.balanceErrorCode":
+		if e.complexity.ChannelUpstreamAccountState.BalanceErrorCode == nil {
+			break
+		}
+
+		return e.complexity.ChannelUpstreamAccountState.BalanceErrorCode(childComplexity), true
+	case "ChannelUpstreamAccountState.balances":
+		if e.complexity.ChannelUpstreamAccountState.Balances == nil {
+			break
+		}
+
+		return e.complexity.ChannelUpstreamAccountState.Balances(childComplexity), true
 	case "ChannelUpstreamAccountState.complete":
 		if e.complexity.ChannelUpstreamAccountState.Complete == nil {
 			break
@@ -13235,6 +13258,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.UpstreamBalance.Unlimited(childComplexity), true
+	case "UpstreamBalance.usageEnd":
+		if e.complexity.UpstreamBalance.UsageEnd == nil {
+			break
+		}
+
+		return e.complexity.UpstreamBalance.UsageEnd(childComplexity), true
+	case "UpstreamBalance.usageStart":
+		if e.complexity.UpstreamBalance.UsageStart == nil {
+			break
+		}
+
+		return e.complexity.UpstreamBalance.UsageStart(childComplexity), true
 	case "UpstreamBalance.used":
 		if e.complexity.UpstreamBalance.Used == nil {
 			break
@@ -26770,6 +26805,10 @@ func (ec *executionContext) fieldContext_ChannelBalanceSummary_balances(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "usageStart":
+				return ec.fieldContext_UpstreamBalance_usageStart(ctx, field)
+			case "usageEnd":
+				return ec.fieldContext_UpstreamBalance_usageEnd(ctx, field)
 			case "kind":
 				return ec.fieldContext_UpstreamBalance_kind(ctx, field)
 			case "amount":
@@ -32434,6 +32473,117 @@ func (ec *executionContext) fieldContext_ChannelTypeCount_primaryApiFormat(_ con
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelUpstreamAccountState_balanceErrorCode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamAccountState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelUpstreamAccountState_balanceErrorCode,
+		func(ctx context.Context) (any, error) {
+			return obj.BalanceErrorCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelUpstreamAccountState_balanceErrorCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelUpstreamAccountState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelUpstreamAccountState_autoCreated(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamAccountState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelUpstreamAccountState_autoCreated,
+		func(ctx context.Context) (any, error) {
+			return obj.AutoCreated, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelUpstreamAccountState_autoCreated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelUpstreamAccountState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelUpstreamAccountState_balances(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamAccountState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelUpstreamAccountState_balances,
+		func(ctx context.Context) (any, error) {
+			return obj.Balances, nil
+		},
+		nil,
+		ec.marshalNUpstreamBalance2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐUpstreamBalanceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelUpstreamAccountState_balances(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelUpstreamAccountState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "usageStart":
+				return ec.fieldContext_UpstreamBalance_usageStart(ctx, field)
+			case "usageEnd":
+				return ec.fieldContext_UpstreamBalance_usageEnd(ctx, field)
+			case "kind":
+				return ec.fieldContext_UpstreamBalance_kind(ctx, field)
+			case "amount":
+				return ec.fieldContext_UpstreamBalance_amount(ctx, field)
+			case "used":
+				return ec.fieldContext_UpstreamBalance_used(ctx, field)
+			case "limit":
+				return ec.fieldContext_UpstreamBalance_limit(ctx, field)
+			case "unlimited":
+				return ec.fieldContext_UpstreamBalance_unlimited(ctx, field)
+			case "currency":
+				return ec.fieldContext_UpstreamBalance_currency(ctx, field)
+			case "unit":
+				return ec.fieldContext_UpstreamBalance_unit(ctx, field)
+			case "accountRef":
+				return ec.fieldContext_UpstreamBalance_accountRef(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_UpstreamBalance_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UpstreamBalance", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelUpstreamAccountState_ref(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelUpstreamAccountState) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -32661,6 +32811,10 @@ func (ec *executionContext) fieldContext_ChannelUpstreamAccountState_balance(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "usageStart":
+				return ec.fieldContext_UpstreamBalance_usageStart(ctx, field)
+			case "usageEnd":
+				return ec.fieldContext_UpstreamBalance_usageEnd(ctx, field)
 			case "kind":
 				return ec.fieldContext_UpstreamBalance_kind(ctx, field)
 			case "amount":
@@ -33423,6 +33577,12 @@ func (ec *executionContext) fieldContext_ChannelUpstreamState_accounts(_ context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "balanceErrorCode":
+				return ec.fieldContext_ChannelUpstreamAccountState_balanceErrorCode(ctx, field)
+			case "autoCreated":
+				return ec.fieldContext_ChannelUpstreamAccountState_autoCreated(ctx, field)
+			case "balances":
+				return ec.fieldContext_ChannelUpstreamAccountState_balances(ctx, field)
 			case "ref":
 				return ec.fieldContext_ChannelUpstreamAccountState_ref(ctx, field)
 			case "name":
@@ -70478,6 +70638,10 @@ func (ec *executionContext) fieldContext_UpstreamAccountSnapshot_balance(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "usageStart":
+				return ec.fieldContext_UpstreamBalance_usageStart(ctx, field)
+			case "usageEnd":
+				return ec.fieldContext_UpstreamBalance_usageEnd(ctx, field)
 			case "kind":
 				return ec.fieldContext_UpstreamBalance_kind(ctx, field)
 			case "amount":
@@ -70643,6 +70807,64 @@ func (ec *executionContext) fieldContext_UpstreamAccountVerification_errorCode(_
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UpstreamBalance_usageStart(ctx context.Context, field graphql.CollectedField, obj *objects.UpstreamBalance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UpstreamBalance_usageStart,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageStart, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UpstreamBalance_usageStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UpstreamBalance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UpstreamBalance_usageEnd(ctx context.Context, field graphql.CollectedField, obj *objects.UpstreamBalance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UpstreamBalance_usageEnd,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageEnd, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UpstreamBalance_usageEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UpstreamBalance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -71078,6 +71300,10 @@ func (ec *executionContext) fieldContext_UpstreamKeySnapshot_balances(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "usageStart":
+				return ec.fieldContext_UpstreamBalance_usageStart(ctx, field)
+			case "usageEnd":
+				return ec.fieldContext_UpstreamBalance_usageEnd(ctx, field)
 			case "kind":
 				return ec.fieldContext_UpstreamBalance_kind(ctx, field)
 			case "amount":
@@ -111496,6 +111722,21 @@ func (ec *executionContext) _ChannelUpstreamAccountState(ctx context.Context, se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelUpstreamAccountState")
+		case "balanceErrorCode":
+			out.Values[i] = ec._ChannelUpstreamAccountState_balanceErrorCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "autoCreated":
+			out.Values[i] = ec._ChannelUpstreamAccountState_autoCreated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "balances":
+			out.Values[i] = ec._ChannelUpstreamAccountState_balances(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "ref":
 			out.Values[i] = ec._ChannelUpstreamAccountState_ref(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -126687,6 +126928,10 @@ func (ec *executionContext) _UpstreamBalance(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("UpstreamBalance")
+		case "usageStart":
+			out.Values[i] = ec._UpstreamBalance_usageStart(ctx, field, obj)
+		case "usageEnd":
+			out.Values[i] = ec._UpstreamBalance_usageEnd(ctx, field, obj)
 		case "kind":
 			out.Values[i] = ec._UpstreamBalance_kind(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

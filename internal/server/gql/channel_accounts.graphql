@@ -1,4 +1,7 @@
 type ChannelUpstreamAccountState {
+  balanceErrorCode: String!
+  autoCreated: Boolean!
+  balances: [UpstreamBalance!]!
   ref: String!
   name: String!
   provider: UpstreamProvider!

@@ -9,12 +9,12 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChannels } from '../context/channels-context';
 import {
-  getUpstreamRefreshTargets,
   multiplierRange,
   useRefreshChannelUpstreams,
   useUpstreamRefreshPending,
   type UpstreamBalance,
 } from '../data/channel-upstream';
+import { isBalanceOnlyProvider } from '../data/channel-upstream-refresh';
 import type { Channel } from '../data/schema';
 import { ChannelRoutingValueCell } from './channel-routing-value-cell';
 
@@ -48,13 +48,16 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
     setCurrentRow(channel);
     setOpen('upstream');
   };
+  const singleQuota = state?.keys.length === 1 ? state.keys[0].snapshot.balances.find((balance) => balance.kind === 'QUOTA') : undefined;
   const label = !state
     ? t(channel.upstreamLoadError ? 'channels.upstream.unavailable' : 'channels.upstream.loading')
     : summary!.balances.length === 1
       ? formatBalance(summary!.balances[0])
       : summary!.balances.length > 1
         ? t('channels.accounts.multipleCurrencies')
-        : t('channels.accounts.notProvided');
+        : singleQuota
+          ? formatBalance(singleQuota)
+          : t('channels.accounts.notProvided');
   return (
     <div className='flex w-36 flex-col items-center gap-1'>
       <div className='flex w-full items-center justify-center gap-1'>
@@ -90,6 +93,7 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
           </Button>
         )}
       </div>
+      {singleQuota && <span className='text-muted-foreground text-xs'>{t('channels.upstream.kinds.QUOTA')}</span>}
       {state && state.keys.length > 1 && (
         <HoverCard openDelay={150} closeDelay={100}>
           <HoverCardTrigger asChild>
@@ -105,7 +109,6 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
             </p>
             <div className='flex flex-col gap-2'>
               {state.keys.slice(0, 3).map((key) => {
-                const quota = key.snapshot.balances.find((balance) => balance.kind === 'KEY');
                 const account = state.accounts.find((account) => account.ref === key.accountRef);
                 return (
                   <div key={key.keyRef} className='flex items-center gap-3 text-xs'>
@@ -113,7 +116,25 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
                       <p className='truncate'>{key.remark || account?.name || t('channels.accounts.unassigned')}</p>
                       <p className='text-muted-foreground truncate font-mono'>{key.label}</p>
                     </div>
-                    <span className='shrink-0 tabular-nums'>{quota ? formatBalance(quota) : t('channels.upstream.notProvided')}</span>
+                    <div className='flex max-w-40 min-w-0 flex-col gap-2 text-right tabular-nums'>
+                      {key.snapshot.balances.length ? (
+                        key.snapshot.balances.map((balance, index) => (
+                          <div key={index}>
+                            {balance.kind === 'QUOTA' && balance.amount == null && !balance.unlimited ? (
+                              <>
+                                {balance.limit != null && (
+                                  <p>{t('channels.upstream.billingLimit', { value: formatBalance({ ...balance, amount: balance.limit }) })}</p>
+                                )}
+                                {balance.used != null && (
+                                  <p>{t('channels.upstream.billingUsed', { value: formatBalance({ ...balance, amount: balance.used }) })}</p>
+                                )}
+                              </>
+                            ) : formatBalance(balance)}
+                            <p className='text-muted-foreground'>{t(`channels.upstream.kinds.${balance.kind}`)}</p>
+                          </div>
+                        ))
+                      ) : t('channels.upstream.notProvided')}
+                    </div>
                     <span className='text-muted-foreground shrink-0'>
                       {t(key.disabled ? 'channels.upstream.keyDisabled' : 'channels.accounts.enabled')}
                     </span>
@@ -136,7 +157,7 @@ export function ChannelUpstreamMultiplierCell({ channel, canWrite }: { channel: 
   const { t } = useTranslation();
   const state = channel.upstreamState;
   const keys = state?.keys.filter((key) => !key.disabled) ?? [];
-  const follow = state?.settings.enabled && state.settings.costMode === 'UPSTREAM';
+  const follow = state?.settings.enabled && state.settings.costMode === 'UPSTREAM' && !isBalanceOnlyProvider(state.provider);
   const range = multiplierRange(keys.map((key) => key.applied.value));
   const upstream = multiplierRange(keys.flatMap((key) => (key.upstreamMultiplier == null ? [] : [key.upstreamMultiplier])));
   const estimated = keys.some((key) => key.applied.source === 'ESTIMATED');
@@ -166,7 +187,7 @@ export function ChannelUpstreamMultiplierCell({ channel, canWrite }: { channel: 
   );
 }
 
-export function RefreshAllUpstreamsButton() {
+export function RefreshPageUpstreamsButton({ channelIds }: { channelIds: string[] }) {
   const { t } = useTranslation();
   const { channelPermissions } = usePermissions();
   const [running, setRunning] = useState(false);
@@ -175,8 +196,7 @@ export function RefreshAllUpstreamsButton() {
   const run = async () => {
     setRunning(true);
     try {
-      const ids = await getUpstreamRefreshTargets();
-      const { refreshed, skipped, failed } = await refresh.mutateAsync({ channelIds: ids, force: true, silent: true });
+      const { refreshed, skipped, failed } = await refresh.mutateAsync({ channelIds, force: true, silent: true });
       (failed ? toast.warning : toast.success)(t('channels.upstream.refreshSummary', { refreshed, skipped, failed }));
     } catch {
       toast.error(t('channels.upstream.refreshFailed'));
@@ -186,7 +206,7 @@ export function RefreshAllUpstreamsButton() {
   };
   if (!channelPermissions.canWrite) return null;
   return (
-    <Button variant='outline' size='sm' disabled={running || pending} onClick={run} title={t('channels.upstream.refreshAllHint')}>
+    <Button variant='outline' size='sm' disabled={!channelIds.length || running || pending} onClick={run} title={t('channels.upstream.refreshAllHint')}>
       <RefreshCw className={cn(running && 'animate-spin')} />
       {t('channels.upstream.refreshAll')}
     </Button>

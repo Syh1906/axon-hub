@@ -18,6 +18,7 @@ type ChannelKeySettingsInput struct {
 }
 
 type UpstreamAccountCredentials struct {
+	AutoCreated  bool             `json:"autoCreated,omitempty"`
 	Ref          string           `json:"ref"`
 	Name         string           `json:"name"`
 	Provider     UpstreamProvider `json:"provider"`
@@ -64,16 +65,19 @@ func UpgradeAccountCredentials(c *ChannelUpstreamCredentials) *ChannelUpstreamCr
 }
 
 type ChannelUpstreamAccountState struct {
-	Ref        string           `json:"ref"`
-	Name       string           `json:"name"`
-	Provider   UpstreamProvider `json:"provider"`
-	AccountID  *int             `json:"accountId,omitempty"`
-	HasToken   bool             `json:"hasToken"`
-	VerifiedAt *time.Time       `json:"verifiedAt,omitempty"`
-	KeyCount   int              `json:"keyCount"`
-	Balance    *UpstreamBalance `json:"balance,omitempty"`
-	UpdatedAt  *time.Time       `json:"updatedAt,omitempty"`
-	Complete   bool             `json:"complete"`
+	BalanceErrorCode string            `json:"balanceErrorCode"`
+	AutoCreated      bool              `json:"autoCreated"`
+	Balances         []UpstreamBalance `json:"balances"`
+	Ref              string            `json:"ref"`
+	Name             string            `json:"name"`
+	Provider         UpstreamProvider  `json:"provider"`
+	AccountID        *int              `json:"accountId,omitempty"`
+	HasToken         bool              `json:"hasToken"`
+	VerifiedAt       *time.Time        `json:"verifiedAt,omitempty"`
+	KeyCount         int               `json:"keyCount"`
+	Balance          *UpstreamBalance  `json:"balance,omitempty"`
+	UpdatedAt        *time.Time        `json:"updatedAt,omitempty"`
+	Complete         bool              `json:"complete"`
 }
 
 type ChannelBalanceSummary struct {

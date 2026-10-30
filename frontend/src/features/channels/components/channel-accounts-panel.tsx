@@ -30,8 +30,8 @@ function AccountForm({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(account?.name ?? '');
-  const [provider, setProvider] = useState<'NEW_API' | 'SUB2_API'>(
-    account?.provider ?? (state.provider === 'SUB2_API' ? 'SUB2_API' : 'NEW_API')
+  const [provider, setProvider] = useState<UpstreamAccount['provider']>(
+    account?.provider ?? (state.provider === 'UNKNOWN' ? 'NEW_API' : state.provider)
   );
   const [accountId, setAccountId] = useState(account?.accountId?.toString() ?? '');
   const [token, setToken] = useState('');
@@ -92,6 +92,9 @@ function AccountForm({
               <SelectGroup>
                 <SelectItem value='NEW_API'>New API</SelectItem>
                 <SelectItem value='SUB2_API'>Sub2API</SelectItem>
+                <SelectItem value='DEEPSEEK'>DeepSeek</SelectItem>
+                <SelectItem value='MOONSHOT'>Moonshot / Kimi</SelectItem>
+                <SelectItem value='OPENAI_BILLING'>{t('channels.upstream.providers.OPENAI_BILLING')}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -152,7 +155,7 @@ function AccountForm({
         </>
       ) : (
         <Alert>
-          <AlertDescription>{t('channels.accounts.manualHint')}</AlertDescription>
+          <AlertDescription>{t('channels.accounts.keyAuthHint')}</AlertDescription>
         </Alert>
       )}
       <div className='flex justify-end gap-2'>
@@ -217,16 +220,18 @@ export function ChannelAccountsPanel({ state }: { state: ChannelUpstreamState })
             <strong className='min-w-0 truncate'>{account.name}</strong>
             <Badge variant='outline'>
               {t(
-                account.provider === 'SUB2_API'
-                  ? 'channels.accounts.manual'
-                  : account.verifiedAt
-                    ? 'channels.accounts.verified'
-                    : 'channels.accounts.notVerified'
+                account.autoCreated
+                  ? 'channels.accounts.autoCreated'
+                  : account.provider !== 'NEW_API'
+                    ? 'channels.accounts.manual'
+                    : account.verifiedAt
+                      ? 'channels.accounts.verified'
+                      : 'channels.accounts.notVerified'
               )}
             </Badge>
             <span className='text-muted-foreground text-xs'>{t('channels.accounts.keyCount', { count: account.keyCount })}</span>
             <span className='ml-auto shrink-0 tabular-nums'>
-              {account.balance ? formatBalance(account.balance) : t('channels.accounts.notProvided')}
+              {account.balances.length ? account.balances.map(formatBalance).join(' / ') : t('channels.accounts.notProvided')}
             </span>
           </button>
           {expanded === account.ref && (
@@ -259,6 +264,14 @@ export function ChannelAccountsPanel({ state }: { state: ChannelUpstreamState })
                   ))}
               </div>
               <p className='text-muted-foreground text-xs'>{t('channels.accounts.sharedHint')}</p>
+              {account.provider === 'NEW_API' && (
+                <p className='text-muted-foreground text-xs'>{t('channels.accounts.independentBalanceHint')}</p>
+              )}
+              {account.balanceErrorCode && (
+                <p className='text-destructive text-xs'>
+                  {t(`channels.upstream.errors.${account.balanceErrorCode}`, { defaultValue: t('channels.upstream.refreshFailed') })}
+                </p>
+              )}
               {account.updatedAt && (
                 <p className='text-muted-foreground text-xs'>
                   {t('channels.upstream.updatedAt', { time: new Date(account.updatedAt).toLocaleString() })}

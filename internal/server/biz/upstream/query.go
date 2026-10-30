@@ -24,7 +24,14 @@ func Due(state objects.UpstreamQueryState, next *time.Time, force bool, now time
 func (s *Session) Query(ctx context.Context, key string, previous *objects.UpstreamKeySnapshot, balanceDue, rateDue bool, interval time.Duration) *objects.UpstreamKeySnapshot {
 	result := *previous
 	result.Provider = s.Provider
+	result.QueryVersion = QueryVersion
 	now, next := time.Now().UTC(), time.Now().UTC().Add(interval)
+	if s.AccountCheckedAt != nil {
+		result.AccountCheckedAt, result.AccountErrorCode = s.AccountCheckedAt, s.AccountErrorCode
+		if s.Account != nil {
+			result.Account = &objects.UpstreamAccountSnapshot{AccountID: s.Account.ID, Balance: s.Account.Balance, UpdatedAt: s.Account.SyncedAt}
+		}
+	}
 	if balanceDue {
 		var balances []objects.UpstreamBalance
 		var err error
@@ -33,6 +40,10 @@ func (s *Session) Query(ctx context.Context, key string, previous *objects.Upstr
 			balances, err = s.newAPIBalance(ctx, key)
 		case objects.UpstreamProviderSub2API:
 			balances, err = s.sub2APIBalance(ctx, key)
+		case objects.UpstreamProviderDeepSeek, objects.UpstreamProviderMoonshot:
+			balances, err = s.walletBalance(ctx, key)
+		case objects.UpstreamProviderBilling:
+			balances, err = s.billingBalance(ctx, key)
 		default:
 			code := s.AccountErrorCode
 			if code == "" {
@@ -73,9 +84,6 @@ func (s *Session) Query(ctx context.Context, key string, previous *objects.Upstr
 			if rate.ValidUntil != nil && rate.ValidUntil.Before(next) {
 				result.NextRateCheckAt = rate.ValidUntil
 			}
-		}
-		if s.Account != nil && result.UpstreamAccountID == s.Account.ID {
-			result.Account = &objects.UpstreamAccountSnapshot{AccountID: s.Account.ID, Balance: s.Account.Balance, UpdatedAt: s.Account.SyncedAt}
 		}
 	}
 	return &result

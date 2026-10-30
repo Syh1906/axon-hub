@@ -6,7 +6,13 @@ import { upstreamStateFields } from './channel-upstream';
 import { publishUpstreamStates } from './channel-upstream-refresh';
 import { channelUpstreamStateSchema } from './schema';
 
-export type AccountInput = { ref?: string; name: string; provider: 'NEW_API' | 'SUB2_API'; accountToken?: string; accountId?: number };
+export type AccountInput = {
+  ref?: string;
+  name: string;
+  provider: 'NEW_API' | 'SUB2_API' | 'DEEPSEEK' | 'MOONSHOT' | 'OPENAI_BILLING';
+  accountToken?: string;
+  accountId?: number;
+};
 export type KeySettingsInput = { keyRef: string; remark: string; accountRef: string; priority?: number };
 
 function useStateMutation<T>(channelId: string, field: string, declaration: string, argument: string) {

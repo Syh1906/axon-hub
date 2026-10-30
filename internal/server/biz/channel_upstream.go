@@ -58,6 +58,10 @@ func appliedUpstreamMultiplier(settings objects.ChannelUpstreamSettings, manual 
 	if snapshot == nil {
 		return applied
 	}
+	if snapshot.Provider.BalanceOnly() {
+		applied.Source = objects.CostMultiplierManual
+		return applied
+	}
 	applied.Provider = snapshot.Provider
 	if snapshot.Rate == nil || (snapshot.RateState != objects.UpstreamQuerySuccess && snapshot.RateState != objects.UpstreamQueryError) {
 		return applied
@@ -97,6 +101,9 @@ func (svc *ChannelService) upstreamState(ctx context.Context, ch *ent.Channel) (
 		ref := upstream.KeyRef(key)
 		snapshot := byKey[ref]
 		if snapshot == nil {
+			snapshot = upstream.EmptySnapshot()
+		}
+		if snapshot.QueryVersion < upstream.QueryVersion && snapshot.Provider == objects.UpstreamProviderUnknown && (snapshot.BalanceState == objects.UpstreamQueryUnsupported || snapshot.BalanceState == objects.UpstreamQueryAuthRequired) {
 			snapshot = upstream.EmptySnapshot()
 		}
 		if snapshot.Provider != objects.UpstreamProviderUnknown {

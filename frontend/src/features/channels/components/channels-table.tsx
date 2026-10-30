@@ -286,6 +286,7 @@ export function ChannelsTable({
         onExitErrorOnlyMode={onExitErrorOnlyMode}
       />
       <ChannelsDefaultSort
+        channelIds={loading ? [] : table.getRowModel().rows.map((row) => row.original.id)}
         sorting={sorting}
         onApply={onSortingChange}
         onApplyTags={onTagFilterChange}

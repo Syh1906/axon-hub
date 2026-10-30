@@ -182,6 +182,7 @@ function ChannelsContent() {
   const {
     data: queryData,
     isLoading,
+    isPlaceholderData,
     error: _error,
   } = useQueryChannels(
     {
@@ -201,7 +202,8 @@ function ChannelsContent() {
     },
     { disableAutoFetch: tagQueryBlocked }
   );
-  const data = tagQueryBlocked ? EMPTY_CHANNEL_PAGE : queryData;
+  const filtersPending = nameFilter !== debouncedNameFilter;
+  const data = tagQueryBlocked || isPlaceholderData || filtersPending ? EMPTY_CHANNEL_PAGE : queryData;
 
   const channelIDs = useMemo(() => {
     return data?.edges?.map((edge) => edge.node.id) || [];
@@ -355,7 +357,7 @@ function ChannelsContent() {
         </Alert>
       )}
       <ChannelsTable
-        loading={isLoading || (tagFilter.length > 1 && tagChannels.isLoading)}
+        loading={isLoading || isPlaceholderData || filtersPending || (tagFilter.length > 1 && tagChannels.isLoading)}
         data={channelsWithProbeData}
         columns={columns}
         pageInfo={data?.pageInfo}

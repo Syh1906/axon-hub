@@ -64,10 +64,21 @@ type ChannelUpstreamCredentials struct {
 type UpstreamProvider string
 
 const (
-	UpstreamProviderUnknown UpstreamProvider = "UNKNOWN"
-	UpstreamProviderNewAPI  UpstreamProvider = "NEW_API"
-	UpstreamProviderSub2API UpstreamProvider = "SUB2_API"
+	UpstreamProviderUnknown  UpstreamProvider = "UNKNOWN"
+	UpstreamProviderNewAPI   UpstreamProvider = "NEW_API"
+	UpstreamProviderSub2API  UpstreamProvider = "SUB2_API"
+	UpstreamProviderDeepSeek UpstreamProvider = "DEEPSEEK"
+	UpstreamProviderMoonshot UpstreamProvider = "MOONSHOT"
+	UpstreamProviderBilling  UpstreamProvider = "OPENAI_BILLING"
 )
+
+func (p UpstreamProvider) BalanceOnly() bool {
+	return p == UpstreamProviderDeepSeek || p == UpstreamProviderMoonshot || p == UpstreamProviderBilling
+}
+
+func (p UpstreamProvider) UsesKeyAuthentication() bool {
+	return p == UpstreamProviderSub2API || p.BalanceOnly()
+}
 
 func (p UpstreamProvider) MarshalGQL(w io.Writer) {
 	_, _ = io.WriteString(w, strconv.Quote(string(p)))
@@ -94,6 +105,7 @@ const (
 	UpstreamBalanceAccount      UpstreamBalanceKind = "ACCOUNT"
 	UpstreamBalanceKey          UpstreamBalanceKind = "KEY"
 	UpstreamBalanceSubscription UpstreamBalanceKind = "SUBSCRIPTION"
+	UpstreamBalanceQuota        UpstreamBalanceKind = "QUOTA"
 )
 
 func (k UpstreamBalanceKind) MarshalGQL(w io.Writer) {
@@ -101,6 +113,8 @@ func (k UpstreamBalanceKind) MarshalGQL(w io.Writer) {
 }
 
 type UpstreamBalance struct {
+	UsageStart *time.Time          `json:"usageStart,omitempty"`
+	UsageEnd   *time.Time          `json:"usageEnd,omitempty"`
 	Kind       UpstreamBalanceKind `json:"kind"`
 	Amount     *decimal.Decimal    `json:"amount,omitempty"`
 	Used       *decimal.Decimal    `json:"used,omitempty"`
@@ -128,6 +142,10 @@ type UpstreamRateSnapshot struct {
 }
 
 type UpstreamKeySnapshot struct {
+	// Account queries authenticate the configured account, independently of Key ownership.
+	AccountCheckedAt   *time.Time               `json:"accountCheckedAt,omitempty"`
+	AccountErrorCode   string                   `json:"accountErrorCode,omitempty"`
+	QueryVersion       int                      `json:"queryVersion,omitempty"`
 	Provider           UpstreamProvider         `json:"provider"`
 	BalanceState       UpstreamQueryState       `json:"balanceState"`
 	RateState          UpstreamQueryState       `json:"rateState"`

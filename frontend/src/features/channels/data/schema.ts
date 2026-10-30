@@ -3,7 +3,9 @@ import { pageInfoSchema } from '@/gql/pagination';
 
 const decimal = z.union([z.string(), z.number()]).transform(String);
 const balanceSchema = z.object({
-  kind: z.enum(['ACCOUNT', 'KEY', 'SUBSCRIPTION']),
+  usageStart: z.string().nullish(),
+  usageEnd: z.string().nullish(),
+  kind: z.enum(['ACCOUNT', 'KEY', 'SUBSCRIPTION', 'QUOTA']),
   amount: decimal.nullish(),
   used: decimal.nullish(),
   limit: decimal.nullish(),
@@ -20,21 +22,24 @@ const appliedSchema = z.object({
   observedAt: z.string().nullish(),
 });
 export const upstreamAccountSchema = z.object({
+  balanceErrorCode: z.string(),
   ref: z.string(),
   name: z.string(),
-  provider: z.enum(['NEW_API', 'SUB2_API']),
+  provider: z.enum(['NEW_API', 'SUB2_API', 'DEEPSEEK', 'MOONSHOT', 'OPENAI_BILLING']),
   accountId: z.number().nullish(),
   hasToken: z.boolean(),
   verifiedAt: z.string().nullish(),
   keyCount: z.number(),
   balance: balanceSchema.nullish(),
+  balances: z.array(balanceSchema),
+  autoCreated: z.boolean(),
   updatedAt: z.string().nullish(),
   complete: z.boolean(),
 });
 export type UpstreamAccount = z.infer<typeof upstreamAccountSchema>;
 export const channelUpstreamStateSchema = z.object({
   channelId: z.string(),
-  provider: z.enum(['UNKNOWN', 'NEW_API', 'SUB2_API']),
+  provider: z.enum(['UNKNOWN', 'NEW_API', 'SUB2_API', 'DEEPSEEK', 'MOONSHOT', 'OPENAI_BILLING']),
   accounts: z.array(upstreamAccountSchema),
   balanceSummary: z.object({
     balances: z.array(balanceSchema),

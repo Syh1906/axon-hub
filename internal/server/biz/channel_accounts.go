@@ -22,7 +22,9 @@ func populateUpstreamAccounts(ch *ent.Channel, state *objects.ChannelUpstreamSta
 	state.BalanceSummary.Balances = []objects.UpstreamBalance{}
 	if ch.UpstreamCredentials != nil {
 		for _, credential := range ch.UpstreamCredentials.Accounts {
-			account := &objects.ChannelUpstreamAccountState{Ref: credential.Ref, Name: credential.Name, Provider: credential.Provider, HasToken: credential.AccountToken != "", VerifiedAt: credential.VerifiedAt}
+			var lastAccountCheck *time.Time
+			var lastAccountError string
+			account := &objects.ChannelUpstreamAccountState{Ref: credential.Ref, Name: credential.Name, Provider: credential.Provider, HasToken: credential.AccountToken != "", VerifiedAt: credential.VerifiedAt, AutoCreated: credential.AutoCreated, Balances: []objects.UpstreamBalance{}}
 			if credential.AccountID > 0 {
 				account.AccountID = lo.ToPtr(credential.AccountID)
 			}
@@ -31,12 +33,15 @@ func populateUpstreamAccounts(ch *ent.Channel, state *objects.ChannelUpstreamSta
 					continue
 				}
 				account.KeyCount++
-				var balance *objects.UpstreamBalance
+				if credential.Provider == objects.UpstreamProviderNewAPI && key.Snapshot.AccountCheckedAt != nil && (lastAccountCheck == nil || key.Snapshot.AccountCheckedAt.After(*lastAccountCheck)) {
+					lastAccountCheck, lastAccountError = key.Snapshot.AccountCheckedAt, key.Snapshot.AccountErrorCode
+				}
+				var balances []objects.UpstreamBalance
 				var updated *time.Time
 				complete := false
 				if credential.Provider == objects.UpstreamProviderNewAPI {
 					if snapshot := key.Snapshot.Account; snapshot != nil && (credential.AccountID == 0 || snapshot.AccountID == credential.AccountID) {
-						balance, updated = &snapshot.Balance, &snapshot.UpdatedAt
+						balances, updated = []objects.UpstreamBalance{snapshot.Balance}, &snapshot.UpdatedAt
 						complete = key.Snapshot.RateState != objects.UpstreamQueryError && key.Snapshot.RateState != objects.UpstreamQueryAuthRequired && key.Snapshot.RateState != objects.UpstreamQueryUnmatched
 						if account.AccountID == nil {
 							account.AccountID = lo.ToPtr(snapshot.AccountID)
@@ -45,19 +50,24 @@ func populateUpstreamAccounts(ch *ent.Channel, state *objects.ChannelUpstreamSta
 				} else {
 					for i := range key.Snapshot.Balances {
 						if key.Snapshot.Balances[i].Kind == objects.UpstreamBalanceAccount {
-							balance, updated = &key.Snapshot.Balances[i], key.Snapshot.BalanceUpdatedAt
+							balances = append(balances, key.Snapshot.Balances[i])
+							updated = key.Snapshot.BalanceUpdatedAt
 							complete = key.Snapshot.BalanceState == objects.UpstreamQuerySuccess
-							break
 						}
 					}
 				}
-				if balance == nil || balance.Amount == nil || updated == nil {
+				if len(balances) == 0 || updated == nil {
 					continue
 				}
 				if account.UpdatedAt == nil || updated.After(*account.UpdatedAt) {
-					account.Balance, account.UpdatedAt = balance, updated
+					account.Balances, account.UpdatedAt = balances, updated
+					account.Balance = &account.Balances[0]
 					account.Complete = complete && now.Sub(*updated) <= 30*time.Minute
 				}
+			}
+			if lastAccountCheck != nil {
+				account.BalanceErrorCode = lastAccountError
+				account.Complete = lastAccountError == "" && account.UpdatedAt != nil && now.Sub(*account.UpdatedAt) <= 30*time.Minute
 			}
 			state.Accounts = append(state.Accounts, account)
 		}
@@ -83,14 +93,18 @@ func populateUpstreamAccounts(ch *ent.Channel, state *objects.ChannelUpstreamSta
 			continue
 		}
 		state.BalanceSummary.KnownAccountCount++
-		balance := account.Balance
-		unit := balance.Currency + ":" + balance.Unit
-		if index, ok := byCurrency[unit]; ok {
-			total := state.BalanceSummary.Balances[index].Amount.Add(*balance.Amount)
-			state.BalanceSummary.Balances[index].Amount = &total
-		} else {
-			byCurrency[unit] = len(state.BalanceSummary.Balances)
-			state.BalanceSummary.Balances = append(state.BalanceSummary.Balances, objects.UpstreamBalance{Kind: objects.UpstreamBalanceAccount, Currency: balance.Currency, Unit: balance.Unit, Amount: lo.ToPtr(*balance.Amount)})
+		for _, balance := range account.Balances {
+			if balance.Amount == nil {
+				continue
+			}
+			unit := balance.Currency + ":" + balance.Unit
+			if index, ok := byCurrency[unit]; ok {
+				total := state.BalanceSummary.Balances[index].Amount.Add(*balance.Amount)
+				state.BalanceSummary.Balances[index].Amount = &total
+			} else {
+				byCurrency[unit] = len(state.BalanceSummary.Balances)
+				state.BalanceSummary.Balances = append(state.BalanceSummary.Balances, objects.UpstreamBalance{Kind: objects.UpstreamBalanceAccount, Currency: balance.Currency, Unit: balance.Unit, Amount: lo.ToPtr(*balance.Amount)})
+			}
 		}
 	}
 	for _, key := range state.Keys {
@@ -110,7 +124,7 @@ func (svc *ChannelService) SaveChannelUpstreamAccount(ctx context.Context, id in
 	if name == "" {
 		return nil, fmt.Errorf("account name is required")
 	}
-	if input.Provider != objects.UpstreamProviderNewAPI && input.Provider != objects.UpstreamProviderSub2API {
+	if input.Provider != objects.UpstreamProviderNewAPI && !input.Provider.UsesKeyAuthentication() {
 		return nil, fmt.Errorf("unsupported account provider")
 	}
 	account := objects.UpstreamAccountCredentials{Ref: uuid.NewString(), Name: name, Provider: input.Provider}
@@ -281,23 +295,26 @@ func (svc *ChannelService) RevealChannelCredential(ctx context.Context, id int, 
 	return "", fmt.Errorf("credential not found")
 }
 
-// ensureSingleKeySub2APIAccount records the sole key's account after Sub2API is identified.
-// Multiple keys never imply shared account ownership.
-func (svc *ChannelService) ensureSingleKeySub2APIAccount(ctx context.Context, ch *ent.Channel, snapshot *objects.UpstreamKeySnapshot) (*ent.Channel, error) {
-	if snapshot.Provider != objects.UpstreamProviderSub2API || (snapshot.BalanceState != objects.UpstreamQuerySuccess && snapshot.RateState != objects.UpstreamQuerySuccess) {
+// ensureDefaultUpstreamAccount associates only the key that was successfully queried.
+// Other keys do not imply shared account ownership.
+func (svc *ChannelService) ensureDefaultUpstreamAccount(ctx context.Context, ch *ent.Channel, snapshot *objects.UpstreamKeySnapshot, keyRef string) (*ent.Channel, error) {
+	if !snapshot.Provider.UsesKeyAuthentication() || (snapshot.BalanceState != objects.UpstreamQuerySuccess && snapshot.RateState != objects.UpstreamQuerySuccess) {
 		return ch, nil
 	}
 	keys := lo.Uniq(ch.Credentials.GetAllAPIKeys())
-	if len(keys) != 1 || (ch.UpstreamCredentials != nil && (len(ch.UpstreamCredentials.Accounts) > 0 || ch.UpstreamCredentials.AccountToken != "")) {
+	if len(keys) == 0 || (ch.UpstreamCredentials != nil && (len(ch.UpstreamCredentials.Accounts) > 0 || ch.UpstreamCredentials.AccountToken != "")) {
 		return ch, nil
 	}
-	ref := upstream.KeyRef(keys[0])
+	ref := keyRef
+	if !slices.ContainsFunc(keys, func(key string) bool { return upstream.KeyRef(key) == ref }) {
+		return ch, nil
+	}
 	if ch.Settings.KeySettingsFor(ref).AccountRef != "" {
 		return ch, nil
 	}
 	accountRef := uuid.NewString()
 	settings := settingsWithKeyAccount(ch.Settings, ref, accountRef)
-	credentials := objects.ChannelUpstreamCredentials{Accounts: []objects.UpstreamAccountCredentials{{Ref: accountRef, Name: "默认账号", Provider: objects.UpstreamProviderSub2API}}}
+	credentials := objects.ChannelUpstreamCredentials{Accounts: []objects.UpstreamAccountCredentials{{Ref: accountRef, Name: "默认账号", Provider: snapshot.Provider, AutoCreated: true}}}
 	stored, err := svc.entFromContext(ctx).Channel.UpdateOneID(ch.ID).Where(channel.UpdatedAtEQ(ch.UpdatedAt)).SetSettings(settings).SetUpstreamCredentials(&credentials).Save(ctx)
 	if ent.IsNotFound(err) {
 		// A concurrent channel edit wins; the next refresh may initialize the default account.

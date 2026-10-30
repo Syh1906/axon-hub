@@ -58,13 +58,24 @@ func (svc *ChannelService) refreshChannelUpstream(ctx context.Context, id int, f
 		if (keyRef != "" && item.KeyRef != keyRef) || (item.Disabled && keyRef == "") {
 			continue
 		}
-		if !includeDisabled && item.Snapshot.BalanceState == objects.UpstreamQueryUnsupported && item.Snapshot.RateState == objects.UpstreamQueryUnsupported {
+		now := time.Now()
+		account := ch.UpstreamCredentials.Account(item.AccountRef)
+		accountState := objects.UpstreamQuerySuccess
+		if item.Snapshot.AccountErrorCode != "" {
+			accountState = upstream.ErrorState(&upstream.QueryError{Code: item.Snapshot.AccountErrorCode})
+		}
+		var nextAccountCheck *time.Time
+		if item.Snapshot.AccountCheckedAt != nil {
+			nextAccountCheck = lo.ToPtr(item.Snapshot.AccountCheckedAt.Add(time.Duration(state.Settings.RefreshIntervalMinutes) * time.Minute))
+		}
+		accountDue := !rateOnly && account != nil && account.Provider == objects.UpstreamProviderNewAPI && account.AccountToken != "" &&
+			upstream.Due(accountState, nextAccountCheck, force, now)
+		if !includeDisabled && !accountDue && item.Snapshot.BalanceState == objects.UpstreamQueryUnsupported && item.Snapshot.RateState == objects.UpstreamQueryUnsupported {
 			continue
 		}
-		now := time.Now()
 		balanceDue := !rateOnly && upstream.Due(item.Snapshot.BalanceState, item.Snapshot.NextBalanceCheckAt, force, now)
 		rateDue := upstream.Due(item.Snapshot.RateState, item.Snapshot.NextRateCheckAt, force, now)
-		if !balanceDue && !rateDue {
+		if !balanceDue && !rateDue && !accountDue {
 			continue
 		}
 		if err := ctx.Err(); err != nil {
@@ -77,18 +88,21 @@ func (svc *ChannelService) refreshChannelUpstream(ctx context.Context, id int, f
 			return nil, refreshed, context.DeadlineExceeded
 		}
 		session := sessions[item.AccountRef]
-		if session == nil {
-			account := ch.UpstreamCredentials.Account(item.AccountRef)
+		queryAccount := account
+		if !accountDue && !rateDue {
+			queryAccount = nil
+		}
+		if session == nil || (queryAccount != nil && queryAccount.AccountToken != "" && session.AccountCheckedAt == nil) {
 			provider := state.Provider
 			if account != nil {
 				provider = account.Provider
 			}
-			session = client.Prepare(queryCtx, keys[item.KeyRef], provider, account)
+			session = client.Prepare(queryCtx, keys[item.KeyRef], provider, queryAccount)
 			sessions[item.AccountRef] = session
 		}
 		snapshot := session.Query(queryCtx, keys[item.KeyRef], item.Snapshot, balanceDue, rateDue, time.Duration(state.Settings.RefreshIntervalMinutes)*time.Minute)
 		cancel()
-		ch, err = svc.ensureSingleKeySub2APIAccount(ctx, ch, snapshot)
+		ch, err = svc.ensureDefaultUpstreamAccount(ctx, ch, snapshot, item.KeyRef)
 		if err != nil {
 			return nil, refreshed, fmt.Errorf("initialize default upstream account: %w", err)
 		}
@@ -131,7 +145,7 @@ func (svc *ChannelService) RefreshChannelUpstreams(ctx context.Context, ids []in
 			if key.KeyRef != ref {
 				continue
 			}
-			if key.Snapshot.BalanceState == objects.UpstreamQueryError || key.Snapshot.RateState == objects.UpstreamQueryError {
+			if key.Snapshot.BalanceState == objects.UpstreamQueryError || key.Snapshot.RateState == objects.UpstreamQueryError || key.Snapshot.AccountErrorCode != "" {
 				result.Failed++
 				break
 			}

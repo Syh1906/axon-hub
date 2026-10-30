@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { hasUsableUpstreamRate, publishUpstreamStates, refreshUpstreamChannels } from './channel-upstream-refresh.ts';
 
+test('balance-only sources continue refreshing when their rate is unsupported', async () => {
+  const calls = [];
+  const states = ['DEEPSEEK', 'MOONSHOT', 'OPENAI_BILLING'].map((provider) => ({
+    channelId: provider, settings: { enabled: true }, keys: [{ keyRef: provider, disabled: false,
+      snapshot: { balanceState: 'SUCCESS', rateState: 'UNSUPPORTED' } }],
+  }));
+  const result = await refreshUpstreamChannels(states, { channelIds: states.map(s => s.channelId) }, async (id, ref) => {
+    calls.push([id, ref]);
+    return { channels: [states.find(s => s.channelId === id)], refreshed: 1, skipped: 0, failed: 0 };
+  });
+  assert.equal(result.refreshed, 3);
+  assert.equal(result.failed, 0);
+  assert.equal(calls.length, 3);
+});
+
 const now = Date.now();
 const key = (id, extra = {}) => ({
   keyRef: id,
@@ -15,6 +30,31 @@ const key = (id, extra = {}) => ({
   ...extra,
 });
 const channel = (id, keys = [key('a'), key('b')]) => ({ channelId: id, settings: { enabled: true }, keys });
+
+test('refresh is restricted to requested page/filter IDs, including an empty page', async () => {
+  const states = [channel('page-a'), channel('page-b'), channel('filtered-out')];
+  const calls = [];
+  const refresh = async (id, ref) => {
+    calls.push(`${id}/${ref}`);
+    return { channels: [states.find(s => s.channelId === id)], refreshed: 1, skipped: 0, failed: 0 };
+  };
+  await refreshUpstreamChannels(states, { channelIds: ['page-b'], force: true }, refresh);
+  assert.deepEqual(calls, ['page-b/a', 'page-b/b']);
+  calls.length = 0;
+  await refreshUpstreamChannels(states, { channelIds: [] }, refresh);
+  assert.deepEqual(calls, []);
+});
+
+test('unsupported key endpoints do not prevent querying a configured New API account', async () => {
+  const state = channel('account', [key('a', { accountRef: 'selected', snapshot: { balanceState: 'UNSUPPORTED', rateState: 'UNSUPPORTED' } })]);
+  state.accounts = [{ ref: 'selected', provider: 'NEW_API', hasToken: true }];
+  let calls = 0;
+  await refreshUpstreamChannels([state], { channelIds: ['account'] }, async () => {
+    calls++;
+    return { channels: [state], refreshed: 1, skipped: 0, failed: 0 };
+  });
+  assert.equal(calls, 1);
+});
 
 test('preview rejects old observed data even when just synchronized, and expires at the upstream boundary', () => {
   const value = key('a');

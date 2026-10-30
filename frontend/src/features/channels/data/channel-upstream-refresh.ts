@@ -40,10 +40,12 @@ export async function refreshUpstreamChannels(
   refreshKey: (channelId: string, keyRef: string) => Promise<RefreshResult>
 ): Promise<RefreshResult> {
   const result: RefreshResult = { channels: [], refreshed: 0, skipped: 0, failed: 0 };
+  const requested = new Set(options.channelIds);
+  const targets = states.filter((state) => requested.has(state.channelId));
   let next = 0;
   const worker = async () => {
-    while (next < states.length) {
-      const state = states[next++];
+    while (next < targets.length) {
+      const state = targets[next++];
       let latest = state,
         refreshed = false,
         failed = false;
@@ -51,7 +53,9 @@ export async function refreshUpstreamChannels(
       if (options.keyRef && !keys.length) throw new Error('Upstream key no longer exists');
       if (state.settings.enabled || options.includeDisabled) {
         for (const key of keys) {
-          if (!options.includeDisabled && key.snapshot.balanceState === 'UNSUPPORTED' && key.snapshot.rateState === 'UNSUPPORTED') continue;
+          const account = state.accounts?.find((account) => account.ref === key.accountRef);
+          const hasAccountBalance = account?.provider === 'NEW_API' && account.hasToken;
+          if (!options.includeDisabled && !hasAccountBalance && key.snapshot.balanceState === 'UNSUPPORTED' && key.snapshot.rateState === 'UNSUPPORTED') continue;
           try {
             const response = await refreshKey(state.channelId, key.keyRef);
             latest = response.channels[0];
@@ -69,6 +73,10 @@ export async function refreshUpstreamChannels(
       if (!refreshed && !failed) result.skipped++;
     }
   };
-  await Promise.all(Array.from({ length: Math.min(3, states.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
   return result;
+}
+
+export function isBalanceOnlyProvider(provider: string) {
+  return ['DEEPSEEK', 'MOONSHOT', 'OPENAI_BILLING'].includes(provider);
 }

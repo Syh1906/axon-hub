@@ -10,9 +10,9 @@ import { channelUpstreamStateSchema, type ChannelUpstreamState, type UpstreamInp
 
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
 
-const balanceFields = 'kind amount used limit unlimited currency unit accountRef expiresAt';
+const balanceFields = 'kind amount used limit unlimited currency unit accountRef expiresAt usageStart usageEnd';
 export const upstreamStateFields = `channelId provider manualMultiplier keySessionReuse
-  accounts { ref name provider accountId hasToken verifiedAt keyCount complete updatedAt balance { ${balanceFields} } }
+  accounts { ref name provider accountId hasToken verifiedAt keyCount complete updatedAt balanceErrorCode autoCreated balances { ${balanceFields} } balance { ${balanceFields} } }
   balanceSummary { accountCount knownAccountCount unassignedKeyCount complete balances { ${balanceFields} } }
   settings { enabled costMode refreshIntervalMinutes }
   keys { keyRef label remark accountRef priority disabled upstreamMultiplier applied { value source provider observedAt }
@@ -98,19 +98,16 @@ export function useRefreshUpstreamOnPage(channelIds: string[], canWrite: boolean
   const signature = channelIds.join('|');
   const mutate = refresh.mutate;
   useEffect(() => {
-    if (!canWrite || !signature || lastPage.current === signature) return;
+    if (!signature) {
+      lastPage.current = '';
+      return;
+    }
+    if (!canWrite || lastPage.current === signature) return;
     lastPage.current = signature;
     // The server checks due times. Start after the list snapshot is available,
     // without waiting for each row's upstream request to finish rendering.
     mutate({ channelIds: signature.split('|'), silent: true });
   }, [canWrite, signature, mutate]);
-}
-
-export async function getUpstreamRefreshTargets(): Promise<string[]> {
-  const data = await graphqlRequest<{ channelUpstreamRefreshTargets: string[] }>(
-    'query ChannelUpstreamRefreshTargets { channelUpstreamRefreshTargets }'
-  );
-  return data.channelUpstreamRefreshTargets;
 }
 
 export function useSaveChannelUpstream(channelId: string) {

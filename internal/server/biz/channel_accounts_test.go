@@ -14,10 +14,126 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
+
+func TestNewAPISelectedAccountBalanceDoesNotDependOnKeyGroup(t *testing.T) {
+	accountFails, keyUnsupported, keyBalanceWorks := false, false, false
+	accountQueries := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		var data string
+		switch r.URL.Path {
+		case "/api/status":
+			data = `{"quota_per_unit":500000,"quota_display_type":"USD"}`
+		case "/api/user/self":
+			accountQueries++
+			if accountFails {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			data = `{"id":1,"quota":5000000,"group":"standard"}`
+		case "/api/usage/token/", "/api/token/search":
+			if keyUnsupported {
+				http.NotFound(w, r)
+				return
+			}
+			if r.URL.Path == "/api/token/search" {
+				data = `{"items":[],"total":0}`
+			} else if keyBalanceWorks {
+				data = `{"object":"token_usage","total_available":500000,"total_granted":500000,"total_used":0}`
+			} else {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"success":true,"data":` + data + `}`))
+	}))
+	defer server.Close()
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	svc.httpClient = httpclient.NewHttpClient()
+	ctx := channelAutoPriceTestContext(db)
+	ch := createAutoPriceTestChannel(t, ctx, db, "independent-account", []string{"model"})
+	ch = ch.Update().SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKeys: []string{"sk-fixture-full"}}).
+		SetSettings(&objects.ChannelSettings{Upstream: &objects.ChannelUpstreamSettings{Enabled: true, RefreshIntervalMinutes: 10, CostMode: objects.ChannelCostModeUpstream}, ModelPriceMultiplier: lo.ToPtr(decimal.RequireFromString("0.8"))}).SaveX(ctx)
+	saved, err := svc.SaveChannelUpstreamAccount(ctx, ch.ID, objects.SaveChannelUpstreamAccountInput{Name: "Selected", Provider: objects.UpstreamProviderNewAPI, AccountToken: lo.ToPtr("fixture-account"), AccountID: lo.ToPtr(1)})
+	require.NoError(t, err)
+	accountRef := saved.Accounts[0].Ref
+	keyRef := upstream.KeyRef("sk-fixture-full")
+	state, refreshed, err := svc.refreshChannelUpstream(ctx, ch.ID, true, true, false, keyRef)
+	require.NoError(t, err)
+	require.True(t, refreshed)
+	require.Equal(t, accountRef, state.Keys[0].AccountRef, "Key 查询失败不能否定手动关联")
+	require.Equal(t, "KEY_SEARCH_NOT_FOUND", state.Keys[0].Snapshot.RateErrorCode)
+	require.Equal(t, "10", state.Accounts[0].Balance.Amount.String())
+	require.True(t, state.Accounts[0].Complete)
+	require.True(t, state.BalanceSummary.Complete)
+	require.Equal(t, "0.8", state.Keys[0].Applied.Value.String())
+	require.Equal(t, objects.CostMultiplierEstimated, state.Keys[0].Applied.Source, "不得以账号余额成功冒认 Key 的倍率")
+	readback, err := svc.ChannelUpstreamStates(ctx, []int{ch.ID})
+	require.NoError(t, err)
+	require.Equal(t, "10", readback[0].BalanceSummary.Balances[0].Amount.String())
+
+	keyUnsupported = true
+	_, _, err = svc.refreshChannelUpstream(ctx, ch.ID, true, true, false, keyRef)
+	require.NoError(t, err)
+	before := accountQueries
+	_, refreshed, err = svc.refreshChannelUpstream(ctx, ch.ID, false, false, false, keyRef)
+	require.NoError(t, err)
+	require.False(t, refreshed, "未到期时复用快照")
+	require.Equal(t, before, accountQueries)
+	row := db.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID)).OnlyX(ctx)
+	snapshot := *row.Snapshot
+	snapshot.AccountCheckedAt = lo.ToPtr(time.Now().Add(-11 * time.Minute))
+	row.Update().SetSnapshot(&snapshot).SaveX(ctx)
+	state, refreshed, err = svc.refreshChannelUpstream(ctx, ch.ID, false, false, false, keyRef)
+	require.NoError(t, err)
+	require.True(t, refreshed, "Key 接口均不支持时，仍须刷新到期的账号余额")
+	require.Equal(t, before+1, accountQueries)
+	require.True(t, state.Accounts[0].Complete)
+	updatedAt := state.Accounts[0].UpdatedAt
+
+	accountFails = true
+	state, _, err = svc.refreshChannelUpstream(ctx, ch.ID, true, true, false, keyRef)
+	require.NoError(t, err)
+	require.Equal(t, "10", state.Accounts[0].Balance.Amount.String(), "认证失败保留上次余额，但不能假装刷新成功")
+	require.Equal(t, updatedAt, state.Accounts[0].UpdatedAt)
+	require.False(t, state.Accounts[0].Complete)
+	require.Equal(t, "UNAUTHORIZED", state.Accounts[0].BalanceErrorCode)
+	require.Equal(t, accountRef, state.Keys[0].AccountRef)
+	row = db.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID)).OnlyX(ctx)
+	snapshot = *row.Snapshot
+	snapshot.AccountCheckedAt = lo.ToPtr(time.Now().Add(-11 * time.Minute))
+	row.Update().SetSnapshot(&snapshot).SaveX(ctx)
+	before = accountQueries
+	_, refreshed, err = svc.refreshChannelUpstream(ctx, ch.ID, false, false, false, keyRef)
+	require.NoError(t, err)
+	require.False(t, refreshed, "已确认账号认证失败时停止自动请求，等待修改认证或手动重试")
+	require.Equal(t, before, accountQueries)
+
+	keyUnsupported, keyBalanceWorks = false, true
+	_, _, err = svc.refreshChannelUpstream(ctx, ch.ID, true, true, false, keyRef)
+	require.NoError(t, err)
+	row = db.ChannelUpstreamStatus.Query().Where(channelupstreamstatus.ChannelID(ch.ID)).OnlyX(ctx)
+	snapshot = *row.Snapshot
+	snapshot.AccountCheckedAt = lo.ToPtr(time.Now().Add(-11 * time.Minute))
+	snapshot.NextBalanceCheckAt = lo.ToPtr(time.Now().Add(-time.Minute))
+	row.Update().SetSnapshot(&snapshot).SaveX(ctx)
+	before = accountQueries
+	state, refreshed, err = svc.refreshChannelUpstream(ctx, ch.ID, false, false, false, keyRef)
+	require.NoError(t, err)
+	require.True(t, refreshed, "账号401不能阻止正常Key额度到期刷新")
+	require.Equal(t, before, accountQueries, "Key额度刷新不能顺带重试已经401的账号认证")
+	require.Equal(t, objects.UpstreamQuerySuccess, state.Keys[0].Snapshot.BalanceState)
+	require.Equal(t, "UNAUTHORIZED", state.Accounts[0].BalanceErrorCode)
+	require.False(t, state.Accounts[0].Complete)
+}
 
 func TestChannelAccountsIndependentAuthAndBalance(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,16 +364,15 @@ func TestSub2APIDefaultAccountSingleKey(t *testing.T) {
 			keys = append(keys, "fixture-other")
 		}
 		ch = ch.Update().SetCredentials(objects.ChannelCredentials{APIKeys: keys}).SaveX(ctx)
-		stored, err := svc.ensureSingleKeySub2APIAccount(ctx, ch, snapshot)
+		stored, err := svc.ensureDefaultUpstreamAccount(ctx, ch, snapshot, upstream.KeyRef(keys[0]))
 		require.NoError(t, err)
 		if count == 2 {
-			require.Equal(t, ch, stored)
-			continue
+			require.Empty(t, stored.Settings.KeySettingsFor(upstream.KeyRef(keys[1])).AccountRef)
 		}
 		require.Len(t, stored.UpstreamCredentials.Accounts, 1)
 		require.Equal(t, "默认账号", stored.UpstreamCredentials.Accounts[0].Name)
 		require.Equal(t, stored.UpstreamCredentials.Accounts[0].Ref, stored.Settings.KeySettingsFor(upstream.KeyRef(keys[0])).AccountRef)
-		again, err := svc.ensureSingleKeySub2APIAccount(ctx, stored, snapshot)
+		again, err := svc.ensureDefaultUpstreamAccount(ctx, stored, snapshot, upstream.KeyRef(keys[0]))
 		require.NoError(t, err)
 		require.Equal(t, stored, again)
 	}
@@ -297,4 +412,76 @@ func TestSub2APIDefaultAccountRefreshReadback(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, second.Channels[0].Accounts, 1)
 	require.Equal(t, state.Accounts[0].Ref, second.Channels[0].Accounts[0].Ref)
+}
+
+func TestWalletDefaultAccountsAndCurrencySummary(t *testing.T) {
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	ctx := channelAutoPriceTestContext(db)
+	for _, provider := range []objects.UpstreamProvider{objects.UpstreamProviderDeepSeek, objects.UpstreamProviderMoonshot, objects.UpstreamProviderBilling, objects.UpstreamProviderSub2API} {
+		ch := createAutoPriceTestChannel(t, ctx, db, string(provider), []string{"model"})
+		ch = ch.Update().SetCredentials(objects.ChannelCredentials{APIKeys: []string{"fixture-first", "fixture-second"}}).SaveX(ctx)
+		snapshot := upstream.EmptySnapshot()
+		snapshot.Provider = provider
+		unchanged, err := svc.ensureDefaultUpstreamAccount(ctx, ch, snapshot, upstream.KeyRef("fixture-second"))
+		require.NoError(t, err)
+		require.Equal(t, ch, unchanged, "未成功查询不能创建账号")
+		snapshot.BalanceState = objects.UpstreamQuerySuccess
+		ch, err = svc.ensureDefaultUpstreamAccount(ctx, ch, snapshot, upstream.KeyRef("fixture-second"))
+		require.NoError(t, err)
+		require.Len(t, ch.UpstreamCredentials.Accounts, 1)
+		account := ch.UpstreamCredentials.Accounts[0]
+		require.True(t, account.AutoCreated)
+		require.Empty(t, ch.Settings.KeySettingsFor(upstream.KeyRef("fixture-first")).AccountRef)
+		require.Equal(t, account.Ref, ch.Settings.KeySettingsFor(upstream.KeyRef("fixture-second")).AccountRef)
+		_, err = svc.ensureDefaultUpstreamAccount(ctx, ch, snapshot, upstream.KeyRef("fixture-first"))
+		require.NoError(t, err)
+		require.Len(t, db.Channel.GetX(ctx, ch.ID).UpstreamCredentials.Accounts, 1)
+	}
+	ch := &ent.Channel{UpstreamCredentials: &objects.ChannelUpstreamCredentials{Accounts: []objects.UpstreamAccountCredentials{{Ref: "wallet", Provider: objects.UpstreamProviderDeepSeek}}}}
+	now := time.Now()
+	balances := []objects.UpstreamBalance{
+		{Kind: objects.UpstreamBalanceAccount, Currency: "CNY", Unit: "CURRENCY", Amount: lo.ToPtr(decimal.NewFromInt(100))},
+		{Kind: objects.UpstreamBalanceAccount, Currency: "USD", Unit: "CURRENCY", Amount: lo.ToPtr(decimal.NewFromInt(8))},
+	}
+	state := &objects.ChannelUpstreamState{Keys: []*objects.ChannelUpstreamKeyState{
+		{AccountRef: "wallet", Snapshot: &objects.UpstreamKeySnapshot{Balances: balances, BalanceState: objects.UpstreamQuerySuccess, BalanceUpdatedAt: &now}},
+		{AccountRef: "wallet", Snapshot: &objects.UpstreamKeySnapshot{Balances: balances, BalanceState: objects.UpstreamQuerySuccess, BalanceUpdatedAt: &now}},
+		{Snapshot: upstream.EmptySnapshot()},
+	}}
+	populateUpstreamAccounts(ch, state, now)
+	require.Len(t, state.Accounts[0].Balances, 2)
+	require.Len(t, state.BalanceSummary.Balances, 2)
+	require.Equal(t, "100", state.BalanceSummary.Balances[0].Amount.String())
+	require.Equal(t, "8", state.BalanceSummary.Balances[1].Amount.String())
+	require.Equal(t, 1, state.BalanceSummary.UnassignedKeyCount)
+	require.False(t, state.BalanceSummary.Complete)
+}
+
+func TestWalletUpgradeRedetectsOnlyOldUnknownResults(t *testing.T) {
+	svc, db := setupTestChannelService(t)
+	defer db.Close()
+	ctx := channelAutoPriceTestContext(db)
+	ch := createAutoPriceTestChannel(t, ctx, db, "upgrade-wallet", []string{"model"})
+	ch = ch.Update().SetCredentials(objects.ChannelCredentials{APIKeys: []string{"fixture-upgrade"}}).SaveX(ctx)
+	ref := upstream.KeyRef("fixture-upgrade")
+	snapshot := upstream.EmptySnapshot()
+	snapshot.BalanceState, snapshot.RateState = objects.UpstreamQueryUnsupported, objects.UpstreamQueryUnsupported
+	row := db.ChannelUpstreamStatus.Create().SetChannelID(ch.ID).SetKeyFingerprint(ref).SetConfigFingerprint(upstreamConfigFingerprint(ch, ref)).SetSnapshot(snapshot).SaveX(ctx)
+	state, err := svc.upstreamState(ctx, ch)
+	require.NoError(t, err)
+	require.Equal(t, objects.UpstreamQueryNever, state.Keys[0].Snapshot.BalanceState)
+	require.False(t, state.Settings.Enabled, "升级不得开启原本关闭的同步")
+	snapshot.QueryVersion = upstream.QueryVersion
+	row.Update().SetSnapshot(snapshot).SaveX(ctx)
+	state, err = svc.upstreamState(ctx, ch)
+	require.NoError(t, err)
+	require.Equal(t, objects.UpstreamQueryUnsupported, state.Keys[0].Snapshot.BalanceState, "新版本检测仍不支持时停止自动探测")
+	snapshot.QueryVersion = 0
+	snapshot.Provider = objects.UpstreamProviderNewAPI
+	snapshot.BalanceState = objects.UpstreamQuerySuccess
+	row.Update().SetSnapshot(snapshot).SaveX(ctx)
+	state, err = svc.upstreamState(ctx, ch)
+	require.NoError(t, err)
+	require.Equal(t, objects.UpstreamQuerySuccess, state.Keys[0].Snapshot.BalanceState, "已支持来源的旧结果仍然有效")
 }

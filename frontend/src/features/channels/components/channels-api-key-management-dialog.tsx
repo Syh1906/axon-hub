@@ -558,6 +558,9 @@ export function ChannelsAPIKeyManagementDialog({ open, onOpenChange }: ChannelsA
                                 </SelectGroup>
                               </SelectContent>
                             </Select>
+                            {item?.accountRef && (
+                              <p className='text-muted-foreground mt-1 max-w-40 text-xs'>{t('channels.accounts.associationSaved')}</p>
+                            )}
                           </TableCell>
                           <TableCell>
                             {item && (

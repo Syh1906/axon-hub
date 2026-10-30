@@ -87,7 +87,8 @@ func TestNewAPIAccountAssociationAndCurrentRate(t *testing.T) {
 	require.Equal(t, "10", a.Account.Balance.Amount.String())
 	other := session.Query(t.Context(), "fixture-other", EmptySnapshot(), true, true, time.Minute)
 	require.Equal(t, objects.UpstreamQueryUnmatched, other.RateState)
-	require.Nil(t, other.Account)
+	require.Equal(t, "10", other.Account.Balance.Amount.String(), "所选账号的余额不依赖模型 Key 归属核验")
+	require.Zero(t, other.UpstreamAccountID, "余额查询成功不能冒认 Key 归属")
 	newKey := session.Query(t.Context(), "fixture-unused", EmptySnapshot(), true, true, time.Minute)
 	require.Equal(t, objects.UpstreamQuerySuccess, newKey.RateState)
 	require.Equal(t, "0.5", newKey.Rate.Multiplier.String())
@@ -158,4 +159,64 @@ func TestDetectionDoesNotTreatTemporaryFailureAsUnsupported(t *testing.T) {
 	require.Equal(t, objects.UpstreamQueryError, result.RateState)
 	require.Equal(t, objects.UpstreamQueryError, result.BalanceState)
 	require.True(t, Due(result.RateState, result.NextRateCheckAt, false, time.Now().Add(2*time.Minute)))
+}
+
+func TestNewAPICompleteKeySearchAndIndependentAccountBalance(t *testing.T) {
+	for _, tc := range []struct {
+		name, search, details, errorCode string
+	}{
+		{"complete-key", `{"items":[{"id":11,"user_id":17}],"total":1}`, `{"id":11,"user_id":17,"group":"standard"}`, ""},
+		{"empty-search", `{"items":[],"total":0}`, "", "KEY_SEARCH_NOT_FOUND"},
+		{"ambiguous-search", `{"items":[{"id":11,"user_id":17}],"total":2}`, "", "KEY_SEARCH_AMBIGUOUS"},
+		{"wrong-account", `{"items":[{"id":11,"user_id":99}],"total":1}`, "", "ACCOUNT_MISMATCH"},
+		{"wrong-details", `{"items":[{"id":11,"user_id":17}],"total":1}`, `{"id":12,"user_id":17}`, "KEY_DETAILS_MISMATCH"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				data := ""
+				switch r.URL.Path {
+				case "/api/status":
+					data = `{"quota_per_unit":500000,"quota_display_type":"USD"}`
+				case "/api/user/self":
+					data = `{"id":17,"quota":5000000,"group":"standard"}`
+				case "/api/usage/token/":
+					data = `{"object":"token_usage","total_available":500000,"total_granted":500000,"total_used":0}`
+				case "/api/token/search":
+					// Gateways that search hashed credentials need the full original key.
+					if r.URL.Query().Get("token") != "sk-fixture-full" || r.URL.Query().Get("p") != "1" || r.URL.Query().Get("size") != "2" {
+						data = `{"items":[],"total":0}`
+					} else {
+						data = tc.search
+					}
+				case "/api/token/11":
+					data = tc.details
+				case "/api/user/self/groups":
+					data = `{"standard":{"ratio":0.5}}`
+				default:
+					t.Errorf("unexpected request path: %s", r.URL.Path)
+				}
+				_, _ = w.Write([]byte(`{"success":true,"data":` + data + `}`))
+			}))
+			defer server.Close()
+			client, err := NewClient(httpclient.NewHttpClient(), server.URL)
+			require.NoError(t, err)
+			session := client.Prepare(t.Context(), "sk-fixture-full", objects.UpstreamProviderNewAPI, &objects.UpstreamAccountCredentials{AccountToken: "fixture-account", AccountID: 17})
+			result := session.Query(t.Context(), "sk-fixture-full", EmptySnapshot(), true, true, time.Minute)
+			require.Equal(t, tc.errorCode, result.RateErrorCode)
+			require.NotNil(t, result.Account)
+			require.Equal(t, "10", result.Account.Balance.Amount.String())
+			require.NotNil(t, result.AccountCheckedAt)
+			require.Empty(t, result.AccountErrorCode)
+			if tc.errorCode != "" {
+				require.Equal(t, objects.UpstreamQueryUnmatched, result.RateState)
+				require.Nil(t, result.Rate)
+				require.Zero(t, result.UpstreamAccountID)
+			} else {
+				require.Equal(t, "0.5", result.Rate.Multiplier.String())
+			}
+			accountOnly := session.Query(t.Context(), "sk-fixture-full", EmptySnapshot(), false, false, time.Minute)
+			require.Equal(t, "10", accountOnly.Account.Balance.Amount.String(), "余额保存不依赖倍率分支是否到期")
+		})
+	}
 }

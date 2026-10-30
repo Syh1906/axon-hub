@@ -67,12 +67,14 @@ func (s *Session) identity(ctx context.Context, key string) (int, int, error) {
 
 // accountKeyIdentity 在已验证账户内精确查询 Key，新建且尚无调用记录的 Key 也能关联。
 func (s *Session) accountKeyIdentity(ctx context.Context, key string) (int, int, error) {
-	value := strings.TrimPrefix(key, "sk-")
+	value := key
 	// New API 的搜索参数支持通配符；这里只允许完整 Key 的精确匹配。
 	if value == "" || strings.ContainsAny(value, "%_") {
-		return 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+		return 0, 0, &QueryError{Code: "KEY_SEARCH_UNSUPPORTED_FORMAT"}
 	}
-	response, err := s.Client.requestWithQuery(ctx, "/api/token/search", s.Account.Token, s.Account.ID, url.Values{"token": {value}, "page_size": {"2"}})
+	// Send the complete key, as the upstream console does. New API normalizes its
+	// own prefix; gateways with hashed keys need the original credential intact.
+	response, err := s.Client.requestWithQuery(ctx, "/api/token/search", s.Account.Token, s.Account.ID, url.Values{"token": {value}, "p": {"1"}, "size": {"2"}})
 	if err != nil {
 		return 0, 0, err
 	}
@@ -84,8 +86,11 @@ func (s *Session) accountKeyIdentity(ctx context.Context, key string) (int, int,
 	if !ok {
 		return 0, 0, &QueryError{Code: "INVALID_RESPONSE"}
 	}
-	if len(items) != 1 {
-		return 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+	if len(items) == 0 {
+		return 0, 0, &QueryError{Code: "KEY_SEARCH_NOT_FOUND"}
+	}
+	if total, _ := number(record(data)["total"]); len(items) > 1 || total.GreaterThan(decimal.NewFromInt(1)) {
+		return 0, 0, &QueryError{Code: "KEY_SEARCH_AMBIGUOUS"}
 	}
 	item := record(items[0])
 	tokenID, accountID := positiveID(item["id"]), positiveID(item["user_id"])
@@ -177,7 +182,7 @@ func (s *Session) newAPIRate(ctx context.Context, key string, previous *objects.
 	}
 	data := record(response["data"])
 	if positiveID(data["id"]) != tokenID || positiveID(data["user_id"]) != accountID {
-		return nil, 0, 0, &QueryError{Code: "KEY_UNMATCHED"}
+		return nil, 0, 0, &QueryError{Code: "KEY_DETAILS_MISMATCH"}
 	}
 	group := text(data["group"])
 	if group == "auto" {

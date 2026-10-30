@@ -20,7 +20,7 @@ import {
   useUpstreamRefreshPending,
   type ChannelUpstreamState,
 } from '../data/channel-upstream';
-import { hasUsableUpstreamRate } from '../data/channel-upstream-refresh';
+import { isBalanceOnlyProvider, hasUsableUpstreamRate } from '../data/channel-upstream-refresh';
 import type { Channel } from '../data/schema';
 
 export function ChannelUpstreamSettingsForm({
@@ -35,7 +35,9 @@ export function ChannelUpstreamSettingsForm({
   const { t } = useTranslation();
   const { channelPermissions } = usePermissions();
   const [enabled, setEnabled] = useState(state.settings.enabled);
-  const [mode, setMode] = useState(state.settings.costMode);
+  const balanceOnly = isBalanceOnlyProvider(state.provider);
+  const [selectedMode, setMode] = useState(state.settings.costMode);
+  const mode = balanceOnly ? 'MANUAL' : selectedMode;
   const [interval, setInterval] = useState(String(state.settings.refreshIntervalMinutes));
   const [manual, setManual] = useState(state.manualMultiplier);
   const [error, setError] = useState('');
@@ -44,7 +46,7 @@ export function ChannelUpstreamSettingsForm({
   const refresh = useRefreshChannelUpstreams();
   const pendingRefresh = useUpstreamRefreshPending(channel.id);
   const locked = save.isPending || !channelPermissions.canWrite;
-  const canFollow = enabled;
+  const canFollow = enabled && !balanceOnly;
   const redetect = () => refresh.mutate({ channelIds: [channel.id], force: true, includeDisabled: true });
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -134,7 +136,11 @@ export function ChannelUpstreamSettingsForm({
             </Button>
           </AlertDescription>
         </Alert>
-        <p className='text-muted-foreground text-sm'>{t('channels.accounts.authInTab')}</p>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            state.provider !== 'NEW_API' && state.provider !== 'UNKNOWN' ? 'channels.accounts.keyAuthHint' : 'channels.accounts.authInTab'
+          )}
+        </p>
         <Separator />
         <div className='grid gap-3 sm:grid-cols-[180px_1fr]'>
           <Label className='pt-1'>{t('channels.upstream.costSource')}</Label>
@@ -150,7 +156,13 @@ export function ChannelUpstreamSettingsForm({
               </div>
             </RadioGroup>
             <p className='text-muted-foreground text-xs'>
-              {t(canFollow ? 'channels.upstream.sourceHint' : 'channels.upstream.followRequires')}
+              {t(
+                balanceOnly
+                  ? 'channels.upstream.balanceOnlyHint'
+                  : canFollow
+                    ? 'channels.upstream.sourceHint'
+                    : 'channels.upstream.followRequires'
+              )}
             </p>
           </div>
         </div>

@@ -33,6 +33,7 @@ type Session struct {
 	Metadata         map[string]any
 	Account          *NewAPIAccount
 	AccountErrorCode string
+	AccountCheckedAt *time.Time
 }
 
 type NewAPIAccount struct {
@@ -59,6 +60,11 @@ func NewClient(client *httpclient.HttpClient, baseURL string) (*Client, error) {
 	base.RawQuery, base.Fragment = "", ""
 	base.Path = strings.TrimRight(base.Path, "/")
 	base.Path = strings.TrimSuffix(base.Path, "/v1")
+	if WalletProvider(base.Hostname()) != objects.UpstreamProviderUnknown {
+		base.Path = ""
+	} else {
+		base.Path = strings.TrimSuffix(strings.TrimSuffix(base.Path, "/v1beta"), "/v1alpha")
+	}
 	base.RawPath = ""
 	return &Client{http: client.WithRejectHTTPSDowngrade(), base: base}, nil
 }
@@ -139,6 +145,10 @@ func (c *Client) requestWithQuery(ctx context.Context, path, key string, account
 
 func (c *Client) Prepare(ctx context.Context, key string, known objects.UpstreamProvider, credentials *objects.UpstreamAccountCredentials) *Session {
 	session := &Session{Client: c, Provider: known}
+	if wallet := WalletProvider(c.base.Hostname()); wallet != objects.UpstreamProviderUnknown {
+		session.Provider = wallet
+		return session
+	}
 	if session.Provider == "" {
 		session.Provider = objects.UpstreamProviderUnknown
 	}
@@ -177,11 +187,20 @@ func (c *Client) Prepare(ctx context.Context, key string, known objects.Upstream
 			}
 		}
 	}
+	if session.Provider == objects.UpstreamProviderUnknown {
+		billing, err := c.request(ctx, "/v1/dashboard/billing/subscription", key, 0)
+		recordDetectionError(err)
+		if err == nil && isBilling(billing) {
+			session.Provider = objects.UpstreamProviderBilling
+		}
+	}
 	if session.Provider != objects.UpstreamProviderUnknown {
 		session.AccountErrorCode = ""
 	}
 	if session.Provider == objects.UpstreamProviderNewAPI && credentials != nil && credentials.AccountToken != "" {
 		account, err := session.loadNewAPIAccount(ctx, credentials.AccountToken, credentials.AccountID, key)
+		checkedAt := time.Now().UTC()
+		session.AccountCheckedAt = &checkedAt
 		if err != nil {
 			session.AccountErrorCode = ErrorCode(err)
 		} else {
@@ -204,7 +223,7 @@ func ErrorState(err error) objects.UpstreamQueryState {
 		return objects.UpstreamQueryUnsupported
 	case "UNAUTHORIZED", "FORBIDDEN", "ACCOUNT_ID_REQUIRED", "ACCOUNT_NOT_CONNECTED", "UPSTREAM_REJECTED":
 		return objects.UpstreamQueryAuthRequired
-	case "KEY_UNMATCHED", "ACCOUNT_MISMATCH":
+	case "KEY_UNMATCHED", "ACCOUNT_MISMATCH", "KEY_SEARCH_NOT_FOUND", "KEY_SEARCH_AMBIGUOUS", "KEY_SEARCH_UNSUPPORTED_FORMAT", "KEY_DETAILS_MISMATCH":
 		return objects.UpstreamQueryUnmatched
 	default:
 		return objects.UpstreamQueryError

@@ -7,6 +7,9 @@ enum UpstreamProvider {
   UNKNOWN
   NEW_API
   SUB2_API
+  DEEPSEEK
+  MOONSHOT
+  OPENAI_BILLING
 }
 
 enum UpstreamQueryState {
@@ -22,6 +25,7 @@ enum UpstreamBalanceKind {
   ACCOUNT
   KEY
   SUBSCRIPTION
+  QUOTA
 }
 
 enum CostMultiplierSource {
@@ -38,6 +42,8 @@ type ChannelUpstreamSettings {
 }
 
 type UpstreamBalance {
+  usageStart: Time
+  usageEnd: Time
   kind: UpstreamBalanceKind!
   amount: Decimal
   used: Decimal
