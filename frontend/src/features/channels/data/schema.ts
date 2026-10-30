@@ -149,6 +149,9 @@ export const channelEndpointSchema = z.object({
   path: z.string().optional(),
   baseURL: z.url('Invalid URL').optional().or(z.literal('')),
   transport: z.enum(['http', 'websocket']).optional().or(z.literal('')),
+  supportsWebSockets: z.boolean().nullable().optional(),
+  catalogURL: z.string().nullable().optional(),
+  catalogJSON: z.any().nullable().optional(),
 });
 export type ChannelEndpoint = z.infer<typeof channelEndpointSchema>;
 

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { endpointName, endpointDefaultPath, endpointRequestURL, mergeEndpoints } from '../data/channel-addresses';
 import type { ChannelAddress, ChannelEndpoint } from '../data/schema';
+import { CodexEndpointOptions } from './codex-endpoint-options';
 
 export function ChannelEndpointEditor({
   defaults,
@@ -19,6 +20,7 @@ export function ChannelEndpointEditor({
   onRemove,
   onManageAddresses,
   container,
+  showWebSocketOption = true,
 }: {
   defaults: ChannelEndpoint[];
   endpoints: ChannelEndpoint[];
@@ -29,6 +31,7 @@ export function ChannelEndpointEditor({
   onRemove: (format: string) => void;
   onManageAddresses: () => void;
   container?: HTMLElement | null;
+  showWebSocketOption?: boolean;
 }) {
   const { t } = useTranslation();
   const all = mergeEndpoints(defaults, endpoints);
@@ -129,6 +132,7 @@ export function ChannelEndpointEditor({
               />
             )}
           </div>
+          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} baseURL={baseURL} onChange={update} showWebSocketOption={showWebSocketOption} />}
           <div className='bg-muted/40 flex flex-col gap-2 rounded-md p-3'>
             <p className='text-sm font-medium'>{t('channels.addresses.requestURL')}</p>
             {previewBases.slice(0, 3).map((address) => (

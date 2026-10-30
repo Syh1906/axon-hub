@@ -20,6 +20,7 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -51,7 +52,7 @@ func serveResponsesWebSocket(
 		return
 	}
 
-	ctx, cancelSession := context.WithCancel(shared.WithResponsesWebSocket(c.Request.Context()))
+	ctx, cancelSession := context.WithCancel(responses.WithTransportSession(shared.WithResponsesWebSocket(c.Request.Context())))
 	defer cancelSession()
 	if _, ok := shared.GetSessionID(ctx); !ok {
 		ctx = shared.WithSessionID(ctx, "responses-ws-"+uuid.NewString())

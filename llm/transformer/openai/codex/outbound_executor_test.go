@@ -349,23 +349,22 @@ func TestCodexOutbound_CustomizeExecutorUsesCurrentExecutor(t *testing.T) {
 
 	first, ok := outbound.CustomizeExecutor(firstClient).(*codexExecutor)
 	require.True(t, ok)
-	firstInner, ok := first.inner.(*responses.WebSocketExecutor)
-	require.True(t, ok)
+	firstInner := outbound.webSocketExecutors[firstClient]
 
 	second, ok := outbound.CustomizeExecutor(secondClient).(*codexExecutor)
 	require.True(t, ok)
-	secondInner, ok := second.inner.(*responses.WebSocketExecutor)
-	require.True(t, ok)
+	secondInner := outbound.webSocketExecutors[secondClient]
 	again, ok := outbound.CustomizeExecutor(firstClient).(*codexExecutor)
 	require.True(t, ok)
-	againInner, ok := again.inner.(*responses.WebSocketExecutor)
-	require.True(t, ok)
+	againInner := outbound.webSocketExecutors[firstClient]
 
 	require.NotSame(t, firstInner, secondInner)
 	require.Same(t, firstInner, againInner)
 	require.Same(t, firstClient, firstInner.Inner())
 	require.Same(t, secondClient, secondInner.Inner())
-	require.Same(t, firstInner, first.executor(shared.WithResponsesWebSocket(context.Background())))
+	require.NotNil(t, first.executor(shared.WithResponsesWebSocket(context.Background())))
+	require.NotNil(t, second)
+	require.NotNil(t, again)
 }
 
 func TestCodexOutbound_DownstreamTransportDoesNotOverrideOfficialUpstreamTransport(t *testing.T) {
@@ -380,10 +379,14 @@ func TestCodexOutbound_DownstreamTransportDoesNotOverrideOfficialUpstreamTranspo
 	inner := &mockCodexExecutor{}
 	executor, ok := outbound.CustomizeExecutor(inner).(*codexExecutor)
 	require.True(t, ok)
-	require.Same(t, inner, executor.executor(context.Background()))
+	_, err = executor.DoStream(context.Background(), &httpclient.Request{Body: []byte(`{"input":"hello"}`)})
+	require.NoError(t, err)
+	require.Equal(t, int32(1), inner.doStreamCalls.Load())
 
 	ctx := shared.WithResponsesWebSocket(context.Background())
-	require.Same(t, inner, executor.executor(ctx))
+	_, err = executor.DoStream(ctx, &httpclient.Request{Body: []byte(`{"input":"hello"}`)})
+	require.NoError(t, err)
+	require.NotNil(t, inner.request)
 }
 
 func TestCodexOutbound_DownstreamResponsesWebSocketKeepsThirdPartyTransport(t *testing.T) {
@@ -400,7 +403,9 @@ func TestCodexOutbound_DownstreamResponsesWebSocketKeepsThirdPartyTransport(t *t
 	require.True(t, ok)
 
 	ctx := shared.WithResponsesWebSocket(context.Background())
-	require.Same(t, inner, executor.executor(ctx))
+	_, err = executor.DoStream(ctx, &httpclient.Request{Body: []byte(`{"input":"hello"}`)})
+	require.NoError(t, err)
+	require.NotNil(t, inner.request)
 }
 
 func TestCodexOutbound_HTTPTransportStripsWebSocketOnlyFields(t *testing.T) {
@@ -430,7 +435,7 @@ func TestCodexOutbound_HTTPTransportStripsWebSocketOnlyFields(t *testing.T) {
 			executor := outbound.CustomizeExecutor(inner)
 			request := &httpclient.Request{
 				Headers: tt.headers,
-				Body:    []byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":[{"type":"message","role":"user","content":"hello"}]}`),
+				Body:    []byte(`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"hello"}]}`),
 			}
 
 			stream, err := executor.DoStream(context.Background(), request)
@@ -439,7 +444,7 @@ func TestCodexOutbound_HTTPTransportStripsWebSocketOnlyFields(t *testing.T) {
 			require.NotNil(t, inner.request)
 			require.False(t, gjson.GetBytes(inner.request.Body, "previous_response_id").Exists())
 			require.Equal(t, "hello", gjson.GetBytes(inner.request.Body, "input.0.content").String())
-			require.Equal(t, "resp_1", gjson.GetBytes(request.Body, "previous_response_id").String())
+			require.False(t, gjson.GetBytes(request.Body, "previous_response_id").Exists())
 
 			if tt.headers != nil {
 				require.Equal(t, "other_beta=v1", inner.request.Headers.Get("OpenAI-Beta"))

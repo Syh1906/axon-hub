@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/openai"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 const testChannelAPIKeysMaxConcurrency = 8
@@ -135,20 +135,10 @@ func usesResponsesWebSocket(channel *biz.Channel) bool {
 			continue
 		}
 
-		transport := strings.ToLower(strings.TrimSpace(endpoint.Transport))
-		if transport == objects.ChannelEndpointTransportWebSocket {
-			return true
+		if endpoint.BaseURL == "" {
+			endpoint.BaseURL = channel.BaseURL
 		}
-		if transport != "" {
-			continue
-		}
-
-		baseURL := endpoint.BaseURL
-		if baseURL == "" {
-			baseURL = channel.BaseURL
-		}
-		baseURL = strings.ToLower(strings.TrimSpace(baseURL))
-		if strings.HasPrefix(baseURL, "ws://") || strings.HasPrefix(baseURL, "wss://") {
+		if endpoint.WebSocketsSupported() {
 			return true
 		}
 	}
@@ -246,6 +236,9 @@ func (processor *TestChannelOrchestrator) TestChannel(
 	}
 
 	// Measure latency
+	if usesResponsesWebSocket(channel) {
+		ctx = shared.WithResponsesWebSocket(ctx)
+	}
 	startTime := time.Now()
 	rawResponse, err := chatProcessor.Process(ctx, &httpclient.Request{
 		Headers: http.Header{
@@ -599,6 +592,9 @@ func (processor *TestChannelOrchestrator) testSingleKey(
 	systemPrompt string,
 	userPrompt string,
 ) *TestAPIKeyResult {
+	if responsesWebSocket {
+		ctx = shared.WithResponsesWebSocket(ctx)
+	}
 	keyPrefix := maskAPIKey(key)
 
 	var inbound transformer.Inbound = openai.NewInboundTransformer()

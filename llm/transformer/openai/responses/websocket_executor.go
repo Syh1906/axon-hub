@@ -242,9 +242,12 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		return nil, err
 	}
 
+	if request.OnReplayUnsafe != nil {
+		request.OnReplayUnsafe()
+	}
 	if err := lease.conn.WriteJSON(payload); err != nil {
 		lease.release(true)
-		return nil, fmt.Errorf("failed to write response.create websocket event: %w", err)
+		return nil, fmt.Errorf("%w: failed to write response.create: %v", httpclient.ErrRequestMayHaveExecuted, err)
 	}
 
 	stream := &webSocketStream{ctx: ctx, lease: lease, done: make(chan struct{}), onFirstResponseByte: request.OnFirstResponseByte}
@@ -476,7 +479,7 @@ func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Reques
 
 	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
-		return nil, newWebSocketDialError(request, resp, err)
+		return nil, &webSocketHandshakeError{cause: newWebSocketDialError(request, resp, err)}
 	}
 	return conn, nil
 }
@@ -1107,11 +1110,14 @@ func (s *webSocketStream) Next() bool {
 		msg, err = io.ReadAll(reader)
 	}
 	if err != nil {
+		if !s.hasSeenEvent() {
+			err = fmt.Errorf("websocket closed before response event: %w", err)
+		}
 		if websocket.IsCloseError(err, websocket.CloseNormalClosure) || strings.Contains(err.Error(), "use of closed network connection") {
 			if ctxErr := s.ctx.Err(); ctxErr != nil {
 				s.setErr(ctxErr)
-			} else if !s.hasSeenEvent() {
-				s.setErr(fmt.Errorf("websocket closed before response event"))
+			} else {
+				s.setErr(fmt.Errorf("websocket closed before response completed: %w", err))
 			}
 			s.finish(true)
 			return false
@@ -1213,7 +1219,7 @@ func (s *webSocketStream) markTerminal() {
 
 func (s *webSocketStream) setErr(err error) {
 	s.mu.Lock()
-	s.err = err
+	s.err = fmt.Errorf("%w: %w", httpclient.ErrRequestMayHaveExecuted, err)
 	s.mu.Unlock()
 }
 

@@ -394,10 +394,11 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *ht
 }
 
 func (t *OutboundTransformer) CustomizeExecutor(executor pipeline.Executor) pipeline.Executor {
-	inner := executor
+	var ws *responses.WebSocketExecutor
 	if t != nil && t.transport == responses.TransportWebSocket {
-		inner = t.customizeWebSocketExecutor(inner)
+		ws = t.customizeWebSocketExecutor(executor).(*responses.WebSocketExecutor)
 	}
+	inner := responses.NewTransportExecutor(executor, ws, true)
 
 	return &codexExecutor{
 		inner:        inner,
@@ -622,9 +623,5 @@ func (e *codexExecutor) requestForTransport(request *httpclient.Request) *httpcl
 }
 
 func (t *OutboundTransformer) FinalizeTransportRequest(request *httpclient.Request) *httpclient.Request {
-	if t == nil || t.transport == responses.TransportWebSocket {
-		return request
-	}
-
-	return responses.PrepareHTTPTransportRequest(request, true)
+	return request
 }

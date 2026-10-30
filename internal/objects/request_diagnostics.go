@@ -3,14 +3,17 @@ package objects
 // RequestExecutionSelection is an immutable, credential-free snapshot of the
 // selected attempt. A later key remark/channel rename cannot rewrite history.
 type RequestExecutionSelection struct {
-	ChannelName  string                    `json:"channel_name"`
-	Provider     string                    `json:"provider"`
-	KeyHint      string                    `json:"key_hint,omitempty"`
-	KeyRemark    string                    `json:"key_remark,omitempty"`
-	SessionState string                    `json:"session_state"`
-	Strategy     string                    `json:"strategy"`
-	Priority     int                       `json:"priority"`
-	Candidates   []RequestRoutingCandidate `json:"candidates"`
+	ClientTransport         string                    `json:"client_transport,omitempty"`
+	UpstreamTransport       string                    `json:"upstream_transport,omitempty"`
+	TransportFallbackReason string                    `json:"transport_fallback_reason,omitempty"`
+	ChannelName             string                    `json:"channel_name"`
+	Provider                string                    `json:"provider"`
+	KeyHint                 string                    `json:"key_hint,omitempty"`
+	KeyRemark               string                    `json:"key_remark,omitempty"`
+	SessionState            string                    `json:"session_state"`
+	Strategy                string                    `json:"strategy"`
+	Priority                int                       `json:"priority"`
+	Candidates              []RequestRoutingCandidate `json:"candidates"`
 }
 
 type RequestRoutingCandidate struct {

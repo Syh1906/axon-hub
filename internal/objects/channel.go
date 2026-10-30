@@ -21,6 +21,22 @@ type ChannelEndpoint struct {
 	Path      string `json:"path,omitempty"`
 	BaseURL   string `json:"base_url,omitempty"`
 	Transport string `json:"transport,omitempty"`
+	// Nil reads the published transport setting; explicit false always disables WS.
+	SupportsWebSockets *bool          `json:"supports_websockets,omitempty"`
+	CatalogURL         string         `json:"catalog_url,omitempty"`
+	CatalogJSON        JSONRawMessage `json:"catalog_json,omitempty"`
+}
+
+// WebSocketsSupported treats the old exclusive transport as a capability.
+func (e ChannelEndpoint) WebSocketsSupported() bool {
+	if e.SupportsWebSockets != nil {
+		return *e.SupportsWebSockets
+	}
+	if e.Transport != "" {
+		return e.Transport == ChannelEndpointTransportWebSocket
+	}
+	baseURL := strings.ToLower(strings.TrimSpace(e.BaseURL))
+	return strings.HasPrefix(baseURL, "ws://") || strings.HasPrefix(baseURL, "wss://")
 }
 
 const (

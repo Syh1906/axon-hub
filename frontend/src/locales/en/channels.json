@@ -1255,5 +1255,13 @@
   "channels.todayUsage.unpriced": "Unpriced",
   "channels.todayUsage.loadFailed": "Failed to load",
   "channels.todayUsage.timezone": "Today in {{timezone}}",
-  "channels.todayUsage.partial": "{{count}} requests are unpriced; amount includes priced usage only"
+  "channels.todayUsage.partial": "{{count}} requests are unpriced; amount includes priced usage only",
+  "channels.endpoints.supportsWebSockets": "Supports WebSocket",
+  "channels.endpoints.webSocketsHint": "Follow the client: HTTPS stays available. WebSocket clients use WebSocket when supported, with safe HTTPS fallback.",
+  "channels.endpoints.catalogURL": "Codex model catalog URL",
+  "channels.endpoints.catalogURLPlaceholder": "Leave empty to use the channel default",
+  "channels.endpoints.catalogURLHint": "For model discovery, authenticated with this channel. Use a trusted catalog service. Clients use AxonHub /codex/models.",
+  "channels.endpoints.catalogJSON": "Custom Codex catalog JSON (optional)",
+  "channels.endpoints.catalogJSONHint": "Full Codex models structure including instructions and tool capabilities. Overrides the remote catalog. Each slug must match an upstream model ID.",
+  "channels.endpoints.catalogJSONInvalid": "Invalid JSON. Correct it before saving."
 }

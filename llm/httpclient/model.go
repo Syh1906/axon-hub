@@ -60,6 +60,11 @@ type Request struct {
 
 	// OnFirstResponseByte observes the first response body byte, before decoding.
 	OnFirstResponseByte func(time.Time) `json:"-"`
+	// OnTransportSelected records the actual upstream protocol without credentials.
+	OnTransportSelected func(transport, fallbackReason string) `json:"-"`
+	// OnReplayUnsafe is called before delivery can become ambiguous. It also
+	// prevents retries when a timeout or decoder replaces the transport error.
+	OnReplayUnsafe func() `json:"-"`
 }
 
 // AuthConfig represents authentication configuration.

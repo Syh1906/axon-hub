@@ -525,10 +525,13 @@ type ComplexityRoot struct {
 	}
 
 	ChannelEndpoint struct {
-		APIFormat func(childComplexity int) int
-		BaseURL   func(childComplexity int) int
-		Path      func(childComplexity int) int
-		Transport func(childComplexity int) int
+		APIFormat          func(childComplexity int) int
+		BaseURL            func(childComplexity int) int
+		CatalogJSON        func(childComplexity int) int
+		CatalogURL         func(childComplexity int) int
+		Path               func(childComplexity int) int
+		SupportsWebSockets func(childComplexity int) int
+		Transport          func(childComplexity int) int
 	}
 
 	ChannelHealthGateModel struct {
@@ -2019,14 +2022,17 @@ type ComplexityRoot struct {
 	}
 
 	RequestExecutionSelection struct {
-		Candidates   func(childComplexity int) int
-		ChannelName  func(childComplexity int) int
-		KeyHint      func(childComplexity int) int
-		KeyRemark    func(childComplexity int) int
-		Priority     func(childComplexity int) int
-		Provider     func(childComplexity int) int
-		SessionState func(childComplexity int) int
-		Strategy     func(childComplexity int) int
+		Candidates              func(childComplexity int) int
+		ChannelName             func(childComplexity int) int
+		ClientTransport         func(childComplexity int) int
+		KeyHint                 func(childComplexity int) int
+		KeyRemark               func(childComplexity int) int
+		Priority                func(childComplexity int) int
+		Provider                func(childComplexity int) int
+		SessionState            func(childComplexity int) int
+		Strategy                func(childComplexity int) int
+		TransportFallbackReason func(childComplexity int) int
+		UpstreamTransport       func(childComplexity int) int
 	}
 
 	RequestMetadata struct {
@@ -4992,12 +4998,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelEndpoint.BaseURL(childComplexity), true
+	case "ChannelEndpoint.catalogJSON":
+		if e.complexity.ChannelEndpoint.CatalogJSON == nil {
+			break
+		}
+
+		return e.complexity.ChannelEndpoint.CatalogJSON(childComplexity), true
+	case "ChannelEndpoint.catalogURL":
+		if e.complexity.ChannelEndpoint.CatalogURL == nil {
+			break
+		}
+
+		return e.complexity.ChannelEndpoint.CatalogURL(childComplexity), true
 	case "ChannelEndpoint.path":
 		if e.complexity.ChannelEndpoint.Path == nil {
 			break
 		}
 
 		return e.complexity.ChannelEndpoint.Path(childComplexity), true
+	case "ChannelEndpoint.supportsWebSockets":
+		if e.complexity.ChannelEndpoint.SupportsWebSockets == nil {
+			break
+		}
+
+		return e.complexity.ChannelEndpoint.SupportsWebSockets(childComplexity), true
 	case "ChannelEndpoint.transport":
 		if e.complexity.ChannelEndpoint.Transport == nil {
 			break
@@ -12258,6 +12282,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecutionSelection.ChannelName(childComplexity), true
+	case "RequestExecutionSelection.clientTransport":
+		if e.complexity.RequestExecutionSelection.ClientTransport == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.ClientTransport(childComplexity), true
 	case "RequestExecutionSelection.keyHint":
 		if e.complexity.RequestExecutionSelection.KeyHint == nil {
 			break
@@ -12294,6 +12324,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecutionSelection.Strategy(childComplexity), true
+	case "RequestExecutionSelection.transportFallbackReason":
+		if e.complexity.RequestExecutionSelection.TransportFallbackReason == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.TransportFallbackReason(childComplexity), true
+	case "RequestExecutionSelection.upstreamTransport":
+		if e.complexity.RequestExecutionSelection.UpstreamTransport == nil {
+			break
+		}
+
+		return e.complexity.RequestExecutionSelection.UpstreamTransport(childComplexity), true
 
 	case "RequestMetadata.cachedTokens":
 		if e.complexity.RequestMetadata.CachedTokens == nil {
@@ -27535,6 +27577,12 @@ func (ec *executionContext) fieldContext_Channel_endpoints(_ context.Context, fi
 				return ec.fieldContext_ChannelEndpoint_baseURL(ctx, field)
 			case "transport":
 				return ec.fieldContext_ChannelEndpoint_transport(ctx, field)
+			case "supportsWebSockets":
+				return ec.fieldContext_ChannelEndpoint_supportsWebSockets(ctx, field)
+			case "catalogURL":
+				return ec.fieldContext_ChannelEndpoint_catalogURL(ctx, field)
+			case "catalogJSON":
+				return ec.fieldContext_ChannelEndpoint_catalogJSON(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelEndpoint", field.Name)
 		},
@@ -27872,6 +27920,12 @@ func (ec *executionContext) fieldContext_Channel_defaultEndpoints(_ context.Cont
 				return ec.fieldContext_ChannelEndpoint_baseURL(ctx, field)
 			case "transport":
 				return ec.fieldContext_ChannelEndpoint_transport(ctx, field)
+			case "supportsWebSockets":
+				return ec.fieldContext_ChannelEndpoint_supportsWebSockets(ctx, field)
+			case "catalogURL":
+				return ec.fieldContext_ChannelEndpoint_catalogURL(ctx, field)
+			case "catalogJSON":
+				return ec.fieldContext_ChannelEndpoint_catalogJSON(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelEndpoint", field.Name)
 		},
@@ -28841,6 +28895,93 @@ func (ec *executionContext) fieldContext_ChannelEndpoint_transport(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelEndpoint_supportsWebSockets(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelEndpoint_supportsWebSockets,
+		func(ctx context.Context) (any, error) {
+			return obj.SupportsWebSockets, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelEndpoint_supportsWebSockets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelEndpoint_catalogURL(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelEndpoint_catalogURL,
+		func(ctx context.Context) (any, error) {
+			return obj.CatalogURL, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelEndpoint_catalogURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelEndpoint_catalogJSON(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelEndpoint_catalogJSON,
+		func(ctx context.Context) (any, error) {
+			return obj.CatalogJSON, nil
+		},
+		nil,
+		ec.marshalOJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelEndpoint_catalogJSON(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JSONRawMessage does not have child fields")
 		},
 	}
 	return fc, nil
@@ -65242,6 +65383,12 @@ func (ec *executionContext) fieldContext_RequestExecution_selection(_ context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "clientTransport":
+				return ec.fieldContext_RequestExecutionSelection_clientTransport(ctx, field)
+			case "upstreamTransport":
+				return ec.fieldContext_RequestExecutionSelection_upstreamTransport(ctx, field)
+			case "transportFallbackReason":
+				return ec.fieldContext_RequestExecutionSelection_transportFallbackReason(ctx, field)
 			case "channelName":
 				return ec.fieldContext_RequestExecutionSelection_channelName(ctx, field)
 			case "provider":
@@ -66255,6 +66402,93 @@ func (ec *executionContext) fieldContext_RequestExecutionFailure_bodyTruncated(_
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_clientTransport(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_clientTransport,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientTransport, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_clientTransport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_upstreamTransport(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_upstreamTransport,
+		func(ctx context.Context) (any, error) {
+			return obj.UpstreamTransport, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_upstreamTransport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecutionSelection_transportFallbackReason(ctx context.Context, field graphql.CollectedField, obj *objects.RequestExecutionSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecutionSelection_transportFallbackReason,
+		func(ctx context.Context) (any, error) {
+			return obj.TransportFallbackReason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecutionSelection_transportFallbackReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecutionSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -86231,7 +86465,7 @@ func (ec *executionContext) unmarshalInputChannelEndpointInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"apiFormat", "path", "baseURL", "transport"}
+	fieldsInOrder := [...]string{"apiFormat", "path", "baseURL", "transport", "supportsWebSockets", "catalogURL", "catalogJSON"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -86266,6 +86500,27 @@ func (ec *executionContext) unmarshalInputChannelEndpointInput(ctx context.Conte
 				return it, err
 			}
 			it.Transport = data
+		case "supportsWebSockets":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("supportsWebSockets"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SupportsWebSockets = data
+		case "catalogURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalogURL"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CatalogURL = data
+		case "catalogJSON":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalogJSON"))
+			data, err := ec.unmarshalOJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CatalogJSON = data
 		}
 	}
 
@@ -116257,6 +116512,12 @@ func (ec *executionContext) _ChannelEndpoint(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._ChannelEndpoint_baseURL(ctx, field, obj)
 		case "transport":
 			out.Values[i] = ec._ChannelEndpoint_transport(ctx, field, obj)
+		case "supportsWebSockets":
+			out.Values[i] = ec._ChannelEndpoint_supportsWebSockets(ctx, field, obj)
+		case "catalogURL":
+			out.Values[i] = ec._ChannelEndpoint_catalogURL(ctx, field, obj)
+		case "catalogJSON":
+			out.Values[i] = ec._ChannelEndpoint_catalogJSON(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -130564,6 +130825,21 @@ func (ec *executionContext) _RequestExecutionSelection(ctx context.Context, sel 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RequestExecutionSelection")
+		case "clientTransport":
+			out.Values[i] = ec._RequestExecutionSelection_clientTransport(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "upstreamTransport":
+			out.Values[i] = ec._RequestExecutionSelection_upstreamTransport(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "transportFallbackReason":
+			out.Values[i] = ec._RequestExecutionSelection_transportFallbackReason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelName":
 			out.Values[i] = ec._RequestExecutionSelection_channelName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

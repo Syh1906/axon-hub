@@ -168,6 +168,13 @@ export function RequestDiagnostics({
           </div>
           {selection && (
             <section className='flex flex-col gap-2'>
+              {selection.upstreamTransport && (
+                <p className='text-xs'>
+                  {t('requests.diagnostics.clientTransport')}: {selection.clientTransport === 'websocket' ? 'WebSocket' : 'HTTP(S)'}
+                  {' → '}{t('requests.diagnostics.upstreamTransport')}: {selection.upstreamTransport === 'websocket' ? 'WebSocket' : 'HTTP(S)'}
+                  {selection.transportFallbackReason && <> · {t(`requests.diagnostics.transportReasons.${selection.transportFallbackReason}`, { defaultValue: selection.transportFallbackReason })}</>}
+                </p>
+              )}
               <h3 className='text-sm font-semibold'>{t('requests.diagnostics.selectionTitle')}</h3>
               <p className='text-muted-foreground text-sm'>
                 {t('requests.diagnostics.selectionReason', {

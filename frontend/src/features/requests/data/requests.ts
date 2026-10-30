@@ -110,7 +110,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   retryDecision
                   costSnapshot { applied { value } }
                   failure { source code type }
-                  ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState strategy priority }' : ''}
+                  ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState clientTransport upstreamTransport transportFallbackReason strategy priority }' : ''}
                   passThroughApplied${executionChannelFields}
                 }
                 cursor
@@ -341,7 +341,7 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
                 responseStatusCode
                 failure { source code type body bodyTruncated }
                 retryDecision
-                ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState strategy priority candidates { channelID channelName provider priority models sessionReuse } }' : ''}
+                ${permissions.canViewChannels ? 'selection { channelName provider keyHint keyRemark sessionState clientTransport upstreamTransport transportFallbackReason strategy priority candidates { channelID channelName provider priority models sessionReuse } }' : ''}
                 status
                 format
                 reasoningEffort

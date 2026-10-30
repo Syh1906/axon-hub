@@ -1,4 +1,7 @@
 type RequestExecutionSelection {
+  clientTransport: String!
+  upstreamTransport: String!
+  transportFallbackReason: String!
   channelName: String!
   provider: String!
   keyHint: String!

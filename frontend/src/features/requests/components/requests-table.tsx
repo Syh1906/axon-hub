@@ -36,7 +36,7 @@ const COLUMN_VISIBILITY_STORAGE_KEY = 'requests-table-column-visibility';
 const COLUMN_VISIBILITY_STORAGE_VERSION = 7;
 
 const COLUMN_ORDER_STORAGE_KEY = 'requests-table-column-order';
-const COLUMN_ORDER_STORAGE_VERSION = 1;
+const COLUMN_ORDER_STORAGE_VERSION = 2;
 
 const MotionTableRow = motion.create(TableRow);
 
@@ -248,7 +248,19 @@ export function RequestsTable({
       const col = table.getColumn(id);
       return col ? isReorderableColumn(col) : false;
     });
-    const stored = readColumnOrder(COLUMN_ORDER_STORAGE_KEY, COLUMN_ORDER_STORAGE_VERSION);
+    let stored = readColumnOrder(COLUMN_ORDER_STORAGE_KEY, COLUMN_ORDER_STORAGE_VERSION);
+    if (!stored) {
+      const previous = readColumnOrder(COLUMN_ORDER_STORAGE_KEY, 1);
+      if (previous) {
+        stored = [...previous];
+        const modelIndex = stored.indexOf('modelID');
+        const channelIndex = stored.indexOf('channel');
+        if (modelIndex >= 0 && channelIndex > modelIndex) {
+          [stored[modelIndex], stored[channelIndex]] = [stored[channelIndex], stored[modelIndex]];
+        }
+        writeColumnOrder(COLUMN_ORDER_STORAGE_KEY, COLUMN_ORDER_STORAGE_VERSION, stored);
+      }
+    }
     setColumnOrder(
       reconcileColumnOrder({
         allColumnIds: allIds,

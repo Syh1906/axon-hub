@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 // Precompiled regex patterns for sanitizeResponseBody to avoid recompiling on each call.
@@ -128,6 +129,22 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	}
 
 	state.RequestExec = requestExec
+	request.OnTransportSelected = func(protocol, reason string) {
+		if requestExec.Selection == nil {
+			return
+		}
+		selection := *requestExec.Selection
+		selection.ClientTransport = "http"
+		if shared.IsResponsesWebSocket(ctx) {
+			selection.ClientTransport = "websocket"
+		}
+		selection.UpstreamTransport = protocol
+		selection.TransportFallbackReason = reason
+		requestExec.Selection = &selection
+		if err := state.RequestService.SetExecutionTransport(ctx, requestExec.ID, &selection); err != nil {
+			log.Warn(ctx, "Failed to persist selected transport", log.Cause(err))
+		}
+	}
 
 	return request, nil
 }

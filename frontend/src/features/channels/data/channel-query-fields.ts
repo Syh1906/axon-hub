@@ -121,12 +121,18 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             path
             baseURL
             transport
+            supportsWebSockets
+            catalogURL
+            catalogJSON
           }
           endpoints {
             apiFormat
             path
             baseURL
             transport
+            supportsWebSockets
+            catalogURL
+            catalogJSON
           }
           disabledAPIKeys {
             key

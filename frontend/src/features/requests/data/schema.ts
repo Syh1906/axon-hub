@@ -22,6 +22,9 @@ export const executionSelectionSchema = z.object({
   keyHint: z.string(),
   keyRemark: z.string(),
   sessionState: z.string(),
+  clientTransport: z.string().optional(),
+  upstreamTransport: z.string().optional(),
+  transportFallbackReason: z.string().optional(),
   strategy: z.string(),
   priority: z.number(),
   candidates: z

@@ -22,11 +22,16 @@ AxonHub 可以作为 OpenAI 接口的直接替代方案，使 Codex 能够通过
    model_provider = "axonhub-responses"
 
    [model_providers.axonhub-responses]
-   name = "AxonHub using Chat Completions"
+   name = "AxonHub Responses"
    base_url = "http://127.0.0.1:8090/v1"
    env_key = "AXONHUB_API_KEY"
    wire_api = "responses"
+   model_catalog_url = "http://127.0.0.1:8090/codex/models"
+   supports_websockets = true
    query_params = {}
+
+   [features]
+   api_key_model_discovery = true
    ```
 2. 导出供 Codex 读取的 API Key：
    ```bash
@@ -55,7 +60,7 @@ server:
 **提示**：开启此功能后，AxonHub 会将同一个 Trace 的请求优先转发到同一个上游渠道，从而大幅提高提供商端的缓存命中率（例如 Anthropic 的 Prompt Caching）。
 
 #### 验证
-- 发送测试 Prompt，AxonHub 日志中应出现 `/v1/chat/completions` 调用。
+- 发送测试 Prompt，AxonHub 日志中应出现 `/v1/responses` 调用。
 - 启用 AxonHub 的追踪功能可查看提示词、回复及延迟信息。
 
 ### 使用模型配置文件
@@ -83,6 +88,36 @@ AxonHub 的模型配置文件支持将请求模型映射到具体提供商模型
 ### 常见问题
 - **Codex 认证失败**：确保在启动 Codex 的同一 shell 会话中设置了 `AXONHUB_API_KEY`。
 - **模型结果异常**：检查 AxonHub 控制台中当前启用的配置文件映射，必要时禁用或调整规则。
+
+### Codex 模型目录
+
+`GET /codex/models?client_version=0.159.2` 使用 AxonHub API Key 鉴权，返回 Codex 的 `{"models": [...]}` 结构。`client_version` 由客户端提供，格式为三段数字。原有 `/v1/models` 保持 OpenAI 的 `data` 列表，不能替代 Codex 目录。
+
+在渠道的 **接口与路径 → Responses** 中配置目录来源：
+
+- **自定义 Codex 目录 JSON**：提供完整模型元数据，优先于远程目录；`slug` 填渠道实际模型 ID。必须包含模型指令、工具能力、推理档位等字段，不能只填模型名称。
+- **Codex 模型目录地址**：填写上游提供的完整目录 URL。AxonHub 使用该渠道的凭据访问，并附加 `client_version`；只应配置受信任的服务，不跟随重定向。
+- 两项均留空时，官方 OpenAI API 渠道和官方 Codex 渠道自动使用 `https://chatgpt.com/backend-api/codex/models`，无需再配置后台目录来源。第三方 Codex 渠道使用其 `/models`，其他 Responses 渠道尝试同源默认 `/v1/models`（已有 `/v1` 或 `#` 地址规则继续生效）。第三方上游如果仅返回普通 OpenAI 模型列表，仍需提供完整目录地址或 JSON；不会凭模型名虚构能力，也不会将第三方渠道凭据发送到 OpenAI。
+
+目录按当前项目和 API Key 的模型、渠道与别名规则筛选，对外 `slug` 使用客户端可调用的名称。关联多个上游时只公布共同能力；上下文长度取较小值，模型指令或工具格式冲突的模型不公布。缺少元数据的模型被省略，数量见 `X-AxonHub-Catalog-Omitted`；全部缺失返回 `503 codex_catalog_unavailable`，没有可见模型则返回空列表。目录失败不阻塞 Responses 调用。
+
+远程目录最大 1 MiB，获取超时 10 秒。缓存按渠道、凭据、地址和客户端版本隔离，遵循 `no-store`、`no-cache`、`max-age` 与 `Age`，最长 5 分钟；权限每次重新判断，不返回过期缓存。自定义 JSON 随渠道配置生效。
+
+### WebSocket 与 HTTP 回退
+
+后台的 **支持 WebSocket** 只声明渠道具备该能力，不强制客户端切换协议，也不改写渠道地址。客户端 provider 的 `supports_websockets` 和客户端版本决定是否使用 WS；上述示例允许 WS，也可以关闭该客户端选项继续使用 HTTP。
+
+| 客户端连接 | 渠道勾选支持 WS | 上游请求 |
+| --- | --- | --- |
+| HTTP(S) | 任意 | HTTP(S) |
+| WebSocket | 否 | HTTP(S)，仍通过原 WS 连接向客户端返回事件 |
+| WebSocket | 是 | 优先 WS；可安全回退时使用同一渠道的 HTTP(S) |
+
+建连失败且尚未发送 `response.create` 时，连接错误或 `404/405/426/501/502/503/504`（以及返回 JSON 的 `200`）可回退 HTTP；鉴权、限流和普通参数错误不触发协议回退。同一客户端连接对已降级的上游继续使用 HTTP，避免每轮重复握手。
+
+续聊回退前恢复历史用户输入和模型输出，无法恢复 `previous_response_id` 时明确返回 `previous_response_not_found`，不发送缺少历史的请求。WS 开始发送后不再自动重发或换渠道；连接中断、超时及解码失败均保留这一限制，避免重复执行和计费。请求详情的 **渠道过程** 展示客户端协议、实际上游协议和回退原因。
+
+旧渠道的 `transport=websocket` 和 WS 地址仍按支持能力读取；新保存写入 `supportsWebSockets`，显式取消勾选优先于旧字段。HTTP 和 WS 共用 Responses 地址，上游应同时支持相应的 POST 与 Upgrade 请求。
 
 ### 相关文档
 - [追踪指南](tracing.md)

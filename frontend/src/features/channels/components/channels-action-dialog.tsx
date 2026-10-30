@@ -7,6 +7,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,6 @@ import { useChannelActionDialog } from '../hooks/use-channel-action-dialog';
 import {
   ApiFormatOption,
   MAX_MODELS_DISPLAY,
-  OPENAI_RESPONSES_WEBSOCKET,
   Props,
   alwaysOAuthProviderKeys,
   formatRetryableErrorPatterns,
@@ -510,25 +510,15 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           </div>
                         </FormItem>
                       )}
-                      {selectedProvider === 'codex' && (
+                      {selectedApiFormat === OPENAI_RESPONSES && (
                         <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                          <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                            {t('channels.dialogs.fields.apiFormat.label')}
-                          </FormLabel>
-                          <div className='max-w-64 space-y-1 md:col-span-6 md:max-w-none'>
-                            <SelectDropdown
-                              defaultValue={responsesTransport === 'websocket' ? OPENAI_RESPONSES_WEBSOCKET : OPENAI_RESPONSES}
-                              onValueChange={(value) =>
-                                handleResponsesTransportChange(value === OPENAI_RESPONSES_WEBSOCKET ? 'websocket' : 'http')
-                              }
-                              placeholder={t('channels.dialogs.fields.apiFormat.placeholder')}
-                              data-testid='api-format-select'
-                              isControlled={true}
-                              items={[
-                                { value: OPENAI_RESPONSES, label: getApiFormatLabel(OPENAI_RESPONSES) },
-                                { value: OPENAI_RESPONSES_WEBSOCKET, label: getApiFormatOptionLabel(OPENAI_RESPONSES_WEBSOCKET) },
-                              ]}
-                            />
+                          <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>Responses</FormLabel>
+                          <div className='flex flex-col gap-2 md:col-span-6'>
+                            <div className='flex items-center gap-2'>
+                              <Checkbox id='channel-supports-ws' checked={responsesTransport === 'websocket'} onCheckedChange={(checked) => handleResponsesTransportChange(checked === true ? 'websocket' : 'http')} />
+                              <Label htmlFor='channel-supports-ws'>{t('channels.endpoints.supportsWebSockets')}</Label>
+                            </div>
+                            <p className='text-muted-foreground text-xs'>{t('channels.endpoints.webSocketsHint')}</p>
                           </div>
                         </FormItem>
                       )}
@@ -918,19 +908,23 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         <summary className='cursor-pointer text-sm font-medium'>{t('channels.endpoints.title')}</summary>
                         <div className='mt-3'>
                           <ChannelEndpointEditor
+                            showWebSocketOption={selectedApiFormat !== OPENAI_RESPONSES}
                             defaults={initialRow?.defaultEndpoints ?? [{ apiFormat: selectedApiFormat }]}
                             endpoints={form.watch('endpoints') ?? []}
                             formats={[selectedApiFormat]}
                             baseURL={watchedBaseURL}
                             addresses={addresses}
                             onChange={(value) => form.setValue('endpoints', value, { shouldDirty: true })}
-                            onRemove={(format) =>
+                            onRemove={(format) => {
                               form.setValue(
                                 'endpoints',
                                 (form.getValues('endpoints') ?? []).filter((item) => item.apiFormat !== format),
                                 { shouldDirty: true }
-                              )
-                            }
+                              );
+                              if (format === OPENAI_RESPONSES) {
+                                setResponsesTransport(getResponsesTransportFromChannel({ baseURL: watchedBaseURL, endpoints: initialRow?.defaultEndpoints ?? [] }));
+                              }
+                            }}
                             onManageAddresses={openAddresses}
                           />
                         </div>

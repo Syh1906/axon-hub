@@ -140,8 +140,8 @@ func TestOpenAIResponsesEndpoint_InheritsWebSocketTransportFromBaseURL(t *testin
 	require.True(t, ok)
 
 	executor := custom.CustomizeExecutor(nil)
-	_, ok = executor.(*responses.WebSocketExecutor)
-	require.True(t, ok)
+	require.NotNil(t, executor)
+	require.Equal(t, responses.TransportWebSocket, primaryEndpointTransport(entChannel, llm.APIFormatOpenAIResponse.String()))
 }
 
 func TestOpenAIResponsesCompactEndpoint_RejectsInheritedWebSocketTransport(t *testing.T) {

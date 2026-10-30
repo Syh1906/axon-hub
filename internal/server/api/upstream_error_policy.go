@@ -17,6 +17,9 @@ import (
 )
 
 func transformOrchestratorError(ctx context.Context, err error, orch *orchestrator.ChatCompletionOrchestrator) *httpclient.Error {
+	if errors.Is(err, httpclient.ErrContinuationUnavailable) {
+		return &httpclient.Error{StatusCode: http.StatusBadRequest, Status: http.StatusText(http.StatusBadRequest), Body: []byte(`{"error":{"code":"previous_response_not_found","type":"invalid_request_error","param":"previous_response_id","message":"Previous response context is unavailable. Send complete input to resume."}}`)}
+	}
 	err = wrapQuotaExhaustedAsResponseError(err)
 	err = orchestrator.ClassifyUpstreamTransportError(err)
 

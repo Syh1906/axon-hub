@@ -16,12 +16,12 @@ export function APIKeyIdentity({ value }: { value: APIKeyIdentityValue }) {
   const owner = apiKeyOwnerLabel(value);
   return (
     <div className='flex min-w-0 flex-col gap-0.5'>
-      <span className='truncate' title={value.name ?? undefined}>
-        {value.name || '—'}
+      <span className='truncate font-medium' title={owner || value.name || undefined}>
+        {owner || value.name || '—'}
       </span>
       {owner && (
-        <span className='text-muted-foreground truncate text-xs' title={owner}>
-          {owner}
+        <span className='text-muted-foreground truncate text-xs' title={value.name ?? undefined}>
+          {value.name || '—'}
         </span>
       )}
     </div>

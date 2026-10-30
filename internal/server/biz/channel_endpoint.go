@@ -2,6 +2,7 @@ package biz
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -54,6 +55,22 @@ func ValidateEndpoints(endpoints []objects.ChannelEndpoint) error {
 		}
 
 		seen[ep.APIFormat] = true
+		if ep.CatalogURL != "" || (len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null") {
+			if ep.APIFormat != llm.APIFormatOpenAIResponse.String() {
+				return fmt.Errorf("catalog settings require a Responses endpoint")
+			}
+			if ep.CatalogURL != "" {
+				u, err := url.Parse(ep.CatalogURL)
+				if err != nil || u.Host == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && u.Scheme != "http") {
+					return fmt.Errorf("catalog URL must be an absolute HTTP(S) URL without user info or fragment")
+				}
+			}
+			if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
+				if _, err := parseCodexCatalog(ep.CatalogJSON); err != nil {
+					return err
+				}
+			}
+		}
 
 		if ep.Transport != "" && ep.Transport != objects.ChannelEndpointTransportHTTP && ep.Transport != objects.ChannelEndpointTransportWebSocket {
 			return fmt.Errorf("endpoint[%d]: unsupported transport %q", i, ep.Transport)

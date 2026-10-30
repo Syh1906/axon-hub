@@ -241,6 +241,8 @@
   "requests.diagnostics.decisions.retry_disabled": "未配置重试次数",
   "requests.diagnostics.decisions.candidates_exhausted": "没有剩余候选渠道，且无法在当前渠道继续重试",
   "requests.diagnostics.decisions.no_retry_available": "当前策略下没有可执行的重试",
+  "requests.diagnostics.decisions.upstream_outcome_unknown": "上游执行结果未知，已停止重发",
+  "requests.diagnostics.decisions.continuation_unavailable": "无法恢复上一轮历史，已停止发送",
   "requests.diagnostics.decisions.response_size_limit": "响应大小超出限制，停止重试",
   "requests.diagnostics.decisions.stream_returned": "响应流已交给客户端，断流后不再重试",
   "requests.diagnostics.decisions.context_done": "请求已取消或超过截止时间",
@@ -253,5 +255,10 @@
   "requests.refresh.paused": "浏览历史中，自动刷新已暂停",
   "requests.refresh.mode": "更新方式",
   "requests.refresh.steady": "平稳更新",
-  "requests.refresh.sequential": "逐条插入"
+  "requests.refresh.sequential": "逐条插入",
+  "requests.diagnostics.clientTransport": "客户端",
+  "requests.diagnostics.upstreamTransport": "上游",
+  "requests.diagnostics.transportReasons.websocket_handshake_failed": "WS 建连失败，已回退 HTTPS",
+  "requests.diagnostics.transportReasons.websocket_not_enabled": "渠道未声明支持 WS，使用 HTTPS",
+  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "此连接继续使用 HTTPS 回退"
 }

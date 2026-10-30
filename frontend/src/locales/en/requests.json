@@ -241,6 +241,8 @@
   "requests.diagnostics.decisions.retry_disabled": "Retries are disabled",
   "requests.diagnostics.decisions.candidates_exhausted": "No remaining candidates or eligible same-channel retries",
   "requests.diagnostics.decisions.no_retry_available": "No retry is available under the active policy",
+  "requests.diagnostics.decisions.upstream_outcome_unknown": "Upstream execution outcome unknown; replay stopped",
+  "requests.diagnostics.decisions.continuation_unavailable": "Previous response context unavailable; request not sent",
   "requests.diagnostics.decisions.response_size_limit": "Response size limit exceeded; retry stopped",
   "requests.diagnostics.decisions.stream_returned": "Response stream handed to client; no retry after interruption",
   "requests.diagnostics.decisions.context_done": "Request canceled or deadline exceeded",
@@ -253,5 +255,10 @@
   "requests.refresh.paused": "Auto refresh paused while browsing history",
   "requests.refresh.mode": "Update mode",
   "requests.refresh.steady": "Steady updates",
-  "requests.refresh.sequential": "Sequential"
+  "requests.refresh.sequential": "Sequential",
+  "requests.diagnostics.clientTransport": "Client",
+  "requests.diagnostics.upstreamTransport": "Upstream",
+  "requests.diagnostics.transportReasons.websocket_handshake_failed": "WS handshake failed; using HTTPS",
+  "requests.diagnostics.transportReasons.websocket_not_enabled": "WS not enabled on channel; using HTTPS",
+  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "Continuing HTTPS fallback for this connection"
 }

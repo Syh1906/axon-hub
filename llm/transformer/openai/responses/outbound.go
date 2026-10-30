@@ -53,8 +53,8 @@ type Config struct {
 	// APIKeyProvider provides API keys for authentication, required.
 	APIKeyProvider auth.APIKeyProvider `json:"-"`
 
-	// Transport selects the upstream transport for Responses API requests.
-	// Empty and "http" use the existing HTTP/SSE transport; "websocket" uses Responses WebSocket mode.
+	// Transport declares upstream WebSocket capability for Responses requests.
+	// Empty and "http" use HTTP/SSE; "websocket" follows a WebSocket client.
 	Transport string `json:"transport,omitempty"`
 }
 
@@ -101,11 +101,11 @@ func (t *OutboundTransformer) CustomizeExecutor(executor pipeline.Executor) pipe
 		return executor
 	}
 	if t.config.Transport != TransportWebSocket {
-		return &httpTransportExecutor{inner: executor, finalize: t.FinalizeTransportRequest}
+		return NewTransportExecutor(executor, nil, false)
 	}
 
 	if !ExecutorComparable(executor) {
-		return NewWebSocketExecutor(executor)
+		return NewTransportExecutor(executor, NewWebSocketExecutor(executor), false)
 	}
 
 	t.executorMu.Lock()
@@ -115,21 +115,18 @@ func (t *OutboundTransformer) CustomizeExecutor(executor pipeline.Executor) pipe
 		t.webSocketExecutors = make(map[pipeline.Executor]*WebSocketExecutor)
 	}
 	if cached, ok := t.webSocketExecutors[executor]; ok {
-		return cached
+		return NewTransportExecutor(executor, cached, false)
 	}
 
 	webSocketExecutor := NewWebSocketExecutor(executor)
 	t.webSocketExecutors[executor] = webSocketExecutor
 
-	return webSocketExecutor
+	return NewTransportExecutor(executor, webSocketExecutor, false)
 }
 
 func (t *OutboundTransformer) FinalizeTransportRequest(request *httpclient.Request) *httpclient.Request {
-	if t == nil || t.config == nil || t.config.Transport == TransportWebSocket {
-		return request
-	}
-
-	return PrepareHTTPTransportRequest(request, false)
+	// The protocol is selected for each request, in the executor.
+	return request
 }
 
 func (t *OutboundTransformer) Stop() {

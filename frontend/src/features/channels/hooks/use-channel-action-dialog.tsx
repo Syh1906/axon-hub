@@ -400,15 +400,13 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     const options: ApiFormatOption[] = [];
     for (const format of availableApiFormats) {
       options.push(format);
-      if (format === OPENAI_RESPONSES) {
-        options.push(OPENAI_RESPONSES_WEBSOCKET);
-      }
+
     }
     return options;
   }, [availableApiFormats, selectedProvider]);
 
   const selectedApiFormatOption: ApiFormatOption =
-    selectedApiFormat === OPENAI_RESPONSES && responsesTransport === 'websocket' ? OPENAI_RESPONSES_WEBSOCKET : selectedApiFormat;
+    selectedApiFormat;
 
   const getApiFormatLabel = useCallback(
     (format: ApiFormat) => {
@@ -784,21 +782,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     [selectedProvider, form, useGeminiVertex, useAnthropicAws, useKimiCoding, isDuplicate, isEdit, isOAuthChannel]
   );
 
-  const handleResponsesTransportChange = useCallback(
-    (transport: ResponsesTransport) => {
-      if (isOAuthChannel && selectedProvider !== 'codex') return;
-      setResponsesTransport(transport);
-
-      const channelType = selectedProvider === 'codex' ? 'codex' : selectedType || derivedChannelType;
-      // Third-party Codex channels use custom endpoints — don't overwrite them on transport switch
-      if (isCodexType && authMode === 'third-party') return;
-      const baseURL = transport === 'websocket' ? getResponsesWebSocketBaseURL(channelType) : getDefaultBaseURL(channelType);
-      if (baseURL) {
-        form.setValue('baseURL', baseURL, { shouldDirty: true });
-      }
-    },
-    [authMode, derivedChannelType, form, isCodexType, isOAuthChannel, selectedProvider, selectedType]
-  );
+  const handleResponsesTransportChange = useCallback((transport: ResponsesTransport) => {
+    setResponsesTransport(transport);
+  }, []);
 
   const handleGeminiVertexChange = useCallback(
     (checked: boolean) => {
@@ -1113,6 +1099,15 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           message: t(getResponsesTransportBaseURLError(responsesTransport)),
         });
         return;
+      }
+
+      if (selectedApiFormat === OPENAI_RESPONSES) {
+        dataWithModels.baseURL = dataWithModels.baseURL?.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
+        const endpoints = [...(dataWithModels.endpoints ?? [])];
+        const index = endpoints.findIndex((ep) => ep.apiFormat === OPENAI_RESPONSES);
+        const endpoint = { ...(index >= 0 ? endpoints[index] : { apiFormat: OPENAI_RESPONSES }), supportsWebSockets: responsesTransport === 'websocket', transport: '' as const };
+        if (index >= 0) endpoints[index] = endpoint; else endpoints.push(endpoint);
+        dataWithModels.endpoints = endpoints;
       }
 
       if (isEdit && currentRow) {

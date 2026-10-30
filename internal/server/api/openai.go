@@ -33,6 +33,7 @@ type OpenAIHandlersParams struct {
 	VideoService                *biz.VideoService
 	ChannelService              *biz.ChannelService
 	ModelService                *biz.ModelService
+	CodexCatalogService         *biz.CodexCatalogService
 	DefaultSelector             *orchestrator.DefaultSelector
 	RequestService              *biz.RequestService
 	SystemService               *biz.SystemService
@@ -51,6 +52,7 @@ type OpenAIHandlersParams struct {
 type OpenAIHandlers struct {
 	ChannelService             *biz.ChannelService
 	ModelService               *biz.ModelService
+	CodexCatalogService        *biz.CodexCatalogService
 	SystemService              *biz.SystemService
 	VideoService               *biz.VideoService
 	ChatCompletionHandlers     *ChatCompletionHandlers
@@ -81,6 +83,7 @@ func NewOpenAIHandlers(params OpenAIHandlersParams) *OpenAIHandlers {
 	speechInbound := openai.NewSpeechInboundTransformer()
 
 	handlers := &OpenAIHandlers{
+		CodexCatalogService: params.CodexCatalogService,
 		ChatCompletionHandlers: &ChatCompletionHandlers{
 			ChatCompletionOrchestrator: orchestrator.NewChatCompletionOrchestrator(
 				params.ChannelService,

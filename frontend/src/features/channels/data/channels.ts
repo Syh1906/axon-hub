@@ -164,12 +164,18 @@ const CREATE_CHANNEL_MUTATION = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       endpoints {
         apiFormat
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
     }
   }
@@ -255,12 +261,18 @@ const DUPLICATE_CHANNEL_MUTATION = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       endpoints {
         apiFormat
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
     }
   }
@@ -346,12 +358,18 @@ const BULK_CREATE_CHANNELS_MUTATION = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       endpoints {
         apiFormat
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
     }
   }
@@ -438,12 +456,18 @@ const UPDATE_CHANNEL_MUTATION = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       endpoints {
         apiFormat
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
     }
   }
@@ -505,12 +529,18 @@ const SAVE_CHANNEL_ENDPOINTS_MUTATION = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       endpoints {
         apiFormat
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
     }
   }
@@ -584,12 +614,18 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           path
           baseURL
           transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
         }
         endpoints {
           apiFormat
           path
           baseURL
           transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
         }
         settings {
           globalPriority
@@ -821,12 +857,18 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           path
           baseURL
           transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
         }
         endpoints {
           apiFormat
           path
           baseURL
           transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
         }
         settings {
           globalPriority
@@ -893,6 +935,9 @@ const ALL_CHANNEL_SUMMARYS_QUERY = `
         path
         baseURL
         transport
+        supportsWebSockets
+        catalogURL
+        catalogJSON
       }
       allModelEntries {
         requestModel
@@ -1369,7 +1414,7 @@ export function useUpdateChannelSettings() {
 
 export interface SaveChannelEndpointsInput {
   channelID: string;
-  endpoints: Array<{ apiFormat: string; path?: string; baseURL?: string; transport?: string }>;
+  endpoints: Array<{ apiFormat: string; path?: string; baseURL?: string; transport?: string; supportsWebSockets?: boolean | null; catalogURL?: string | null; catalogJSON?: unknown }>;
 }
 
 export function useSaveChannelEndpoints() {

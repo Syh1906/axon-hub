@@ -22,11 +22,16 @@ AxonHub can act as a drop-in replacement for OpenAI endpoints, letting Codex con
    model_provider = "axonhub-responses"
 
    [model_providers.axonhub-responses]
-   name = "AxonHub using Chat Completions"
+   name = "AxonHub Responses"
    base_url = "http://127.0.0.1:8090/v1"
    env_key = "AXONHUB_API_KEY"
    wire_api = "responses"
+   model_catalog_url = "http://127.0.0.1:8090/codex/models"
+   supports_websockets = true
    query_params = {}
+
+   [features]
+   api_key_model_discovery = true
    ```
 2. Export the API key for Codex to read:
    ```bash
@@ -55,7 +60,7 @@ server:
 **Note**: Enabling this also ensures that requests from the same trace are prioritized to be sent to the same upstream channel, significantly improving provider-side cache hit rates (e.g., Anthropic Prompt Caching).
 
 #### Testing
-- Send a sample prompt; AxonHub's request logs should show a `/v1/chat/completions` call.
+- Send a sample prompt; AxonHub's request logs should show a `/v1/responses` call.
 - Enable tracing in AxonHub to inspect prompts, responses, and latency.
 
 ### Working with Model Profiles
@@ -137,6 +142,30 @@ You can manually trigger a quota refresh by clicking the refresh icon in the quo
    - Primary window reset time
    - Plan type (if available)
    - Secondary window usage (if configured)
+
+### Codex Model Catalog
+
+`GET /codex/models?client_version=0.159.2` authenticates with an AxonHub API key and returns Codex's `{"models": [...]}` structure. The client supplies a three-part numeric version. `/v1/models` retains its OpenAI `data` format and is not a Codex catalog.
+
+Configure **Endpoints and Paths → Responses** on each channel:
+
+- **Custom Codex catalog JSON** supplies complete metadata and takes precedence over the remote URL. Each `slug` identifies the actual upstream model. Include model instructions, tool capabilities, and reasoning levels, not just model names.
+- **Codex model catalog URL** supplies the complete trusted upstream URL. AxonHub sends channel credentials and `client_version`; redirects are rejected.
+- With both fields empty, official OpenAI API and Codex channels automatically use `https://chatgpt.com/backend-api/codex/models`. No extra gateway catalog setting is needed. Third-party Codex channels use their `/models` endpoint; other Responses channels try their same-origin `/v1/models`, respecting existing `/v1` and `#` URL rules. If a third party only serves an ordinary OpenAI model list, it must provide a full catalog URL or JSON. AxonHub never invents capabilities or sends third-party credentials to OpenAI.
+
+The catalog applies current project/key channel restrictions, allowed models, and aliases. Public slugs match callable model IDs. Multiple routes advertise common capabilities and the smallest context limit; conflicting instructions or tool dialects omit the model. Missing metadata is counted in `X-AxonHub-Catalog-Omitted`. If all visible models lack metadata, the endpoint returns `503 codex_catalog_unavailable`; no visible models returns an empty list. Catalog failures do not block inference.
+
+Remote fetches have a 1 MiB limit and 10-second timeout. Cache entries are separated by channel, credentials, URL, and client version, respect `no-store`, `no-cache`, `max-age`, and `Age`, and expire within five minutes. Visibility is checked on every request; stale metadata is not served.
+
+### WebSocket Capability and HTTP Fallback
+
+The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. WS clients use upstream WS only when the checkbox is enabled; otherwise AxonHub streams HTTP responses over the original client WS connection.
+
+Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent turns on that client connection retain HTTP for the downgraded upstream.
+
+Continuation fallback restores prior user input and model output. Unrecoverable `previous_response_id` returns `previous_response_not_found` instead of sending incomplete history. Once a WS send begins, disconnects, timeouts, and decoding failures cannot automatically resend or switch channels. Request details show client transport, actual upstream transport, and the fallback reason.
+
+Published legacy `transport=websocket` and WS URLs are read as capability declarations. New saves use `supportsWebSockets`; explicit false overrides legacy values. HTTP and WS share the Responses address, which should accept both POST and Upgrade requests.
 
 ### Related Documentation
 - [Tracing Guide](tracing.md)

@@ -41,6 +41,7 @@ var Module = fx.Module("biz",
 	fx.Provide(NewOIDCService),
 	fx.Provide(NewAPIKeyProfileTemplateService),
 	fx.Provide(NewCatalogService),
+	fx.Provide(NewCodexCatalogService),
 	fx.Invoke(func(channelSvc *ChannelService, quotaSvc *ProviderQuotaService) {
 		channelSvc.SetChannelProviderQuotaInvalidator(quotaSvc)
 	}),

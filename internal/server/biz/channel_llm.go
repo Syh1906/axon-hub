@@ -267,12 +267,7 @@ func (svc *ChannelService) buildChannelWithOutbounds(c *ent.Channel, apiKeyOverr
 }
 
 func endpointTransport(ep objects.ChannelEndpoint) string {
-	if ep.Transport != "" {
-		return ep.Transport
-	}
-
-	baseURL := strings.TrimSpace(strings.ToLower(ep.BaseURL))
-	if strings.HasPrefix(baseURL, "ws://") || strings.HasPrefix(baseURL, "wss://") {
+	if ep.WebSocketsSupported() {
 		return objects.ChannelEndpointTransportWebSocket
 	}
 

@@ -69,6 +69,17 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### Codex 目录与客户端传输选择
+
+- 状态：已实现并完成本地验收及独立复核，待发布。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。
+- 新增 `/codex/models`，保留 `/v1/models`；目录元数据来自渠道可信 URL 或完整 JSON，按项目、Key、公开模型与别名筛选。缓存不绕过权限，不凭名称补造能力，多路由仅公布共同能力。
+- 渠道新增 `supportsWebSockets` 能力声明，客户端 HTTP 始终走 HTTP；客户端 WS 可走 WS 或桥接 HTTP。仅发送前的安全握手失败可降级；续聊恢复完整历史，缺失历史明确报错；发送后的未知结果禁止自动重放，包括超时和解码错误转换。
+- 请求诊断记录客户端协议、实际上游协议及回退原因；列表默认顺序改为 ID、渠道、模型、服务商，旧列配置只交换相关两列，保留其余排序。
+- 数据影响：仅扩展现有 endpoint/selection JSON 和 GraphQL 字段，无新 schema/data migration；兼容读取已发布的 `transport` 与 WS URL，显式新布尔值优先，新保存清空旧 transport。
+- 验证：相关六个 Go 包、25 项定向前端测试、真实 Codex 0.159.2 目录解析、本地 HTTP/WS 双轮联调和浏览器操作通过。最终全库 TypeScript 基线与工作区均为 170 条诊断，本次新增为 0。未接入生产、真实收费上游或外部数据库；未执行 lint/build。
+- 上游同步重点：Codex ModelInfo 元数据、Responses executor/超时重试边界、会话恢复、渠道 JSON 与 GraphQL 查询保存链、请求诊断和列顺序持久化。
+- 独立复核：按用户指定 `gpt-6.1-sol / max` 审查并完成自检，修复官方 OpenAI 默认目录地址、endpoint `#` 规则、恢复默认后的 JSON/WS 状态与旧大写 WS URL 识别；补齐停止重试原因文案。官方渠道无需额外后台目录配置，第三方需要上游具备完整目录；客户端仍须设置 `model_catalog_url`。按追加需求，API 密钥名称单元格和请求调用方改为分组第一行、密钥第二行，保持原筛选行为。页面证据：[密钥分组优先](../output/implementation/axon-catalog-ws-review-20261031/key-group-first.png)、[请求调用方分组优先](../output/implementation/axon-catalog-ws-review-20261031/request-group-first.png)、[目录重置回读](../output/implementation/axon-catalog-ws-review-20261031/catalog-reset.png)。
+
 ### 密钥与分组金额预算
 
 - 状态：功能已实现并完成本地定向验收、独立复审，纳入 `.syh.7`；[方案](solutions/api-key-group-budgets.md)及[实现验证记录](solutions/api-key-group-budgets-implementation.md)。

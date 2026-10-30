@@ -309,6 +309,14 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 		}
 
 		lastErr = err
+		if errors.Is(lastErr, httpclient.ErrContinuationUnavailable) {
+			p.notifyRetryStopped(ctx, "continuation_unavailable")
+			return nil, lastErr
+		}
+		if errors.Is(lastErr, httpclient.ErrRequestMayHaveExecuted) {
+			p.notifyRetryStopped(ctx, "upstream_outcome_unknown")
+			return nil, lastErr
+		}
 		if errors.Is(lastErr, ErrPreCommitBufferExceeded) || errors.Is(lastErr, httpclient.ErrStreamEventTooLarge) {
 			p.notifyRetryStopped(ctx, "response_size_limit")
 			return nil, lastErr
@@ -398,7 +406,7 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 	return nil, lastErr
 }
 
-func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*Result, error) {
+func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (_ *Result, resultErr error) {
 	originalWantStream := request.Stream != nil && *request.Stream
 
 	httpReq, err := p.Outbound.TransformRequest(ctx, request)
@@ -420,6 +428,16 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (*R
 
 		return nil, fmt.Errorf("failed to apply raw request middlewares: %w", err)
 	}
+
+	// Keep delivery state outside error transformations: timeouts, aggregation,
+	// and provider error decoding must not make an ambiguous WS send replayable.
+	replayUnsafe := false
+	httpReq.OnReplayUnsafe = func() { replayUnsafe = true }
+	defer func() {
+		if replayUnsafe && resultErr != nil && !errors.Is(resultErr, httpclient.ErrRequestMayHaveExecuted) {
+			resultErr = fmt.Errorf("%w: %w", httpclient.ErrRequestMayHaveExecuted, resultErr)
+		}
+	}()
 
 	executor := p.Executor
 	if c, ok := p.Outbound.(ChannelCustomizedExecutor); ok {

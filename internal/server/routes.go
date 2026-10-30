@@ -197,6 +197,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 	// single-request timeout from apiGroup.
 	responsesWebSocketGroup := server.Group("/", apiMiddlewares...)
 	responsesWebSocketGroup.GET("/v1/responses", handlers.OpenAI.CreateResponseWebSocket(server.Config.LLMRequestTimeout))
+	apiGroup.GET("/codex/models", handlers.OpenAI.ListCodexModels)
 
 	{
 		openaiGroup := apiGroup.Group("/v1")

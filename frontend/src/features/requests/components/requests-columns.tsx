@@ -120,6 +120,23 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       cell: () => null,
     },
     { id: 'apiKeyGroup', accessorFn: (row: Request) => String(row.apiKey?.groupRef ?? 0), enableHiding: false, cell: () => null },
+    ...(permissions.canViewChannels ? ([
+          {
+            id: 'channel',
+            accessorFn: (row) => row.executions?.edges?.[0]?.node?.channel?.id ?? row.channel?.id ?? '',
+            header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.channel')} />,
+            enableSorting: false,
+            enableHiding: true,
+            cell: ({ row }) => (
+              <RequestChannelCell request={row.original} onOpen={() => options?.onBodyClick?.(row.original.id, row.index, 'routing')} />
+            ),
+            filterFn: (row, _id, value) => {
+              if (value.length === 0) return true;
+              const channel = row.original.executions?.edges?.[0]?.node?.channel ?? row.original.channel;
+              return !!channel?.id && value.includes(channel.id);
+            },
+          },
+    ] as ColumnDef<Request>[]) : []),
     {
       id: 'modelID',
       accessorFn: (row) => row.modelID,
@@ -342,21 +359,6 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
     ...(permissions.canViewChannels
       ? ([
           {
-            id: 'channel',
-            accessorFn: (row) => row.executions?.edges?.[0]?.node?.channel?.id ?? row.channel?.id ?? '',
-            header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.channel')} />,
-            enableSorting: false,
-            enableHiding: true,
-            cell: ({ row }) => (
-              <RequestChannelCell request={row.original} onOpen={() => options?.onBodyClick?.(row.original.id, row.index, 'routing')} />
-            ),
-            filterFn: (row, _id, value) => {
-              if (value.length === 0) return true;
-              const channel = row.original.executions?.edges?.[0]?.node?.channel ?? row.original.channel;
-              return !!channel?.id && value.includes(channel.id);
-            },
-          },
-          {
             id: 'provider',
             accessorFn: requestProvider,
             header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.provider')} />,
@@ -469,25 +471,25 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
 
         return (
           <div className='flex min-w-[120px] flex-col gap-0.5'>
+            {request.apiKey && (
+              <button
+                type='button'
+                className='text-primary max-w-[160px] truncate text-left text-xs font-medium hover:underline'
+                onClick={() => options?.onCallerFilter?.('group', String(request.apiKey?.groupRef ?? 0))}
+              >
+                {request.apiKey.groupName || t('requests.filters.ungrouped')}
+              </button>
+            )}
             {request.apiKey?.id ? (
               <button
                 type='button'
-                className='text-primary max-w-[160px] truncate text-left text-xs hover:underline'
+                className='text-muted-foreground max-w-[160px] truncate text-left text-xs hover:underline'
                 onClick={() => options?.onCallerFilter?.('key', request.apiKey!.id!)}
               >
                 {request.apiKey.name}
               </button>
             ) : (
               <span>—</span>
-            )}
-            {request.apiKey && (
-              <button
-                type='button'
-                className='text-muted-foreground max-w-[160px] truncate text-left text-xs hover:underline'
-                onClick={() => options?.onCallerFilter?.('group', String(request.apiKey?.groupRef ?? 0))}
-              >
-                {request.apiKey.groupName || t('requests.filters.ungrouped')}
-              </button>
             )}
           </div>
         );

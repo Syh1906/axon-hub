@@ -26,20 +26,17 @@ export type ResponsesTransport = 'http' | 'websocket';
 
 export const OPENAI_RESPONSES_WEBSOCKET: ApiFormatOption = 'openai/responses-ws';
 
-const OPENAI_RESPONSES_WEBSOCKET_BASE_URL = 'wss://api.openai.com/v1#';
+const OPENAI_RESPONSES_WEBSOCKET_BASE_URL = 'https://api.openai.com/v1#';
 
-const CODEX_RESPONSES_WEBSOCKET_BASE_URL = 'wss://chatgpt.com/backend-api/codex#';
+const CODEX_RESPONSES_WEBSOCKET_BASE_URL = 'https://chatgpt.com/backend-api/codex#';
 
 function getResponsesTransportFromBaseURL(baseURL?: string): ResponsesTransport {
   return baseURL?.trim().toLowerCase().startsWith('ws') ? 'websocket' : 'http';
 }
 
-export function baseURLMatchesResponsesTransport(baseURL: string | undefined, transport: ResponsesTransport): boolean {
+export function baseURLMatchesResponsesTransport(baseURL: string | undefined, _transport: ResponsesTransport): boolean {
   const normalized = baseURL?.trim().toLowerCase() ?? '';
-  if (transport === 'websocket') {
-    return normalized.startsWith('ws://') || normalized.startsWith('wss://');
-  }
-  return normalized.startsWith('http://') || normalized.startsWith('https://');
+  return /^(https?|wss?):\/\//.test(normalized);
 }
 
 export function getInitialApiFormatForRow(row: Channel): ApiFormat {
@@ -123,8 +120,9 @@ export function parseRetryableErrorPatternsInput(value: string): RetryableErrorP
 
 export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'baseURL' | 'endpoints'>): ResponsesTransport {
   const responsesEndpoint = channel?.endpoints?.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES);
+  if (responsesEndpoint?.supportsWebSockets != null) return responsesEndpoint.supportsWebSockets ? 'websocket' : 'http';
   if (responsesEndpoint?.transport === 'http' || responsesEndpoint?.transport === 'websocket') return responsesEndpoint.transport;
-  return getResponsesTransportFromBaseURL(channel?.baseURL);
+  return getResponsesTransportFromBaseURL(responsesEndpoint?.baseURL || channel?.baseURL);
 }
 
 export function getResponsesWebSocketBaseURL(channelType: ChannelType): string | undefined {

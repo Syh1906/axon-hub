@@ -145,6 +145,33 @@ type timeoutAddressOutbound struct{ *mockOutbound }
 
 func (m *timeoutAddressOutbound) CanRetryAfterTimeout(error) bool { return true }
 
+func TestPipeline_DeliveryStatePreventsReplayAfterErrorConversion(t *testing.T) {
+	for _, cause := range []error{ErrNonStreamResponseTimeout, ErrStreamFirstEventTimeout, errors.New("provider decode failed")} {
+		t.Run(cause.Error(), func(t *testing.T) {
+			calls, prepares, switches := 0, 0, 0
+			out := &timeoutAddressOutbound{&mockOutbound{
+				canRetry:        func(error) bool { return true },
+				prepareForRetry: func(context.Context) error { prepares++; return nil },
+				hasMoreChannels: func() bool { return true },
+				nextChannel:     func(context.Context) error { switches++; return nil },
+			}}
+			p := &pipeline{Inbound: &mockInbound{}, Outbound: out, maxSameChannelRetries: 2, maxChannelRetries: 2,
+				Executor: &mockExecutor{do: func(_ context.Context, req *httpclient.Request) (*httpclient.Response, error) {
+					calls++
+					req.OnReplayUnsafe()
+					return nil, cause
+				}},
+			}
+			_, err := p.Process(context.Background(), &httpclient.Request{})
+			require.ErrorIs(t, err, httpclient.ErrRequestMayHaveExecuted)
+			require.ErrorIs(t, err, cause)
+			require.Equal(t, 1, calls)
+			require.Zero(t, prepares)
+			require.Zero(t, switches)
+		})
+	}
+}
+
 func TestPipeline_Process_TimeoutAddressRetryBudget(t *testing.T) {
 	for _, tt := range []struct {
 		name         string

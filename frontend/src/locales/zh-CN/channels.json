@@ -1255,5 +1255,13 @@
   "channels.todayUsage.unpriced": "未计价",
   "channels.todayUsage.loadFailed": "读取失败",
   "channels.todayUsage.timezone": "按 {{timezone}} 的今天统计",
-  "channels.todayUsage.partial": "{{count}} 次请求尚未计价，金额仅包含已计价部分"
+  "channels.todayUsage.partial": "{{count}} 次请求尚未计价，金额仅包含已计价部分",
+  "channels.endpoints.supportsWebSockets": "支持 WebSocket",
+  "channels.endpoints.webSocketsHint": "跟随客户端选择：HTTPS 始终可用；客户端使用 WebSocket 时优先使用，并在安全条件下回退 HTTPS。",
+  "channels.endpoints.catalogURL": "Codex 模型目录地址",
+  "channels.endpoints.catalogURLPlaceholder": "留空使用渠道默认目录地址",
+  "channels.endpoints.catalogURLHint": "仅用于模型发现，将使用本渠道凭据访问；必须是受信任的目录服务。客户端目录地址为 AxonHub 的 /codex/models。",
+  "channels.endpoints.catalogJSON": "自定义 Codex 目录 JSON（可选）",
+  "channels.endpoints.catalogJSONHint": "完整的 Codex models 结构，含模型指令和工具能力；填写后优先于远程目录。slug 对应渠道实际模型 ID。",
+  "channels.endpoints.catalogJSONInvalid": "JSON 格式无效，请修正后保存。"
 }
