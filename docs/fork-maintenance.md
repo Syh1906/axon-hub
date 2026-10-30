@@ -874,6 +874,7 @@ fork 改动，由用户决定。
 ### GitHub 独立发布与两层上游追溯
 
 - `.syh.7` 发布准备：2026-10-30，将 `.syh.6` 之后已提交的默认服务商、图片规格计费、API 密钥分组、金额预算、批量分发、上游钱包及请求筛选／逐次诊断纳入新正式版本。版本文件与更新说明已同步，`prerelease=false`；等待维护分支规定检查通过后创建新 tag，发布完成后补充 Release、工作流及固定镜像摘要。此次不重复本地业务验收，不执行生产部署。
+- `.syh.7` 首轮 CI 修正：`cmd/schema` 独立模块补齐图片解码所需的 `golang.org/x/image v0.45.0` 依赖与校验记录；旧 `PrepareForRetry` 测试改用真实内存执行记录和请求服务，并断言同渠道／下一模型重试决定落库。同包复测还补齐图片成本原始响应测试的真实执行记录与服务，并断言保存 HTTP 200；修正后 orchestrator 包测试通过。仅处理工作流实际失败，生产逻辑和发布检查未降级。
 - 最新正式发布：北京时间 2026-10-29 17:22:33 发布 [v1.0.0-beta10-fork.7.syh.6](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.6)，源码为 `92b62dee691fc1f864bbe9f26935d37b437d655c`；`draft=false`、`prerelease=false`，已核对 GitHub latest 指向该版本，远端 tag 指向同一源码。两层上游基线未变，既有 tag／产物未覆盖。
 - 本次发布内容：`.syh.6` 包含 `7ef215f1` 的 Key 优先级／模型批量关联、`83a82092` 的用量统计／消耗排行榜、`b78f041f` 的渠道全局／标签优先级。相关 topic 已同步版本归属；数据库升级与回退条件见该版本 Release 说明。生产部署单独执行，本次未升级生产机器。
 - `.syh.6` 发布证据：维护分支 [Test](https://github.com/Syh1906/axon-hub/actions/runs/40844893742)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/40844893771)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/40844893768) 均通过后创建 tag；[发布 Actions 40845466280](https://github.com/Syh1906/axon-hub/actions/runs/40845466280) 的测试、双架构镜像、临时 PostgreSQL 17 启动／版本检查、二进制包及部署清单步骤全部成功。附件共 12 个：9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.6/release.json)。已核对 9 个包的 GitHub 服务端摘要与校验和一致，另下载 3 个小附件并核对 SHA-256；未逐个平台运行安装包。

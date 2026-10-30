@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/enttest"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
@@ -24,11 +25,17 @@ import (
 func TestImageCostPersistsWithoutProviderUsage(t *testing.T) {
 	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIImageGeneration), "image-proxy")
 	state := middleware.inbound.state
+	client := ent.FromContext(ctx)
+	_, state.RequestService, _, _ = setupTestServices(t, client)
+	state.RequestExec = client.RequestExecution.Create().SetRequestID(state.Request.ID).
+		SetProjectID(state.Request.ProjectID).SetChannelID(state.RequestExec.ChannelID).
+		SetModelID(state.RequestExec.ModelID).SetFormat(state.Request.Format).
+		SetStatus(requestexecution.StatusProcessing).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeImageFixed, Image: &objects.ImagePricing{Automatic: true, Rules: []objects.ImagePriceRule{{Name: "2K", Fee: decimal.RequireFromString("0.04"), Match: "all"}}}}}}}
 	state.RequestExec.CostSnapshot = &objects.RequestCostSnapshot{Price: &price, PriceReferenceID: "image-ref", PricedAt: time.Now(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
 	state.RawProviderRequest = &httpclient.Request{Body: []byte(`{"resolution":"2k"}`)}
 	// Empty URL avoids any network call; metadata still proves two final outputs.
-	raw := &httpclient.Response{Body: []byte(`{"data":[{"b64_json":"invalid","size":"2048x2048"},{"b64_json":"invalid","size":"2048x2048"}]}`)}
+	raw := &httpclient.Response{StatusCode: 200, Body: []byte(`{"data":[{"b64_json":"invalid","size":"2048x2048"},{"b64_json":"invalid","size":"2048x2048"}]}`)}
 	executionMiddleware := &persistRequestExecutionMiddleware{outbound: &PersistentOutboundTransformer{state: state}}
 	_, err := executionMiddleware.OnOutboundRawResponse(ctx, raw)
 	require.NoError(t, err)
@@ -36,7 +43,7 @@ func TestImageCostPersistsWithoutProviderUsage(t *testing.T) {
 	_, err = middleware.OnOutboundLlmResponse(ctx, response)
 	require.NoError(t, err)
 	require.Nil(t, response.Usage, "must not invent provider token usage")
-	client := ent.FromContext(ctx)
+	require.Equal(t, 200, *client.RequestExecution.GetX(ctx, state.RequestExec.ID).ResponseStatusCode)
 	log, err := client.UsageLog.Query().Only(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, log.TotalCost)

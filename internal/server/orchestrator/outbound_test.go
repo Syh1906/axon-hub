@@ -333,9 +333,23 @@ func TestPersistentOutboundTransformer_TransformRequest_OriginalModelRestoration
 	}
 }
 
+func setupRetryExecution(t *testing.T) (context.Context, *biz.RequestService, *ent.RequestExecution) {
+	t.Helper()
+	client := enttest.NewEntClient(t, "sqlite3", "file:retry_execution?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := ent.NewContext(authz.WithTestBypass(context.Background()), client)
+	project := createTestProject(t, ctx, client)
+	_, service, _, _ := setupTestServices(t, client)
+	req := client.Request.Create().SetProjectID(project.ID).SetModelID("gpt-4").
+		SetStatus(request.StatusPending).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+	execution := client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(project.ID).
+		SetModelID("gpt-4").SetStatus(requestexecution.StatusFailed).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+	return ctx, service, execution
+}
+
 func TestPersistentOutboundTransformer_PrepareForRetry(t *testing.T) {
 	// Setup
-	ctx := context.Background()
+	ctx, requestService, requestExec := setupRetryExecution(t)
 
 	channel := &biz.Channel{
 		Channel: &ent.Channel{
@@ -357,7 +371,8 @@ func TestPersistentOutboundTransformer_PrepareForRetry(t *testing.T) {
 					},
 				},
 				CurrentModelIndex: 0,
-				RequestExec:       &ent.RequestExecution{ID: 1},
+				RequestExec:       requestExec,
+				RequestService:    requestService,
 			},
 		}
 
@@ -368,6 +383,7 @@ func TestPersistentOutboundTransformer_PrepareForRetry(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		require.Zero(t, processor.state.CurrentModelIndex)
+		require.Equal(t, "same_channel", ent.FromContext(ctx).RequestExecution.GetX(ctx, requestExec.ID).RetryDecision)
 		require.Nil(t, processor.state.RequestExec)
 	})
 
@@ -384,7 +400,8 @@ func TestPersistentOutboundTransformer_PrepareForRetry(t *testing.T) {
 					},
 				},
 				CurrentModelIndex: 0,
-				RequestExec:       &ent.RequestExecution{ID: 1},
+				RequestExec:       requestExec,
+				RequestService:    requestService,
 			},
 		}
 
@@ -395,12 +412,13 @@ func TestPersistentOutboundTransformer_PrepareForRetry(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		require.Equal(t, 1, processor.state.CurrentModelIndex)
+		require.Equal(t, "next_model", ent.FromContext(ctx).RequestExecution.GetX(ctx, requestExec.ID).RetryDecision)
 		require.Nil(t, processor.state.RequestExec)
 	})
 }
 
 func TestPersistentOutboundTransformer_PrepareForRetry_UsesCandidateAPIFormatOutbound(t *testing.T) {
-	ctx := context.Background()
+	ctx, requestService, requestExec := setupRetryExecution(t)
 
 	primaryOutbound := &mockTransformer{apiFormat: llm.APIFormatOpenAIChatCompletion}
 	embeddingOutbound := &mockTransformer{apiFormat: llm.APIFormatOpenAIEmbedding}
@@ -427,18 +445,20 @@ func TestPersistentOutboundTransformer_PrepareForRetry_UsesCandidateAPIFormatOut
 				},
 			},
 			CurrentModelIndex: 0,
-			RequestExec:       &ent.RequestExecution{ID: 1},
+			RequestExec:       requestExec,
+			RequestService:    requestService,
 		},
 	}
 
 	err := processor.PrepareForRetry(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, processor.state.CurrentModelIndex)
+	require.Equal(t, "next_model", ent.FromContext(ctx).RequestExecution.GetX(ctx, requestExec.ID).RetryDecision)
 	require.Same(t, embeddingOutbound, processor.wrapped)
 }
 
 func TestPersistentOutboundTransformer_PrepareForRetry_RefreshesModelAPIFormat(t *testing.T) {
-	ctx := context.Background()
+	ctx, requestService, requestExec := setupRetryExecution(t)
 	ch := &biz.Channel{Channel: &ent.Channel{
 		ID:   1,
 		Name: "multi-model",
@@ -472,14 +492,17 @@ func TestPersistentOutboundTransformer_PrepareForRetry_RefreshesModelAPIFormat(t
 			CurrentModelIndex: 0,
 			OriginalModel:     req.Model,
 			LlmRequest:        req,
-			RequestExec:       &ent.RequestExecution{ID: 1},
+			RequestExec:       requestExec,
+			RequestService:    requestService,
 		},
 	}
 
 	require.Equal(t, llm.APIFormatAnthropicMessage.String(), candidate.APIFormat)
 	require.NoError(t, processor.PrepareForRetry(ctx))
 	require.Equal(t, 1, processor.state.CurrentModelIndex)
+	require.Equal(t, "next_model", ent.FromContext(ctx).RequestExecution.GetX(ctx, requestExec.ID).RetryDecision)
 	require.Equal(t, llm.APIFormatOpenAIResponse.String(), candidate.APIFormat)
+	require.Equal(t, "next_model", ent.FromContext(ctx).RequestExecution.GetX(ctx, requestExec.ID).RetryDecision)
 }
 
 func TestPersistentOutboundTransformer_NextChannel_UsesCandidateAPIFormatOutbound(t *testing.T) {
