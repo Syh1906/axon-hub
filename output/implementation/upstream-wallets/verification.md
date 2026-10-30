@@ -111,4 +111,6 @@ GraphQL 追加账号 `balanceErrorCode`，已同步 Go 对象、schema、生成�
 - `node --test frontend/src/features/channels/data/channel-upstream-refresh.test.mjs frontend/src/features/key-groups/drafts.test.mjs`：12/12 通过。
 - `git diff --check`、暂存差异检查、无未解决冲突检查通过。主工作树与已验证功能分支代码树完全一致，原主线提交仍包含在历史中；183 个原未跟踪文件列表保持一致，没有暂存或覆盖这些文件。
 
-此前外置的 8 张修复截图已复制到本目录，链接改为相对路径，避免清理工作树后丢失验收材料。未运行 lint/build，未重复无改动范围的浏览器验收；真实厂商账号未联调与全站 TypeScript 未通过的限制仍保持。此次仅合并本地源码，不推送远程、不打发布 tag、不部署线上。临时工作树随后通过 Codex 的受管归档流程回收，并保留可恢复记录。
+此前外置的 8 张修复截图已复制到本目录，链接改为相对路径，避免清理工作树后丢失验收材料。未运行 lint/build，未重复无改动范围的浏览器验收；真实厂商账号未联调与全站 TypeScript 未通过的限制仍保持。此次仅合并本地源码，不推送远程、不打发布 tag、不部署线上。
+
+清理状态：已将被 Git 忽略的生图资料共 19 个文件保存到主项目 `output/imagegen/worktree-archives/upstream-wallets-20261030`，逐文件 SHA-256 一致。随后调用 Codex `archive_worktree` 被拒绝，原始错误为 `The task's primary checkout cannot be removed.`。临时工作树仍保留，未改用通用删除命令；需先将本会话主工作目录切回 `F:/GitProject/axon-hub`，再恢复受管清理。合并已经完成，不受该清理限制影响。
