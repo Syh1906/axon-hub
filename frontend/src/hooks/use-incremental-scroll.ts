@@ -7,9 +7,9 @@ export type IncrementalScrollOptions = {
   hasMore: boolean;
   error: boolean;
   onLoadMore: () => void;
-  onTrim: (rowCount: number) => void;
-  onReset: () => void;
-  onAtTopChange: (atTop: boolean) => void;
+  onTrim?: (rowCount: number) => void;
+  onReset: () => void | Promise<unknown>;
+  onAtTopChange: (atTop: boolean, reason?: 'scroll' | 'reset') => void;
 };
 
 export function useIncrementalScroll(options: IncrementalScrollOptions) {
@@ -21,26 +21,34 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
   const direction = useRef<'up' | 'down'>('down');
   const [atTop, setAtTop] = useState(true);
   const atTopRef = useRef(true);
+  const trimTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearTrim = useCallback(() => {
+    if (trimTimer.current !== undefined) clearTimeout(trimTimer.current);
+    trimTimer.current = undefined;
+  }, []);
+  useEffect(() => clearTrim, [clearTrim]);
 
   const backToTop = useCallback(() => {
+    clearTrim();
     containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     lastTop.current = 0;
     direction.current = 'up';
     setAtTop(true);
     atTopRef.current = true;
-    optionsRef.current.onAtTopChange(true);
-    optionsRef.current.onReset();
-  }, []);
+    optionsRef.current.onAtTopChange(true, 'reset');
+    return optionsRef.current.onReset();
+  }, [clearTrim]);
 
   useEffect(() => {
+    clearTrim();
     const container = containerRef.current;
     if (container) container.scrollTop = 0;
     lastTop.current = 0;
     direction.current = 'down';
     setAtTop(true);
     atTopRef.current = true;
-    optionsRef.current.onAtTopChange(true);
-  }, [options.resetKey]);
+    optionsRef.current.onAtTopChange(true, 'reset');
+  }, [options.resetKey, clearTrim]);
 
   const onScroll = useCallback(() => {
     const container = containerRef.current;
@@ -53,12 +61,19 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
     if (atTopRef.current !== isTop) {
       atTopRef.current = isTop;
       setAtTop(isTop);
-      current.onAtTopChange(isTop);
+      current.onAtTopChange(isTop, 'scroll');
     }
-    if (direction.current === 'up' && !current.fetching) {
-      if (isTop) {
-        current.onTrim(0);
-      } else {
+    clearTrim();
+    if (current.onTrim && direction.current === 'up') {
+      // 连续滚动只记位置。停止后才回收尾部批次，避免每个滚动事件
+      // 都强制布局并取消查询，造成卡顿和上下往返时的重复取数。
+      trimTimer.current = setTimeout(() => {
+        const latest = optionsRef.current;
+        if (latest.fetching || !latest.onTrim) return;
+        if (container.scrollTop <= 8) {
+          latest.onTrim(0);
+          return;
+        }
         // Keep everything above the viewport and one viewport below it. Only
         // complete trailing batches are released; the reading anchor never moves.
         const boundary = container.getBoundingClientRect().bottom + container.clientHeight;
@@ -66,8 +81,8 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
         for (const row of container.querySelectorAll<HTMLElement>('[data-scroll-index]')) {
           if (row.getBoundingClientRect().top <= boundary) keepRows = Math.max(keepRows, Number(row.dataset.scrollIndex) + 1);
         }
-        current.onTrim(keepRows);
-      }
+        latest.onTrim(keepRows);
+      }, 180);
     }
     if (
       direction.current === 'down' &&
@@ -78,7 +93,7 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
     ) {
       current.onLoadMore();
     }
-  }, []);
+  }, [clearTrim]);
 
   useEffect(() => {
     const container = containerRef.current,

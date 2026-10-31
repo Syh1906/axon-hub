@@ -131,3 +131,13 @@ test('automatic batches skip disabled sync and unsupported keys; explicit refres
   assert.equal(calls, 1);
   await assert.rejects(refreshUpstreamChannels([state], { channelIds: ['c'], keyRef: 'missing' }, refresh));
 });
+
+
+test('incremental channel pages refresh only new channels, while filter changes recheck the page', async () => {
+  const { channelsNeedingPageRefresh } = await import('./channel-upstream-refresh.ts');
+  assert.deepEqual(channelsNeedingPageRefresh([], ['a', 'b']), ['a', 'b']);
+  assert.deepEqual(channelsNeedingPageRefresh(['a', 'b'], ['a', 'b', 'c', 'd']), ['c', 'd']);
+  assert.deepEqual(channelsNeedingPageRefresh(['a', 'b', 'c'], ['a', 'b']), []);
+  assert.deepEqual(channelsNeedingPageRefresh(['a', 'b'], ['a', 'b']), []);
+  assert.deepEqual(channelsNeedingPageRefresh(['a', 'b'], ['c', 'b']), ['c', 'b']);
+});

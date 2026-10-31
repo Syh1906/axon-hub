@@ -517,6 +517,8 @@ type RemoveUserFromProjectInput struct {
 }
 
 type RequestLogFilterInput struct {
+	// Skip this many matching requests for page navigation; cannot be combined with cursors.
+	Offset            *int                      `json:"offset,omitempty"`
 	ChannelTagsIn     []string                  `json:"channelTagsIn,omitempty"`
 	APIKeyGroupRefsIn []int                     `json:"apiKeyGroupRefsIn,omitempty"`
 	TimeRange         *RequestLogTimeRangeInput `json:"timeRange,omitempty"`

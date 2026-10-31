@@ -23,7 +23,7 @@ export function IncrementalListFooter({
 }) {
   const { t } = useTranslation();
   return (
-    <div className='text-muted-foreground flex min-h-10 shrink-0 items-center justify-between gap-3 pt-2 text-xs'>
+    <div className='text-muted-foreground flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-3 pt-2 text-xs'>
       <span>{t('common.incremental.loaded', { count: loaded, total: total ?? loaded })}</span>
       <div className='flex items-center gap-2'>
         {loading ? (
@@ -42,7 +42,7 @@ export function IncrementalListFooter({
           <Button
             size='icon'
             variant='outline'
-            className='fixed right-6 bottom-6 z-30 rounded-full shadow-md'
+            className='size-8 shrink-0 rounded-full'
             onClick={onBackToTop}
             aria-label={t('common.incremental.backToTop')}
             title={t('common.incremental.backToTop')}

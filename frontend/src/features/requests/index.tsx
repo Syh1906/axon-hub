@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,7 +19,7 @@ import type { ConsumptionPeriod } from '@/features/consumption/data/consumption'
 import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
-import { useInfiniteRequests, useRequestLogTimezone } from './data';
+import { useInfiniteRequests, useRequests, useRequestLogTimezone } from './data';
 
 const REQUEST_FILTER_SEARCH_KEYS = {
   status: 'status',
@@ -36,7 +36,7 @@ const REQUEST_FILTER_SEARCH_KEYS = {
   createdAtEndTime: 'createdAtEndTime',
 } as const;
 
-const REQUEST_CURSOR_SEARCH_KEYS = ['startCursor', 'endCursor', 'cursorDirection', 'cursorHistory'] as const;
+const REQUEST_CURSOR_SEARCH_KEYS = ['startCursor', 'endCursor', 'cursorDirection', 'cursorHistory', 'page'] as const;
 
 type RequestSearchFilters = RequestTableFilters & {
   dateRange?: DateTimeRangeValue;
@@ -188,6 +188,16 @@ function RequestsContent() {
     defaultPageSize: 20,
     pageSizeStorageKey: 'requests-table-page-size',
   });
+  const [listMode, setListMode] = useState<'infinite' | 'pages'>(() => {
+    if (currentSearch.listMode === 'pages' || currentSearch.listMode === 'infinite') return currentSearch.listMode;
+    try {
+      return localStorage.getItem('requests-list-mode') === 'pages' ? 'pages' : 'infinite';
+    } catch {
+      return 'infinite';
+    }
+  });
+  const pageValue = Number(currentSearch.page);
+  const page = Number.isSafeInteger(pageValue) && pageValue > 0 ? pageValue : 1;
   const { statusFilter, sourceFilter, channelFilter, channelTagFilter, apiKeyGroupFilter, apiKeyFilter, modelIDFilter, dateRange } =
     useMemo(() => parseRequestSearchFilters(currentSearch), [currentSearch]);
   const { data: timezone } = useRequestLogTimezone();
@@ -201,7 +211,7 @@ function RequestsContent() {
   const [autoRefreshInterval, setAutoRefreshInterval] = useAutoRefreshInterval('requests-auto-refresh-interval-ms');
 
   // Build where clause with filters
-  const whereClause = (() => {
+  const whereClause = useMemo(() => {
     const where: { [key: string]: any } = {
       timeRange: {
         period,
@@ -227,36 +237,60 @@ function RequestsContent() {
       where.modelIDContainsFold = debouncedModelIDFilter;
     }
     return Object.keys(where).length > 0 ? where : undefined;
-  })();
+  }, [
+    period,
+    dateRange,
+    channelTagFilter,
+    apiKeyGroupFilter,
+    statusFilter,
+    sourceFilter,
+    channelFilter,
+    apiKeyFilter,
+    debouncedModelIDFilter,
+  ]);
 
   const [atTop, setAtTop] = useState(true);
-  const query = useInfiniteRequests(whereClause, pageSize);
+  const topRef = useRef(true);
+  const infinite = useInfiniteRequests(whereClause, 50, listMode === 'infinite');
+  const paged = useRequests(
+    { first: pageSize, where: { ...whereClause, offset: (page - 1) * pageSize }, orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
+    { enabled: listMode === 'pages', keepPreviousPage: true }
+  );
+  const query = listMode === 'infinite' ? infinite : paged;
   const { data, isLoading, refetch } = query;
   const requests = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data?.edges]);
   const pageInfo = data?.pageInfo;
+  const refreshActive = atTop && (listMode === 'infinite' || page === 1);
   const autoRefreshResumeKey = useInterval(
-    () => { if (!query.isFetching) void refetch(); },
-    atTop ? autoRefreshInterval : null,
+    () => {
+      if (!query.isFetching) void refetch();
+    },
+    refreshActive ? autoRefreshInterval : null,
     { refreshOnResume: true }
   );
   const scroll = {
-    resetKey: query.resetKey,
-    loadingMore: query.isFetchingNextPage,
+    resetKey: `${infinite.resetKey}:${listMode}:${page}`,
+    loadingMore: listMode === 'infinite' && infinite.isFetchingNextPage,
     fetching: query.isFetching,
-    hasMore: !!query.hasNextPage,
+    hasMore: listMode === 'infinite' && !!infinite.hasNextPage,
     error: query.isError,
-    onLoadMore: query.loadMore,
-    onTrim: query.trimAfter,
-    onReset: query.resetToTop,
-    onAtTopChange: (value: boolean) => {
+    onLoadMore: infinite.loadMore,
+    onReset: () => (listMode === 'infinite' ? infinite.resetToTop() : paged.refetch()),
+    onAtTopChange: (value: boolean, reason?: 'scroll' | 'reset') => {
+      const wasAtTop = topRef.current;
+      topRef.current = value;
       setAtTop(value);
-      if (!value) query.pauseRefresh();
+      if (listMode === 'infinite') {
+        if (!value) infinite.pauseRefresh();
+        else if (!wasAtTop && reason === 'scroll') void infinite.resetToTop();
+      }
     },
   };
 
   const updateRequestSearch = useCallback(
     (apply: (draft: Record<string, unknown>) => void) => {
       navigate({
+        to: '/project/requests',
         search: (prev: Record<string, unknown> | undefined) => {
           const draft = { ...((prev ?? {}) as Record<string, unknown>) };
           apply(draft);
@@ -268,6 +302,28 @@ function RequestsContent() {
     },
     [navigate]
   );
+  const handleListModeChange = (mode: 'infinite' | 'pages') => {
+    if (mode === 'pages') void infinite.trimAfter(0);
+    setListMode(mode);
+    try {
+      localStorage.setItem('requests-list-mode', mode);
+    } catch {
+      /* 保留本次选择。 */
+    }
+    updateRequestSearch((draft) => {
+      draft.listMode = mode;
+    });
+  };
+  const handlePageSizeChange = (size: number) => {
+    try {
+      localStorage.setItem('requests-table-page-size', String(size));
+    } catch {
+      /* 保留 URL 中的设置。 */
+    }
+    updateRequestSearch((draft) => {
+      draft.pageSize = size;
+    });
+  };
 
   const handleFiltersChange = useCallback(
     (filters: RequestTableFilters) => {
@@ -359,7 +415,7 @@ function RequestsContent() {
         data={requests}
         loading={isLoading}
         pageInfo={pageInfo}
-        pageSize={pageSize}
+        pageSize={listMode === 'infinite' ? 50 : pageSize}
         totalCount={data?.totalCount}
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
@@ -371,14 +427,28 @@ function RequestsContent() {
         dateRange={dateRange}
         queryWhere={whereClause}
         scroll={scroll}
+        listMode={listMode}
+        onListModeChange={handleListModeChange}
+        pagination={{
+          page,
+          pageSize,
+          totalCount: data?.totalCount,
+          loading: query.isFetching,
+          onPageSizeChange: handlePageSizeChange,
+          onPageChange: (next) =>
+            navigate({ to: '/project/requests', search: (prev: Record<string, unknown>) => ({ ...prev, page: next }), replace: true }),
+        }}
         onFiltersChange={handleFiltersChange}
         onDateRangeChange={handleDateRangeChange}
         onResetFilters={handleResetFilters}
         onViewDetail={handleViewDetail}
-        showRefresh={atTop}
+        showRefresh={refreshActive}
         autoRefreshInterval={autoRefreshInterval}
         autoRefreshResumeKey={autoRefreshResumeKey}
-        onAutoRefreshIntervalChange={setAutoRefreshInterval}
+        onAutoRefreshIntervalChange={(interval) => {
+          setAutoRefreshInterval(interval);
+          if (interval !== null && refreshActive && !query.isFetching) void refetch();
+        }}
       />
     </div>
   );

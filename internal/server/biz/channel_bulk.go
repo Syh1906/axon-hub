@@ -95,11 +95,6 @@ func (svc *ChannelService) BulkCreateChannels(ctx context.Context, input BulkCre
 	}
 
 	err = svc.RunInTransaction(ctx, func(ctx context.Context) error {
-		priceTemplates, err := svc.resolveChannelModelPriceTemplates(ctx, input.SupportedModels)
-		if err != nil {
-			return err
-		}
-
 		for _, apiKey := range input.APIKeys {
 			// Generate unique channel name with numbering
 			channelName := fmt.Sprintf("%s - (%d)", input.Name, counter)
@@ -131,10 +126,6 @@ func (svc *ChannelService) BulkCreateChannels(ctx context.Context, input BulkCre
 			ch, err := svc.createChannel(ctx, createInput)
 			if err != nil {
 				return fmt.Errorf("failed to create channel '%s': %w", channelName, err)
-			}
-
-			if _, err := svc.applyChannelModelPriceTemplates(ctx, ch.ID, priceTemplates); err != nil {
-				return fmt.Errorf("failed to auto-configure prices for channel '%s': %w", channelName, err)
 			}
 
 			createdChannels = append(createdChannels, ch)
@@ -305,10 +296,6 @@ func (svc *ChannelService) BulkImportChannels(ctx context.Context, items []*Bulk
 				SetDefaultTestModel(item.DefaultTestModel).
 				Save(ctx)
 			if err != nil {
-				return err
-			}
-
-			if _, err := svc.ensureChannelModelPrices(ctx, createdChannel.ID, item.SupportedModels); err != nil {
 				return err
 			}
 

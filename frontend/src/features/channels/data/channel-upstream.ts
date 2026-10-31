@@ -5,7 +5,7 @@ import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useErrorHandler } from '@/hooks/use-error-handler';
-import { publishUpstreamStates, refreshUpstreamChannels, type UpstreamRefreshOptions } from './channel-upstream-refresh';
+import { channelsNeedingPageRefresh, publishUpstreamStates, refreshUpstreamChannels, type UpstreamRefreshOptions } from './channel-upstream-refresh';
 import { channelUpstreamStateSchema, type ChannelUpstreamState, type UpstreamInput } from './schema';
 
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
@@ -25,6 +25,7 @@ export const upstreamStateFields = `channelId provider manualMultiplier keySessi
 export function useChannelUpstreamStates(channelIds: string[]) {
   return useQuery({
     queryKey: ['channel-upstream', channelIds],
+    gcTime: 60_000,
     enabled: channelIds.length > 0,
     queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(
@@ -103,10 +104,11 @@ export function useRefreshUpstreamOnPage(channelIds: string[], canWrite: boolean
       return;
     }
     if (!canWrite || lastPage.current === signature) return;
+    const channelIds = channelsNeedingPageRefresh(lastPage.current ? lastPage.current.split('|') : [], signature.split('|'));
     lastPage.current = signature;
     // The server checks due times. Start after the list snapshot is available,
     // without waiting for each row's upstream request to finish rendering.
-    mutate({ channelIds: signature.split('|'), silent: true });
+    if (channelIds.length > 0) mutate({ channelIds, silent: true });
   }, [canWrite, signature, mutate]);
 }
 

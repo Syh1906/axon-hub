@@ -156,12 +156,7 @@ func (svc *ChannelService) syncChannelModelsForChannel(ctx context.Context, ch *
 			updatedCh = channel
 		}
 
-		pricesChanged, err := svc.ensureChannelModelPrices(ctx, ch.ID, mergedModels)
-		if err != nil {
-			return err
-		}
-
-		changed = modelsChanged || modelProtocolsChanged || pricesChanged
+		changed = modelsChanged || modelProtocolsChanged
 
 		return nil
 	})

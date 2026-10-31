@@ -76,6 +76,8 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
     enabled: enabled && (view === 'leaderboard' || !!projectID),
     refetchInterval: 60_000,
     staleTime: 30_000,
+    gcTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 

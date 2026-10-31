@@ -1,11 +1,12 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type RefObject } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, CornerDownRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/utils/format-number';
 import { Button } from '@/components/ui/button';
-import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import type { ConsumptionDimension, ConsumptionEntry, ConsumptionMetric, ConsumptionMetrics } from '../data/consumption';
 
 type MetricKey = keyof ConsumptionMetrics;
@@ -31,7 +32,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
     return [
       { key: 'requestCount', format: 'number' },
       { key: 'totalTokens', format: 'tokens' },
-      { key: 'cacheHitRate', format: 'percent', tooltip: 'cacheHitRateHelp' },
+      { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
       { key: 'totalCost', format: 'currency' },
     ];
   return [
@@ -44,6 +45,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
     { key: 'avgCostPerRequest', format: 'currency' },
     { key: 'avgCostPerMillionTokens', format: 'currency' },
     { key: 'cacheCoefficient', format: 'coefficient', tooltip: 'cacheCoefficientHelp' },
+    { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
   ];
 }
 
@@ -53,17 +55,19 @@ export function ConsumptionTable({
   metric,
   currencyCode,
   expandable = true,
+  scrollRef,
 }: {
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
   metric: ConsumptionMetric;
   currencyCode: string;
   expandable?: boolean;
+  scrollRef: RefObject<HTMLDivElement | null>;
 }) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<{ key: MetricKey; direction: 'asc' | 'desc' } | null>(null);
-  const columns = columnsFor(dimension, metric);
+  const columns = useMemo(() => columnsFor(dimension, metric), [dimension, metric]);
   const visibleSort = sort && columns.some((column) => column.key === sort.key) ? sort : null;
   const sorted = useMemo(() => {
     if (!visibleSort) return entries;
@@ -77,6 +81,30 @@ export function ConsumptionTable({
       return (left - right) * (direction === 'asc' ? 1 : -1);
     });
   }, [entries, visibleSort]);
+  // Flatten expanded models so a single large entity cannot mount an unbounded subtree.
+  const rows = useMemo(
+    () =>
+      sorted.flatMap((entry, rank) => [
+        { key: entry.id, entry, rank, model: null as ConsumptionEntry['models'][number] | null },
+        ...(expandable && expanded.has(entry.id)
+          ? entry.models.map((model) => ({ key: `${entry.id}:${model.model}`, entry, rank, model }))
+          : []),
+      ]),
+    [sorted, expanded, expandable]
+  );
+  const getItemKey = useCallback((index: number) => rows[index].key, [rows]);
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    getItemKey,
+    estimateSize: () => 64,
+    overscan: 6,
+    scrollMargin: 58,
+    useFlushSync: false,
+  });
+  const items = virtualizer.getVirtualItems();
+  const top = Math.max(0, (items[0]?.start ?? 58) - 58);
+  const bottom = Math.max(0, virtualizer.getTotalSize() - ((items.at(-1)?.end ?? 58) - 58));
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const formatMetric = (value: number | null, column: Column) => {
     if (value === null) return '—';
@@ -118,10 +146,17 @@ export function ConsumptionTable({
   return (
     <Table
       className={cn(
-        'consumption-table border-separate border-spacing-0',
-        dimension === 'CHANNEL' && metric === 'COST' ? 'min-w-[1200px]' : 'min-w-[720px]'
+        'consumption-table table-fixed border-separate border-spacing-0',
+        dimension === 'CHANNEL' && metric === 'COST' ? 'min-w-[1600px]' : 'min-w-[900px]'
       )}
     >
+      <colgroup>
+        <col style={{ width: 56 }} />
+        <col style={{ width: dimension === 'CHANNEL' ? 280 : 380 }} />
+        {columns.map((column) => (
+          <col key={column.key} />
+        ))}
+      </colgroup>
       <TableHeader className='sticky top-0 z-10 bg-[var(--table-header)]'>
         <TableRow>
           <TableHead className='w-14 text-center'>{t('consumption.rank')}</TableHead>
@@ -166,80 +201,87 @@ export function ConsumptionTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sorted.map((entry, index) => {
+        {top > 0 && (
+          <tr aria-hidden='true'>
+            <td colSpan={columns.length + 2} style={{ height: top, padding: 0, border: 0 }} />
+          </tr>
+        )}
+        {items.map((item) => {
+          const { entry, rank: index, model } = rows[item.index];
+          if (model)
+            return (
+              <TableRow key={item.key} ref={virtualizer.measureElement} data-index={item.index} className='consumption-model-row'>
+                <TableCell aria-hidden />
+                <TableCell className='text-center font-medium'>
+                  <div className='flex min-w-0 items-center justify-center gap-3 px-6'>
+                    <CornerDownRight className='text-muted-foreground size-4 shrink-0' aria-hidden />
+                    <span className='truncate' title={model.model}>
+                      {model.model}
+                    </span>
+                  </div>
+                </TableCell>
+                {metricCells(model.metrics, true)}
+              </TableRow>
+            );
           const hasModels = expandable && entry.models.length > 0;
           const isExpanded = hasModels && expanded.has(entry.id);
           return (
-            <Fragment key={entry.id}>
-              <ExpandableTableRow
-                expanded={isExpanded}
-                onToggle={hasModels ? () => toggle(entry.id) : undefined}
-                className={cn('consumption-parent-row', isExpanded && 'consumption-parent-open')}
-              >
-                <TableCell className='text-muted-foreground text-center'>
-                  <span
-                    className={cn(
-                      'inline-flex size-6 items-center justify-center rounded-md',
-                      index === 0 && 'border border-amber-400/50 bg-amber-400/25 font-semibold text-amber-700 dark:text-amber-300',
-                      index === 1 && 'border border-slate-400/40 bg-slate-300/25 font-semibold text-slate-600 dark:text-slate-300',
-                      index === 2 && 'border border-orange-400/40 bg-orange-300/25 font-semibold text-orange-700 dark:text-orange-300'
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                </TableCell>
-                <TableCell className='text-center font-medium'>
-                  {hasModels ? (
-                    <div className='px-14'>
-                      <Button
-                        variant='ghost'
-                        className='relative h-auto max-w-full justify-center px-0 py-1'
-                        aria-expanded={isExpanded}
-                        aria-label={t(isExpanded ? 'consumption.collapseEntity' : 'consumption.expandEntity', { name: entry.name })}
-                        onClick={() => toggle(entry.id)}
-                      >
-                        <span className='absolute top-1/2 right-full mr-2 -translate-y-1/2' aria-hidden>
-                          {isExpanded ? <ChevronDown /> : <ChevronRight />}
-                        </span>
-                        <span className='max-w-72 truncate' title={entry.name}>
-                          {entry.name}
-                        </span>
-                        <span className='text-muted-foreground absolute top-1/2 left-full ml-2 -translate-y-1/2 text-xs font-normal'>
-                          {t('consumption.modelCount', { count: entry.models.length })}
-                        </span>
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className='mx-auto block max-w-72 truncate' title={entry.name}>
-                      {entry.name}
-                    </span>
+            <ExpandableTableRow
+              key={item.key}
+              ref={virtualizer.measureElement}
+              data-index={item.index}
+              expanded={isExpanded}
+              onToggle={hasModels ? () => toggle(entry.id) : undefined}
+              className={cn('consumption-parent-row', isExpanded && 'consumption-parent-open')}
+            >
+              <TableCell className='text-muted-foreground text-center'>
+                <span
+                  className={cn(
+                    'inline-flex size-6 items-center justify-center rounded-md',
+                    index === 0 && 'border border-amber-400/50 bg-amber-400/25 font-semibold text-amber-700 dark:text-amber-300',
+                    index === 1 && 'border border-slate-400/40 bg-slate-300/25 font-semibold text-slate-600 dark:text-slate-300',
+                    index === 2 && 'border border-orange-400/40 bg-orange-300/25 font-semibold text-orange-700 dark:text-orange-300'
                   )}
-                </TableCell>
-                {metricCells(entry.metrics)}
-              </ExpandableTableRow>
-              {isExpanded &&
-                entry.models.map((model) => (
-                  <TableRow key={`${entry.id}:${model.model}`} className='consumption-model-row'>
-                    <TableCell aria-hidden />
-                    <TableCell className='text-center font-medium'>
-                      <div className='px-6'>
-                        <span className='relative inline-block max-w-full align-middle'>
-                          <CornerDownRight
-                            className='text-muted-foreground absolute top-1/2 right-full mr-3 size-4 -translate-y-1/2'
-                            aria-hidden
-                          />
-                          <span className='block max-w-72 truncate' title={model.model}>
-                            {model.model}
-                          </span>
-                        </span>
-                      </div>
-                    </TableCell>
-                    {metricCells(model.metrics, true)}
-                  </TableRow>
-                ))}
-            </Fragment>
+                >
+                  {index + 1}
+                </span>
+              </TableCell>
+              <TableCell className='text-center font-medium'>
+                {hasModels ? (
+                  <div className='px-14'>
+                    <Button
+                      variant='ghost'
+                      className='relative h-auto max-w-full justify-center px-0 py-1'
+                      aria-expanded={isExpanded}
+                      aria-label={t(isExpanded ? 'consumption.collapseEntity' : 'consumption.expandEntity', { name: entry.name })}
+                      onClick={() => toggle(entry.id)}
+                    >
+                      <span className='absolute top-1/2 right-full mr-2 -translate-y-1/2' aria-hidden>
+                        {isExpanded ? <ChevronDown /> : <ChevronRight />}
+                      </span>
+                      <span className='max-w-72 truncate' title={entry.name}>
+                        {entry.name}
+                      </span>
+                      <span className='text-muted-foreground absolute top-1/2 left-full ml-2 -translate-y-1/2 text-xs font-normal'>
+                        {t('consumption.modelCount', { count: entry.models.length })}
+                      </span>
+                    </Button>
+                  </div>
+                ) : (
+                  <span className='mx-auto block max-w-72 truncate' title={entry.name}>
+                    {entry.name}
+                  </span>
+                )}
+              </TableCell>
+              {metricCells(entry.metrics)}
+            </ExpandableTableRow>
           );
         })}
+        {bottom > 0 && (
+          <tr aria-hidden='true'>
+            <td colSpan={columns.length + 2} style={{ height: bottom, padding: 0, border: 0 }} />
+          </tr>
+        )}
       </TableBody>
     </Table>
   );

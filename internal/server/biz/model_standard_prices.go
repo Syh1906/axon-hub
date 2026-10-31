@@ -19,8 +19,8 @@ func (svc *ModelService) MatchModelStandardPrices(ctx context.Context, modelIDs 
 	return matchModelStandardPrices(ctx, svc.entFromContext(ctx), modelIDs)
 }
 
-// Management price matching includes disabled catalog entries, as automatic
-// channel price initialization already does. Runtime routing remains enabled-only.
+// Manual price matching includes disabled catalog entries. It never writes a
+// channel override; runtime routing remains enabled-only.
 func matchModelStandardPrices(ctx context.Context, db *ent.Client, modelIDs []string) ([]*ModelStandardPriceMatch, error) {
 	modelIDs = uniqueNonEmptyModelIDs(modelIDs)
 	result := make([]*ModelStandardPriceMatch, 0, len(modelIDs))

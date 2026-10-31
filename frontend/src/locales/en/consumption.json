@@ -60,5 +60,6 @@
   "consumption.updatedAt": "Updated at {{time}}",
   "consumption.dimensions.API_KEY_GROUP": "Key groups",
   "consumption.entityColumns.API_KEY_GROUP": "Key group / Model",
-  "consumption.allGroups": "All groups"
+  "consumption.allGroups": "All groups",
+  "consumption.overallCacheHitRateHelp": "Cache-read tokens divided by input tokens from all requests, including cache misses. Shown as — when there are no input tokens."
 }

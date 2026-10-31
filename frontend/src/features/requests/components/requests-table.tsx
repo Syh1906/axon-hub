@@ -14,7 +14,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { readColumnOrder, writeColumnOrder, reconcileColumnOrder, isReorderableColumn } from '@/lib/column-order';
 import type { DateTimeRangeValue } from '@/utils/date-range';
@@ -23,22 +22,21 @@ import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use
 import { useIsMobile, MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { useAnimatedList } from '@/hooks/useAnimatedList';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { Table, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IncrementalListFooter } from '@/components/incremental-list-footer';
 import { Request, RequestConnection } from '../data/schema';
 import { DataTableToolbar } from './data-table-toolbar';
 import { RequestBodyDrawer } from './request-body-drawer';
 import type { RequestDiagnosticTab } from './request-log-cells';
 import { DEFAULT_HIDDEN_COLUMN_IDS, DEFAULT_MOBILE_HIDDEN_COLUMN_IDS, useRequestsColumns } from './requests-columns';
+import { RequestsPagination, type RequestsPaginationProps } from './requests-pagination';
+import { RequestsTableBody, REQUEST_COLUMN_WIDTHS } from './requests-table-body';
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'requests-table-column-visibility';
 const COLUMN_VISIBILITY_STORAGE_VERSION = 7;
 
 const COLUMN_ORDER_STORAGE_KEY = 'requests-table-column-order';
 const COLUMN_ORDER_STORAGE_VERSION = 2;
-
-const MotionTableRow = motion.create(TableRow);
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -63,6 +61,9 @@ interface RequestsTableProps {
   dateRange?: DateTimeRangeValue;
   queryWhere?: Record<string, any>;
   scroll: IncrementalScrollOptions;
+  listMode: 'infinite' | 'pages';
+  onListModeChange: (mode: 'infinite' | 'pages') => void;
+  pagination: RequestsPaginationProps;
   onFiltersChange: (filters: RequestTableFilters) => void;
   onDateRangeChange: (range: DateTimeRangeValue | undefined) => void;
   onResetFilters: () => void;
@@ -109,6 +110,9 @@ export function RequestsTable({
   dateRange,
   queryWhere,
   scroll,
+  listMode,
+  onListModeChange,
+  pagination,
   onFiltersChange,
   onDateRangeChange,
   onResetFilters,
@@ -376,6 +380,17 @@ export function RequestsTable({
         showRefresh
         refreshControls={
           <>
+            <Select value={listMode} onValueChange={onListModeChange}>
+              <SelectTrigger className='h-8 w-28' aria-label={t('requests.pagination.mode')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value='infinite'>{t('requests.pagination.infinite')}</SelectItem>
+                  <SelectItem value='pages'>{t('requests.pagination.pages')}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             {!showRefresh && autoRefreshInterval !== null && (
               <span className='text-muted-foreground text-xs'>{t('requests.refresh.paused')}</span>
             )}
@@ -403,6 +418,8 @@ export function RequestsTable({
           </>
         }
         autoRefreshInterval={autoRefreshInterval}
+        autoRefreshActive={showRefresh}
+        refreshing={scroll.fetching && !scroll.loadingMore}
         onAutoRefreshIntervalChange={onAutoRefreshIntervalChange}
         enableColumnOrdering
         getColumnLabel={(id) => t(`requests.columns.${id}`, { defaultValue: id })}
@@ -411,10 +428,19 @@ export function RequestsTable({
         ref={scrolling.containerRef}
         onScroll={scrolling.onScroll}
         data-testid='requests-scroll'
-        className='shadow-soft relative mt-2 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)] sm:mt-4'
+        className='shadow-soft relative mt-2 min-h-0 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)] [overflow-anchor:none] sm:mt-4'
       >
-        <div className='min-w-max'>
-          <Table data-testid='requests-table' className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'>
+        <div className='w-full'>
+          <Table
+            data-testid='requests-table'
+            className='table-fixed border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'
+            style={{ minWidth: table.getVisibleLeafColumns().reduce((sum, column) => sum + (REQUEST_COLUMN_WIDTHS[column.id] ?? 150), 0) }}
+          >
+            <colgroup>
+              {table.getVisibleLeafColumns().map((column) => (
+                <col key={column.id} style={{ width: REQUEST_COLUMN_WIDTHS[column.id] ?? 150 }} />
+              ))}
+            </colgroup>
             <TableHeader className='sticky top-0 z-20 bg-[var(--table-header)] shadow-sm'>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='group/row border-0'>
@@ -432,62 +458,25 @@ export function RequestsTable({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody className='space-y-1 !bg-[var(--table-background)] p-2'>
-              {loading ? (
-                <TableSkeleton rows={pageSize} columns={table.getVisibleLeafColumns().length} />
-              ) : table.getRowModel().rows?.length ? (
-                <AnimatePresence initial={false} mode='popLayout'>
-                  {table.getRowModel().rows.map((row) => (
-                    <MotionTableRow
-                      key={row.id}
-                      data-scroll-index={row.index}
-                      data-state={row.getIsSelected() && 'selected'}
-                      initial={animate ? { opacity: 0, y: -20, height: 0 } : false}
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={animate ? { opacity: 0, height: 0 } : undefined}
-                      transition={{
-                        type: 'spring',
-                        stiffness: 500,
-                        damping: 30,
-                        mass: 1,
-                        opacity: { duration: 0.2 },
-                      }}
-                      layout={animate}
-                      className='group/row hover:bg-muted/50 data-[state=selected]:bg-muted'
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={`${cell.column.columnDef.meta?.className ?? ''} border-b border-[var(--table-border)] py-3 group-last/row:border-0`}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </MotionTableRow>
-                  ))}
-                </AnimatePresence>
-              ) : (
-                <TableRow className='!bg-[var(--table-background)]'>
-                  <TableCell colSpan={requestsColumns.length} className='h-24 !bg-[var(--table-background)] text-center'>
-                    {t('common.noData')}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
+            <RequestsTableBody table={table} containerRef={scrolling.containerRef} scroll={scroll} loading={loading} animate={animate} />
           </Table>
         </div>
         <div ref={scrolling.sentinelRef} className='h-px' />
       </div>
-      <IncrementalListFooter
-        loaded={data.length}
-        total={totalCount}
-        loading={scroll.loadingMore}
-        hasMore={scroll.hasMore}
-        error={scroll.error}
-        atTop={scrolling.atTop}
-        onLoadMore={scroll.onLoadMore}
-        onBackToTop={scrolling.backToTop}
-      />
+      {listMode === 'pages' ? (
+        <RequestsPagination {...pagination} />
+      ) : (
+        <IncrementalListFooter
+          loaded={data.length}
+          total={totalCount}
+          loading={scroll.loadingMore}
+          hasMore={scroll.hasMore}
+          error={scroll.error}
+          atTop={scrolling.atTop}
+          onLoadMore={scroll.onLoadMore}
+          onBackToTop={scrolling.backToTop}
+        />
+      )}
 
       <RequestBodyDrawer
         initialTab={drawerInitialTab}

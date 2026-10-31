@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-export const AUTO_REFRESH_INTERVALS = [5000, 10000, 30000, 60000] as const;
+export const AUTO_REFRESH_INTERVALS = [3000, 5000, 10000, 30000, 60000] as const;
 
 export type EnabledAutoRefreshInterval = (typeof AUTO_REFRESH_INTERVALS)[number];
 export type AutoRefreshInterval = EnabledAutoRefreshInterval | null;

@@ -75,10 +75,6 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 			}
 		}
 
-		if _, err := svc.ensureChannelModelPrices(ctx, ch.ID, ch.SupportedModels); err != nil {
-			return err
-		}
-
 		duplicated = ch
 
 		return nil

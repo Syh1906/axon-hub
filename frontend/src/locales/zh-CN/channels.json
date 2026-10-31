@@ -1263,5 +1263,13 @@
   "channels.endpoints.catalogURLHint": "仅用于模型发现，将使用本渠道凭据访问；必须是受信任的目录服务。客户端目录地址为 AxonHub 的 /codex/models。",
   "channels.endpoints.catalogJSON": "自定义 Codex 目录 JSON（可选）",
   "channels.endpoints.catalogJSONHint": "完整的 Codex models 结构，含模型指令和工具能力；填写后优先于远程目录。slug 对应渠道实际模型 ID。",
-  "channels.endpoints.catalogJSONInvalid": "JSON 格式无效，请修正后保存。"
+  "channels.endpoints.catalogJSONInvalid": "JSON 格式无效，请修正后保存。",
+  "channels.todayUsage.modelDetails": "今日各模型用量",
+  "channels.todayUsage.model": "模型",
+  "channels.todayUsage.detailsFor": "查看渠道 {{name}} 今日各模型用量",
+  "channels.todayUsage.actualTotal": "实际总成本",
+  "channels.todayUsage.standardTotal": "标准总成本（1×）",
+  "channels.todayUsage.standardCost": "标准成本（1×）",
+  "channels.todayUsage.standardHelp": "按请求当时价格、模式和阶梯计算，渠道／Key 成本倍率统一为 1×。",
+  "channels.todayUsage.standardMissing": "{{count}} 次请求缺少完整计价依据，标准成本仅合计可还原部分。"
 }

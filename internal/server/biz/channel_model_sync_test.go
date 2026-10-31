@@ -19,7 +19,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
-	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache/live"
@@ -50,7 +49,7 @@ func (s *channelSyncNotifierSpy) Notify(_ context.Context, event live.CacheEvent
 	return nil
 }
 
-func TestChannelService_SyncChannelModelsAutoConfiguresMissingPrices(t *testing.T) {
+func TestChannelService_SyncChannelModelsDoesNotCopyPrices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/v1/models", r.URL.Path)
@@ -115,13 +114,13 @@ func TestChannelService_SyncChannelModelsAutoConfiguresMissingPrices(t *testing.
 	}, updated.SupportedModels)
 	returnedPrices, err := updated.QueryChannelModelPrices().All(ctx)
 	require.NoError(t, err)
-	require.Len(t, returnedPrices, 2)
+	require.Len(t, returnedPrices, 1)
 
 	prices, err := client.ChannelModelPrice.Query().
 		Where(channelmodelprice.ChannelID(ch.ID)).
 		All(ctx)
 	require.NoError(t, err)
-	require.Len(t, prices, 2)
+	require.Len(t, prices, 1)
 
 	pricesByModel := lo.KeyBy(prices, func(price *ent.ChannelModelPrice) string {
 		return price.ModelID
@@ -129,26 +128,7 @@ func TestChannelService_SyncChannelModelsAutoConfiguresMissingPrices(t *testing.
 	require.Equal(t, customPrice, pricesByModel["existing-model"].Price)
 	require.Equal(t, existingReferenceID, pricesByModel["existing-model"].ReferenceID)
 
-	createdPrice := pricesByModel["priced-model"]
-	require.NotNil(t, createdPrice)
-	require.Equal(t, []objects.PriceItemCode{
-		objects.PriceItemCodeUsage,
-		objects.PriceItemCodeCompletion,
-		objects.PriceItemCodePromptCachedToken,
-		objects.PriceItemCodeWriteCachedTokens,
-	}, lo.Map(createdPrice.Price.Items, func(item objects.ModelPriceItem, _ int) objects.PriceItemCode {
-		return item.ItemCode
-	}))
-
-	createdVersion, err := client.ChannelModelPriceVersion.Query().
-		Where(channelmodelpriceversion.ChannelModelPriceID(createdPrice.ID)).
-		Only(ctx)
-	require.NoError(t, err)
-	require.Equal(t, channelmodelpriceversion.StatusActive, createdVersion.Status)
-	require.Equal(t, createdPrice.ReferenceID, createdVersion.ReferenceID)
-	require.Equal(t, createdPrice.Price, createdVersion.Price)
-
-	for _, modelID := range []string{"no-cost-model", "archived-model", "missing-model"} {
+	for _, modelID := range []string{"priced-model", "no-cost-model", "archived-model", "missing-model"} {
 		exists, err := client.ChannelModelPrice.Query().
 			Where(
 				channelmodelprice.ChannelID(ch.ID),
@@ -166,20 +146,21 @@ func TestChannelService_SyncChannelModelsAutoConfiguresMissingPrices(t *testing.
 		Save(ctx)
 	require.NoError(t, err)
 
+	notificationsBefore := notifier.notifyCount
 	updated, err = svc.SyncChannelModels(ctx, ch.ID, nil)
 	require.NoError(t, err)
-	retriedPrice, err := client.ChannelModelPrice.Query().
-		Where(
-			channelmodelprice.ChannelID(ch.ID),
-			channelmodelprice.ModelID("no-cost-model"),
-		).
-		Only(ctx)
+	require.False(t, channelModelPriceExists(t, ctx, client, ch.ID, "no-cost-model"))
+	require.Equal(t, 1, countAllChannelModelPrices(t, ctx, client))
+	require.Equal(t, 1, countAllChannelModelPriceVersions(t, ctx, client))
+	require.Equal(t, notificationsBefore, notifier.notifyCount, "unchanged model sync does not create prices or invalidate the channel cache")
+
+	// Clearing an override restores inheritance; later discovery must not recreate it.
+	_, err = svc.SaveChannelModelPrices(ctx, ch.ID, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, "3", retriedPrice.Price.Items[0].Pricing.UsagePerUnit.String())
-	retriedVersions, err := retriedPrice.QueryVersions().All(ctx)
+	_, err = svc.SyncChannelModels(ctx, ch.ID, nil)
 	require.NoError(t, err)
-	require.Len(t, retriedVersions, 1)
-	require.Equal(t, retriedPrice.ReferenceID, retriedVersions[0].ReferenceID)
+	require.Empty(t, queryChannelModelPrices(t, ctx, client, ch.ID))
+	require.Equal(t, 1, countAllChannelModelPriceVersions(t, ctx, client), "historical versions are retained")
 }
 
 func TestChannelService_ClineModelSyncPreservesModelsOnDiscoveryFallback(t *testing.T) {
@@ -350,7 +331,7 @@ func TestChannelService_PeriodicModelSyncNotifiesOnceForChangedBatch(t *testing.
 	require.Equal(t, live.EventForceRefresh, notifier.events[0].Type)
 	priceCount, err := client.ChannelModelPrice.Query().Count(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 2, priceCount)
+	require.Zero(t, priceCount)
 }
 
 func TestPreserveManualModels(t *testing.T) {

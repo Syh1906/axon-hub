@@ -94,6 +94,10 @@ models:
   ChannelTodayUsage:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelTodayUsage
+  ChannelTodayUsageDetails:
+    model: github.com/looplj/axonhub/internal/objects.ChannelTodayUsageDetails
+  ChannelTodayModelUsage:
+    model: github.com/looplj/axonhub/internal/objects.ChannelTodayModelUsage
   SelfUsageImageOutput:
     model: github.com/looplj/axonhub/internal/objects.ImageOutput
   RequestExecutionSelection:

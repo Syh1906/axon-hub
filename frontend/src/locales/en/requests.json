@@ -269,5 +269,10 @@
   "requests.diagnostics.upstreamTransport": "Upstream",
   "requests.diagnostics.transportReasons.websocket_handshake_failed": "WS handshake failed; using HTTPS",
   "requests.diagnostics.transportReasons.websocket_not_enabled": "WS not enabled on channel; using HTTPS",
-  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "Continuing HTTPS fallback for this connection"
+  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "Continuing HTTPS fallback for this connection",
+  "requests.pagination.mode": "Pagination mode",
+  "requests.pagination.infinite": "Scroll to load",
+  "requests.pagination.pages": "Page navigation",
+  "requests.pagination.target": "Go to page number",
+  "requests.pagination.go": "Go"
 }

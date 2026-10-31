@@ -56,7 +56,7 @@ func queryChannelTodayUsage(ctx context.Context, client *ent.Client, ids []int, 
 	}
 	err := client.Request.Query().Where(request.ChannelIDIn(ids...), request.CreatedAtGTE(start), request.CreatedAtLT(end)).
 		Modify(func(q *sql.Selector) {
-			u := usageForConsumption(0, q.Dialect(), &start, end)
+			u := usageForConsumption(0, q.Dialect(), &start, end, ids...)
 			q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("id"), u.C("request_id")), sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id"))))
 			q.Select(q.C("channel_id"), sql.As(sql.Count("*"), "request_count"),
 				sql.As("COALESCE(SUM("+u.C("total_cost")+"), 0)", "total_cost"),

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hashKey, useInfiniteQuery, useQueryClient, type InfiniteData, type QueryKey } from '@tanstack/react-query';
+import { trimCursorList } from './cursor-list-cache';
 
 type CursorPage = {
   edges: { node: { id: string }; cursor: string }[];
@@ -12,29 +13,53 @@ export function useCursorList<Page extends CursorPage>({
   fetchPage,
   enabled = true,
   interval = false,
-  refetchOnMount,
+  structuralSharing,
+  gcTime,
 }: {
   queryKey: QueryKey;
   fetchPage: (after: string | null, signal: AbortSignal) => Promise<Page>;
   enabled?: boolean;
   interval?: number | false;
-  refetchOnMount?: boolean | 'always';
+  structuralSharing?: (previous: unknown, next: unknown) => unknown;
+  gcTime?: number;
 }) {
   const client = useQueryClient();
   const trimming = useRef(false);
+  const resetKey = hashKey(queryKey);
+  const keyRef = useRef(queryKey);
+  keyRef.current = queryKey;
+  const [readyKey, setReadyKey] = useState<string>();
+  const ready = enabled && readyKey === resetKey;
+
+  useEffect(() => {
+    setReadyKey(undefined);
+    if (!enabled) return;
+    let active = true;
+    // Returning to a list also resets its scroll position. Prepare its cache
+    // before enabling Query, otherwise mount/refetch replays every old cursor.
+    void trimCursorList<Page>(client, keyRef.current, 0).then(() => {
+      if (active) setReadyKey(resetKey);
+    });
+    return () => {
+      active = false;
+    };
+  }, [client, enabled, resetKey]);
+
   const query = useInfiniteQuery<Page, Error, InfiniteData<Page, string | null>, QueryKey, string | null>({
     queryKey,
-    enabled,
+    enabled: ready,
     initialPageParam: null,
     queryFn: ({ pageParam, signal }) => fetchPage(pageParam, signal),
     getNextPageParam: (page) => (page.pageInfo.hasNextPage ? page.pageInfo.endCursor : undefined),
     refetchInterval: interval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnMount,
+    staleTime: 0,
+    structuralSharing,
+    gcTime,
   });
   const data = useMemo(() => {
-    const pages = query.data?.pages;
+    const pages = ready ? query.data?.pages : query.data?.pages.slice(0, 1);
     if (!pages?.length) return undefined;
     const seen = new Set<string>();
     const edges = pages
@@ -45,27 +70,14 @@ export function useCursorList<Page extends CursorPage>({
         return true;
       });
     return { ...pages[0], edges, pageInfo: { ...pages.at(-1)!.pageInfo, startCursor: pages[0].pageInfo.startCursor } } as Page;
-  }, [query.data]);
+  }, [query.data, ready]);
 
   const trimAfter = useCallback(
     async (rowCount: number) => {
-      const cached = client.getQueryData<InfiniteData<Page, string | null>>(queryKey);
-      if (!cached || trimming.current) return;
-      let keep = 1,
-        rows = cached.pages[0]?.edges.length ?? 0;
-      while (keep < cached.pages.length && rows < rowCount) rows += cached.pages[keep++].edges.length;
-      if (keep >= cached.pages.length) return;
+      if (trimming.current) return;
       trimming.current = true;
       try {
-        await client.cancelQueries({ queryKey, exact: true });
-        client.setQueryData<InfiniteData<Page, string | null>>(queryKey, (current) =>
-          current
-            ? {
-                pages: current.pages.slice(0, keep),
-                pageParams: current.pageParams.slice(0, keep),
-              }
-            : current
-        );
+        await trimCursorList<Page>(client, queryKey, rowCount);
       } finally {
         trimming.current = false;
       }
@@ -80,14 +92,14 @@ export function useCursorList<Page extends CursorPage>({
   }, [client, queryKey, trimAfter]);
 
   const loadMore = useCallback(() => {
-    if (query.isFetching || trimming.current) return;
+    if (!ready || query.isFetching || trimming.current) return;
     if (query.isError && !query.isFetchNextPageError) void query.refetch();
     else if (query.hasNextPage) void query.fetchNextPage({ cancelRefetch: false });
-  }, [query.isFetching, query.isError, query.isFetchNextPageError, query.hasNextPage, query.fetchNextPage, query.refetch]);
+  }, [ready, query.isFetching, query.isError, query.isFetchNextPageError, query.hasNextPage, query.fetchNextPage, query.refetch]);
 
   const pauseRefresh = useCallback(() => {
     if (!query.isFetchingNextPage) void client.cancelQueries({ queryKey, exact: true });
   }, [client, queryKey, query.isFetchingNextPage]);
 
-  return { ...query, data, loadMore, trimAfter, resetToTop, pauseRefresh, resetKey: hashKey(queryKey) };
+  return { ...query, isLoading: enabled && query.isPending, data, loadMore, trimAfter, resetToTop, pauseRefresh, resetKey };
 }

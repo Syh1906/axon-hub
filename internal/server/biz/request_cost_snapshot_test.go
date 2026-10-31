@@ -49,6 +49,12 @@ func TestModelPriceFallbackFeedsRequestAndKeyUsage(t *testing.T) {
 	f.client.Model.UpdateOneID(configured.ID).SetModelCard(&objects.ModelCard{
 		Price: &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 99)}},
 	}).SaveX(ctx)
+	updatedModel := f.client.Model.GetX(ctx, configured.ID)
+	newSnapshot := captureRequestCostSnapshot(ctx, f.client, ch, "upstream-astra", updatedModel.ModelCard)
+	_, newCost := computeCostFromSnapshot(&llm.Usage{}, *newSnapshot.CurrentPrice(), newSnapshot)
+	require.Equal(t, "24.75", newCost.String(), "new requests follow updated model prices with the channel multiplier")
+	require.Zero(t, f.client.ChannelModelPrice.Query().CountX(ctx))
+	require.Zero(t, f.client.ChannelModelPriceVersion.Query().CountX(ctx))
 	var restored objects.RequestCostSnapshot
 	require.NoError(t, json.Unmarshal(raw, &restored))
 	require.Nil(t, restored.Price)

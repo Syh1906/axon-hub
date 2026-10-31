@@ -181,7 +181,8 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 				ids = append(ids, entry.ID.ID)
 			}
 			if len(ids) > 0 {
-				keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).All(ctx)
+				keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).
+					Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(ctx)
 				if err != nil {
 					return nil, err
 				}

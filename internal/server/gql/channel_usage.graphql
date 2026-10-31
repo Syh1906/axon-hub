@@ -9,4 +9,23 @@ type ChannelTodayUsage {
 
 extend type Query {
   channelTodayUsage(channelIds: [ID!]!): [ChannelTodayUsage!]!
+  channelTodayUsageDetails(channelId: ID!): ChannelTodayUsageDetails!
+}
+
+type ChannelTodayUsageDetails {
+  channelId: ID!
+  timezone: String!
+  currencyCode: String!
+  models: [ChannelTodayModelUsage!]!
+}
+
+type ChannelTodayModelUsage {
+  model: String!
+  requestCount: Int!
+  unpricedCount: Int!
+  totalTokens: Int!
+  totalCost: Float!
+  cacheHitRate: Float
+  standardCost: Float
+  standardUnpricedCount: Int!
 }

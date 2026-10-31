@@ -1,6 +1,3 @@
-import { Switch } from '@/components/ui/switch';
-import { appliedModelPrice } from '@/features/models/data/service-tier';
-import { serviceTierSettingsSchema, type ServiceTierSettings } from '../data/schema';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useFieldArray, useForm, useWatch, type Control } from 'react-hook-form';
@@ -16,12 +13,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { CompleteModelPriceEditor } from '@/features/models/components/models-price-editor';
 import { fetchModelStandardPrices, useModelStandardPrices, type ModelStandardPrice } from '@/features/models/data/models';
 import { createPriceValidationSchema, isValidPriceMultiplier } from '@/features/models/data/pricing';
+import { appliedModelPrice } from '@/features/models/data/service-tier';
 import { useChannels } from '../context/channels-context';
 import { useChannelModelPrices, useSaveChannelModelPrices } from '../data/channels';
+import { serviceTierSettingsSchema, type ServiceTierSettings } from '../data/schema';
 import {
   modelPriceInputSchema,
   saveChannelModelPriceInputSchema,
@@ -32,7 +32,12 @@ import {
 
 const multiplierSchema = z.string().trim().refine(isValidPriceMultiplier);
 const importSchema = z.union([
- z.object({ version: z.literal(3), multiplier: multiplierSchema, serviceTierBilling: serviceTierSettingsSchema, prices: z.array(saveChannelModelPriceInputSchema) }),
+  z.object({
+    version: z.literal(3),
+    multiplier: multiplierSchema,
+    serviceTierBilling: serviceTierSettingsSchema,
+    prices: z.array(saveChannelModelPriceInputSchema),
+  }),
   z.array(saveChannelModelPriceInputSchema),
   z.object({ version: z.literal(2), multiplier: multiplierSchema, prices: z.array(saveChannelModelPriceInputSchema) }),
 ]);
@@ -72,7 +77,6 @@ const PriceCard = memo(function PriceCard({
   portalContainer,
   multiplier,
   busy,
-  onModelSelected,
   onDuplicate,
   onRemove,
 }: {
@@ -82,7 +86,6 @@ const PriceCard = memo(function PriceCard({
   portalContainer: HTMLDivElement | null;
   multiplier: string;
   busy: boolean;
-  onModelSelected: (index: number, modelId: string) => void;
   onDuplicate: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
@@ -96,14 +99,7 @@ const PriceCard = memo(function PriceCard({
             name={`prices.${index}.modelId`}
             render={({ field }) => (
               <FormItem className='min-w-0 flex-1'>
-                <Select
-                  value={field.value}
-                  disabled={busy}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    onModelSelected(index, value);
-                  }}
-                >
+                <Select value={field.value} disabled={busy} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger size='sm' className='h-8 w-full' title={field.value}>
                       <SelectValue placeholder={t('price.model')} />
@@ -178,11 +174,13 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   }, []);
 
   const schema = useMemo(() => createFormSchema(t), [t]);
-  const form = useForm<PriceFormData>({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: { serviceTierBilling: { enabled: false, basis: 'upstream' }, multiplier: '1', prices: [] } });
+  const form = useForm<PriceFormData>({
+    resolver: zodResolver(schema),
+    mode: 'onChange',
+    defaultValues: { serviceTierBilling: { enabled: false, basis: 'upstream' }, multiplier: '1', prices: [] },
+  });
   const { control, getValues, reset } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: 'prices' });
-  const fieldsRef = useRef(fields);
-  fieldsRef.current = fields;
   const multiplier = useWatch({ control, name: 'multiplier' });
   const selectedModels = useWatch({ control, name: 'prices', compute: (prices) => prices.map((price) => price.modelId) });
   const supportedModels = useMemo(() => [...new Set(channel.supportedModels)], [channel.supportedModels]);
@@ -253,25 +251,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     }
     toast.success(t('price.apply.applied', { modelId: targetModel }));
   };
-  const onModelSelected = useCallback(
-    async (index: number, modelId: string) => {
-      const rowId = fieldsRef.current[index]?.id;
-      setReferenceBusy(true);
-      try {
-        const models = await fetchModelStandardPrices([modelId]);
-        if (!activeRef.current || fieldsRef.current[index]?.id !== rowId || getValues(`prices.${index}.modelId`) !== modelId) return;
-        const matched = models.find((match) => match.requestModelID === modelId)?.model;
-        const price = matched?.modelCard.price;
-        if (!price) toast.warning(t('price.apply.notFound', { modelId }));
-        else replacePrice(index, appliedModelPrice(price, matched.modelID));
-      } catch {
-        if (activeRef.current) toast.error(t('price.apply.loadFailed'));
-      } finally {
-        if (activeRef.current) setReferenceBusy(false);
-      }
-    },
-    [getValues, replacePrice, t]
-  );
   const matchAndFill = async () => {
     setReferenceBusy(true);
     try {
@@ -360,7 +339,12 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
         toast.error(t('price.import.noSupportedModels'));
         return;
       }
-      reset({ multiplier: importedMultiplier, prices: filtered, serviceTierBilling: !Array.isArray(imported) && imported.version === 3 ? imported.serviceTierBilling : { enabled: false, basis: 'upstream' } });
+      reset({
+        multiplier: importedMultiplier,
+        prices: filtered,
+        serviceTierBilling:
+          !Array.isArray(imported) && imported.version === 3 ? imported.serviceTierBilling : { enabled: false, basis: 'upstream' },
+      });
       priceListRef.current?.scrollTo({ top: 0 });
       const skipped = prices.length - filtered.length;
       toast.success(t(skipped ? 'price.import.successSkipped' : 'price.import.success', { count: filtered.length, skipped }));
@@ -370,7 +354,12 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   };
   const onSubmit = async (data: PriceFormData) => {
     try {
-      await savePrices.mutateAsync({ channelId: channel.id, input: data.prices, multiplier: data.multiplier, serviceTierBilling: data.serviceTierBilling });
+      await savePrices.mutateAsync({
+        channelId: channel.id,
+        input: data.prices,
+        multiplier: data.multiplier,
+        serviceTierBilling: data.serviceTierBilling,
+      });
       if (activeRef.current) handleClose();
     } catch {
       /* The mutation displays the server error. */
@@ -482,12 +471,38 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
               <p className='text-muted-foreground text-xs md:col-span-4'>{t('price.apply.referenceHint')}</p>
             </fieldset>
             <fieldset disabled={busy} className='flex flex-wrap items-start gap-3 rounded-md border p-3'>
-              <FormField control={control} name='serviceTierBilling.enabled' render={({ field }) => (
-                <FormItem className='flex items-center gap-2'><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} aria-label={t('serviceTier.settings.enabled')} /></FormControl><FormLabel>{t('serviceTier.settings.enabled')}</FormLabel></FormItem>
-              )} />
-              <FormField control={control} name='serviceTierBilling.basis' render={({ field }) => (
-                <FormItem><FormLabel>{t('serviceTier.settings.basis')}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent container={dialogContent}><SelectItem value='upstream'>{t('serviceTier.settings.upstream')}</SelectItem><SelectItem value='client'>{t('serviceTier.settings.client')}</SelectItem></SelectContent></Select></FormItem>
-              )} />
+              <FormField
+                control={control}
+                name='serviceTierBilling.enabled'
+                render={({ field }) => (
+                  <FormItem className='flex items-center gap-2'>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} aria-label={t('serviceTier.settings.enabled')} />
+                    </FormControl>
+                    <FormLabel>{t('serviceTier.settings.enabled')}</FormLabel>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name='serviceTierBilling.basis'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('serviceTier.settings.basis')}</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent container={dialogContent}>
+                        <SelectItem value='upstream'>{t('serviceTier.settings.upstream')}</SelectItem>
+                        <SelectItem value='client'>{t('serviceTier.settings.client')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
               <p className='text-muted-foreground w-full text-xs'>{t('serviceTier.settings.fallback')}</p>
             </fieldset>
             <div ref={priceListRef} className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2'>
@@ -522,7 +537,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
                         portalContainer={dialogContent}
                         multiplier={multiplier}
                         busy={busy}
-                        onModelSelected={onModelSelected}
                         onDuplicate={duplicatePrice}
                         onRemove={removePrice}
                       />

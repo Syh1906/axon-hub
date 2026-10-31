@@ -269,5 +269,10 @@
   "requests.diagnostics.upstreamTransport": "上游",
   "requests.diagnostics.transportReasons.websocket_handshake_failed": "WS 建连失败，已回退 HTTPS",
   "requests.diagnostics.transportReasons.websocket_not_enabled": "渠道未声明支持 WS，使用 HTTPS",
-  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "此连接继续使用 HTTPS 回退"
+  "requests.diagnostics.transportReasons.connection_uses_http_fallback": "此连接继续使用 HTTPS 回退",
+  "requests.pagination.mode": "翻页方式",
+  "requests.pagination.infinite": "滚动加载",
+  "requests.pagination.pages": "页码翻页",
+  "requests.pagination.target": "跳转到页码",
+  "requests.pagination.go": "跳转"
 }

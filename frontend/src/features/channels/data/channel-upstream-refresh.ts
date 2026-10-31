@@ -55,7 +55,13 @@ export async function refreshUpstreamChannels(
         for (const key of keys) {
           const account = state.accounts?.find((account) => account.ref === key.accountRef);
           const hasAccountBalance = account?.provider === 'NEW_API' && account.hasToken;
-          if (!options.includeDisabled && !hasAccountBalance && key.snapshot.balanceState === 'UNSUPPORTED' && key.snapshot.rateState === 'UNSUPPORTED') continue;
+          if (
+            !options.includeDisabled &&
+            !hasAccountBalance &&
+            key.snapshot.balanceState === 'UNSUPPORTED' &&
+            key.snapshot.rateState === 'UNSUPPORTED'
+          )
+            continue;
           try {
             const response = await refreshKey(state.channelId, key.keyRef);
             latest = response.channels[0];
@@ -79,4 +85,9 @@ export async function refreshUpstreamChannels(
 
 export function isBalanceOnlyProvider(provider: string) {
   return ['DEEPSEEK', 'MOONSHOT', 'OPENAI_BILLING'].includes(provider);
+}
+export function channelsNeedingPageRefresh(previous: string[], current: string[]) {
+  if (previous.every((id, index) => current[index] === id)) return current.slice(previous.length);
+  if (current.every((id, index) => previous[index] === id)) return [];
+  return current;
 }

@@ -22,6 +22,8 @@ interface AutoRefreshControlProps {
   onIntervalChange: (interval: AutoRefreshInterval) => void;
   onRefresh: () => void | Promise<unknown>;
   disabled?: boolean;
+  active?: boolean;
+  refreshing?: boolean;
   className?: string;
 }
 
@@ -29,7 +31,15 @@ function formatInterval(interval: EnabledAutoRefreshInterval) {
   return `${interval / 1000}s`;
 }
 
-export function AutoRefreshControl({ interval, onIntervalChange, onRefresh, disabled = false, className }: AutoRefreshControlProps) {
+export function AutoRefreshControl({
+  interval,
+  onIntervalChange,
+  onRefresh,
+  disabled = false,
+  active = false,
+  refreshing = false,
+  className,
+}: AutoRefreshControlProps) {
   const { t } = useTranslation();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshInFlightRef = useRef(false);
@@ -70,12 +80,12 @@ export function AutoRefreshControl({ interval, onIntervalChange, onRefresh, disa
         size='sm'
         onClick={() => void handleRefresh()}
         disabled={disabled || isRefreshing}
-        aria-busy={isRefreshing}
+        aria-busy={isRefreshing || refreshing}
         aria-label={t('common.refresh')}
         data-testid='manual-refresh-button'
         className='active:bg-accent active:text-accent-foreground dark:active:bg-accent group h-8 min-w-[4.75rem] rounded-r-none border-r-0'
       >
-        <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+        <RefreshCw className={cn('h-4 w-4', (isRefreshing || refreshing || (active && interval !== null)) && 'motion-safe:animate-spin')} />
         {interval === null ? (
           <span className='pointer-events-none select-none'>{t('common.refresh')}</span>
         ) : (

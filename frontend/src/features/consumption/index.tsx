@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BarChart3, Loader2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
@@ -30,6 +30,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
   const [search, setSearch] = useState('');
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 300);
   const selectedProjectID = useSelectedProjectId();
   const scope = isLeaderboard ? projectID : selectedProjectID;
@@ -54,7 +55,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   );
   const dimensions: ConsumptionDimension[] = isLeaderboard
     ? ['API_KEY_GROUP', 'CHANNEL', 'USER', 'API_KEY']
-    : ['USER', 'API_KEY', 'API_KEY_GROUP'];
+    : ['API_KEY_GROUP', 'API_KEY', 'USER'];
   const timezone = data?.timezone ?? 'UTC';
   const title = isLeaderboard ? t('consumption.title') : t('sidebar.items.usageStats');
   const formatDate = (value: string | Date) =>
@@ -182,7 +183,11 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               </AlertDescription>
             </Alert>
           ) : (
-            <div className='border-border/70 relative min-h-0 flex-1 overflow-auto rounded-xl border' aria-busy={isFetching}>
+            <div
+              ref={tableScrollRef}
+              className='border-border/70 relative min-h-0 flex-1 overflow-auto rounded-xl border'
+              aria-busy={isFetching}
+            >
               {isLoading ? (
                 <div className='flex flex-col gap-4 p-5'>
                   <Skeleton className='h-9 w-full' />
@@ -192,6 +197,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 </div>
               ) : data?.entries.length ? (
                 <ConsumptionTable
+                  key={`${scope}:${dimension}:${metric}`}
+                  scrollRef={tableScrollRef}
                   entries={data.entries}
                   dimension={dimension}
                   metric={metric}
@@ -204,21 +211,13 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                   <p>{t(search ? 'common.noResults' : 'consumption.empty')}</p>
                 </div>
               )}
-              {isFetching && !isLoading && (
-                <div
-                  className='bg-background absolute top-3 right-3 rounded-full p-2 shadow-sm'
-                  role='status'
-                  aria-label={t('common.loading')}
-                >
-                  <Loader2 className='size-4 animate-spin' />
-                </div>
-              )}
             </div>
           )}
           <div className='text-muted-foreground flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs'>
             <span>{metric === 'CACHE' ? t('consumption.cacheNote') : t('consumption.costNote')}</span>
             {data && (
-              <span>
+              <span className='flex items-center gap-2'>
+                {isFetching && <Loader2 className='size-3 animate-spin' role='status' aria-label={t('common.loading')} />}
                 {t('consumption.updatedAt', {
                   time: new Intl.DateTimeFormat(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US', {
                     timeZone: timezone,

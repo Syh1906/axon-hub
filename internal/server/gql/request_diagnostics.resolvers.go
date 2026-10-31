@@ -7,6 +7,7 @@ package gql
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"entgo.io/contrib/entgql"
@@ -54,6 +55,12 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 			}
 			query.Where(predicates...)
 		}
+	}
+	if filter != nil && filter.Offset != nil {
+		if after != nil || before != nil || last != nil || first == nil {
+			return nil, fmt.Errorf("offset requires first and cannot be combined with cursor pagination")
+		}
+		return paginateRequestLogOffset(ctx, query, *filter.Offset, first, orderBy, where)
 	}
 	return query.Paginate(ctx, after, first, before, last, ent.WithRequestOrder(orderBy), ent.WithRequestFilter(where.Filter))
 }

@@ -60,5 +60,6 @@
   "consumption.updatedAt": "更新于 {{time}}",
   "consumption.dimensions.API_KEY_GROUP": "密钥分组",
   "consumption.entityColumns.API_KEY_GROUP": "密钥分组 / 模型",
-  "consumption.allGroups": "全部分组"
+  "consumption.allGroups": "全部分组",
+  "consumption.overallCacheHitRateHelp": "缓存读取 Token ÷ 全部请求的总输入 Token，包含未命中缓存的请求；无输入 Token 时显示“—”。"
 }

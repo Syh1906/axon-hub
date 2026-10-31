@@ -1171,6 +1171,7 @@ export function useInfiniteChannels(variables: NonNullable<Parameters<typeof use
   const { columnVisibility, ...input } = variables;
   return useCursorList({
     queryKey: ['channels', 'infinite', input, columnVisibility],
+    gcTime: 60_000,
     enabled,
     interval: atTop ? 5000 : false,
     fetchPage: async (after, signal) => {

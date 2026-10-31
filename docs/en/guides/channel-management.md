@@ -2,6 +2,14 @@
 
 This guide explains how to configure AI provider channels (like OpenAI, Anthropic, DeepSeek) in AxonHub.
 
+The channel list loads in batches and renders only rows near the viewport, measuring expanded details at their actual height. Trailing batches are released after upward scrolling stops. The back-to-top button occupies space in the footer instead of covering its text. Appended batches check upstream refresh state only for new channels; today's usage aggregation is restricted to the requested channels before grouping.
+
+Hover, focus or click **Today's usage** to see requests, tokens, historical cost and cache-hit rate by actual model. Hit rate divides cache-read tokens by all input tokens; no input displays an em dash. Missing execution models fall back to request models, and missing prices remain marked. Details query only the selected channel's current reporting day when opened, reuse cached results for 30 seconds, stop polling when closed, and release inactive cache entries after 60 seconds.
+
+The card shows actual and standard totals separately, with **Standard cost (1×)** for each model. Standard cost retains historical prices, accelerated modes, tiers and schedules while removing channel/key cost multipliers; it never reprices using today's model catalog. It uses persisted amounts before cost multipliers, or historical snapshots/versions for older records, including zero and mixed multipliers. Missing evidence displays an em dash or a clearly marked partial total. Only necessary fields for the selected channel/day are read in bounded server-side batches when opened; regular list refreshes, actual billing and budgets are unchanged.
+
+The channel list refreshes every 5 seconds at the top and pauses while browsing farther down. Today's totals refresh every 30 seconds; model details refresh every 30 seconds while open. Probe records are cached for one minute without periodic polling. Upstream balances and multipliers follow each channel's synchronization settings, rather than the list's 5-second cycle.
+
 ## Tag priorities and quick list settings
 
 The channel list shows tags and displays **Priority**, **Weight**, and **Cost multiplier** together by default. Clicking a priority opens a compact popover with the global value above all of the channel's tag overrides. A list filter never hides or disables other tags in this editor. Empty tag values inherit the global value; an empty global value inherits model associations. Save writes all values atomically. Cancel, Escape, or clicking outside discards drafts. Long tag lists scroll while the title and actions remain visible.
@@ -13,6 +21,18 @@ Without a single-tag filter, the list shows the global value. Channels without a
 Effective priority is **API Key override → matching tag default → channel global value → model association**. Key tags take precedence over project tags. Requests without tags also use the global value, falling back to model associations when unset. Exclusion-mode tags provide no tag defaults. Overlapping tags use the smallest explicitly configured tag priority, then the global value when none is configured. For example, with global 10, tag A set to 14 and tag B empty, A uses 14, B uses 10, and A+B uses 14. Only already permitted, model-compatible candidates are reordered. Availability, failure backoff, and existing session reuse still apply; the configured load balancer chooses among equal priorities and weights.
 
 Column headers temporarily change list order. **Default sorting** stores a field and direction in the current browser for subsequent visits. Priority sorting uses the displayed value described above. Entries inheriting model associations follow configured numbers. Priority and multiplier sorting covers the entire filtered result before pagination. List order never changes request routing.
+
+## Channel prices and model prices
+
+Requests without an independent channel price use the resolved model's standard price and the channel/selected key's effective multiplier. Creating, editing, bulk creating/importing channels and synchronizing supported models never copy model prices into channel overrides automatically. Model price changes affect new requests while historical requests retain their pricing evidence.
+
+**Sync model prices** in the pricing dialog is explicit: it matches concrete supported channel model IDs against exact, prefix, suffix and regex model rules, replaces matching prices in the form, and creates independent overrides only on Save. Unmatched prices remain unchanged; a standard price can also be selected manually.
+
+Runtime requests match enabled models only. Manual sync retains the management reference scope: enabled and disabled model prices are eligible, while archived models are excluded.
+
+For example, client ID `gpt-6.1-sol` may match `^gpt-.*-sol$` and map to upstream alias `vendor-sol`. Automatic fallback uses the client-matched rule's price unless the channel has an explicit `vendor-sol` price. Manual sync instead matches `vendor-sol`; it does not infer which of potentially several client models maps to that alias. Exact matches win, then rule priority and ID determine the winner. A winning model without a price remains unpriced rather than falling through to another rule.
+
+Existing channel prices, including previously copied prices, remain independent; explicit zero prices also take precedence. Delete a channel price and save to restore model fallback; supported-model synchronization will not recreate it. Duplicating a channel copies its existing independent prices only. Historical request pricing snapshots remain and do not write channel price rows.
 
 ## Add supported models from model management
 

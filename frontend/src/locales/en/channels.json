@@ -1263,5 +1263,13 @@
   "channels.endpoints.catalogURLHint": "For model discovery, authenticated with this channel. Use a trusted catalog service. Clients use AxonHub /codex/models.",
   "channels.endpoints.catalogJSON": "Custom Codex catalog JSON (optional)",
   "channels.endpoints.catalogJSONHint": "Full Codex models structure including instructions and tool capabilities. Overrides the remote catalog. Each slug must match an upstream model ID.",
-  "channels.endpoints.catalogJSONInvalid": "Invalid JSON. Correct it before saving."
+  "channels.endpoints.catalogJSONInvalid": "Invalid JSON. Correct it before saving.",
+  "channels.todayUsage.modelDetails": "Today's usage by model",
+  "channels.todayUsage.model": "Model",
+  "channels.todayUsage.detailsFor": "View today's model usage for {{name}}",
+  "channels.todayUsage.actualTotal": "Actual total cost",
+  "channels.todayUsage.standardTotal": "Standard total cost (1×)",
+  "channels.todayUsage.standardCost": "Standard cost (1×)",
+  "channels.todayUsage.standardHelp": "Uses historical request prices, modes and tiers with channel/key cost multipliers set to 1×.",
+  "channels.todayUsage.standardMissing": "{{count}} requests lack complete pricing evidence; standard cost includes only recoverable amounts."
 }

@@ -1,12 +1,13 @@
-import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCursorList } from '@/hooks/use-cursor-list';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
+import { useCursorList } from '@/hooks/use-cursor-list';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { usePermissions } from '@/hooks/usePermissions';
+import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
+import { shareRequestList } from './request-list-cache';
 import {
   Request,
   RequestConnection,
@@ -24,7 +25,11 @@ export function useRequestLogTimezone() {
     queryKey: ['request-log-timezone', projectId],
     enabled: hasScope('read_requests'),
     queryFn: async () => {
-      const data = await graphqlRequest<{ requestLogTimezone: string }>(`query { requestLogTimezone }`, {}, projectId ? { 'X-Project-ID': projectId } : undefined);
+      const data = await graphqlRequest<{ requestLogTimezone: string }>(
+        `query { requestLogTimezone }`,
+        {},
+        projectId ? { 'X-Project-ID': projectId } : undefined
+      );
       return data.requestLogTimezone;
     },
   });
@@ -371,24 +376,31 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }) 
 
 // Keep the Ent where input separate from log-specific filters in both list and drawer navigation.
 function requestLogVariables(where: Record<string, any> = {}) {
-  const { channelTagsIn, apiKeyGroupRefsIn, timeRange, ...entWhere } = where;
-  return { where: entWhere, filter: { channelTagsIn, apiKeyGroupRefsIn, timeRange } };
+  const { channelTagsIn, apiKeyGroupRefsIn, timeRange, offset, ...entWhere } = where;
+  return { where: entWhere, filter: { channelTagsIn, apiKeyGroupRefsIn, timeRange, offset } };
 }
 
 // Query hooks
-export function useInfiniteRequests(where: Record<string, any> | undefined, pageSize: number) {
+export function useInfiniteRequests(where: Record<string, any> | undefined, pageSize: number, enabled = true) {
   const permissions = useRequestPermissions();
   const projectId = useSelectedProjectId();
   return useCursorList({
+    enabled,
+    structuralSharing: shareRequestList,
+    gcTime: 60_000,
     queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId],
-    refetchOnMount: 'always',
     fetchPage: async (after, signal) => {
-      const data = await graphqlRequest<{ requests: RequestConnection }>(buildRequestsQuery(permissions), {
-        first: pageSize,
-        after,
-        orderBy: { field: 'CREATED_AT', direction: 'DESC' },
-        ...requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) }),
-      }, projectId ? { 'X-Project-ID': projectId } : undefined, { signal });
+      const data = await graphqlRequest<{ requests: RequestConnection }>(
+        buildRequestsQuery(permissions),
+        {
+          first: pageSize,
+          after,
+          orderBy: { field: 'CREATED_AT', direction: 'DESC' },
+          ...requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) }),
+        },
+        projectId ? { 'X-Project-ID': projectId } : undefined,
+        { signal }
+      );
       return requestConnectionSchema.parse(data.requests);
     },
   });
@@ -412,7 +424,7 @@ export function useRequests(
       [key: string]: any;
     };
   },
-  options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean }
+  options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean; keepPreviousPage?: boolean }
 ) {
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
@@ -424,7 +436,7 @@ export function useRequests(
 
   return useQuery({
     queryKey: ['requests', variables, permissions, projectId, scopeToSelectedProject],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildRequestsQuery(permissions);
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;
@@ -441,7 +453,8 @@ export function useRequests(
         const data = await graphqlRequest<{ requests: RequestConnection }>(
           query,
           { ...finalVariables, ...requestLogVariables(finalVariables.where) },
-          headers
+          headers,
+          { signal }
         );
         return requestConnectionSchema.parse(data?.requests);
       } catch (error) {
@@ -450,6 +463,19 @@ export function useRequests(
       }
     },
     enabled,
+    placeholderData: (previous, previousQuery) => {
+      if (!options?.keepPreviousPage || !previousQuery) return undefined;
+      const [, oldVariables, oldPermissions, oldProject, oldScope] = previousQuery.queryKey;
+      const withoutOffset = (value: typeof variables) => ({ ...value, where: { ...value?.where, offset: undefined } });
+      return oldProject === projectId &&
+        oldScope === scopeToSelectedProject &&
+        JSON.stringify(oldPermissions) === JSON.stringify(permissions) &&
+        JSON.stringify(withoutOffset(oldVariables as typeof variables)) === JSON.stringify(withoutOffset(variables))
+        ? previous
+        : undefined;
+    },
+    structuralSharing: shareRequestList,
+    gcTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }

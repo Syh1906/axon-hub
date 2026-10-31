@@ -37,6 +37,8 @@ input RequestLogTimeRangeInput {
 }
 
 input RequestLogFilterInput {
+  "Skip this many matching requests for page navigation; cannot be combined with cursors."
+  offset: Int
   channelTagsIn: [String!]
   apiKeyGroupRefsIn: [Int!]
   timeRange: RequestLogTimeRangeInput

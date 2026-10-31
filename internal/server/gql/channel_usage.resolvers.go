@@ -24,3 +24,11 @@ func (r *queryResolver) ChannelTodayUsage(ctx context.Context, channelIds []*obj
 	}
 	return r.channelService.TodayUsage(ctx, ids)
 }
+
+// ChannelTodayUsageDetails is the resolver for the channelTodayUsageDetails field.
+func (r *queryResolver) ChannelTodayUsageDetails(ctx context.Context, channelID objects.GUID) (*objects.ChannelTodayUsageDetails, error) {
+	if channelID.Type != ent.TypeChannel || channelID.ID <= 0 {
+		return nil, fmt.Errorf("invalid channel ID")
+	}
+	return r.channelService.TodayUsageDetails(ctx, channelID.ID)
+}

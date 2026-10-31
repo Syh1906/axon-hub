@@ -13,7 +13,7 @@ Fields and algorithms are ported from `claude-code-hub` commit `0c508eaa`: `src/
 
 There is no leaderboard management permission. Navigation, route guards and backend queries enforce read access. A project-level grant does not grant system-wide access. `consumptionProjects` provides project filter options without requiring project administration privileges. The leaderboard ignores the ambient project selected in the global header. Authorization runs before cache reads.
 
-Project usage defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
+Project usage orders tabs as Key groups → API keys → Users and defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
 
 ## Dates and interaction
 
@@ -21,7 +21,9 @@ Both pages offer Today, Yesterday, This week, This month, All time and Custom da
 
 Ent persists timestamps in UTC. Calendar boundaries are calculated in the system timezone and converted to UTC before querying; the cache aggregation clock and windows also use UTC. This prevents SQLite's textual timestamp comparisons from assigning midnight requests to the wrong day or excluding cache samples when the server uses a different timezone.
 
-All time includes retained request history, so log retention affects the available data. Dimension changes preserve the selected period. Column sorting preserves expansion by entity identity; model rows move with their parent. Wide tables scroll within their own container. Expanded rows use continuous muted backgrounds, alternating shades and two-pixel separators.
+All time includes retained request history, so log retention affects the available data. Dimension changes preserve the selected period. Column sorting preserves expansion by entity identity; model rows move with their parent. Wide tables scroll within their own container. Expanded rows use continuous muted backgrounds.
+
+The table mounts only the visible rows and a small buffer, including expanded models, so large key lists do not create all cells at once. Measured row heights use normal table flow and stable column widths. The frontend refreshes every minute and releases inactive queries after 60 seconds. The backend retains its one-minute result cache and loads only ID, name, user, project and group fields for key display labels.
 
 Name search matches users' displayed full names, name fragments and email addresses case-insensitively; key and channel searches use their names. Headers, parent rows and model rows are centered by column. Sort/expansion icons and model counts do not shift the text alignment.
 
@@ -40,7 +42,7 @@ Overall cache-hit rate in cost rankings and usage summaries divides all cache-re
 | Ranking | Model fields |
 | --- | --- |
 | User/key/group cost | Model, request count, total tokens, overall cache-hit rate, cost |
-| Channel cost | Model, requests, cost, total tokens, success rate, average first-token latency, average output speed, cost/request, cost/million tokens, cache coefficient |
+| Channel cost | Model, requests, cost, total tokens, success rate, average first-token latency, average output speed, cost/request, cost/million tokens, cache coefficient, overall cache-hit rate |
 | User/key cache | Model, cache-triggered requests, hit rate, cache-read tokens, total input tokens; model cost displays an em dash |
 | Channel cache | Model, cache-triggered requests, hit rate, cache coefficient, cache-read tokens, total input tokens |
 

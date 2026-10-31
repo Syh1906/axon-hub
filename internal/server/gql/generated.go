@@ -781,6 +781,17 @@ type ComplexityRoot struct {
 		Pattern     func(childComplexity int) int
 	}
 
+	ChannelTodayModelUsage struct {
+		CacheHitRate          func(childComplexity int) int
+		Model                 func(childComplexity int) int
+		RequestCount          func(childComplexity int) int
+		StandardCost          func(childComplexity int) int
+		StandardUnpricedCount func(childComplexity int) int
+		TotalCost             func(childComplexity int) int
+		TotalTokens           func(childComplexity int) int
+		UnpricedCount         func(childComplexity int) int
+	}
+
 	ChannelTodayUsage struct {
 		ChannelID     func(childComplexity int) int
 		CurrencyCode  func(childComplexity int) int
@@ -788,6 +799,13 @@ type ComplexityRoot struct {
 		Timezone      func(childComplexity int) int
 		TotalCost     func(childComplexity int) int
 		UnpricedCount func(childComplexity int) int
+	}
+
+	ChannelTodayUsageDetails struct {
+		ChannelID    func(childComplexity int) int
+		CurrencyCode func(childComplexity int) int
+		Models       func(childComplexity int) int
+		Timezone     func(childComplexity int) int
 	}
 
 	ChannelTypeCount struct {
@@ -1867,6 +1885,7 @@ type ComplexityRoot struct {
 		ChannelProbeData                func(childComplexity int, input biz.GetChannelProbeDataInput) int
 		ChannelSuccessRates             func(childComplexity int, timeWindow *string, limit *int) int
 		ChannelTodayUsage               func(childComplexity int, channelIds []*objects.GUID) int
+		ChannelTodayUsageDetails        func(childComplexity int, channelID objects.GUID) int
 		ChannelUpstreamRefreshTargets   func(childComplexity int) int
 		ChannelUpstreamStates           func(childComplexity int, channelIds []*objects.GUID) int
 		Channels                        func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOrder, where *ent.ChannelWhereInput) int
@@ -3273,6 +3292,7 @@ type QueryResolver interface {
 	ChannelUpstreamStates(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelUpstreamState, error)
 	ChannelUpstreamRefreshTargets(ctx context.Context) ([]*objects.GUID, error)
 	ChannelTodayUsage(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelTodayUsage, error)
+	ChannelTodayUsageDetails(ctx context.Context, channelID objects.GUID) (*objects.ChannelTodayUsageDetails, error)
 	RequestLogTimezone(ctx context.Context) (string, error)
 	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
 	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
@@ -6106,6 +6126,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ChannelTagsRegexAssociation.Pattern(childComplexity), true
 
+	case "ChannelTodayModelUsage.cacheHitRate":
+		if e.complexity.ChannelTodayModelUsage.CacheHitRate == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.CacheHitRate(childComplexity), true
+	case "ChannelTodayModelUsage.model":
+		if e.complexity.ChannelTodayModelUsage.Model == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.Model(childComplexity), true
+	case "ChannelTodayModelUsage.requestCount":
+		if e.complexity.ChannelTodayModelUsage.RequestCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.RequestCount(childComplexity), true
+	case "ChannelTodayModelUsage.standardCost":
+		if e.complexity.ChannelTodayModelUsage.StandardCost == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.StandardCost(childComplexity), true
+	case "ChannelTodayModelUsage.standardUnpricedCount":
+		if e.complexity.ChannelTodayModelUsage.StandardUnpricedCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.StandardUnpricedCount(childComplexity), true
+	case "ChannelTodayModelUsage.totalCost":
+		if e.complexity.ChannelTodayModelUsage.TotalCost == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.TotalCost(childComplexity), true
+	case "ChannelTodayModelUsage.totalTokens":
+		if e.complexity.ChannelTodayModelUsage.TotalTokens == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.TotalTokens(childComplexity), true
+	case "ChannelTodayModelUsage.unpricedCount":
+		if e.complexity.ChannelTodayModelUsage.UnpricedCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.UnpricedCount(childComplexity), true
+
 	case "ChannelTodayUsage.channelId":
 		if e.complexity.ChannelTodayUsage.ChannelID == nil {
 			break
@@ -6142,6 +6211,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayUsage.UnpricedCount(childComplexity), true
+
+	case "ChannelTodayUsageDetails.channelId":
+		if e.complexity.ChannelTodayUsageDetails.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsageDetails.ChannelID(childComplexity), true
+	case "ChannelTodayUsageDetails.currencyCode":
+		if e.complexity.ChannelTodayUsageDetails.CurrencyCode == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsageDetails.CurrencyCode(childComplexity), true
+	case "ChannelTodayUsageDetails.models":
+		if e.complexity.ChannelTodayUsageDetails.Models == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsageDetails.Models(childComplexity), true
+	case "ChannelTodayUsageDetails.timezone":
+		if e.complexity.ChannelTodayUsageDetails.Timezone == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsageDetails.Timezone(childComplexity), true
 
 	case "ChannelTypeCount.count":
 		if e.complexity.ChannelTypeCount.Count == nil {
@@ -11326,6 +11420,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ChannelTodayUsage(childComplexity, args["channelIds"].([]*objects.GUID)), true
+	case "Query.channelTodayUsageDetails":
+		if e.complexity.Query.ChannelTodayUsageDetails == nil {
+			break
+		}
+
+		args, err := ec.field_Query_channelTodayUsageDetails_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ChannelTodayUsageDetails(childComplexity, args["channelId"].(objects.GUID)), true
 	case "Query.channelUpstreamRefreshTargets":
 		if e.complexity.Query.ChannelUpstreamRefreshTargets == nil {
 			break
@@ -19115,6 +19220,17 @@ func (ec *executionContext) field_Query_channelSuccessRates_args(ctx context.Con
 		return nil, err
 	}
 	args["limit"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_channelTodayUsageDetails_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelId", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelId"] = arg0
 	return args, nil
 }
 
@@ -34682,6 +34798,238 @@ func (ec *executionContext) fieldContext_ChannelTagsRegexAssociation_pattern(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelTodayModelUsage_model(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_requestCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_requestCount,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_requestCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_unpricedCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_unpricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_unpricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_totalTokens(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_totalTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_totalTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_totalCost(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_totalCost,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCost, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_totalCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_cacheHitRate(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_cacheHitRate,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheHitRate, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_cacheHitRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_standardCost(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_standardCost,
+		func(ctx context.Context) (any, error) {
+			return obj.StandardCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_standardCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_standardUnpricedCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_standardUnpricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.StandardUnpricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_standardUnpricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelTodayUsage_channelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -34851,6 +35199,140 @@ func (ec *executionContext) fieldContext_ChannelTodayUsage_currencyCode(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsageDetails_channelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsageDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsageDetails_channelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsageDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsageDetails_timezone(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsageDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsageDetails_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsageDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsageDetails_currencyCode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsageDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsageDetails_currencyCode,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsageDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsageDetails_models(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsageDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsageDetails_models,
+		func(ctx context.Context) (any, error) {
+			return obj.Models, nil
+		},
+		nil,
+		ec.marshalNChannelTodayModelUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayModelUsageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsageDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "model":
+				return ec.fieldContext_ChannelTodayModelUsage_model(ctx, field)
+			case "requestCount":
+				return ec.fieldContext_ChannelTodayModelUsage_requestCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_unpricedCount(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_ChannelTodayModelUsage_totalTokens(ctx, field)
+			case "totalCost":
+				return ec.fieldContext_ChannelTodayModelUsage_totalCost(ctx, field)
+			case "cacheHitRate":
+				return ec.fieldContext_ChannelTodayModelUsage_cacheHitRate(ctx, field)
+			case "standardCost":
+				return ec.fieldContext_ChannelTodayModelUsage_standardCost(ctx, field)
+			case "standardUnpricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_standardUnpricedCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelTodayModelUsage", field.Name)
 		},
 	}
 	return fc, nil
@@ -63860,6 +64342,57 @@ func (ec *executionContext) fieldContext_Query_channelTodayUsage(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_channelTodayUsage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_channelTodayUsageDetails(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_channelTodayUsageDetails,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ChannelTodayUsageDetails(ctx, fc.Args["channelId"].(objects.GUID))
+		},
+		nil,
+		ec.marshalNChannelTodayUsageDetails2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageDetails,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_channelTodayUsageDetails(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelId":
+				return ec.fieldContext_ChannelTodayUsageDetails_channelId(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ChannelTodayUsageDetails_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ChannelTodayUsageDetails_currencyCode(ctx, field)
+			case "models":
+				return ec.fieldContext_ChannelTodayUsageDetails_models(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelTodayUsageDetails", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_channelTodayUsageDetails_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -105699,13 +106232,20 @@ func (ec *executionContext) unmarshalInputRequestLogFilterInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelTagsIn", "apiKeyGroupRefsIn", "timeRange"}
+	fieldsInOrder := [...]string{"offset", "channelTagsIn", "apiKeyGroupRefsIn", "timeRange"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "offset":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Offset = data
 		case "channelTagsIn":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelTagsIn"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -122631,6 +123171,74 @@ func (ec *executionContext) _ChannelTagsRegexAssociation(ctx context.Context, se
 	return out
 }
 
+var channelTodayModelUsageImplementors = []string{"ChannelTodayModelUsage"}
+
+func (ec *executionContext) _ChannelTodayModelUsage(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelTodayModelUsage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelTodayModelUsageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelTodayModelUsage")
+		case "model":
+			out.Values[i] = ec._ChannelTodayModelUsage_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestCount":
+			out.Values[i] = ec._ChannelTodayModelUsage_requestCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedCount":
+			out.Values[i] = ec._ChannelTodayModelUsage_unpricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalTokens":
+			out.Values[i] = ec._ChannelTodayModelUsage_totalTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCost":
+			out.Values[i] = ec._ChannelTodayModelUsage_totalCost(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheHitRate":
+			out.Values[i] = ec._ChannelTodayModelUsage_cacheHitRate(ctx, field, obj)
+		case "standardCost":
+			out.Values[i] = ec._ChannelTodayModelUsage_standardCost(ctx, field, obj)
+		case "standardUnpricedCount":
+			out.Values[i] = ec._ChannelTodayModelUsage_standardUnpricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var channelTodayUsageImplementors = []string{"ChannelTodayUsage"}
 
 func (ec *executionContext) _ChannelTodayUsage(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelTodayUsage) graphql.Marshaler {
@@ -122669,6 +123277,60 @@ func (ec *executionContext) _ChannelTodayUsage(ctx context.Context, sel ast.Sele
 			}
 		case "currencyCode":
 			out.Values[i] = ec._ChannelTodayUsage_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var channelTodayUsageDetailsImplementors = []string{"ChannelTodayUsageDetails"}
+
+func (ec *executionContext) _ChannelTodayUsageDetails(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelTodayUsageDetails) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelTodayUsageDetailsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelTodayUsageDetails")
+		case "channelId":
+			out.Values[i] = ec._ChannelTodayUsageDetails_channelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._ChannelTodayUsageDetails_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currencyCode":
+			out.Values[i] = ec._ChannelTodayUsageDetails_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "models":
+			out.Values[i] = ec._ChannelTodayUsageDetails_models(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -132895,6 +133557,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_channelTodayUsage(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "channelTodayUsageDetails":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_channelTodayUsageDetails(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -145207,6 +145891,60 @@ func (ec *executionContext) unmarshalNChannelTagPriorityUpdateInput2ᚖgithubᚗ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNChannelTodayModelUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayModelUsageᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.ChannelTodayModelUsage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNChannelTodayModelUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayModelUsage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNChannelTodayModelUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayModelUsage(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelTodayModelUsage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ChannelTodayModelUsage(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNChannelTodayUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageᚄ(ctx context.Context, sel ast.SelectionSet, v []*objects.ChannelTodayUsage) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -145259,6 +145997,20 @@ func (ec *executionContext) marshalNChannelTodayUsage2ᚖgithubᚗcomᚋlooplj�
 		return graphql.Null
 	}
 	return ec._ChannelTodayUsage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNChannelTodayUsageDetails2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageDetails(ctx context.Context, sel ast.SelectionSet, v objects.ChannelTodayUsageDetails) graphql.Marshaler {
+	return ec._ChannelTodayUsageDetails(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNChannelTodayUsageDetails2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayUsageDetails(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelTodayUsageDetails) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ChannelTodayUsageDetails(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNChannelType2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋchannelᚐType(ctx context.Context, v any) (channel.Type, error) {

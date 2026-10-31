@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getMaxSequentialAnimatedItems, planAnimatedListUpdate } from './animated-list';
 import useInterval from './useInterval';
 
@@ -13,12 +13,10 @@ export function useAnimatedList<T extends { id: string; createdAt: Date | string
   pageSize: number = MAX_ITEMS,
   resetKey?: string
 ) {
-  const getTimestamp = (date: Date | string): number => {
-    return date instanceof Date ? date.getTime() : new Date(date).getTime();
-  };
-  const dataSignature = data.map((item) => `${item.id}:${getTimestamp(item.createdAt)}`).join('|');
+  const dataSignature = useMemo(() => data.map((item) => `${item.id}:${new Date(item.createdAt).getTime()}`).join('|'), [data]);
 
-  const [displayedData, setDisplayedData] = useState<T[]>(data);
+  const [displayedData, setDisplayedData] = useState<T[]>(() => (animateUpdates ? data : []));
+  const wasAnimatingRef = useRef(animateUpdates);
   const queueRef = useRef<T[]>([]);
   const prevResetKeyRef = useRef(resetKey);
   const prevDataSignatureRef = useRef(dataSignature);
@@ -26,6 +24,25 @@ export function useAnimatedList<T extends { id: string; createdAt: Date | string
   const pendingResetDataSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const previouslyAnimating = wasAnimatingRef.current;
+    const startedAnimating = animateUpdates && !previouslyAnimating;
+    wasAnimatingRef.current = animateUpdates;
+    if (!animateUpdates) {
+      if (previouslyAnimating) setDisplayedData([]);
+      queueRef.current = [];
+      prevResetKeyRef.current = resetKey;
+      pendingResetDataSignatureRef.current = null;
+      prevDataSignatureRef.current = dataSignature;
+      prevDataIdsRef.current = data.map((item) => item.id);
+      return;
+    }
+    if (startedAnimating) {
+      setDisplayedData(data);
+      queueRef.current = [];
+      prevDataSignatureRef.current = dataSignature;
+      prevDataIdsRef.current = data.map((item) => item.id);
+      return;
+    }
     const resetKeyChanged = resetKey !== prevResetKeyRef.current;
     if (resetKeyChanged) {
       prevResetKeyRef.current = resetKey;
@@ -37,14 +54,6 @@ export function useAnimatedList<T extends { id: string; createdAt: Date | string
       if (dataSignature !== pendingResetDataSignatureRef.current) {
         pendingResetDataSignatureRef.current = null;
       }
-      setDisplayedData(data);
-      queueRef.current = [];
-      prevDataSignatureRef.current = dataSignature;
-      prevDataIdsRef.current = data.map((item) => item.id);
-      return;
-    }
-
-    if (!animateUpdates) {
       setDisplayedData(data);
       queueRef.current = [];
       prevDataSignatureRef.current = dataSignature;
@@ -97,5 +106,6 @@ export function useAnimatedList<T extends { id: string; createdAt: Date | string
     animateUpdates ? ANIMATION_INTERVAL : null
   );
 
-  return displayedData;
+  // 平稳更新和历史加载直接呈现查询结果，避免先渲染旧列表再由 effect 补一轮。
+  return animateUpdates && wasAnimatingRef.current && resetKey === prevResetKeyRef.current ? displayedData : data;
 }

@@ -40,7 +40,7 @@ type consumptionGroup struct {
 
 // usageForConsumption collapses usage rows before joining attempts, so neither
 // retries nor a multi-row usage join can multiply request counts or token sums.
-func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time) *sql.Selector {
+func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time, channelIDs ...int) *sql.Selector {
 	table := sql.Table(usagelog.Table).As("ul")
 	query := sql.Dialect(dialect).Select(table.C("request_id"), table.C("channel_id"), table.C("project_id")).From(table).
 		GroupBy(table.C("request_id"), table.C("channel_id"), table.C("project_id"))
@@ -49,6 +49,10 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 	}
 	requests := sql.Table(request.Table).As("usage_request")
 	boundedRequests := sql.Dialect(dialect).Select(requests.C("id")).From(requests).Where(sql.LT(requests.C("created_at"), end))
+	if len(channelIDs) > 0 {
+		query.Where(sql.InInts(table.C("channel_id"), channelIDs...))
+		boundedRequests.Where(sql.InInts(requests.C("channel_id"), channelIDs...))
+	}
 	if start != nil {
 		boundedRequests.Where(sql.GTE(requests.C("created_at"), *start))
 	}
@@ -67,11 +71,15 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
 	u := usageForConsumption(projectID, s.Dialect(), start, end)
 	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(s.C("id"), u.C("request_id")), sql.ColumnsEQ(s.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(s.C("project_id"), u.C("project_id"))))
+	return u, joinLatestConsumptionExecution(s)
+}
+
+func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 	execution := sql.Table(requestexecution.Table).As("execution")
 	latest := sql.Table(requestexecution.Table).As("latest")
 	s.LeftJoin(execution).OnP(sql.EQ(execution.C("id"), sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
 		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id"))))))
-	return u, execution
+	return execution
 }
 
 func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {

@@ -217,13 +217,15 @@ function ChannelsContent() {
     if (!data?.edges) return [];
 
     const probeMap = new Map(probeData?.map((probe) => [probe.channelID, probe.points]) || []);
+    const upstreamMap = new Map(upstreamQuery.data?.map((state) => [state.channelId, state]));
+    const usageMap = new Map(todayUsageQuery.data?.map((usage) => [usage.channelId, usage]));
 
     return data.edges.map((edge) => ({
       ...edge.node,
       probePoints: probeMap.get(edge.node.id) || [],
-      upstreamState: upstreamQuery.data?.find((state) => state.channelId === edge.node.id),
+      upstreamState: upstreamMap.get(edge.node.id),
       upstreamLoadError: upstreamQuery.isError,
-      todayUsage: todayUsageQuery.data?.find((usage) => usage.channelId === edge.node.id),
+      todayUsage: usageMap.get(edge.node.id),
       todayUsageError: todayUsageQuery.isError,
     }));
   }, [data?.edges, probeData, upstreamQuery.data, upstreamQuery.isError, todayUsageQuery.data, todayUsageQuery.isError]);

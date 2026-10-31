@@ -679,10 +679,6 @@ func (svc *ChannelService) CreateChannel(ctx context.Context, input ent.CreateCh
 			return err
 		}
 
-		if _, err := svc.ensureChannelModelPrices(ctx, channel.ID, input.SupportedModels); err != nil {
-			return err
-		}
-
 		created = channel
 
 		return nil
@@ -1185,12 +1181,6 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		if guardProviderIdentity {
 			providerIdentityChanged = channel.Type != existingIdentity.Type ||
 				channel.BaseURL != existingIdentity.BaseURL
-		}
-
-		if input.SupportedModels != nil {
-			if _, err := svc.ensureChannelModelPrices(ctx, id, input.SupportedModels); err != nil {
-				return err
-			}
 		}
 
 		updated = channel

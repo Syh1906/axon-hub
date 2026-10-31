@@ -34,6 +34,8 @@ interface DataTableToolbarProps<TData> {
   showRefresh?: boolean;
   refreshControls?: ReactNode;
   autoRefreshInterval?: AutoRefreshInterval;
+  autoRefreshActive?: boolean;
+  refreshing?: boolean;
   onAutoRefreshIntervalChange?: (interval: AutoRefreshInterval) => void;
   enableColumnOrdering?: boolean;
   getColumnLabel?: (columnId: string) => string;
@@ -207,6 +209,8 @@ export function DataTableToolbar<TData>({
   showRefresh = false,
   refreshControls,
   autoRefreshInterval = null,
+  autoRefreshActive = false,
+  refreshing = false,
   onAutoRefreshIntervalChange,
   enableColumnOrdering,
   getColumnLabel,
@@ -460,7 +464,7 @@ export function DataTableToolbar<TData>({
       <div className='flex shrink-0 flex-wrap items-center gap-2'>
         {refreshControls}
         {showRefresh && onRefresh && onAutoRefreshIntervalChange && (
-          <AutoRefreshControl interval={autoRefreshInterval} onIntervalChange={onAutoRefreshIntervalChange} onRefresh={onRefresh} />
+          <AutoRefreshControl interval={autoRefreshInterval} active={autoRefreshActive} refreshing={refreshing} onIntervalChange={onAutoRefreshIntervalChange} onRefresh={onRefresh} />
         )}
         {enableColumnOrdering && (
           <>

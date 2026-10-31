@@ -44,11 +44,6 @@ type PriceChangeAction struct {
 
 const channelModelPriceQueryBatchSize = 500
 
-type channelModelPriceTemplate struct {
-	ModelID string
-	Price   objects.ModelPrice
-}
-
 func uniqueNonEmptyModelIDs(modelIDs []string) []string {
 	return lo.Uniq(lo.Filter(modelIDs, func(modelID string, _ int) bool {
 		return modelID != ""
@@ -65,122 +60,6 @@ func modelCardToChannelModelPrice(card *objects.ModelCard) (objects.ModelPrice, 
 	}
 
 	return *card.Price, true
-}
-
-// createChannelModelPriceIfMissing atomically creates a current price when the
-// live (channel, model) pair is absent. The candidate reference ID identifies
-// whether this transaction won the upsert race, so only the winner creates the
-// initial version.
-func (svc *ChannelService) createChannelModelPriceIfMissing(
-	ctx context.Context,
-	channelID int,
-	template channelModelPriceTemplate,
-	now time.Time,
-) (bool, error) {
-	candidateReferenceID := generateReferenceID()
-	db := svc.entFromContext(ctx)
-
-	err := db.ChannelModelPrice.Create().
-		SetChannelID(channelID).
-		SetModelID(template.ModelID).
-		SetPrice(template.Price).
-		SetReferenceID(candidateReferenceID).
-		OnConflictColumns(
-			channelmodelprice.FieldChannelID,
-			channelmodelprice.FieldModelID,
-			channelmodelprice.FieldDeletedAt,
-		).
-		Ignore().
-		Exec(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to create channel model price: %w", err)
-	}
-
-	entity, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) (*ent.ChannelModelPrice, error) {
-		return db.ChannelModelPrice.Query().
-			Where(
-				channelmodelprice.ChannelID(channelID),
-				channelmodelprice.ModelID(template.ModelID),
-			).
-			Only(queryCtx)
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to load channel model price after upsert: %w", err)
-	}
-
-	if entity.ReferenceID != candidateReferenceID {
-		return false, nil
-	}
-
-	if err := svc.createChannelModelPriceVersion(ctx, entity, now); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (svc *ChannelService) resolveChannelModelPriceTemplates(
-	ctx context.Context,
-	modelIDs []string,
-) ([]channelModelPriceTemplate, error) {
-	modelIDs = uniqueNonEmptyModelIDs(modelIDs)
-	if len(modelIDs) == 0 {
-		return nil, nil
-	}
-
-	matches, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) ([]*ModelStandardPriceMatch, error) {
-		return matchModelStandardPrices(queryCtx, svc.entFromContext(queryCtx), modelIDs)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to query model prices from model library: %w", err)
-	}
-	templates := make([]channelModelPriceTemplate, 0, len(matches))
-	for _, match := range matches {
-		price, ok := modelCardToChannelModelPrice(match.Model.ModelCard)
-		if !ok {
-			continue
-		}
-		templates = append(templates, channelModelPriceTemplate{ModelID: match.RequestModelID, Price: price})
-	}
-
-	return templates, nil
-}
-
-// applyChannelModelPriceTemplates must run inside the logical channel mutation
-// transaction so each current price and initial version commit together.
-func (svc *ChannelService) applyChannelModelPriceTemplates(
-	ctx context.Context,
-	channelID int,
-	templates []channelModelPriceTemplate,
-) (bool, error) {
-	if len(templates) == 0 {
-		return false, nil
-	}
-
-	ch, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) (*ent.Channel, error) {
-		return svc.entFromContext(queryCtx).Channel.Get(queryCtx, channelID)
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to load channel pricing settings: %w", err)
-	}
-	var multiplier *decimal.Decimal
-	if ch.Settings != nil {
-		multiplier = ch.Settings.ModelPriceMultiplier
-	}
-
-	changed := false
-	now := xtime.UTCNow()
-	for _, template := range templates {
-		template.Price.Multiplier = multiplier
-		created, err := svc.createChannelModelPriceIfMissing(ctx, channelID, template, now)
-		if err != nil {
-			return false, fmt.Errorf("failed to auto-configure channel model price: model_id=%s: %w", template.ModelID, err)
-		}
-
-		changed = changed || created
-	}
-
-	return changed, nil
 }
 
 func (svc *ChannelService) createChannelModelPriceVersion(
@@ -229,61 +108,6 @@ func (svc *ChannelService) createChannelModelPrice(
 	}
 
 	return entity, nil
-}
-
-// ensureChannelModelPrices fills prices only for the supplied model IDs that
-// do not already have a current channel price. Repeated calls preserve all
-// existing prices and version history.
-func (svc *ChannelService) ensureChannelModelPrices(ctx context.Context, channelID int, modelIDs []string) (bool, error) {
-	modelIDs = uniqueNonEmptyModelIDs(modelIDs)
-	if len(modelIDs) == 0 {
-		return false, nil
-	}
-
-	changed := false
-	err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
-		db := svc.entFromContext(ctx)
-		existingModelIDs := make(map[string]struct{}, len(modelIDs))
-		for start := 0; start < len(modelIDs); start += channelModelPriceQueryBatchSize {
-			end := min(start+channelModelPriceQueryBatchSize, len(modelIDs))
-			existingPrices, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) ([]*ent.ChannelModelPrice, error) {
-				return db.ChannelModelPrice.Query().
-					Where(
-						channelmodelprice.ChannelID(channelID),
-						channelmodelprice.ModelIDIn(modelIDs[start:end]...),
-					).
-					Select(channelmodelprice.FieldModelID).
-					All(queryCtx)
-			})
-			if err != nil {
-				return fmt.Errorf("failed to query existing channel model prices: %w", err)
-			}
-
-			for _, existingPrice := range existingPrices {
-				existingModelIDs[existingPrice.ModelID] = struct{}{}
-			}
-		}
-
-		missingModelIDs := lo.Filter(modelIDs, func(modelID string, _ int) bool {
-			_, exists := existingModelIDs[modelID]
-
-			return !exists
-		})
-		if len(missingModelIDs) == 0 {
-			return nil
-		}
-
-		templates, err := svc.resolveChannelModelPriceTemplates(ctx, missingModelIDs)
-		if err != nil {
-			return err
-		}
-
-		changed, err = svc.applyChannelModelPriceTemplates(ctx, channelID, templates)
-
-		return err
-	})
-
-	return changed, err
 }
 
 func calculatePriceChanges(prices []*ent.ChannelModelPrice, inputs []SaveChannelModelPriceInput) []PriceChangeAction {
