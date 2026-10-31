@@ -3,6 +3,15 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -17,13 +26,6 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/transformer/openai"
-	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
-	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func setupBudgetRequest(t *testing.T) (context.Context, *ent.Client, *biz.Channel, *biz.RequestService, *biz.SystemService, *biz.UsageLogService, *ent.APIKey) {
@@ -47,6 +49,7 @@ func setupBudgetRequest(t *testing.T) (context.Context, *ent.Client, *biz.Channe
 	db.BudgetAccount.Create().SetProjectID(project.ID).SetOwnerKind(budgetaccount.OwnerKindKey).SetOwnerID(key.ID).SetState(state).SaveX(ctx)
 	return ctx, db, loaded, requests, system, usage, key
 }
+
 func TestBudgetPipelineRejectsBeforeTransportAndSettlesActualCost(t *testing.T) {
 	ctx, db, ch, requests, system, usage, key := setupBudgetRequest(t)
 	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Body: buildMockOpenAIResponse("budget-response", "gpt-4", "hello", 10, 20), Headers: http.Header{"Content-Type": []string{"application/json"}}}}
@@ -114,6 +117,7 @@ func TestBudgetRegexModelLimitWithExplicitChannelPrice(t *testing.T) {
 	require.Equal(t, budgetcharge.StatusSettled, charge.Status)
 	require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
 }
+
 func TestBudgetFailedStreamSettlesKnownUsageAndKeepsFailure(t *testing.T) {
 	ctx, db, ch, requests, _, usage, key := setupBudgetRequest(t)
 	req := db.Request.Create().SetProjectID(key.ProjectID).SetAPIKeyID(key.ID).SetChannelID(ch.ID).SetModelID("gpt-4").SetStatus(request.StatusPending).SetRequestBody([]byte("{}")).SaveX(ctx)
@@ -147,6 +151,7 @@ func (e *budgetCountingExecutor) Do(ctx context.Context, req *httpclient.Request
 	e.response.Request = req
 	return e.mockExecutor.Do(ctx, req)
 }
+
 func TestBudgetAcceptedVideoPersistenceFailureDoesNotRetry(t *testing.T) {
 	ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
 	failOnce := true

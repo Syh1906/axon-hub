@@ -16,7 +16,8 @@ const (
 	ServiceTierItemUnpriced   ServiceTierItemMethod = "unpriced"
 )
 
-// An omitted item inherits. An explicit unpriced item stops inheritance.
+// ServiceTierItemRule overrides one price item. An omitted item inherits;
+// an explicit unpriced item stops inheritance.
 type ServiceTierItemRule struct {
 	ReferenceBasePrice *decimal.Decimal            `json:"referenceBasePrice,omitempty"`
 	ReferenceModePrice *decimal.Decimal            `json:"referenceModePrice,omitempty"`

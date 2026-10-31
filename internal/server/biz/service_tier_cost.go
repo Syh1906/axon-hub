@@ -1,12 +1,14 @@
 package biz
 
 import (
-	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/llm"
-	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
 	"slices"
 	"time"
+
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
+
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 )
 
 // Select the base rates, context evidence and matching mode overrides together.

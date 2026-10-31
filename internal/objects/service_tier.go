@@ -99,6 +99,7 @@ func (p *ServiceTierPrices) Validate() error {
 	}
 	return nil
 }
+
 func (p *ServiceTierPrices) Equals(other *ServiceTierPrices) bool {
 	if p == nil || other == nil {
 		return p == other
@@ -146,6 +147,7 @@ func ServiceTierValue(body []byte) string {
 	}
 	return strings.TrimSpace(tier)
 }
+
 func NormalizeServiceTier(value string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "default", "standard":
@@ -160,6 +162,7 @@ func NormalizeServiceTier(value string) (string, bool) {
 		return "", false
 	}
 }
+
 func (e *ServiceTierEvidence) Observe(body []byte) {
 	if e == nil {
 		return

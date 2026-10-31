@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/llm"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+
+	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 )
 
 func TestServiceTierItemsPreviewAndRestoration(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,9 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 	sessionID, _ := shared.GetSessionID(ctx)
 	var current map[string]json.RawMessage
 	if json.Unmarshal(body, &current) != nil || current == nil {
+		// Invalid request bodies are validated by the normal request parser;
+		// session restoration must pass them through without changing the error.
+		//nolint:nilerr
 		return body, responseSessionID(sessionID), nil
 	}
 
@@ -156,10 +160,10 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 		id = previous
 	}
 	// Build once from the oldest known complete ancestor. Cache admission is optional.
-	for i := len(turns) - 1; i >= 0; i-- {
-		base = append(base, turns[i].record.input...)
+	for i, turn := range slices.Backward(turns) {
+		base = append(base, turn.record.input...)
 		if i > 0 {
-			base = append(base, turns[i].record.output...)
+			base = append(base, turn.record.output...)
 		}
 	}
 	record := turns[0].record

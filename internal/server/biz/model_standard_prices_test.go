@@ -17,9 +17,11 @@ func TestModelStandardPricesMatchRulesAndPreserveChannelOverrides(t *testing.T) 
 	defer client.Close()
 	ctx := channelAutoPriceTestContext(client)
 	price := func(value int64) *objects.ModelPrice {
-		return &objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(value))}}},
+		return &objects.ModelPrice{
+			Items:        []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(value))}}},
 			ServiceTiers: &objects.ServiceTierPrices{Fast: &objects.ServiceTierPrice{Source: objects.ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.NewFromInt(2))}},
-			VolumeTiers:  []objects.ModelPriceVolumeTier{{Above: 272000, LongContext: true, Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(value * 2))}}}}}}
+			VolumeTiers:  []objects.ModelPriceVolumeTier{{Above: 272000, LongContext: true, Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(value * 2))}}}}},
+		}
 	}
 	create := func(pattern string, kind objects.ModelMatchType, priority int, status model.Status, value *objects.ModelPrice) *ent.Model {
 		return client.Model.Create().SetDeveloper("test").SetModelID(pattern).SetMatchType(kind).SetMatchPriority(priority).

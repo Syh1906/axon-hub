@@ -5,7 +5,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// This catalog is an explicit, versioned snapshot of the API price table.
+// OfficialServiceTierItem belongs to an explicit, versioned API price snapshot.
 // https://developers.openai.com/api/docs/pricing, verified 2026-10-31.
 // OpenAI's 30m/12h cache writes are not Anthropic's 5m/1h variants.
 type OfficialServiceTierItem struct {
@@ -82,8 +82,12 @@ func (o OfficialServiceTierPrice) Price(mode, application string, scope Official
 		return price
 	}
 	for _, key := range []ServiceTierItemRule{
-		{ItemCode: PriceItemCodeUsage}, {ItemCode: PriceItemCodeCompletion}, {ItemCode: PriceItemCodePromptCachedToken}, {ItemCode: PriceItemCodeWriteCachedTokens},
-		{ItemCode: PriceItemCodeWriteCachedTokens, VariantCode: PromptWriteCacheVariantCode5Min}, {ItemCode: PriceItemCodeWriteCachedTokens, VariantCode: PromptWriteCacheVariantCode1Hour},
+		{ItemCode: PriceItemCodeUsage},
+		{ItemCode: PriceItemCodeCompletion},
+		{ItemCode: PriceItemCodePromptCachedToken},
+		{ItemCode: PriceItemCodeWriteCachedTokens},
+		{ItemCode: PriceItemCodeWriteCachedTokens, VariantCode: PromptWriteCacheVariantCode5Min},
+		{ItemCode: PriceItemCodeWriteCachedTokens, VariantCode: PromptWriteCacheVariantCode1Hour},
 	} {
 		key.Method = ServiceTierItemUnpriced
 		for _, q := range quote {

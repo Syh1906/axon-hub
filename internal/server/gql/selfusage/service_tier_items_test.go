@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -20,9 +24,6 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
-	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
-	"github.com/stretchr/testify/require"
 )
 
 func TestServiceTierItemsRecoveryAndSelfUsageGraphQL(t *testing.T) {

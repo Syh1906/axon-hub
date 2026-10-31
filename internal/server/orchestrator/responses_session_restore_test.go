@@ -85,6 +85,7 @@ func TestResponsesSessionRestoreFailureKeepsNativeRequestAndCancelStops(t *testi
 	_, _, err = store.prepare(canceled, body)
 	require.ErrorIs(t, err, context.Canceled)
 }
+
 func TestResponsesSessionCachedAncestorAndExpiredLargeOutput(t *testing.T) {
 	ctx := shared.WithSessionScope(context.Background(), "key:1:project:1")
 	calls := []string{}
