@@ -1,3 +1,4 @@
+scalar Decimal
 scalar Time
 
 type Query {
@@ -74,6 +75,7 @@ type SelfUsageRequest {
 }
 
 type SelfUsageCostItem {
+  pricingEvidence: CostPricingEvidence
   image: SelfUsageImageOutput
   imageRule: String!
   unpriced: Boolean!

@@ -701,7 +701,40 @@ export const overrideWhenSchema = z.object({
 });
 export type OverrideWhen = z.infer<typeof overrideWhenSchema>;
 
+export const serviceTierSettingsSchema = z.object({ enabled: z.boolean(), basis: z.enum(['upstream', 'client']) });
+export type ServiceTierSettings = z.infer<typeof serviceTierSettingsSchema>;
+export const serviceTierItemRuleSchema = z.object({
+  referenceBasePrice: z.union([z.string(), z.number()]).nullable().optional(),
+  referenceModePrice: z.union([z.string(), z.number()]).nullable().optional(),
+  itemCode: priceItemCodeSchema,
+  variantCode: z.string().optional().nullable(),
+  method: z.enum(['multiplier', 'unit_price', 'unpriced']),
+  value: z.union([z.string(), z.number()]).nullable().optional(),
+});
+export type ServiceTierItemRule = z.infer<typeof serviceTierItemRuleSchema>;
+export const serviceTierPriceSchema = z.object({
+  source: z.enum(['official', 'custom', 'model']),
+  items: z.array(serviceTierItemRuleSchema).nullable().optional(),
+  unpriced: z.boolean().optional(),
+  application: z.string().optional(),
+  contextAbove: z.number().nullable().optional(),
+  contextUpTo: z.number().nullable().optional(),
+  sourceURL: z.string().optional(),
+  verifiedAt: z.string().optional(),
+  currency: z.string().optional(),
+  unit: z.string().optional(),
+  multiplier: z.union([z.string(), z.number()]).nullable().optional(),
+  referenceModel: z.string().optional(),
+  version: z.string().optional(),
+});
+export const serviceTierPricesSchema = z.object({
+  fast: serviceTierPriceSchema.nullable().optional(),
+  ultrafast: serviceTierPriceSchema.nullable().optional(),
+});
+export type ServiceTierPrices = z.infer<typeof serviceTierPricesSchema>;
+
 export const priceOverrideSchema = z.object({
+  serviceTiers: serviceTierPricesSchema.optional().nullable(),
   name: z.string(),
   priority: z.number().int(),
   when: overrideWhenSchema,
@@ -716,12 +749,15 @@ export const priceScheduleSchema = z.object({
 export type PriceSchedule = z.infer<typeof priceScheduleSchema>;
 
 export const modelPriceVolumeTierSchema = z.object({
+  serviceTiers: serviceTierPricesSchema.optional().nullable(),
+  longContext: z.boolean().optional(),
   above: z.number().int().nonnegative(),
   items: z.array(modelPriceItemSchema),
 });
 export type ModelPriceVolumeTier = z.infer<typeof modelPriceVolumeTierSchema>;
 
 export const modelPriceSchema = z.object({
+  serviceTiers: serviceTierPricesSchema.optional().nullable(),
   multiplier: z.union([z.string(), z.number()]).optional().nullable(),
   items: z.array(modelPriceItemSchema),
   volumeTiers: z.array(modelPriceVolumeTierSchema).optional().nullable(),

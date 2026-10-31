@@ -23,6 +23,8 @@ schema:
   - managed_group_usage.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
+  - service_tier.graphql
+  - cost_pricing_evidence.graphql
   - price.graphql
   - cost.graphql
   - usage_cost.graphql
@@ -87,6 +89,8 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  ModelStandardPriceMatch:
+    model: github.com/looplj/axonhub/internal/server/biz.ModelStandardPriceMatch
   ChannelTodayUsage:
     model:
       - github.com/looplj/axonhub/internal/objects.ChannelTodayUsage
@@ -998,3 +1002,69 @@ models:
   DashboardCostStats:
     model:
       - github.com/looplj/axonhub/internal/server/biz.DashboardCostStats
+
+  ServiceTierBasis:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierBasis
+
+  ServiceTierPriceSource:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierPriceSource
+
+  ServiceTierSettings:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierSettings
+
+  ServiceTierSettingsInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierSettings
+
+  ServiceTierPrice:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierPrice
+
+  ServiceTierPriceInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierPrice
+
+  ServiceTierPrices:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierPrices
+
+  ServiceTierPricesInput:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierPrices
+
+  OfficialServiceTierPrice:
+    model:
+      - github.com/looplj/axonhub/internal/objects.OfficialServiceTierPrice
+
+  ServiceTierDecision:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ServiceTierDecision
+
+  ContextPricing:
+    model:
+      - github.com/looplj/axonhub/internal/objects.ContextPricing
+
+  CostPricingEvidence:
+    model:
+      - github.com/looplj/axonhub/internal/objects.CostPricingEvidence
+
+  ServiceTierItemMethod:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierItemMethod
+
+  ServiceTierItemReference:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierPrice
+
+  ServiceTierItemRule:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierItemRule
+
+  ServiceTierItemRuleInput:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierItemRule
+
+  OfficialServiceTierContext:
+    model: github.com/looplj/axonhub/internal/objects.OfficialServiceTierContext
+
+  OfficialServiceTierItem:
+    model: github.com/looplj/axonhub/internal/objects.OfficialServiceTierItem

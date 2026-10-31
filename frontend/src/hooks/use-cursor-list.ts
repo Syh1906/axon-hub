@@ -12,11 +12,13 @@ export function useCursorList<Page extends CursorPage>({
   fetchPage,
   enabled = true,
   interval = false,
+  refetchOnMount,
 }: {
   queryKey: QueryKey;
   fetchPage: (after: string | null, signal: AbortSignal) => Promise<Page>;
   enabled?: boolean;
   interval?: number | false;
+  refetchOnMount?: boolean | 'always';
 }) {
   const client = useQueryClient();
   const trimming = useRef(false);
@@ -29,6 +31,7 @@ export function useCursorList<Page extends CursorPage>({
     refetchInterval: interval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
+    refetchOnMount,
   });
   const data = useMemo(() => {
     const pages = query.data?.pages;

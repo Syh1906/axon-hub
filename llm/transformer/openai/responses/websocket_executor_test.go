@@ -466,59 +466,66 @@ func TestWebSocketExecutorDoAggregatesCancelledAndIncompleteResponseEvents(t *te
 }
 
 func TestWebSocketExecutorReusesConnectionForSameSession(t *testing.T) {
-	upgrader := websocket.Upgrader{}
-	var upgrades atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "session-1", r.Header.Get(webSocketSessionHeader))
-		upgrades.Add(1)
+	for _, terminalType := range []string{"response.completed", "response.done"} {
+		t.Run(terminalType, func(t *testing.T) {
+			upgrader := websocket.Upgrader{}
+			var upgrades atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "session-1", r.Header.Get(webSocketSessionHeader))
+				upgrades.Add(1)
 
-		conn, err := upgrader.Upgrade(w, r, nil)
-		require.NoError(t, err)
-		defer conn.Close()
+				conn, err := upgrader.Upgrade(w, r, nil)
+				require.NoError(t, err)
+				defer conn.Close()
 
-		for i := 0; i < 2; i++ {
-			var payload map[string]any
-			require.NoError(t, conn.ReadJSON(&payload))
-			require.Equal(t, "response.create", payload["type"])
-			require.Equal(t, fmt.Sprintf("turn-%d", i+1), payload["instructions"])
+				for i := 0; i < 2; i++ {
+					var payload map[string]any
+					require.NoError(t, conn.ReadJSON(&payload))
+					require.Equal(t, "response.create", payload["type"])
+					require.Equal(t, fmt.Sprintf("turn-%d", i+1), payload["instructions"])
 
-			require.NoError(t, conn.WriteJSON(map[string]any{
-				"type": "response.completed",
-				"response": map[string]any{
-					"id":         fmt.Sprintf("resp_%d", i+1),
-					"object":     "response",
-					"created_at": 1700000000,
-					"model":      "gpt-5",
-					"status":     "completed",
-					"output":     []any{},
-				},
+					require.NoError(t, conn.WriteJSON(map[string]any{
+						"type": terminalType,
+						"response": map[string]any{
+							"id":         fmt.Sprintf("resp_%d", i+1),
+							"object":     "response",
+							"created_at": 1700000000,
+							"model":      "gpt-5",
+							"status":     "completed",
+							"output":     []any{},
+						},
+					}))
+				}
 			}))
-		}
-	}))
-	defer server.Close()
+			defer server.Close()
 
-	executor := NewWebSocketExecutor(nil)
-	for i := 0; i < 2; i++ {
-		stream, err := executor.DoStream(webSocketTestContext(), &httpclient.Request{
-			Method: http.MethodPost,
-			URL:    "http" + strings.TrimPrefix(server.URL, "http") + "/v1/responses",
-			Headers: http.Header{
-				webSocketSessionHeader: []string{"session-1"},
-			},
-			Auth: &httpclient.AuthConfig{Type: httpclient.AuthTypeBearer, APIKey: "test-key"},
-			Body: []byte(fmt.Sprintf(`{"model":"gpt-5","instructions":"turn-%d"}`, i+1)),
+			executor := NewWebSocketExecutor(nil)
+			defer executor.Close()
+			ctx, cancel := context.WithTimeout(webSocketTestContext(), 2*time.Second)
+			defer cancel()
+			for i := 0; i < 2; i++ {
+				stream, err := executor.DoStream(ctx, &httpclient.Request{
+					Method: http.MethodPost,
+					URL:    "http" + strings.TrimPrefix(server.URL, "http") + "/v1/responses",
+					Headers: http.Header{
+						webSocketSessionHeader: []string{"session-1"},
+					},
+					Auth: &httpclient.AuthConfig{Type: httpclient.AuthTypeBearer, APIKey: "test-key"},
+					Body: []byte(fmt.Sprintf(`{"model":"gpt-5","instructions":"turn-%d"}`, i+1)),
+				})
+				require.NoError(t, err)
+				require.True(t, stream.Next())
+				require.Equal(t, terminalType, stream.Current().Type)
+				require.False(t, stream.Next())
+				require.NoError(t, stream.Err())
+				require.NoError(t, stream.Close())
+			}
+
+			require.Equal(t, int32(1), upgrades.Load())
+
 		})
-		require.NoError(t, err)
-		require.True(t, stream.Next())
-		require.Equal(t, "response.completed", stream.Current().Type)
-		require.False(t, stream.Next())
-		require.NoError(t, stream.Err())
-		require.NoError(t, stream.Close())
 	}
-
-	require.Equal(t, int32(1), upgrades.Load())
 }
-
 func TestWebSocketExecutorDoesNotPoolWithoutSession(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	var upgrades atomic.Int32

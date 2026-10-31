@@ -1,3 +1,4 @@
+import type { ServiceTierSettings } from './schema';
 import { useEffect } from 'react';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { z } from 'zod';
@@ -806,7 +807,7 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
     node(id: $id) {
     ... on Channel {
       id
-      settings { modelPriceMultiplier healthGateFailureThreshold }
+      settings { modelPriceMultiplier healthGateFailureThreshold serviceTierBilling { enabled basis } }
       channelModelPrices {
         id
         modelID
@@ -821,8 +822,8 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
 `;
 
 const SAVE_CHANNEL_MODEL_PRICES_MUTATION = `
-  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal) {
-    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier) {
+  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal, $serviceTierBilling: ServiceTierSettingsInput) {
+    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier, serviceTierBilling: $serviceTierBilling) {
       id
       modelID
       price {
@@ -1038,11 +1039,12 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
     queryFn: async () => {
       try {
         const data = await graphqlRequest<{
-          node: { settings?: { modelPriceMultiplier?: string | number | null } | null; channelModelPrices: ChannelModelPrice[] };
+          node: { settings?: { serviceTierBilling?: ServiceTierSettings | null; modelPriceMultiplier?: string | number | null } | null; channelModelPrices: ChannelModelPrice[] };
         }>(GET_CHANNEL_MODEL_PRICES_QUERY, { id: channelId });
         return {
           prices: (data.node?.channelModelPrices || []).map((p) => channelModelPriceSchema.parse(p)),
           multiplier: String(data.node?.settings?.modelPriceMultiplier ?? '1'),
+          serviceTierBilling: data.node?.settings?.serviceTierBilling ?? { enabled: false, basis: 'upstream' as const },
         };
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -1063,16 +1065,19 @@ export function useSaveChannelModelPrices() {
       channelId,
       input,
       multiplier,
+      serviceTierBilling,
     }: {
       channelId: string;
       input: SaveChannelModelPriceInput[];
       multiplier?: string;
+      serviceTierBilling?: ServiceTierSettings;
     }) => {
       try {
         const data = await graphqlRequest<{ saveChannelModelPrices: ChannelModelPrice[] }>(SAVE_CHANNEL_MODEL_PRICES_MUTATION, {
           channelId,
           input: input.map((price) => saveChannelModelPriceInputSchema.parse(price)),
           multiplier,
+          serviceTierBilling,
         });
         return data.saveChannelModelPrices.map((p) => channelModelPriceSchema.parse(p));
       } catch (error) {

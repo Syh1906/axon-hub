@@ -60,3 +60,49 @@ test('only multi-segment tiers receive display rows and per-tier unit prices', (
     { upTo: null, units: 20, subtotal: 2.5, unitPrice: 125_000 },
   ]);
 });
+
+const evidence = (mode = 'fast', factor = 2, base = 1.002) => ({
+  serviceTier: { mode, basis: 'upstream', client: 'priority', outbound: 'priority', upstream: 'priority', confirmed: true, reason: 'upstream', source: 'custom', referenceModel: '', version: '' },
+  context: { kind: 'volume', inputTokens: 300000, threshold: 272000, longContext: true, name: '' },
+  baseSubtotal: base, modeMultiplier: factor, costMultiplier: 0.8,
+});
+test('frozen base cost survives zero multipliers and context with Fast', () => {
+  for (const factor of [0, 2]) {
+    const rows = buildCostBreakdown(1.002 * factor * .8, breakdown([{ ...item('prompt_tokens', 240000, 1.002 * factor * .8), pricingEvidence: evidence('fast', factor) }], .8));
+    assert.equal(rows.baseTotal, 1.002);
+    assert.equal(rows.modeMultiplier, factor);
+    assert.equal(rows.evidence.context.longContext, true);
+    assert.equal(rows.items[0].unitPrice, 4.175);
+  }
+});
+test('mixed records keep each frozen basis and unresolved rates stay unknown', () => {
+  const rows = buildCostBreakdown(1, breakdown([
+    { ...item('prompt_tokens', 100, 1), pricingEvidence: evidence() },
+    { ...item('prompt_tokens', 100, 0), unpriced: true, pricingEvidence: evidence('ultrafast', null) },
+  ]));
+  assert.equal(rows.evidence, 'mixed');
+  assert.equal(rows.modeMultiplier, 'mixed');
+  assert.equal(rows.items[1].pricingEvidence.serviceTier.mode, 'ultrafast');
+  assert.equal(rows.items[1].unitPrice, null);
+});
+
+test('zero mode retains tier base prices without dividing by zero', () => {
+  const ev={...evidence('fast',0,3),baseTierSubtotals:[1,2]};
+  const rows=buildCostBreakdown(0,breakdown([{...item('prompt_tokens',30,0,null,[{upTo:10,units:10,subtotal:0},{upTo:null,units:20,subtotal:0}]),pricingEvidence:ev}]));
+  assert.deepEqual(rows.items[0].tiers.map(t=>t.subtotal),[1,2]);
+  assert.deepEqual(rows.items[0].tiers.map(t=>t.unitPrice),[100000,100000]);
+});
+
+test('itemized evidence uses frozen mode subtotals and never labels an absolute price unconfigured', () => {
+  const first = { ...evidence(), itemMethod: 'multiplier', modeMultiplier: 2, modeSubtotal: 1.696008, finalUnitPrice: 8 };
+  const second = { ...evidence(), itemMethod: 'unit_price', modeMultiplier: null, modeSubtotal: 0.018, finalUnitPrice: 0.3 };
+  const rows = buildCostBreakdown(1.3712064, breakdown([
+    { ...item('prompt_tokens', 212001, 1.3568064), pricingEvidence: first },
+    { ...item('prompt_cached_tokens', 60000, 0.0144), pricingEvidence: second },
+  ], 0.8));
+  assert.equal(rows.itemized, true);
+  assert.equal(rows.hasModeSubtotals, true);
+  assert.equal(rows.evidence.serviceTier.mode, 'fast');
+  assert.equal(rows.items[1].unitPrice, 0.3);
+  assert.equal(rows.modeTotal, 1.714008);
+});

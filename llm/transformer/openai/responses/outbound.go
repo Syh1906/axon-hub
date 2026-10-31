@@ -439,6 +439,10 @@ func (t *OutboundTransformer) transformStandardResponse(
 		TransformerMetadata: map[string]any{},
 	}
 
+	if resp.ServiceTier != nil {
+		llmResp.ServiceTier = *resp.ServiceTier
+	}
+
 	// Convert usage if present
 	if resp.Usage != nil {
 		llmResp.Usage = resp.Usage.ToUsage()

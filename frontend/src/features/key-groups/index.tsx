@@ -6,6 +6,7 @@ import { useSelectedProjectId } from '@/stores/projectStore';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuGroup } from '@/components/ui/dropdown-menu';
@@ -300,7 +301,12 @@ function GroupPage() {
                         : 'enabled';
                   return (
                     <Fragment key={g.id}>
-                      <TableRow data-testid='key-group-row' className={expanded.has(g.id) ? 'bg-muted/20' : undefined}>
+                      <ExpandableTableRow
+                        data-testid='key-group-row'
+                        expanded={expanded.has(g.id)}
+                        onToggle={() => toggle(g.id)}
+                        className={expanded.has(g.id) ? 'bg-muted/20' : undefined}
+                      >
                         <TableCell>
                           {mode === 'group' ? (
                             <Checkbox
@@ -313,6 +319,7 @@ function GroupPage() {
                               size='icon'
                               variant='ghost'
                               aria-label={t(expanded.has(g.id) ? 'kg.collapseGroup' : 'kg.expandGroup', { name: g.name })}
+                              aria-expanded={expanded.has(g.id)}
                               onClick={() => toggle(g.id)}
                             >
                               {expanded.has(g.id) ? <ChevronDown className='size-4' /> : <ChevronRight className='size-4' />}
@@ -415,7 +422,7 @@ function GroupPage() {
                             </DropdownMenu>
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ExpandableTableRow>
                       {expanded.has(g.id) && (
                         <TableRow className='hover:bg-transparent'>
                           <TableCell colSpan={10} className='p-0'>
@@ -426,19 +433,20 @@ function GroupPage() {
                     </Fragment>
                   );
                 })}
-                <TableRow>
+                <ExpandableTableRow expanded={expanded.has(0)} onToggle={() => toggle(0)}>
                   <TableCell>
                     <Button
                       size='icon'
                       variant='ghost'
-                      aria-label={t('kg.expandGroup', { name: t('kg.ungrouped') })}
+                      aria-label={t(expanded.has(0) ? 'kg.collapseGroup' : 'kg.expandGroup', { name: t('kg.ungrouped') })}
+                      aria-expanded={expanded.has(0)}
                       onClick={() => toggle(0)}
                     >
                       {expanded.has(0) ? <ChevronDown className='size-4' /> : <ChevronRight className='size-4' />}
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <button onClick={() => toggle(0)} className='font-semibold'>
+                    <button type='button' aria-expanded={expanded.has(0)} onClick={() => toggle(0)} className='font-semibold'>
                       {t('kg.ungrouped')}
                     </button>
                     <p className='text-muted-foreground text-xs'>{t('kg.ungroupedHelp')}</p>
@@ -466,7 +474,7 @@ function GroupPage() {
                       {t('kg.organize')}
                     </Button>
                   </TableCell>
-                </TableRow>
+                </ExpandableTableRow>
                 {expanded.has(0) && (
                   <TableRow>
                     <TableCell colSpan={10} className='p-0'>

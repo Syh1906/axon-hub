@@ -1,3 +1,4 @@
+import { ServiceTierPriceEditor, ModeRulesEditor } from './service-tier-price-editor';
 import { useId, useState, type ComponentProps } from 'react';
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -38,6 +39,7 @@ export function CompleteModelPriceEditor({
   const { data: settings } = useGeneralSettings();
   const { control, getValues, getFieldState, formState } = useFormContext();
   const price = useWatch({ control, name: pricePath }) as ModelPrice | null | undefined;
+  const modelID = useWatch({ control, name: pricePath.startsWith('prices.') ? pricePath.replace(/\.price$/, '.modelId') : 'modelID' }) as string;
   const items = price?.items ?? [];
   const { fields, append, remove, replace } = useFieldArray({ control, name: `${pricePath}.volumeTiers` });
   const unified = fields.length > 0;
@@ -101,6 +103,7 @@ export function CompleteModelPriceEditor({
           baseItems={items}
           currencyCode={settings?.currencyCode}
           multiplier={multiplier}
+          portalContainer={portalContainer}
           onRemove={() => remove(index)}
         />
       ))}
@@ -115,6 +118,7 @@ export function CompleteModelPriceEditor({
           {t('price.volume.addTier')}
         </Button>
       )}
+      <ServiceTierPriceEditor pricePath={pricePath} portalContainer={portalContainer} modelID={modelID} channel={pricePath.startsWith('prices.')} />
       <PriceScheduleEditor
         control={control as unknown as ComponentProps<typeof PriceScheduleEditor>['control']}
         priceIndex={0}
@@ -123,13 +127,13 @@ export function CompleteModelPriceEditor({
         defaultTimezone={settings?.timezone}
         portalContainer={portalContainer}
         renderItems={(itemsPath) => (
-          <ModelPriceEditor
+          <><ModelPriceEditor
             control={itemControl}
             priceIndex={0}
             itemsPath={itemsPath}
             currencyCode={settings?.currencyCode}
             multiplier={multiplier}
-          />
+          /><details className='rounded-md border p-3'><summary className='cursor-pointer text-sm'>{t('serviceTier.items.contextOverride')}</summary><ModeRulesEditor pricePath={pricePath} rulesPath={`${itemsPath.replace(/\.items$/, '')}.serviceTiers`} contextPath={itemsPath.replace(/\.items$/, '')} portalContainer={portalContainer} /></details></>
         )}
       />
       {price?.schedule != null && <p className='text-muted-foreground text-xs'>{t('price.volume.schedulePrecedence')}</p>}
@@ -151,6 +155,7 @@ function VolumeTierRow({
   currencyCode,
   multiplier,
   onRemove,
+  portalContainer,
 }: {
   pricePath: string;
   index: number;
@@ -160,6 +165,7 @@ function VolumeTierRow({
   currencyCode?: string;
   multiplier?: string;
   onRemove: () => void;
+  portalContainer: HTMLDivElement | null;
 }) {
   const { t } = useTranslation();
   const { control, setValue, getValues } = useFormContext();
@@ -234,6 +240,9 @@ function VolumeTierRow({
           {t('price.volume.fill')}
         </Button>
       </div>
+      <FormField control={control} name={`${pricePath}.volumeTiers.${index}.longContext`} render={({ field }) => (
+        <FormItem className='flex items-center gap-2'><FormControl><Switch checked={!!field.value} onCheckedChange={field.onChange} aria-label={t('serviceTier.context.mark')} /></FormControl><FormLabel>{t('serviceTier.context.mark')}</FormLabel></FormItem>
+      )} />
       <p className='text-muted-foreground text-xs'>{t('price.volume.multiplierHint')}</p>
       <ModelPriceEditor
         control={control as unknown as ComponentProps<typeof ModelPriceEditor>['control']}
@@ -244,6 +253,7 @@ function VolumeTierRow({
         perUnitOnly
         hideHeader
       />
+      <details className='rounded-md border p-3'><summary className='cursor-pointer text-sm'>{t('serviceTier.items.contextOverride')}</summary><ModeRulesEditor pricePath={pricePath} rulesPath={`${pricePath}.volumeTiers.${index}.serviceTiers`} contextPath={`${pricePath}.volumeTiers.${index}`} portalContainer={portalContainer} /></details>
     </div>
   );
 }

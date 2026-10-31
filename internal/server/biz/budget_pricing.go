@@ -67,14 +67,33 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	}
 	price := *currentPrice
 	estimatedUsage := &llm.Usage{PromptTokens: promptTokens, CompletionTokens: output, TotalTokens: promptTokens + output}
-	effective := effectiveModelPriceItems(estimatedUsage, price, snap.PricedAt)
+	effective, overrides, contextPrice := selectedModelPricing(estimatedUsage, price, snap.PricedAt)
+	var estimateEvidence *objects.ServiceTierEvidence
+	if snap.ServiceTier != nil {
+		copy := *snap.ServiceTier
+		copy.Settings.Basis = objects.ServiceTierBasisClient
+		estimateEvidence = &copy
+	}
+	decision := estimateEvidence.Decision()
+	resolve := func(item objects.ModelPriceItem, variant objects.PromptWriteCacheVariantCode) (objects.Pricing, bool) {
+		base := item.Pricing
+		if variant != "" {
+			base = item.FindPromptWriteCacheVariantPricing(variant)
+		}
+		rule := objects.ResolveServiceTierItem(decision.Mode, contextPrice.InputTokens, price.ServiceTiers, overrides, item.ItemCode, variant)
+		return rule.Apply(base)
+	}
 	if len(effective) == 0 {
 		return 0, fmt.Errorf("the selected model has no price items")
 	}
 	needsOutput := false
 	for _, item := range effective {
 		if item.ItemCode == objects.PriceItemCodeCompletion && item.Pricing.Mode != objects.PricingModeFlatFee && item.Pricing.Mode != objects.PricingModeImageFixed {
-			needsOutput = needsOutput || budgetPricingPositive(item.Pricing)
+			resolved, priced := resolve(item, "")
+			if !priced {
+				return 0, fmt.Errorf("the requested output service tier has no configured price")
+			}
+			needsOutput = needsOutput || budgetPricingPositive(resolved)
 		}
 	}
 	if needsOutput && output == 0 {
@@ -97,13 +116,13 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	}
 	estimatedUsage.CompletionTokens = output
 	estimatedUsage.TotalTokens = promptTokens + output
-	effective = effectiveModelPriceItems(estimatedUsage, price, snap.PricedAt)
 	total := decimal.Zero
 	for _, item := range effective {
 		multiplier := snap.Applied.Value
 		if item.Pricing.Mode == objects.PricingModeFlatFee || item.Pricing.Mode == objects.PricingModeImageFixed {
 			multiplier = snap.ManualMultiplier
 		}
+
 		if req.Video != nil && item.Pricing.Mode != objects.PricingModeFlatFee {
 			return 0, fmt.Errorf("video pricing cannot be estimated")
 		}
@@ -130,10 +149,18 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 		}
 		// Reserve input/cache-write alternatives conservatively; actual settlement
 		// uses the provider's mutually exclusive token counts.
-		_, subtotal := computeItemSubtotal(quantity, item.Pricing)
+		resolved, priced := resolve(item, "")
+		if !priced && quantity > 0 {
+			return 0, fmt.Errorf("the requested service tier item has no configured price")
+		}
+		_, subtotal := computeItemSubtotal(quantity, resolved)
 		if item.ItemCode == objects.PriceItemCodeWriteCachedTokens {
 			for _, variant := range []objects.PromptWriteCacheVariantCode{objects.PromptWriteCacheVariantCode5Min, objects.PromptWriteCacheVariantCode1Hour} {
-				_, value := computeItemSubtotal(quantity, item.FindPromptWriteCacheVariantPricing(variant))
+				variantPrice, priced := resolve(item, variant)
+				if !priced && quantity > 0 {
+					return 0, fmt.Errorf("the requested cache variant has no configured price")
+				}
+				_, value := computeItemSubtotal(quantity, variantPrice)
 				if value.GreaterThan(subtotal) {
 					subtotal = value
 				}

@@ -486,7 +486,13 @@ export function RequestLog({
                       ) : (
                         <>
                           <TableCell>
-                            <TokensCell prompt={item.inputTokens} completion={item.outputTokens} reasoning={item.reasoningTokens} />
+                            <TokensCell
+                              prompt={item.inputTokens}
+                              completion={item.outputTokens}
+                              reasoning={item.reasoningTokens}
+                              cached={item.cacheReadTokens}
+                              writeCached={item.cacheWriteTokens}
+                            />
                           </TableCell>
                           <TableCell>
                             <ReadCacheCell cached={item.cacheReadTokens} prompt={item.inputTokens} />
@@ -501,6 +507,7 @@ export function RequestLog({
                               emptyLabel='-'
                               breakdown={{
                                 items: item.costItems.map((costItem) => ({
+                                  pricingEvidence: costItem.pricingEvidence,
                                   image: costItem.image,
                                   imageRule: costItem.imageRule,
                                   unpriced: costItem.unpriced,

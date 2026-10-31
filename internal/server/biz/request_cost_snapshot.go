@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/shopspring/decimal"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -73,35 +72,4 @@ func (s *UsageLogService) computeSnapshotUsageCost(ctx context.Context, usage *l
 		}
 	}
 	return items, lo.ToPtr(total.InexactFloat64()), snapshot.PriceReferenceID
-}
-
-func computeCostFromSnapshot(usage *llm.Usage, price objects.ModelPrice, snapshot *objects.RequestCostSnapshot) ([]objects.CostItem, decimal.Decimal) {
-	price.Multiplier = nil
-	items, _ := ComputeUsageCost(usage, price, snapshot.PricedAt, snapshot.Images)
-	effective := effectiveModelPriceItems(usage, price, snapshot.PricedAt)
-	total := decimal.Zero
-	for i := range items {
-		multiplier := snapshot.Applied.Value
-		// An independent flat charge does not acquire a token group multiplier.
-		for _, item := range effective {
-			if item.ItemCode != items[i].ItemCode {
-				continue
-			}
-			pricing := item.Pricing
-			if items[i].PromptWriteCacheVariantCode != "" {
-				pricing = item.FindPromptWriteCacheVariantPricing(items[i].PromptWriteCacheVariantCode)
-			}
-			if pricing.Mode == objects.PricingModeFlatFee || pricing.Mode == objects.PricingModeImageFixed {
-				multiplier = snapshot.ManualMultiplier
-			}
-			break
-		}
-		items[i].Multiplier = lo.ToPtr(multiplier)
-		items[i].Subtotal = items[i].Subtotal.Mul(multiplier)
-		for j := range items[i].TierBreakdown {
-			items[i].TierBreakdown[j].Subtotal = items[i].TierBreakdown[j].Subtotal.Mul(multiplier)
-		}
-		total = total.Add(items[i].Subtotal)
-	}
-	return items, total
 }

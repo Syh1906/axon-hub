@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Award, ChevronDown, ChevronRight, Medal, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -127,7 +128,7 @@ export function APIKeyAnalyticsTable({
 
                   return (
                     <Fragment key={apiKey.id}>
-                      <TableRow className='bg-muted/20'>
+                      <ExpandableTableRow expanded={isExpanded} onToggle={() => toggleExpanded(apiKey.id)} className='bg-muted/20'>
                         <TableCell className='text-center'>
                           <div className='flex items-center justify-center gap-1.5'>
                             <RankIcon rank={rank} />
@@ -162,7 +163,7 @@ export function APIKeyAnalyticsTable({
                         <TableCell className='text-right font-semibold'>
                           {formatCurrency(apiKey.cost)}
                         </TableCell>
-                      </TableRow>
+                      </ExpandableTableRow>
                       {isExpanded &&
                         apiKey.models.map((model) => (
                           <TableRow

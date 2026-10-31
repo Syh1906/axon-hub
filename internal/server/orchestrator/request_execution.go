@@ -108,6 +108,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		cacheSample,
 		executionSelection(ctx, state),
 		candidate.ModelCard,
+		requestServiceTier(state, request, format),
 	)
 	if err != nil {
 		return nil, err
@@ -153,6 +154,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 	m.rawResponse = response
 	if response != nil {
 		captureImageCostEvidence(ctx, m.outbound.state, response.Body)
+		if m.outbound.state != nil {
+			observeServiceTier(m.outbound.state.RequestExec, response.Body, false)
+		}
 		state := m.outbound.state
 		if state != nil && state.RequestExec != nil {
 			if err := state.RequestService.SetExecutionUpstreamStatus(ctx, state.RequestExec.ID, response.StatusCode); err != nil {
@@ -279,6 +283,11 @@ func extractExecutionErrorInfo(err error, secret string) *biz.ExecutionErrorInfo
 	}
 	failure := &objects.RequestExecutionFailure{Source: "gateway"}
 	info := &biz.ExecutionErrorInfo{Failure: failure}
+	if denied, ok := xerrors.As[*biz.BudgetDenied](err); ok {
+		failure.Code = denied.Reason
+		failure.Type = "budget_error"
+		return info
+	}
 	if httpErr, ok := xerrors.As[*httpclient.Error](err); ok {
 		info.StatusCode = &httpErr.StatusCode
 		failure.Source = "upstream_http"

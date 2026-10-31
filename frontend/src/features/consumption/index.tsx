@@ -25,7 +25,7 @@ import {
 export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'leaderboard' | 'usage' }) {
   const { t, i18n } = useTranslation();
   const isLeaderboard = view === 'leaderboard';
-  const [dimension, setDimension] = useState<ConsumptionDimension>(isLeaderboard ? 'USER' : 'API_KEY_GROUP');
+  const [dimension, setDimension] = useState<ConsumptionDimension>('API_KEY_GROUP');
   const [metric, setMetric] = useState<ConsumptionMetric>('COST');
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
@@ -53,7 +53,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     isKeyDimension
   );
   const dimensions: ConsumptionDimension[] = isLeaderboard
-    ? ['USER', 'API_KEY', 'API_KEY_GROUP', 'CHANNEL']
+    ? ['API_KEY_GROUP', 'CHANNEL', 'USER', 'API_KEY']
     : ['USER', 'API_KEY', 'API_KEY_GROUP'];
   const timezone = data?.timezone ?? 'UTC';
   const title = isLeaderboard ? t('consumption.title') : t('sidebar.items.usageStats');

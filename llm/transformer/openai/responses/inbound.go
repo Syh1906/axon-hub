@@ -1007,6 +1007,9 @@ func convertToResponsesAPIResponse(chatResp *llm.Response) *Response {
 
 	// Convert usage
 	resp.Usage = ConvertLLMUsageToResponsesUsage(chatResp.Usage)
+	if chatResp.ServiceTier != "" {
+		resp.ServiceTier = lo.ToPtr(chatResp.ServiceTier)
+	}
 
 	// Convert choices to output items
 	for _, choice := range chatResp.Choices {

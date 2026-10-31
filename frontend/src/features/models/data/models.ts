@@ -546,16 +546,20 @@ export function useModelStandardPrices(search: string, enabled: boolean) {
   });
 }
 
-export async function fetchModelStandardPrices(modelIDs: string[]): Promise<ModelStandardPrice[]> {
+export async function fetchModelStandardPrices(modelIDs: string[]) {
   if (!modelIDs.length) return [];
-  const models: ModelStandardPrice[] = [];
-  let after: string | undefined;
-  do {
-    const page = await queryModelStandardPricePage({ modelIDIn: modelIDs }, after);
-    models.push(...page.edges.map(({ node }) => node));
-    after = page.pageInfo.hasNextPage ? (page.pageInfo.endCursor ?? undefined) : undefined;
-  } while (after);
-  return models;
+  const data = await graphqlRequest<{ matchModelStandardPrices: unknown }>(`
+    query MatchModelStandardPrices($modelIDs: [String!]!) {
+      matchModelStandardPrices(modelIDs: $modelIDs) {
+        requestModelID
+        model { id modelID name modelCard { price { ${MODEL_PRICE_FIELDS} } } }
+      }
+    }
+  `, { modelIDs });
+  return z.array(z.object({
+    requestModelID: z.string(),
+    model: standardPricePageSchema.shape.edges.element.shape.node,
+  })).parse(data.matchModelStandardPrices);
 }
 
 interface QueryAllModelsArgs {

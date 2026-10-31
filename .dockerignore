@@ -18,3 +18,12 @@ build
 .env
 .env.local
 .env.*.local
+
+# 发布镜像仅需源码和前端资源，不传输设计图、验收材料与本地演示数据。
+output
+.agent
+.agents
+verification-scratch
+.builds
+docs
+design-qa.md

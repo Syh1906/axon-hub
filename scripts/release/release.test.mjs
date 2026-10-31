@@ -8,6 +8,7 @@ import { createManifest, prepareRelease, validateTag } from './release.mjs';
 
 const config = { repository: 'Syh1906/axon-hub', branch: 'release/v1.0.x',
   prerelease: false,
+  publishBinaries: false,
   upstreamTag: 'v1.0.0-beta10-fork.7', upstreamRepository: 'ChouUn/axon-hub',
   minimumReleaseNumber: 1, notesFile: 'notes.md',
   originalUpstream: { repository: 'looplj/axonhub', tag: 'v1.0.0-beta10', commit: 'b'.repeat(40) } };
@@ -52,16 +53,23 @@ test('真实 Git 历史拒绝分支外发布、错误 tag 及倒退编号', () =
   const tag = 'v1.0.0-beta10-fork.7.syh.1';
   git('tag', tag);
   assert.equal(prepareRelease(root, config.repository, tag).commit, git('rev-parse', 'HEAD'));
-  for (const prerelease of [false, true]) {
+  for (const [prerelease, publishBinaries] of [[false, false], [false, true], [true, false], [true, true]]) {
     writeFileSync(join(root, 'release.config.json'), JSON.stringify({ ...config, upstreamCommit,
-      prerelease, originalUpstream: { ...config.originalUpstream, commit: upstreamCommit } }));
-    const output = join(root, `output-${prerelease}.txt`);
+      prerelease, publishBinaries, originalUpstream: { ...config.originalUpstream, commit: upstreamCommit } }));
+    const output = join(root, `output-${prerelease}-${publishBinaries}.txt`);
     execFileSync(process.execPath, [fileURLToPath(new URL('./release.mjs', import.meta.url)), 'prepare'], {
       cwd: root, env: { ...process.env, GITHUB_REPOSITORY: config.repository,
         GITHUB_REF_NAME: tag, GITHUB_OUTPUT: output },
     });
     assert.match(readFileSync(output, 'utf8'), new RegExp(`^prerelease=${prerelease}$`, 'm'));
+    assert.match(readFileSync(output, 'utf8'), new RegExp(`^publish_binaries=${publishBinaries}$`, 'm'));
   }
+  const validConfig = JSON.parse(readFileSync(join(root, 'release.config.json'), 'utf8'));
+  for (const publishBinaries of [undefined, 'false', null]) {
+    writeFileSync(join(root, 'release.config.json'), JSON.stringify({ ...validConfig, publishBinaries }));
+    assert.throws(() => prepareRelease(root, config.repository, tag), /publishBinaries/);
+  }
+  writeFileSync(join(root, 'release.config.json'), JSON.stringify(validConfig));
   assert.throws(() => prepareRelease(root, 'other/repo', tag));
   git('tag', 'v1.0.0-beta10-fork.7.syh.2');
   assert.throws(() => prepareRelease(root, config.repository, tag), /继续递增/);

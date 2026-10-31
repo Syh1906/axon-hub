@@ -334,6 +334,10 @@ func (s *responsesInboundStream) Next() bool {
 		}
 	}
 
+	if chunk.ServiceTier != "" && s.aggregator != nil {
+		s.aggregator.serviceTier = lo.ToPtr(chunk.ServiceTier)
+	}
+
 	// Handle final usage chunk and complete response
 	if chunk.Usage != nil && s.hasFinished && !s.responseCompleted {
 		s.responseCompleted = true

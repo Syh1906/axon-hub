@@ -2,6 +2,7 @@
   "repository": "Syh1906/axon-hub",
   "branch": "release/v1.0.x",
   "prerelease": false,
+  "publishBinaries": false,
   "upstreamRepository": "ChouUn/axon-hub",
   "upstreamTag": "v1.0.0-beta10-fork.7",
   "upstreamCommit": "b205ae8eb0db9fed6078e3a5c624bda61b36de31",

@@ -184,7 +184,14 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	var preparedResponsesBody []byte
 	if shared.IsResponsesAPI(ctx) && request != nil && processor.responsesSessions != nil {
 		var sessionID string
-		preparedResponsesBody, sessionID = processor.responsesSessions.prepare(ctx, request.Body)
+		var restoreErr error
+		preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepare(ctx, request.Body)
+		if restoreErr != nil {
+			if ctx.Err() != nil {
+				return ChatCompletionResult{}, ctx.Err()
+			}
+			ctx = shared.WithResponsesRestoreError(ctx, restoreErr)
+		}
 		request.Body = preparedResponsesBody
 		ctx = shared.WithSessionID(ctx, sessionID)
 	}

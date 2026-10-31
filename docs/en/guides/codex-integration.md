@@ -167,6 +167,14 @@ Continuation fallback restores prior user input and model output. Unrecoverable 
 
 Published legacy `transport=websocket` and WS URLs are read as capability declarations. New saves use `supportsWebSockets`; explicit false overrides legacy values. HTTP and WS share the Responses address, which should accept both POST and Upgrade requests.
 
+### Complete Continuation History and Mode Billing
+
+Restoration follows `previous_response_id` through every ancestor until a complete starting request or cached ancestor is available. Each lookup retains the current key and project scope. The 1 MiB limit controls cache admission, not usable history size: larger records can be used directly for the current request. Missing, cyclic, or malformed ancestors never produce partial input.
+
+Native HTTP may retain the ID for upstream restoration. Transports requiring complete local input, including Codex HTTP and WS-to-HTTP bridging, reject missing history. Storage failures preserve their real cause and stop ineffective retries; cancellation stops immediately. Database failures are not mislabeled as missing history.
+
+Only historical input and output are restored. The current model, `service_tier`, and other parameters remain current; previous usage and billing tiers are not inherited. See [Cost Tracking](cost-tracking.md#fast--ultrafast-and-long-context-costs) for pricing and markers.
+
 ### Related Documentation
 - [Tracing Guide](tracing.md)
 - [OpenAI API](../api-reference/openai-api.md)

@@ -24,6 +24,7 @@ type streamAggregator struct {
 	createdAt          int64
 	status             string
 	previousResponseID *string
+	serviceTier        *string
 
 	// Output items - keyed by output_index.
 	// Some streams may (unexpectedly) reuse output_index for multiple items, so we store a slice.
@@ -582,7 +583,8 @@ func (a *streamAggregator) processEvent(ev *StreamEvent) {
 			}
 		}
 
-	case StreamEventTypeResponseCompleted:
+	case StreamEventTypeResponseCompleted, "response.done":
+		a.applyResponseSnapshot(ev.Response)
 		a.status = "completed"
 		if ev.Response != nil {
 			a.previousResponseID = ev.Response.PreviousResponseID
@@ -631,6 +633,7 @@ func (a *streamAggregator) applyResponseSnapshot(response *Response) {
 	if response.Status != nil {
 		a.status = *response.Status
 	}
+	a.serviceTier = response.ServiceTier
 	if response.Usage != nil {
 		a.usage = response.Usage
 	}
@@ -803,6 +806,7 @@ func (a *streamAggregator) buildResponse() *Response {
 		Output:             output,
 		Usage:              a.usage,
 		PreviousResponseID: a.previousResponseID,
+		ServiceTier:        a.serviceTier,
 		Error:              a.responseError,
 		IncompleteDetails:  a.incompleteDetails,
 	}

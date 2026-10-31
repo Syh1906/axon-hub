@@ -119,6 +119,14 @@ AxonHub 的模型配置文件支持将请求模型映射到具体提供商模型
 
 旧渠道的 `transport=websocket` 和 WS 地址仍按支持能力读取；新保存写入 `supportsWebSockets`，显式取消勾选优先于旧字段。HTTP 和 WS 共用 Responses 地址，上游应同时支持相应的 POST 与 Upgrade 请求。
 
+### 完整续聊历史与模式计费
+
+恢复沿 `previous_response_id` 逐轮追溯，直到完整起点或完整缓存祖先，每次读取保持当前 Key / 项目范围。1 MiB 是内存缓存准入限制，不是可恢复历史的大小上限；超限记录直接用于本次请求。缺失、循环或不可解析的祖先不会被拼成残缺输入。
+
+普通原生 HTTP 可保留编号交上游恢复；Codex HTTP 和 WS 转 HTTP 等要求完整输入的路径，在历史缺失时返回已有的不可恢复错误。存储读取故障保留真实错误并停止无效重试，取消请求立即结束；不会把数据库故障全都伪装成历史不存在。
+
+恢复只拼接历史输入和输出，保持本轮模型、`service_tier` 与其他参数；不复制旧用量或旧计费档位。Fast / Ultrafast 的配置与成本标记见[费用追踪](cost-tracking.md#fast--ultrafast-与长上下文费用)。
+
 ### 相关文档
 - [追踪指南](tracing.md)
 - [OpenAI API 文档](../api-reference/openai-api.md)

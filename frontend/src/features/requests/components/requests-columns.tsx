@@ -389,6 +389,8 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
             prompt={log.promptTokens || 0}
             completion={log.completionTokens || 0}
             reasoning={log.completionReasoningTokens || 0}
+            cached={log.promptCachedTokens ?? 0}
+            writeCached={log.promptWriteCachedTokens ?? 0}
           />
         ) : (
           <div className='text-muted-foreground text-xs'>-</div>
@@ -430,6 +432,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               log
                 ? {
                     items: (log.costItems ?? []).map((item) => ({
+                      pricingEvidence: item.pricingEvidence,
                       image: item.image,
                       imageRule: item.imageRule,
                       unpriced: item.unpriced,

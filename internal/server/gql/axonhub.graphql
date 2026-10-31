@@ -171,6 +171,7 @@ input ChannelProviderQuotaSettingsInput {
 }
 
 type ChannelSettings {
+  serviceTierBilling: ServiceTierSettings
   upstreamAddresses: [ChannelUpstreamAddress!]!
   addressFailover: Boolean!
   upstream: ChannelUpstreamSettings

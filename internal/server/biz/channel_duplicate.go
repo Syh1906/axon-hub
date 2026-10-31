@@ -36,8 +36,10 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 			settings = *input.Settings
 		}
 		settings.ModelPriceMultiplier = nil
+		settings.ServiceTierBilling = nil
 		if source.Settings != nil {
 			settings.ModelPriceMultiplier = source.Settings.ModelPriceMultiplier
+			settings.ServiceTierBilling = source.Settings.ServiceTierBilling
 		}
 		input.Settings = &settings
 

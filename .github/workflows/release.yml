@@ -21,6 +21,7 @@ jobs:
       commit: ${{ steps.release.outputs.commit }}
       image: ${{ steps.release.outputs.image }}
       prerelease: ${{ steps.release.outputs.prerelease }}
+      publish_binaries: ${{ steps.release.outputs.publish_binaries }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,7 +64,7 @@ jobs:
       image: ${{ needs.prepare.outputs.image }}
 
   release:
-    name: 验证镜像并发布下载包与版本清单
+    name: 验证镜像并发布版本清单
     needs: [prepare, docker]
     runs-on: ubuntu-latest
     services:
@@ -114,22 +115,25 @@ jobs:
           if [ "$ready" != true ]; then docker logs axonhub-release-smoke; exit 1; fi
           docker exec axonhub-release-smoke /app/axonhub version | grep -F "$VERSION"
       - uses: pnpm/action-setup@v6
+        if: needs.prepare.outputs.publish_binaries == 'true'
         with:
           version: 10
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        if: needs.prepare.outputs.publish_binaries == 'true'
         working-directory: frontend
       - uses: actions/setup-go@v7
+        if: needs.prepare.outputs.publish_binaries == 'true'
         with:
           go-version-file: go.mod
           cache: true
       - name: 写入发布版本
+        if: needs.prepare.outputs.publish_binaries == 'true'
         run: printf '%s\n' "$VERSION" > internal/build/VERSION
       - name: 构建二进制包并上传草稿
+        if: needs.prepare.outputs.publish_binaries == 'true'
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -137,6 +141,13 @@ jobs:
           args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 创建仅镜像发布草稿
+        if: needs.prepare.outputs.publish_binaries != 'true'
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft == true) | .tag_name' > "$RUNNER_TEMP/drafts.txt"
+          if ! grep -Fxq "$VERSION" "$RUNNER_TEMP/drafts.txt"; then
+            gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$VERSION" --notes-file .github/release-notes.md
+          fi
       - name: 生成并上传部署清单
         run: |
           node scripts/release/release.mjs manifest "$RUNNER_TEMP/release.json"

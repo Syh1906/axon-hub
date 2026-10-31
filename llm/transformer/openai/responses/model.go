@@ -910,18 +910,27 @@ type Response struct {
 // accepts both integer (1786360449) and float-encoded integral (1786360449.0)
 // unix timestamps. Some Responses-compatible providers serialize integer
 // timestamps as JSON floats (e.g. Python's 1786360449.0); the value is always
-// kept as int64 internally. Every other field uses the default decoding.
+// kept as int64 internally. A malformed service_tier is ignored by conversion;
+// billing observes the original response and can fall back to the client tier.
+// All remaining fields keep their normal decoding errors.
 func (r *Response) UnmarshalJSON(data []byte) error {
 	type alias Response
 
 	var raw struct {
-		CreatedAt json.RawMessage `json:"created_at"`
+		CreatedAt   json.RawMessage `json:"created_at"`
+		ServiceTier json.RawMessage `json:"service_tier"`
 		*alias
 	}
 	raw.alias = (*alias)(r)
 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
+	}
+	r.ServiceTier = nil
+	if len(raw.ServiceTier) > 0 && raw.ServiceTier[0] == '"' {
+		if err := json.Unmarshal(raw.ServiceTier, &r.ServiceTier); err != nil {
+			return err
+		}
 	}
 
 	if xjson.IsNull(raw.CreatedAt) {

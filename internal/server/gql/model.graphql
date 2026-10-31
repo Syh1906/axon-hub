@@ -223,7 +223,13 @@ extend type Model {
   associatedChannelCount: Int! @goField(forceResolver: true)
 }
 
+type ModelStandardPriceMatch {
+  requestModelID: String!
+  model: Model!
+}
+
 extend type Query {
+  matchModelStandardPrices(modelIDs: [String!]!): [ModelStandardPriceMatch!]!
   fetchModels(input: FetchModelsInput!): FetchModelsPayload!
   queryModels(input: QueryModelsInput!): [ModelIdentityWithStatus!]!
   queryModelChannelConnections(

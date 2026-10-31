@@ -17,6 +17,19 @@ type responsesWebSocketContextKey struct{}
 // responsesAPIContextKey marks requests using the OpenAI Responses API.
 type responsesAPIContextKey struct{}
 
+type responsesRestoreErrorKey struct{}
+
+// WithResponsesRestoreError preserves a local restoration failure for transports
+// that require full input. Native continuation can still use previous_response_id.
+func WithResponsesRestoreError(ctx context.Context, err error) context.Context {
+	return context.WithValue(ctx, responsesRestoreErrorKey{}, err)
+}
+
+func ResponsesRestoreError(ctx context.Context) error {
+	err, _ := ctx.Value(responsesRestoreErrorKey{}).(error)
+	return err
+}
+
 // WithSessionID sets the session ID in the context.
 // This is essential for features that require cross-request state, such as:
 // 1. Prompt Caching: Providers like Anthropic use session/trace IDs to optimize cache hits.

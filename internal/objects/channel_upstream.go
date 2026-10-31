@@ -185,6 +185,7 @@ type AppliedCostMultiplier struct {
 
 // RequestCostSnapshot 保留请求时的计价依据：渠道价格引用不可变版本，模型默认价直接保存副本。
 type RequestCostSnapshot struct {
+	ServiceTier      *ServiceTierEvidence  `json:"serviceTier,omitempty"`
 	Images           []ImageOutput         `json:"images,omitempty"`
 	PriceReferenceID string                `json:"priceReferenceId"`
 	PricedAt         time.Time             `json:"pricedAt"`

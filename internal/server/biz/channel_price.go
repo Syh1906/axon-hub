@@ -15,7 +15,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
-	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
@@ -129,43 +128,19 @@ func (svc *ChannelService) resolveChannelModelPriceTemplates(
 		return nil, nil
 	}
 
-	db := svc.entFromContext(ctx)
-	modelsByID := make(map[string]*ent.Model, len(modelIDs))
-	for start := 0; start < len(modelIDs); start += channelModelPriceQueryBatchSize {
-		end := min(start+channelModelPriceQueryBatchSize, len(modelIDs))
-		catalogModels, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) ([]*ent.Model, error) {
-			return db.Model.Query().
-				Where(
-					model.ModelIDIn(modelIDs[start:end]...),
-					model.StatusIn(model.StatusEnabled, model.StatusDisabled),
-				).
-				All(queryCtx)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to query model prices from model library: %w", err)
-		}
-
-		for _, catalogModel := range catalogModels {
-			modelsByID[catalogModel.ModelID] = catalogModel
-		}
+	matches, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) ([]*ModelStandardPriceMatch, error) {
+		return matchModelStandardPrices(queryCtx, svc.entFromContext(queryCtx), modelIDs)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to query model prices from model library: %w", err)
 	}
-
-	templates := make([]channelModelPriceTemplate, 0, len(modelsByID))
-	for _, modelID := range modelIDs {
-		catalogModel, exists := modelsByID[modelID]
-		if !exists {
-			continue
-		}
-
-		price, ok := modelCardToChannelModelPrice(catalogModel.ModelCard)
+	templates := make([]channelModelPriceTemplate, 0, len(matches))
+	for _, match := range matches {
+		price, ok := modelCardToChannelModelPrice(match.Model.ModelCard)
 		if !ok {
 			continue
 		}
-
-		templates = append(templates, channelModelPriceTemplate{
-			ModelID: modelID,
-			Price:   price,
-		})
+		templates = append(templates, channelModelPriceTemplate{ModelID: match.RequestModelID, Price: price})
 	}
 
 	return templates, nil
@@ -373,8 +348,9 @@ func (svc *ChannelService) SaveChannelModelPrices(
 	channelID int,
 	inputs []SaveChannelModelPriceInput,
 	multiplier *decimal.Decimal,
+	tierSettings ...*objects.ServiceTierSettings,
 ) ([]*ent.ChannelModelPrice, error) {
-	return svc.saveChannelModelPrices(ctx, channelID, inputs, multiplier, true)
+	return svc.saveChannelModelPrices(ctx, channelID, inputs, multiplier, true, tierSettings...)
 }
 
 // UpdateChannelCostMultiplier versions every existing price without replacing
@@ -409,7 +385,13 @@ func (svc *ChannelService) saveChannelModelPrices(
 	inputs []SaveChannelModelPriceInput,
 	multiplier *decimal.Decimal,
 	replacePrices bool,
+	tierSettings ...*objects.ServiceTierSettings,
 ) ([]*ent.ChannelModelPrice, error) {
+	if len(tierSettings) > 0 {
+		if err := tierSettings[0].Validate(); err != nil {
+			return nil, err
+		}
+	}
 	if multiplier != nil && multiplier.IsNegative() {
 		return nil, fmt.Errorf("model price multiplier must be non-negative")
 	}
@@ -443,6 +425,10 @@ func (svc *ChannelService) saveChannelModelPrices(
 		settings := objects.ChannelSettings{}
 		if ch.Settings != nil {
 			settings = *ch.Settings
+		}
+		if len(tierSettings) > 0 && tierSettings[0] != nil {
+			copy := *tierSettings[0]
+			settings.ServiceTierBilling = &copy
 		}
 		if multiplier != nil {
 			settings.ModelPriceMultiplier = lo.ToPtr(*multiplier)

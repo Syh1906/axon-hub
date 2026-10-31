@@ -2,7 +2,7 @@
 
 本仓库为 Syh1906/axon-hub。直接上游为 ChouUn/axon-hub，原始上游为
 looplj/axonhub。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR，二进制包和
-部署清单保存在 GitHub Releases；不需要 Docker Hub 账号。
+部署清单保存在 GitHub Releases；不需要 Docker Hub 账号。自 `.syh.8` 起默认仅发布双架构镜像与部署清单，跨平台下载包由配置显式开启。
 
 多台生产机各自使用 PostgreSQL、配置和数据卷，通过私有部署仓库
 [axon-hub-ops](https://github.com/Syh1906/axon-hub-ops) 分批升级。
@@ -37,7 +37,10 @@ GitHub CLI 在 fork 中可能默认选择父仓库。对自己的 PR/Release 操
 
 ## 三层版本与发布清单
 
-release.config.json 保存仓库、发布分支、直接上游 tag/提交、原始上游 tag/提交，以及独立的 prerelease 布尔值。
+release.config.json 保存仓库、发布分支、直接上游 tag/提交、原始上游 tag/提交，以及独立的 prerelease 和 publishBinaries 布尔值。
+publishBinaries 为 false 时跳过 GoReleaser 及其前端依赖安装、各平台下载包、校验和与配置 schema 附件，仅保留镜像和 release.json；true 时仍走原完整下载包流程。选择在打新 tag 前写入配置，不能通过重跑修改已公开的版本。
+镜像发布仍执行测试、双架构构建与临时 PostgreSQL 启动检查。构建和推送都在 GitHub 云端进行，不在本地打包，也不导出镜像 tar；Docker 构建上下文排除设计图、验收目录和本地演示数据。
+仅镜像版本不支持原生二进制下载升级，安装脚本不会获得对应包；此类用户应保留原版或等待明确启用下载包的新版本。GitHub 自动生成源码归档不属于重复构建产物。
 当前直接基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；
 原始基线是 looplj 的 v1.0.0-beta10，对应 939b2bc0。
 
@@ -120,7 +123,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 3. 在 amd64、arm64 原生执行器构建同一源码并写入版本和提交号；
    推送各架构镜像，合成 ghcr.io/syh1906/axon-hub 的版本镜像。
 4. 拉取固定摘要的镜像，连接临时 PostgreSQL 17，做启动和自报版本检查。此检查不代表生产数据升级或业务验收。
-5. GoReleaser 构建下载包、校验和及配置 schema，上传草稿；没有反向提交版本文件的步骤。
+5. publishBinaries=true 时由 GoReleaser 构建下载包、校验和及配置 schema 并上传草稿；否则直接创建镜像发布草稿，省去重复构建。没有反向提交版本文件的步骤。
 6. 生成并上传 release.json，写入本次发布说明，以完整版本号为标题，按 prerelease 配置正式／预发布。
 
 正式发布默认使用 prerelease: false，并设为 GitHub 最新版本；测试发布明确设为 true，且不成为最新正式版。

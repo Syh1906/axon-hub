@@ -1,4 +1,5 @@
 {
+  "service_tier": "default",
   "object": "response",
   "id": "resp_custom_tool_stream_001",
   "created_at": 1765086000,

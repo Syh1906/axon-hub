@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 
 	"github.com/looplj/axonhub/internal/ent/usagelog"
@@ -19,6 +20,7 @@ type SelfUsageTierCost struct {
 }
 
 type SelfUsageCostItem struct {
+	PricingEvidence             *objects.CostPricingEvidence
 	Image                       *objects.ImageOutput
 	ImageRule                   string
 	Unpriced                    bool
@@ -93,8 +95,15 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 			byRequest[log.RequestID] = row
 		}
 		for _, item := range log.CostItems {
-			if item.Image != nil || item.Unpriced {
-				row.images = append(row.images, SelfUsageCostItem{ItemCode: string(item.ItemCode), Image: item.Image, ImageRule: item.ImageRule, Unpriced: item.Unpriced, Quantity: int(item.Quantity), Subtotal: item.Subtotal.InexactFloat64(), TierBreakdown: []SelfUsageTierCost{}})
+			if item.Image != nil || item.Unpriced || item.PricingEvidence != nil {
+				tiers := lo.Map(item.TierBreakdown, func(tier objects.TierCost, _ int) SelfUsageTierCost {
+					var upTo *int
+					if tier.UpTo != nil {
+						upTo = lo.ToPtr(int(*tier.UpTo))
+					}
+					return SelfUsageTierCost{UpTo: upTo, Units: int(tier.Units), Subtotal: tier.Subtotal.InexactFloat64()}
+				})
+				row.images = append(row.images, SelfUsageCostItem{PricingEvidence: item.PricingEvidence, PromptWriteCacheVariantCode: lo.EmptyableToPtr(string(item.PromptWriteCacheVariantCode)), ItemCode: string(item.ItemCode), Image: item.Image, ImageRule: item.ImageRule, Unpriced: item.Unpriced, Quantity: int(item.Quantity), Subtotal: item.Subtotal.InexactFloat64(), TierBreakdown: tiers})
 				continue
 			}
 			key := selfUsageCostKey{code: item.ItemCode, variant: item.PromptWriteCacheVariantCode}

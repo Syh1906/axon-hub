@@ -16,10 +16,10 @@ import (
 )
 
 // SaveChannelModelPrices is the resolver for the saveChannelModelPrices field.
-func (r *mutationResolver) SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal) ([]*ent.ChannelModelPrice, error) {
+func (r *mutationResolver) SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings) ([]*ent.ChannelModelPrice, error) {
 	inputs := lo.Map(input, func(i *biz.SaveChannelModelPriceInput, _ int) biz.SaveChannelModelPriceInput {
 		return *i
 	})
 
-	return r.channelService.SaveChannelModelPrices(ctx, channelID.ID, inputs, multiplier)
+	return r.channelService.SaveChannelModelPrices(ctx, channelID.ID, inputs, multiplier, serviceTierBilling)
 }

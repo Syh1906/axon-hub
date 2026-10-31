@@ -25,7 +25,7 @@ func TestResponsesSessionStoreExpandsPreviousResponseForAnyUpstreamTransport(t *
 		[]byte(`{"id":"resp_1","status":"completed","output":[{"id":"fc_1","type":"function_call","call_id":"call_1","name":"run","arguments":"{}"}]}`),
 	)
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","instructions":"new instructions","stream":false,"previous_response_id":"resp_1","input":[{"type":"function_call_output","call_id":"call_1","output":"ok"}]}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","instructions":"new instructions","stream":false,"previous_response_id":"resp_1","input":[{"type":"function_call_output","call_id":"call_1","output":"ok"}]}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","instructions":"new instructions","stream":false,"input":[{"type":"message","role":"user","content":"hello"},{"id":"fc_1","type":"function_call","call_id":"call_1","name":"run","arguments":"{}"},{"type":"function_call_output","call_id":"call_1","output":"ok"}]}`,
 		string(prepared),
@@ -43,7 +43,7 @@ func TestResponsesSessionStoreRestoresPersistedCustomToolCallOnMemoryMiss(t *tes
 			true, nil
 	})
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_persisted","stream":true,"input":[{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_persisted","stream":true,"input":[{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","stream":true,"input":[{"type":"message","role":"user","content":"run the tool"},{"id":"ctc_1","type":"custom_tool_call","call_id":"call_1","name":"exec","input":"{}"},{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`,
 		string(prepared),
@@ -60,7 +60,7 @@ func TestResponsesSessionStoreRestoresPersistedCustomToolCallOnMemoryMiss(t *tes
 		string(httpRequest.Body),
 	)
 
-	_, _ = store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_persisted","input":"again"}`))
+	_, _, _ = store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_persisted","input":"again"}`))
 	require.Equal(t, 1, loadCalls, "restored sessions should be cached in memory")
 }
 
@@ -75,7 +75,7 @@ func TestResponsesSessionStoreDoesNotCrossScopes(t *testing.T) {
 	)
 
 	body := []byte(`{"model":"gpt-5","previous_response_id":"resp_private","input":"world"}`)
-	prepared, _ := store.prepare(other, body)
+	prepared, _, _ := store.prepare(other, body)
 	require.Equal(t, string(body), string(prepared))
 }
 
@@ -88,7 +88,7 @@ func TestResponsesSessionStoreIgnoresMissingScope(t *testing.T) {
 	)
 
 	body := []byte(`{"model":"gpt-5","previous_response_id":"resp_unscoped","input":"world"}`)
-	prepared, _ := store.prepare(ctx, body)
+	prepared, _, _ := store.prepare(ctx, body)
 	require.Equal(t, string(body), string(prepared))
 }
 
@@ -101,12 +101,12 @@ func TestResponsesSessionStoreContinuesAcrossMultipleUpstreamSwitches(t *testing
 		[]byte(`{"id":"resp_sse","status":"completed","output":[{"type":"message","role":"assistant","content":"two"}]}`),
 	)
 
-	second, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_sse","input":"three"}`))
+	second, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_sse","input":"three"}`))
 	store.record(ctx, second,
 		[]byte(`{"id":"resp_websocket","status":"completed","output":[{"type":"message","role":"assistant","content":"four"}]}`),
 	)
 
-	third, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_websocket","input":"five"}`))
+	third, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_websocket","input":"five"}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"one"},{"type":"message","role":"assistant","content":"two"},{"type":"message","role":"user","content":"three"},{"type":"message","role":"assistant","content":"four"},{"type":"message","role":"user","content":"five"}]}`,
 		string(third),
@@ -148,7 +148,7 @@ func TestResponsesSessionStoreRecordsCompletedStream(t *testing.T) {
 	require.NoError(t, stream.Err())
 	require.NoError(t, stream.Close())
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_stream","input":"three"}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_stream","input":"three"}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"one"},{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"two"}]},{"type":"message","role":"user","content":"three"}]}`,
 		string(prepared),
@@ -218,7 +218,7 @@ func TestResponsesSessionStoreRecordsBeforeStreamClose(t *testing.T) {
 	require.True(t, stream.Next())
 	require.True(t, stream.Next())
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_tool","input":[{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_tool","input":[{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"run the tool"},{"id":"ctc_1","type":"custom_tool_call","call_id":"call_1","name":"exec_command","input":"{}"},{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`,
 		string(prepared),
@@ -230,7 +230,7 @@ func TestResponsesSessionStoreNormalizesClientProvidedHistory(t *testing.T) {
 	store := newResponsesSessionStore()
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","input":[{"id":"ctc_1","type":"custom_tool_call","status":"completed","call_id":"call_1","name":"exec","input":"{}","metadata":{"status":"preserved"}},{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","input":[{"id":"ctc_1","type":"custom_tool_call","status":"completed","call_id":"call_1","name":"exec","input":"{}","metadata":{"status":"preserved"}},{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"id":"ctc_1","type":"custom_tool_call","call_id":"call_1","name":"exec","input":"{}","metadata":{"status":"preserved"}},{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"}]}`,
 		string(prepared),
@@ -241,7 +241,7 @@ func TestResponsesSessionStoreNormalizesClientHistoryOnCacheMiss(t *testing.T) {
 	store := newResponsesSessionStore()
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 
-	prepared, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"missing","input":[{"type":"message","role":"assistant","status":"completed","content":"hello"}]}`))
+	prepared, _, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"missing","input":[{"type":"message","role":"assistant","status":"completed","content":"hello"}]}`))
 	require.JSONEq(t,
 		`{"model":"gpt-5","previous_response_id":"missing","input":[{"type":"message","role":"assistant","content":"hello"}]}`,
 		string(prepared),
@@ -253,7 +253,7 @@ func TestResponsesSessionStoreLeavesStatusFreeInputUnchanged(t *testing.T) {
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 	body := []byte(`{ "model": "gpt-5", "input": "hello" }`)
 
-	prepared, _ := store.prepare(ctx, body)
+	prepared, _, _ := store.prepare(ctx, body)
 	require.Equal(t, body, prepared)
 }
 
@@ -261,13 +261,13 @@ func TestResponsesSessionStoreRestoresSessionIDForSSEToWebSocketCache(t *testing
 	store := newResponsesSessionStore()
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 
-	firstBody, firstSessionID := store.prepare(ctx, []byte(`{"model":"gpt-5","input":"one"}`))
+	firstBody, firstSessionID, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","input":"one"}`))
 	require.NotEmpty(t, firstSessionID)
 	store.record(shared.WithSessionID(ctx, firstSessionID), firstBody,
 		[]byte(`{"id":"resp_1","status":"completed","output":[]}`),
 	)
 
-	_, secondSessionID := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":"two"}`))
+	_, secondSessionID, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":"two"}`))
 	require.Equal(t, firstSessionID, secondSessionID)
 }
 
@@ -280,7 +280,7 @@ func TestResponsesSessionStorePreservesContextSessionIDWhenRecordHasNone(t *test
 	)
 
 	ctx = shared.WithSessionID(ctx, "context-session")
-	_, sessionID := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":"two"}`))
+	_, sessionID, _ := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":"two"}`))
 	require.Equal(t, "context-session", sessionID)
 }
 

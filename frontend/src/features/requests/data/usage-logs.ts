@@ -1,3 +1,4 @@
+import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { graphqlRequest } from '@/gql/graphql';
@@ -40,7 +41,7 @@ function buildUsageLogsQuery(permissions: { canViewChannels: boolean }) {
             source
             format
             totalCost
-            costItems { image { width height tier source tierSource } imageRule unpriced
+            costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced
               itemCode
               quantity
               subtotal
@@ -92,7 +93,7 @@ function buildUsageLogDetailQuery(permissions: { canViewChannels: boolean }) {
           source
           format
           totalCost
-          costItems { image { width height tier source tierSource } imageRule unpriced
+          costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced
             itemCode
             quantity
             subtotal

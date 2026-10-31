@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
 import { formatNumber } from '@/utils/format-number';
 import { Button } from '@/components/ui/button';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -218,7 +219,7 @@ export function ModelAnalyticsTable({ data, isLoading, currencyCode }: ModelAnal
 
                   return (
                     <Fragment key={model.id}>
-                      <TableRow className='bg-muted/20 font-medium'>
+                      <ExpandableTableRow expanded={isExpanded} onToggle={() => toggleExpanded(model.id)} className='bg-muted/20 font-medium'>
                         <TableCell className='text-center'>
                           <div className='flex items-center justify-center gap-1.5'>
                             <RankIcon rank={rank} />
@@ -238,7 +239,7 @@ export function ModelAnalyticsTable({ data, isLoading, currencyCode }: ModelAnal
                           </button>
                         </TableCell>
                         {renderMetrics(model)}
-                      </TableRow>
+                      </ExpandableTableRow>
                       {isExpanded &&
                         model.channels.map((channel) => (
                           <TableRow key={`${model.id}-${channel.id}`} className='bg-background'>

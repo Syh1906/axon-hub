@@ -11,6 +11,7 @@ import (
 // ErrRequestMayHaveExecuted prevents retrying a WS write/read with unknown outcome.
 var ErrRequestMayHaveExecuted = errors.New("upstream request may have executed; automatic replay is unsafe")
 var ErrContinuationUnavailable = errors.New("previous_response_not_found: send complete input to resume this conversation")
+var ErrContinuationRestoreFailed = errors.New("failed to restore Responses history")
 
 const (
 	// DefaultRetryAfterSeconds is the default cooldown duration when Retry-After header is missing or invalid.

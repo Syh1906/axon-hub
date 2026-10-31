@@ -209,3 +209,36 @@ test('catalog cards without pricing remain importable and clear missing card fie
   assert.deepEqual(card.modalities, { input: [], output: [] });
   assert.deepEqual(card.limit, { context: 0, output: 0 });
 });
+
+test('mode rates preserve zero and reject missing, negative or nonfinite multipliers', () => {
+  for (const multiplier of ['0', '1', '0.5', '6']) {
+    const result = priceSchema.parse({ items: [item('prompt_tokens', '2')], serviceTiers: { fast: { source: 'custom', multiplier } }, volumeTiers: [{ above: 272000, longContext: true, items: [item('prompt_tokens', '4')] }] });
+    assert.equal(result.serviceTiers.fast.multiplier, multiplier);
+    assert.equal(result.volumeTiers[0].longContext, true);
+  }
+  for (const multiplier of ['', '-1', 'Infinity', 'NaN', null]) {
+    assert.equal(priceSchema.safeParse({ items: [item('prompt_tokens', '2')], serviceTiers: { fast: { source: 'custom', multiplier } } }).success, false);
+  }
+});
+
+const tierRules = await import(moduleURL('./data/service-tier-rules.ts'));
+test('item pricing keeps zero, independent overrides, explicit unpriced and official context', () => {
+  const defaults = { source: 'custom', multiplier: '2', items: [{ itemCode: 'completion_tokens', method: 'multiplier', value: '2.5' }] };
+  const override = { source: 'custom', multiplier: '3', items: [{ itemCode: 'prompt_tokens', method: 'unit_price', value: '0' }] };
+  assert.equal(tierRules.resolveTierItem(defaults, override, 'completion_tokens').value, '3');
+  assert.equal(tierRules.tierUnitPrice(item('prompt_tokens', '2').pricing, tierRules.resolveTierItem(defaults, override, 'prompt_tokens')), '0');
+  assert.equal(tierRules.resolveTierItem(defaults, { source: 'custom', unpriced: true }, 'prompt_tokens').method, 'unpriced');
+  const price = priceSchema.parse({ items: [item('prompt_tokens', '2')], serviceTiers: { fast: defaults }, volumeTiers: [{ above: 272000, items: [item('prompt_tokens', '4')], serviceTiers: { fast: override } }] });
+  assert.equal(price.volumeTiers[0].serviceTiers.fast.items[0].value, '0');
+  const copy = tierRules.appliedModelPrice(price, 'model');
+  copy.volumeTiers[0].serviceTiers.fast.items[0].value = '9';
+  assert.equal(price.volumeTiers[0].serviceTiers.fast.items[0].value, '0');
+  assert.equal(copy.volumeTiers[0].serviceTiers.fast.source, 'model');
+  const row = { model: 'example', version: 'example-v1', sourceURL: '', verifiedAt: '', currency: 'USD', unit: 'million_tokens', contexts: [{ above: null, upTo: 272000, standard: [{ itemCode: 'prompt_tokens', variantCode: '', unitPrice: '2' }], fast: [{ itemCode: 'prompt_tokens', variantCode: '', unitPrice: '5' }], ultrafast: [] }] };
+  const official = tierRules.officialTierPrice(row, 'fast');
+  assert.equal(official.items[0].value, '2.5');
+  assert.equal(official.items[1].method, 'unpriced');
+  assert.equal(tierRules.resolveTierItem(official, null, 'prompt_tokens', '', 272001).method, 'unpriced');
+  assert.equal(tierRules.officialTierPrice(row, 'fast', 'unit_price').items[0].value, '5');
+  assert.equal(priceSchema.safeParse({ items: [item('prompt_tokens', '0')], serviceTiers: { fast: { source: 'custom', items: [{itemCode:'prompt_tokens',method:'unit_price',value:'5'}] } } }).success, true);
+});

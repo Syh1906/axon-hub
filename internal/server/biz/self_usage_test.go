@@ -376,3 +376,28 @@ func TestSelfUsageRequestCostMergeAndMultiplier(t *testing.T) {
 	require.Equal(t, 7, items[4].Quantity)
 	require.NotContains(t, rows, other.ID)
 }
+
+func TestSelfUsagePreservesMixedServiceTierEvidence(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(f.ctx)
+	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	req := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "mixed-tier")
+	for _, mode := range []string{"fast", "ultrafast"} {
+		evidence := &objects.CostPricingEvidence{ServiceTier: objects.ServiceTierDecision{Mode: mode}, BaseSubtotal: decimal.NewFromInt(1), BaseTierSubtotals: []decimal.Decimal{decimal.NewFromInt(1)}, ModeMultiplier: lo.ToPtr(decimal.Zero), CostMultiplier: decimal.NewFromInt(1)}
+		f.client.UsageLog.Create().SetRequestID(req.ID).SetAPIKeyID(f.key.ID).SetProjectID(f.project.ID).SetModelID("model").SetTotalCost(0).SetCostItems([]objects.CostItem{{ItemCode: objects.PriceItemCodeWriteCachedTokens, PromptWriteCacheVariantCode: objects.PromptWriteCacheVariantCode1Hour, Quantity: 10, PricingEvidence: evidence, TierBreakdown: []objects.TierCost{{Units: 10}}}}).SaveX(ctx)
+	}
+	page, err := f.service.Requests(f.ctx, "2026-01-01", "2026-01-01", nil, "", 1, 20)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	items := page.Items[0].CostItems
+	require.Len(t, items, 2)
+	modes := []string{}
+	for _, item := range items {
+		require.NotNil(t, item.PricingEvidence)
+		modes = append(modes, item.PricingEvidence.ServiceTier.Mode)
+		require.Equal(t, "one_hour", *item.PromptWriteCacheVariantCode)
+		require.Len(t, item.TierBreakdown, 1)
+		require.Equal(t, "1", item.PricingEvidence.BaseTierSubtotals[0].String())
+	}
+	require.ElementsMatch(t, []string{"fast", "ultrafast"}, modes)
+}

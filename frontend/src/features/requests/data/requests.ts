@@ -1,3 +1,4 @@
+import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { graphqlRequest } from '@/gql/graphql';
@@ -140,7 +141,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   promptWriteCachedTokens1h
                   totalCost
                   costPriceMultiplier
-                  costItems { image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
                 }
               }
             }
@@ -235,7 +236,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
                   promptWriteCachedTokens
                   totalCost
                   costPriceMultiplier
-                  costItems { image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
                 }
             }
           }
@@ -380,6 +381,7 @@ export function useInfiniteRequests(where: Record<string, any> | undefined, page
   const projectId = useSelectedProjectId();
   return useCursorList({
     queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId],
+    refetchOnMount: 'always',
     fetchPage: async (after, signal) => {
       const data = await graphqlRequest<{ requests: RequestConnection }>(buildRequestsQuery(permissions), {
         first: pageSize,

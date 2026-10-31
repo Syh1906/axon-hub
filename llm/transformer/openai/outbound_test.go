@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,6 +18,41 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
+
+func TestServiceTierInvalidUpstreamPreservesChatResponseAndUsage(t *testing.T) {
+	trans, err := NewOutboundTransformer("http://localhost", "test")
+	require.NoError(t, err)
+	for _, tier := range []string{`123`, `{}`, `[]`, `true`, `null`, `"priority"`} {
+		t.Run(tier, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"id":"chat_test","service_tier":%s,"choices":[{"index":0,"message":{"role":"assistant","content":"hello"}}],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`, tier))
+			wantTier := ""
+			if tier == `"priority"` {
+				wantTier = "priority"
+			}
+			response, err := trans.TransformResponse(t.Context(), &httpclient.Response{StatusCode: 200, Body: body})
+			require.NoError(t, err)
+			require.Equal(t, wantTier, response.ServiceTier)
+			require.EqualValues(t, 12, response.Usage.TotalTokens)
+			require.Equal(t, "hello", *response.Choices[0].Message.Content.Content)
+			event := &httpclient.StreamEvent{Data: []byte(fmt.Sprintf(`{"id":"chat_test","service_tier":%s,"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`, tier))}
+			streamed, err := trans.(*OutboundTransformer).TransformStreamChunk(t.Context(), event)
+			require.NoError(t, err)
+			require.EqualValues(t, 12, streamed.Usage.TotalTokens)
+			aggregated, _, err := AggregateStreamChunks(t.Context(), []*httpclient.StreamEvent{{Data: body}, event}, DefaultTransformChunk)
+			require.NoError(t, err)
+			var result Response
+			require.NoError(t, json.Unmarshal(aggregated, &result))
+			require.NotNil(t, result.Usage)
+			require.EqualValues(t, 12, result.Usage.TotalTokens)
+			if tier != `null` && tier != `"priority"` {
+				_, err = NewInboundTransformer().TransformRequest(t.Context(), &httpclient.Request{Body: []byte(`{"model":"test","messages":[{"role":"user","content":"hello"}],"service_tier":` + tier + `}`)})
+				require.Error(t, err)
+			}
+		})
+	}
+	_, err = trans.TransformResponse(t.Context(), &httpclient.Response{StatusCode: 200, Body: []byte(`{"id":"chat_test","service_tier":42,"usage":{"prompt_tokens":"bad"}}`)})
+	require.Error(t, err)
+}
 
 func TestOutboundTransformer_TransformRequest(t *testing.T) {
 	// Helper function to create transformer

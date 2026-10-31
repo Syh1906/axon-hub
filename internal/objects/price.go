@@ -192,6 +192,9 @@ func (p *ModelPrice) Validate() error {
 		return fmt.Errorf("modelPrice is nil")
 	}
 
+	if err := p.ServiceTiers.Validate(); err != nil {
+		return err
+	}
 	if p.Multiplier != nil && p.Multiplier.IsNegative() {
 		return fmt.Errorf("multiplier must be non-negative")
 	}
@@ -224,6 +227,9 @@ func (p *ModelPrice) validateVolumeTiers() error {
 
 	for idx := range p.VolumeTiers {
 		tier := &p.VolumeTiers[idx]
+		if err := tier.ServiceTiers.Validate(); err != nil {
+			return fmt.Errorf("volumeTiers[%d]: %w", idx, err)
+		}
 		if tier.Above < 0 {
 			return fmt.Errorf("volumeTiers[%d].above must be non-negative", idx)
 		}
@@ -456,6 +462,7 @@ func (i *ModelPriceItem) Equals(other *ModelPriceItem) bool {
 
 // ModelPrice is the price for the thing.
 type ModelPrice struct {
+	ServiceTiers *ServiceTierPrices `json:"serviceTiers,omitempty"`
 	// Multiplier is the channel multiplier captured with this price version.
 	// Standard model prices and legacy snapshots omit it and use one.
 	Multiplier *decimal.Decimal `json:"multiplier,omitempty"`
@@ -472,8 +479,10 @@ type ModelPrice struct {
 
 // ModelPriceVolumeTier applies one complete set of per-unit rates to all usage.
 type ModelPriceVolumeTier struct {
-	Above int64            `json:"above"`
-	Items []ModelPriceItem `json:"items"`
+	ServiceTiers *ServiceTierPrices `json:"serviceTiers,omitempty"`
+	LongContext  bool               `json:"longContext,omitempty"`
+	Above        int64              `json:"above"`
+	Items        []ModelPriceItem   `json:"items"`
 }
 
 func (t *ModelPriceVolumeTier) Equals(other *ModelPriceVolumeTier) bool {
@@ -481,7 +490,10 @@ func (t *ModelPriceVolumeTier) Equals(other *ModelPriceVolumeTier) bool {
 		return t == other
 	}
 
-	if t.Above != other.Above || len(t.Items) != len(other.Items) {
+	if !t.ServiceTiers.Equals(other.ServiceTiers) {
+		return false
+	}
+	if t.LongContext != other.LongContext || t.Above != other.Above || len(t.Items) != len(other.Items) {
 		return false
 	}
 
@@ -504,6 +516,9 @@ func (p *ModelPrice) EffectiveMultiplier() decimal.Decimal {
 }
 
 func (p *ModelPrice) Equals(other ModelPrice) bool {
+	if !p.ServiceTiers.Equals(other.ServiceTiers) {
+		return false
+	}
 	if !p.EffectiveMultiplier().Equal(other.EffectiveMultiplier()) {
 		return false
 	}
@@ -598,6 +613,7 @@ func (s *PriceSchedule) Validate() error {
 
 // PriceOverride defines a single time-based price override rule.
 type PriceOverride struct {
+	ServiceTiers *ServiceTierPrices `json:"serviceTiers,omitempty"`
 	// Name is the human-readable name for this override, e.g. "Night Discount".
 	Name string `json:"name"`
 
@@ -616,6 +632,9 @@ func (o *PriceOverride) Equals(other *PriceOverride) bool {
 		return o == other
 	}
 
+	if !o.ServiceTiers.Equals(other.ServiceTiers) {
+		return false
+	}
 	if o.Name != other.Name {
 		return false
 	}
@@ -646,6 +665,9 @@ func (o *PriceOverride) Validate() error {
 		return nil
 	}
 
+	if err := o.ServiceTiers.Validate(); err != nil {
+		return err
+	}
 	if err := o.When.Validate(); err != nil {
 		return fmt.Errorf("when: %w", err)
 	}

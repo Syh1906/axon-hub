@@ -50,10 +50,10 @@ export function priceFromCatalog(model: ProviderModel | undefined, providerId: s
     });
   const volumeTiers = (cost.tiers ?? [])
     .filter((tier) => tier.tier.type === 'context' && Number.isSafeInteger(tier.tier.size) && tier.tier.size! >= 0)
-    .map((tier) => ({ above: tier.tier.size!, items: itemsFor({ ...cost, ...tier }) }))
+    .map((tier) => ({ above: tier.tier.size!, longContext: true, items: itemsFor({ ...cost, ...tier }) }))
     .sort((a, b) => a.above - b.above);
   if (!volumeTiers.length && cost.context_over_200k) {
-    volumeTiers.push({ above: 200000, items: itemsFor({ ...cost, ...cost.context_over_200k }) });
+    volumeTiers.push({ above: 200000, longContext: true, items: itemsFor({ ...cost, ...cost.context_over_200k }) });
   }
   const items = itemsFor(cost);
   return items.length ? { items, ...(volumeTiers.length ? { volumeTiers } : {}) } : undefined;
@@ -86,6 +86,26 @@ export function createPriceValidationSchema(t: (key: string) => string) {
     })
     .superRefine((price, ctx) => {
       const issue = (path: Array<string | number>, key: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path, message: t(key) });
+      const validateModes = (modes: ModelPrice['serviceTiers'], path: Array<string | number>) => {
+        for (const mode of ['fast', 'ultrafast'] as const) {
+          const rate = modes?.[mode];
+          if (!rate) continue;
+          if (!rate.unpriced && rate.multiplier == null && !rate.items?.length) issue([...path, mode], 'serviceTier.items.invalid');
+          if (rate.multiplier != null && !validAmount(rate.multiplier)) issue([...path, mode, 'multiplier'], 'price.validation.nonnegative');
+          if (rate.unpriced && (rate.multiplier != null || rate.items?.length)) issue([...path, mode], 'serviceTier.items.invalid');
+          const seen = new Set<string>();
+          rate.items?.forEach((rule, i) => {
+            const key = `${rule.itemCode}:${rule.variantCode ?? ''}`;
+            if (seen.has(key)) issue([...path, mode, 'items', i], 'serviceTier.items.invalid');
+            seen.add(key);
+            if (rule.variantCode && (rule.itemCode !== 'prompt_write_cached_tokens' || !['five_min', 'one_hour'].includes(rule.variantCode))) issue([...path, mode, 'items', i], 'serviceTier.items.invalid');
+            if (rule.method !== 'unpriced' && !validAmount(rule.value) || rule.method === 'unpriced' && rule.value != null) issue([...path, mode, 'items', i, 'value'], 'price.validation.nonnegative');
+          });
+        }
+      };
+      validateModes(price.serviceTiers, ['serviceTiers']);
+      price.volumeTiers?.forEach((tier, i) => validateModes(tier.serviceTiers, ['volumeTiers', i, 'serviceTiers']));
+      price.schedule?.overrides.forEach((tier, i) => validateModes(tier.serviceTiers, ['schedule', 'overrides', i, 'serviceTiers']));
       const validatePricing = (pricing: Pricing, path: Array<string | number>) => {
         if (price.volumeTiers?.length && path[0] !== 'schedule' && pricing.mode !== 'usage_per_unit') {
           issue([...path, 'mode'], 'price.validation.perUnitOnly');

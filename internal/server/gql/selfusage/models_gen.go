@@ -13,14 +13,15 @@ import (
 )
 
 type SelfUsageCostItem struct {
-	Image                       *objects.ImageOutput `json:"image,omitempty"`
-	ImageRule                   string               `json:"imageRule"`
-	Unpriced                    bool                 `json:"unpriced"`
-	ItemCode                    string               `json:"itemCode"`
-	PromptWriteCacheVariantCode *string              `json:"promptWriteCacheVariantCode,omitempty"`
-	Quantity                    int                  `json:"quantity"`
-	Subtotal                    float64              `json:"subtotal"`
-	TierBreakdown               []*SelfUsageTierCost `json:"tierBreakdown"`
+	PricingEvidence             *objects.CostPricingEvidence `json:"pricingEvidence,omitempty"`
+	Image                       *objects.ImageOutput         `json:"image,omitempty"`
+	ImageRule                   string                       `json:"imageRule"`
+	Unpriced                    bool                         `json:"unpriced"`
+	ItemCode                    string                       `json:"itemCode"`
+	PromptWriteCacheVariantCode *string                      `json:"promptWriteCacheVariantCode,omitempty"`
+	Quantity                    int                          `json:"quantity"`
+	Subtotal                    float64                      `json:"subtotal"`
+	TierBreakdown               []*SelfUsageTierCost         `json:"tierBreakdown"`
 }
 
 type SelfUsageDailyStat struct {

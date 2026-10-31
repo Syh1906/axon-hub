@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
@@ -55,11 +55,11 @@ func newResponsesSessionStore(loaders ...responsesSessionLoadFunc) *responsesSes
 	return store
 }
 
-func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byte, string) {
+func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byte, string, error) {
 	sessionID, _ := shared.GetSessionID(ctx)
 	var current map[string]json.RawMessage
 	if json.Unmarshal(body, &current) != nil || current == nil {
-		return body, responseSessionID(sessionID)
+		return body, responseSessionID(sessionID), nil
 	}
 
 	normalizedInput, inputChanged := normalizeResponseSessionInput(current["input"])
@@ -69,12 +69,15 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 
 	previousID := responseSessionString(current["previous_response_id"])
 	if previousID == "" {
-		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID)
+		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
 	}
 
-	record := s.lookupOrLoad(ctx, previousID)
+	record, err := s.lookupOrLoad(ctx, previousID)
+	if err != nil {
+		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), err
+	}
 	if record == nil {
-		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID)
+		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
 	}
 	if record.sessionID != "" {
 		sessionID = record.sessionID
@@ -90,7 +93,7 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 	if len(baseItems) > 0 {
 		encoded, err := json.Marshal(baseItems)
 		if err != nil {
-			return body, sessionID
+			return body, sessionID, err
 		}
 		merged["input"] = encoded
 	} else {
@@ -100,31 +103,71 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 
 	encoded, err := json.Marshal(merged)
 	if err != nil {
-		return body, sessionID
+		return body, sessionID, err
 	}
 
-	return encoded, sessionID
+	return encoded, sessionID, nil
 }
 
-func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID string) *responsesSessionRecord {
+func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID string) (*responsesSessionRecord, error) {
 	if scope, ok := shared.GetSessionScope(ctx); !ok || strings.TrimSpace(scope) == "" {
-		return nil
+		return nil, nil
 	}
-	if record := s.lookup(ctx, responseID); record != nil || s.load == nil {
-		return record
+	type turn struct {
+		record *responsesSessionRecord
 	}
-
-	requestBody, responseBody, found, err := s.load(ctx, responseID)
-	if err != nil {
-		log.Warn(ctx, "Failed to restore persisted Responses session", log.Cause(err))
-		return nil
+	var turns []turn
+	visited := make(map[string]bool)
+	var base []json.RawMessage
+	sessionID, _ := shared.GetSessionID(ctx)
+	for id := responseID; id != ""; {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if visited[id] {
+			return nil, nil
+		}
+		visited[id] = true
+		if cached := s.lookup(ctx, id); cached != nil {
+			if len(turns) == 0 {
+				return cached, nil
+			}
+			base = append(cached.input, cached.output...)
+			if cached.sessionID != "" {
+				sessionID = cached.sessionID
+			}
+			break
+		}
+		if s.load == nil {
+			return nil, nil
+		}
+		requestBody, responseBody, found, err := s.load(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("restore Responses history: %w", err)
+		}
+		if !found {
+			return nil, nil
+		}
+		recordID, previous, record := decodeResponseSessionRecord(requestBody, responseBody)
+		if record == nil || recordID != id {
+			return nil, nil
+		}
+		turns = append(turns, turn{record})
+		id = previous
 	}
-	if !found {
-		return nil
+	// Build once from the oldest known complete ancestor. Cache admission is optional.
+	for i := len(turns) - 1; i >= 0; i-- {
+		base = append(base, turns[i].record.input...)
+		if i > 0 {
+			base = append(base, turns[i].record.output...)
+		}
 	}
-
-	s.record(ctx, requestBody, responseBody)
-	return s.lookup(ctx, responseID)
+	record := turns[0].record
+	record.input = base
+	record.sessionID = sessionID
+	record.size = rawResponseSessionValuesSize(record.input) + rawResponseSessionValuesSize(record.output)
+	s.cacheRecord(ctx, responseID, record)
+	return record, nil
 }
 
 func encodePreparedResponsesBody(original []byte, payload map[string]json.RawMessage, changed bool) []byte {
@@ -139,59 +182,69 @@ func encodePreparedResponsesBody(original []byte, payload map[string]json.RawMes
 	return encoded
 }
 
-func (s *responsesSessionStore) record(ctx context.Context, requestBody, responseBody []byte) {
-	if len(responseBody) == 0 || len(responseBody) > responsesSessionMaxResponse {
-		return
-	}
-
-	var requestPayload map[string]json.RawMessage
-	if json.Unmarshal(requestBody, &requestPayload) != nil || requestPayload == nil {
-		return
-	}
-
+// decodeResponseSessionRecord does not impose a cache-size limit on usable history.
+func decodeResponseSessionRecord(requestBody, responseBody []byte) (string, string, *responsesSessionRecord) {
+	var request map[string]json.RawMessage
 	var response struct {
 		ID     string            `json:"id"`
 		Status string            `json:"status"`
 		Output []json.RawMessage `json:"output"`
 	}
-	if json.Unmarshal(responseBody, &response) != nil || response.ID == "" {
-		return
+	if json.Unmarshal(requestBody, &request) != nil || request == nil || json.Unmarshal(responseBody, &response) != nil || response.ID == "" {
+		return "", "", nil
 	}
-	// Both spellings have appeared in Responses-compatible implementations.
 	//nolint:misspell
 	if response.Status == "failed" || response.Status == "cancelled" || response.Status == "canceled" {
+		return "", "", nil
+	}
+	input := responseSessionInputItems(request["input"])
+	if value := bytes.TrimSpace(request["input"]); len(value) > 0 && !bytes.Equal(value, []byte("null")) && input == nil {
+		return "", "", nil
+	}
+	previous := responseSessionString(request["previous_response_id"])
+	if value := bytes.TrimSpace(request["previous_response_id"]); len(value) > 0 && !bytes.Equal(value, []byte("null")) {
+		var id string
+		if json.Unmarshal(value, &id) != nil {
+			return "", "", nil
+		}
+	}
+	return response.ID, previous, &responsesSessionRecord{input: input, output: cloneResponseSessionValues(response.Output), size: rawResponseSessionValuesSize(input) + rawResponseSessionValuesSize(response.Output)}
+}
+
+func (s *responsesSessionStore) record(ctx context.Context, requestBody, responseBody []byte) {
+	if len(responseBody) > responsesSessionMaxResponse {
 		return
 	}
-
-	input := responseSessionInputItems(requestPayload["input"])
-	output := cloneResponseSessionValues(response.Output)
-	size := rawResponseSessionValuesSize(input) + rawResponseSessionValuesSize(output)
-	if size > responsesSessionMaxResponse {
+	id, previous, record := decodeResponseSessionRecord(requestBody, responseBody)
+	if record == nil || previous != "" {
 		return
 	}
+	record.sessionID, _ = shared.GetSessionID(ctx)
+	s.cacheRecord(ctx, id, record)
+}
 
-	now := time.Now()
+func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, record *responsesSessionRecord) {
+	if record.size > responsesSessionMaxResponse {
+		return
+	}
 	scope, ok := shared.GetSessionScope(ctx)
 	if !ok || strings.TrimSpace(scope) == "" {
 		return
 	}
-	sessionID, _ := shared.GetSessionID(ctx)
-	key := responsesSessionKey{scope: scope, responseID: response.ID}
-
+	now := time.Now()
+	key := responsesSessionKey{scope: scope, responseID: id}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.evictExpiredLocked(now)
 	if previous := s.byResponse[key]; previous != nil {
 		s.totalBytes -= previous.size
 	}
-	s.byResponse[key] = &responsesSessionRecord{
-		input:     cloneResponseSessionValues(input),
-		output:    output,
-		sessionID: sessionID,
-		updatedAt: now,
-		size:      size,
-	}
-	s.totalBytes += size
+	copy := *record
+	copy.input = cloneResponseSessionValues(record.input)
+	copy.output = cloneResponseSessionValues(record.output)
+	copy.updatedAt = now
+	s.byResponse[key] = &copy
+	s.totalBytes += record.size
 	for len(s.byResponse) > responsesSessionMaxRecords || s.totalBytes > responsesSessionMaxBytes {
 		if !s.evictOldestLocked() {
 			s.totalBytes = 0

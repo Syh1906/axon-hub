@@ -309,7 +309,7 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 		}
 
 		lastErr = err
-		if errors.Is(lastErr, httpclient.ErrContinuationUnavailable) {
+		if errors.Is(lastErr, httpclient.ErrContinuationUnavailable) || errors.Is(lastErr, httpclient.ErrContinuationRestoreFailed) {
 			p.notifyRetryStopped(ctx, "continuation_unavailable")
 			return nil, lastErr
 		}

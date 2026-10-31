@@ -21,6 +21,7 @@ enum PromptWriteCacheVariantCode {
 
 # ModelPrice represents pricing configuration for a model
 type ModelPrice {
+  serviceTiers: ServiceTierPrices
   multiplier: Decimal
   items: [ModelPriceItem!]!
   volumeTiers: [ModelPriceVolumeTier!]
@@ -28,6 +29,8 @@ type ModelPrice {
 }
 
 type ModelPriceVolumeTier {
+  serviceTiers: ServiceTierPrices
+  longContext: Boolean!
   above: Int!
   items: [ModelPriceItem!]!
 }
@@ -45,6 +48,7 @@ type PriceSchedule {
 }
 
 type PriceOverride {
+  serviceTiers: ServiceTierPrices
   name: String!
   priority: Int!
   when: OverrideWhen!
@@ -91,12 +95,15 @@ type PromptWriteCacheVariant {
 
 # Input types for ModelPrice
 input ModelPriceInput {
+  serviceTiers: ServiceTierPricesInput
   items: [ModelPriceItemInput!]!
   volumeTiers: [ModelPriceVolumeTierInput!]
   schedule: PriceScheduleInput
 }
 
 input ModelPriceVolumeTierInput {
+  serviceTiers: ServiceTierPricesInput
+  longContext: Boolean = false
   above: Int!
   items: [ModelPriceItemInput!]!
 }
@@ -114,6 +121,7 @@ input PriceScheduleInput {
 }
 
 input PriceOverrideInput {
+  serviceTiers: ServiceTierPricesInput
   name: String!
   priority: Int!
   when: OverrideWhenInput!
@@ -164,7 +172,7 @@ input SaveChannelModelPriceInput {
 }
 
 extend type Mutation {
-  saveChannelModelPrices(channelId: ID!, input: [SaveChannelModelPriceInput!]!, multiplier: Decimal): [ChannelModelPrice!]!
+  saveChannelModelPrices(channelId: ID!, input: [SaveChannelModelPriceInput!]!, multiplier: Decimal, serviceTierBilling: ServiceTierSettingsInput): [ChannelModelPrice!]!
 }
 
 type ImagePricing {

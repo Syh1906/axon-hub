@@ -7,6 +7,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
@@ -16,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/transformer/openai"
+	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -65,6 +67,52 @@ func TestBudgetPipelineRejectsBeforeTransportAndSettlesActualCost(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, "0.60000000", view.Windows[0].Settled)
 	require.Equal(t, "0.00000000", view.Windows[0].Reserved)
+}
+
+func TestBudgetMissingOutputLimitIsLocalFailure(t *testing.T) {
+	ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(1))}}}}
+	db.ChannelModelPrice.Update().SetPrice(price).ExecX(ctx)
+	usage.ChannelService.PreloadModelPricesForTest(ctx, ch)
+	executor := &mockExecutor{}
+	processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch}, "gpt-4")}, Inbound: openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+	_, err := processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hello"}]}`)})
+	require.Error(t, err)
+	require.True(t, biz.IsBudgetDenied(err))
+	require.False(t, executor.requestCalled)
+	require.Zero(t, db.BudgetCharge.Query().CountX(ctx))
+	execution := db.RequestExecution.Query().OnlyX(ctx)
+	require.NotNil(t, execution.Failure)
+	require.Equal(t, "gateway", execution.Failure.Source)
+	require.Equal(t, "pricing_unavailable", execution.Failure.Code)
+	require.Equal(t, "budget_error", execution.Failure.Type)
+	require.Nil(t, execution.ResponseStatusCode)
+}
+
+func TestBudgetRegexModelLimitWithExplicitChannelPrice(t *testing.T) {
+	ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(1))}}}}
+	db.ChannelModelPrice.Update().SetPrice(price).ExecX(ctx)
+	usage.ChannelService.PreloadModelPricesForTest(ctx, ch)
+	usage.ChannelService.SetEnabledChannelsForTest([]*biz.Channel{ch})
+	db.Model.Create().SetDeveloper("test").SetModelID(`^gpt-.*-sol$`).SetMatchType(objects.ModelMatchRegex).
+		SetName("Sol rule").SetIcon("test").SetGroup("test").SetStatus(model.StatusEnabled).
+		SetModelCard(&objects.ModelCard{Limit: objects.ModelCardLimit{Output: 128000}}).
+		SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: ch.ID, ModelID: "gpt-4"}}}}).SaveX(ctx)
+	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Body: buildMockOpenAIResponse("regex-budget", "gpt-4", "hello", 10, 20)}}
+	selector := NewDefaultSelector(usage.ChannelService, biz.NewModelService(biz.ModelServiceParams{Ent: db}), system)
+	processor := &ChatCompletionOrchestrator{channelSelector: selector, Inbound: openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+	_, err := processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: []byte(`{"model":"gpt-6.1-sol","messages":[{"role":"user","content":"hello"}]}`)})
+	require.NoError(t, err)
+	require.True(t, executor.requestCalled)
+	execution := db.RequestExecution.Query().OnlyX(ctx)
+	require.EqualValues(t, 128000, execution.CostSnapshot.ModelOutputLimit)
+	require.NotEmpty(t, execution.CostSnapshot.PriceReferenceID)
+	require.Nil(t, execution.CostSnapshot.ModelPrice, "explicit channel price stays selected")
+	charge := db.BudgetCharge.Query().OnlyX(ctx)
+	require.EqualValues(t, 12800000, charge.Estimate)
+	require.Equal(t, budgetcharge.StatusSettled, charge.Status)
+	require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
 }
 func TestBudgetFailedStreamSettlesKnownUsageAndKeepsFailure(t *testing.T) {
 	ctx, db, ch, requests, _, usage, key := setupBudgetRequest(t)

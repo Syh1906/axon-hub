@@ -1,3 +1,4 @@
+import { COST_PRICING_EVIDENCE_FIELDS, type CostPricingEvidence } from '@/components/cost-pricing-evidence';
 import { budgetFields, type BudgetView } from '@/features/budgets/data';
 
 export type SelfUsageMeta = {
@@ -31,6 +32,7 @@ export type SelfUsageStats = SelfUsageIdentity & {
 };
 export type RequestStatus = 'SUCCESS' | 'FAILED' | 'PROCESSING';
 export type SelfUsageCostItem = {
+  pricingEvidence?: CostPricingEvidence | null;
   image?: { width: number; height: number; tier: string; tierSource?: string; source: string } | null;
   imageRule?: string;
   unpriced?: boolean;
@@ -78,7 +80,7 @@ export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, 
 }`;
 export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
   selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
-    items { apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
+    items { apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
     scopeID apiKeyName groupName page pageSize total
   }
 }`;

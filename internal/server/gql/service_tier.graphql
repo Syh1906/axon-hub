@@ -1,0 +1,88 @@
+enum ServiceTierBasis {
+  upstream
+  client
+}
+
+type ServiceTierSettings {
+  enabled: Boolean!
+  basis: ServiceTierBasis!
+}
+input ServiceTierSettingsInput {
+  enabled: Boolean!
+  basis: ServiceTierBasis!
+}
+type ServiceTierPrices {
+  fast: ServiceTierPrice
+  ultrafast: ServiceTierPrice
+}
+input ServiceTierPricesInput {
+  fast: ServiceTierPriceInput
+  ultrafast: ServiceTierPriceInput
+}
+type ServiceTierPrice {
+  items: [ServiceTierItemRule!]
+  unpriced: Boolean!
+  application: String!
+  contextAbove: Int
+  contextUpTo: Int
+  sourceURL: String!
+  verifiedAt: String!
+  currency: String!
+  unit: String!
+
+  source: ServiceTierPriceSource!
+  multiplier: Decimal
+  referenceModel: String!
+  version: String!
+}
+input ServiceTierPriceInput {
+  items: [ServiceTierItemRuleInput!]
+  unpriced: Boolean = false
+  application: String = ""
+  contextAbove: Int
+  contextUpTo: Int
+  sourceURL: String = ""
+  verifiedAt: String = ""
+  currency: String = ""
+  unit: String = ""
+
+  source: ServiceTierPriceSource!
+  multiplier: Decimal
+  referenceModel: String = ""
+  version: String = ""
+}
+type OfficialServiceTierPrice {
+ sourceURL: String!
+ verifiedAt: String!
+ currency: String!
+ unit: String!
+ contexts: [OfficialServiceTierContext!]!
+  model: String!
+  version: String!
+  fast: Decimal
+  ultrafast: Decimal
+}
+extend type Query {
+  officialServiceTierPrices: [OfficialServiceTierPrice!]!
+}
+
+type ServiceTierItemRule {
+  referenceBasePrice: Decimal
+  referenceModePrice: Decimal
+  itemCode: PriceItemCode!
+  variantCode: String!
+  method: ServiceTierItemMethod!
+  value: Decimal
+}
+
+input ServiceTierItemRuleInput {
+  referenceBasePrice: Decimal
+  referenceModePrice: Decimal
+  itemCode: PriceItemCode!
+  variantCode: String = ""
+  method: ServiceTierItemMethod!
+  value: Decimal
+}
+
+type OfficialServiceTierContext { above: Int upTo: Int standard: [OfficialServiceTierItem!]! fast: [OfficialServiceTierItem!]! ultrafast: [OfficialServiceTierItem!]! }
+type OfficialServiceTierItem { itemCode: PriceItemCode! variantCode: String! unitPrice: Decimal! }

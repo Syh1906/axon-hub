@@ -1,0 +1,41 @@
+enum ServiceTierPriceSource {
+  official
+  custom
+  model
+}
+enum ServiceTierItemMethod { multiplier unit_price unpriced }
+type ServiceTierItemReference { source: ServiceTierPriceSource! referenceModel: String! version: String! sourceURL: String! verifiedAt: String! application: String! currency: String! unit: String! }
+type ServiceTierDecision {
+  mode: String!
+  basis: String!
+  client: String!
+  outbound: String!
+  upstream: String!
+  confirmed: Boolean!
+  reason: String!
+  source: String!
+  referenceModel: String!
+  version: String!
+}
+type ContextPricing {
+  kind: String!
+  inputTokens: Int!
+  threshold: Int
+  longContext: Boolean!
+  name: String!
+}
+type CostPricingEvidence {
+ itemMethod: ServiceTierItemMethod
+ ruleSource: String!
+ baseUnitPrice: Decimal
+ finalUnitPrice: Decimal
+ modeSubtotal: Decimal
+ modeTierSubtotals: [Decimal!]
+ reference: ServiceTierItemReference
+  serviceTier: ServiceTierDecision!
+  context: ContextPricing!
+  baseSubtotal: Decimal!
+  baseTierSubtotals: [Decimal!]
+  modeMultiplier: Decimal
+  costMultiplier: Decimal!
+}

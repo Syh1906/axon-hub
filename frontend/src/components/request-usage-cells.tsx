@@ -1,6 +1,9 @@
+import { CostPricingDetails } from './cost-pricing-details';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { getStatusColor } from '@/features/requests/components/help';
 import { extractNumberID } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
@@ -35,16 +38,61 @@ export function RequestIdCell({ id, status, stream, onClick }: { id: number | st
   );
 }
 
-export function TokensCell({ prompt, completion, reasoning }: { prompt: number; completion: number; reasoning: number }) {
-  const { t } = useTranslation();
+export function TokensCell({ prompt, completion, reasoning, cached, writeCached }: {
+  prompt: number;
+  completion: number;
+  reasoning: number;
+  cached: number;
+  writeCached: number;
+}) {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const format = (value: number) => value.toLocaleString(i18n.language);
+  const newInput = prompt - cached;
+  const details = [
+    ['inputTotal', prompt],
+    ['cacheHit', cached],
+    ['newInput', newInput],
+    ['cacheWrite', writeCached],
+    ['output', completion],
+    ['reasoning', reasoning],
+  ] as const;
   return (
-    <div className='space-y-0.5 text-xs'>
-      <div className='text-sm font-medium'>{t('requests.columns.totalTokens')}{(prompt + completion).toLocaleString()}</div>
-      <div className='text-muted-foreground'>
-        {t('requests.columns.input')}: {prompt.toLocaleString()} | {t('requests.columns.output')}: {completion.toLocaleString()}
-      </div>
-      {reasoning > 0 && <div className='text-muted-foreground'>{t('requests.columns.reasoning')}: {reasoning.toLocaleString()}</div>}
-    </div>
+    <HoverCard open={open} onOpenChange={setOpen}>
+      <HoverCardTrigger asChild>
+        <button
+          type='button'
+          aria-label={t('requests.tokenDetails.title')}
+          onClick={() => setOpen((value) => !value)}
+          className='focus-visible:ring-ring flex cursor-help flex-col gap-0.5 rounded-sm text-left text-xs whitespace-nowrap outline-none focus-visible:ring-2'
+        >
+          <span className='text-sm font-medium'>{t('requests.columns.totalTokens')}{format(prompt + completion)}</span>
+          <span className='text-muted-foreground'>
+            {t('requests.columns.input')}: {format(prompt)} | {t('requests.columns.output')}: {format(completion)}
+          </span>
+          <span className='text-muted-foreground'>
+            {t('requests.tokenDetails.newInput')}: {format(newInput)}
+            {reasoning > 0 && <> | {t('requests.columns.reasoning')}: {format(reasoning)}</>}
+          </span>
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align='start' className='w-72 max-w-[calc(100vw-2rem)] text-xs'>
+        <div className='mb-3 font-semibold'>{t('requests.tokenDetails.title')}</div>
+        <dl className='flex flex-col gap-1.5'>
+          {details.map(([key, value]) => (
+            <div key={key} className='flex justify-between gap-4'>
+              <dt className='text-muted-foreground'>{t(`requests.tokenDetails.${key}`)}</dt>
+              <dd className='tabular-nums'>{format(value)}</dd>
+            </div>
+          ))}
+          <div className='mt-1 flex justify-between gap-4 border-t pt-2 font-medium'>
+            <dt>{t('requests.tokenDetails.total')}</dt>
+            <dd className='tabular-nums'>{format(prompt + completion)}</dd>
+          </div>
+        </dl>
+        <p className='text-muted-foreground mt-3 leading-relaxed'>{t('requests.tokenDetails.explanation')}</p>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
@@ -102,14 +150,17 @@ export function CostCell({
   emptyLabel?: string;
 }) {
   const { t, i18n } = useTranslation();
+  const [costOpen, setCostOpen] = useState(false);
   if (total == null && !breakdown?.items.some((item) => item.unpriced)) return <span className='font-mono text-xs'>{emptyLabel}</span>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const money = (val: number, minimumFractionDigits: number, maximumFractionDigits = minimumFractionDigits) =>
     t('currencies.format', { val, currency: currencyCode, locale, minimumFractionDigits, maximumFractionDigits });
   // Per-million unit prices below keep 2–6 decimals so sub-cent prices such as 0.0028 stay visible.
-  const amount = total == null ? t('price.image.unpriced') : money(total, 6);
+  const amount = total == null ? t('serviceTier.cost.unpriced') : money(total, 6);
   if (!breakdown) return <span className='font-mono text-xs font-medium'>{amount}</span>;
   const rows = buildCostBreakdown(total ?? 0, breakdown);
+  const evidence = rows.evidence;
+  const mode = evidence && evidence !== 'mixed' ? evidence.serviceTier.mode : null;
   const itemLabel = (code: string) => {
     switch (code) {
       case 'prompt_tokens':
@@ -125,15 +176,27 @@ export function CostCell({
     }
   };
   return (
-    <Tooltip>
+    <Tooltip open={costOpen} onOpenChange={setCostOpen}>
       <TooltipTrigger asChild>
-        <button type='button' className='cursor-help font-mono text-xs font-medium underline decoration-dotted underline-offset-2'>
-          {amount}
+        <button type='button' onClick={(event) => { event.preventDefault(); setCostOpen((open) => !open); }} className='inline-flex cursor-help items-center gap-1 whitespace-nowrap font-mono text-xs font-medium'>
+          <span className='underline decoration-dotted underline-offset-2'>{amount}</span>
+          {(mode === 'fast' || mode === 'ultrafast') && (
+            <Badge variant='outline' className='border-orange-200 bg-orange-50 px-1 text-[10px] leading-tight text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'>
+              {t(`serviceTier.mode.${mode}`)}
+            </Badge>
+          )}
+          {evidence && evidence !== 'mixed' && evidence.context.longContext && (
+            <Badge variant='outline' className='border-purple-200 bg-purple-50 px-1 text-[10px] leading-tight text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300'>
+              1M
+            </Badge>
+          )}
+          {evidence === 'mixed' && <Badge variant='outline' className='px-1 text-[10px] leading-tight'>{t('serviceTier.cost.mixed')}</Badge>}
         </button>
       </TooltipTrigger>
       <TooltipContent className='max-h-[70vh] max-w-[min(90vw,400px)] overflow-y-auto p-3' side='top'>
         <div className='min-w-[220px] space-y-2 text-xs'>
           <div className='font-semibold'>{t('requests.costBreakdown.title')}</div>
+          <CostPricingDetails evidence={evidence} />
           {rows.items.map((item, index) => (
             <div key={`${item.itemCode}:${item.variant ?? ''}:${index}`}>
               <div className='flex justify-between gap-4'>
@@ -146,8 +209,15 @@ export function CostCell({
                   )}{' '}
                   · {item.quantity.toLocaleString(locale)}
                 </span>
-                <span className='font-mono'>{item.unpriced ? t('price.image.unpriced') : money(item.subtotal, 6)}</span>
+                <span className='font-mono'>{item.unpriced ? t('serviceTier.cost.unpriced') : money(item.pricingEvidence?.modeSubtotal ?? item.pricingEvidence?.baseSubtotal ?? item.subtotal, 6)}</span>
               </div>
+              {evidence === 'mixed' && <CostPricingDetails evidence={item.pricingEvidence ?? null} />}
+              {item.pricingEvidence?.itemMethod && <p className='text-background/75'>
+                {item.pricingEvidence.itemMethod === 'unit_price' ? t('serviceTier.items.unit_price') : item.pricingEvidence.itemMethod === 'unpriced' ? t('serviceTier.items.unpriced') : `${item.pricingEvidence.baseUnitPrice == null ? '' : money(item.pricingEvidence.baseUnitPrice, 2, 6)} ×${item.pricingEvidence.modeMultiplier}`}
+                {item.pricingEvidence.finalUnitPrice != null && ` → ${money(item.pricingEvidence.finalUnitPrice, 2, 6)} / 1M`}
+              </p>}
+              {item.pricingEvidence?.ruleSource && <p className='text-background/75'>{t(`serviceTier.items.rule_${item.pricingEvidence.ruleSource}`)}{item.pricingEvidence.reference?.source && ` · ${t(`serviceTier.prices.${item.pricingEvidence.reference.source}`)}`}{item.pricingEvidence.reference?.referenceModel && ` · ${item.pricingEvidence.reference.referenceModel}`}{item.pricingEvidence.reference?.version && ` · ${item.pricingEvidence.reference.version}`}</p>}
+              {(evidence === 'mixed' || rows.costMultiplier === 'mixed') && item.pricingEvidence && <p>{t('requests.costBreakdown.multiplier')}: ×{item.pricingEvidence.costMultiplier} · {t('requests.costBreakdown.total')}: {item.unpriced ? t('serviceTier.cost.unpriced') : money(item.subtotal, 6)}</p>}
               {item.image && (
                 <div>
                   {item.image.width > 0 && `${item.image.width} × ${item.image.height} · `}
@@ -157,7 +227,7 @@ export function CostCell({
                     ` · ${t(`price.image.source.${item.image.tierSource}`)}`}
                 </div>
               )}
-              {item.unitPrice !== null && (
+              {item.unitPrice !== null && !item.pricingEvidence?.itemMethod && (
                 <div className='text-background/75'>
                   @ {money(item.unitPrice, 2, 6)} / {item.image ? t('price.image.imageUnit') : '1M'}
                 </div>
@@ -177,15 +247,18 @@ export function CostCell({
             </div>
           ))}
           <div className='space-y-1 border-t pt-2'>
+            {rows.itemized && <p>{t('serviceTier.items.itemized')}</p>}
+            {!rows.itemized && rows.modeMultiplier !== undefined && <div className='flex justify-between gap-4'><span>{t('serviceTier.prices.multiplier')}</span><span>{rows.modeMultiplier == null ? t('serviceTier.prices.unconfigured') : rows.modeMultiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.modeMultiplier}`}</span></div>}
             <div className='flex justify-between gap-4'>
-              <span>{t('requests.costBreakdown.baseTotal')}</span>
-              <span className='font-mono'>{total == null || rows.baseTotal === null ? '-' : money(rows.baseTotal, 6)}</span>
+              <span>{t(rows.hasModeSubtotals ? 'serviceTier.items.modeTotal' : 'requests.costBreakdown.baseTotal')}</span>
+              <span className='font-mono'>{total == null || rows.baseTotal === null ? '-' : money(rows.hasModeSubtotals ? rows.modeTotal ?? 0 : rows.baseTotal, 6)}</span>
             </div>
             <div className='flex justify-between gap-4'>
               <span>{t('requests.costBreakdown.multiplier')}</span>
-              <span>{rows.multiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.multiplier}`}</span>
+              <span>{rows.costMultiplier === 'mixed' ? t('requests.costBreakdown.mixed') : `×${rows.costMultiplier}`}</span>
             </div>
           </div>
+          {rows.hasModeSubtotals && <p className='text-background/75'>{t('serviceTier.items.frozen')}</p>}
           {(breakdown.unpricedRecords ?? 0) > 0 && (
             <div className='text-background/75'>{t('selfUsage.cost.unpriced', { count: breakdown.unpricedRecords })}</div>
           )}

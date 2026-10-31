@@ -166,6 +166,10 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		PreviousResponseID: s.state.previousResponseID,
 	}
 
+	if (streamEvent.Type == StreamEventTypeResponseCompleted || streamEvent.Type == "response.done" || streamEvent.Type == StreamEventTypeResponseFailed || streamEvent.Type == StreamEventTypeResponseIncomplete || streamEvent.Type == StreamEventTypeResponseCancelled) && streamEvent.Response != nil && streamEvent.Response.ServiceTier != nil {
+		resp.ServiceTier = *streamEvent.Response.ServiceTier
+	}
+
 	//nolint:exhaustive //Only process events we care about.
 	switch streamEvent.Type {
 	case StreamEventTypeResponseCreated:
@@ -581,7 +585,7 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		// These events don't need special handling - skip
 		return nil // Intentionally skip this event
 
-	case StreamEventTypeResponseCompleted:
+	case StreamEventTypeResponseCompleted, "response.done":
 		if s.responseCompleted {
 			return nil
 		}
@@ -651,6 +655,7 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 				PreviousResponseID: s.state.previousResponseID,
 				Choices:            []llm.Choice{},
 				Usage:              s.state.usage,
+				ServiceTier:        resp.ServiceTier,
 			}
 
 			s.enqueue(resp)

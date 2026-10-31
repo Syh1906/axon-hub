@@ -315,6 +315,7 @@ func (s *RequestService) CreateRequestExecution(
 	cacheSample *usageanalytics.CacheSample,
 	selection *objects.RequestExecutionSelection,
 	modelCard *objects.ModelCard,
+	serviceTier ...*objects.ServiceTierEvidence,
 ) (*ent.RequestExecution, error) {
 	// Decide whether to store the channel request body
 	storeRequestBody := true
@@ -373,6 +374,14 @@ func (s *RequestService) CreateRequestExecution(
 		requestBodyForDB = requestBodyBytes
 	}
 
+	costSnapshot := captureRequestCostSnapshot(ctx, client, channel, modelID, modelCard)
+	if len(serviceTier) > 0 && serviceTier[0] != nil {
+		evidence := *serviceTier[0]
+		if channel.Settings != nil && channel.Settings.ServiceTierBilling != nil {
+			evidence.Settings = *channel.Settings.ServiceTierBilling
+		}
+		costSnapshot.ServiceTier = &evidence
+	}
 	mut := client.RequestExecution.Create().
 		SetFormat(string(format)).
 		SetRequestID(request.ID).
@@ -383,7 +392,7 @@ func (s *RequestService) CreateRequestExecution(
 		SetStatus(requestexecution.StatusProcessing).
 		SetStream(request.Stream).
 		SetRequestHeaders(requestHeadersBytes).
-		SetCostSnapshot(captureRequestCostSnapshot(ctx, client, channel, modelID, modelCard)).
+		SetCostSnapshot(costSnapshot).
 		SetPassThroughApplied(passThroughApplied)
 	if selection != nil {
 		mut.SetSelection(selection)

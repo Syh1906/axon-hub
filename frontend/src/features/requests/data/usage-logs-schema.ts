@@ -1,3 +1,4 @@
+import { costPricingEvidenceSchema } from '@/components/cost-pricing-evidence';
 import { z } from 'zod';
 import { pageInfoSchema } from '@/gql/pagination';
 import { channelSchema } from '@/features/channels/data';
@@ -7,6 +8,7 @@ export const usageLogSourceSchema = z.enum(['api', 'playground', 'test']);
 export type UsageLogSource = z.infer<typeof usageLogSourceSchema>;
 
 export const costItemSchema = z.object({
+  pricingEvidence: costPricingEvidenceSchema.nullable().optional(),
   image: z
     .object({ width: z.number(), height: z.number(), tier: z.string(), tierSource: z.string().optional(), source: z.string() })
     .nullable()

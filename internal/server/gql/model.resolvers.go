@@ -102,6 +102,11 @@ func (r *mutationResolver) BulkDeleteModels(ctx context.Context, ids []*objects.
 	return true, nil
 }
 
+// MatchModelStandardPrices is the resolver for the matchModelStandardPrices field.
+func (r *queryResolver) MatchModelStandardPrices(ctx context.Context, modelIDs []string) ([]*biz.ModelStandardPriceMatch, error) {
+	return r.modelService.MatchModelStandardPrices(ctx, modelIDs)
+}
+
 // FetchModels is the resolver for the fetchModels field.
 func (r *queryResolver) FetchModels(ctx context.Context, input biz.FetchModelsInput) (*FetchModelsPayload, error) {
 	if err := authz.RequireScope(ctx, scopes.ScopeWriteChannels); err != nil {

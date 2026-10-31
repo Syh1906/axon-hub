@@ -285,13 +285,33 @@ func (t *OutboundTransformer) TransformResponse(
 	// Parse into OpenAI Response type
 	var oaiResp Response
 
-	err := json.Unmarshal(httpResp.Body, &oaiResp)
+	err := unmarshalResponse(httpResp.Body, &oaiResp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal chat completion response: %w", err)
 	}
 
 	// Convert to unified llm.Response
 	return oaiResp.ToLLMResponse(), nil
+}
+
+// unmarshalResponse isolates malformed upstream service_tier metadata from the
+// response content and usage. Billing retains the original body as evidence.
+// Keep this decoder local instead of adding an UnmarshalJSON method: providers
+// embed Response and must retain their own extended fields when decoding.
+func unmarshalResponse(data []byte, response *Response) error {
+	var raw struct {
+		ServiceTier json.RawMessage `json:"service_tier"`
+		*Response
+	}
+	raw.Response = response
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	response.ServiceTier = ""
+	if len(raw.ServiceTier) > 0 && raw.ServiceTier[0] == '"' {
+		return json.Unmarshal(raw.ServiceTier, &response.ServiceTier)
+	}
+	return nil
 }
 
 func (t *OutboundTransformer) TransformStream(ctx context.Context, req *httpclient.Request, stream streams.Stream[*httpclient.StreamEvent]) (streams.Stream[*llm.Response], error) {

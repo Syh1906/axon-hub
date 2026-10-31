@@ -1,4 +1,5 @@
 {
+  "service_tier": "default",
   "id": "resp_020592949fb9ce090069355e9a54788196911d78a6360a88f2",
   "object": "response",
   "created_at": 1765105306,

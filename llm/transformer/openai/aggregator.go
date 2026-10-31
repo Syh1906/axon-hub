@@ -108,7 +108,7 @@ type ChunkTransformFunc func(ctx context.Context, chunk *httpclient.StreamEvent)
 
 func DefaultTransformChunk(ctx context.Context, chunk *httpclient.StreamEvent) (*Response, error) {
 	var response Response
-	if err := json.Unmarshal(chunk.Data, &response); err != nil {
+	if err := unmarshalResponse(chunk.Data, &response); err != nil {
 		return nil, err
 	}
 

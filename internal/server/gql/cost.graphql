@@ -5,6 +5,7 @@ type TierCost {
 }
 
 type CostItem {
+  pricingEvidence: CostPricingEvidence
   image: ImageOutput
   imageRule: String!
   unpriced: Boolean!

@@ -254,6 +254,26 @@ query GetUsageLogs {
 | `costItems` | JSON | Array of cost breakdown items |
 | `costPriceReferenceId` | String | Reference ID to the price version used for cost calculation |
 
+## Fast / Ultrafast and Long-Context Costs
+
+Configure each mode under **Models → Edit → Pricing → Acceleration billing**, using a supported official reference model or a custom non-negative multiplier (including zero). Base token rates must represent standard processing. Official rates retain their model and version; unknown models are not assumed to cost twice as much, and missing accelerated rates remain unpriced.
+
+Expand item rules to configure input, output, cache reads and write variants using a multiplier, an absolute unit price, or explicit unpriced state. Omission inherits; zero is free. Resolution order is context item → context default → mode item → mode default. Absolute prices do not receive the default mode multiplier. A schedule replaces volume-tier rules.
+
+Official references support ratios against local base rates or absolute official USD prices without currency conversion. Preview and explicitly apply them; saved references retain their version, date and scope without automatic updates. Unknown contexts stay unpriced. Official 30-minute/12-hour writes are not mapped to 5-minute/1-hour variants. Example previews exclude cache, schedules and channel multipliers; request evidence shows final costs.
+
+Enable mode billing under **Channel → Model Prices**. **Prefer upstream response** uses a valid final `service_tier`, falling back to the client request when missing, invalid, or conflicting. `priority` / `fast` map to Fast; `default` / `standard` map to standard. **Use client request** supports relays whose declarations are unreliable while retaining the upstream value for inspection. Unspecified acceleration, including `auto`, uses standard rates without valid upstream evidence.
+
+Applying model prices copies base rates, context tiers, and per-item mode rules; subsequent channel edits are independent. Updating a model does not overwrite applied channel prices. Export v3 includes mode settings; legacy arrays and v2 imports leave mode billing disabled. Existing channels retain their prior behavior by default.
+
+Each attempt freezes prices, billing basis, and the existing cost multiplier. Final upstream evidence drives the same usage cost, budget settlement, and recovery. Evidence survives disabled body storage. Initial Responses events alone do not establish the final tier; an explicit final Chat Completions usage chunk takes precedence. Flat fees and per-image prices do not receive mode multipliers. Historical costs are not recalculated from current settings.
+
+Token cost is the sum of each item’s effective mode rate and usage, followed by the existing cost multiplier exactly once. Long-context pricing uses the existing whole-volume tiers and requires input tokens strictly above the threshold. Input already includes cache tokens; output does not affect the threshold. The `1M` marker appears only for an actually applied tier marked as long-context; a schedule override removes it. It does not mean a fixed one-million-input-token threshold.
+
+Hover or click the cost amount to inspect the billed mode, client and upstream declarations, decision basis, context threshold, unit prices, and multipliers. Mixed records preserve per-item evidence. Zero-cost records retain their base amounts; missing rates remain unpriced and do not settle budgets as free.
+
+For 300,000 input tokens (including 60,000 cached) and 2,000 output tokens at long-context rates 4 / 15 / 0.2 per million, base cost is 1.002. Fast ×2 and cost multiplier ×0.8 produce 1.6032; an upstream standard declaration produces 0.8016.
+
 ## Best Practices
 
 1. **Configure Model Prices**: Set accurate prices for each channel and model before use

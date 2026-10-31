@@ -1,5 +1,6 @@
 schema:
   - selfusage.graphql
+  - ../cost_pricing_evidence.graphql
   - ../budget_types.graphql
 
 omit_gqlgen_version_in_file_notice: true
@@ -50,3 +51,24 @@ models:
   BudgetView:
     model:
       - github.com/looplj/axonhub/internal/server/biz.BudgetView
+
+  Decimal:
+    model: github.com/looplj/axonhub/internal/objects.Decimal
+
+  ServiceTierDecision:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierDecision
+
+  ContextPricing:
+    model: github.com/looplj/axonhub/internal/objects.ContextPricing
+
+  CostPricingEvidence:
+    model: github.com/looplj/axonhub/internal/objects.CostPricingEvidence
+
+  ServiceTierItemMethod:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierItemMethod
+
+  ServiceTierItemReference:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierPrice
+
+  ServiceTierPriceSource:
+    model: github.com/looplj/axonhub/internal/objects.ServiceTierPriceSource

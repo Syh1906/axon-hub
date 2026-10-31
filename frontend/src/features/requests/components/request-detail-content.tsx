@@ -1,3 +1,4 @@
+import { CostCell } from '@/components/request-usage-cells';
 import { SystemTime } from '@/components/system-time';
 import { apiKeyLabel } from '@/components/api-key-identity';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -521,13 +522,13 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {usage.costItems?.some((item) => item.image || item.unpriced) && (
+                {usage.costItems?.some((item) => item.image) && (
                   <div className='mb-3 flex flex-col gap-2 rounded-md border p-3 text-sm'>
                     <div className='flex justify-between font-medium'>
                       <span>{t('price.mode_image_fixed')}</span>
                     </div>
                     {usage.costItems
-                      .filter((item) => item.image || item.unpriced)
+                      .filter((item) => item.image)
                       .map((item, index) => (
                         <div key={index} className='flex flex-wrap justify-between gap-2 text-xs'>
                           <span>
@@ -596,7 +597,10 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                     <span className='text-muted-foreground text-xs font-medium'>{t('usageLogs.columns.totalTokens')}</span>
                     <div className='mt-1'>
                       <p className='text-sm font-semibold'>{usage.totalTokens.toLocaleString()}</p>
-                      <p className='text-muted-foreground text-xs'>{renderCost(cost)}</p>
+                      <CostCell total={usage.totalCost ?? null} currencyCode={settings?.currencyCode ?? 'USD'} breakdown={{
+                        items: (usage.costItems ?? []).map((item) => ({ ...item, variant: item.promptWriteCacheVariantCode ?? null, tiers: item.tierBreakdown ?? [] })),
+                        multiplier: usage.costPriceMultiplier ?? 'mixed',
+                      }} />
                     </div>
                   </div>
                 </div>

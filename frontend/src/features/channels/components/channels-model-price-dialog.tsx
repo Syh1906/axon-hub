@@ -1,3 +1,6 @@
+import { Switch } from '@/components/ui/switch';
+import { appliedModelPrice } from '@/features/models/data/service-tier';
+import { serviceTierSettingsSchema, type ServiceTierSettings } from '../data/schema';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useFieldArray, useForm, useWatch, type Control } from 'react-hook-form';
@@ -29,6 +32,7 @@ import {
 
 const multiplierSchema = z.string().trim().refine(isValidPriceMultiplier);
 const importSchema = z.union([
+ z.object({ version: z.literal(3), multiplier: multiplierSchema, serviceTierBilling: serviceTierSettingsSchema, prices: z.array(saveChannelModelPriceInputSchema) }),
   z.array(saveChannelModelPriceInputSchema),
   z.object({ version: z.literal(2), multiplier: multiplierSchema, prices: z.array(saveChannelModelPriceInputSchema) }),
 ]);
@@ -37,6 +41,7 @@ function createFormSchema(t: (key: string) => string) {
   const priceSchema = createPriceValidationSchema(t);
   return z
     .object({
+      serviceTierBilling: serviceTierSettingsSchema,
       multiplier: z.string().trim().refine(isValidPriceMultiplier, t('price.validation.multiplier')),
       prices: z.array(
         saveChannelModelPriceInputSchema.extend({
@@ -58,7 +63,7 @@ function createFormSchema(t: (key: string) => string) {
       });
     });
 }
-type PriceFormData = { multiplier: string; prices: SaveChannelModelPriceInput[] };
+type PriceFormData = { serviceTierBilling: ServiceTierSettings; multiplier: string; prices: SaveChannelModelPriceInput[] };
 
 const PriceCard = memo(function PriceCard({
   control,
@@ -173,7 +178,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   }, []);
 
   const schema = useMemo(() => createFormSchema(t), [t]);
-  const form = useForm<PriceFormData>({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: { multiplier: '1', prices: [] } });
+  const form = useForm<PriceFormData>({ resolver: zodResolver(schema), mode: 'onChange', defaultValues: { serviceTierBilling: { enabled: false, basis: 'upstream' }, multiplier: '1', prices: [] } });
   const { control, getValues, reset } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: 'prices' });
   const fieldsRef = useRef(fields);
@@ -216,6 +221,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     if (!initialized && currentPricing.isSuccess && currentPricing.data && !currentPricing.isFetching) {
       reset({
         multiplier: currentPricing.data.multiplier,
+        serviceTierBilling: currentPricing.data.serviceTierBilling,
         prices: currentPricing.data.prices.map((price) => ({ modelId: price.modelID, price: modelPriceInputSchema.parse(price.price) })),
       });
       setInitialized(true);
@@ -234,7 +240,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   );
   const applyReference = () => {
     if (!reference || !targetModel) return;
-    const price = reference.modelCard.price;
+    const price = reference.modelCard.price ? appliedModelPrice(reference.modelCard.price, reference.modelID) : null;
     if (!price) {
       toast.warning(t('price.apply.notFound', { modelId: reference.modelID }));
       return;
@@ -254,9 +260,10 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
       try {
         const models = await fetchModelStandardPrices([modelId]);
         if (!activeRef.current || fieldsRef.current[index]?.id !== rowId || getValues(`prices.${index}.modelId`) !== modelId) return;
-        const price = models.find((model) => model.modelID === modelId)?.modelCard.price;
+        const matched = models.find((match) => match.requestModelID === modelId)?.model;
+        const price = matched?.modelCard.price;
         if (!price) toast.warning(t('price.apply.notFound', { modelId }));
-        else replacePrice(index, price);
+        else replacePrice(index, appliedModelPrice(price, matched.modelID));
       } catch {
         if (activeRef.current) toast.error(t('price.apply.loadFailed'));
       } finally {
@@ -270,7 +277,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     try {
       const models = await fetchModelStandardPrices(supportedModels);
       if (!activeRef.current) return;
-      const byId = new Map(models.map((model) => [model.modelID, model]));
+      const byId = new Map(models.map((match) => [match.requestModelID, match.model]));
       const prices = getValues('prices');
       const existing = new Map(prices.map((price, index) => [price.modelId, index]));
       let applied = 0;
@@ -278,7 +285,9 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
       const missed: string[] = [];
       const additions: PriceFormData['prices'] = [];
       for (const modelId of supportedModels) {
-        const price = byId.get(modelId)?.modelCard.price;
+        const matched = byId.get(modelId);
+        const referencePrice = matched?.modelCard.price;
+        const price = referencePrice ? appliedModelPrice(referencePrice, matched.modelID) : null;
         if (!price) {
           missed.push(modelId);
           continue;
@@ -309,7 +318,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   const handleExport = async () => {
     if (!(await form.trigger()) || !activeRef.current) return;
     const values = schema.parse(getValues());
-    const payload = { version: 2, multiplier: values.multiplier, prices: values.prices };
+    const payload = { version: 3, serviceTierBilling: values.serviceTierBilling, multiplier: values.multiplier, prices: values.prices };
     const url = URL.createObjectURL(new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' }));
     const anchor = document.createElement('a');
     const safeName =
@@ -351,7 +360,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
         toast.error(t('price.import.noSupportedModels'));
         return;
       }
-      reset({ multiplier: importedMultiplier, prices: filtered });
+      reset({ multiplier: importedMultiplier, prices: filtered, serviceTierBilling: !Array.isArray(imported) && imported.version === 3 ? imported.serviceTierBilling : { enabled: false, basis: 'upstream' } });
       priceListRef.current?.scrollTo({ top: 0 });
       const skipped = prices.length - filtered.length;
       toast.success(t(skipped ? 'price.import.successSkipped' : 'price.import.success', { count: filtered.length, skipped }));
@@ -361,7 +370,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   };
   const onSubmit = async (data: PriceFormData) => {
     try {
-      await savePrices.mutateAsync({ channelId: channel.id, input: data.prices, multiplier: data.multiplier });
+      await savePrices.mutateAsync({ channelId: channel.id, input: data.prices, multiplier: data.multiplier, serviceTierBilling: data.serviceTierBilling });
       if (activeRef.current) handleClose();
     } catch {
       /* The mutation displays the server error. */
@@ -471,6 +480,15 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
                 </Button>
               </div>
               <p className='text-muted-foreground text-xs md:col-span-4'>{t('price.apply.referenceHint')}</p>
+            </fieldset>
+            <fieldset disabled={busy} className='flex flex-wrap items-start gap-3 rounded-md border p-3'>
+              <FormField control={control} name='serviceTierBilling.enabled' render={({ field }) => (
+                <FormItem className='flex items-center gap-2'><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} aria-label={t('serviceTier.settings.enabled')} /></FormControl><FormLabel>{t('serviceTier.settings.enabled')}</FormLabel></FormItem>
+              )} />
+              <FormField control={control} name='serviceTierBilling.basis' render={({ field }) => (
+                <FormItem><FormLabel>{t('serviceTier.settings.basis')}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent container={dialogContent}><SelectItem value='upstream'>{t('serviceTier.settings.upstream')}</SelectItem><SelectItem value='client'>{t('serviceTier.settings.client')}</SelectItem></SelectContent></Select></FormItem>
+              )} />
+              <p className='text-muted-foreground w-full text-xs'>{t('serviceTier.settings.fallback')}</p>
             </fieldset>
             <div ref={priceListRef} className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2'>
               {!initialized && (

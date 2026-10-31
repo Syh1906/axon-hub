@@ -98,6 +98,7 @@ func IsTerminalStreamEvent(event *httpclient.StreamEvent) bool {
 	if bytes.Equal(event.Data, llm.DoneStreamEvent.Data) ||
 		// For Responses API, check for response.completed event
 		event.Type == "response.completed" ||
+		event.Type == "response.done" ||
 		// For Anthropic Messages API, check for message_stop event
 		event.Type == "message_stop" ||
 		// For OpenAI audio APIs (TTS sse / STT stream) which have no [DONE] sentinel:
@@ -115,7 +116,7 @@ func IsTerminalStreamEvent(event *httpclient.StreamEvent) bool {
 	// the trailing [DONE] marker is read by the server.
 	eventType := gjson.GetBytes(event.Data, "type").String()
 	switch eventType {
-	case "response.completed", "message_stop", "speech.audio.done", "transcript.text.done":
+	case "response.completed", "response.done", "message_stop", "speech.audio.done", "transcript.text.done":
 		return true
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"github.com/vektah/gqlparser/v2"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -20,6 +21,29 @@ import (
 	"github.com/looplj/axonhub/internal/ent/intercept"
 	"github.com/looplj/axonhub/internal/objects"
 )
+
+func TestManagedGroupUsageRequestsSupportsPricingEvidence(t *testing.T) {
+	// The managed group page shares the self-service request list. Its nested
+	// cost evidence must also be accepted by the main GraphQL schema.
+	_, err := gqlparser.LoadQuery(NewExecutableSchema(Config{}).Schema(), `
+		query {
+			managedGroupUsageRequests(groupRef: 1, start: "2026-10-31", end: "2026-11-01") {
+				items {
+					inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens
+					costItems {
+						pricingEvidence {
+							serviceTier { mode basis client outbound upstream confirmed reason source referenceModel version }
+							context { kind inputTokens threshold longContext name }
+							baseSubtotal baseTierSubtotals modeMultiplier costMultiplier
+							itemMethod ruleSource baseUnitPrice finalUnitPrice modeSubtotal modeTierSubtotals
+							reference { source referenceModel version sourceURL verifiedAt application currency unit }
+						}
+					}
+				}
+			}
+		}`)
+	require.Empty(t, err)
+}
 
 func TestUsageLogCostPriceMultiplierBatchesVisibleRows(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:usage-multiplier-batch?mode=memory&_fk=0")

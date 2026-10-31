@@ -70,7 +70,13 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   const state = selection?.sessionState || 'unrecorded';
   const Icon = SESSION_ICONS[state as keyof typeof SESSION_ICONS] ?? CircleHelp;
   const iconColor =
-    state === 'new' ? 'text-green-600 dark:text-green-400' : state === 'reused' ? 'text-blue-600 dark:text-blue-400' : 'text-primary';
+    state === 'new'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : state === 'reused'
+        ? 'text-teal-500'
+        : state === 'switched'
+          ? 'text-primary'
+          : 'text-muted-foreground';
   const provider = requestProvider(request);
   const usage = request.usageLogs?.edges?.[0]?.node;
   const multiplier = execution?.costSnapshot

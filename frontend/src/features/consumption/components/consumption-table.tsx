@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/utils/format-number';
 import { Button } from '@/components/ui/button';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ConsumptionDimension, ConsumptionEntry, ConsumptionMetric, ConsumptionMetrics } from '../data/consumption';
 
@@ -23,7 +24,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
       ...(dimension === 'CHANNEL' ? [{ key: 'cacheCoefficient', format: 'coefficient', tooltip: 'cacheCoefficientHelp' } as Column] : []),
       { key: 'cacheReadTokens', format: 'tokens' },
       { key: 'cacheInputTokens', format: 'tokens' },
-      ...(dimension !== 'CHANNEL' ? [{ key: 'totalCost', format: 'currency', hideInModel: true } as Column] : []),
+      { key: 'totalCost', format: 'currency', hideInModel: dimension !== 'CHANNEL', tooltip: 'totalCostHelp' },
     ];
   }
   if (dimension !== 'CHANNEL')
@@ -170,7 +171,11 @@ export function ConsumptionTable({
           const isExpanded = hasModels && expanded.has(entry.id);
           return (
             <Fragment key={entry.id}>
-              <TableRow className={cn('consumption-parent-row', isExpanded && 'consumption-parent-open')}>
+              <ExpandableTableRow
+                expanded={isExpanded}
+                onToggle={hasModels ? () => toggle(entry.id) : undefined}
+                className={cn('consumption-parent-row', isExpanded && 'consumption-parent-open')}
+              >
                 <TableCell className='text-muted-foreground text-center'>
                   <span
                     className={cn(
@@ -211,13 +216,10 @@ export function ConsumptionTable({
                   )}
                 </TableCell>
                 {metricCells(entry.metrics)}
-              </TableRow>
+              </ExpandableTableRow>
               {isExpanded &&
-                entry.models.map((model, modelIndex) => (
-                  <TableRow
-                    key={`${entry.id}:${model.model}`}
-                    className={cn('consumption-model-row', modelIndex % 2 === 1 && 'consumption-model-alternate')}
-                  >
+                entry.models.map((model) => (
+                  <TableRow key={`${entry.id}:${model.model}`} className='consumption-model-row'>
                     <TableCell aria-hidden />
                     <TableCell className='text-center font-medium'>
                       <div className='px-6'>

@@ -3,7 +3,11 @@
 This repository is Syh1906/axon-hub. Its direct upstream is ChouUn/axon-hub;
 the original upstream is looplj/axonhub. GitHub Actions builds the application,
 GHCR stores container images, and GitHub Releases stores binary packages and
-deployment manifests. No Docker Hub account is required.
+deployment manifests. No Docker Hub account is required. Starting with .syh.8, releases default to dual-architecture images and the deployment manifest; binary archives are opt-in.
+
+Set the explicit boolean `publishBinaries` in `release.config.json` before creating a new tag. `false` skips GoReleaser, its frontend installation, cross-platform archives, checksums and configuration-schema attachments; `true` preserves the full archive workflow. Image releases still run tests, native amd64/arm64 builds and the PostgreSQL startup check. All builds and pushes run in GitHub Actions; no local image tar is uploaded. Docker context excludes design/verification output and local demo data.
+
+Image-only versions cannot be installed with the native binary download/upgrade scripts. Binary users must retain their existing version or wait for a new release with archives enabled. Do not rerun a published tag to change its artifact set. GitHub's automatic source archives remain available.
 
 Independent production machines use PostgreSQL and Docker Compose, with their
 own configuration and volumes. The private
@@ -131,7 +135,7 @@ llm, frontend and release-script tests, builds native amd64/arm64 images from th
 same commit, and creates their GHCR manifest. A digest-pinned startup and version
 check against temporary PostgreSQL 17 precedes binary packaging. This is not a production-data migration rehearsal.
 
-GoReleaser uploads binaries, checksums and the configuration schema to a draft.
+When `publishBinaries=true`, GoReleaser uploads binaries, checksums and the configuration schema to a draft. Otherwise the workflow creates a draft directly after image verification.
 The final step attaches release.json and the reviewed notes, then publishes with the complete version as its title and the configured
 prerelease state. There is no version-file commit back to the default branch.
 Set prerelease: false for an official release; it becomes the latest GitHub release.

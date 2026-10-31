@@ -9,6 +9,7 @@ type TierCost struct {
 }
 
 type CostItem struct {
+	PricingEvidence             *CostPricingEvidence        `json:"pricingEvidence,omitempty"`
 	Image                       *ImageOutput                `json:"image,omitempty"`
 	ImageRule                   string                      `json:"imageRule,omitempty"`
 	Unpriced                    bool                        `json:"unpriced,omitempty"`

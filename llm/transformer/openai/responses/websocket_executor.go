@@ -1138,7 +1138,7 @@ func (s *webSocketStream) Next() bool {
 		// terminal events are yielded and then close the stream normally so the
 		// non-streaming Do path can aggregate their response object.
 		evict := terminalWebSocketEventEvicts(typ)
-		if typ == "response.completed" {
+		if typ == "response.completed" || typ == "response.done" {
 			responseID := responseIDFromWebSocketEvent(msg)
 			if responseID == "" {
 				evict = true
@@ -1275,7 +1275,7 @@ func streamEventType(raw []byte) string {
 
 func isTerminalWebSocketEvent(eventType string) bool {
 	switch eventType {
-	case "response.completed", "response.failed", "response.cancelled", "response.incomplete", "error":
+	case "response.completed", "response.done", "response.failed", "response.cancelled", "response.incomplete", "error":
 		return true
 	default:
 		return false

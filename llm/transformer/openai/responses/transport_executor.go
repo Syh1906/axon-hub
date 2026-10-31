@@ -81,6 +81,9 @@ func (e *transportExecutor) streamHTTP(ctx context.Context, r *httpclient.Reques
 func (e *transportExecutor) checkContinuation(ctx context.Context, r *httpclient.Request) error {
 	// The orchestrator removes previous_response_id only after restoring the history.
 	if (e.stripPrevious || shared.IsResponsesWebSocket(ctx)) && gjson.GetBytes(r.Body, "previous_response_id").String() != "" {
+		if err := shared.ResponsesRestoreError(ctx); err != nil {
+			return fmt.Errorf("%w: %w", httpclient.ErrContinuationRestoreFailed, err)
+		}
 		return httpclient.ErrContinuationUnavailable
 	}
 	return nil

@@ -18,6 +18,7 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/shopspring/decimal"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -88,6 +89,30 @@ type ComplexityRoot struct {
 		WindowStart       func(childComplexity int) int
 	}
 
+	ContextPricing struct {
+		InputTokens func(childComplexity int) int
+		Kind        func(childComplexity int) int
+		LongContext func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Threshold   func(childComplexity int) int
+	}
+
+	CostPricingEvidence struct {
+		BaseSubtotal      func(childComplexity int) int
+		BaseTierSubtotals func(childComplexity int) int
+		BaseUnitPrice     func(childComplexity int) int
+		Context           func(childComplexity int) int
+		CostMultiplier    func(childComplexity int) int
+		FinalUnitPrice    func(childComplexity int) int
+		ItemMethod        func(childComplexity int) int
+		ModeMultiplier    func(childComplexity int) int
+		ModeSubtotal      func(childComplexity int) int
+		ModeTierSubtotals func(childComplexity int) int
+		Reference         func(childComplexity int) int
+		RuleSource        func(childComplexity int) int
+		ServiceTier       func(childComplexity int) int
+	}
+
 	Query struct {
 		SelfUsageBudgets  func(childComplexity int) int
 		SelfUsageMeta     func(childComplexity int) int
@@ -99,6 +124,7 @@ type ComplexityRoot struct {
 		Image                       func(childComplexity int) int
 		ImageRule                   func(childComplexity int) int
 		ItemCode                    func(childComplexity int) int
+		PricingEvidence             func(childComplexity int) int
 		PromptWriteCacheVariantCode func(childComplexity int) int
 		Quantity                    func(childComplexity int) int
 		Subtotal                    func(childComplexity int) int
@@ -196,6 +222,30 @@ type ComplexityRoot struct {
 		Subtotal func(childComplexity int) int
 		Units    func(childComplexity int) int
 		UpTo     func(childComplexity int) int
+	}
+
+	ServiceTierDecision struct {
+		Basis          func(childComplexity int) int
+		Client         func(childComplexity int) int
+		Confirmed      func(childComplexity int) int
+		Mode           func(childComplexity int) int
+		Outbound       func(childComplexity int) int
+		Reason         func(childComplexity int) int
+		ReferenceModel func(childComplexity int) int
+		Source         func(childComplexity int) int
+		Upstream       func(childComplexity int) int
+		Version        func(childComplexity int) int
+	}
+
+	ServiceTierItemReference struct {
+		Application    func(childComplexity int) int
+		Currency       func(childComplexity int) int
+		ReferenceModel func(childComplexity int) int
+		Source         func(childComplexity int) int
+		SourceURL      func(childComplexity int) int
+		Unit           func(childComplexity int) int
+		VerifiedAt     func(childComplexity int) int
+		Version        func(childComplexity int) int
 	}
 }
 
@@ -408,6 +458,116 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.BudgetWindow.WindowStart(childComplexity), true
 
+	case "ContextPricing.inputTokens":
+		if e.complexity.ContextPricing.InputTokens == nil {
+			break
+		}
+
+		return e.complexity.ContextPricing.InputTokens(childComplexity), true
+	case "ContextPricing.kind":
+		if e.complexity.ContextPricing.Kind == nil {
+			break
+		}
+
+		return e.complexity.ContextPricing.Kind(childComplexity), true
+	case "ContextPricing.longContext":
+		if e.complexity.ContextPricing.LongContext == nil {
+			break
+		}
+
+		return e.complexity.ContextPricing.LongContext(childComplexity), true
+	case "ContextPricing.name":
+		if e.complexity.ContextPricing.Name == nil {
+			break
+		}
+
+		return e.complexity.ContextPricing.Name(childComplexity), true
+	case "ContextPricing.threshold":
+		if e.complexity.ContextPricing.Threshold == nil {
+			break
+		}
+
+		return e.complexity.ContextPricing.Threshold(childComplexity), true
+
+	case "CostPricingEvidence.baseSubtotal":
+		if e.complexity.CostPricingEvidence.BaseSubtotal == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.BaseSubtotal(childComplexity), true
+	case "CostPricingEvidence.baseTierSubtotals":
+		if e.complexity.CostPricingEvidence.BaseTierSubtotals == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.BaseTierSubtotals(childComplexity), true
+	case "CostPricingEvidence.baseUnitPrice":
+		if e.complexity.CostPricingEvidence.BaseUnitPrice == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.BaseUnitPrice(childComplexity), true
+	case "CostPricingEvidence.context":
+		if e.complexity.CostPricingEvidence.Context == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.Context(childComplexity), true
+	case "CostPricingEvidence.costMultiplier":
+		if e.complexity.CostPricingEvidence.CostMultiplier == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.CostMultiplier(childComplexity), true
+	case "CostPricingEvidence.finalUnitPrice":
+		if e.complexity.CostPricingEvidence.FinalUnitPrice == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.FinalUnitPrice(childComplexity), true
+	case "CostPricingEvidence.itemMethod":
+		if e.complexity.CostPricingEvidence.ItemMethod == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.ItemMethod(childComplexity), true
+	case "CostPricingEvidence.modeMultiplier":
+		if e.complexity.CostPricingEvidence.ModeMultiplier == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.ModeMultiplier(childComplexity), true
+	case "CostPricingEvidence.modeSubtotal":
+		if e.complexity.CostPricingEvidence.ModeSubtotal == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.ModeSubtotal(childComplexity), true
+	case "CostPricingEvidence.modeTierSubtotals":
+		if e.complexity.CostPricingEvidence.ModeTierSubtotals == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.ModeTierSubtotals(childComplexity), true
+	case "CostPricingEvidence.reference":
+		if e.complexity.CostPricingEvidence.Reference == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.Reference(childComplexity), true
+	case "CostPricingEvidence.ruleSource":
+		if e.complexity.CostPricingEvidence.RuleSource == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.RuleSource(childComplexity), true
+	case "CostPricingEvidence.serviceTier":
+		if e.complexity.CostPricingEvidence.ServiceTier == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.ServiceTier(childComplexity), true
+
 	case "Query.selfUsageBudgets":
 		if e.complexity.Query.SelfUsageBudgets == nil {
 			break
@@ -461,6 +621,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageCostItem.ItemCode(childComplexity), true
+	case "SelfUsageCostItem.pricingEvidence":
+		if e.complexity.SelfUsageCostItem.PricingEvidence == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.PricingEvidence(childComplexity), true
 	case "SelfUsageCostItem.promptWriteCacheVariantCode":
 		if e.complexity.SelfUsageCostItem.PromptWriteCacheVariantCode == nil {
 			break
@@ -891,6 +1057,116 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelfUsageTierCost.UpTo(childComplexity), true
 
+	case "ServiceTierDecision.basis":
+		if e.complexity.ServiceTierDecision.Basis == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Basis(childComplexity), true
+	case "ServiceTierDecision.client":
+		if e.complexity.ServiceTierDecision.Client == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Client(childComplexity), true
+	case "ServiceTierDecision.confirmed":
+		if e.complexity.ServiceTierDecision.Confirmed == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Confirmed(childComplexity), true
+	case "ServiceTierDecision.mode":
+		if e.complexity.ServiceTierDecision.Mode == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Mode(childComplexity), true
+	case "ServiceTierDecision.outbound":
+		if e.complexity.ServiceTierDecision.Outbound == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Outbound(childComplexity), true
+	case "ServiceTierDecision.reason":
+		if e.complexity.ServiceTierDecision.Reason == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Reason(childComplexity), true
+	case "ServiceTierDecision.referenceModel":
+		if e.complexity.ServiceTierDecision.ReferenceModel == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.ReferenceModel(childComplexity), true
+	case "ServiceTierDecision.source":
+		if e.complexity.ServiceTierDecision.Source == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Source(childComplexity), true
+	case "ServiceTierDecision.upstream":
+		if e.complexity.ServiceTierDecision.Upstream == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Upstream(childComplexity), true
+	case "ServiceTierDecision.version":
+		if e.complexity.ServiceTierDecision.Version == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierDecision.Version(childComplexity), true
+
+	case "ServiceTierItemReference.application":
+		if e.complexity.ServiceTierItemReference.Application == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.Application(childComplexity), true
+	case "ServiceTierItemReference.currency":
+		if e.complexity.ServiceTierItemReference.Currency == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.Currency(childComplexity), true
+	case "ServiceTierItemReference.referenceModel":
+		if e.complexity.ServiceTierItemReference.ReferenceModel == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.ReferenceModel(childComplexity), true
+	case "ServiceTierItemReference.source":
+		if e.complexity.ServiceTierItemReference.Source == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.Source(childComplexity), true
+	case "ServiceTierItemReference.sourceURL":
+		if e.complexity.ServiceTierItemReference.SourceURL == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.SourceURL(childComplexity), true
+	case "ServiceTierItemReference.unit":
+		if e.complexity.ServiceTierItemReference.Unit == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.Unit(childComplexity), true
+	case "ServiceTierItemReference.verifiedAt":
+		if e.complexity.ServiceTierItemReference.VerifiedAt == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.VerifiedAt(childComplexity), true
+	case "ServiceTierItemReference.version":
+		if e.complexity.ServiceTierItemReference.Version == nil {
+			break
+		}
+
+		return e.complexity.ServiceTierItemReference.Version(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -996,6 +1272,48 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "selfusage.graphql", Input: sourceData("selfusage.graphql"), BuiltIn: false},
+	{Name: "../cost_pricing_evidence.graphql", Input: `enum ServiceTierPriceSource {
+  official
+  custom
+  model
+}
+enum ServiceTierItemMethod { multiplier unit_price unpriced }
+type ServiceTierItemReference { source: ServiceTierPriceSource! referenceModel: String! version: String! sourceURL: String! verifiedAt: String! application: String! currency: String! unit: String! }
+type ServiceTierDecision {
+  mode: String!
+  basis: String!
+  client: String!
+  outbound: String!
+  upstream: String!
+  confirmed: Boolean!
+  reason: String!
+  source: String!
+  referenceModel: String!
+  version: String!
+}
+type ContextPricing {
+  kind: String!
+  inputTokens: Int!
+  threshold: Int
+  longContext: Boolean!
+  name: String!
+}
+type CostPricingEvidence {
+ itemMethod: ServiceTierItemMethod
+ ruleSource: String!
+ baseUnitPrice: Decimal
+ finalUnitPrice: Decimal
+ modeSubtotal: Decimal
+ modeTierSubtotals: [Decimal!]
+ reference: ServiceTierItemReference
+  serviceTier: ServiceTierDecision!
+  context: ContextPricing!
+  baseSubtotal: Decimal!
+  baseTierSubtotals: [Decimal!]
+  modeMultiplier: Decimal
+  costMultiplier: Decimal!
+}
+`, BuiltIn: false},
 	{Name: "../budget_types.graphql", Input: `enum BudgetPeriod { five_hour daily weekly monthly total }
 enum BudgetMode { fixed rolling }
 type BudgetRule { period: BudgetPeriod! mode: BudgetMode! limit: String! minute: Int! }
@@ -2058,6 +2376,580 @@ func (ec *executionContext) fieldContext_BudgetWindow_pendingAt(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ContextPricing_kind(ctx context.Context, field graphql.CollectedField, obj *objects.ContextPricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ContextPricing_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ContextPricing_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ContextPricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ContextPricing_inputTokens(ctx context.Context, field graphql.CollectedField, obj *objects.ContextPricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ContextPricing_inputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ContextPricing_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ContextPricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ContextPricing_threshold(ctx context.Context, field graphql.CollectedField, obj *objects.ContextPricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ContextPricing_threshold,
+		func(ctx context.Context) (any, error) {
+			return obj.Threshold, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ContextPricing_threshold(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ContextPricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ContextPricing_longContext(ctx context.Context, field graphql.CollectedField, obj *objects.ContextPricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ContextPricing_longContext,
+		func(ctx context.Context) (any, error) {
+			return obj.LongContext, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ContextPricing_longContext(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ContextPricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ContextPricing_name(ctx context.Context, field graphql.CollectedField, obj *objects.ContextPricing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ContextPricing_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ContextPricing_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ContextPricing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_itemMethod(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_itemMethod,
+		func(ctx context.Context) (any, error) {
+			return obj.ItemMethod, nil
+		},
+		nil,
+		ec.marshalOServiceTierItemMethod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierItemMethod,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_itemMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ServiceTierItemMethod does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_ruleSource(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_ruleSource,
+		func(ctx context.Context) (any, error) {
+			return obj.RuleSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_ruleSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_baseUnitPrice(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_baseUnitPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.BaseUnitPrice, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_baseUnitPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_finalUnitPrice(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_finalUnitPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.FinalUnitPrice, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_finalUnitPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_modeSubtotal(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_modeSubtotal,
+		func(ctx context.Context) (any, error) {
+			return obj.ModeSubtotal, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_modeSubtotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_modeTierSubtotals(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_modeTierSubtotals,
+		func(ctx context.Context) (any, error) {
+			return obj.ModeTierSubtotals, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚕgithubᚗcomᚋshopspringᚋdecimalᚐDecimalᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_modeTierSubtotals(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_reference(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_reference,
+		func(ctx context.Context) (any, error) {
+			return obj.Reference, nil
+		},
+		nil,
+		ec.marshalOServiceTierItemReference2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierPrice,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_reference(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "source":
+				return ec.fieldContext_ServiceTierItemReference_source(ctx, field)
+			case "referenceModel":
+				return ec.fieldContext_ServiceTierItemReference_referenceModel(ctx, field)
+			case "version":
+				return ec.fieldContext_ServiceTierItemReference_version(ctx, field)
+			case "sourceURL":
+				return ec.fieldContext_ServiceTierItemReference_sourceURL(ctx, field)
+			case "verifiedAt":
+				return ec.fieldContext_ServiceTierItemReference_verifiedAt(ctx, field)
+			case "application":
+				return ec.fieldContext_ServiceTierItemReference_application(ctx, field)
+			case "currency":
+				return ec.fieldContext_ServiceTierItemReference_currency(ctx, field)
+			case "unit":
+				return ec.fieldContext_ServiceTierItemReference_unit(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServiceTierItemReference", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_serviceTier(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_serviceTier,
+		func(ctx context.Context) (any, error) {
+			return obj.ServiceTier, nil
+		},
+		nil,
+		ec.marshalNServiceTierDecision2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierDecision,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_serviceTier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mode":
+				return ec.fieldContext_ServiceTierDecision_mode(ctx, field)
+			case "basis":
+				return ec.fieldContext_ServiceTierDecision_basis(ctx, field)
+			case "client":
+				return ec.fieldContext_ServiceTierDecision_client(ctx, field)
+			case "outbound":
+				return ec.fieldContext_ServiceTierDecision_outbound(ctx, field)
+			case "upstream":
+				return ec.fieldContext_ServiceTierDecision_upstream(ctx, field)
+			case "confirmed":
+				return ec.fieldContext_ServiceTierDecision_confirmed(ctx, field)
+			case "reason":
+				return ec.fieldContext_ServiceTierDecision_reason(ctx, field)
+			case "source":
+				return ec.fieldContext_ServiceTierDecision_source(ctx, field)
+			case "referenceModel":
+				return ec.fieldContext_ServiceTierDecision_referenceModel(ctx, field)
+			case "version":
+				return ec.fieldContext_ServiceTierDecision_version(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServiceTierDecision", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_context(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_context,
+		func(ctx context.Context) (any, error) {
+			return obj.Context, nil
+		},
+		nil,
+		ec.marshalNContextPricing2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐContextPricing,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_context(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "kind":
+				return ec.fieldContext_ContextPricing_kind(ctx, field)
+			case "inputTokens":
+				return ec.fieldContext_ContextPricing_inputTokens(ctx, field)
+			case "threshold":
+				return ec.fieldContext_ContextPricing_threshold(ctx, field)
+			case "longContext":
+				return ec.fieldContext_ContextPricing_longContext(ctx, field)
+			case "name":
+				return ec.fieldContext_ContextPricing_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ContextPricing", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_baseSubtotal(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_baseSubtotal,
+		func(ctx context.Context) (any, error) {
+			return obj.BaseSubtotal, nil
+		},
+		nil,
+		ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_baseSubtotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_baseTierSubtotals(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_baseTierSubtotals,
+		func(ctx context.Context) (any, error) {
+			return obj.BaseTierSubtotals, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚕgithubᚗcomᚋshopspringᚋdecimalᚐDecimalᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_baseTierSubtotals(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_modeMultiplier(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_modeMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.ModeMultiplier, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_modeMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_costMultiplier(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_costMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.CostMultiplier, nil
+		},
+		nil,
+		ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_costMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_selfUsageMeta(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2371,6 +3263,63 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 				return ec.fieldContext___Schema_directives(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Schema", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_pricingEvidence(ctx context.Context, field graphql.CollectedField, obj *SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_pricingEvidence,
+		func(ctx context.Context) (any, error) {
+			return obj.PricingEvidence, nil
+		},
+		nil,
+		ec.marshalOCostPricingEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCostPricingEvidence,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_pricingEvidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "itemMethod":
+				return ec.fieldContext_CostPricingEvidence_itemMethod(ctx, field)
+			case "ruleSource":
+				return ec.fieldContext_CostPricingEvidence_ruleSource(ctx, field)
+			case "baseUnitPrice":
+				return ec.fieldContext_CostPricingEvidence_baseUnitPrice(ctx, field)
+			case "finalUnitPrice":
+				return ec.fieldContext_CostPricingEvidence_finalUnitPrice(ctx, field)
+			case "modeSubtotal":
+				return ec.fieldContext_CostPricingEvidence_modeSubtotal(ctx, field)
+			case "modeTierSubtotals":
+				return ec.fieldContext_CostPricingEvidence_modeTierSubtotals(ctx, field)
+			case "reference":
+				return ec.fieldContext_CostPricingEvidence_reference(ctx, field)
+			case "serviceTier":
+				return ec.fieldContext_CostPricingEvidence_serviceTier(ctx, field)
+			case "context":
+				return ec.fieldContext_CostPricingEvidence_context(ctx, field)
+			case "baseSubtotal":
+				return ec.fieldContext_CostPricingEvidence_baseSubtotal(ctx, field)
+			case "baseTierSubtotals":
+				return ec.fieldContext_CostPricingEvidence_baseTierSubtotals(ctx, field)
+			case "modeMultiplier":
+				return ec.fieldContext_CostPricingEvidence_modeMultiplier(ctx, field)
+			case "costMultiplier":
+				return ec.fieldContext_CostPricingEvidence_costMultiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CostPricingEvidence", field.Name)
 		},
 	}
 	return fc, nil
@@ -3599,6 +4548,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_costItems(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "pricingEvidence":
+				return ec.fieldContext_SelfUsageCostItem_pricingEvidence(ctx, field)
 			case "image":
 				return ec.fieldContext_SelfUsageCostItem_image(ctx, field)
 			case "imageRule":
@@ -4654,6 +5605,528 @@ func (ec *executionContext) fieldContext_SelfUsageTierCost_subtotal(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_mode(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_basis(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_basis,
+		func(ctx context.Context) (any, error) {
+			return obj.Basis, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_basis(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_client(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_client,
+		func(ctx context.Context) (any, error) {
+			return obj.Client, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_client(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_outbound(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_outbound,
+		func(ctx context.Context) (any, error) {
+			return obj.Outbound, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_outbound(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_upstream(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_upstream,
+		func(ctx context.Context) (any, error) {
+			return obj.Upstream, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_upstream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_confirmed(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_confirmed,
+		func(ctx context.Context) (any, error) {
+			return obj.Confirmed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_confirmed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_reason(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_source(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_referenceModel(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_referenceModel,
+		func(ctx context.Context) (any, error) {
+			return obj.ReferenceModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_referenceModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierDecision_version(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierDecision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierDecision_version,
+		func(ctx context.Context) (any, error) {
+			return obj.Version, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierDecision_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierDecision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_source(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNServiceTierPriceSource2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierPriceSource,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ServiceTierPriceSource does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_referenceModel(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_referenceModel,
+		func(ctx context.Context) (any, error) {
+			return obj.ReferenceModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_referenceModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_version(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_version,
+		func(ctx context.Context) (any, error) {
+			return obj.Version, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_sourceURL(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_sourceURL,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_sourceURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_verifiedAt(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_verifiedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.VerifiedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_verifiedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_application(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_application,
+		func(ctx context.Context) (any, error) {
+			return obj.Application, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_application(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_currency(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_currency,
+		func(ctx context.Context) (any, error) {
+			return obj.Currency, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_currency(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceTierItemReference_unit(ctx context.Context, field graphql.CollectedField, obj *objects.ServiceTierPrice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceTierItemReference_unit,
+		func(ctx context.Context) (any, error) {
+			return obj.Unit, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceTierItemReference_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceTierItemReference",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6503,6 +7976,137 @@ func (ec *executionContext) _BudgetWindow(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var contextPricingImplementors = []string{"ContextPricing"}
+
+func (ec *executionContext) _ContextPricing(ctx context.Context, sel ast.SelectionSet, obj *objects.ContextPricing) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, contextPricingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ContextPricing")
+		case "kind":
+			out.Values[i] = ec._ContextPricing_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._ContextPricing_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "threshold":
+			out.Values[i] = ec._ContextPricing_threshold(ctx, field, obj)
+		case "longContext":
+			out.Values[i] = ec._ContextPricing_longContext(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ContextPricing_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var costPricingEvidenceImplementors = []string{"CostPricingEvidence"}
+
+func (ec *executionContext) _CostPricingEvidence(ctx context.Context, sel ast.SelectionSet, obj *objects.CostPricingEvidence) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, costPricingEvidenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CostPricingEvidence")
+		case "itemMethod":
+			out.Values[i] = ec._CostPricingEvidence_itemMethod(ctx, field, obj)
+		case "ruleSource":
+			out.Values[i] = ec._CostPricingEvidence_ruleSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baseUnitPrice":
+			out.Values[i] = ec._CostPricingEvidence_baseUnitPrice(ctx, field, obj)
+		case "finalUnitPrice":
+			out.Values[i] = ec._CostPricingEvidence_finalUnitPrice(ctx, field, obj)
+		case "modeSubtotal":
+			out.Values[i] = ec._CostPricingEvidence_modeSubtotal(ctx, field, obj)
+		case "modeTierSubtotals":
+			out.Values[i] = ec._CostPricingEvidence_modeTierSubtotals(ctx, field, obj)
+		case "reference":
+			out.Values[i] = ec._CostPricingEvidence_reference(ctx, field, obj)
+		case "serviceTier":
+			out.Values[i] = ec._CostPricingEvidence_serviceTier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "context":
+			out.Values[i] = ec._CostPricingEvidence_context(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baseSubtotal":
+			out.Values[i] = ec._CostPricingEvidence_baseSubtotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baseTierSubtotals":
+			out.Values[i] = ec._CostPricingEvidence_baseTierSubtotals(ctx, field, obj)
+		case "modeMultiplier":
+			out.Values[i] = ec._CostPricingEvidence_modeMultiplier(ctx, field, obj)
+		case "costMultiplier":
+			out.Values[i] = ec._CostPricingEvidence_costMultiplier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -6652,6 +8256,8 @@ func (ec *executionContext) _SelfUsageCostItem(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageCostItem")
+		case "pricingEvidence":
+			out.Values[i] = ec._SelfUsageCostItem_pricingEvidence(ctx, field, obj)
 		case "image":
 			out.Values[i] = ec._SelfUsageCostItem_image(ctx, field, obj)
 		case "imageRule":
@@ -7313,6 +8919,164 @@ func (ec *executionContext) _SelfUsageTierCost(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var serviceTierDecisionImplementors = []string{"ServiceTierDecision"}
+
+func (ec *executionContext) _ServiceTierDecision(ctx context.Context, sel ast.SelectionSet, obj *objects.ServiceTierDecision) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceTierDecisionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceTierDecision")
+		case "mode":
+			out.Values[i] = ec._ServiceTierDecision_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "basis":
+			out.Values[i] = ec._ServiceTierDecision_basis(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "client":
+			out.Values[i] = ec._ServiceTierDecision_client(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outbound":
+			out.Values[i] = ec._ServiceTierDecision_outbound(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "upstream":
+			out.Values[i] = ec._ServiceTierDecision_upstream(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "confirmed":
+			out.Values[i] = ec._ServiceTierDecision_confirmed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._ServiceTierDecision_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._ServiceTierDecision_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "referenceModel":
+			out.Values[i] = ec._ServiceTierDecision_referenceModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "version":
+			out.Values[i] = ec._ServiceTierDecision_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var serviceTierItemReferenceImplementors = []string{"ServiceTierItemReference"}
+
+func (ec *executionContext) _ServiceTierItemReference(ctx context.Context, sel ast.SelectionSet, obj *objects.ServiceTierPrice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceTierItemReferenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceTierItemReference")
+		case "source":
+			out.Values[i] = ec._ServiceTierItemReference_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "referenceModel":
+			out.Values[i] = ec._ServiceTierItemReference_referenceModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "version":
+			out.Values[i] = ec._ServiceTierItemReference_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceURL":
+			out.Values[i] = ec._ServiceTierItemReference_sourceURL(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "verifiedAt":
+			out.Values[i] = ec._ServiceTierItemReference_verifiedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "application":
+			out.Values[i] = ec._ServiceTierItemReference_application(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currency":
+			out.Values[i] = ec._ServiceTierItemReference_currency(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._ServiceTierItemReference_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
@@ -7885,6 +9649,26 @@ func (ec *executionContext) marshalNBudgetWindow2ᚖgithubᚗcomᚋloopljᚋaxon
 	return ec._BudgetWindow(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNContextPricing2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐContextPricing(ctx context.Context, sel ast.SelectionSet, v objects.ContextPricing) graphql.Marshaler {
+	return ec._ContextPricing(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx context.Context, v any) (decimal.Decimal, error) {
+	res, err := objects.UnmarshalDecimal(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx context.Context, sel ast.SelectionSet, v decimal.Decimal) graphql.Marshaler {
+	_ = sel
+	res := objects.MarshalDecimal(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
 	res, err := graphql.UnmarshalFloatContext(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7909,6 +9693,22 @@ func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, 
 func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
 	_ = sel
 	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNInt2int64(ctx context.Context, v any) (int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalInt64(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -8249,6 +10049,27 @@ func (ec *executionContext) marshalNSelfUsageTierCost2ᚖgithubᚗcomᚋlooplj�
 	return ec._SelfUsageTierCost(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNServiceTierDecision2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierDecision(ctx context.Context, sel ast.SelectionSet, v objects.ServiceTierDecision) graphql.Marshaler {
+	return ec._ServiceTierDecision(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNServiceTierPriceSource2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierPriceSource(ctx context.Context, v any) (objects.ServiceTierPriceSource, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := objects.ServiceTierPriceSource(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNServiceTierPriceSource2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierPriceSource(ctx context.Context, sel ast.SelectionSet, v objects.ServiceTierPriceSource) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -8571,6 +10392,67 @@ func (ec *executionContext) marshalOBudgetRule2ᚖgithubᚗcomᚋloopljᚋaxonhu
 	return ec._BudgetRule(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOCostPricingEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCostPricingEvidence(ctx context.Context, sel ast.SelectionSet, v *objects.CostPricingEvidence) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CostPricingEvidence(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODecimal2ᚕgithubᚗcomᚋshopspringᚋdecimalᚐDecimalᚄ(ctx context.Context, v any) ([]decimal.Decimal, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]decimal.Decimal, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalODecimal2ᚕgithubᚗcomᚋshopspringᚋdecimalᚐDecimalᚄ(ctx context.Context, sel ast.SelectionSet, v []decimal.Decimal) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNDecimal2githubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx context.Context, v any) (*decimal.Decimal, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := objects.UnmarshalDecimal(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal(ctx context.Context, sel ast.SelectionSet, v *decimal.Decimal) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := objects.MarshalDecimal(*v)
+	return res
+}
+
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
 	if v == nil {
 		return nil, nil
@@ -8606,6 +10488,24 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
+func (ec *executionContext) unmarshalOInt2ᚖint64(ctx context.Context, v any) (*int64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt64(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint64(ctx context.Context, sel ast.SelectionSet, v *int64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt64(*v)
+	return res
+}
+
 func (ec *executionContext) marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, sel ast.SelectionSet, v *objects.ImageOutput) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -8627,6 +10527,32 @@ func (ec *executionContext) marshalOSelfUsageRequestStatus2ᚖgithubᚗcomᚋloo
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOServiceTierItemMethod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierItemMethod(ctx context.Context, v any) (*objects.ServiceTierItemMethod, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := objects.ServiceTierItemMethod(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOServiceTierItemMethod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierItemMethod(ctx context.Context, sel ast.SelectionSet, v *objects.ServiceTierItemMethod) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
+}
+
+func (ec *executionContext) marshalOServiceTierItemReference2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierPrice(ctx context.Context, sel ast.SelectionSet, v *objects.ServiceTierPrice) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ServiceTierItemReference(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {
