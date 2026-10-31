@@ -1,0 +1,15 @@
+[Unit]
+Description=AxonHub expired database exports
+
+[Service]
+Type=oneshot
+User=axonhub-maintenance
+ExecStart=/usr/bin/python3 /opt/axonhub/scripts/maintenance/maintenance.py --config /etc/axonhub-maintenance/config.json expire-exports --apply
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=20%
+MemoryMax=128M
+TimeoutStartSec=10min
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077

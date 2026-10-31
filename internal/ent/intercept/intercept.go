@@ -38,6 +38,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
@@ -883,6 +884,33 @@ func (f TraverseTrace) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.TraceQuery", q)
 }
 
+// The UsageArchiveFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UsageArchiveFunc func(context.Context, *ent.UsageArchiveQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UsageArchiveFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UsageArchiveQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UsageArchiveQuery", q)
+}
+
+// The TraverseUsageArchive type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUsageArchive func(context.Context, *ent.UsageArchiveQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUsageArchive) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUsageArchive) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UsageArchiveQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UsageArchiveQuery", q)
+}
+
 // The UsageLogFunc type is an adapter to allow the use of ordinary function as a Querier.
 type UsageLogFunc func(context.Context, *ent.UsageLogQuery) (ent.Value, error)
 
@@ -1052,6 +1080,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ThreadQuery, predicate.Thread, thread.OrderOption]{typ: ent.TypeThread, tq: q}, nil
 	case *ent.TraceQuery:
 		return &query[*ent.TraceQuery, predicate.Trace, trace.OrderOption]{typ: ent.TypeTrace, tq: q}, nil
+	case *ent.UsageArchiveQuery:
+		return &query[*ent.UsageArchiveQuery, predicate.UsageArchive, usagearchive.OrderOption]{typ: ent.TypeUsageArchive, tq: q}, nil
 	case *ent.UsageLogQuery:
 		return &query[*ent.UsageLogQuery, predicate.UsageLog, usagelog.OrderOption]{typ: ent.TypeUsageLog, tq: q}, nil
 	case *ent.UserQuery:

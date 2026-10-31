@@ -30,6 +30,7 @@ type StoragePolicy {
   storeRequestBody: Boolean!
   storeResponseBody: Boolean!
   cleanupOptions: [CleanupOption!]!
+  maintenance: MaintenanceSettings!
 }
 
 type CleanupOption {
@@ -50,6 +51,7 @@ input UpdateStoragePolicyInput {
   storeRequestBody: Boolean
   storeResponseBody: Boolean
   cleanupOptions: [CleanupOptionInput!]
+  maintenance: MaintenanceSettingsInput
 }
 
 input CleanupOptionInput {
@@ -407,6 +409,10 @@ input TriggerGcCleanupInput {
     requestBodiesCleanupDays: Int
     responseBodiesCleanupDays: Int
     responseChunksCleanupDays: Int
+    cacheWindowsCleanupDays: Int
+    usageArchiveCleanupDays: Int
+    channelProbesCleanupDays: Int
+    submissionKey: String
 }
 
 type GcCleanupPreviewItem {
@@ -414,6 +420,7 @@ type GcCleanupPreviewItem {
     estimatedCount: Int!
     cutoffTime: Time!
     retentionDays: Int!
+    countComplete: Boolean!
 }
 
 type ProvidersCatalog {

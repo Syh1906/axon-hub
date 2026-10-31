@@ -29,6 +29,7 @@ type Handlers struct {
 	AiSDK            *api.AiSDKHandlers
 	Playground       *api.PlaygroundHandlers
 	System           *api.SystemHandlers
+	DatabaseTransfer *api.DatabaseTransferHandlers
 	Auth             *api.AuthHandlers
 	Invitation       *api.InvitationHandlers
 	Jina             *api.JinaHandlers
@@ -103,6 +104,9 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 	}
 
 	adminGroup := server.Group("/admin", middleware.WithJWTAuth(services.AuthService), middleware.WithProjectID())
+	handlers.DatabaseTransfer.RegisterRoutes(server.Group("/admin/database-transfer", middleware.WithJWTAuth(services.AuthService)))
+	server.GET("/admin/database-transfer/files/:id", handlers.DatabaseTransfer.Download)
+	server.HEAD("/admin/database-transfer/files/:id", handlers.DatabaseTransfer.Download)
 	// 管理员路由 - 使用 JWT 认证
 	{
 		adminGroup.GET("/playground", middleware.WithTimeout(server.Config.RequestTimeout), func(c *gin.Context) {

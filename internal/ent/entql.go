@@ -33,6 +33,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
@@ -46,7 +47,7 @@ import (
 
 // schemaGraph holds a representation of ent/schema at runtime.
 var schemaGraph = func() *sqlgraph.Schema {
-	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 33)}
+	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 34)}
 	graph.Nodes[0] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   apikey.Table,
@@ -745,6 +746,46 @@ var schemaGraph = func() *sqlgraph.Schema {
 	}
 	graph.Nodes[29] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
+			Table:   usagearchive.Table,
+			Columns: usagearchive.Columns,
+			ID: &sqlgraph.FieldSpec{
+				Type:   field.TypeInt,
+				Column: usagearchive.FieldID,
+			},
+		},
+		Type: "UsageArchive",
+		Fields: map[string]*sqlgraph.FieldSpec{
+			usagearchive.FieldKind:                      {Type: field.TypeEnum, Column: usagearchive.FieldKind},
+			usagearchive.FieldSourceID:                  {Type: field.TypeInt, Column: usagearchive.FieldSourceID},
+			usagearchive.FieldRequestID:                 {Type: field.TypeInt, Column: usagearchive.FieldRequestID},
+			usagearchive.FieldProjectID:                 {Type: field.TypeInt, Column: usagearchive.FieldProjectID},
+			usagearchive.FieldAPIKeyID:                  {Type: field.TypeInt, Column: usagearchive.FieldAPIKeyID},
+			usagearchive.FieldChannelID:                 {Type: field.TypeInt, Column: usagearchive.FieldChannelID},
+			usagearchive.FieldModelID:                   {Type: field.TypeString, Column: usagearchive.FieldModelID},
+			usagearchive.FieldRequestModelID:            {Type: field.TypeString, Column: usagearchive.FieldRequestModelID},
+			usagearchive.FieldRequestStatus:             {Type: field.TypeString, Column: usagearchive.FieldRequestStatus},
+			usagearchive.FieldRequestSource:             {Type: field.TypeString, Column: usagearchive.FieldRequestSource},
+			usagearchive.FieldOccurredAt:                {Type: field.TypeTime, Column: usagearchive.FieldOccurredAt},
+			usagearchive.FieldTotalCost:                 {Type: field.TypeFloat64, Column: usagearchive.FieldTotalCost},
+			usagearchive.FieldCacheCreationCost:         {Type: field.TypeFloat64, Column: usagearchive.FieldCacheCreationCost},
+			usagearchive.FieldFirstTokenSum:             {Type: field.TypeFloat64, Column: usagearchive.FieldFirstTokenSum},
+			usagearchive.FieldSpeedSum:                  {Type: field.TypeFloat64, Column: usagearchive.FieldSpeedSum},
+			usagearchive.FieldPromptTokens:              {Type: field.TypeInt64, Column: usagearchive.FieldPromptTokens},
+			usagearchive.FieldCompletionTokens:          {Type: field.TypeInt64, Column: usagearchive.FieldCompletionTokens},
+			usagearchive.FieldTotalTokens:               {Type: field.TypeInt64, Column: usagearchive.FieldTotalTokens},
+			usagearchive.FieldPromptCachedTokens:        {Type: field.TypeInt64, Column: usagearchive.FieldPromptCachedTokens},
+			usagearchive.FieldPromptWriteCachedTokens:   {Type: field.TypeInt64, Column: usagearchive.FieldPromptWriteCachedTokens},
+			usagearchive.FieldCompletionReasoningTokens: {Type: field.TypeInt64, Column: usagearchive.FieldCompletionReasoningTokens},
+			usagearchive.FieldCacheRequests:             {Type: field.TypeInt64, Column: usagearchive.FieldCacheRequests},
+			usagearchive.FieldCacheInput:                {Type: field.TypeInt64, Column: usagearchive.FieldCacheInput},
+			usagearchive.FieldSuccessCount:              {Type: field.TypeInt64, Column: usagearchive.FieldSuccessCount},
+			usagearchive.FieldOutcomeCount:              {Type: field.TypeInt64, Column: usagearchive.FieldOutcomeCount},
+			usagearchive.FieldFirstTokenCount:           {Type: field.TypeInt64, Column: usagearchive.FieldFirstTokenCount},
+			usagearchive.FieldSpeedCount:                {Type: field.TypeInt64, Column: usagearchive.FieldSpeedCount},
+		},
+	}
+	graph.Nodes[30] = &sqlgraph.Node{
+		NodeSpec: sqlgraph.NodeSpec{
 			Table:   usagelog.Table,
 			Columns: usagelog.Columns,
 			ID: &sqlgraph.FieldSpec{
@@ -781,7 +822,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagelog.FieldCostPriceReferenceID:               {Type: field.TypeString, Column: usagelog.FieldCostPriceReferenceID},
 		},
 	}
-	graph.Nodes[30] = &sqlgraph.Node{
+	graph.Nodes[31] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   user.Table,
 			Columns: user.Columns,
@@ -806,7 +847,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			user.FieldScopes:         {Type: field.TypeJSON, Column: user.FieldScopes},
 		},
 	}
-	graph.Nodes[31] = &sqlgraph.Node{
+	graph.Nodes[32] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   userproject.Table,
 			Columns: userproject.Columns,
@@ -825,7 +866,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			userproject.FieldScopes:    {Type: field.TypeJSON, Column: userproject.FieldScopes},
 		},
 	}
-	graph.Nodes[32] = &sqlgraph.Node{
+	graph.Nodes[33] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   userrole.Table,
 			Columns: userrole.Columns,
@@ -5179,6 +5220,181 @@ func (f *TraceFilter) WhereHasRequestsWith(preds ...predicate.Request) {
 }
 
 // addPredicate implements the predicateAdder interface.
+func (_q *UsageArchiveQuery) addPredicate(pred func(s *sql.Selector)) {
+	_q.predicates = append(_q.predicates, pred)
+}
+
+// Filter returns a Filter implementation to apply filters on the UsageArchiveQuery builder.
+func (_q *UsageArchiveQuery) Filter() *UsageArchiveFilter {
+	return &UsageArchiveFilter{config: _q.config, predicateAdder: _q}
+}
+
+// addPredicate implements the predicateAdder interface.
+func (m *UsageArchiveMutation) addPredicate(pred func(s *sql.Selector)) {
+	m.predicates = append(m.predicates, pred)
+}
+
+// Filter returns an entql.Where implementation to apply filters on the UsageArchiveMutation builder.
+func (m *UsageArchiveMutation) Filter() *UsageArchiveFilter {
+	return &UsageArchiveFilter{config: m.config, predicateAdder: m}
+}
+
+// UsageArchiveFilter provides a generic filtering capability at runtime for UsageArchiveQuery.
+type UsageArchiveFilter struct {
+	predicateAdder
+	config
+}
+
+// Where applies the entql predicate on the query filter.
+func (f *UsageArchiveFilter) Where(p entql.P) {
+	f.addPredicate(func(s *sql.Selector) {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[29].Type, p, s); err != nil {
+			s.AddError(err)
+		}
+	})
+}
+
+// WhereID applies the entql int predicate on the id field.
+func (f *UsageArchiveFilter) WhereID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldID))
+}
+
+// WhereKind applies the entql string predicate on the kind field.
+func (f *UsageArchiveFilter) WhereKind(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldKind))
+}
+
+// WhereSourceID applies the entql int predicate on the source_id field.
+func (f *UsageArchiveFilter) WhereSourceID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldSourceID))
+}
+
+// WhereRequestID applies the entql int predicate on the request_id field.
+func (f *UsageArchiveFilter) WhereRequestID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldRequestID))
+}
+
+// WhereProjectID applies the entql int predicate on the project_id field.
+func (f *UsageArchiveFilter) WhereProjectID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldProjectID))
+}
+
+// WhereAPIKeyID applies the entql int predicate on the api_key_id field.
+func (f *UsageArchiveFilter) WhereAPIKeyID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldAPIKeyID))
+}
+
+// WhereChannelID applies the entql int predicate on the channel_id field.
+func (f *UsageArchiveFilter) WhereChannelID(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldChannelID))
+}
+
+// WhereModelID applies the entql string predicate on the model_id field.
+func (f *UsageArchiveFilter) WhereModelID(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldModelID))
+}
+
+// WhereRequestModelID applies the entql string predicate on the request_model_id field.
+func (f *UsageArchiveFilter) WhereRequestModelID(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldRequestModelID))
+}
+
+// WhereRequestStatus applies the entql string predicate on the request_status field.
+func (f *UsageArchiveFilter) WhereRequestStatus(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldRequestStatus))
+}
+
+// WhereRequestSource applies the entql string predicate on the request_source field.
+func (f *UsageArchiveFilter) WhereRequestSource(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldRequestSource))
+}
+
+// WhereOccurredAt applies the entql time.Time predicate on the occurred_at field.
+func (f *UsageArchiveFilter) WhereOccurredAt(p entql.TimeP) {
+	f.Where(p.Field(usagearchive.FieldOccurredAt))
+}
+
+// WhereTotalCost applies the entql float64 predicate on the total_cost field.
+func (f *UsageArchiveFilter) WhereTotalCost(p entql.Float64P) {
+	f.Where(p.Field(usagearchive.FieldTotalCost))
+}
+
+// WhereCacheCreationCost applies the entql float64 predicate on the cache_creation_cost field.
+func (f *UsageArchiveFilter) WhereCacheCreationCost(p entql.Float64P) {
+	f.Where(p.Field(usagearchive.FieldCacheCreationCost))
+}
+
+// WhereFirstTokenSum applies the entql float64 predicate on the first_token_sum field.
+func (f *UsageArchiveFilter) WhereFirstTokenSum(p entql.Float64P) {
+	f.Where(p.Field(usagearchive.FieldFirstTokenSum))
+}
+
+// WhereSpeedSum applies the entql float64 predicate on the speed_sum field.
+func (f *UsageArchiveFilter) WhereSpeedSum(p entql.Float64P) {
+	f.Where(p.Field(usagearchive.FieldSpeedSum))
+}
+
+// WherePromptTokens applies the entql int64 predicate on the prompt_tokens field.
+func (f *UsageArchiveFilter) WherePromptTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldPromptTokens))
+}
+
+// WhereCompletionTokens applies the entql int64 predicate on the completion_tokens field.
+func (f *UsageArchiveFilter) WhereCompletionTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldCompletionTokens))
+}
+
+// WhereTotalTokens applies the entql int64 predicate on the total_tokens field.
+func (f *UsageArchiveFilter) WhereTotalTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldTotalTokens))
+}
+
+// WherePromptCachedTokens applies the entql int64 predicate on the prompt_cached_tokens field.
+func (f *UsageArchiveFilter) WherePromptCachedTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldPromptCachedTokens))
+}
+
+// WherePromptWriteCachedTokens applies the entql int64 predicate on the prompt_write_cached_tokens field.
+func (f *UsageArchiveFilter) WherePromptWriteCachedTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldPromptWriteCachedTokens))
+}
+
+// WhereCompletionReasoningTokens applies the entql int64 predicate on the completion_reasoning_tokens field.
+func (f *UsageArchiveFilter) WhereCompletionReasoningTokens(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldCompletionReasoningTokens))
+}
+
+// WhereCacheRequests applies the entql int64 predicate on the cache_requests field.
+func (f *UsageArchiveFilter) WhereCacheRequests(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldCacheRequests))
+}
+
+// WhereCacheInput applies the entql int64 predicate on the cache_input field.
+func (f *UsageArchiveFilter) WhereCacheInput(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldCacheInput))
+}
+
+// WhereSuccessCount applies the entql int64 predicate on the success_count field.
+func (f *UsageArchiveFilter) WhereSuccessCount(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldSuccessCount))
+}
+
+// WhereOutcomeCount applies the entql int64 predicate on the outcome_count field.
+func (f *UsageArchiveFilter) WhereOutcomeCount(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldOutcomeCount))
+}
+
+// WhereFirstTokenCount applies the entql int64 predicate on the first_token_count field.
+func (f *UsageArchiveFilter) WhereFirstTokenCount(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldFirstTokenCount))
+}
+
+// WhereSpeedCount applies the entql int64 predicate on the speed_count field.
+func (f *UsageArchiveFilter) WhereSpeedCount(p entql.Int64P) {
+	f.Where(p.Field(usagearchive.FieldSpeedCount))
+}
+
+// addPredicate implements the predicateAdder interface.
 func (_q *UsageLogQuery) addPredicate(pred func(s *sql.Selector)) {
 	_q.predicates = append(_q.predicates, pred)
 }
@@ -5207,7 +5423,7 @@ type UsageLogFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UsageLogFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[29].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[30].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -5414,7 +5630,7 @@ type UserFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UserFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[30].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[31].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -5612,7 +5828,7 @@ type UserProjectFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UserProjectFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[31].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[32].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -5710,7 +5926,7 @@ type UserRoleFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UserRoleFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[32].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[33].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})

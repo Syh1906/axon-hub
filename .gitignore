@@ -169,3 +169,7 @@ config.schema.json
 .ace-tool/
 .omx/
 deploy_dev.sh
+
+# 本机部署资料与运维记录；公共仓库只保存通用实现和脱敏示例。
+/.local/
+/scripts/maintenance/__pycache__/

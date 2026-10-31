@@ -35,6 +35,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
@@ -1112,6 +1113,101 @@ func init() {
 	trace.DefaultUpdatedAt = traceDescUpdatedAt.Default.(func() time.Time)
 	// trace.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	trace.UpdateDefaultUpdatedAt = traceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	usagearchive.Policy = privacy.NewPolicies(schema.UsageArchive{})
+	usagearchive.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := usagearchive.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	usagearchiveFields := schema.UsageArchive{}.Fields()
+	_ = usagearchiveFields
+	// usagearchiveDescAPIKeyID is the schema descriptor for api_key_id field.
+	usagearchiveDescAPIKeyID := usagearchiveFields[4].Descriptor()
+	// usagearchive.DefaultAPIKeyID holds the default value on creation for the api_key_id field.
+	usagearchive.DefaultAPIKeyID = usagearchiveDescAPIKeyID.Default.(int)
+	// usagearchiveDescChannelID is the schema descriptor for channel_id field.
+	usagearchiveDescChannelID := usagearchiveFields[5].Descriptor()
+	// usagearchive.DefaultChannelID holds the default value on creation for the channel_id field.
+	usagearchive.DefaultChannelID = usagearchiveDescChannelID.Default.(int)
+	// usagearchiveDescRequestModelID is the schema descriptor for request_model_id field.
+	usagearchiveDescRequestModelID := usagearchiveFields[7].Descriptor()
+	// usagearchive.DefaultRequestModelID holds the default value on creation for the request_model_id field.
+	usagearchive.DefaultRequestModelID = usagearchiveDescRequestModelID.Default.(string)
+	// usagearchiveDescRequestStatus is the schema descriptor for request_status field.
+	usagearchiveDescRequestStatus := usagearchiveFields[8].Descriptor()
+	// usagearchive.DefaultRequestStatus holds the default value on creation for the request_status field.
+	usagearchive.DefaultRequestStatus = usagearchiveDescRequestStatus.Default.(string)
+	// usagearchive.RequestStatusValidator is a validator for the "request_status" field. It is called by the builders before save.
+	usagearchive.RequestStatusValidator = usagearchiveDescRequestStatus.Validators[0].(func(string) error)
+	// usagearchiveDescRequestSource is the schema descriptor for request_source field.
+	usagearchiveDescRequestSource := usagearchiveFields[9].Descriptor()
+	// usagearchive.DefaultRequestSource holds the default value on creation for the request_source field.
+	usagearchive.DefaultRequestSource = usagearchiveDescRequestSource.Default.(string)
+	// usagearchive.RequestSourceValidator is a validator for the "request_source" field. It is called by the builders before save.
+	usagearchive.RequestSourceValidator = usagearchiveDescRequestSource.Validators[0].(func(string) error)
+	// usagearchiveDescCacheCreationCost is the schema descriptor for cache_creation_cost field.
+	usagearchiveDescCacheCreationCost := usagearchiveFields[12].Descriptor()
+	// usagearchive.DefaultCacheCreationCost holds the default value on creation for the cache_creation_cost field.
+	usagearchive.DefaultCacheCreationCost = usagearchiveDescCacheCreationCost.Default.(float64)
+	// usagearchiveDescFirstTokenSum is the schema descriptor for first_token_sum field.
+	usagearchiveDescFirstTokenSum := usagearchiveFields[13].Descriptor()
+	// usagearchive.DefaultFirstTokenSum holds the default value on creation for the first_token_sum field.
+	usagearchive.DefaultFirstTokenSum = usagearchiveDescFirstTokenSum.Default.(float64)
+	// usagearchiveDescSpeedSum is the schema descriptor for speed_sum field.
+	usagearchiveDescSpeedSum := usagearchiveFields[14].Descriptor()
+	// usagearchive.DefaultSpeedSum holds the default value on creation for the speed_sum field.
+	usagearchive.DefaultSpeedSum = usagearchiveDescSpeedSum.Default.(float64)
+	// usagearchiveDescPromptTokens is the schema descriptor for prompt_tokens field.
+	usagearchiveDescPromptTokens := usagearchiveFields[15].Descriptor()
+	// usagearchive.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
+	usagearchive.DefaultPromptTokens = usagearchiveDescPromptTokens.Default.(int64)
+	// usagearchiveDescCompletionTokens is the schema descriptor for completion_tokens field.
+	usagearchiveDescCompletionTokens := usagearchiveFields[16].Descriptor()
+	// usagearchive.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
+	usagearchive.DefaultCompletionTokens = usagearchiveDescCompletionTokens.Default.(int64)
+	// usagearchiveDescTotalTokens is the schema descriptor for total_tokens field.
+	usagearchiveDescTotalTokens := usagearchiveFields[17].Descriptor()
+	// usagearchive.DefaultTotalTokens holds the default value on creation for the total_tokens field.
+	usagearchive.DefaultTotalTokens = usagearchiveDescTotalTokens.Default.(int64)
+	// usagearchiveDescPromptCachedTokens is the schema descriptor for prompt_cached_tokens field.
+	usagearchiveDescPromptCachedTokens := usagearchiveFields[18].Descriptor()
+	// usagearchive.DefaultPromptCachedTokens holds the default value on creation for the prompt_cached_tokens field.
+	usagearchive.DefaultPromptCachedTokens = usagearchiveDescPromptCachedTokens.Default.(int64)
+	// usagearchiveDescPromptWriteCachedTokens is the schema descriptor for prompt_write_cached_tokens field.
+	usagearchiveDescPromptWriteCachedTokens := usagearchiveFields[19].Descriptor()
+	// usagearchive.DefaultPromptWriteCachedTokens holds the default value on creation for the prompt_write_cached_tokens field.
+	usagearchive.DefaultPromptWriteCachedTokens = usagearchiveDescPromptWriteCachedTokens.Default.(int64)
+	// usagearchiveDescCompletionReasoningTokens is the schema descriptor for completion_reasoning_tokens field.
+	usagearchiveDescCompletionReasoningTokens := usagearchiveFields[20].Descriptor()
+	// usagearchive.DefaultCompletionReasoningTokens holds the default value on creation for the completion_reasoning_tokens field.
+	usagearchive.DefaultCompletionReasoningTokens = usagearchiveDescCompletionReasoningTokens.Default.(int64)
+	// usagearchiveDescCacheRequests is the schema descriptor for cache_requests field.
+	usagearchiveDescCacheRequests := usagearchiveFields[21].Descriptor()
+	// usagearchive.DefaultCacheRequests holds the default value on creation for the cache_requests field.
+	usagearchive.DefaultCacheRequests = usagearchiveDescCacheRequests.Default.(int64)
+	// usagearchiveDescCacheInput is the schema descriptor for cache_input field.
+	usagearchiveDescCacheInput := usagearchiveFields[22].Descriptor()
+	// usagearchive.DefaultCacheInput holds the default value on creation for the cache_input field.
+	usagearchive.DefaultCacheInput = usagearchiveDescCacheInput.Default.(int64)
+	// usagearchiveDescSuccessCount is the schema descriptor for success_count field.
+	usagearchiveDescSuccessCount := usagearchiveFields[23].Descriptor()
+	// usagearchive.DefaultSuccessCount holds the default value on creation for the success_count field.
+	usagearchive.DefaultSuccessCount = usagearchiveDescSuccessCount.Default.(int64)
+	// usagearchiveDescOutcomeCount is the schema descriptor for outcome_count field.
+	usagearchiveDescOutcomeCount := usagearchiveFields[24].Descriptor()
+	// usagearchive.DefaultOutcomeCount holds the default value on creation for the outcome_count field.
+	usagearchive.DefaultOutcomeCount = usagearchiveDescOutcomeCount.Default.(int64)
+	// usagearchiveDescFirstTokenCount is the schema descriptor for first_token_count field.
+	usagearchiveDescFirstTokenCount := usagearchiveFields[25].Descriptor()
+	// usagearchive.DefaultFirstTokenCount holds the default value on creation for the first_token_count field.
+	usagearchive.DefaultFirstTokenCount = usagearchiveDescFirstTokenCount.Default.(int64)
+	// usagearchiveDescSpeedCount is the schema descriptor for speed_count field.
+	usagearchiveDescSpeedCount := usagearchiveFields[26].Descriptor()
+	// usagearchive.DefaultSpeedCount holds the default value on creation for the speed_count field.
+	usagearchive.DefaultSpeedCount = usagearchiveDescSpeedCount.Default.(int64)
 	usagelogMixin := schema.UsageLog{}.Mixin()
 	usagelog.Policy = privacy.NewPolicies(schema.UsageLog{})
 	usagelog.Hooks[0] = func(next ent.Mutator) ent.Mutator {

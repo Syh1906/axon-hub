@@ -279,11 +279,12 @@ type autoBackupSettingsJSON struct {
 
 // StoragePolicy represents the storage policy configuration.
 type StoragePolicy struct {
-	StoreChunks       bool            `json:"store_chunks"`
-	LivePreview       bool            `json:"live_preview"`
-	StoreRequestBody  bool            `json:"store_request_body"`
-	StoreResponseBody bool            `json:"store_response_body"`
-	CleanupOptions    []CleanupOption `json:"cleanup_options"`
+	StoreChunks       bool                 `json:"store_chunks"`
+	LivePreview       bool                 `json:"live_preview"`
+	StoreRequestBody  bool                 `json:"store_request_body"`
+	StoreResponseBody bool                 `json:"store_response_body"`
+	CleanupOptions    []CleanupOption      `json:"cleanup_options"`
+	Maintenance       *MaintenanceSettings `json:"maintenance,omitempty"`
 }
 
 // CleanupOption represents cleanup configuration for a specific resource type.
@@ -304,6 +305,9 @@ const (
 	CleanupResourceResponseBodies = "response_bodies"
 	// CleanupResourceResponseChunks strips stored stream chunks only.
 	CleanupResourceResponseChunks = "response_chunks"
+	CleanupResourceCacheWindows   = "cache_windows"
+	CleanupResourceUsageArchive   = "usage_archive"
+	CleanupResourceChannelProbes  = "channel_probes"
 )
 
 const (
@@ -829,6 +833,16 @@ func (s *SystemService) Initialize(ctx context.Context, params *InitializeSystem
 	if err != nil {
 		return fmt.Errorf("failed to set brand name: %w", err)
 	}
+	// New installations opt into bounded retention. Existing saved policies are
+	// never silently enabled by an application upgrade.
+	initialPolicy := defaultStoragePolicy
+	initialPolicy.CleanupOptions = defaultCleanupOptions()
+	for i := range initialPolicy.CleanupOptions {
+		initialPolicy.CleanupOptions[i].Enabled = true
+	}
+	if err := s.SetStoragePolicy(ctx, &initialPolicy); err != nil {
+		return err
+	}
 
 	// Create primary data storage
 	primaryDataStorage, err := tx.DataStorage.Create().
@@ -1028,6 +1042,9 @@ func (s *SystemService) StoragePolicy(ctx context.Context) (*StoragePolicy, erro
 	}
 
 	policy.CleanupOptions = mergeCleanupOptions(policy.CleanupOptions)
+	if policy.Maintenance == nil {
+		policy.Maintenance = DefaultMaintenanceSettings()
+	}
 
 	return &policy, nil
 }
@@ -1049,8 +1066,14 @@ func (s *SystemService) StoragePolicyOrDefault(ctx context.Context) *StoragePoli
 
 // SetStoragePolicy sets the storage policy configuration.
 func (s *SystemService) SetStoragePolicy(ctx context.Context, policy *StoragePolicy) error {
+	if policy.Maintenance == nil {
+		policy.Maintenance = DefaultMaintenanceSettings()
+	}
+	if err := policy.Maintenance.Validate(); err != nil {
+		return err
+	}
 	for _, opt := range policy.CleanupOptions {
-		if opt.CleanupDays <= 0 {
+		if opt.CleanupDays <= 0 || opt.CleanupDays > 36500 {
 			return fmt.Errorf("cleanup_days for %q must be positive; set enabled=false to keep data forever", opt.ResourceType)
 		}
 	}

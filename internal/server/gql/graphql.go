@@ -107,6 +107,9 @@ var skipMutationTransaction = entgql.SkipIfHasFields(
 	"probeChannelAddress",
 	"saveAPIKeyBudget",
 	"resetAPIKeyBudget",
+	"startCleanupTask",
+	"setCleanupTaskPaused",
+	"triggerGcCleanup",
 )
 
 func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {

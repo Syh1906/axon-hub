@@ -470,7 +470,12 @@ func (s *DataStorageService) createGcsFs(ctx context.Context, gcsConfig *objects
 
 // createWebDAVFs creates a WebDAV filesystem using the afero-webdav adapter.
 func (s *DataStorageService) createWebDAVFs(_ context.Context, ds *ent.DataStorage, cfg *objects.WebDAV) (afero.Fs, error) {
+	return s.createWebDAVFsWithContext(context.Background(), ds, cfg)
+}
+
+func (s *DataStorageService) createWebDAVFsWithContext(ctx context.Context, ds *ent.DataStorage, cfg *objects.WebDAV) (afero.Fs, error) {
 	client := gowebdav.NewClient(cfg.URL, cfg.Username, cfg.Password)
+	client.SetInterceptor(bindCleanupRequestContext(ctx))
 	client.SetTimeout(time.Minute * 10)
 	if cfg.InsecureSkipTLS {
 		//nolint:gosec // InsecureSkipVerify is configurable by the user.

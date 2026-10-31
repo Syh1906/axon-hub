@@ -44,6 +44,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
@@ -113,6 +114,8 @@ type Client struct {
 	Thread *ThreadClient
 	// Trace is the client for interacting with the Trace builders.
 	Trace *TraceClient
+	// UsageArchive is the client for interacting with the UsageArchive builders.
+	UsageArchive *UsageArchiveClient
 	// UsageLog is the client for interacting with the UsageLog builders.
 	UsageLog *UsageLogClient
 	// User is the client for interacting with the User builders.
@@ -163,6 +166,7 @@ func (c *Client) init() {
 	c.System = NewSystemClient(c.config)
 	c.Thread = NewThreadClient(c.config)
 	c.Trace = NewTraceClient(c.config)
+	c.UsageArchive = NewUsageArchiveClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserProject = NewUserProjectClient(c.config)
@@ -288,6 +292,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		System:                   NewSystemClient(cfg),
 		Thread:                   NewThreadClient(cfg),
 		Trace:                    NewTraceClient(cfg),
+		UsageArchive:             NewUsageArchiveClient(cfg),
 		UsageLog:                 NewUsageLogClient(cfg),
 		User:                     NewUserClient(cfg),
 		UserProject:              NewUserProjectClient(cfg),
@@ -340,6 +345,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		System:                   NewSystemClient(cfg),
 		Thread:                   NewThreadClient(cfg),
 		Trace:                    NewTraceClient(cfg),
+		UsageArchive:             NewUsageArchiveClient(cfg),
 		UsageLog:                 NewUsageLogClient(cfg),
 		User:                     NewUserClient(cfg),
 		UserProject:              NewUserProjectClient(cfg),
@@ -379,8 +385,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
 		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
 		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
-		c.UserProject, c.UserRole,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageArchive,
+		c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -396,8 +402,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelModelPriceVersion, c.ChannelOverrideTemplate, c.ChannelProbe,
 		c.ChannelUpstreamStatus, c.DataStorage, c.Invitation, c.Model, c.OIDCIdentity,
 		c.Project, c.Prompt, c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request,
-		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageLog, c.User,
-		c.UserProject, c.UserRole,
+		c.RequestExecution, c.Role, c.System, c.Thread, c.Trace, c.UsageArchive,
+		c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -464,6 +470,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Thread.mutate(ctx, m)
 	case *TraceMutation:
 		return c.Trace.mutate(ctx, m)
+	case *UsageArchiveMutation:
+		return c.UsageArchive.mutate(ctx, m)
 	case *UsageLogMutation:
 		return c.UsageLog.mutate(ctx, m)
 	case *UserMutation:
@@ -5239,6 +5247,140 @@ func (c *TraceClient) mutate(ctx context.Context, m *TraceMutation) (Value, erro
 	}
 }
 
+// UsageArchiveClient is a client for the UsageArchive schema.
+type UsageArchiveClient struct {
+	config
+}
+
+// NewUsageArchiveClient returns a client for the UsageArchive from the given config.
+func NewUsageArchiveClient(c config) *UsageArchiveClient {
+	return &UsageArchiveClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usagearchive.Hooks(f(g(h())))`.
+func (c *UsageArchiveClient) Use(hooks ...Hook) {
+	c.hooks.UsageArchive = append(c.hooks.UsageArchive, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usagearchive.Intercept(f(g(h())))`.
+func (c *UsageArchiveClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UsageArchive = append(c.inters.UsageArchive, interceptors...)
+}
+
+// Create returns a builder for creating a UsageArchive entity.
+func (c *UsageArchiveClient) Create() *UsageArchiveCreate {
+	mutation := newUsageArchiveMutation(c.config, OpCreate)
+	return &UsageArchiveCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UsageArchive entities.
+func (c *UsageArchiveClient) CreateBulk(builders ...*UsageArchiveCreate) *UsageArchiveCreateBulk {
+	return &UsageArchiveCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UsageArchiveClient) MapCreateBulk(slice any, setFunc func(*UsageArchiveCreate, int)) *UsageArchiveCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UsageArchiveCreateBulk{err: fmt.Errorf("calling to UsageArchiveClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UsageArchiveCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UsageArchiveCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UsageArchive.
+func (c *UsageArchiveClient) Update() *UsageArchiveUpdate {
+	mutation := newUsageArchiveMutation(c.config, OpUpdate)
+	return &UsageArchiveUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UsageArchiveClient) UpdateOne(_m *UsageArchive) *UsageArchiveUpdateOne {
+	mutation := newUsageArchiveMutation(c.config, OpUpdateOne, withUsageArchive(_m))
+	return &UsageArchiveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UsageArchiveClient) UpdateOneID(id int) *UsageArchiveUpdateOne {
+	mutation := newUsageArchiveMutation(c.config, OpUpdateOne, withUsageArchiveID(id))
+	return &UsageArchiveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UsageArchive.
+func (c *UsageArchiveClient) Delete() *UsageArchiveDelete {
+	mutation := newUsageArchiveMutation(c.config, OpDelete)
+	return &UsageArchiveDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UsageArchiveClient) DeleteOne(_m *UsageArchive) *UsageArchiveDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UsageArchiveClient) DeleteOneID(id int) *UsageArchiveDeleteOne {
+	builder := c.Delete().Where(usagearchive.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UsageArchiveDeleteOne{builder}
+}
+
+// Query returns a query builder for UsageArchive.
+func (c *UsageArchiveClient) Query() *UsageArchiveQuery {
+	return &UsageArchiveQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUsageArchive},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UsageArchive entity by its id.
+func (c *UsageArchiveClient) Get(ctx context.Context, id int) (*UsageArchive, error) {
+	return c.Query().Where(usagearchive.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UsageArchiveClient) GetX(ctx context.Context, id int) *UsageArchive {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *UsageArchiveClient) Hooks() []Hook {
+	hooks := c.hooks.UsageArchive
+	return append(hooks[:len(hooks):len(hooks)], usagearchive.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *UsageArchiveClient) Interceptors() []Interceptor {
+	return c.inters.UsageArchive
+}
+
+func (c *UsageArchiveClient) mutate(ctx context.Context, m *UsageArchiveMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UsageArchiveCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UsageArchiveUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UsageArchiveUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UsageArchiveDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UsageArchive mutation op: %q", m.Op())
+	}
+}
+
 // UsageLogClient is a client for the UsageLog schema.
 type UsageLogClient struct {
 	config
@@ -6007,8 +6149,8 @@ type (
 		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
 		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
 		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,
-		Request, RequestExecution, Role, System, Thread, Trace, UsageLog, User,
-		UserProject, UserRole []ent.Hook
+		Request, RequestExecution, Role, System, Thread, Trace, UsageArchive, UsageLog,
+		User, UserProject, UserRole []ent.Hook
 	}
 	inters struct {
 		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
@@ -6016,7 +6158,7 @@ type (
 		ChannelModelPrice, ChannelModelPriceVersion, ChannelOverrideTemplate,
 		ChannelProbe, ChannelUpstreamStatus, DataStorage, Invitation, Model,
 		OIDCIdentity, Project, Prompt, PromptProtectionRule, ProviderQuotaStatus,
-		Request, RequestExecution, Role, System, Thread, Trace, UsageLog, User,
-		UserProject, UserRole []ent.Interceptor
+		Request, RequestExecution, Role, System, Thread, Trace, UsageArchive, UsageLog,
+		User, UserProject, UserRole []ent.Interceptor
 	}
 )

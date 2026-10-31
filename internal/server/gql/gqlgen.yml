@@ -1,5 +1,6 @@
 # schema tells gqlgen where the GraphQL schema is located.
 schema:
+  - maintenance.graphql
   # axonhub.graphql must be loaded before ent.graphql because it defines DisabledAPIKey
   # which is referenced by the disabled_api_keys field in Channel schema
   - axonhub.graphql
@@ -899,6 +900,27 @@ models:
   GcCleanupPreviewItem:
     model:
       - github.com/looplj/axonhub/internal/server/gc.GcCleanupPreviewItem
+  MaintenanceSettings:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.MaintenanceSettings
+  MaintenanceSettingsInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.MaintenanceSettings
+  CleanupTaskStatus:
+    model:
+      - github.com/looplj/axonhub/internal/server/gc.CleanupTaskStatus
+  CleanupTask:
+    model:
+      - github.com/looplj/axonhub/internal/server/gc.CleanupTask
+  CleanupStage:
+    model:
+      - github.com/looplj/axonhub/internal/server/gc.CleanupStage
+  StorageOverview:
+    model:
+      - github.com/looplj/axonhub/internal/server/gc.StorageOverview
+  StorageTable:
+    model:
+      - github.com/looplj/axonhub/internal/server/gc.StorageTable
   PromptSettings:
     model:
       - github.com/looplj/axonhub/internal/objects.PromptSettings

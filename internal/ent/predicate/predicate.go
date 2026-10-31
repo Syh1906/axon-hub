@@ -93,6 +93,9 @@ type Thread func(*sql.Selector)
 // Trace is the predicate function for trace builders.
 type Trace func(*sql.Selector)
 
+// UsageArchive is the predicate function for usagearchive builders.
+type UsageArchive func(*sql.Selector)
+
 // UsageLog is the predicate function for usagelog builders.
 type UsageLog func(*sql.Selector)
 

@@ -280,18 +280,9 @@ func (r *mutationResolver) TriggerGcCleanup(ctx context.Context, input gc.Trigge
 		return false, fmt.Errorf("permission denied: requires write:settings scope")
 	}
 
-	go func() {
-		defer func() {
-			if rec := recover(); rec != nil {
-				// Log the panic or handle it - assuming there's a logging mechanism or just preventing crash
-				fmt.Printf("Recovered from panic in GC goroutine: %v\n", rec)
-			}
-		}()
-
-		// Use a detached context with system bypass for background execution
-		bgCtx := authz.WithSystemBypass(context.WithoutCancel(ctx), "manual-gc-cleanup")
-		_ = r.gcWorker.RunCleanupNow(bgCtx, input)
-	}()
+	if _, err := r.gcWorker.StartCleanup(ctx, input, false); err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
@@ -437,7 +428,7 @@ func (r *queryResolver) PreviewGcCleanup(ctx context.Context, input gc.TriggerGc
 		return nil, fmt.Errorf("permission denied: requires read:settings scope")
 	}
 
-	items, err := r.gcWorker.PreviewCleanup(ctx, input)
+	items, err := r.gcWorker.PreviewCleanup(authz.WithSystemBypass(ctx, "maintenance-cleanup-preview"), input)
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,7 @@ func (RequestExecution) Mixin() []ent.Mixin {
 
 func (RequestExecution) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("created_at").StorageKey("request_executions_by_created_at"),
 		// Index for window function: find latest execution per request
 		index.Fields("request_id", "status", "created_at").
 			StorageKey("request_executions_by_request_id_status_created_at"),

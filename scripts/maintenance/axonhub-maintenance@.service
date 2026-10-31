@@ -1,0 +1,20 @@
+[Unit]
+Description=AxonHub maintenance (%i)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=axonhub-maintenance
+ExecStart=/usr/bin/python3 /opt/axonhub/scripts/maintenance/maintenance.py --config /etc/axonhub-maintenance/config.json %i
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=20%
+MemoryHigh=256M
+MemoryMax=512M
+TimeoutStartSec=65min
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+# 示例账号需只拥有实际维护所需权限。不要为了运行示例直接给予 docker.sock 权限。
+# 配置路径、程序路径和资源限制应在本机覆盖文件中设置。

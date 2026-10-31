@@ -54,7 +54,7 @@ func (r *queryResolver) DashboardOverview(ctx context.Context) (*DashboardOvervi
 		Status request.Status `json:"status"`
 		Count  int            `json:"count"`
 	}
-	if err := r.client.Request.Query().
+	if err := r.client.Request.Query().Modify(biz.IncludeArchivedRequests).
 		GroupBy(request.FieldStatus).
 		Aggregate(ent.Count()).
 		Scan(ctx, &statusCounts); err != nil {
@@ -106,7 +106,7 @@ func (r *queryResolver) RequestStats(ctx context.Context) (*RequestStats, error)
 	loc := r.systemService.TimeLocation(ctx)
 	period := xtime.GetCalendarPeriods(loc)
 
-	if requestsToday, err := r.client.UsageLog.Query().
+	if requestsToday, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.CreatedAtGTE(period.Today.Start)).
 		Count(ctx); err != nil {
 		log.Warn(ctx, "failed to count today's requests", log.Cause(err))
@@ -114,7 +114,7 @@ func (r *queryResolver) RequestStats(ctx context.Context) (*RequestStats, error)
 		stats.RequestsToday = requestsToday
 	}
 
-	if requestsThisWeek, err := r.client.UsageLog.Query().
+	if requestsThisWeek, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.CreatedAtGTE(period.ThisWeek.Start)).
 		Count(ctx); err != nil {
 		log.Warn(ctx, "failed to count this week's requests", log.Cause(err))
@@ -122,7 +122,7 @@ func (r *queryResolver) RequestStats(ctx context.Context) (*RequestStats, error)
 		stats.RequestsThisWeek = requestsThisWeek
 	}
 
-	if requestsLastWeek, err := r.client.UsageLog.Query().
+	if requestsLastWeek, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.CreatedAtGTE(period.LastWeek.Start), usagelog.CreatedAtLT(period.LastWeek.End)).
 		Count(ctx); err != nil {
 		log.Warn(ctx, "failed to count last week's requests", log.Cause(err))
@@ -130,7 +130,7 @@ func (r *queryResolver) RequestStats(ctx context.Context) (*RequestStats, error)
 		stats.RequestsLastWeek = requestsLastWeek
 	}
 
-	if requestsThisMonth, err := r.client.UsageLog.Query().
+	if requestsThisMonth, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.CreatedAtGTE(period.ThisMonth.Start)).
 		Count(ctx); err != nil {
 		log.Warn(ctx, "failed to count this month's requests", log.Cause(err))
@@ -158,7 +158,7 @@ func (r *queryResolver) RequestStatsByChannel(ctx context.Context, timeWindow *s
 	var results []channelStats
 
 	// Aggregate by channel directly in the database using usage_logs table joined with channels
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Modify(func(s *sql.Selector) {
 			channelTable := sql.Table(channel.Table)
 			s.Join(channelTable).On(
@@ -216,6 +216,7 @@ func (r *queryResolver) RequestStatsByModel(ctx context.Context, timeWindow *str
 	var results []modelStats
 
 	query := r.client.UsageLog.Query()
+	query.Modify(biz.IncludeArchivedUsage)
 
 	// Apply time window filter when provided
 	if applyFilter {
@@ -265,7 +266,7 @@ func (r *queryResolver) RequestStatsByAPIKey(ctx context.Context, timeWindow *st
 	var results []apiKeyStats
 
 	// Database-level aggregation
-	query := r.client.UsageLog.Query().
+	query := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.APIKeyIDNotNil())
 
 	// Apply time window filter when provided
@@ -353,7 +354,7 @@ func (r *queryResolver) TokenStatsByAPIKey(ctx context.Context, timeWindow *stri
 	// Aggregate directly on usage_logs.api_key_id. Joining to requests is unnecessary
 	// (the column is already on usage_logs) and breaks once the requests table is
 	// pruned by GC retention while usage_logs are still kept.
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.APIKeyIDNotNil()).
 		Modify(func(s *sql.Selector) {
 			if applyFilter {
@@ -476,7 +477,7 @@ func (r *queryResolver) APIKeyTokenUsageStats(ctx context.Context, input *APIKey
 	// privacy rule for this internal stats query.
 	statsCtx := authz.WithScopeDecision(ctx, scopes.ScopeReadAPIKeys)
 
-	query := r.client.UsageLog.Query().
+	query := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.APIKeyIDIn(accessibleIDs...))
 
 	if input.CreatedAtGTE != nil {
@@ -550,7 +551,7 @@ func (r *queryResolver) DailyRequestStats(ctx context.Context) ([]*DailyRequestS
 	var results []dailyStats
 
 	// Use raw SQL for complex GROUP BY with conditional counting
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(
 			usagelog.CreatedAtGTE(startDateUTC),
 			usagelog.CreatedAtLT(nowUTC),
@@ -638,7 +639,7 @@ func (r *queryResolver) TopRequestsProjects(ctx context.Context) ([]*TopRequests
 	var results []projectRequestCount
 
 	// Use database aggregation without ordering (GroupBy doesn't support Order)
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Limit(limitCount).
 		Modify(func(s *sql.Selector) {
 			s.Select(
@@ -722,7 +723,7 @@ func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
 
 		var records []tokenSums
 
-		err := r.client.UsageLog.Query().
+		err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 			Where(usagelog.CreatedAtGTE(since)).
 			Modify(func(s *sql.Selector) {
 				s.Select(
@@ -790,7 +791,7 @@ func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
 
 			var allTimeRecords []allTimeTokenSums
 
-			err := r.client.UsageLog.Query().
+			err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 				Modify(func(s *sql.Selector) {
 					s.Select(
 						sql.As(sql.Sum(usagelog.FieldPromptTokens), "input_tokens"),
@@ -1493,7 +1494,7 @@ func (r *queryResolver) TokenStatsByChannel(ctx context.Context, timeWindow *str
 
 	var results []channelTokenStats
 
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Modify(func(s *sql.Selector) {
 			channelTable := sql.Table(channel.Table)
 			s.Join(channelTable).On(
@@ -1562,7 +1563,7 @@ func (r *queryResolver) TokenStatsByModel(ctx context.Context, timeWindow *strin
 
 	var results []modelTokenStats
 
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Modify(func(s *sql.Selector) {
 			// Apply time window filter when provided
 			if applyFilter {
@@ -1618,7 +1619,7 @@ func (r *queryResolver) CostStatsByChannel(ctx context.Context, timeWindow *stri
 
 	var results []channelCostStats
 
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Modify(func(s *sql.Selector) {
 			channelTable := sql.Table(channel.Table)
 			s.Join(channelTable).On(
@@ -1669,7 +1670,7 @@ func (r *queryResolver) CostStatsByModel(ctx context.Context, timeWindow *string
 
 	var results []modelCostStats
 
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Modify(func(s *sql.Selector) {
 			// Apply time window filtering
 			if applyFilter {
@@ -1712,7 +1713,7 @@ func (r *queryResolver) CostStatsByAPIKey(ctx context.Context, timeWindow *strin
 
 	var results []apiKeyCostStats
 
-	err := r.client.UsageLog.Query().
+	err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.APIKeyIDNotNil()).
 		Modify(func(s *sql.Selector) {
 			// Apply time window filtering
@@ -1842,7 +1843,7 @@ func (r *queryResolver) UsageStatsByUser(ctx context.Context, timeWindow *string
 
 	var results []userUsageStats
 
-	query := r.client.UsageLog.Query().
+	query := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
 		Where(usagelog.APIKeyIDNotNil()).
 		Where(usagelog.ProjectIDEQ(projectID))
 

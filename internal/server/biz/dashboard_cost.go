@@ -38,7 +38,7 @@ func QueryDashboardCosts(ctx context.Context, client *ent.Client, periods xtime.
 		period *xtime.Period
 		target **DashboardCostPeriod
 	}{{nil, &result.AllTime}, {&periods.ThisMonth, &result.ThisMonth}, {&periods.ThisWeek, &result.ThisWeek}, {&periods.Today, &result.Today}} {
-		query := client.UsageLog.Query()
+		query := client.UsageLog.Query().Modify(IncludeArchivedUsage)
 		if item.period != nil {
 			query.Where(usagelog.CreatedAtGTE(item.period.Start.UTC()), usagelog.CreatedAtLT(item.period.End.UTC()))
 		}

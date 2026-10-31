@@ -4,6 +4,14 @@
 
 ## 📁 脚本列表
 
+### 存储维护与部署迁移
+
+`maintenance/maintenance.py` 提供容量/WAL 状态检查、
+流式 PostgreSQL 导出、完整性校验、仅向新数据库恢复，以及受管导出保留清理。
+配置和 systemd 文件都是通用示例，不会自动安装。真实机器配置只放本机私有目录。
+先阅读[中文运维手册](../docs/zh/guides/storage-maintenance.md)或
+[English guide](../docs/en/guides/storage-maintenance.md)，配置真实卷和迁移空间后使用。
+
 ### E2E 测试脚本
 
 #### `e2e/fixtures/api-key-analytics.sql`

@@ -9,11 +9,21 @@ import (
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/scheduler"
 )
+
+func TestBackupService_RejectsDatabaseTargetWithoutAFile(t *testing.T) {
+	ctx := context.Background()
+	cache := xcache.NewFromConfig[ent.DataStorage](xcache.Config{Mode: xcache.ModeMemory})
+	require.NoError(t, cache.Set(ctx, "datastorage:1", ent.DataStorage{ID: 1, Type: datastorage.TypeDatabase}))
+	svc := &BackupService{dataStorageService: &biz.DataStorageService{Cache: cache}}
+	err := svc.performBackup(ctx, &biz.AutoBackupSettings{DataStorageID: 1})
+	require.ErrorContains(t, err, "database storage does not write backup files")
+}
 
 // TestBackupService_RegisterScheduledTasks_TimezoneFromSettings verifies that
 // registering the backup task at startup (fx OnStart context has no user) still

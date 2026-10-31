@@ -322,7 +322,7 @@ func (w *Worker) deleteRequestExternalPayload(ctx context.Context, req *ent.Requ
 	}
 
 	for _, key := range keys {
-		if err := w.DataStorageService.DeleteData(ctx, ds, key); err != nil {
+		if err := w.deletePayloadData(ctx, ds, key); err != nil {
 			return fmt.Errorf("delete request %d key %s: %w", req.ID, key, err)
 		}
 	}
@@ -356,7 +356,7 @@ func (w *Worker) deleteExecutionExternalPayload(ctx context.Context, exec *ent.R
 	}
 
 	for _, key := range keys {
-		if err := w.DataStorageService.DeleteData(ctx, ds, key); err != nil {
+		if err := w.deletePayloadData(ctx, ds, key); err != nil {
 			return fmt.Errorf("delete execution %d key %s: %w", exec.ID, key, err)
 		}
 	}
@@ -379,6 +379,13 @@ func (w *Worker) primaryStorageID(ctx context.Context) (int, error) {
 	}
 
 	return ds.ID, nil
+}
+
+func (w *Worker) deletePayloadData(ctx context.Context, ds *ent.DataStorage, key string) error {
+	if w.dataCleanup != nil {
+		return w.dataCleanup.DeleteData(ctx, ds, key)
+	}
+	return w.DataStorageService.DeleteData(ctx, ds, key)
 }
 
 func applyBodyPayloadPredicate(

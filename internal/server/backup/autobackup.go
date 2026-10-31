@@ -90,6 +90,9 @@ func (svc *BackupService) performBackup(ctx context.Context, settings *biz.AutoB
 	if err != nil {
 		return fmt.Errorf("failed to get data storage: %w", err)
 	}
+	if ds.Type == datastorage.TypeDatabase {
+		return fmt.Errorf("automatic backups require filesystem or object storage; database storage does not write backup files")
+	}
 
 	opts := BackupOptions{
 		IncludeSystemConfigs: settings.IncludeSystemConfigs,
@@ -104,44 +107,30 @@ func (svc *BackupService) performBackup(ctx context.Context, settings *biz.AutoB
 	timestamp := time.Now().Format("2006-01-02_15-04-05")
 	filename := fmt.Sprintf("axonhub-backup-%s.json", timestamp)
 
-	if ds.Type == datastorage.TypeDatabase {
-		data, err := svc.doBackup(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("failed to create backup: %w", err)
-		}
-		if err := svc.dataStorageService.SaveData(ctx, ds, filename, data); err != nil {
-			return fmt.Errorf("failed to write backup file: %w", err)
-		}
-		log.Info(ctx, "Backup uploaded to storage",
-			log.String("path", filename),
-			log.Int("size", len(data)),
-		)
-	} else {
-		f, err := os.CreateTemp("", "axonhub-backup-*.json")
-		if err != nil {
-			return fmt.Errorf("failed to create temp backup file: %w", err)
-		}
-		tmpPath := f.Name()
-		defer os.Remove(tmpPath)
-
-		if err := svc.doBackupToWriter(ctx, opts, f); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to create backup: %w", err)
-		}
-		if _, err := f.Seek(0, 0); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to seek backup file: %w", err)
-		}
-		key, n, err := svc.dataStorageService.SaveDataFromReader(ctx, ds, filename, f)
-		f.Close()
-		if err != nil {
-			return fmt.Errorf("failed to write backup file: %w", err)
-		}
-		log.Info(ctx, "Backup uploaded to storage",
-			log.String("path", key),
-			log.Int64("size", n),
-		)
+	f, err := os.CreateTemp("", "axonhub-backup-*.json")
+	if err != nil {
+		return fmt.Errorf("failed to create temp backup file: %w", err)
 	}
+	tmpPath := f.Name()
+	defer os.Remove(tmpPath)
+
+	if err := svc.doBackupToWriter(ctx, opts, f); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to create backup: %w", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to seek backup file: %w", err)
+	}
+	key, n, err := svc.dataStorageService.SaveDataFromReader(ctx, ds, filename, f)
+	f.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write backup file: %w", err)
+	}
+	log.Info(ctx, "Backup uploaded to storage",
+		log.String("path", key),
+		log.Int64("size", n),
+	)
 
 	if settings.RetentionDays > 0 {
 		if err := svc.cleanupOldBackups(ctx, ds, settings.RetentionDays); err != nil {

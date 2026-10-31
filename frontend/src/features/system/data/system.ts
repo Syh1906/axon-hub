@@ -7,6 +7,7 @@ import { useErrorHandler } from '@/hooks/use-error-handler';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ProxyConfig } from '@/features/channels/data/schema';
 import type { ModelAssociation } from '@/features/models/data/schema';
+import type { MaintenanceSettings } from './maintenance';
 
 // GraphQL queries and mutations
 const SYSTEM_VERSION_QUERY = `
@@ -70,6 +71,7 @@ const STORAGE_POLICY_QUERY = `
       livePreview
       storeRequestBody
       storeResponseBody
+      maintenance { batchSize batchIntervalMs batchTimeoutSeconds maxRunSeconds busyConnectionsPercent diskPath diskWarningPercent diskCriticalPercent reserveDiskGiB }
       cleanupOptions {
         resourceType
         enabled
@@ -224,6 +226,7 @@ const PREVIEW_GC_CLEANUP_QUERY = `
     previewGcCleanup(input: $input) {
       resourceType
       estimatedCount
+      countComplete
       cutoffTime
       retentionDays
     }
@@ -277,6 +280,7 @@ export interface StoragePolicy {
   storeRequestBody: boolean;
   storeResponseBody: boolean;
   cleanupOptions: CleanupOption[];
+  maintenance: MaintenanceSettings;
 }
 
 export interface CleanupOption {
@@ -297,6 +301,7 @@ export interface UpdateStoragePolicyInput {
   storeRequestBody?: boolean;
   storeResponseBody?: boolean;
   cleanupOptions?: CleanupOptionInput[];
+  maintenance?: MaintenanceSettings;
 }
 
 export interface CleanupOptionInput {
@@ -311,11 +316,16 @@ export interface TriggerGcCleanupInput {
   requestBodiesCleanupDays?: number;
   responseBodiesCleanupDays?: number;
   responseChunksCleanupDays?: number;
+  cacheWindowsCleanupDays?: number;
+  usageArchiveCleanupDays?: number;
+  channelProbesCleanupDays?: number;
+  submissionKey?: string;
 }
 
 export interface GcCleanupPreviewItem {
   resourceType: string;
   estimatedCount: number;
+  countComplete: boolean;
   cutoffTime: string;
   retentionDays: number;
 }

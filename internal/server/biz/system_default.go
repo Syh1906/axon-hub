@@ -11,12 +11,12 @@ func defaultCleanupOptions() []CleanupOption {
 		{
 			ResourceType: CleanupResourceRequests,
 			Enabled:      false,
-			CleanupDays:  3,
+			CleanupDays:  60,
 		},
 		{
 			ResourceType: CleanupResourceUsageLogs,
 			Enabled:      false,
-			CleanupDays:  30,
+			CleanupDays:  60,
 		},
 		{
 			ResourceType: CleanupResourceRequestBodies,
@@ -33,6 +33,9 @@ func defaultCleanupOptions() []CleanupOption {
 			Enabled:      false,
 			CleanupDays:  3,
 		},
+		{ResourceType: CleanupResourceCacheWindows, Enabled: false, CleanupDays: 60},
+		{ResourceType: CleanupResourceUsageArchive, Enabled: false, CleanupDays: 365},
+		{ResourceType: CleanupResourceChannelProbes, Enabled: true, CleanupDays: 3},
 	}
 }
 
@@ -72,6 +75,7 @@ var defaultStoragePolicy = StoragePolicy{
 	StoreRequestBody:  true,
 	StoreResponseBody: true,
 	CleanupOptions:    defaultCleanupOptions(),
+	Maintenance:       DefaultMaintenanceSettings(),
 }
 
 var defaultRetryPolicy = RetryPolicy{

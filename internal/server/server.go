@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/api"
 	"github.com/looplj/axonhub/internal/server/backup"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/datatransfer"
 	"github.com/looplj/axonhub/internal/server/dependencies"
 	"github.com/looplj/axonhub/internal/server/gc"
 	"github.com/looplj/axonhub/internal/server/gql"
@@ -105,6 +106,7 @@ func Run(opts ...fx.Option) {
 			biz.Module,
 			orchestrator.Module,
 			backup.Module,
+			datatransfer.Module,
 			video_storage.Module,
 			api.Module,
 			fx.Provide(fx.Annotate(func(cfg Config) string { return cfg.PublicURL }, fx.ResultTags(`name:"public_url"`))),

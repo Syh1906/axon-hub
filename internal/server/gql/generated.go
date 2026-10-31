@@ -873,6 +873,30 @@ type ComplexityRoot struct {
 		ResourceType func(childComplexity int) int
 	}
 
+	CleanupStage struct {
+		Completed      func(childComplexity int) int
+		CutoffTime     func(childComplexity int) int
+		EstimatedCount func(childComplexity int) int
+		ProcessedCount func(childComplexity int) int
+		ResourceType   func(childComplexity int) int
+		RetentionDays  func(childComplexity int) int
+		ScannedCount   func(childComplexity int) int
+	}
+
+	CleanupTask struct {
+		Automatic      func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		CurrentStage   func(childComplexity int) int
+		Error          func(childComplexity int) int
+		FinishedAt     func(childComplexity int) int
+		ID             func(childComplexity int) int
+		PauseRequested func(childComplexity int) int
+		Stages         func(childComplexity int) int
+		Status         func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
+		WaitReason     func(childComplexity int) int
+	}
+
 	ClearCachePayload struct {
 		Message func(childComplexity int) int
 		Success func(childComplexity int) int
@@ -1126,6 +1150,7 @@ type ComplexityRoot struct {
 	}
 
 	GcCleanupPreviewItem struct {
+		CountComplete  func(childComplexity int) int
 		CutoffTime     func(childComplexity int) int
 		EstimatedCount func(childComplexity int) int
 		ResourceType   func(childComplexity int) int
@@ -1210,6 +1235,18 @@ type ComplexityRoot struct {
 		KeyIDs  func(childComplexity int) int
 		RowID   func(childComplexity int) int
 		Success func(childComplexity int) int
+	}
+
+	MaintenanceSettings struct {
+		BatchIntervalMs        func(childComplexity int) int
+		BatchSize              func(childComplexity int) int
+		BatchTimeoutSeconds    func(childComplexity int) int
+		BusyConnectionsPercent func(childComplexity int) int
+		DiskCriticalPercent    func(childComplexity int) int
+		DiskPath               func(childComplexity int) int
+		DiskWarningPercent     func(childComplexity int) int
+		MaxRunSeconds          func(childComplexity int) int
+		ReserveDiskGiB         func(childComplexity int) int
 	}
 
 	ManagedKeyGroup struct {
@@ -1492,6 +1529,8 @@ type ComplexityRoot struct {
 		SaveChannelUpstreamAccount            func(childComplexity int, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetChannelKeySessionReuse             func(childComplexity int, channelID objects.GUID, enabled bool) int
+		SetCleanupTaskPaused                  func(childComplexity int, id string, paused bool) int
+		StartCleanupTask                      func(childComplexity int, input gc.TriggerGcCleanupInput) int
 		SyncChannelModels                     func(childComplexity int, channelID objects.GUID, pattern *string) int
 		TestChannel                           func(childComplexity int, input TestChannelInput) int
 		TestChannelAPIKey                     func(childComplexity int, channelID objects.GUID, key string, modelID *string) int
@@ -1890,6 +1929,7 @@ type ComplexityRoot struct {
 		ChannelUpstreamStates           func(childComplexity int, channelIds []*objects.GUID) int
 		Channels                        func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOrder, where *ent.ChannelWhereInput) int
 		CheckForUpdate                  func(childComplexity int, includeBeta bool) int
+		CleanupTask                     func(childComplexity int) int
 		ConsumptionLeaderboard          func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionProjects             func(childComplexity int) int
 		CostStatsByAPIKey               func(childComplexity int, timeWindow *string) int
@@ -1945,6 +1985,7 @@ type ComplexityRoot struct {
 		RetryPolicy                     func(childComplexity int) int
 		Roles                           func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RoleOrder, where *ent.RoleWhereInput) int
 		SecuritySettings                func(childComplexity int) int
+		StorageOverview                 func(childComplexity int) int
 		StoragePolicy                   func(childComplexity int) int
 		SystemChannelSettings           func(childComplexity int) int
 		SystemDisplayTimezone           func(childComplexity int) int
@@ -2490,12 +2531,32 @@ type ComplexityRoot struct {
 		UserQuery         func(childComplexity int) int
 	}
 
+	StorageOverview struct {
+		DatabaseAvailable func(childComplexity int) int
+		DatabaseBytes     func(childComplexity int) int
+		Dialect           func(childComplexity int) int
+		DiskFreeBytes     func(childComplexity int) int
+		DiskSource        func(childComplexity int) int
+		DiskTotalBytes    func(childComplexity int) int
+		Level             func(childComplexity int) int
+		ReserveBytes      func(childComplexity int) int
+		SampledAt         func(childComplexity int) int
+		Tables            func(childComplexity int) int
+	}
+
 	StoragePolicy struct {
 		CleanupOptions    func(childComplexity int) int
 		LivePreview       func(childComplexity int) int
+		Maintenance       func(childComplexity int) int
 		StoreChunks       func(childComplexity int) int
 		StoreRequestBody  func(childComplexity int) int
 		StoreResponseBody func(childComplexity int) int
+	}
+
+	StorageTable struct {
+		Bytes         func(childComplexity int) int
+		EstimatedRows func(childComplexity int) int
+		Name          func(childComplexity int) int
 	}
 
 	SyncChannelModelsPayload struct {
@@ -3102,6 +3163,8 @@ type MutationResolver interface {
 	UnarchiveThread(ctx context.Context, id objects.GUID) (bool, error)
 	RetainThread(ctx context.Context, id objects.GUID) (bool, error)
 	UnretainThread(ctx context.Context, id objects.GUID) (bool, error)
+	StartCleanupTask(ctx context.Context, input gc.TriggerGcCleanupInput) (*gc.CleanupTask, error)
+	SetCleanupTaskPaused(ctx context.Context, id string, paused bool) (*gc.CleanupTask, error)
 	UpdateMe(ctx context.Context, input UpdateMeInput) (*ent.User, error)
 	UpdateMyPassword(ctx context.Context, input UpdateMyPasswordInput) (bool, error)
 	UnlinkOIDCIdentity(ctx context.Context, id objects.GUID) (bool, error)
@@ -3226,6 +3289,8 @@ type QueryResolver interface {
 	Traces(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.TraceOrder, where *ent.TraceWhereInput) (*ent.TraceConnection, error)
 	UsageLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) (*ent.UsageLogConnection, error)
 	Users(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UserOrder, where *ent.UserWhereInput) (*ent.UserConnection, error)
+	CleanupTask(ctx context.Context) (*gc.CleanupTask, error)
+	StorageOverview(ctx context.Context) (*gc.StorageOverview, error)
 	AllChannelSummarys(ctx context.Context, includeArchived *bool) ([]*ent.Channel, error)
 	AllChannelTags(ctx context.Context) ([]string, error)
 	CountChannelsByType(ctx context.Context, input CountChannelsByTypeInput) ([]*ChannelTypeCount, error)
@@ -6508,6 +6573,116 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CleanupOption.ResourceType(childComplexity), true
 
+	case "CleanupStage.completed":
+		if e.complexity.CleanupStage.Completed == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.Completed(childComplexity), true
+	case "CleanupStage.cutoffTime":
+		if e.complexity.CleanupStage.CutoffTime == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.CutoffTime(childComplexity), true
+	case "CleanupStage.estimatedCount":
+		if e.complexity.CleanupStage.EstimatedCount == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.EstimatedCount(childComplexity), true
+	case "CleanupStage.processedCount":
+		if e.complexity.CleanupStage.ProcessedCount == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.ProcessedCount(childComplexity), true
+	case "CleanupStage.resourceType":
+		if e.complexity.CleanupStage.ResourceType == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.ResourceType(childComplexity), true
+	case "CleanupStage.retentionDays":
+		if e.complexity.CleanupStage.RetentionDays == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.RetentionDays(childComplexity), true
+	case "CleanupStage.scannedCount":
+		if e.complexity.CleanupStage.ScannedCount == nil {
+			break
+		}
+
+		return e.complexity.CleanupStage.ScannedCount(childComplexity), true
+
+	case "CleanupTask.automatic":
+		if e.complexity.CleanupTask.Automatic == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.Automatic(childComplexity), true
+	case "CleanupTask.createdAt":
+		if e.complexity.CleanupTask.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.CreatedAt(childComplexity), true
+	case "CleanupTask.currentStage":
+		if e.complexity.CleanupTask.CurrentStage == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.CurrentStage(childComplexity), true
+	case "CleanupTask.error":
+		if e.complexity.CleanupTask.Error == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.Error(childComplexity), true
+	case "CleanupTask.finishedAt":
+		if e.complexity.CleanupTask.FinishedAt == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.FinishedAt(childComplexity), true
+	case "CleanupTask.id":
+		if e.complexity.CleanupTask.ID == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.ID(childComplexity), true
+	case "CleanupTask.pauseRequested":
+		if e.complexity.CleanupTask.PauseRequested == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.PauseRequested(childComplexity), true
+	case "CleanupTask.stages":
+		if e.complexity.CleanupTask.Stages == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.Stages(childComplexity), true
+	case "CleanupTask.status":
+		if e.complexity.CleanupTask.Status == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.Status(childComplexity), true
+	case "CleanupTask.updatedAt":
+		if e.complexity.CleanupTask.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.UpdatedAt(childComplexity), true
+	case "CleanupTask.waitReason":
+		if e.complexity.CleanupTask.WaitReason == nil {
+			break
+		}
+
+		return e.complexity.CleanupTask.WaitReason(childComplexity), true
+
 	case "ClearCachePayload.message":
 		if e.complexity.ClearCachePayload.Message == nil {
 			break
@@ -7452,6 +7627,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GCS.BucketName(childComplexity), true
 
+	case "GcCleanupPreviewItem.countComplete":
+		if e.complexity.GcCleanupPreviewItem.CountComplete == nil {
+			break
+		}
+
+		return e.complexity.GcCleanupPreviewItem.CountComplete(childComplexity), true
 	case "GcCleanupPreviewItem.cutoffTime":
 		if e.complexity.GcCleanupPreviewItem.CutoffTime == nil {
 			break
@@ -7752,6 +7933,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.KeyManagementResult.Success(childComplexity), true
+
+	case "MaintenanceSettings.batchIntervalMs":
+		if e.complexity.MaintenanceSettings.BatchIntervalMs == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.BatchIntervalMs(childComplexity), true
+	case "MaintenanceSettings.batchSize":
+		if e.complexity.MaintenanceSettings.BatchSize == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.BatchSize(childComplexity), true
+	case "MaintenanceSettings.batchTimeoutSeconds":
+		if e.complexity.MaintenanceSettings.BatchTimeoutSeconds == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.BatchTimeoutSeconds(childComplexity), true
+	case "MaintenanceSettings.busyConnectionsPercent":
+		if e.complexity.MaintenanceSettings.BusyConnectionsPercent == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.BusyConnectionsPercent(childComplexity), true
+	case "MaintenanceSettings.diskCriticalPercent":
+		if e.complexity.MaintenanceSettings.DiskCriticalPercent == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.DiskCriticalPercent(childComplexity), true
+	case "MaintenanceSettings.diskPath":
+		if e.complexity.MaintenanceSettings.DiskPath == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.DiskPath(childComplexity), true
+	case "MaintenanceSettings.diskWarningPercent":
+		if e.complexity.MaintenanceSettings.DiskWarningPercent == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.DiskWarningPercent(childComplexity), true
+	case "MaintenanceSettings.maxRunSeconds":
+		if e.complexity.MaintenanceSettings.MaxRunSeconds == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.MaxRunSeconds(childComplexity), true
+	case "MaintenanceSettings.reserveDiskGiB":
+		if e.complexity.MaintenanceSettings.ReserveDiskGiB == nil {
+			break
+		}
+
+		return e.complexity.MaintenanceSettings.ReserveDiskGiB(childComplexity), true
 
 	case "ManagedKeyGroup.budget":
 		if e.complexity.ManagedKeyGroup.Budget == nil {
@@ -9388,6 +9624,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SetChannelKeySessionReuse(childComplexity, args["channelId"].(objects.GUID), args["enabled"].(bool)), true
+	case "Mutation.setCleanupTaskPaused":
+		if e.complexity.Mutation.SetCleanupTaskPaused == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCleanupTaskPaused_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetCleanupTaskPaused(childComplexity, args["id"].(string), args["paused"].(bool)), true
+	case "Mutation.startCleanupTask":
+		if e.complexity.Mutation.StartCleanupTask == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_startCleanupTask_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StartCleanupTask(childComplexity, args["input"].(gc.TriggerGcCleanupInput)), true
 	case "Mutation.syncChannelModels":
 		if e.complexity.Mutation.SyncChannelModels == nil {
 			break
@@ -11470,6 +11728,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.CheckForUpdate(childComplexity, args["includeBeta"].(bool)), true
+	case "Query.cleanupTask":
+		if e.complexity.Query.CleanupTask == nil {
+			break
+		}
+
+		return e.complexity.Query.CleanupTask(childComplexity), true
 	case "Query.consumptionLeaderboard":
 		if e.complexity.Query.ConsumptionLeaderboard == nil {
 			break
@@ -11980,6 +12244,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SecuritySettings(childComplexity), true
+	case "Query.storageOverview":
+		if e.complexity.Query.StorageOverview == nil {
+			break
+		}
+
+		return e.complexity.Query.StorageOverview(childComplexity), true
 	case "Query.storagePolicy":
 		if e.complexity.Query.StoragePolicy == nil {
 			break
@@ -14289,6 +14559,67 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SpanValue.UserQuery(childComplexity), true
 
+	case "StorageOverview.databaseAvailable":
+		if e.complexity.StorageOverview.DatabaseAvailable == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.DatabaseAvailable(childComplexity), true
+	case "StorageOverview.databaseBytes":
+		if e.complexity.StorageOverview.DatabaseBytes == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.DatabaseBytes(childComplexity), true
+	case "StorageOverview.dialect":
+		if e.complexity.StorageOverview.Dialect == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.Dialect(childComplexity), true
+	case "StorageOverview.diskFreeBytes":
+		if e.complexity.StorageOverview.DiskFreeBytes == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.DiskFreeBytes(childComplexity), true
+	case "StorageOverview.diskSource":
+		if e.complexity.StorageOverview.DiskSource == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.DiskSource(childComplexity), true
+	case "StorageOverview.diskTotalBytes":
+		if e.complexity.StorageOverview.DiskTotalBytes == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.DiskTotalBytes(childComplexity), true
+	case "StorageOverview.level":
+		if e.complexity.StorageOverview.Level == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.Level(childComplexity), true
+	case "StorageOverview.reserveBytes":
+		if e.complexity.StorageOverview.ReserveBytes == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.ReserveBytes(childComplexity), true
+	case "StorageOverview.sampledAt":
+		if e.complexity.StorageOverview.SampledAt == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.SampledAt(childComplexity), true
+	case "StorageOverview.tables":
+		if e.complexity.StorageOverview.Tables == nil {
+			break
+		}
+
+		return e.complexity.StorageOverview.Tables(childComplexity), true
+
 	case "StoragePolicy.cleanupOptions":
 		if e.complexity.StoragePolicy.CleanupOptions == nil {
 			break
@@ -14301,6 +14632,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.StoragePolicy.LivePreview(childComplexity), true
+	case "StoragePolicy.maintenance":
+		if e.complexity.StoragePolicy.Maintenance == nil {
+			break
+		}
+
+		return e.complexity.StoragePolicy.Maintenance(childComplexity), true
 	case "StoragePolicy.storeChunks":
 		if e.complexity.StoragePolicy.StoreChunks == nil {
 			break
@@ -14319,6 +14656,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.StoragePolicy.StoreResponseBody(childComplexity), true
+
+	case "StorageTable.bytes":
+		if e.complexity.StorageTable.Bytes == nil {
+			break
+		}
+
+		return e.complexity.StorageTable.Bytes(childComplexity), true
+	case "StorageTable.estimatedRows":
+		if e.complexity.StorageTable.EstimatedRows == nil {
+			break
+		}
+
+		return e.complexity.StorageTable.EstimatedRows(childComplexity), true
+	case "StorageTable.name":
+		if e.complexity.StorageTable.Name == nil {
+			break
+		}
+
+		return e.complexity.StorageTable.Name(childComplexity), true
 
 	case "SyncChannelModelsPayload.channelID":
 		if e.complexity.SyncChannelModelsPayload.ChannelID == nil {
@@ -16300,6 +16656,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputKeyBudgetPatch,
 		ec.unmarshalInputKeyManagementRow,
 		ec.unmarshalInputLoadApiKeyProfileTemplateInput,
+		ec.unmarshalInputMaintenanceSettingsInput,
 		ec.unmarshalInputManagedKeyInput,
 		ec.unmarshalInputModelAssociationInput,
 		ec.unmarshalInputModelAssociationWhenInput,
@@ -16531,7 +16888,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -16543,6 +16900,7 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "maintenance.graphql", Input: sourceData("maintenance.graphql"), BuiltIn: false},
 	{Name: "axonhub.graphql", Input: sourceData("axonhub.graphql"), BuiltIn: false},
 	{Name: "ent.graphql", Input: sourceData("ent.graphql"), BuiltIn: false},
 	{Name: "dashboard.graphql", Input: sourceData("dashboard.graphql"), BuiltIn: false},
@@ -17849,6 +18207,33 @@ func (ec *executionContext) field_Mutation_setChannelKeySessionReuse_args(ctx co
 		return nil, err
 	}
 	args["enabled"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setCleanupTaskPaused_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "paused", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["paused"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_startCleanupTask_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTriggerGcCleanupInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐTriggerGcCleanupInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -36768,6 +37153,544 @@ func (ec *executionContext) fieldContext_CleanupOption_cleanupDays(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _CleanupStage_resourceType(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_resourceType,
+		func(ctx context.Context) (any, error) {
+			return obj.ResourceType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_resourceType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_retentionDays(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_retentionDays,
+		func(ctx context.Context) (any, error) {
+			return obj.RetentionDays, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_retentionDays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_cutoffTime(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_cutoffTime,
+		func(ctx context.Context) (any, error) {
+			return obj.CutoffTime, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_cutoffTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_estimatedCount(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_estimatedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedCount, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_estimatedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_scannedCount(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_scannedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.ScannedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_scannedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_processedCount(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_processedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.ProcessedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_processedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupStage_completed(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupStage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupStage_completed,
+		func(ctx context.Context) (any, error) {
+			return obj.Completed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupStage_completed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupStage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_id(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_status(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNCleanupTaskStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTaskStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CleanupTaskStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_automatic(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_automatic,
+		func(ctx context.Context) (any, error) {
+			return obj.Automatic, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_automatic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_createdAt(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_updatedAt(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_finishedAt(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_finishedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.FinishedAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_pauseRequested(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_pauseRequested,
+		func(ctx context.Context) (any, error) {
+			return obj.PauseRequested, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_pauseRequested(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_currentStage(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_currentStage,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrentStage, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_currentStage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_stages(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_stages,
+		func(ctx context.Context) (any, error) {
+			return obj.Stages, nil
+		},
+		nil,
+		ec.marshalNCleanupStage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupStageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_stages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "resourceType":
+				return ec.fieldContext_CleanupStage_resourceType(ctx, field)
+			case "retentionDays":
+				return ec.fieldContext_CleanupStage_retentionDays(ctx, field)
+			case "cutoffTime":
+				return ec.fieldContext_CleanupStage_cutoffTime(ctx, field)
+			case "estimatedCount":
+				return ec.fieldContext_CleanupStage_estimatedCount(ctx, field)
+			case "scannedCount":
+				return ec.fieldContext_CleanupStage_scannedCount(ctx, field)
+			case "processedCount":
+				return ec.fieldContext_CleanupStage_processedCount(ctx, field)
+			case "completed":
+				return ec.fieldContext_CleanupStage_completed(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleanupStage", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_error(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleanupTask_waitReason(ctx context.Context, field graphql.CollectedField, obj *gc.CleanupTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleanupTask_waitReason,
+		func(ctx context.Context) (any, error) {
+			return obj.WaitReason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleanupTask_waitReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleanupTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ClearCachePayload_success(ctx context.Context, field graphql.CollectedField, obj *ClearCachePayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -41680,6 +42603,35 @@ func (ec *executionContext) fieldContext_GcCleanupPreviewItem_retentionDays(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _GcCleanupPreviewItem_countComplete(ctx context.Context, field graphql.CollectedField, obj *gc.GcCleanupPreviewItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GcCleanupPreviewItem_countComplete,
+		func(ctx context.Context) (any, error) {
+			return obj.CountComplete, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GcCleanupPreviewItem_countComplete(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GcCleanupPreviewItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GetCacheDiagnosticsPayload_fileName(ctx context.Context, field graphql.CollectedField, obj *GetCacheDiagnosticsPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -43025,6 +43977,267 @@ func (ec *executionContext) fieldContext_KeyManagementResult_keyIDs(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_batchSize(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_batchSize,
+		func(ctx context.Context) (any, error) {
+			return obj.BatchSize, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_batchSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_batchIntervalMs(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_batchIntervalMs,
+		func(ctx context.Context) (any, error) {
+			return obj.BatchIntervalMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_batchIntervalMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_batchTimeoutSeconds(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_batchTimeoutSeconds,
+		func(ctx context.Context) (any, error) {
+			return obj.BatchTimeoutSeconds, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_batchTimeoutSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_maxRunSeconds(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_maxRunSeconds,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxRunSeconds, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_maxRunSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_busyConnectionsPercent(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_busyConnectionsPercent,
+		func(ctx context.Context) (any, error) {
+			return obj.BusyConnectionsPercent, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_busyConnectionsPercent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_diskPath(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_diskPath,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskPath, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_diskPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_diskWarningPercent(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_diskWarningPercent,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskWarningPercent, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_diskWarningPercent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_diskCriticalPercent(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_diskCriticalPercent,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskCriticalPercent, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_diskCriticalPercent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceSettings_reserveDiskGiB(ctx context.Context, field graphql.CollectedField, obj *biz.MaintenanceSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceSettings_reserveDiskGiB,
+		func(ctx context.Context) (any, error) {
+			return obj.ReserveDiskGiB, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceSettings_reserveDiskGiB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -50664,6 +51877,136 @@ func (ec *executionContext) fieldContext_Mutation_unretainThread(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_unretainThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_startCleanupTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_startCleanupTask,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StartCleanupTask(ctx, fc.Args["input"].(gc.TriggerGcCleanupInput))
+		},
+		nil,
+		ec.marshalNCleanupTask2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_startCleanupTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CleanupTask_id(ctx, field)
+			case "status":
+				return ec.fieldContext_CleanupTask_status(ctx, field)
+			case "automatic":
+				return ec.fieldContext_CleanupTask_automatic(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleanupTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleanupTask_updatedAt(ctx, field)
+			case "finishedAt":
+				return ec.fieldContext_CleanupTask_finishedAt(ctx, field)
+			case "pauseRequested":
+				return ec.fieldContext_CleanupTask_pauseRequested(ctx, field)
+			case "currentStage":
+				return ec.fieldContext_CleanupTask_currentStage(ctx, field)
+			case "stages":
+				return ec.fieldContext_CleanupTask_stages(ctx, field)
+			case "error":
+				return ec.fieldContext_CleanupTask_error(ctx, field)
+			case "waitReason":
+				return ec.fieldContext_CleanupTask_waitReason(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleanupTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_startCleanupTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setCleanupTaskPaused(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setCleanupTaskPaused,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetCleanupTaskPaused(ctx, fc.Args["id"].(string), fc.Args["paused"].(bool))
+		},
+		nil,
+		ec.marshalNCleanupTask2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setCleanupTaskPaused(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CleanupTask_id(ctx, field)
+			case "status":
+				return ec.fieldContext_CleanupTask_status(ctx, field)
+			case "automatic":
+				return ec.fieldContext_CleanupTask_automatic(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleanupTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleanupTask_updatedAt(ctx, field)
+			case "finishedAt":
+				return ec.fieldContext_CleanupTask_finishedAt(ctx, field)
+			case "pauseRequested":
+				return ec.fieldContext_CleanupTask_pauseRequested(ctx, field)
+			case "currentStage":
+				return ec.fieldContext_CleanupTask_currentStage(ctx, field)
+			case "stages":
+				return ec.fieldContext_CleanupTask_stages(ctx, field)
+			case "error":
+				return ec.fieldContext_CleanupTask_error(ctx, field)
+			case "waitReason":
+				return ec.fieldContext_CleanupTask_waitReason(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleanupTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setCleanupTaskPaused_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -61320,6 +62663,110 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_cleanupTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cleanupTask,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().CleanupTask(ctx)
+		},
+		nil,
+		ec.marshalOCleanupTask2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cleanupTask(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CleanupTask_id(ctx, field)
+			case "status":
+				return ec.fieldContext_CleanupTask_status(ctx, field)
+			case "automatic":
+				return ec.fieldContext_CleanupTask_automatic(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleanupTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleanupTask_updatedAt(ctx, field)
+			case "finishedAt":
+				return ec.fieldContext_CleanupTask_finishedAt(ctx, field)
+			case "pauseRequested":
+				return ec.fieldContext_CleanupTask_pauseRequested(ctx, field)
+			case "currentStage":
+				return ec.fieldContext_CleanupTask_currentStage(ctx, field)
+			case "stages":
+				return ec.fieldContext_CleanupTask_stages(ctx, field)
+			case "error":
+				return ec.fieldContext_CleanupTask_error(ctx, field)
+			case "waitReason":
+				return ec.fieldContext_CleanupTask_waitReason(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleanupTask", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_storageOverview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_storageOverview,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().StorageOverview(ctx)
+		},
+		nil,
+		ec.marshalNStorageOverview2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageOverview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_storageOverview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "dialect":
+				return ec.fieldContext_StorageOverview_dialect(ctx, field)
+			case "databaseBytes":
+				return ec.fieldContext_StorageOverview_databaseBytes(ctx, field)
+			case "tables":
+				return ec.fieldContext_StorageOverview_tables(ctx, field)
+			case "diskTotalBytes":
+				return ec.fieldContext_StorageOverview_diskTotalBytes(ctx, field)
+			case "diskFreeBytes":
+				return ec.fieldContext_StorageOverview_diskFreeBytes(ctx, field)
+			case "diskSource":
+				return ec.fieldContext_StorageOverview_diskSource(ctx, field)
+			case "reserveBytes":
+				return ec.fieldContext_StorageOverview_reserveBytes(ctx, field)
+			case "level":
+				return ec.fieldContext_StorageOverview_level(ctx, field)
+			case "sampledAt":
+				return ec.fieldContext_StorageOverview_sampledAt(ctx, field)
+			case "databaseAvailable":
+				return ec.fieldContext_StorageOverview_databaseAvailable(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StorageOverview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_allChannelSummarys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -62916,6 +64363,8 @@ func (ec *executionContext) fieldContext_Query_previewGcCleanup(ctx context.Cont
 				return ec.fieldContext_GcCleanupPreviewItem_cutoffTime(ctx, field)
 			case "retentionDays":
 				return ec.fieldContext_GcCleanupPreviewItem_retentionDays(ctx, field)
+			case "countComplete":
+				return ec.fieldContext_GcCleanupPreviewItem_countComplete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type GcCleanupPreviewItem", field.Name)
 		},
@@ -63124,6 +64573,8 @@ func (ec *executionContext) fieldContext_Query_storagePolicy(_ context.Context, 
 				return ec.fieldContext_StoragePolicy_storeResponseBody(ctx, field)
 			case "cleanupOptions":
 				return ec.fieldContext_StoragePolicy_cleanupOptions(ctx, field)
+			case "maintenance":
+				return ec.fieldContext_StoragePolicy_maintenance(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StoragePolicy", field.Name)
 		},
@@ -76759,6 +78210,304 @@ func (ec *executionContext) fieldContext_SpanValue_systemInstruction(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _StorageOverview_dialect(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_dialect,
+		func(ctx context.Context) (any, error) {
+			return obj.Dialect, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_dialect(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_databaseBytes(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_databaseBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.DatabaseBytes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_databaseBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_tables(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_tables,
+		func(ctx context.Context) (any, error) {
+			return obj.Tables, nil
+		},
+		nil,
+		ec.marshalNStorageTable2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageTableᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_tables(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_StorageTable_name(ctx, field)
+			case "bytes":
+				return ec.fieldContext_StorageTable_bytes(ctx, field)
+			case "estimatedRows":
+				return ec.fieldContext_StorageTable_estimatedRows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StorageTable", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_diskTotalBytes(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_diskTotalBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskTotalBytes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_diskTotalBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_diskFreeBytes(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_diskFreeBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskFreeBytes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_diskFreeBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_diskSource(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_diskSource,
+		func(ctx context.Context) (any, error) {
+			return obj.DiskSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_diskSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_reserveBytes(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_reserveBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.ReserveBytes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_reserveBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_level(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_level,
+		func(ctx context.Context) (any, error) {
+			return obj.Level, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_level(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_sampledAt(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_sampledAt,
+		func(ctx context.Context) (any, error) {
+			return obj.SampledAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_sampledAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageOverview_databaseAvailable(ctx context.Context, field graphql.CollectedField, obj *gc.StorageOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageOverview_databaseAvailable,
+		func(ctx context.Context) (any, error) {
+			return obj.DatabaseAvailable, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageOverview_databaseAvailable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _StoragePolicy_storeChunks(ctx context.Context, field graphql.CollectedField, obj *biz.StoragePolicy) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -76907,6 +78656,142 @@ func (ec *executionContext) fieldContext_StoragePolicy_cleanupOptions(_ context.
 				return ec.fieldContext_CleanupOption_cleanupDays(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CleanupOption", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StoragePolicy_maintenance(ctx context.Context, field graphql.CollectedField, obj *biz.StoragePolicy) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StoragePolicy_maintenance,
+		func(ctx context.Context) (any, error) {
+			return obj.Maintenance, nil
+		},
+		nil,
+		ec.marshalNMaintenanceSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐMaintenanceSettings,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StoragePolicy_maintenance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StoragePolicy",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "batchSize":
+				return ec.fieldContext_MaintenanceSettings_batchSize(ctx, field)
+			case "batchIntervalMs":
+				return ec.fieldContext_MaintenanceSettings_batchIntervalMs(ctx, field)
+			case "batchTimeoutSeconds":
+				return ec.fieldContext_MaintenanceSettings_batchTimeoutSeconds(ctx, field)
+			case "maxRunSeconds":
+				return ec.fieldContext_MaintenanceSettings_maxRunSeconds(ctx, field)
+			case "busyConnectionsPercent":
+				return ec.fieldContext_MaintenanceSettings_busyConnectionsPercent(ctx, field)
+			case "diskPath":
+				return ec.fieldContext_MaintenanceSettings_diskPath(ctx, field)
+			case "diskWarningPercent":
+				return ec.fieldContext_MaintenanceSettings_diskWarningPercent(ctx, field)
+			case "diskCriticalPercent":
+				return ec.fieldContext_MaintenanceSettings_diskCriticalPercent(ctx, field)
+			case "reserveDiskGiB":
+				return ec.fieldContext_MaintenanceSettings_reserveDiskGiB(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MaintenanceSettings", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageTable_name(ctx context.Context, field graphql.CollectedField, obj *gc.StorageTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageTable_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageTable_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageTable_bytes(ctx context.Context, field graphql.CollectedField, obj *gc.StorageTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageTable_bytes,
+		func(ctx context.Context) (any, error) {
+			return obj.Bytes, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageTable_bytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StorageTable_estimatedRows(ctx context.Context, field graphql.CollectedField, obj *gc.StorageTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StorageTable_estimatedRows,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedRows, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StorageTable_estimatedRows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -98507,6 +100392,89 @@ func (ec *executionContext) unmarshalInputLoadApiKeyProfileTemplateInput(ctx con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputMaintenanceSettingsInput(ctx context.Context, obj any) (biz.MaintenanceSettings, error) {
+	var it biz.MaintenanceSettings
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"batchSize", "batchIntervalMs", "batchTimeoutSeconds", "maxRunSeconds", "busyConnectionsPercent", "diskPath", "diskWarningPercent", "diskCriticalPercent", "reserveDiskGiB"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "batchSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("batchSize"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BatchSize = data
+		case "batchIntervalMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("batchIntervalMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BatchIntervalMs = data
+		case "batchTimeoutSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("batchTimeoutSeconds"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BatchTimeoutSeconds = data
+		case "maxRunSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxRunSeconds"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxRunSeconds = data
+		case "busyConnectionsPercent":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("busyConnectionsPercent"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BusyConnectionsPercent = data
+		case "diskPath":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("diskPath"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DiskPath = data
+		case "diskWarningPercent":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("diskWarningPercent"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DiskWarningPercent = data
+		case "diskCriticalPercent":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("diskCriticalPercent"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DiskCriticalPercent = data
+		case "reserveDiskGiB":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reserveDiskGiB"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReserveDiskGiB = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputManagedKeyInput(ctx context.Context, obj any) (biz.ManagedKeyInput, error) {
 	var it biz.ManagedKeyInput
 	asMap := map[string]any{}
@@ -110877,7 +112845,7 @@ func (ec *executionContext) unmarshalInputTriggerGcCleanupInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"requestsCleanupDays", "usageLogsCleanupDays", "requestBodiesCleanupDays", "responseBodiesCleanupDays", "responseChunksCleanupDays"}
+	fieldsInOrder := [...]string{"requestsCleanupDays", "usageLogsCleanupDays", "requestBodiesCleanupDays", "responseBodiesCleanupDays", "responseChunksCleanupDays", "cacheWindowsCleanupDays", "usageArchiveCleanupDays", "channelProbesCleanupDays", "submissionKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -110919,6 +112887,34 @@ func (ec *executionContext) unmarshalInputTriggerGcCleanupInput(ctx context.Cont
 				return it, err
 			}
 			it.ResponseChunksCleanupDays = data
+		case "cacheWindowsCleanupDays":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheWindowsCleanupDays"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CacheWindowsCleanupDays = data
+		case "usageArchiveCleanupDays":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("usageArchiveCleanupDays"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UsageArchiveCleanupDays = data
+		case "channelProbesCleanupDays":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelProbesCleanupDays"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelProbesCleanupDays = data
+		case "submissionKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("submissionKey"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SubmissionKey = data
 		}
 	}
 
@@ -112942,7 +114938,7 @@ func (ec *executionContext) unmarshalInputUpdateStoragePolicyInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"storeChunks", "livePreview", "storeRequestBody", "storeResponseBody", "cleanupOptions"}
+	fieldsInOrder := [...]string{"storeChunks", "livePreview", "storeRequestBody", "storeResponseBody", "cleanupOptions", "maintenance"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -112984,6 +114980,13 @@ func (ec *executionContext) unmarshalInputUpdateStoragePolicyInput(ctx context.C
 				return it, err
 			}
 			it.CleanupOptions = data
+		case "maintenance":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maintenance"))
+			data, err := ec.unmarshalOMaintenanceSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐMaintenanceSettings(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Maintenance = data
 		}
 	}
 
@@ -123797,6 +125800,158 @@ func (ec *executionContext) _CleanupOption(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var cleanupStageImplementors = []string{"CleanupStage"}
+
+func (ec *executionContext) _CleanupStage(ctx context.Context, sel ast.SelectionSet, obj *gc.CleanupStage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleanupStageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleanupStage")
+		case "resourceType":
+			out.Values[i] = ec._CleanupStage_resourceType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "retentionDays":
+			out.Values[i] = ec._CleanupStage_retentionDays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cutoffTime":
+			out.Values[i] = ec._CleanupStage_cutoffTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimatedCount":
+			out.Values[i] = ec._CleanupStage_estimatedCount(ctx, field, obj)
+		case "scannedCount":
+			out.Values[i] = ec._CleanupStage_scannedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "processedCount":
+			out.Values[i] = ec._CleanupStage_processedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completed":
+			out.Values[i] = ec._CleanupStage_completed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleanupTaskImplementors = []string{"CleanupTask"}
+
+func (ec *executionContext) _CleanupTask(ctx context.Context, sel ast.SelectionSet, obj *gc.CleanupTask) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleanupTaskImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleanupTask")
+		case "id":
+			out.Values[i] = ec._CleanupTask_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._CleanupTask_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "automatic":
+			out.Values[i] = ec._CleanupTask_automatic(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._CleanupTask_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._CleanupTask_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "finishedAt":
+			out.Values[i] = ec._CleanupTask_finishedAt(ctx, field, obj)
+		case "pauseRequested":
+			out.Values[i] = ec._CleanupTask_pauseRequested(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currentStage":
+			out.Values[i] = ec._CleanupTask_currentStage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stages":
+			out.Values[i] = ec._CleanupTask_stages(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._CleanupTask_error(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "waitReason":
+			out.Values[i] = ec._CleanupTask_waitReason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var clearCachePayloadImplementors = []string{"ClearCachePayload"}
 
 func (ec *executionContext) _ClearCachePayload(ctx context.Context, sel ast.SelectionSet, obj *ClearCachePayload) graphql.Marshaler {
@@ -125732,6 +127887,11 @@ func (ec *executionContext) _GcCleanupPreviewItem(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "countComplete":
+			out.Values[i] = ec._GcCleanupPreviewItem_countComplete(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -126342,6 +128502,85 @@ func (ec *executionContext) _KeyManagementResult(ctx context.Context, sel ast.Se
 			}
 		case "keyIDs":
 			out.Values[i] = ec._KeyManagementResult_keyIDs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var maintenanceSettingsImplementors = []string{"MaintenanceSettings"}
+
+func (ec *executionContext) _MaintenanceSettings(ctx context.Context, sel ast.SelectionSet, obj *biz.MaintenanceSettings) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, maintenanceSettingsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MaintenanceSettings")
+		case "batchSize":
+			out.Values[i] = ec._MaintenanceSettings_batchSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchIntervalMs":
+			out.Values[i] = ec._MaintenanceSettings_batchIntervalMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchTimeoutSeconds":
+			out.Values[i] = ec._MaintenanceSettings_batchTimeoutSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxRunSeconds":
+			out.Values[i] = ec._MaintenanceSettings_maxRunSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "busyConnectionsPercent":
+			out.Values[i] = ec._MaintenanceSettings_busyConnectionsPercent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diskPath":
+			out.Values[i] = ec._MaintenanceSettings_diskPath(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diskWarningPercent":
+			out.Values[i] = ec._MaintenanceSettings_diskWarningPercent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diskCriticalPercent":
+			out.Values[i] = ec._MaintenanceSettings_diskCriticalPercent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reserveDiskGiB":
+			out.Values[i] = ec._MaintenanceSettings_reserveDiskGiB(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -128298,6 +130537,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "unretainThread":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_unretainThread(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startCleanupTask":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_startCleanupTask(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setCleanupTaskPaused":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setCleanupTaskPaused(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -132111,6 +134364,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_users(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cleanupTask":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cleanupTask(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "storageOverview":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_storageOverview(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -138658,6 +140952,78 @@ func (ec *executionContext) _SpanValue(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var storageOverviewImplementors = []string{"StorageOverview"}
+
+func (ec *executionContext) _StorageOverview(ctx context.Context, sel ast.SelectionSet, obj *gc.StorageOverview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, storageOverviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StorageOverview")
+		case "dialect":
+			out.Values[i] = ec._StorageOverview_dialect(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "databaseBytes":
+			out.Values[i] = ec._StorageOverview_databaseBytes(ctx, field, obj)
+		case "tables":
+			out.Values[i] = ec._StorageOverview_tables(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diskTotalBytes":
+			out.Values[i] = ec._StorageOverview_diskTotalBytes(ctx, field, obj)
+		case "diskFreeBytes":
+			out.Values[i] = ec._StorageOverview_diskFreeBytes(ctx, field, obj)
+		case "diskSource":
+			out.Values[i] = ec._StorageOverview_diskSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reserveBytes":
+			out.Values[i] = ec._StorageOverview_reserveBytes(ctx, field, obj)
+		case "level":
+			out.Values[i] = ec._StorageOverview_level(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sampledAt":
+			out.Values[i] = ec._StorageOverview_sampledAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "databaseAvailable":
+			out.Values[i] = ec._StorageOverview_databaseAvailable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var storagePolicyImplementors = []string{"StoragePolicy"}
 
 func (ec *executionContext) _StoragePolicy(ctx context.Context, sel ast.SelectionSet, obj *biz.StoragePolicy) graphql.Marshaler {
@@ -138691,6 +141057,60 @@ func (ec *executionContext) _StoragePolicy(ctx context.Context, sel ast.Selectio
 			}
 		case "cleanupOptions":
 			out.Values[i] = ec._StoragePolicy_cleanupOptions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maintenance":
+			out.Values[i] = ec._StoragePolicy_maintenance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var storageTableImplementors = []string{"StorageTable"}
+
+func (ec *executionContext) _StorageTable(ctx context.Context, sel ast.SelectionSet, obj *gc.StorageTable) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, storageTableImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StorageTable")
+		case "name":
+			out.Values[i] = ec._StorageTable_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bytes":
+			out.Values[i] = ec._StorageTable_bytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimatedRows":
+			out.Values[i] = ec._StorageTable_estimatedRows(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -146358,6 +148778,91 @@ func (ec *executionContext) unmarshalNCleanupOptionInput2githubᚗcomᚋlooplj�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNCleanupStage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupStageᚄ(ctx context.Context, sel ast.SelectionSet, v []*gc.CleanupStage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCleanupStage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupStage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleanupStage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupStage(ctx context.Context, sel ast.SelectionSet, v *gc.CleanupStage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleanupStage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleanupTask2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask(ctx context.Context, sel ast.SelectionSet, v gc.CleanupTask) graphql.Marshaler {
+	return ec._CleanupTask(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCleanupTask2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask(ctx context.Context, sel ast.SelectionSet, v *gc.CleanupTask) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleanupTask(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleanupTaskStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTaskStatus(ctx context.Context, v any) (gc.CleanupTaskStatus, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := gc.CleanupTaskStatus(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleanupTaskStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTaskStatus(ctx context.Context, sel ast.SelectionSet, v gc.CleanupTaskStatus) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) unmarshalNClearCacheInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐClearCacheInput(ctx context.Context, v any) (ClearCacheInput, error) {
 	res, err := ec.unmarshalInputClearCacheInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -147895,6 +150400,16 @@ func (ec *executionContext) unmarshalNKeyManagementRow2ᚖgithubᚗcomᚋlooplj�
 func (ec *executionContext) unmarshalNLoadApiKeyProfileTemplateInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐLoadAPIKeyProfileTemplateInput(ctx context.Context, v any) (LoadAPIKeyProfileTemplateInput, error) {
 	res, err := ec.unmarshalInputLoadApiKeyProfileTemplateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMaintenanceSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐMaintenanceSettings(ctx context.Context, sel ast.SelectionSet, v *biz.MaintenanceSettings) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MaintenanceSettings(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNManagedKeyGroup2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐManagedKeyGroupᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ManagedKeyGroup) graphql.Marshaler {
@@ -150961,6 +153476,20 @@ func (ec *executionContext) marshalNSpan2githubᚗcomᚋloopljᚋaxonhubᚋinter
 	return ec._Span(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNStorageOverview2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageOverview(ctx context.Context, sel ast.SelectionSet, v gc.StorageOverview) graphql.Marshaler {
+	return ec._StorageOverview(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNStorageOverview2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageOverview(ctx context.Context, sel ast.SelectionSet, v *gc.StorageOverview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StorageOverview(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNStoragePolicy2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐStoragePolicy(ctx context.Context, sel ast.SelectionSet, v biz.StoragePolicy) graphql.Marshaler {
 	return ec._StoragePolicy(ctx, sel, &v)
 }
@@ -150973,6 +153502,60 @@ func (ec *executionContext) marshalNStoragePolicy2ᚖgithubᚗcomᚋloopljᚋaxo
 		return graphql.Null
 	}
 	return ec._StoragePolicy(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNStorageTable2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageTableᚄ(ctx context.Context, sel ast.SelectionSet, v []*gc.StorageTable) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNStorageTable2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageTable(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNStorageTable2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐStorageTable(ctx context.Context, sel ast.SelectionSet, v *gc.StorageTable) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StorageTable(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -154491,6 +157074,13 @@ func (ec *executionContext) unmarshalOCleanupOptionInput2ᚕgithubᚗcomᚋloopl
 	return res, nil
 }
 
+func (ec *executionContext) marshalOCleanupTask2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgcᚐCleanupTask(ctx context.Context, sel ast.SelectionSet, v *gc.CleanupTask) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleanupTask(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOCommandCodeQuotaSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCommandCodeQuotaSettings(ctx context.Context, sel ast.SelectionSet, v *objects.CommandCodeQuotaSettings) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -155874,6 +158464,14 @@ func (ec *executionContext) unmarshalOKeyBudgetPatch2ᚖgithubᚗcomᚋloopljᚋ
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputKeyBudgetPatch(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOMaintenanceSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐMaintenanceSettings(ctx context.Context, v any) (*biz.MaintenanceSettings, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputMaintenanceSettingsInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

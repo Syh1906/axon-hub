@@ -1,0 +1,18 @@
+{
+  "monitor_paths": ["/var/lib/axonhub", "/var/lib/postgresql", "/var/backups/axonhub"],
+  "warning_percent": 70,
+  "critical_percent": 85,
+  "reserve_gib": 0,
+  "state_directory": "/var/lib/axonhub-maintenance",
+  "export_directory": "/var/backups/axonhub/exports",
+  "operation_timeout_seconds": 3600,
+  "restore_required_gib": 0,
+  "export_retention_days": 7,
+  "export_min_keep": 2,
+  "postgres": {
+    "exec_prefix": [],
+    "user": "postgres",
+    "database": "axonhub",
+    "restore_monitor_path": "/var/lib/postgresql"
+  }
+}

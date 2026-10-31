@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 )
 
 // routerDriver wraps two dialect.Driver instances (master and replica).
@@ -21,6 +22,11 @@ func newRouterDriver(master, replica dialect.Driver) *routerDriver {
 }
 
 func (d *routerDriver) Dialect() string { return d.master.Dialect() }
+
+// PrimaryStats lets maintenance yield to write traffic when a replica is used.
+func (d *routerDriver) PrimaryStats() sql.DBStats {
+	return d.master.(*entsql.Driver).DB().Stats()
+}
 
 func (d *routerDriver) Exec(ctx context.Context, query string, args, v any) error {
 	return d.master.Exec(ctx, query, args, v)

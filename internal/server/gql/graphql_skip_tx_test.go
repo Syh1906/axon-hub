@@ -19,6 +19,9 @@ func TestSkipMutationTransactionMatchesFieldsForAnyOperationName(t *testing.T) {
 			refreshChannelUpstreams: Boolean
 			verifyChannelUpstreamAccount: Boolean
 			createChannel(name: String!): Boolean
+			startCleanupTask: Boolean
+			setCleanupTaskPaused: Boolean
+			triggerGcCleanup: Boolean
 		}
 	`})
 
@@ -34,6 +37,9 @@ func TestSkipMutationTransactionMatchesFieldsForAnyOperationName(t *testing.T) {
 		{"refresh", `mutation Refresh { refreshChannelUpstreams }`, true},
 		{"verify", `mutation { verifyChannelUpstreamAccount }`, true},
 		{"ordinary mutation", `mutation { createChannel(name: "x") }`, false},
+		{"cleanup start", `mutation { startCleanupTask }`, true},
+		{"cleanup pause", `mutation { setCleanupTaskPaused }`, true},
+		{"legacy cleanup", `mutation { triggerGcCleanup }`, true},
 	}
 
 	for _, tc := range cases {

@@ -3,6 +3,7 @@ package gc
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"entgo.io/ent/dialect"
@@ -15,7 +16,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
-	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
@@ -27,11 +27,15 @@ import (
 var defaultBatchSize = 500
 
 type TriggerGcCleanupInput struct {
-	RequestsCleanupDays       int `json:"requests_cleanup_days"`
-	UsageLogsCleanupDays      int `json:"usage_logs_cleanup_days"`
-	RequestBodiesCleanupDays  int `json:"request_bodies_cleanup_days"`
-	ResponseBodiesCleanupDays int `json:"response_bodies_cleanup_days"`
-	ResponseChunksCleanupDays int `json:"response_chunks_cleanup_days"`
+	RequestsCleanupDays       int    `json:"requests_cleanup_days"`
+	UsageLogsCleanupDays      int    `json:"usage_logs_cleanup_days"`
+	RequestBodiesCleanupDays  int    `json:"request_bodies_cleanup_days"`
+	ResponseBodiesCleanupDays int    `json:"response_bodies_cleanup_days"`
+	ResponseChunksCleanupDays int    `json:"response_chunks_cleanup_days"`
+	CacheWindowsCleanupDays   int    `json:"cache_windows_cleanup_days"`
+	UsageArchiveCleanupDays   int    `json:"usage_archive_cleanup_days"`
+	ChannelProbesCleanupDays  int    `json:"channel_probes_cleanup_days"`
+	SubmissionKey             string `json:"submission_key,omitempty"`
 }
 
 type GcCleanupPreviewItem struct {
@@ -39,6 +43,7 @@ type GcCleanupPreviewItem struct {
 	EstimatedCount int       `json:"estimated_count"`
 	CutoffTime     time.Time `json:"cutoff_time"`
 	RetentionDays  int       `json:"retention_days"`
+	CountComplete  bool      `json:"count_complete"`
 }
 
 type Config struct {
@@ -52,6 +57,11 @@ type Worker struct {
 	DataStorageService *biz.DataStorageService
 	Ent                *ent.Client
 	Config             Config
+	wake               chan struct{}
+	runMu              sync.Mutex
+	storageMu          sync.Mutex
+	storageCache       *StorageOverview
+	dataCleanup        *biz.DataCleanup
 }
 
 type Params struct {
@@ -61,6 +71,7 @@ type Params struct {
 	SystemService      *biz.SystemService
 	DataStorageService *biz.DataStorageService
 	Client             *ent.Client
+	Lifecycle          fx.Lifecycle
 }
 
 func NewWorker(params Params) *Worker {
@@ -69,7 +80,9 @@ func NewWorker(params Params) *Worker {
 		DataStorageService: params.DataStorageService,
 		Ent:                params.Client,
 		Config:             params.Config,
+		wake:               make(chan struct{}, 1),
 	}
+	w.registerLifecycle(params.Lifecycle)
 
 	return w
 }
@@ -107,139 +120,6 @@ func (w *Worker) deleteInBatches(ctx context.Context, deleteFunc func() (int, er
 // getBatchSize returns the appropriate batch size for cleanup operations.
 func (w *Worker) getBatchSize() int {
 	return defaultBatchSize
-}
-
-// runCleanup executes the cleanup process based on storage policy.
-// When manual is true and manualDays is provided, those days override the policy values.
-func (w *Worker) runCleanup(ctx context.Context, manual bool, manualDays map[string]int) {
-	log.Info(ctx, "Starting cleanup process", log.Bool("manual", manual))
-
-	ctx = ent.NewContext(ctx, w.Ent)
-	ctx = schematype.SkipSoftDelete(ctx)
-
-	policy, err := w.SystemService.StoragePolicy(ctx)
-	if err != nil {
-		log.Error(ctx, "Failed to get storage policy for cleanup", log.Cause(err))
-		return
-	}
-
-	log.Debug(ctx, "Storage policy for cleanup", log.Any("policy", policy))
-
-	for _, option := range policy.CleanupOptions {
-		if option.Enabled || manual {
-			if manual && manualDays != nil {
-				if _, ok := manualDays[option.ResourceType]; !ok {
-					continue
-				}
-			}
-			days := option.CleanupDays
-			if manual && manualDays != nil {
-				if d, ok := manualDays[option.ResourceType]; ok {
-					days = d
-				}
-			}
-			switch option.ResourceType {
-			case biz.CleanupResourceRequestBodies:
-				err := w.cleanupRequestBodies(ctx, days)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup request bodies",
-						log.String("resource", option.ResourceType),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up request bodies",
-						log.String("resource", option.ResourceType),
-						log.Int("cleanup_days", days))
-				}
-			case biz.CleanupResourceResponseBodies:
-				err := w.cleanupResponseBodies(ctx, days)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup response bodies",
-						log.String("resource", option.ResourceType),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up response bodies",
-						log.String("resource", option.ResourceType),
-						log.Int("cleanup_days", days))
-				}
-			case biz.CleanupResourceResponseChunks:
-				err := w.cleanupResponseChunks(ctx, days)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup response chunks",
-						log.String("resource", option.ResourceType),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up response chunks",
-						log.String("resource", option.ResourceType),
-						log.Int("cleanup_days", days))
-				}
-			case biz.CleanupResourceRequests:
-				err := w.cleanupRequests(ctx, days, manual)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup requests",
-						log.String("resource", option.ResourceType),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up requests",
-						log.String("resource", option.ResourceType),
-						log.Int("cleanup_days", days))
-				}
-
-				err = w.cleanupThreads(ctx, days, manual)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup threads",
-						log.String("resource", "threads"),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up threads",
-						log.String("resource", "threads"),
-						log.Int("cleanup_days", days))
-				}
-
-				err = w.cleanupTraces(ctx, days, manual)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup traces",
-						log.String("resource", "traces"),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up traces",
-						log.String("resource", "traces"),
-						log.Int("cleanup_days", days))
-				}
-			case biz.CleanupResourceUsageLogs:
-				err := w.cleanupUsageLogs(ctx, days, manual)
-				if err != nil {
-					log.Error(ctx, "Failed to cleanup usage logs",
-						log.String("resource", option.ResourceType),
-						log.Cause(err))
-				} else {
-					log.Info(ctx, "Successfully cleaned up usage logs",
-						log.String("resource", option.ResourceType),
-						log.Int("cleanup_days", days))
-				}
-			default:
-				log.Warn(ctx, "Unknown resource type for cleanup",
-					log.String("resource", option.ResourceType))
-			}
-		}
-	}
-
-	err = w.cleanupChannelProbes(ctx, 3, manual)
-	if err != nil {
-		log.Error(ctx, "Failed to cleanup channel probes",
-			log.Cause(err))
-	} else {
-		log.Info(ctx, "Successfully cleaned up channel probes",
-			log.Int("cleanup_days", 3))
-	}
-
-	if w.Config.VacuumEnabled {
-		if err := w.runVacuum(ctx); err != nil {
-			log.Error(ctx, "Failed to run VACUUM after cleanup",
-				log.Cause(err))
-		}
-	}
-
-	log.Info(ctx, "Cleanup process completed")
 }
 
 // cleanupRequests deletes requests older than the specified number of days.
@@ -696,100 +576,6 @@ func (w *Worker) RunVacuumNow(ctx context.Context) error {
 
 // RunCleanupNow manually triggers the cleanup process with the specified days.
 func (w *Worker) RunCleanupNow(ctx context.Context, input TriggerGcCleanupInput) error {
-	manualDays := make(map[string]int)
-	if input.RequestsCleanupDays > 0 {
-		manualDays[biz.CleanupResourceRequests] = input.RequestsCleanupDays
-	}
-	if input.UsageLogsCleanupDays > 0 {
-		manualDays[biz.CleanupResourceUsageLogs] = input.UsageLogsCleanupDays
-	}
-	if input.RequestBodiesCleanupDays > 0 {
-		manualDays[biz.CleanupResourceRequestBodies] = input.RequestBodiesCleanupDays
-	}
-	if input.ResponseBodiesCleanupDays > 0 {
-		manualDays[biz.CleanupResourceResponseBodies] = input.ResponseBodiesCleanupDays
-	}
-	if input.ResponseChunksCleanupDays > 0 {
-		manualDays[biz.CleanupResourceResponseChunks] = input.ResponseChunksCleanupDays
-	}
-	w.runCleanup(ctx, true, manualDays)
-	return nil
-}
-
-// PreviewCleanup estimates how many records would be deleted without actually deleting them.
-func (w *Worker) PreviewCleanup(ctx context.Context, input TriggerGcCleanupInput) ([]GcCleanupPreviewItem, error) {
-	ctx = ent.NewContext(ctx, w.Ent)
-	ctx = schematype.SkipSoftDelete(ctx)
-
-	var items []GcCleanupPreviewItem
-	now := time.Now()
-
-	if input.RequestsCleanupDays > 0 {
-		cutoff := now.AddDate(0, 0, -input.RequestsCleanupDays)
-		count, err := w.Ent.Request.Query().Where(
-			request.CreatedAtLT(cutoff),
-			request.Not(request.HasTraceWith(trace.StatusEQ(trace.StatusRetained))),
-		).Count(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to count requests for preview: %w", err)
-		}
-		items = append(items, GcCleanupPreviewItem{
-			ResourceType:   biz.CleanupResourceRequests,
-			EstimatedCount: count,
-			CutoffTime:     cutoff,
-			RetentionDays:  input.RequestsCleanupDays,
-		})
-	}
-
-	if input.UsageLogsCleanupDays > 0 {
-		cutoff := now.AddDate(0, 0, -input.UsageLogsCleanupDays)
-		count, err := w.Ent.UsageLog.Query().Where(
-			usagelog.CreatedAtLT(cutoff),
-			usagelog.Not(usagelog.HasRequestWith(
-				request.HasTraceWith(trace.StatusEQ(trace.StatusRetained)),
-			)),
-		).Count(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to count usage logs for preview: %w", err)
-		}
-		items = append(items, GcCleanupPreviewItem{
-			ResourceType:   biz.CleanupResourceUsageLogs,
-			EstimatedCount: count,
-			CutoffTime:     cutoff,
-			RetentionDays:  input.UsageLogsCleanupDays,
-		})
-	}
-
-	bodySpecs := []struct {
-		resourceType string
-		days         int
-	}{
-		{biz.CleanupResourceRequestBodies, input.RequestBodiesCleanupDays},
-		{biz.CleanupResourceResponseBodies, input.ResponseBodiesCleanupDays},
-		{biz.CleanupResourceResponseChunks, input.ResponseChunksCleanupDays},
-	}
-	bodyWindows := make(map[int]GcCleanupPreviewItem, 3)
-
-	for _, spec := range bodySpecs {
-		if spec.days <= 0 {
-			continue
-		}
-
-		item, ok := bodyWindows[spec.days]
-		if !ok {
-			var err error
-
-			item, err = w.previewBodyCleanup(ctx, spec.resourceType, spec.days, now)
-			if err != nil {
-				return nil, err
-			}
-
-			bodyWindows[spec.days] = item
-		}
-
-		item.ResourceType = spec.resourceType
-		items = append(items, item)
-	}
-
-	return items, nil
+	_, err := w.StartCleanup(ctx, input, false)
+	return err
 }

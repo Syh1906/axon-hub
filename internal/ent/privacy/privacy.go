@@ -807,6 +807,30 @@ func (f TraceMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation)
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.TraceMutation", m)
 }
 
+// The UsageArchiveQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type UsageArchiveQueryRuleFunc func(context.Context, *ent.UsageArchiveQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f UsageArchiveQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UsageArchiveQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.UsageArchiveQuery", q)
+}
+
+// The UsageArchiveMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type UsageArchiveMutationRuleFunc func(context.Context, *ent.UsageArchiveMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f UsageArchiveMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.UsageArchiveMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.UsageArchiveMutation", m)
+}
+
 // The UsageLogQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type UsageLogQueryRuleFunc func(context.Context, *ent.UsageLogQuery) error
@@ -996,6 +1020,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.TraceQuery:
 		return q.Filter(), nil
+	case *ent.UsageArchiveQuery:
+		return q.Filter(), nil
 	case *ent.UsageLogQuery:
 		return q.Filter(), nil
 	case *ent.UserQuery:
@@ -1068,6 +1094,8 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.ThreadMutation:
 		return m.Filter(), nil
 	case *ent.TraceMutation:
+		return m.Filter(), nil
+	case *ent.UsageArchiveMutation:
 		return m.Filter(), nil
 	case *ent.UsageLogMutation:
 		return m.Filter(), nil

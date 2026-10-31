@@ -1,11 +1,74 @@
 package gql
 
 import (
+	"context"
+	"fmt"
 	"testing"
+	"time"
+
+	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/ent/enttest"
+	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/server/biz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDashboardAPIKeyRankingsPreserveUnassignedUsageAfterArchive(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:dashboard-archive-null-key?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(context.Background())
+	proj := client.Project.Create().SetName("archive-stats").SaveX(ctx)
+	user := client.User.Create().SetEmail("archive@example.test").SetPassword("unused-test-hash").SetFirstName("Archive").SaveX(ctx)
+	for i := 1; i <= 11; i++ {
+		keyID := 0
+		if i <= 10 {
+			key := client.APIKey.Create().SetName(fmt.Sprintf("Key-%02d", i)).SetKey(fmt.Sprintf("fixture-key-%d", i)).SetUserID(user.ID).SetProjectID(proj.ID).SaveX(ctx)
+			keyID = key.ID
+		}
+		for range i {
+			create := client.Request.Create().SetProjectID(proj.ID).SetModelID("model").SetStatus(request.StatusCompleted).SetRequestBody([]byte(`{}`)).SetCreatedAt(time.Now().AddDate(0, 0, -90))
+			if keyID > 0 {
+				create.SetAPIKeyID(keyID)
+			} else {
+				create.SetSource(request.SourcePlayground)
+			}
+			req := create.SaveX(ctx)
+			usage := client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(proj.ID).SetModelID("model").SetPromptTokens(100).SetCompletionTokens(10).SetTotalTokens(110).SetTotalCost(1).SetCreatedAt(req.CreatedAt)
+			if keyID > 0 {
+				usage.SetAPIKeyID(keyID)
+			}
+			usage.SaveX(ctx)
+		}
+	}
+	r := &queryResolver{Resolver: &Resolver{client: client, systemService: biz.NewSystemService(biz.SystemServiceParams{Ent: client})}}
+	countsBefore, err := r.RequestStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, countsBefore, 10)
+	tokensBefore, err := r.TokenStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, tokensBefore, 10)
+	costsBefore, err := r.CostStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, costsBefore, 10)
+	tx, err := client.Tx(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback()
+	rows := tx.UsageLog.Query().Select(biz.ArchivedUsageFields...).AllX(ctx)
+	require.NoError(t, biz.ArchiveUsageStatistics(ctx, tx.Client(), rows))
+	tx.UsageLog.Delete().ExecX(ctx)
+	require.NoError(t, tx.Commit())
+	countsAfter, err := r.RequestStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, countsBefore, countsAfter)
+	tokensAfter, err := r.TokenStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokensBefore, tokensAfter)
+	costsAfter, err := r.CostStatsByAPIKey(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, costsBefore, costsAfter)
+}
 
 // testStats is a test struct that implements the statsItem constraint
 type testStats struct {

@@ -1,0 +1,11 @@
+[Unit]
+Description=AxonHub capacity check
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30
+Unit=axonhub-maintenance@status.service
+
+[Install]
+WantedBy=timers.target

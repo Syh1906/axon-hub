@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/datatransfer"
 	"github.com/looplj/axonhub/internal/server/db"
 	"github.com/looplj/axonhub/internal/server/gc"
 )
@@ -33,6 +34,7 @@ type Config struct {
 	APIServer        server.Config       `conf:"server" yaml:"server" json:"server"`
 	Metrics          metrics.Config      `conf:"metrics" yaml:"metrics" json:"metrics"`
 	GC               gc.Config           `conf:"gc" yaml:"gc" json:"gc"`
+	DatabaseTransfer datatransfer.Config `conf:"database_transfer" yaml:"database_transfer" json:"database_transfer"`
 	Cache            xcache.Config       `conf:"cache" yaml:"cache" json:"cache"`
 	ProviderQuota    providerQuotaConfig `conf:"provider_quota" yaml:"provider_quota" json:"provider_quota"`
 	OIDC             biz.OIDCConfig      `conf:"oidc" yaml:"oidc" json:"oidc"`
@@ -297,6 +299,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("gc.cron", "0 2 * * *") // Daily at 2:00 AM
 	v.SetDefault("gc.vacuum_enabled", true)
 	v.SetDefault("gc.vacuum_full", false)
+	v.SetDefault("database_transfer.work_dir", "data/migration")
+	v.SetDefault("database_transfer.max_file_gib", 20)
+	v.SetDefault("database_transfer.timeout_seconds", 3600)
+	v.SetDefault("database_transfer.retention_hours", 24)
+	v.SetDefault("database_transfer.database_disk_path", "")
+	v.SetDefault("database_transfer.restore_reserve_gib", 2)
 
 	// Provider quota defaults
 	v.SetDefault("provider_quota.check_interval", "5m")

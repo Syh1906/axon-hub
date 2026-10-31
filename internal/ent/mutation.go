@@ -41,6 +41,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
 	"github.com/looplj/axonhub/internal/ent/userproject"
@@ -88,6 +89,7 @@ const (
 	TypeSystem                   = "System"
 	TypeThread                   = "Thread"
 	TypeTrace                    = "Trace"
+	TypeUsageArchive             = "UsageArchive"
 	TypeUsageLog                 = "UsageLog"
 	TypeUser                     = "User"
 	TypeUserProject              = "UserProject"
@@ -33565,6 +33567,2455 @@ func (m *TraceMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Trace edge %s", name)
+}
+
+// UsageArchiveMutation represents an operation that mutates the UsageArchive nodes in the graph.
+type UsageArchiveMutation struct {
+	config
+	op                             Op
+	typ                            string
+	id                             *int
+	kind                           *usagearchive.Kind
+	source_id                      *int
+	addsource_id                   *int
+	request_id                     *int
+	addrequest_id                  *int
+	project_id                     *int
+	addproject_id                  *int
+	api_key_id                     *int
+	addapi_key_id                  *int
+	channel_id                     *int
+	addchannel_id                  *int
+	model_id                       *string
+	request_model_id               *string
+	request_status                 *string
+	request_source                 *string
+	occurred_at                    *time.Time
+	total_cost                     *float64
+	addtotal_cost                  *float64
+	cache_creation_cost            *float64
+	addcache_creation_cost         *float64
+	first_token_sum                *float64
+	addfirst_token_sum             *float64
+	speed_sum                      *float64
+	addspeed_sum                   *float64
+	prompt_tokens                  *int64
+	addprompt_tokens               *int64
+	completion_tokens              *int64
+	addcompletion_tokens           *int64
+	total_tokens                   *int64
+	addtotal_tokens                *int64
+	prompt_cached_tokens           *int64
+	addprompt_cached_tokens        *int64
+	prompt_write_cached_tokens     *int64
+	addprompt_write_cached_tokens  *int64
+	completion_reasoning_tokens    *int64
+	addcompletion_reasoning_tokens *int64
+	cache_requests                 *int64
+	addcache_requests              *int64
+	cache_input                    *int64
+	addcache_input                 *int64
+	success_count                  *int64
+	addsuccess_count               *int64
+	outcome_count                  *int64
+	addoutcome_count               *int64
+	first_token_count              *int64
+	addfirst_token_count           *int64
+	speed_count                    *int64
+	addspeed_count                 *int64
+	clearedFields                  map[string]struct{}
+	done                           bool
+	oldValue                       func(context.Context) (*UsageArchive, error)
+	predicates                     []predicate.UsageArchive
+}
+
+var _ ent.Mutation = (*UsageArchiveMutation)(nil)
+
+// usagearchiveOption allows management of the mutation configuration using functional options.
+type usagearchiveOption func(*UsageArchiveMutation)
+
+// newUsageArchiveMutation creates new mutation for the UsageArchive entity.
+func newUsageArchiveMutation(c config, op Op, opts ...usagearchiveOption) *UsageArchiveMutation {
+	m := &UsageArchiveMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUsageArchive,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUsageArchiveID sets the ID field of the mutation.
+func withUsageArchiveID(id int) usagearchiveOption {
+	return func(m *UsageArchiveMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UsageArchive
+		)
+		m.oldValue = func(ctx context.Context) (*UsageArchive, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UsageArchive.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUsageArchive sets the old UsageArchive of the mutation.
+func withUsageArchive(node *UsageArchive) usagearchiveOption {
+	return func(m *UsageArchiveMutation) {
+		m.oldValue = func(context.Context) (*UsageArchive, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UsageArchiveMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UsageArchiveMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UsageArchiveMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UsageArchiveMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UsageArchive.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetKind sets the "kind" field.
+func (m *UsageArchiveMutation) SetKind(u usagearchive.Kind) {
+	m.kind = &u
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *UsageArchiveMutation) Kind() (r usagearchive.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldKind(ctx context.Context) (v usagearchive.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *UsageArchiveMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *UsageArchiveMutation) SetSourceID(i int) {
+	m.source_id = &i
+	m.addsource_id = nil
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *UsageArchiveMutation) SourceID() (r int, exists bool) {
+	v := m.source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldSourceID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// AddSourceID adds i to the "source_id" field.
+func (m *UsageArchiveMutation) AddSourceID(i int) {
+	if m.addsource_id != nil {
+		*m.addsource_id += i
+	} else {
+		m.addsource_id = &i
+	}
+}
+
+// AddedSourceID returns the value that was added to the "source_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedSourceID() (r int, exists bool) {
+	v := m.addsource_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *UsageArchiveMutation) ResetSourceID() {
+	m.source_id = nil
+	m.addsource_id = nil
+}
+
+// SetRequestID sets the "request_id" field.
+func (m *UsageArchiveMutation) SetRequestID(i int) {
+	m.request_id = &i
+	m.addrequest_id = nil
+}
+
+// RequestID returns the value of the "request_id" field in the mutation.
+func (m *UsageArchiveMutation) RequestID() (r int, exists bool) {
+	v := m.request_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestID returns the old "request_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldRequestID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestID: %w", err)
+	}
+	return oldValue.RequestID, nil
+}
+
+// AddRequestID adds i to the "request_id" field.
+func (m *UsageArchiveMutation) AddRequestID(i int) {
+	if m.addrequest_id != nil {
+		*m.addrequest_id += i
+	} else {
+		m.addrequest_id = &i
+	}
+}
+
+// AddedRequestID returns the value that was added to the "request_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedRequestID() (r int, exists bool) {
+	v := m.addrequest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequestID resets all changes to the "request_id" field.
+func (m *UsageArchiveMutation) ResetRequestID() {
+	m.request_id = nil
+	m.addrequest_id = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *UsageArchiveMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *UsageArchiveMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *UsageArchiveMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *UsageArchiveMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *UsageArchiveMutation) SetAPIKeyID(i int) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *UsageArchiveMutation) APIKeyID() (r int, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldAPIKeyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *UsageArchiveMutation) AddAPIKeyID(i int) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedAPIKeyID() (r int, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *UsageArchiveMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *UsageArchiveMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *UsageArchiveMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *UsageArchiveMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *UsageArchiveMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *UsageArchiveMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetModelID sets the "model_id" field.
+func (m *UsageArchiveMutation) SetModelID(s string) {
+	m.model_id = &s
+}
+
+// ModelID returns the value of the "model_id" field in the mutation.
+func (m *UsageArchiveMutation) ModelID() (r string, exists bool) {
+	v := m.model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelID returns the old "model_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelID: %w", err)
+	}
+	return oldValue.ModelID, nil
+}
+
+// ResetModelID resets all changes to the "model_id" field.
+func (m *UsageArchiveMutation) ResetModelID() {
+	m.model_id = nil
+}
+
+// SetRequestModelID sets the "request_model_id" field.
+func (m *UsageArchiveMutation) SetRequestModelID(s string) {
+	m.request_model_id = &s
+}
+
+// RequestModelID returns the value of the "request_model_id" field in the mutation.
+func (m *UsageArchiveMutation) RequestModelID() (r string, exists bool) {
+	v := m.request_model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestModelID returns the old "request_model_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldRequestModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestModelID: %w", err)
+	}
+	return oldValue.RequestModelID, nil
+}
+
+// ResetRequestModelID resets all changes to the "request_model_id" field.
+func (m *UsageArchiveMutation) ResetRequestModelID() {
+	m.request_model_id = nil
+}
+
+// SetRequestStatus sets the "request_status" field.
+func (m *UsageArchiveMutation) SetRequestStatus(s string) {
+	m.request_status = &s
+}
+
+// RequestStatus returns the value of the "request_status" field in the mutation.
+func (m *UsageArchiveMutation) RequestStatus() (r string, exists bool) {
+	v := m.request_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestStatus returns the old "request_status" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldRequestStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestStatus: %w", err)
+	}
+	return oldValue.RequestStatus, nil
+}
+
+// ResetRequestStatus resets all changes to the "request_status" field.
+func (m *UsageArchiveMutation) ResetRequestStatus() {
+	m.request_status = nil
+}
+
+// SetRequestSource sets the "request_source" field.
+func (m *UsageArchiveMutation) SetRequestSource(s string) {
+	m.request_source = &s
+}
+
+// RequestSource returns the value of the "request_source" field in the mutation.
+func (m *UsageArchiveMutation) RequestSource() (r string, exists bool) {
+	v := m.request_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestSource returns the old "request_source" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldRequestSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestSource: %w", err)
+	}
+	return oldValue.RequestSource, nil
+}
+
+// ResetRequestSource resets all changes to the "request_source" field.
+func (m *UsageArchiveMutation) ResetRequestSource() {
+	m.request_source = nil
+}
+
+// SetOccurredAt sets the "occurred_at" field.
+func (m *UsageArchiveMutation) SetOccurredAt(t time.Time) {
+	m.occurred_at = &t
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *UsageArchiveMutation) OccurredAt() (r time.Time, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldOccurredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *UsageArchiveMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+}
+
+// SetTotalCost sets the "total_cost" field.
+func (m *UsageArchiveMutation) SetTotalCost(f float64) {
+	m.total_cost = &f
+	m.addtotal_cost = nil
+}
+
+// TotalCost returns the value of the "total_cost" field in the mutation.
+func (m *UsageArchiveMutation) TotalCost() (r float64, exists bool) {
+	v := m.total_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalCost returns the old "total_cost" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldTotalCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalCost: %w", err)
+	}
+	return oldValue.TotalCost, nil
+}
+
+// AddTotalCost adds f to the "total_cost" field.
+func (m *UsageArchiveMutation) AddTotalCost(f float64) {
+	if m.addtotal_cost != nil {
+		*m.addtotal_cost += f
+	} else {
+		m.addtotal_cost = &f
+	}
+}
+
+// AddedTotalCost returns the value that was added to the "total_cost" field in this mutation.
+func (m *UsageArchiveMutation) AddedTotalCost() (r float64, exists bool) {
+	v := m.addtotal_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTotalCost clears the value of the "total_cost" field.
+func (m *UsageArchiveMutation) ClearTotalCost() {
+	m.total_cost = nil
+	m.addtotal_cost = nil
+	m.clearedFields[usagearchive.FieldTotalCost] = struct{}{}
+}
+
+// TotalCostCleared returns if the "total_cost" field was cleared in this mutation.
+func (m *UsageArchiveMutation) TotalCostCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldTotalCost]
+	return ok
+}
+
+// ResetTotalCost resets all changes to the "total_cost" field.
+func (m *UsageArchiveMutation) ResetTotalCost() {
+	m.total_cost = nil
+	m.addtotal_cost = nil
+	delete(m.clearedFields, usagearchive.FieldTotalCost)
+}
+
+// SetCacheCreationCost sets the "cache_creation_cost" field.
+func (m *UsageArchiveMutation) SetCacheCreationCost(f float64) {
+	m.cache_creation_cost = &f
+	m.addcache_creation_cost = nil
+}
+
+// CacheCreationCost returns the value of the "cache_creation_cost" field in the mutation.
+func (m *UsageArchiveMutation) CacheCreationCost() (r float64, exists bool) {
+	v := m.cache_creation_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCreationCost returns the old "cache_creation_cost" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldCacheCreationCost(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCreationCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCreationCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCreationCost: %w", err)
+	}
+	return oldValue.CacheCreationCost, nil
+}
+
+// AddCacheCreationCost adds f to the "cache_creation_cost" field.
+func (m *UsageArchiveMutation) AddCacheCreationCost(f float64) {
+	if m.addcache_creation_cost != nil {
+		*m.addcache_creation_cost += f
+	} else {
+		m.addcache_creation_cost = &f
+	}
+}
+
+// AddedCacheCreationCost returns the value that was added to the "cache_creation_cost" field in this mutation.
+func (m *UsageArchiveMutation) AddedCacheCreationCost() (r float64, exists bool) {
+	v := m.addcache_creation_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheCreationCost resets all changes to the "cache_creation_cost" field.
+func (m *UsageArchiveMutation) ResetCacheCreationCost() {
+	m.cache_creation_cost = nil
+	m.addcache_creation_cost = nil
+}
+
+// SetFirstTokenSum sets the "first_token_sum" field.
+func (m *UsageArchiveMutation) SetFirstTokenSum(f float64) {
+	m.first_token_sum = &f
+	m.addfirst_token_sum = nil
+}
+
+// FirstTokenSum returns the value of the "first_token_sum" field in the mutation.
+func (m *UsageArchiveMutation) FirstTokenSum() (r float64, exists bool) {
+	v := m.first_token_sum
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstTokenSum returns the old "first_token_sum" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldFirstTokenSum(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstTokenSum is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstTokenSum requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstTokenSum: %w", err)
+	}
+	return oldValue.FirstTokenSum, nil
+}
+
+// AddFirstTokenSum adds f to the "first_token_sum" field.
+func (m *UsageArchiveMutation) AddFirstTokenSum(f float64) {
+	if m.addfirst_token_sum != nil {
+		*m.addfirst_token_sum += f
+	} else {
+		m.addfirst_token_sum = &f
+	}
+}
+
+// AddedFirstTokenSum returns the value that was added to the "first_token_sum" field in this mutation.
+func (m *UsageArchiveMutation) AddedFirstTokenSum() (r float64, exists bool) {
+	v := m.addfirst_token_sum
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFirstTokenSum resets all changes to the "first_token_sum" field.
+func (m *UsageArchiveMutation) ResetFirstTokenSum() {
+	m.first_token_sum = nil
+	m.addfirst_token_sum = nil
+}
+
+// SetSpeedSum sets the "speed_sum" field.
+func (m *UsageArchiveMutation) SetSpeedSum(f float64) {
+	m.speed_sum = &f
+	m.addspeed_sum = nil
+}
+
+// SpeedSum returns the value of the "speed_sum" field in the mutation.
+func (m *UsageArchiveMutation) SpeedSum() (r float64, exists bool) {
+	v := m.speed_sum
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpeedSum returns the old "speed_sum" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldSpeedSum(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpeedSum is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpeedSum requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpeedSum: %w", err)
+	}
+	return oldValue.SpeedSum, nil
+}
+
+// AddSpeedSum adds f to the "speed_sum" field.
+func (m *UsageArchiveMutation) AddSpeedSum(f float64) {
+	if m.addspeed_sum != nil {
+		*m.addspeed_sum += f
+	} else {
+		m.addspeed_sum = &f
+	}
+}
+
+// AddedSpeedSum returns the value that was added to the "speed_sum" field in this mutation.
+func (m *UsageArchiveMutation) AddedSpeedSum() (r float64, exists bool) {
+	v := m.addspeed_sum
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSpeedSum resets all changes to the "speed_sum" field.
+func (m *UsageArchiveMutation) ResetSpeedSum() {
+	m.speed_sum = nil
+	m.addspeed_sum = nil
+}
+
+// SetPromptTokens sets the "prompt_tokens" field.
+func (m *UsageArchiveMutation) SetPromptTokens(i int64) {
+	m.prompt_tokens = &i
+	m.addprompt_tokens = nil
+}
+
+// PromptTokens returns the value of the "prompt_tokens" field in the mutation.
+func (m *UsageArchiveMutation) PromptTokens() (r int64, exists bool) {
+	v := m.prompt_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptTokens returns the old "prompt_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldPromptTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptTokens: %w", err)
+	}
+	return oldValue.PromptTokens, nil
+}
+
+// AddPromptTokens adds i to the "prompt_tokens" field.
+func (m *UsageArchiveMutation) AddPromptTokens(i int64) {
+	if m.addprompt_tokens != nil {
+		*m.addprompt_tokens += i
+	} else {
+		m.addprompt_tokens = &i
+	}
+}
+
+// AddedPromptTokens returns the value that was added to the "prompt_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedPromptTokens() (r int64, exists bool) {
+	v := m.addprompt_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptTokens resets all changes to the "prompt_tokens" field.
+func (m *UsageArchiveMutation) ResetPromptTokens() {
+	m.prompt_tokens = nil
+	m.addprompt_tokens = nil
+}
+
+// SetCompletionTokens sets the "completion_tokens" field.
+func (m *UsageArchiveMutation) SetCompletionTokens(i int64) {
+	m.completion_tokens = &i
+	m.addcompletion_tokens = nil
+}
+
+// CompletionTokens returns the value of the "completion_tokens" field in the mutation.
+func (m *UsageArchiveMutation) CompletionTokens() (r int64, exists bool) {
+	v := m.completion_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletionTokens returns the old "completion_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldCompletionTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletionTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletionTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletionTokens: %w", err)
+	}
+	return oldValue.CompletionTokens, nil
+}
+
+// AddCompletionTokens adds i to the "completion_tokens" field.
+func (m *UsageArchiveMutation) AddCompletionTokens(i int64) {
+	if m.addcompletion_tokens != nil {
+		*m.addcompletion_tokens += i
+	} else {
+		m.addcompletion_tokens = &i
+	}
+}
+
+// AddedCompletionTokens returns the value that was added to the "completion_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedCompletionTokens() (r int64, exists bool) {
+	v := m.addcompletion_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCompletionTokens resets all changes to the "completion_tokens" field.
+func (m *UsageArchiveMutation) ResetCompletionTokens() {
+	m.completion_tokens = nil
+	m.addcompletion_tokens = nil
+}
+
+// SetTotalTokens sets the "total_tokens" field.
+func (m *UsageArchiveMutation) SetTotalTokens(i int64) {
+	m.total_tokens = &i
+	m.addtotal_tokens = nil
+}
+
+// TotalTokens returns the value of the "total_tokens" field in the mutation.
+func (m *UsageArchiveMutation) TotalTokens() (r int64, exists bool) {
+	v := m.total_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalTokens returns the old "total_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldTotalTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalTokens: %w", err)
+	}
+	return oldValue.TotalTokens, nil
+}
+
+// AddTotalTokens adds i to the "total_tokens" field.
+func (m *UsageArchiveMutation) AddTotalTokens(i int64) {
+	if m.addtotal_tokens != nil {
+		*m.addtotal_tokens += i
+	} else {
+		m.addtotal_tokens = &i
+	}
+}
+
+// AddedTotalTokens returns the value that was added to the "total_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedTotalTokens() (r int64, exists bool) {
+	v := m.addtotal_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalTokens resets all changes to the "total_tokens" field.
+func (m *UsageArchiveMutation) ResetTotalTokens() {
+	m.total_tokens = nil
+	m.addtotal_tokens = nil
+}
+
+// SetPromptCachedTokens sets the "prompt_cached_tokens" field.
+func (m *UsageArchiveMutation) SetPromptCachedTokens(i int64) {
+	m.prompt_cached_tokens = &i
+	m.addprompt_cached_tokens = nil
+}
+
+// PromptCachedTokens returns the value of the "prompt_cached_tokens" field in the mutation.
+func (m *UsageArchiveMutation) PromptCachedTokens() (r int64, exists bool) {
+	v := m.prompt_cached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptCachedTokens returns the old "prompt_cached_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldPromptCachedTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptCachedTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptCachedTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptCachedTokens: %w", err)
+	}
+	return oldValue.PromptCachedTokens, nil
+}
+
+// AddPromptCachedTokens adds i to the "prompt_cached_tokens" field.
+func (m *UsageArchiveMutation) AddPromptCachedTokens(i int64) {
+	if m.addprompt_cached_tokens != nil {
+		*m.addprompt_cached_tokens += i
+	} else {
+		m.addprompt_cached_tokens = &i
+	}
+}
+
+// AddedPromptCachedTokens returns the value that was added to the "prompt_cached_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedPromptCachedTokens() (r int64, exists bool) {
+	v := m.addprompt_cached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptCachedTokens resets all changes to the "prompt_cached_tokens" field.
+func (m *UsageArchiveMutation) ResetPromptCachedTokens() {
+	m.prompt_cached_tokens = nil
+	m.addprompt_cached_tokens = nil
+}
+
+// SetPromptWriteCachedTokens sets the "prompt_write_cached_tokens" field.
+func (m *UsageArchiveMutation) SetPromptWriteCachedTokens(i int64) {
+	m.prompt_write_cached_tokens = &i
+	m.addprompt_write_cached_tokens = nil
+}
+
+// PromptWriteCachedTokens returns the value of the "prompt_write_cached_tokens" field in the mutation.
+func (m *UsageArchiveMutation) PromptWriteCachedTokens() (r int64, exists bool) {
+	v := m.prompt_write_cached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptWriteCachedTokens returns the old "prompt_write_cached_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldPromptWriteCachedTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptWriteCachedTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptWriteCachedTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptWriteCachedTokens: %w", err)
+	}
+	return oldValue.PromptWriteCachedTokens, nil
+}
+
+// AddPromptWriteCachedTokens adds i to the "prompt_write_cached_tokens" field.
+func (m *UsageArchiveMutation) AddPromptWriteCachedTokens(i int64) {
+	if m.addprompt_write_cached_tokens != nil {
+		*m.addprompt_write_cached_tokens += i
+	} else {
+		m.addprompt_write_cached_tokens = &i
+	}
+}
+
+// AddedPromptWriteCachedTokens returns the value that was added to the "prompt_write_cached_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedPromptWriteCachedTokens() (r int64, exists bool) {
+	v := m.addprompt_write_cached_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptWriteCachedTokens resets all changes to the "prompt_write_cached_tokens" field.
+func (m *UsageArchiveMutation) ResetPromptWriteCachedTokens() {
+	m.prompt_write_cached_tokens = nil
+	m.addprompt_write_cached_tokens = nil
+}
+
+// SetCompletionReasoningTokens sets the "completion_reasoning_tokens" field.
+func (m *UsageArchiveMutation) SetCompletionReasoningTokens(i int64) {
+	m.completion_reasoning_tokens = &i
+	m.addcompletion_reasoning_tokens = nil
+}
+
+// CompletionReasoningTokens returns the value of the "completion_reasoning_tokens" field in the mutation.
+func (m *UsageArchiveMutation) CompletionReasoningTokens() (r int64, exists bool) {
+	v := m.completion_reasoning_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletionReasoningTokens returns the old "completion_reasoning_tokens" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldCompletionReasoningTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletionReasoningTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletionReasoningTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletionReasoningTokens: %w", err)
+	}
+	return oldValue.CompletionReasoningTokens, nil
+}
+
+// AddCompletionReasoningTokens adds i to the "completion_reasoning_tokens" field.
+func (m *UsageArchiveMutation) AddCompletionReasoningTokens(i int64) {
+	if m.addcompletion_reasoning_tokens != nil {
+		*m.addcompletion_reasoning_tokens += i
+	} else {
+		m.addcompletion_reasoning_tokens = &i
+	}
+}
+
+// AddedCompletionReasoningTokens returns the value that was added to the "completion_reasoning_tokens" field in this mutation.
+func (m *UsageArchiveMutation) AddedCompletionReasoningTokens() (r int64, exists bool) {
+	v := m.addcompletion_reasoning_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCompletionReasoningTokens resets all changes to the "completion_reasoning_tokens" field.
+func (m *UsageArchiveMutation) ResetCompletionReasoningTokens() {
+	m.completion_reasoning_tokens = nil
+	m.addcompletion_reasoning_tokens = nil
+}
+
+// SetCacheRequests sets the "cache_requests" field.
+func (m *UsageArchiveMutation) SetCacheRequests(i int64) {
+	m.cache_requests = &i
+	m.addcache_requests = nil
+}
+
+// CacheRequests returns the value of the "cache_requests" field in the mutation.
+func (m *UsageArchiveMutation) CacheRequests() (r int64, exists bool) {
+	v := m.cache_requests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheRequests returns the old "cache_requests" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldCacheRequests(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheRequests is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheRequests requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheRequests: %w", err)
+	}
+	return oldValue.CacheRequests, nil
+}
+
+// AddCacheRequests adds i to the "cache_requests" field.
+func (m *UsageArchiveMutation) AddCacheRequests(i int64) {
+	if m.addcache_requests != nil {
+		*m.addcache_requests += i
+	} else {
+		m.addcache_requests = &i
+	}
+}
+
+// AddedCacheRequests returns the value that was added to the "cache_requests" field in this mutation.
+func (m *UsageArchiveMutation) AddedCacheRequests() (r int64, exists bool) {
+	v := m.addcache_requests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheRequests resets all changes to the "cache_requests" field.
+func (m *UsageArchiveMutation) ResetCacheRequests() {
+	m.cache_requests = nil
+	m.addcache_requests = nil
+}
+
+// SetCacheInput sets the "cache_input" field.
+func (m *UsageArchiveMutation) SetCacheInput(i int64) {
+	m.cache_input = &i
+	m.addcache_input = nil
+}
+
+// CacheInput returns the value of the "cache_input" field in the mutation.
+func (m *UsageArchiveMutation) CacheInput() (r int64, exists bool) {
+	v := m.cache_input
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheInput returns the old "cache_input" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldCacheInput(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheInput is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheInput requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheInput: %w", err)
+	}
+	return oldValue.CacheInput, nil
+}
+
+// AddCacheInput adds i to the "cache_input" field.
+func (m *UsageArchiveMutation) AddCacheInput(i int64) {
+	if m.addcache_input != nil {
+		*m.addcache_input += i
+	} else {
+		m.addcache_input = &i
+	}
+}
+
+// AddedCacheInput returns the value that was added to the "cache_input" field in this mutation.
+func (m *UsageArchiveMutation) AddedCacheInput() (r int64, exists bool) {
+	v := m.addcache_input
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheInput resets all changes to the "cache_input" field.
+func (m *UsageArchiveMutation) ResetCacheInput() {
+	m.cache_input = nil
+	m.addcache_input = nil
+}
+
+// SetSuccessCount sets the "success_count" field.
+func (m *UsageArchiveMutation) SetSuccessCount(i int64) {
+	m.success_count = &i
+	m.addsuccess_count = nil
+}
+
+// SuccessCount returns the value of the "success_count" field in the mutation.
+func (m *UsageArchiveMutation) SuccessCount() (r int64, exists bool) {
+	v := m.success_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSuccessCount returns the old "success_count" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldSuccessCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSuccessCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSuccessCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSuccessCount: %w", err)
+	}
+	return oldValue.SuccessCount, nil
+}
+
+// AddSuccessCount adds i to the "success_count" field.
+func (m *UsageArchiveMutation) AddSuccessCount(i int64) {
+	if m.addsuccess_count != nil {
+		*m.addsuccess_count += i
+	} else {
+		m.addsuccess_count = &i
+	}
+}
+
+// AddedSuccessCount returns the value that was added to the "success_count" field in this mutation.
+func (m *UsageArchiveMutation) AddedSuccessCount() (r int64, exists bool) {
+	v := m.addsuccess_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSuccessCount resets all changes to the "success_count" field.
+func (m *UsageArchiveMutation) ResetSuccessCount() {
+	m.success_count = nil
+	m.addsuccess_count = nil
+}
+
+// SetOutcomeCount sets the "outcome_count" field.
+func (m *UsageArchiveMutation) SetOutcomeCount(i int64) {
+	m.outcome_count = &i
+	m.addoutcome_count = nil
+}
+
+// OutcomeCount returns the value of the "outcome_count" field in the mutation.
+func (m *UsageArchiveMutation) OutcomeCount() (r int64, exists bool) {
+	v := m.outcome_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutcomeCount returns the old "outcome_count" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldOutcomeCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutcomeCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutcomeCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutcomeCount: %w", err)
+	}
+	return oldValue.OutcomeCount, nil
+}
+
+// AddOutcomeCount adds i to the "outcome_count" field.
+func (m *UsageArchiveMutation) AddOutcomeCount(i int64) {
+	if m.addoutcome_count != nil {
+		*m.addoutcome_count += i
+	} else {
+		m.addoutcome_count = &i
+	}
+}
+
+// AddedOutcomeCount returns the value that was added to the "outcome_count" field in this mutation.
+func (m *UsageArchiveMutation) AddedOutcomeCount() (r int64, exists bool) {
+	v := m.addoutcome_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOutcomeCount resets all changes to the "outcome_count" field.
+func (m *UsageArchiveMutation) ResetOutcomeCount() {
+	m.outcome_count = nil
+	m.addoutcome_count = nil
+}
+
+// SetFirstTokenCount sets the "first_token_count" field.
+func (m *UsageArchiveMutation) SetFirstTokenCount(i int64) {
+	m.first_token_count = &i
+	m.addfirst_token_count = nil
+}
+
+// FirstTokenCount returns the value of the "first_token_count" field in the mutation.
+func (m *UsageArchiveMutation) FirstTokenCount() (r int64, exists bool) {
+	v := m.first_token_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstTokenCount returns the old "first_token_count" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldFirstTokenCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstTokenCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstTokenCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstTokenCount: %w", err)
+	}
+	return oldValue.FirstTokenCount, nil
+}
+
+// AddFirstTokenCount adds i to the "first_token_count" field.
+func (m *UsageArchiveMutation) AddFirstTokenCount(i int64) {
+	if m.addfirst_token_count != nil {
+		*m.addfirst_token_count += i
+	} else {
+		m.addfirst_token_count = &i
+	}
+}
+
+// AddedFirstTokenCount returns the value that was added to the "first_token_count" field in this mutation.
+func (m *UsageArchiveMutation) AddedFirstTokenCount() (r int64, exists bool) {
+	v := m.addfirst_token_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFirstTokenCount resets all changes to the "first_token_count" field.
+func (m *UsageArchiveMutation) ResetFirstTokenCount() {
+	m.first_token_count = nil
+	m.addfirst_token_count = nil
+}
+
+// SetSpeedCount sets the "speed_count" field.
+func (m *UsageArchiveMutation) SetSpeedCount(i int64) {
+	m.speed_count = &i
+	m.addspeed_count = nil
+}
+
+// SpeedCount returns the value of the "speed_count" field in the mutation.
+func (m *UsageArchiveMutation) SpeedCount() (r int64, exists bool) {
+	v := m.speed_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpeedCount returns the old "speed_count" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldSpeedCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpeedCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpeedCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpeedCount: %w", err)
+	}
+	return oldValue.SpeedCount, nil
+}
+
+// AddSpeedCount adds i to the "speed_count" field.
+func (m *UsageArchiveMutation) AddSpeedCount(i int64) {
+	if m.addspeed_count != nil {
+		*m.addspeed_count += i
+	} else {
+		m.addspeed_count = &i
+	}
+}
+
+// AddedSpeedCount returns the value that was added to the "speed_count" field in this mutation.
+func (m *UsageArchiveMutation) AddedSpeedCount() (r int64, exists bool) {
+	v := m.addspeed_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSpeedCount resets all changes to the "speed_count" field.
+func (m *UsageArchiveMutation) ResetSpeedCount() {
+	m.speed_count = nil
+	m.addspeed_count = nil
+}
+
+// Where appends a list predicates to the UsageArchiveMutation builder.
+func (m *UsageArchiveMutation) Where(ps ...predicate.UsageArchive) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UsageArchiveMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UsageArchiveMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UsageArchive, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UsageArchiveMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UsageArchiveMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UsageArchive).
+func (m *UsageArchiveMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UsageArchiveMutation) Fields() []string {
+	fields := make([]string, 0, 27)
+	if m.kind != nil {
+		fields = append(fields, usagearchive.FieldKind)
+	}
+	if m.source_id != nil {
+		fields = append(fields, usagearchive.FieldSourceID)
+	}
+	if m.request_id != nil {
+		fields = append(fields, usagearchive.FieldRequestID)
+	}
+	if m.project_id != nil {
+		fields = append(fields, usagearchive.FieldProjectID)
+	}
+	if m.api_key_id != nil {
+		fields = append(fields, usagearchive.FieldAPIKeyID)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, usagearchive.FieldChannelID)
+	}
+	if m.model_id != nil {
+		fields = append(fields, usagearchive.FieldModelID)
+	}
+	if m.request_model_id != nil {
+		fields = append(fields, usagearchive.FieldRequestModelID)
+	}
+	if m.request_status != nil {
+		fields = append(fields, usagearchive.FieldRequestStatus)
+	}
+	if m.request_source != nil {
+		fields = append(fields, usagearchive.FieldRequestSource)
+	}
+	if m.occurred_at != nil {
+		fields = append(fields, usagearchive.FieldOccurredAt)
+	}
+	if m.total_cost != nil {
+		fields = append(fields, usagearchive.FieldTotalCost)
+	}
+	if m.cache_creation_cost != nil {
+		fields = append(fields, usagearchive.FieldCacheCreationCost)
+	}
+	if m.first_token_sum != nil {
+		fields = append(fields, usagearchive.FieldFirstTokenSum)
+	}
+	if m.speed_sum != nil {
+		fields = append(fields, usagearchive.FieldSpeedSum)
+	}
+	if m.prompt_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptTokens)
+	}
+	if m.completion_tokens != nil {
+		fields = append(fields, usagearchive.FieldCompletionTokens)
+	}
+	if m.total_tokens != nil {
+		fields = append(fields, usagearchive.FieldTotalTokens)
+	}
+	if m.prompt_cached_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptCachedTokens)
+	}
+	if m.prompt_write_cached_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptWriteCachedTokens)
+	}
+	if m.completion_reasoning_tokens != nil {
+		fields = append(fields, usagearchive.FieldCompletionReasoningTokens)
+	}
+	if m.cache_requests != nil {
+		fields = append(fields, usagearchive.FieldCacheRequests)
+	}
+	if m.cache_input != nil {
+		fields = append(fields, usagearchive.FieldCacheInput)
+	}
+	if m.success_count != nil {
+		fields = append(fields, usagearchive.FieldSuccessCount)
+	}
+	if m.outcome_count != nil {
+		fields = append(fields, usagearchive.FieldOutcomeCount)
+	}
+	if m.first_token_count != nil {
+		fields = append(fields, usagearchive.FieldFirstTokenCount)
+	}
+	if m.speed_count != nil {
+		fields = append(fields, usagearchive.FieldSpeedCount)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usagearchive.FieldKind:
+		return m.Kind()
+	case usagearchive.FieldSourceID:
+		return m.SourceID()
+	case usagearchive.FieldRequestID:
+		return m.RequestID()
+	case usagearchive.FieldProjectID:
+		return m.ProjectID()
+	case usagearchive.FieldAPIKeyID:
+		return m.APIKeyID()
+	case usagearchive.FieldChannelID:
+		return m.ChannelID()
+	case usagearchive.FieldModelID:
+		return m.ModelID()
+	case usagearchive.FieldRequestModelID:
+		return m.RequestModelID()
+	case usagearchive.FieldRequestStatus:
+		return m.RequestStatus()
+	case usagearchive.FieldRequestSource:
+		return m.RequestSource()
+	case usagearchive.FieldOccurredAt:
+		return m.OccurredAt()
+	case usagearchive.FieldTotalCost:
+		return m.TotalCost()
+	case usagearchive.FieldCacheCreationCost:
+		return m.CacheCreationCost()
+	case usagearchive.FieldFirstTokenSum:
+		return m.FirstTokenSum()
+	case usagearchive.FieldSpeedSum:
+		return m.SpeedSum()
+	case usagearchive.FieldPromptTokens:
+		return m.PromptTokens()
+	case usagearchive.FieldCompletionTokens:
+		return m.CompletionTokens()
+	case usagearchive.FieldTotalTokens:
+		return m.TotalTokens()
+	case usagearchive.FieldPromptCachedTokens:
+		return m.PromptCachedTokens()
+	case usagearchive.FieldPromptWriteCachedTokens:
+		return m.PromptWriteCachedTokens()
+	case usagearchive.FieldCompletionReasoningTokens:
+		return m.CompletionReasoningTokens()
+	case usagearchive.FieldCacheRequests:
+		return m.CacheRequests()
+	case usagearchive.FieldCacheInput:
+		return m.CacheInput()
+	case usagearchive.FieldSuccessCount:
+		return m.SuccessCount()
+	case usagearchive.FieldOutcomeCount:
+		return m.OutcomeCount()
+	case usagearchive.FieldFirstTokenCount:
+		return m.FirstTokenCount()
+	case usagearchive.FieldSpeedCount:
+		return m.SpeedCount()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usagearchive.FieldKind:
+		return m.OldKind(ctx)
+	case usagearchive.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case usagearchive.FieldRequestID:
+		return m.OldRequestID(ctx)
+	case usagearchive.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case usagearchive.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case usagearchive.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case usagearchive.FieldModelID:
+		return m.OldModelID(ctx)
+	case usagearchive.FieldRequestModelID:
+		return m.OldRequestModelID(ctx)
+	case usagearchive.FieldRequestStatus:
+		return m.OldRequestStatus(ctx)
+	case usagearchive.FieldRequestSource:
+		return m.OldRequestSource(ctx)
+	case usagearchive.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	case usagearchive.FieldTotalCost:
+		return m.OldTotalCost(ctx)
+	case usagearchive.FieldCacheCreationCost:
+		return m.OldCacheCreationCost(ctx)
+	case usagearchive.FieldFirstTokenSum:
+		return m.OldFirstTokenSum(ctx)
+	case usagearchive.FieldSpeedSum:
+		return m.OldSpeedSum(ctx)
+	case usagearchive.FieldPromptTokens:
+		return m.OldPromptTokens(ctx)
+	case usagearchive.FieldCompletionTokens:
+		return m.OldCompletionTokens(ctx)
+	case usagearchive.FieldTotalTokens:
+		return m.OldTotalTokens(ctx)
+	case usagearchive.FieldPromptCachedTokens:
+		return m.OldPromptCachedTokens(ctx)
+	case usagearchive.FieldPromptWriteCachedTokens:
+		return m.OldPromptWriteCachedTokens(ctx)
+	case usagearchive.FieldCompletionReasoningTokens:
+		return m.OldCompletionReasoningTokens(ctx)
+	case usagearchive.FieldCacheRequests:
+		return m.OldCacheRequests(ctx)
+	case usagearchive.FieldCacheInput:
+		return m.OldCacheInput(ctx)
+	case usagearchive.FieldSuccessCount:
+		return m.OldSuccessCount(ctx)
+	case usagearchive.FieldOutcomeCount:
+		return m.OldOutcomeCount(ctx)
+	case usagearchive.FieldFirstTokenCount:
+		return m.OldFirstTokenCount(ctx)
+	case usagearchive.FieldSpeedCount:
+		return m.OldSpeedCount(ctx)
+	}
+	return nil, fmt.Errorf("unknown UsageArchive field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usagearchive.FieldKind:
+		v, ok := value.(usagearchive.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case usagearchive.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case usagearchive.FieldRequestID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestID(v)
+		return nil
+	case usagearchive.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case usagearchive.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case usagearchive.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case usagearchive.FieldModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelID(v)
+		return nil
+	case usagearchive.FieldRequestModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestModelID(v)
+		return nil
+	case usagearchive.FieldRequestStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestStatus(v)
+		return nil
+	case usagearchive.FieldRequestSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestSource(v)
+		return nil
+	case usagearchive.FieldOccurredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	case usagearchive.FieldTotalCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalCost(v)
+		return nil
+	case usagearchive.FieldCacheCreationCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCreationCost(v)
+		return nil
+	case usagearchive.FieldFirstTokenSum:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstTokenSum(v)
+		return nil
+	case usagearchive.FieldSpeedSum:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpeedSum(v)
+		return nil
+	case usagearchive.FieldPromptTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptTokens(v)
+		return nil
+	case usagearchive.FieldCompletionTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletionTokens(v)
+		return nil
+	case usagearchive.FieldTotalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalTokens(v)
+		return nil
+	case usagearchive.FieldPromptCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptCachedTokens(v)
+		return nil
+	case usagearchive.FieldPromptWriteCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptWriteCachedTokens(v)
+		return nil
+	case usagearchive.FieldCompletionReasoningTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletionReasoningTokens(v)
+		return nil
+	case usagearchive.FieldCacheRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheRequests(v)
+		return nil
+	case usagearchive.FieldCacheInput:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheInput(v)
+		return nil
+	case usagearchive.FieldSuccessCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSuccessCount(v)
+		return nil
+	case usagearchive.FieldOutcomeCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutcomeCount(v)
+		return nil
+	case usagearchive.FieldFirstTokenCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstTokenCount(v)
+		return nil
+	case usagearchive.FieldSpeedCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpeedCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageArchive field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UsageArchiveMutation) AddedFields() []string {
+	var fields []string
+	if m.addsource_id != nil {
+		fields = append(fields, usagearchive.FieldSourceID)
+	}
+	if m.addrequest_id != nil {
+		fields = append(fields, usagearchive.FieldRequestID)
+	}
+	if m.addproject_id != nil {
+		fields = append(fields, usagearchive.FieldProjectID)
+	}
+	if m.addapi_key_id != nil {
+		fields = append(fields, usagearchive.FieldAPIKeyID)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, usagearchive.FieldChannelID)
+	}
+	if m.addtotal_cost != nil {
+		fields = append(fields, usagearchive.FieldTotalCost)
+	}
+	if m.addcache_creation_cost != nil {
+		fields = append(fields, usagearchive.FieldCacheCreationCost)
+	}
+	if m.addfirst_token_sum != nil {
+		fields = append(fields, usagearchive.FieldFirstTokenSum)
+	}
+	if m.addspeed_sum != nil {
+		fields = append(fields, usagearchive.FieldSpeedSum)
+	}
+	if m.addprompt_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptTokens)
+	}
+	if m.addcompletion_tokens != nil {
+		fields = append(fields, usagearchive.FieldCompletionTokens)
+	}
+	if m.addtotal_tokens != nil {
+		fields = append(fields, usagearchive.FieldTotalTokens)
+	}
+	if m.addprompt_cached_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptCachedTokens)
+	}
+	if m.addprompt_write_cached_tokens != nil {
+		fields = append(fields, usagearchive.FieldPromptWriteCachedTokens)
+	}
+	if m.addcompletion_reasoning_tokens != nil {
+		fields = append(fields, usagearchive.FieldCompletionReasoningTokens)
+	}
+	if m.addcache_requests != nil {
+		fields = append(fields, usagearchive.FieldCacheRequests)
+	}
+	if m.addcache_input != nil {
+		fields = append(fields, usagearchive.FieldCacheInput)
+	}
+	if m.addsuccess_count != nil {
+		fields = append(fields, usagearchive.FieldSuccessCount)
+	}
+	if m.addoutcome_count != nil {
+		fields = append(fields, usagearchive.FieldOutcomeCount)
+	}
+	if m.addfirst_token_count != nil {
+		fields = append(fields, usagearchive.FieldFirstTokenCount)
+	}
+	if m.addspeed_count != nil {
+		fields = append(fields, usagearchive.FieldSpeedCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UsageArchiveMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usagearchive.FieldSourceID:
+		return m.AddedSourceID()
+	case usagearchive.FieldRequestID:
+		return m.AddedRequestID()
+	case usagearchive.FieldProjectID:
+		return m.AddedProjectID()
+	case usagearchive.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case usagearchive.FieldChannelID:
+		return m.AddedChannelID()
+	case usagearchive.FieldTotalCost:
+		return m.AddedTotalCost()
+	case usagearchive.FieldCacheCreationCost:
+		return m.AddedCacheCreationCost()
+	case usagearchive.FieldFirstTokenSum:
+		return m.AddedFirstTokenSum()
+	case usagearchive.FieldSpeedSum:
+		return m.AddedSpeedSum()
+	case usagearchive.FieldPromptTokens:
+		return m.AddedPromptTokens()
+	case usagearchive.FieldCompletionTokens:
+		return m.AddedCompletionTokens()
+	case usagearchive.FieldTotalTokens:
+		return m.AddedTotalTokens()
+	case usagearchive.FieldPromptCachedTokens:
+		return m.AddedPromptCachedTokens()
+	case usagearchive.FieldPromptWriteCachedTokens:
+		return m.AddedPromptWriteCachedTokens()
+	case usagearchive.FieldCompletionReasoningTokens:
+		return m.AddedCompletionReasoningTokens()
+	case usagearchive.FieldCacheRequests:
+		return m.AddedCacheRequests()
+	case usagearchive.FieldCacheInput:
+		return m.AddedCacheInput()
+	case usagearchive.FieldSuccessCount:
+		return m.AddedSuccessCount()
+	case usagearchive.FieldOutcomeCount:
+		return m.AddedOutcomeCount()
+	case usagearchive.FieldFirstTokenCount:
+		return m.AddedFirstTokenCount()
+	case usagearchive.FieldSpeedCount:
+		return m.AddedSpeedCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usagearchive.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceID(v)
+		return nil
+	case usagearchive.FieldRequestID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestID(v)
+		return nil
+	case usagearchive.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case usagearchive.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case usagearchive.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case usagearchive.FieldTotalCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalCost(v)
+		return nil
+	case usagearchive.FieldCacheCreationCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheCreationCost(v)
+		return nil
+	case usagearchive.FieldFirstTokenSum:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstTokenSum(v)
+		return nil
+	case usagearchive.FieldSpeedSum:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSpeedSum(v)
+		return nil
+	case usagearchive.FieldPromptTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptTokens(v)
+		return nil
+	case usagearchive.FieldCompletionTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCompletionTokens(v)
+		return nil
+	case usagearchive.FieldTotalTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalTokens(v)
+		return nil
+	case usagearchive.FieldPromptCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptCachedTokens(v)
+		return nil
+	case usagearchive.FieldPromptWriteCachedTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptWriteCachedTokens(v)
+		return nil
+	case usagearchive.FieldCompletionReasoningTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCompletionReasoningTokens(v)
+		return nil
+	case usagearchive.FieldCacheRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheRequests(v)
+		return nil
+	case usagearchive.FieldCacheInput:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheInput(v)
+		return nil
+	case usagearchive.FieldSuccessCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSuccessCount(v)
+		return nil
+	case usagearchive.FieldOutcomeCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutcomeCount(v)
+		return nil
+	case usagearchive.FieldFirstTokenCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstTokenCount(v)
+		return nil
+	case usagearchive.FieldSpeedCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSpeedCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UsageArchive numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UsageArchiveMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usagearchive.FieldTotalCost) {
+		fields = append(fields, usagearchive.FieldTotalCost)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UsageArchiveMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UsageArchiveMutation) ClearField(name string) error {
+	switch name {
+	case usagearchive.FieldTotalCost:
+		m.ClearTotalCost()
+		return nil
+	}
+	return fmt.Errorf("unknown UsageArchive nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UsageArchiveMutation) ResetField(name string) error {
+	switch name {
+	case usagearchive.FieldKind:
+		m.ResetKind()
+		return nil
+	case usagearchive.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case usagearchive.FieldRequestID:
+		m.ResetRequestID()
+		return nil
+	case usagearchive.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case usagearchive.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case usagearchive.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case usagearchive.FieldModelID:
+		m.ResetModelID()
+		return nil
+	case usagearchive.FieldRequestModelID:
+		m.ResetRequestModelID()
+		return nil
+	case usagearchive.FieldRequestStatus:
+		m.ResetRequestStatus()
+		return nil
+	case usagearchive.FieldRequestSource:
+		m.ResetRequestSource()
+		return nil
+	case usagearchive.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	case usagearchive.FieldTotalCost:
+		m.ResetTotalCost()
+		return nil
+	case usagearchive.FieldCacheCreationCost:
+		m.ResetCacheCreationCost()
+		return nil
+	case usagearchive.FieldFirstTokenSum:
+		m.ResetFirstTokenSum()
+		return nil
+	case usagearchive.FieldSpeedSum:
+		m.ResetSpeedSum()
+		return nil
+	case usagearchive.FieldPromptTokens:
+		m.ResetPromptTokens()
+		return nil
+	case usagearchive.FieldCompletionTokens:
+		m.ResetCompletionTokens()
+		return nil
+	case usagearchive.FieldTotalTokens:
+		m.ResetTotalTokens()
+		return nil
+	case usagearchive.FieldPromptCachedTokens:
+		m.ResetPromptCachedTokens()
+		return nil
+	case usagearchive.FieldPromptWriteCachedTokens:
+		m.ResetPromptWriteCachedTokens()
+		return nil
+	case usagearchive.FieldCompletionReasoningTokens:
+		m.ResetCompletionReasoningTokens()
+		return nil
+	case usagearchive.FieldCacheRequests:
+		m.ResetCacheRequests()
+		return nil
+	case usagearchive.FieldCacheInput:
+		m.ResetCacheInput()
+		return nil
+	case usagearchive.FieldSuccessCount:
+		m.ResetSuccessCount()
+		return nil
+	case usagearchive.FieldOutcomeCount:
+		m.ResetOutcomeCount()
+		return nil
+	case usagearchive.FieldFirstTokenCount:
+		m.ResetFirstTokenCount()
+		return nil
+	case usagearchive.FieldSpeedCount:
+		m.ResetSpeedCount()
+		return nil
+	}
+	return fmt.Errorf("unknown UsageArchive field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UsageArchiveMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UsageArchiveMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UsageArchiveMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UsageArchiveMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UsageArchiveMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UsageArchiveMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UsageArchiveMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown UsageArchive unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UsageArchiveMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown UsageArchive edge %s", name)
 }
 
 // UsageLogMutation represents an operation that mutates the UsageLog nodes in the graph.

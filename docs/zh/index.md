@@ -23,6 +23,7 @@
 | [负载均衡](guides/load-balance.md) | 智能路由和故障转移设置 |
 | [成本追踪](guides/cost-tracking.md) | 实时监控和用量分析 |
 | [请求追踪](guides/tracing.md) | 完整的请求链路追踪 |
+| [存储清理与长期维护](guides/storage-maintenance.md) | 保留策略、后台任务、容量预警与跨部署导出导入 |
 | [请求覆盖](guides/request-override.md) | 动态修改请求参数 |
 | [安全功能](guides/security.md) | IP 访问控制、IP 黑名单和 API Key IP 限制 |
 | [提示词保护规则](guides/prompt-protection-rules.md) | 敏感信息过滤和保护 |

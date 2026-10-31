@@ -337,7 +337,7 @@ func (s *SelfUsageService) Stats(ctx context.Context, start, end string, group .
 func (s *SelfUsageService) statsForScope(ctx context.Context, scope selfUsageScope, first time.Time, start, end string) (*SelfUsageStats, error) {
 	return authz.RunWithSystemBypass(ctx, "self-usage", func(ctx context.Context) (*SelfUsageStats, error) {
 		var counts []selfUsageCounts
-		err := scope.requestQuery(s.client).Modify(func(q *sql.Selector) {
+		err := scope.requestQuery(s.client).Modify(IncludeArchivedRequests).Modify(func(q *sql.Selector) {
 			bucket := selfUsageBucket(q.Dialect(), q.C(request.FieldCreatedAt))
 			status := q.C(request.FieldStatus)
 			q.Select(sql.As(q.C(request.FieldModelID), "model"), sql.As(bucket, "bucket"),
@@ -350,8 +350,8 @@ func (s *SelfUsageService) statsForScope(ctx context.Context, scope selfUsageSco
 		}
 
 		var amounts []selfUsageAmounts
-		err = s.client.UsageLog.Query().Modify(func(q *sql.Selector) {
-			r := scope.join(q)
+		err = s.client.UsageLog.Query().Modify(IncludeArchivedUsage).Modify(func(q *sql.Selector) {
+			r := scope.joinHistory(q)
 			bucket := selfUsageBucket(q.Dialect(), r.C(request.FieldCreatedAt))
 			columns := []string{sql.As(r.C(request.FieldModelID), "model"), sql.As(bucket, "bucket")}
 			q.Select(append(columns, selfUsageAmountColumns(q)...)...).GroupBy(r.C(request.FieldModelID), bucket)

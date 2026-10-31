@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useDataStorages } from '@/features/data-storages/data/data-storages';
 import { useSystemContext } from '../context/system-context';
 import { useDefaultDataStorageID, useUpdateDefaultDataStorage } from '../data/system';
+import { StorageMaintenanceOverview } from './storage-maintenance-overview';
 import { StoragePolicySettings } from './storage-policy-settings';
 import { VideoStorageSettings } from './video-storage-settings';
 
@@ -23,7 +24,7 @@ export function StorageSettings() {
   const updateDefaultDataStorage = useUpdateDefaultDataStorage();
   const { isLoading, setIsLoading } = useSystemContext();
 
-  const [selectedDataStorageID, setSelectedDataStorageID] = useState<string | undefined>(defaultDataStorageID || undefined);
+  const [selectedDataStorageID, setSelectedDataStorageID] = useState(defaultDataStorageID || '');
 
   // Update selected data storage when loaded
   React.useEffect(() => {
@@ -45,7 +46,7 @@ export function StorageSettings() {
     }
   };
 
-  const hasDataStorageChanges = defaultDataStorageID !== selectedDataStorageID;
+  const hasDataStorageChanges = (defaultDataStorageID || '') !== selectedDataStorageID;
 
   if (isLoadingDefaultDataStorage) {
     return (
@@ -58,6 +59,7 @@ export function StorageSettings() {
 
   return (
     <div className='space-y-6'>
+      <StorageMaintenanceOverview />
       {/* Data Storage Selection */}
       <Card>
         <CardHeader>
@@ -104,7 +106,6 @@ export function StorageSettings() {
       <StoragePolicySettings />
 
       <VideoStorageSettings />
-
     </div>
   );
 }

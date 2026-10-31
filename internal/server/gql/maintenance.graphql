@@ -1,0 +1,78 @@
+type MaintenanceSettings {
+  batchSize: Int!
+  batchIntervalMs: Int!
+  batchTimeoutSeconds: Int!
+  maxRunSeconds: Int!
+  busyConnectionsPercent: Int!
+  diskPath: String!
+  diskWarningPercent: Int!
+  diskCriticalPercent: Int!
+  reserveDiskGiB: Float!
+}
+
+input MaintenanceSettingsInput {
+  batchSize: Int!
+  batchIntervalMs: Int!
+  batchTimeoutSeconds: Int!
+  maxRunSeconds: Int!
+  busyConnectionsPercent: Int!
+  diskPath: String!
+  diskWarningPercent: Int!
+  diskCriticalPercent: Int!
+  reserveDiskGiB: Float!
+}
+
+enum CleanupTaskStatus { queued running waiting paused completed failed }
+
+type CleanupTask {
+  id: String!
+  status: CleanupTaskStatus!
+  automatic: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+  finishedAt: Time
+  pauseRequested: Boolean!
+  currentStage: Int!
+  stages: [CleanupStage!]!
+  error: String!
+  waitReason: String!
+}
+
+type CleanupStage {
+  resourceType: String!
+  retentionDays: Int!
+  cutoffTime: Time!
+  estimatedCount: Int
+  scannedCount: Int!
+  processedCount: Int!
+  completed: Boolean!
+}
+
+type StorageTable {
+  name: String!
+  bytes: Float!
+  estimatedRows: Float!
+}
+
+type StorageOverview {
+  dialect: String!
+  databaseBytes: Float
+  tables: [StorageTable!]!
+  diskTotalBytes: Float
+  diskFreeBytes: Float
+  diskSource: String!
+  reserveBytes: Float
+  level: String!
+  sampledAt: Time!
+  databaseAvailable: Boolean!
+}
+
+extend type Query {
+  cleanupTask: CleanupTask
+  storageOverview: StorageOverview!
+}
+
+extend type Mutation {
+  startCleanupTask(input: TriggerGcCleanupInput!): CleanupTask!
+  setCleanupTaskPaused(id: String!, paused: Boolean!): CleanupTask!
+}

@@ -23,6 +23,7 @@ import {
 } from '../data/system';
 import { useDataStorages } from '@/features/data-storages/data/data-storages';
 import { extractNumberID } from '@/lib/utils';
+import { DatabaseTransferSettings } from './database-transfer-settings';
 
 export function BackupSettings() {
   const { format: formatTime, timezone } = useSystemTime();
@@ -151,6 +152,7 @@ export function BackupSettings() {
 
   return (
     <div className="space-y-6">
+      <DatabaseTransferSettings />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

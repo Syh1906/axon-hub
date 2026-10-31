@@ -2,8 +2,8 @@ package biz
 
 import (
 	"context"
+	stdsql "database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"entgo.io/ent/dialect"
@@ -83,6 +83,23 @@ func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 }
 
 func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
+	// Live and archived rows must be read from one snapshot; cleanup may move
+	// a record between the two sources at any moment.
+	options := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
+	if s.client.Driver().Dialect() == dialect.SQLite {
+		options = &stdsql.TxOptions{}
+	}
+	tx, err := s.client.BeginTx(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	reader := *s
+	reader.client = tx.Client()
+	return reader.queryGroupsSnapshot(ctx, projectID, input, start, end)
+}
+
+func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
 	query := s.client.Request.Query().Where(request.CreatedAtLT(end), request.StatusIn(request.StatusCompleted, request.StatusFailed, request.StatusCanceled))
 	if projectID > 0 {
 		query.Where(request.ProjectIDEQ(projectID))
@@ -92,57 +109,10 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 	}
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
+		excludeArchivedRequests(q)
 		u, execution := joinConsumption(q, projectID, start, end)
 		model := "COALESCE(NULLIF(TRIM(" + execution.C("model_id") + "), ''), " + q.C("model_id") + ")"
-		var entityID string
-		var names []string
-		var searchColumns []string
-		switch input.Dimension {
-		case ConsumptionDimensionUser, ConsumptionDimensionAPIKey, ConsumptionDimensionAPIKeyGroup:
-			key := sql.Table(apikey.Table).As("ak")
-			q.Join(key).OnP(sql.And(sql.ColumnsEQ(q.C("api_key_id"), key.C("id")), sql.ColumnsEQ(key.C("project_id"), q.C("project_id"))))
-			group := sql.Table("api_key_groups").As("key_group")
-			q.LeftJoin(group).OnP(sql.And(sql.ColumnsEQ(key.C("group_ref"), group.C("id")), sql.ColumnsEQ(key.C("project_id"), group.C("project_id"))))
-			if input.GroupRef != nil {
-				q.Where(sql.EQ(group.C("id"), *input.GroupRef))
-			}
-			if input.Dimension == ConsumptionDimensionAPIKeyGroup {
-				q.Where(sql.And(sql.NotNull(group.C("id")), sql.EQ(key.C("deleted_at"), 0)))
-				entityID = group.C("id")
-				names = []string{group.C("name")}
-				searchColumns = names
-			} else if input.Dimension == ConsumptionDimensionUser {
-				owner := sql.Table(user.Table).As("owner")
-				q.Join(owner).On(key.C("user_id"), owner.C("id"))
-				q.Where(sql.EQ(owner.C("deleted_at"), 0))
-				entityID = owner.C("id")
-				names = []string{owner.C("first_name"), owner.C("last_name"), owner.C("email")}
-				fullName := "TRIM(" + names[0] + " || ' ' || " + names[1] + ")"
-				if q.Dialect() == dialect.MySQL {
-					fullName = "TRIM(CONCAT(" + names[0] + ", ' ', " + names[1] + "))"
-				}
-				searchColumns = append(append([]string{}, names...), fullName)
-			} else {
-				q.Where(sql.EQ(key.C("deleted_at"), 0))
-				entityID = key.C("id")
-				names = []string{key.C("name")}
-				searchColumns = names
-			}
-		case ConsumptionDimensionChannel:
-			ch := sql.Table(channel.Table).As("channel")
-			q.Join(ch).On(q.C("channel_id"), ch.C("id"))
-			q.Where(sql.EQ(ch.C("deleted_at"), 0))
-			entityID = ch.C("id")
-			names = []string{ch.C("name")}
-			searchColumns = names
-		}
-		if input.Search != nil && *input.Search != "" {
-			predicates := make([]*sql.Predicate, 0, len(searchColumns))
-			for _, column := range searchColumns {
-				predicates = append(predicates, sql.ContainsFold(column, *input.Search))
-			}
-			q.Where(sql.Or(predicates...))
-		}
+		selectConsumptionEntity(q, input, model)
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"
 		cacheCondition := "(" + cacheRead + " > 0 OR " + cacheWrite + " > 0)"
 		if input.Metric == ConsumptionMetricCache {
@@ -152,32 +122,8 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 		if input.Metric == ConsumptionMetricCache {
 			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
 		}
-		status, message, code := execution.C("status"), "LOWER(COALESCE("+execution.C("error_message")+", ''))", execution.C("response_status_code")
-		byteLatency, duration := execution.C("metrics_first_byte_latency_ms"), execution.C("metrics_latency_ms")
+		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
 		firstToken := execution.C("metrics_first_token_latency_ms")
-		// CCH excludes client aborts after a first byte, 404s, and quota/rate limits.
-		exclusions := []string{code + " = 404", message + " LIKE '%no available provider%'", "((" + status + " = 'canceled' OR " + code + " = 499) AND (" + byteLatency + " IS NOT NULL OR " + execution.C("metrics_first_byte_recorded") + " IS NULL))"}
-		for _, pattern := range []string{"insufficient quota", "quota exceeded", "rate limit", "rate_limit", "concurrency limit", "concurrent limit", "limit exceeded"} {
-			exclusions = append(exclusions, message+" LIKE '%"+strings.ReplaceAll(pattern, "_", "!_")+"%' ESCAPE '!'")
-		}
-		// AxonHub's local admission errors are synthetic 429s raised before dispatch.
-		// Match their persisted messages without excluding unrelated upstream 429s.
-		localAdmission := []string{
-			"channel % is at capacity (queue!_full); please retry shortly",
-			"channel % is at capacity (queue!_timeout); please retry shortly",
-			"channel % exhausted local rpm limit %; please retry shortly",
-		}
-		for _, pattern := range localAdmission {
-			exclusions = append(exclusions, "("+code+" = 429 AND "+message+" LIKE '"+pattern+"' ESCAPE '!')")
-		}
-		outcome := "CASE WHEN " + strings.Join(exclusions, " OR ") + " THEN NULL WHEN " + status + " = 'completed' THEN 1 WHEN " + status + " IN ('failed', 'canceled') THEN 0 ELSE NULL END"
-		speed := fmt.Sprintf("CASE WHEN %s > 0 AND %s IS NOT NULL AND %s IS NOT NULL AND %s < %s AND (%s - %s) >= 100 THEN %s * 1000.0 / (%s - %s) ELSE NULL END", u.C("completion_tokens"), duration, byteLatency, byteLatency, duration, duration, byteLatency, u.C("completion_tokens"), duration, byteLatency)
-		q.Select(sql.As(entityID, "entity_id"), sql.As(model, "model"))
-		if input.Dimension == ConsumptionDimensionUser {
-			q.AppendSelect(sql.As(names[0], "first_name"), sql.As(names[1], "last_name"), sql.As(names[2], "email"), "'' AS name")
-		} else {
-			q.AppendSelect(sql.As(names[0], "name"), "'' AS first_name", "'' AS last_name", "'' AS email")
-		}
 		q.AppendSelect(
 			sql.As(sql.Count("*"), "requests"),
 			sql.As("COALESCE(SUM("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+"), 0)", "tokens"),
@@ -192,10 +138,74 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 			sql.As("COUNT("+firstToken+")", "first_token_count"),
 			sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
 			sql.As("COUNT("+speed+")", "speed_count"),
-		).GroupBy(append([]string{entityID, "model"}, names...)...)
+		)
 	}).Scan(ctx, &rows)
 	if err != nil {
 		return nil, fmt.Errorf("query consumption groups: %w", err)
 	}
-	return rows, nil
+	archived, err := s.queryArchivedGroups(ctx, projectID, input, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return mergeConsumptionGroups(rows, archived), nil
+}
+
+func selectConsumptionEntity(q *sql.Selector, input ConsumptionFilter, model string) {
+
+	var entityID string
+	var names []string
+	var searchColumns []string
+	switch input.Dimension {
+	case ConsumptionDimensionUser, ConsumptionDimensionAPIKey, ConsumptionDimensionAPIKeyGroup:
+		key := sql.Table(apikey.Table).As("ak")
+		q.Join(key).OnP(sql.And(sql.ColumnsEQ(q.C("api_key_id"), key.C("id")), sql.ColumnsEQ(key.C("project_id"), q.C("project_id"))))
+		group := sql.Table("api_key_groups").As("key_group")
+		q.LeftJoin(group).OnP(sql.And(sql.ColumnsEQ(key.C("group_ref"), group.C("id")), sql.ColumnsEQ(key.C("project_id"), group.C("project_id"))))
+		if input.GroupRef != nil {
+			q.Where(sql.EQ(group.C("id"), *input.GroupRef))
+		}
+		if input.Dimension == ConsumptionDimensionAPIKeyGroup {
+			q.Where(sql.And(sql.NotNull(group.C("id")), sql.EQ(key.C("deleted_at"), 0)))
+			entityID = group.C("id")
+			names = []string{group.C("name")}
+			searchColumns = names
+		} else if input.Dimension == ConsumptionDimensionUser {
+			owner := sql.Table(user.Table).As("owner")
+			q.Join(owner).On(key.C("user_id"), owner.C("id"))
+			q.Where(sql.EQ(owner.C("deleted_at"), 0))
+			entityID = owner.C("id")
+			names = []string{owner.C("first_name"), owner.C("last_name"), owner.C("email")}
+			fullName := "TRIM(" + names[0] + " || ' ' || " + names[1] + ")"
+			if q.Dialect() == dialect.MySQL {
+				fullName = "TRIM(CONCAT(" + names[0] + ", ' ', " + names[1] + "))"
+			}
+			searchColumns = append(append([]string{}, names...), fullName)
+		} else {
+			q.Where(sql.EQ(key.C("deleted_at"), 0))
+			entityID = key.C("id")
+			names = []string{key.C("name")}
+			searchColumns = names
+		}
+	case ConsumptionDimensionChannel:
+		ch := sql.Table(channel.Table).As("channel")
+		q.Join(ch).On(q.C("channel_id"), ch.C("id"))
+		q.Where(sql.EQ(ch.C("deleted_at"), 0))
+		entityID = ch.C("id")
+		names = []string{ch.C("name")}
+		searchColumns = names
+	}
+	if input.Search != nil && *input.Search != "" {
+		predicates := make([]*sql.Predicate, 0, len(searchColumns))
+		for _, column := range searchColumns {
+			predicates = append(predicates, sql.ContainsFold(column, *input.Search))
+		}
+		q.Where(sql.Or(predicates...))
+	}
+	q.Select(sql.As(entityID, "entity_id"), sql.As(model, "model"))
+	if input.Dimension == ConsumptionDimensionUser {
+		q.AppendSelect(sql.As(names[0], "first_name"), sql.As(names[1], "last_name"), sql.As(names[2], "email"), "'' AS name")
+	} else {
+		q.AppendSelect(sql.As(names[0], "name"), "'' AS first_name", "'' AS last_name", "'' AS email")
+	}
+	q.GroupBy(append([]string{entityID, "model"}, names...)...)
 }

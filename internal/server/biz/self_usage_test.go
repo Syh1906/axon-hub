@@ -20,6 +20,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 )
 
@@ -32,6 +33,29 @@ type selfUsageFixture struct {
 	other        *ent.APIKey
 	project      *ent.Project
 	otherProject *ent.Project
+}
+
+func TestSelfUsageStatisticsSurviveDetailCleanup(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	at := time.Now().UTC().AddDate(0, 0, -70)
+	req := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "client-model")
+	cost := 2.0
+	f.usage(req, 10, &cost)
+	date := at.Format("2006-01-02")
+	before, err := f.service.Stats(f.ctx, date, date)
+	require.NoError(t, err)
+	ctx := authz.WithTestBypass(f.ctx)
+	tx, err := f.client.Tx(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ArchiveRequestStatistics(ctx, tx.Client(), []int{req.ID}))
+	logs := tx.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).Select(ArchivedUsageFields...).AllX(ctx)
+	require.NoError(t, ArchiveUsageStatistics(ctx, tx.Client(), logs))
+	tx.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(ctx)
+	tx.Request.Delete().Where(request.IDEQ(req.ID)).ExecX(ctx)
+	require.NoError(t, tx.Commit())
+	after, err := f.service.Stats(f.ctx, date, date)
+	require.NoError(t, err)
+	require.Equal(t, before, after)
 }
 
 func TestSelfUsageKeepsImageOutputsSeparateFromTokenUnits(t *testing.T) {

@@ -47,7 +47,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 FROM alpine
 
-RUN apk add --no-cache ca-certificates tzdata
+ARG POSTGRES_CLIENT_PACKAGE=postgresql17-client
+RUN apk add --no-cache ca-certificates tzdata ${POSTGRES_CLIENT_PACKAGE}
 RUN addgroup -S -g 65532 axonhub \
     && adduser -S -D -H -u 65532 -G axonhub axonhub
 

@@ -970,6 +970,11 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
+				Name:    "request_executions_by_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{RequestExecutionsColumns[1]},
+			},
+			{
 				Name:    "request_executions_by_request_id_status_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{RequestExecutionsColumns[32], RequestExecutionsColumns[17], RequestExecutionsColumns[1]},
@@ -1127,6 +1132,65 @@ var (
 				Name:    "traces_by_project_id_status",
 				Unique:  false,
 				Columns: []*schema.Column{TracesColumns[5], TracesColumns[4]},
+			},
+		},
+	}
+	// UsageArchivesColumns holds the columns for the "usage_archives" table.
+	UsageArchivesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"request", "usage"}},
+		{Name: "source_id", Type: field.TypeInt},
+		{Name: "request_id", Type: field.TypeInt},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "api_key_id", Type: field.TypeInt, Default: 0},
+		{Name: "channel_id", Type: field.TypeInt, Default: 0},
+		{Name: "model_id", Type: field.TypeString},
+		{Name: "request_model_id", Type: field.TypeString, Default: ""},
+		{Name: "request_status", Type: field.TypeString, Size: 16, Default: ""},
+		{Name: "request_source", Type: field.TypeString, Size: 16, Default: "api"},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "total_cost", Type: field.TypeFloat64, Nullable: true},
+		{Name: "cache_creation_cost", Type: field.TypeFloat64, Default: 0},
+		{Name: "first_token_sum", Type: field.TypeFloat64, Default: 0},
+		{Name: "speed_sum", Type: field.TypeFloat64, Default: 0},
+		{Name: "prompt_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "completion_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "prompt_cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "prompt_write_cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "completion_reasoning_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cache_requests", Type: field.TypeInt64, Default: 0},
+		{Name: "cache_input", Type: field.TypeInt64, Default: 0},
+		{Name: "success_count", Type: field.TypeInt64, Default: 0},
+		{Name: "outcome_count", Type: field.TypeInt64, Default: 0},
+		{Name: "first_token_count", Type: field.TypeInt64, Default: 0},
+		{Name: "speed_count", Type: field.TypeInt64, Default: 0},
+	}
+	// UsageArchivesTable holds the schema information for the "usage_archives" table.
+	UsageArchivesTable = &schema.Table{
+		Name:       "usage_archives",
+		Columns:    UsageArchivesColumns,
+		PrimaryKey: []*schema.Column{UsageArchivesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usage_archive_by_source",
+				Unique:  true,
+				Columns: []*schema.Column{UsageArchivesColumns[1], UsageArchivesColumns[2]},
+			},
+			{
+				Name:    "usage_archive_by_kind_time",
+				Unique:  false,
+				Columns: []*schema.Column{UsageArchivesColumns[1], UsageArchivesColumns[11]},
+			},
+			{
+				Name:    "usage_archive_by_project_kind_time",
+				Unique:  false,
+				Columns: []*schema.Column{UsageArchivesColumns[4], UsageArchivesColumns[1], UsageArchivesColumns[11]},
+			},
+			{
+				Name:    "usage_archive_by_time",
+				Unique:  false,
+				Columns: []*schema.Column{UsageArchivesColumns[11]},
 			},
 		},
 	}
@@ -1359,6 +1423,7 @@ var (
 		SystemsTable,
 		ThreadsTable,
 		TracesTable,
+		UsageArchivesTable,
 		UsageLogsTable,
 		UsersTable,
 		UserProjectsTable,
