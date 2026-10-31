@@ -6,6 +6,8 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
+发布状态总览（2026-10-31）：下文记录为本轮“待提交／未发布”的模式与分项计费、正则价格修复、Codex目录与续聊、请求／排行榜交互，现已随 `.syh.8` 发布。各阶段过程记录保留，最终源码与产物状态以[发布条目](#github-独立发布与两层上游追溯)为准；尚未执行生产部署。
+
 本仓库继承 ChouUn 的维护版本；下列既有功能保留原提交归属。直接上游与原始上游
 分别记录在 `release.config.json`，自己的 `.syh.N` 发版规则见[独立发版与部署](zh/development/release.md)。
 
@@ -907,10 +909,13 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- `.syh.8` 发布准备（2026-10-31）：基于 `.syh.7` 汇总正则价格与预算、模式／分项／长上下文计费、Codex目录与协议、Responses完整历史恢复、密钥快捷编辑、请求与统计交互。详见 `.github/release-notes.md` 和 [累计差异](solutions/changes-since-syh7-20261031.md)。不新增数据库迁移，原生安装包不随本版发布。
-- 发布流程优化：`release.config.json.publishBinaries=false` 默认只发布 GitHub 云端双架构 GHCR 镜像及固定摘要 `release.json`，跳过 GoReleaser 各平台包／校验和／schema附件；true 保留完整下载包流程。测试与PostgreSQL镜像启动检查保留，Docker上下文排除本地输出。版本未成功公开前，不把本条当作发布完成记录。
+- 最新正式发布：北京时间 **2026-10-31 19:25:49** 发布 [v1.0.0-beta10-fork.7.syh.8](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.8)，源码 `957ee29ad705bd3be53af8fd3698c8b8428ddf7b`；`draft=false`、`prerelease=false`，GitHub latest 已核实指向该版本。来源基线不变，未移动既有 tag。
+- `.syh.8` 内容：基于 `.syh.7` 汇总正则价格与预算、模式／分项／长上下文计费、Codex目录与协议、Responses完整历史恢复、密钥快捷编辑、请求与统计交互。业务及发布准备提交 `eafba007`，云端检查修正提交 `957ee29a`。详见 `.github/release-notes.md` 和 [累计差异](solutions/changes-since-syh7-20261031.md)。不新增数据库迁移，未执行生产部署。
+- 发布流程优化：`release.config.json.publishBinaries=false` 默认只发布 GitHub 云端双架构 GHCR 镜像及固定摘要 `release.json`，跳过 GoReleaser 各平台包／校验和／schema附件；true 保留完整下载包流程。测试与PostgreSQL镜像启动检查保留，Docker上下文排除本地输出。实际附件从上版12个／377757202字节减少为1个／706字节（不包含GHCR镜像层和GitHub自动源码归档）。本版不供原生二进制下载升级。
+- `.syh.8` 验证：[Test](https://github.com/Syh1906/axon-hub/actions/runs/41195789293)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41195789327)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/41195789308) 及 [正式发版工作流](https://github.com/Syh1906/axon-hub/actions/runs/41196081617) 全部成功。发布工作流重新测试同一tag，构建amd64／arm64，连接临时PostgreSQL17进行固定摘要启动和版本检查；GoReleaser相关步骤确实跳过。首次Lint的导入／格式／注释及历史倒序遍历检查已修正，保留常规解析器处理非法请求体的原行为。
+- `.syh.8` 固定镜像：`ghcr.io/syh1906/axon-hub@sha256:3db506ddbdbe6a9a270f67dabd65f1c38694c540104514de74b95cfc7ba3b992`。公开下载的 `release.json` 已核对版本、源码、两层上游、双架构和运行地址。GitHub Packages版本列表API因本机身份缺少read:packages权限未能另行查询；镜像证据来自成功的云端推送、合成及固定摘要拉取启动检查，不将其称为本地再次拉取验证。
 
-- 最新正式发布：北京时间 2026-10-30 19:49:39 发布 [v1.0.0-beta10-fork.7.syh.7](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.7)，源码为 `d6dd042c544a9d32731e4aeb4ab56aee1e45a84f`；`draft=false`、`prerelease=false`，GitHub latest 已指向该版本。两层上游基线不变，使用新 tag，未覆盖历史版本。
+- 上一正式发布：北京时间 2026-10-30 19:49:39 发布 [v1.0.0-beta10-fork.7.syh.7](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.7)，源码为 `d6dd042c544a9d32731e4aeb4ab56aee1e45a84f`；`draft=false`、`prerelease=false`，GitHub latest 已指向该版本。两层上游基线不变，使用新 tag，未覆盖历史版本。
 - `.syh.7` 发布内容：包含 `.syh.6` 之后的默认服务商（`9e41e04d`）、图片规格计费（`6a519446`）、密钥分组（`6f8862b0`）、金额预算（`be9b673f`）、批量分发（`a69dc0e0`）、上游钱包与主线整合（`7ddfdbe3`／`9dc1c358`），以及请求筛选和逐次诊断（`30c46355`）。版本、更新日志和发布说明提交为 `5716ead6`；发布检查修正为 `d6dd042c`。具体升级与回退条件见 Release 说明，未执行生产部署。
 - `.syh.7` 发布证据：维护分支 [Test](https://github.com/Syh1906/axon-hub/actions/runs/41046192670)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41046192729)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/41046192847) 全部通过后推送 tag；[发布 Actions 41046479193](https://github.com/Syh1906/axon-hub/actions/runs/41046479193) 的来源核对、测试、双架构镜像、镜像合成、临时 PostgreSQL 17 启动／版本检查、二进制包与清单发布全部成功。共 12 个附件：9 个系统／架构安装包、`checksums.txt`、`config.schema.json`、[release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.7/release.json)。9 个安装包的 GitHub 服务端摘要与校验和一致，部署清单下载内容的 SHA-256 与服务端记录一致；未重复逐平台运行安装包或本地业务验收。
 - `.syh.7` 部署清单：已核对版本、源码、两层上游来源、工作流地址及 `linux/amd64`／`linux/arm64`；固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:785ce33bbf14b98cc04fe6d8a8558932d10bd0b80943b41ba5443e863f147f35`。发布完成不代表生产机已升级，也不替代生产存量数据升级与恢复演练。
