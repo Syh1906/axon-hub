@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -29,6 +30,9 @@ func TestExtractFinalImages(t *testing.T) {
 		{"image bytes override response size", `{}`, fmt.Sprintf(`{"size":"4096x4096","data":[{"b64_json":%q}]}`, data), "1K", "file", 16, 1},
 		{"seedream per image metadata", `{}`, `{"data":[{"url":"unused","size":"2048x2048"},{"url":"unused","size":"4096x4096"}]}`, "2K", "response", 2048, 2},
 		{"grok request resolution", `{"resolution":"2k"}`, `{"data":[{"url":"unused"}]}`, "2K", "request_tier", 0, 1},
+		{"request pixel size fallback", `{"size":"1536x1024"}`, `{"data":[{"url":"unused"}]}`, "2K", "request_dimensions", 0, 1},
+		{"actual dimensions override requested pixels", `{"size":"4096x4096"}`, `{"data":[{"url":"unused","size":"1024x1024"}]}`, "1K", "response", 1024, 1},
+		{"invalid earlier label does not hide size", `{"resolution":"auto","size":"2K"}`, `{"data":[{"url":"unused"}]}`, "2K", "request_tier", 0, 1},
 		{"response resolution", `{}`, `{"data":[{"url":"unused","size":"4K"}]}`, "4K", "response_tier", 0, 1},
 		{"auto is unknown", `{"size":"auto","n":5}`, `{"data":[{"url":"unused"}]}`, "", "unknown", 0, 1},
 		{"gemini", `{"generationConfig":{"imageConfig":{"imageSize":"2K"}}}`, fmt.Sprintf(`{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/png","data":%q}}]}}]}`, data), "2K", "file", 16, 1},
@@ -50,6 +54,20 @@ func TestExtractFinalImages(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestImageRequestFallbackRetainsInspectionFailure(t *testing.T) {
+	images := Extract(context.Background(), []byte(`{"size":"1536x1024"}`), []byte(`{"data":[{"url":"https://example.invalid/final.png"}]}`), "gpt-image-2", func(context.Context, string) (image.Config, error) {
+		return image.Config{}, errors.New("unreachable image")
+	})
+	require.Len(t, images, 1)
+	require.Equal(t, "2K", images[0].Tier)
+	require.Equal(t, "request_dimensions", images[0].Source)
+	require.Equal(t, "image_fetch_failed", images[0].InspectionError)
+	require.Equal(t, 1536, images[0].RequestedWidth)
+	require.Equal(t, 1024, images[0].RequestedHeight)
+	require.Zero(t, images[0].Width)
+	require.Zero(t, images[0].Height)
 }
 
 func TestExtractAggregatedImageStreams(t *testing.T) {

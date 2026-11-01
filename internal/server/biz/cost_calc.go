@@ -25,6 +25,7 @@ func computeItemSubtotal(quantity int64, pricing objects.Pricing) (objects.CostI
 
 	switch pricing.Mode {
 	case objects.PricingModeFlatFee:
+		item.Quantity = 1
 		if pricing.FlatFee != nil {
 			item.Subtotal = *pricing.FlatFee
 
@@ -170,7 +171,7 @@ func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPrice
 	for _, it := range priceItems {
 		if it.Pricing.Mode == objects.PricingModeImageFixed {
 			if len(images) == 0 || len(images[0]) == 0 {
-				items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true})
+				items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true, UnpricedReason: "no_final_image"})
 				continue
 			}
 			for _, output := range images[0] {
@@ -180,13 +181,24 @@ func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPrice
 					total = total.Add(rule.Fee)
 				} else {
 					item.Unpriced = true
+					item.UnpricedReason = "image_rule_unmatched"
+					width, height := output.BillingDimensions()
+					if output.Tier == "" && (width <= 0 || height <= 0) {
+						item.UnpricedReason = "image_dimensions_missing"
+					}
 				}
 				items = append(items, item)
 			}
 			continue
 		}
+		if usage == nil && it.Pricing.Mode == objects.PricingModeFlatFee {
+			item, sub := computeItemSubtotal(1, it.Pricing)
+			item.ItemCode = it.ItemCode
+			items, total = append(items, item), total.Add(sub)
+			continue
+		}
 		if usage == nil {
-			items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true})
+			items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true, UnpricedReason: "usage_missing"})
 			continue
 		}
 		var quantity int64

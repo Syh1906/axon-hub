@@ -47,6 +47,10 @@ type UsageArchive struct {
 	FirstTokenSum float64 `json:"first_token_sum,omitempty"`
 	// SpeedSum holds the value of the "speed_sum" field.
 	SpeedSum float64 `json:"speed_sum,omitempty"`
+	// PricingComplete holds the value of the "pricing_complete" field.
+	PricingComplete *bool `json:"pricing_complete,omitempty"`
+	// SpeedVersion holds the value of the "speed_version" field.
+	SpeedVersion int `json:"speed_version,omitempty"`
 	// PromptTokens holds the value of the "prompt_tokens" field.
 	PromptTokens int64 `json:"prompt_tokens,omitempty"`
 	// CompletionTokens holds the value of the "completion_tokens" field.
@@ -79,9 +83,11 @@ func (*UsageArchive) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usagearchive.FieldPricingComplete:
+			values[i] = new(sql.NullBool)
 		case usagearchive.FieldTotalCost, usagearchive.FieldCacheCreationCost, usagearchive.FieldFirstTokenSum, usagearchive.FieldSpeedSum:
 			values[i] = new(sql.NullFloat64)
-		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
+		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldSpeedVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
 			values[i] = new(sql.NullInt64)
 		case usagearchive.FieldKind, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
 			values[i] = new(sql.NullString)
@@ -198,6 +204,19 @@ func (_m *UsageArchive) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field speed_sum", values[i])
 			} else if value.Valid {
 				_m.SpeedSum = value.Float64
+			}
+		case usagearchive.FieldPricingComplete:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field pricing_complete", values[i])
+			} else if value.Valid {
+				_m.PricingComplete = new(bool)
+				*_m.PricingComplete = value.Bool
+			}
+		case usagearchive.FieldSpeedVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field speed_version", values[i])
+			} else if value.Valid {
+				_m.SpeedVersion = int(value.Int64)
 			}
 		case usagearchive.FieldPromptTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -353,6 +372,14 @@ func (_m *UsageArchive) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("speed_sum=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SpeedSum))
+	builder.WriteString(", ")
+	if v := _m.PricingComplete; v != nil {
+		builder.WriteString("pricing_complete=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("speed_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SpeedVersion))
 	builder.WriteString(", ")
 	builder.WriteString("prompt_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PromptTokens))

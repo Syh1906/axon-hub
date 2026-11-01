@@ -343,7 +343,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 	costState.RequestExec = ts.requestExec
 	costState.RawProviderRequest = ts.rawProviderRequest
 	captureImageCostEvidence(ctx, &costState, responseBody)
-	if usage := meta.Usage; usage != nil || biz.NeedsImageCostEvidence(ts.requestExec.CostSnapshot) {
+	if usage := meta.Usage; usage != nil || biz.NeedsUsageLogWithoutTokens(ts.requestExec.CostSnapshot) {
 		_, err := ts.UsageLogService.CreateUsageLogFromRequest(ctx, ts.request, ts.requestExec, usage)
 		if err != nil {
 			log.Warn(ctx, "Failed to create usage log from request", log.Cause(err))

@@ -148,7 +148,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("consumption:v2:%x:%s", sha256.Sum256(keyInput), keyRevision)
+		key := fmt.Sprintf("consumption:v3:%x:%s", sha256.Sum256(keyInput), keyRevision)
 		if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
 			return result, nil
 		}

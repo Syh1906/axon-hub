@@ -378,10 +378,10 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN ($3, $4)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"COUNT(*) as total_count",
+				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
 				"se.status = 'completed'",
 				"se.channel_id",
-				"effective_latency_ms",
+				"speed_sum",
 				"total_first_token_latency",
 				"request_count",
 			},
@@ -397,7 +397,7 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN (?, ?)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"COUNT(*) as total_count",
+				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
 			},
 			wantNotContains: []string{"$1", "$2", "ROW_NUMBER()", "WITH latest_execs AS", "MAX(re2.id)"},
 		},
@@ -413,9 +413,9 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN ($3, $4)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"COUNT(*) as total_count",
+				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
 				"se.channel_id",
-				"effective_latency_ms",
+				"speed_sum",
 				"total_first_token_latency",
 				"request_count",
 			},
@@ -431,7 +431,7 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN (?, ?)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"COUNT(*) as total_count",
+				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
 			},
 			wantNotContains: []string{"$1", "$2", "ROW_NUMBER()", "WITH latest_execs AS", "MAX(re2.id)"},
 		},
@@ -511,34 +511,12 @@ func TestBuildProbeStatsQuery_SQLStructure(t *testing.T) {
 	}
 }
 
-func TestBuildProbeStatsQuery_BoundsUsageLogsAggregationByTime(t *testing.T) {
-	tests := []struct {
-		name                  string
-		useDollarPlaceholders bool
-		wantUsageLogWindow    string
-	}{
-		{
-			name:                  "postgres reuses start and end placeholders",
-			useDollarPlaceholders: true,
-			wantUsageLogWindow: "FROM usage_logs\n" +
-				"    WHERE created_at >= $1\n" +
-				"    GROUP BY request_id, channel_id",
-		},
-		{
-			name:                  "question mark dialects bind usage log time window",
-			useDollarPlaceholders: false,
-			wantUsageLogWindow: "FROM usage_logs\n" +
-				"    WHERE created_at >= ?\n" +
-				"    GROUP BY request_id, channel_id",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := BuildProbeStatsQuery(tt.useDollarPlaceholders, "AND se.channel_id IN (?, ?)", ThroughputModeRowNumber)
-
-			assert.Contains(t, got, tt.wantUsageLogWindow, "usage_logs aggregation should be time-bounded before grouping")
-		})
+func TestBuildProbeStatsQuery_BoundsUsageByRequest(t *testing.T) {
+	for _, postgres := range []bool{true, false} {
+		query := BuildProbeStatsQuery(postgres, "", ThroughputModeRowNumber)
+		assert.Contains(t, query, "LEFT JOIN usage_logs ul ON se.request_id = ul.request_id AND se.channel_id = ul.channel_id")
+		assert.Contains(t, query, "duplicate_usage.request_id = ul.request_id")
+		assert.NotContains(t, query, "FROM usage_logs GROUP BY", "must not aggregate historical usage globally")
 	}
 }
 
@@ -557,7 +535,7 @@ func TestBuildProbeStatsQuery_PlaceholderCount(t *testing.T) {
 			useDollarPlaceholders: true,
 			channelIDFilter:       "AND se.channel_id IN ($3, $4)",
 			mode:                  ThroughputModeRowNumber,
-			expectedDollarCount:   5,
+			expectedDollarCount:   4,
 			expectedQuestionCount: 0,
 		},
 		{
@@ -566,7 +544,7 @@ func TestBuildProbeStatsQuery_PlaceholderCount(t *testing.T) {
 			channelIDFilter:       "AND se.channel_id IN (?, ?)",
 			mode:                  ThroughputModeRowNumber,
 			expectedDollarCount:   0,
-			expectedQuestionCount: 5,
+			expectedQuestionCount: 4,
 		},
 	}
 

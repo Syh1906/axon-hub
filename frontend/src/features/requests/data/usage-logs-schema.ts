@@ -10,11 +10,12 @@ export type UsageLogSource = z.infer<typeof usageLogSourceSchema>;
 export const costItemSchema = z.object({
   pricingEvidence: costPricingEvidenceSchema.nullable().optional(),
   image: z
-    .object({ width: z.number(), height: z.number(), tier: z.string(), tierSource: z.string().optional(), source: z.string() })
+    .object({ requestedWidth: z.number().optional(), requestedHeight: z.number().optional(), inspectionError: z.string().optional(), width: z.number(), height: z.number(), tier: z.string(), tierSource: z.string().optional(), source: z.string() })
     .nullable()
     .optional(),
   imageRule: z.string().optional(),
   unpriced: z.boolean().optional(),
+  unpricedReason: z.string().optional(),
   itemCode: z.string(),
   promptWriteCacheVariantCode: z.string().nullable().optional(),
   quantity: z.number(),

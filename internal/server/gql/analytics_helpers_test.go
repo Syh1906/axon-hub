@@ -209,6 +209,7 @@ func TestQueryAnalyticsModelStatsCountsExecutionAttempts(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(2000).
 		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).
 		SaveX(ctx)
 	client.UsageLog.Create().
 		SetProjectID(project.ID).
@@ -280,7 +281,7 @@ func TestQueryAnalyticsModelStatsCountsExecutionAttempts(t *testing.T) {
 	require.InDelta(t, 50, modelX.SuccessRate, 0.0001)
 	require.InDelta(t, 23.2, modelX.CacheHitRate, 0.0001)
 	require.InDelta(t, 500, *modelX.AvgFirstTokenLatencyMs, 0.0001)
-	require.InDelta(t, 100, *modelX.AvgOutputTokensPerSecond, 0.0001)
+	require.Nil(t, modelX.AvgOutputTokensPerSecond, "the only stream contains audio output")
 	require.Len(t, modelX.Channels, 2)
 	require.Equal(t, "Premium channel", modelX.Channels[0].Name)
 	require.Equal(t, 2, modelX.Channels[0].RequestCount)

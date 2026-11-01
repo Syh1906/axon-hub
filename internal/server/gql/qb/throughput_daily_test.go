@@ -1,7 +1,6 @@
 package qb
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -305,8 +304,8 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 			wantContains: []string{
 				"completion_tokens",
 				"* 1000.0",
-				"metrics_first_token_latency_ms",
-				"metrics_latency_ms - se.metrics_first_token_latency_ms",
+				"metrics_first_byte_latency_ms",
+				"metrics_latency_ms - se.metrics_first_byte_latency_ms",
 			},
 		},
 		{
@@ -315,7 +314,7 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 			wantContains: []string{
 				"completion_tokens",
 				"* 1000.0",
-				"metrics_first_token_latency_ms",
+				"metrics_first_byte_latency_ms",
 			},
 		},
 	}
@@ -398,12 +397,9 @@ func TestDailyThroughputQueryTypeEnum(t *testing.T) {
 
 func TestBuildDailyThroughputQuery_StreamingLatencyHandling(t *testing.T) {
 	got := BuildDailyModelThroughputQuery("postgres", "UTC", 0, 10, ThroughputModeRowNumber)
-
-	assert.Contains(t, got, "se.stream", "should reference stream flag")
-	assert.Contains(t, got, "CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL", "should handle streaming latency")
-
-	streamingLogic := strings.Count(got, "metrics_first_token_latency_ms >= se.metrics_latency_ms")
-	assert.GreaterOrEqual(t, streamingLogic, 2, "should check for invalid first token latency")
+	assert.Contains(t, got, "CASE WHEN se.stream")
+	assert.Contains(t, got, "AVG(")
+	assert.Contains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms) >= 100")
 }
 
 func TestBuildDailyPerformanceStatsQuery(t *testing.T) {

@@ -54,7 +54,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 		}
 		items = append(items, &SelfUsageCostItem{
 			PricingEvidence: cost.PricingEvidence,
-			Image:           cost.Image, ImageRule: cost.ImageRule, Unpriced: cost.Unpriced,
+			Image:           cost.Image, ImageRule: cost.ImageRule, Unpriced: cost.Unpriced, UnpricedReason: cost.UnpricedReason,
 			ItemCode: cost.ItemCode, PromptWriteCacheVariantCode: cost.PromptWriteCacheVariantCode,
 			Quantity: cost.Quantity, Subtotal: cost.Subtotal, TierBreakdown: tiers,
 		})

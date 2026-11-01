@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
@@ -363,8 +364,8 @@ type modelChannelAnalyticsRaw struct {
 	InputTokens            int64   `json:"input_tokens"`
 	CachedInputTokens      int64   `json:"cached_input_tokens"`
 	Cost                   float64 `json:"cost"`
-	OutputTokens           int64   `json:"output_tokens"`
-	EffectiveLatencyMs     int64   `json:"effective_latency_ms"`
+	SpeedSum               float64 `json:"speed_sum"`
+	SpeedCount             int64   `json:"speed_count"`
 	FirstTokenLatencyMs    int64   `json:"first_token_latency_ms"`
 	FirstTokenLatencyCount int     `json:"first_token_latency_count"`
 }
@@ -374,8 +375,8 @@ type modelAnalyticsAccumulator struct {
 	successCount           int
 	inputTokens            int64
 	cachedInputTokens      int64
-	outputTokens           int64
-	effectiveLatencyMs     int64
+	speedSum               float64
+	speedCount             int64
 	firstTokenLatencyMs    int64
 	firstTokenLatencyCount int
 }
@@ -439,12 +440,17 @@ func (r *queryResolver) queryAnalyticsModelStats(
 			)
 			streamColumn := s.C(requestexecution.FieldStream)
 			completed := requestexecution.StatusCompleted
-			// completion_tokens already includes reasoning and audio tokens;
-			// adding them again double counts, see upstream 92f81b32.
-			outputTokensExpression := fmt.Sprintf(
-				"COALESCE(%s, 0)",
-				usageTable.C(usagelog.FieldCompletionTokens),
-			)
+			speedUsage := sql.Table(usagelog.Table).As("speed_usage")
+			s.LeftJoin(speedUsage).OnP(sql.And(
+				sql.ColumnsEQ(speedUsage.C("request_id"), s.C("request_id")),
+				sql.ColumnsEQ(speedUsage.C("channel_id"), s.C("channel_id")),
+				sql.ColumnsEQ(speedUsage.C("project_id"), s.C("project_id")),
+				sql.In(s.C("status"), "completed", "failed", "canceled"),
+				sql.ExprP("(SELECT COUNT(*) FROM usage_logs same_usage WHERE same_usage.request_id = "+s.C("request_id")+" AND same_usage.channel_id = "+s.C("channel_id")+") = 1"),
+				sql.ExprP(s.C("id")+" = (SELECT MAX(final_execution.id) FROM request_executions final_execution WHERE final_execution.request_id = "+s.C("request_id")+")"),
+			))
+			tokens := usageanalytics.TextTokensSQL(speedUsage.C("completion_tokens"), speedUsage.C("cost_snapshot"), speedUsage.C("completion_audio_tokens"), s.Dialect())
+			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, s.C("metrics_first_byte_latency_ms"), streamColumn, s.C("format"))
 
 			s.Select(
 				sql.As(s.C(requestexecution.FieldModelID), "model_id"),
@@ -457,7 +463,7 @@ func (r *queryResolver) queryAnalyticsModelStats(
 					"channel_name",
 				),
 				sql.As(
-					sql.Count(s.C(requestexecution.FieldID)),
+					"SUM(CASE WHEN "+statusColumn+" IN ('completed', 'failed') THEN 1 ELSE 0 END)",
 					"request_count",
 				),
 				sql.As(fmt.Sprintf(
@@ -481,27 +487,8 @@ func (r *queryResolver) queryAnalyticsModelStats(
 					"COALESCE(SUM(%s), 0)",
 					usageTable.C(usagelog.FieldTotalCost),
 				), "cost"),
-				sql.As(fmt.Sprintf(
-					"COALESCE(SUM(%s), 0)",
-					outputTokensExpression,
-				), "output_tokens"),
-				sql.As(fmt.Sprintf(
-					"SUM(CASE WHEN %s = '%s' AND %s > 0 THEN "+
-						"CASE WHEN %s AND %s IS NOT NULL THEN "+
-						"CASE WHEN %s >= %s THEN 0 "+
-						"ELSE %s - %s END "+
-						"ELSE %s END ELSE 0 END)",
-					statusColumn,
-					completed,
-					latencyColumn,
-					streamColumn,
-					firstTokenColumn,
-					firstTokenColumn,
-					latencyColumn,
-					latencyColumn,
-					firstTokenColumn,
-					latencyColumn,
-				), "effective_latency_ms"),
+				sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
+				sql.As("COUNT("+speed+")", "speed_count"),
 				sql.As(fmt.Sprintf(
 					"SUM(CASE WHEN %s = '%s' AND %s "+
 						"AND %s IS NOT NULL "+
@@ -673,6 +660,7 @@ func (r *queryResolver) buildModelAnalyticsWhere(
 		s.C(requestexecution.FieldStatus),
 		requestexecution.StatusCompleted,
 		requestexecution.StatusFailed,
+		requestexecution.StatusCanceled,
 	))
 	if filter == nil {
 		return
@@ -733,10 +721,11 @@ func buildAnalyticsModelStats(
 				Type: ent.TypeChannel,
 				ID:   raw.ChannelID,
 			},
-			Name:         raw.ChannelName,
-			RequestCount: raw.RequestCount,
-			TotalTokens:  safeIntFromInt64(raw.TotalTokens),
-			Cost:         raw.Cost,
+			Name:             raw.ChannelName,
+			RequestCount:     raw.RequestCount,
+			SpeedSampleCount: safeIntFromInt64(raw.SpeedCount),
+			TotalTokens:      safeIntFromInt64(raw.TotalTokens),
+			Cost:             raw.Cost,
 		}
 		populateModelAnalyticsMetrics(
 			&channelStat.CostPerMillion,
@@ -752,8 +741,8 @@ func buildAnalyticsModelStats(
 			raw.CachedInputTokens,
 			raw.FirstTokenLatencyMs,
 			raw.FirstTokenLatencyCount,
-			raw.OutputTokens,
-			raw.EffectiveLatencyMs,
+			raw.SpeedSum,
+			raw.SpeedCount,
 		)
 
 		group, ok := groups[raw.ModelID]
@@ -776,14 +765,15 @@ func buildAnalyticsModelStats(
 		group.successCount += raw.SuccessCount
 		group.inputTokens += raw.InputTokens
 		group.cachedInputTokens += raw.CachedInputTokens
-		group.outputTokens += raw.OutputTokens
-		group.effectiveLatencyMs += raw.EffectiveLatencyMs
+		group.speedSum += raw.SpeedSum
+		group.speedCount += raw.SpeedCount
 		group.firstTokenLatencyMs += raw.FirstTokenLatencyMs
 		group.firstTokenLatencyCount += raw.FirstTokenLatencyCount
 	}
 
 	results := make([]*AnalyticsModelStat, 0, len(groups))
 	for _, group := range groups {
+		group.stat.SpeedSampleCount = safeIntFromInt64(group.speedCount)
 		populateModelAnalyticsMetrics(
 			&group.stat.CostPerMillion,
 			&group.stat.SuccessRate,
@@ -798,8 +788,8 @@ func buildAnalyticsModelStats(
 			group.cachedInputTokens,
 			group.firstTokenLatencyMs,
 			group.firstTokenLatencyCount,
-			group.outputTokens,
-			group.effectiveLatencyMs,
+			group.speedSum,
+			group.speedCount,
 		)
 		sort.SliceStable(group.stat.Channels, func(i, j int) bool {
 			return lessModelAnalyticsStat(
@@ -845,8 +835,8 @@ func populateModelAnalyticsMetrics(
 	cachedInputTokens int64,
 	firstTokenLatencyMs int64,
 	firstTokenLatencyCount int,
-	outputTokens int64,
-	effectiveLatencyMs int64,
+	speedSum float64,
+	speedCount int64,
 ) {
 	if totalTokens > 0 {
 		*costPerMillion = cost * 1_000_000 / float64(totalTokens)
@@ -862,9 +852,9 @@ func populateModelAnalyticsMetrics(
 			float64(firstTokenLatencyMs) / float64(firstTokenLatencyCount),
 		)
 	}
-	if outputTokens > 0 && effectiveLatencyMs > 0 {
+	if speedCount > 0 {
 		*avgOutputTokensPerSecond = lo.ToPtr(
-			float64(outputTokens) * 1000 / float64(effectiveLatencyMs),
+			speedSum / float64(speedCount),
 		)
 	}
 }

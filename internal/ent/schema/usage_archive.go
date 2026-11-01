@@ -32,6 +32,8 @@ func (UsageArchive) Fields() []ent.Field {
 		field.Float("cache_creation_cost").Default(0),
 		field.Float("first_token_sum").Default(0),
 		field.Float("speed_sum").Default(0),
+		field.Bool("pricing_complete").Optional().Nillable(),
+		field.Int("speed_version").Default(0),
 	}
 	for _, name := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens",
 		"prompt_write_cached_tokens", "completion_reasoning_tokens", "cache_requests", "cache_input",

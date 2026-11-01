@@ -170,7 +170,7 @@ export const TagsAutocompleteInput = forwardRef<HTMLDivElement, TagsAutocomplete
                   filteredSuggestions.map((suggestion) => (
                     <div
                       key={suggestion}
-                      className='hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm'
+                      className='hover:bg-[var(--interactive-hover)] flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm'
                       onMouseDown={(e) => {
                         e.preventDefault();
                         handleSelectSuggestion(suggestion);

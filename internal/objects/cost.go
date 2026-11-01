@@ -13,6 +13,7 @@ type CostItem struct {
 	Image                       *ImageOutput                `json:"image,omitempty"`
 	ImageRule                   string                      `json:"imageRule,omitempty"`
 	Unpriced                    bool                        `json:"unpriced,omitempty"`
+	UnpricedReason              string                      `json:"unpricedReason,omitempty"`
 	ItemCode                    PriceItemCode               `json:"itemCode"`
 	PromptWriteCacheVariantCode PromptWriteCacheVariantCode `json:"promptWriteCacheVariantCode,omitempty"`
 	Quantity                    int64                       `json:"quantity"`

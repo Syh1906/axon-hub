@@ -1,0 +1,12 @@
+extend type Request {
+  outputTokensPerSecond: Float @goField(forceResolver: true)
+  costRecalculationPreview: CostRecalculationPreview! @goField(forceResolver: true)
+}
+
+type CostRecalculationPreview {
+  recordedCost: Float
+  proposedCost: Float
+  pricedAt: Time
+  reason: String!
+  images: [ImageOutput!]!
+}

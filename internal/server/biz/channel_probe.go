@@ -125,14 +125,14 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 
 	// Use raw SQL query with CTE pattern (same as Task 1 FastestChannels)
 	type probeResult struct {
-		ChannelID              int   `json:"channel_id"`
-		TotalCount             int   `json:"total_count"`
-		SuccessCount           int   `json:"success_count"`
-		TotalTokens            int64 `json:"total_tokens"`
-		EffectiveLatencyMs     int64 `json:"effective_latency_ms"`
-		TotalFirstTokenLatency int64 `json:"total_first_token_latency"`
-		RequestCount           int   `json:"request_count"`
-		StreamingRequestCount  int   `json:"streaming_request_count"`
+		ChannelID              int     `json:"channel_id"`
+		TotalCount             int     `json:"total_count"`
+		SuccessCount           int     `json:"success_count"`
+		SpeedSum               float64 `json:"speed_sum"`
+		SpeedCount             int64   `json:"speed_count"`
+		TotalFirstTokenLatency int64   `json:"total_first_token_latency"`
+		RequestCount           int     `json:"request_count"`
+		StreamingRequestCount  int     `json:"streaming_request_count"`
 	}
 
 	dbDriver := svc.db.Driver()
@@ -149,14 +149,8 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 	// Build args slice for parameterized query
 	startUTC := startTime.UTC()
 	endUTC := endTime.UTC()
-	args := make([]any, 0, len(channelIDs)+3)
-	if useDollarPlaceholders {
-		args = append(args, startUTC, endUTC)
-	} else {
-		// For ? placeholders, the usage_logs start bound appears before the
-		// outer request_executions time window in the SQL text.
-		args = append(args, startUTC, startUTC, endUTC)
-	}
+	args := make([]any, 0, len(channelIDs)+2)
+	args = append(args, startUTC, endUTC)
 
 	// Build channel ID filter with dialect-aware parameterized placeholders
 	// Note: PostgreSQL placeholders start at $3 because $1 and $2 are reserved
@@ -196,8 +190,8 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 			&r.ChannelID,
 			&r.TotalCount,
 			&r.SuccessCount,
-			&r.TotalTokens,
-			&r.EffectiveLatencyMs,
+			&r.SpeedSum,
+			&r.SpeedCount,
 			&r.TotalFirstTokenLatency,
 			&r.RequestCount,
 			&r.StreamingRequestCount,
@@ -210,11 +204,9 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 			success: r.SuccessCount,
 		}
 
-		// Calculate avg tokens per second using effective latency
-		// For streaming: tokens / ((latency - first_token_latency) / 1000)
-		// For non-streaming: tokens / (latency / 1000)
-		if r.TotalTokens > 0 && r.EffectiveLatencyMs > 0 {
-			tps := float64(r.TotalTokens) / (float64(r.EffectiveLatencyMs) / 1000.0)
+		// Average valid per-request text speeds using the first body byte.
+		if r.SpeedCount > 0 {
+			tps := r.SpeedSum / float64(r.SpeedCount)
 			stats.avgTokensPerSecond = &tps
 		}
 

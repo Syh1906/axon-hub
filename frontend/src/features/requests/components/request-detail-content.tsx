@@ -18,6 +18,7 @@ import { getTokenFromStorage } from '@/stores/authStore';
 import { useUsageLogs } from '../data/usage-logs';
 import { type Request, useRequest, useRequestExecutions } from '../data';
 import { ChunksDialog } from './chunks-dialog';
+import { CostRecalculationPreview } from './cost-recalculation-preview';
 import { CurlPreviewDialog } from './curl-preview-dialog';
 import { getStatusColor } from './help';
 import { RequestConversationViewer } from './request-conversation-viewer';
@@ -466,6 +467,16 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
       )}
 
 
+      {usageLogs?.edges.length === 0 && request.status === 'completed' && (
+        <Card className='border-0 shadow-sm'>
+          <CardHeader><CardTitle className='text-base'>{t('requests.detail.tabs.usage')}</CardTitle></CardHeader>
+          <CardContent>
+            <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={(val) => t('currencies.format', {
+              val, currency: settings?.currencyCode ?? 'USD', locale: i18n.language === 'zh' ? 'zh-CN' : 'en-US', minimumFractionDigits: 6,
+            })} />
+          </CardContent>
+        </Card>
+      )}
       {usageLogs &&
         usageLogs.edges.length > 0 &&
         (() => {
@@ -522,6 +533,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {usage.totalCost == null && <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={formatCurrency} />}
                 {usage.costItems?.some((item) => item.image) && (
                   <div className='mb-3 flex flex-col gap-2 rounded-md border p-3 text-sm'>
                     <div className='flex justify-between font-medium'>
@@ -538,6 +550,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {' '}
                                 · {item.image.width > 0 ? `${item.image.width} × ${item.image.height} · ` : ''}
                                 {t(`price.image.source.${item.image.source}`)}
+                  {item.image.requestedWidth != null && item.image.requestedWidth > 0 && ` · ${t('price.image.requestedDimensions', { width: item.image.requestedWidth, height: item.image.requestedHeight })}`}
+                  {item.image.inspectionError && ` · ${t(`price.image.reason.${item.image.inspectionError}`)}`}
+                  {item.unpricedReason && ` · ${t(`price.image.reason.${item.unpricedReason}`)}`}
                                 {item.image.tierSource &&
                                   item.image.tierSource !== item.image.source &&
                                   ` · ${t(`price.image.source.${item.image.tierSource}`)}`}

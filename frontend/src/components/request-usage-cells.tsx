@@ -201,7 +201,7 @@ export function CostCell({
             <div key={`${item.itemCode}:${item.variant ?? ''}:${index}`}>
               <div className='flex justify-between gap-4'>
                 <span className='flex items-center gap-1'>
-                  {item.image ? `${t('price.image.output')} ${item.imageRule || item.image.tier}` : itemLabel(item.itemCode)}
+                  {item.image ? `${t('price.image.output')} ${item.imageRule || item.image.tier}` : item.pricingEvidence?.ruleSource === 'non_token' ? t('price.mode_flat_fee') : itemLabel(item.itemCode)}
                   {item.itemCode === 'prompt_write_cached_tokens' && item.variant && (
                     <Badge variant='secondary' className='h-4 px-1 text-[10px]'>
                       {item.variant === 'five_min' ? '5m' : item.variant === 'one_hour' ? '1h' : item.variant}
@@ -222,6 +222,9 @@ export function CostCell({
                 <div>
                   {item.image.width > 0 && `${item.image.width} × ${item.image.height} · `}
                   {t(`price.image.source.${item.image.source}`)}
+                  {item.image.requestedWidth != null && item.image.requestedWidth > 0 && ` · ${t('price.image.requestedDimensions', { width: item.image.requestedWidth, height: item.image.requestedHeight })}`}
+                  {item.image.inspectionError && ` · ${t(`price.image.reason.${item.image.inspectionError}`)}`}
+                  {item.unpricedReason && ` · ${t(`price.image.reason.${item.unpricedReason}`)}`}
                   {item.image.tierSource &&
                     item.image.tierSource !== item.image.source &&
                     ` · ${t(`price.image.source.${item.image.tierSource}`)}`}

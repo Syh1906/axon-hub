@@ -21,6 +21,7 @@ schema:
   - channel_accounts.graphql
   - request_routing.graphql
   - request_diagnostics.graphql
+  - request_speed.graphql
   - managed_group_usage.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
@@ -90,6 +91,8 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  CostRecalculationPreview:
+    model: github.com/looplj/axonhub/internal/server/biz.CostRecalculationPreview
   ModelStandardPriceMatch:
     model: github.com/looplj/axonhub/internal/server/biz.ModelStandardPriceMatch
   ChannelTodayUsage:

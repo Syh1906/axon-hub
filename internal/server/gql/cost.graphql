@@ -9,6 +9,7 @@ type CostItem {
   image: ImageOutput
   imageRule: String!
   unpriced: Boolean!
+  unpricedReason: String!
   itemCode: PriceItemCode!
   promptWriteCacheVariantCode: PromptWriteCacheVariantCode @goField(forceResolver: true)
   quantity: Int!
@@ -26,6 +27,7 @@ input CostItemInput {
   image: ImageOutputInput
   imageRule: String
   unpriced: Boolean
+  unpricedReason: String
   itemCode: PriceItemCode!
   quantity: Int!
   tierBreakdown: [TierCostInput!]
@@ -33,6 +35,9 @@ input CostItemInput {
 }
 
 type ImageOutput {
+  requestedWidth: Int!
+  requestedHeight: Int!
+  inspectionError: String!
 	 tierSource: String!
   width: Int!
   height: Int!
@@ -40,6 +45,9 @@ type ImageOutput {
   source: String!
 }
 input ImageOutputInput {
+  requestedWidth: Int
+  requestedHeight: Int
+  inspectionError: String
 	 tierSource: String
   width: Int!
   height: Int!

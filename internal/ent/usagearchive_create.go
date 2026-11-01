@@ -184,6 +184,34 @@ func (_c *UsageArchiveCreate) SetNillableSpeedSum(v *float64) *UsageArchiveCreat
 	return _c
 }
 
+// SetPricingComplete sets the "pricing_complete" field.
+func (_c *UsageArchiveCreate) SetPricingComplete(v bool) *UsageArchiveCreate {
+	_c.mutation.SetPricingComplete(v)
+	return _c
+}
+
+// SetNillablePricingComplete sets the "pricing_complete" field if the given value is not nil.
+func (_c *UsageArchiveCreate) SetNillablePricingComplete(v *bool) *UsageArchiveCreate {
+	if v != nil {
+		_c.SetPricingComplete(*v)
+	}
+	return _c
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (_c *UsageArchiveCreate) SetSpeedVersion(v int) *UsageArchiveCreate {
+	_c.mutation.SetSpeedVersion(v)
+	return _c
+}
+
+// SetNillableSpeedVersion sets the "speed_version" field if the given value is not nil.
+func (_c *UsageArchiveCreate) SetNillableSpeedVersion(v *int) *UsageArchiveCreate {
+	if v != nil {
+		_c.SetSpeedVersion(*v)
+	}
+	return _c
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (_c *UsageArchiveCreate) SetPromptTokens(v int64) *UsageArchiveCreate {
 	_c.mutation.SetPromptTokens(v)
@@ -421,6 +449,10 @@ func (_c *UsageArchiveCreate) defaults() error {
 		v := usagearchive.DefaultSpeedSum
 		_c.mutation.SetSpeedSum(v)
 	}
+	if _, ok := _c.mutation.SpeedVersion(); !ok {
+		v := usagearchive.DefaultSpeedVersion
+		_c.mutation.SetSpeedVersion(v)
+	}
 	if _, ok := _c.mutation.PromptTokens(); !ok {
 		v := usagearchive.DefaultPromptTokens
 		_c.mutation.SetPromptTokens(v)
@@ -530,6 +562,9 @@ func (_c *UsageArchiveCreate) check() error {
 	}
 	if _, ok := _c.mutation.SpeedSum(); !ok {
 		return &ValidationError{Name: "speed_sum", err: errors.New(`ent: missing required field "UsageArchive.speed_sum"`)}
+	}
+	if _, ok := _c.mutation.SpeedVersion(); !ok {
+		return &ValidationError{Name: "speed_version", err: errors.New(`ent: missing required field "UsageArchive.speed_version"`)}
 	}
 	if _, ok := _c.mutation.PromptTokens(); !ok {
 		return &ValidationError{Name: "prompt_tokens", err: errors.New(`ent: missing required field "UsageArchive.prompt_tokens"`)}
@@ -653,6 +688,14 @@ func (_c *UsageArchiveCreate) createSpec() (*UsageArchive, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SpeedSum(); ok {
 		_spec.SetField(usagearchive.FieldSpeedSum, field.TypeFloat64, value)
 		_node.SpeedSum = value
+	}
+	if value, ok := _c.mutation.PricingComplete(); ok {
+		_spec.SetField(usagearchive.FieldPricingComplete, field.TypeBool, value)
+		_node.PricingComplete = &value
+	}
+	if value, ok := _c.mutation.SpeedVersion(); ok {
+		_spec.SetField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
+		_node.SpeedVersion = value
 	}
 	if value, ok := _c.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)
@@ -829,6 +872,42 @@ func (u *UsageArchiveUpsert) UpdateSpeedSum() *UsageArchiveUpsert {
 // AddSpeedSum adds v to the "speed_sum" field.
 func (u *UsageArchiveUpsert) AddSpeedSum(v float64) *UsageArchiveUpsert {
 	u.Add(usagearchive.FieldSpeedSum, v)
+	return u
+}
+
+// SetPricingComplete sets the "pricing_complete" field.
+func (u *UsageArchiveUpsert) SetPricingComplete(v bool) *UsageArchiveUpsert {
+	u.Set(usagearchive.FieldPricingComplete, v)
+	return u
+}
+
+// UpdatePricingComplete sets the "pricing_complete" field to the value that was provided on create.
+func (u *UsageArchiveUpsert) UpdatePricingComplete() *UsageArchiveUpsert {
+	u.SetExcluded(usagearchive.FieldPricingComplete)
+	return u
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (u *UsageArchiveUpsert) ClearPricingComplete() *UsageArchiveUpsert {
+	u.SetNull(usagearchive.FieldPricingComplete)
+	return u
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (u *UsageArchiveUpsert) SetSpeedVersion(v int) *UsageArchiveUpsert {
+	u.Set(usagearchive.FieldSpeedVersion, v)
+	return u
+}
+
+// UpdateSpeedVersion sets the "speed_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsert) UpdateSpeedVersion() *UsageArchiveUpsert {
+	u.SetExcluded(usagearchive.FieldSpeedVersion)
+	return u
+}
+
+// AddSpeedVersion adds v to the "speed_version" field.
+func (u *UsageArchiveUpsert) AddSpeedVersion(v int) *UsageArchiveUpsert {
+	u.Add(usagearchive.FieldSpeedVersion, v)
 	return u
 }
 
@@ -1211,6 +1290,48 @@ func (u *UsageArchiveUpsertOne) AddSpeedSum(v float64) *UsageArchiveUpsertOne {
 func (u *UsageArchiveUpsertOne) UpdateSpeedSum() *UsageArchiveUpsertOne {
 	return u.Update(func(s *UsageArchiveUpsert) {
 		s.UpdateSpeedSum()
+	})
+}
+
+// SetPricingComplete sets the "pricing_complete" field.
+func (u *UsageArchiveUpsertOne) SetPricingComplete(v bool) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetPricingComplete(v)
+	})
+}
+
+// UpdatePricingComplete sets the "pricing_complete" field to the value that was provided on create.
+func (u *UsageArchiveUpsertOne) UpdatePricingComplete() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdatePricingComplete()
+	})
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (u *UsageArchiveUpsertOne) ClearPricingComplete() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.ClearPricingComplete()
+	})
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (u *UsageArchiveUpsertOne) SetSpeedVersion(v int) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetSpeedVersion(v)
+	})
+}
+
+// AddSpeedVersion adds v to the "speed_version" field.
+func (u *UsageArchiveUpsertOne) AddSpeedVersion(v int) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.AddSpeedVersion(v)
+	})
+}
+
+// UpdateSpeedVersion sets the "speed_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsertOne) UpdateSpeedVersion() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateSpeedVersion()
 	})
 }
 
@@ -1795,6 +1916,48 @@ func (u *UsageArchiveUpsertBulk) AddSpeedSum(v float64) *UsageArchiveUpsertBulk 
 func (u *UsageArchiveUpsertBulk) UpdateSpeedSum() *UsageArchiveUpsertBulk {
 	return u.Update(func(s *UsageArchiveUpsert) {
 		s.UpdateSpeedSum()
+	})
+}
+
+// SetPricingComplete sets the "pricing_complete" field.
+func (u *UsageArchiveUpsertBulk) SetPricingComplete(v bool) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetPricingComplete(v)
+	})
+}
+
+// UpdatePricingComplete sets the "pricing_complete" field to the value that was provided on create.
+func (u *UsageArchiveUpsertBulk) UpdatePricingComplete() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdatePricingComplete()
+	})
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (u *UsageArchiveUpsertBulk) ClearPricingComplete() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.ClearPricingComplete()
+	})
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (u *UsageArchiveUpsertBulk) SetSpeedVersion(v int) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetSpeedVersion(v)
+	})
+}
+
+// AddSpeedVersion adds v to the "speed_version" field.
+func (u *UsageArchiveUpsertBulk) AddSpeedVersion(v int) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.AddSpeedVersion(v)
+	})
+}
+
+// UpdateSpeedVersion sets the "speed_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsertBulk) UpdateSpeedVersion() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateSpeedVersion()
 	})
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
@@ -38,6 +39,41 @@ func TestImagePricingPerOutputWithoutTokenUsage(t *testing.T) {
 	price.Items[0].Pricing.Image.Rules = append(price.Items[0].Pricing.Image.Rules, price.Items[0].Pricing.Image.Rules[0])
 	_, total = ComputeUsageCost(nil, price, time.Now(), images)
 	require.Equal(t, "0.1", total.String())
+}
+
+func TestImageRequestedDimensionsAndFlatFeeWithoutUsage(t *testing.T) {
+	price := imageTestPrice(false)
+	images := []objects.ImageOutput{{RequestedWidth: 1536, RequestedHeight: 1024, Source: "request_dimensions"}}
+	items, total := ComputeUsageCost(nil, price, time.Now(), images)
+	require.Equal(t, "0.04", total.String())
+	require.False(t, items[0].Unpriced)
+	require.Zero(t, items[0].Image.Width, "requested dimensions must not become measured output")
+	fee := decimal.RequireFromString("0.09")
+	price.Items[0].Pricing = objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee}
+	items, total = ComputeUsageCost(nil, price, time.Now())
+	require.Equal(t, "0.09", total.String())
+	require.False(t, items[0].Unpriced)
+	require.EqualValues(t, 1, items[0].Quantity)
+}
+
+func TestFlatFeeDefaultPreservesCacheVariantPricing(t *testing.T) {
+	fee, fiveMinute, oneHour := decimal.RequireFromString("0.09"), decimal.NewFromInt(1), decimal.NewFromInt(4)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeWriteCachedTokens,
+		Pricing: objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee},
+		PromptWriteCacheVariants: []objects.PromptWriteCacheVariant{
+			{VariantCode: objects.PromptWriteCacheVariantCode5Min, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &fiveMinute}},
+			{VariantCode: objects.PromptWriteCacheVariantCode1Hour, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &oneHour}},
+		}}}}
+	require.NoError(t, price.Validate())
+	usage := &llm.Usage{PromptTokensDetails: &llm.PromptTokensDetails{WriteCachedTokens: 1000000, WriteCached5MinTokens: 500000, WriteCached1HourTokens: 500000}}
+	items, total := ComputeUsageCost(usage, price, time.Now())
+	require.Equal(t, "2.5", total.String())
+	require.Len(t, items, 2)
+	require.Equal(t, objects.PromptWriteCacheVariantCode1Hour, items[1].PromptWriteCacheVariantCode)
+	// The ordinary fixed fallback still uses one request when no variant applies.
+	items, total = ComputeUsageCost(&llm.Usage{}, price, time.Now())
+	require.Equal(t, "0.09", total.String())
+	require.EqualValues(t, 1, items[0].Quantity)
 }
 
 func TestImagePricingInactiveDraftDoesNotBillOrBlockAutomatic(t *testing.T) {

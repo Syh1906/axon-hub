@@ -27,6 +27,13 @@ test('orders known items and preserves other item order while omitting zero item
   ]);
 });
 
+test('fixed request fee is not multiplied into a token unit price', () => {
+  const result = buildCostBreakdown(0.09, breakdown([{ ...item('usage', 1, 0.09), pricingEvidence: {
+    ...evidence('standard', 1, 0.09), ruleSource: 'non_token', modeSubtotal: 0.09,
+  } }]));
+  assert.equal(result.items[0].unitPrice, 0.09);
+});
+
 test('unit price uses the stored subtotal per million tokens and is absent when quantity is zero', () => {
   const rows = buildCostBreakdown(0.75, breakdown([item('prompt_tokens', 250_000, 0.5), item('completion_tokens', 0, 0.25)]));
   assert.equal(rows.items[0].unitPrice, 2);

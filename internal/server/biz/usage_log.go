@@ -120,11 +120,11 @@ type CreateUsageLogParams struct {
 
 // CreateUsageLog creates a new usage log record from LLM response usage data.
 func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsageLogParams) (*ent.UsageLog, error) {
-	if params.Usage == nil && params.SettledCost == nil && !hasImagePricingSnapshot(params.CostSnapshot) {
+	if params.Usage == nil && params.SettledCost == nil && !NeedsUsageLogWithoutTokens(params.CostSnapshot) {
 		return nil, nil // No usage data to log
 	}
 	// Keep missing provider usage distinct during billing; zero token columns are
-	// only the storage representation for an image-only log.
+	// only the storage representation for a non-token fee log.
 	providerUsage := params.Usage
 	if params.Usage == nil {
 		params.Usage = &llm.Usage{}

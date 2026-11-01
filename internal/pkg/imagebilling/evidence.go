@@ -24,10 +24,22 @@ type FetchImage func(context.Context, string) (image.Config, error)
 // or streaming previews. Unknown outputs retain their place in the billing log.
 func Extract(ctx context.Context, request, response []byte, model string, fetch FetchImage) []objects.ImageOutput {
 	root := gjson.ParseBytes(response)
-	requestedTier := firstString(gjson.ParseBytes(request), "resolution", "size", "generationConfig.imageConfig.imageSize", "generation_config.image_config.image_size")
+	requestRoot := gjson.ParseBytes(request)
+	requestPaths := []string{"resolution", "size", "generationConfig.imageConfig.imageSize", "generation_config.image_config.image_size"}
+	var requestedTier string
+	var requestedWidth, requestedHeight int
+	for _, path := range requestPaths {
+		value := requestRoot.Get(path).String()
+		if requestedTier == "" {
+			requestedTier = normalizeTier(value)
+		}
+		if requestedWidth == 0 {
+			requestedWidth, requestedHeight = dimensions(value)
+		}
+	}
 	var outputs []objects.ImageOutput
 	add := func(encoded, url, size, tier string, width, height int) {
-		output := objects.ImageOutput{Source: "unknown"}
+		output := objects.ImageOutput{Source: "unknown", RequestedWidth: requestedWidth, RequestedHeight: requestedHeight}
 		if width > 0 && height > 0 {
 			output.Width, output.Height, output.Source = width, height, "response"
 		}
@@ -46,6 +58,12 @@ func Extract(ctx context.Context, request, response []byte, model string, fetch 
 			config, _, err = image.DecodeConfig(io.LimitReader(base64.NewDecoder(base64.StdEncoding, strings.NewReader(data)), 1<<20))
 		} else if url != "" && fetch != nil {
 			config, err = fetch(ctx, url)
+			if err != nil {
+				output.InspectionError = "image_fetch_failed"
+			}
+		}
+		if err != nil && output.InspectionError == "" {
+			output.InspectionError = "image_decode_failed"
 		}
 		if err == nil && config.Width > 0 && config.Height > 0 {
 			output.Width, output.Height, output.Source = config.Width, config.Height, "file"
@@ -58,6 +76,9 @@ func Extract(ctx context.Context, request, response []byte, model string, fetch 
 			output.Tier, output.TierSource = t, "request_tier"
 		} else if output.Width > 0 && output.Height > 0 {
 			output.Tier, output.TierSource = TierForDimensions(model, output.Width, output.Height), output.Source
+		} else if requestedWidth > 0 && requestedHeight > 0 {
+			output.Tier, output.TierSource = TierForDimensions(model, requestedWidth, requestedHeight), "request_dimensions"
+			output.Source = "request_dimensions"
 		}
 		if output.Source == "unknown" && output.TierSource != "" {
 			output.Source = output.TierSource

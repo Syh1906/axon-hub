@@ -551,23 +551,6 @@
   border-color: var(--primary);
 }
 
-/* 表格行悬浮效果 */
-.table-row-hover {
-  transition: all 0.2s ease;
-}
-.table-row-hover:hover {
-  background-color: var(--accent) !important;
-  transform: scale(1.005);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--primary);
-  z-index: 10;
-  position: relative;
-  border-radius: 12px;
-}
-.table-row-hover:hover > * {
-  background-color: var(--accent) !important;
-}
-
 /* 隐藏默认复选框，使用自定义样式 */
 .custom-checkbox input:checked + div {
   background-color: var(--primary);
@@ -1552,10 +1535,34 @@
   border-radius: 2px;
 }
 
-/* Stable geometry for wide channel and model tables. */
-.table-row-stable > * {
+/* Shared row/control states: cell paint must not hide the row highlight. */
+:root {
+  --interactive-hover: color-mix(in srgb, var(--card) 86%, var(--primary));
+  --interactive-selected: color-mix(in srgb, var(--card) 77%, var(--primary));
+}
+.dark {
+  --interactive-hover: color-mix(in srgb, var(--card) 78%, var(--primary));
+  --interactive-selected: color-mix(in srgb, var(--card) 66%, var(--primary));
+}
+tbody > [data-slot='table-row'] > td {
   transition: background-color 150ms ease;
 }
-.table-row-stable:hover > * {
-  background-color: var(--accent) !important;
+tbody > [data-slot='table-row']:not([aria-disabled='true']):is(:hover, :has(:focus-visible)) > td {
+  background-color: var(--interactive-hover) !important;
+}
+tbody > [data-slot='table-row'][data-state='selected'] > td {
+  background-color: var(--interactive-selected) !important;
+}
+tbody > [data-slot='table-row'][data-state='selected']:is(:hover, :has(:focus-visible)) > td {
+  background-color: color-mix(in srgb, var(--interactive-selected) 90%, var(--primary)) !important;
+}
+[data-slot='command-item'][data-selected='true'],
+[data-slot^='dropdown-menu-'][data-highlighted],
+[data-slot='select-item'][data-highlighted],
+[data-slot^='context-menu-'][data-highlighted],
+[data-slot='tabs-trigger'][data-state='inactive']:not(:disabled):is(:hover, :focus-visible) {
+  background-color: var(--interactive-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  tbody > [data-slot='table-row'] > td { transition: none; }
 }

@@ -24,6 +24,7 @@ type SelfUsageCostItem struct {
 	Image                       *objects.ImageOutput
 	ImageRule                   string
 	Unpriced                    bool
+	UnpricedReason              string
 	ItemCode                    string
 	PromptWriteCacheVariantCode *string
 	Quantity                    int
@@ -103,7 +104,7 @@ func (s *SelfUsageService) loadRequestCosts(ctx context.Context, scope selfUsage
 					}
 					return SelfUsageTierCost{UpTo: upTo, Units: int(tier.Units), Subtotal: tier.Subtotal.InexactFloat64()}
 				})
-				row.images = append(row.images, SelfUsageCostItem{PricingEvidence: item.PricingEvidence, PromptWriteCacheVariantCode: lo.EmptyableToPtr(string(item.PromptWriteCacheVariantCode)), ItemCode: string(item.ItemCode), Image: item.Image, ImageRule: item.ImageRule, Unpriced: item.Unpriced, Quantity: int(item.Quantity), Subtotal: item.Subtotal.InexactFloat64(), TierBreakdown: tiers})
+				row.images = append(row.images, SelfUsageCostItem{PricingEvidence: item.PricingEvidence, PromptWriteCacheVariantCode: lo.EmptyableToPtr(string(item.PromptWriteCacheVariantCode)), ItemCode: string(item.ItemCode), Image: item.Image, ImageRule: item.ImageRule, Unpriced: item.Unpriced, UnpricedReason: item.UnpricedReason, Quantity: int(item.Quantity), Subtotal: item.Subtotal.InexactFloat64(), TierBreakdown: tiers})
 				continue
 			}
 			key := selfUsageCostKey{code: item.ItemCode, variant: item.PromptWriteCacheVariantCode}

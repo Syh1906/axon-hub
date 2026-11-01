@@ -163,7 +163,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	})
 	gqlSrv.Use(&loggingTracer{})
 	gqlSrv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
-		return next(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent)))
+		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
 	})
 	gqlSrv.Use(entgql.Transactioner{
 		TxOpener:   deps.Ent,

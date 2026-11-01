@@ -108,39 +108,27 @@ func buildRowNumberQuery(placeholder string, config QueryFragmentConfig, limit i
 	return `
 WITH successful_execs AS (
     SELECT
-        request_id,
+        id, request_id,
         channel_id,
         metrics_latency_ms,
-        metrics_first_token_latency_ms,
-        stream,
-        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC) as rn
+        metrics_first_byte_latency_ms,
+        stream, format, status,
+        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY id DESC) as rn
     FROM request_executions
-    WHERE status = 'completed' AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
+    WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
 )
 SELECT
     ` + config.SelectColumns + `
     SUM(ul.completion_tokens) as tokens_count,
     SUM(se.metrics_latency_ms) as latency_ms,
-    COUNT(DISTINCT se.request_id) as request_count,
-    CASE
-        WHEN SUM(CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL
-                 THEN CASE WHEN se.metrics_first_token_latency_ms >= se.metrics_latency_ms
-                      THEN 0
-                      ELSE se.metrics_latency_ms - se.metrics_first_token_latency_ms END
-                 ELSE se.metrics_latency_ms END) > 0
-        THEN SUM(ul.completion_tokens) * 1000.0
-             / SUM(CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL
-                   THEN CASE WHEN se.metrics_first_token_latency_ms >= se.metrics_latency_ms
-                        THEN 0
-                        ELSE se.metrics_latency_ms - se.metrics_first_token_latency_ms END
-                   ELSE se.metrics_latency_ms END)
-        ELSE 0
-    END as throughput
+    COUNT(` + outputSpeedSQL("se", placeholder) + `) as request_count,
+    ` + throughputCalculationSQL("se", placeholder) + ` as throughput
 FROM successful_execs se
-JOIN usage_logs ul ON se.request_id = ul.request_id
+` + throughputUsageJoin + `
 ` + config.JoinClause + `
 WHERE se.rn = 1
 GROUP BY ` + config.GroupBy + `
+HAVING COUNT(` + outputSpeedSQL("se", placeholder) + `) > 0
 ORDER BY throughput DESC
 LIMIT ` + fmt.Sprintf("%d", limit)
 }
@@ -156,36 +144,24 @@ SELECT
     ` + config.SelectColumns + `
     SUM(ul.completion_tokens) as tokens_count,
     SUM(se.metrics_latency_ms) as latency_ms,
-    COUNT(DISTINCT se.request_id) as request_count,
-    CASE
-        WHEN SUM(CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL
-                 THEN CASE WHEN se.metrics_first_token_latency_ms >= se.metrics_latency_ms
-                      THEN 0
-                      ELSE se.metrics_latency_ms - se.metrics_first_token_latency_ms END
-                 ELSE se.metrics_latency_ms END) > 0
-        THEN SUM(ul.completion_tokens) * 1000.0
-             / SUM(CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL
-                   THEN CASE WHEN se.metrics_first_token_latency_ms >= se.metrics_latency_ms
-                        THEN 0
-                        ELSE se.metrics_latency_ms - se.metrics_first_token_latency_ms END
-                   ELSE se.metrics_latency_ms END)
-        ELSE 0
-    END as throughput
+    COUNT(` + outputSpeedSQL("se", placeholder) + `) as request_count,
+    ` + throughputCalculationSQL("se", placeholder) + ` as throughput
 FROM request_executions se
-JOIN usage_logs ul ON se.request_id = ul.request_id
+` + throughputUsageJoin + `
 ` + config.JoinClause + `
-WHERE se.status = 'completed'
+WHERE se.status IN ('completed', 'failed', 'canceled')
     AND se.metrics_latency_ms > 0
     AND se.created_at >= ` + placeholder + `
     AND se.id = (
         SELECT MAX(re2.id)
         FROM request_executions re2
         WHERE re2.request_id = se.request_id
-            AND re2.status = 'completed'
+            AND re2.status IN ('completed', 'failed', 'canceled')
             AND re2.metrics_latency_ms > 0
             AND re2.created_at >= ` + placeholder + `
     )
 GROUP BY ` + config.GroupBy + `
+HAVING COUNT(` + outputSpeedSQL("se", placeholder) + `) > 0
 ORDER BY throughput DESC
 LIMIT ` + fmt.Sprintf("%d", limit)
 }
@@ -231,10 +207,9 @@ func CalculateConfidenceLevel(requestCount int, median float64) string {
 // BuildProbeStatsQuery builds a specialized query for channel probe statistics.
 // This query returns additional columns needed for probe metrics:
 //   - total_count: total number of completed/failed execution attempts
-//   - effective_latency_ms: sum of completed execution effective latency (excluding first token for streaming)
+//   - speed_sum/speed_count: comparable per-request text speeds after first byte
 //   - total_first_token_latency: sum of completed execution first token latency
-//   - token usage from usage_logs bounded by the same start timestamp to avoid
-//     materializing all historical usage rows before joining to executions
+//   - usage looked up by request/channel without grouping all historical rows
 //
 // Unlike BuildThroughputQuery, this does not join with channels table and returns
 // raw metrics needed for probe calculations rather than throughput rankings.
@@ -263,35 +238,19 @@ func BuildProbeStatsQuery(useDollarPlaceholders bool, channelIDFilter string, _ 
 	return fmt.Sprintf(`
 SELECT
     se.channel_id,
-    COUNT(*) as total_count,
+    SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count,
     SUM(CASE WHEN se.status = 'completed' THEN 1 ELSE 0 END) as success_count,
-    SUM(CASE WHEN se.status = 'completed' THEN COALESCE(ul.total_completion_tokens, 0) ELSE 0 END) as total_tokens,
-    SUM(CASE WHEN se.status = 'completed' THEN
-        CASE WHEN se.stream AND se.metrics_first_token_latency_ms IS NOT NULL
-             THEN CASE WHEN se.metrics_first_token_latency_ms >= se.metrics_latency_ms
-                  THEN 0
-                  ELSE se.metrics_latency_ms - se.metrics_first_token_latency_ms END
-             ELSE se.metrics_latency_ms END
-        ELSE 0 END) as effective_latency_ms,
+    COALESCE(SUM(%s), 0) as speed_sum,
+    COUNT(%s) as speed_count,
     SUM(CASE WHEN se.status = 'completed' AND se.stream AND se.metrics_first_token_latency_ms IS NOT NULL THEN se.metrics_first_token_latency_ms ELSE 0 END) as total_first_token_latency,
-    COUNT(DISTINCT se.request_id) as request_count,
+    COUNT(DISTINCT CASE WHEN se.status IN ('completed', 'failed') THEN se.request_id END) as request_count,
     SUM(CASE WHEN se.status = 'completed' AND se.stream AND se.metrics_first_token_latency_ms IS NOT NULL THEN 1 ELSE 0 END) as streaming_request_count
 FROM request_executions se
-LEFT JOIN (
-    SELECT
-        request_id,
-        channel_id,
-        SUM(COALESCE(completion_tokens, 0)) as total_completion_tokens
-    FROM usage_logs
-    WHERE created_at >= %s
-    GROUP BY request_id, channel_id
-) ul ON se.status = 'completed'
-    AND se.request_id = ul.request_id
-    AND se.channel_id = ul.channel_id
+LEFT `+throughputUsageJoin+`
 WHERE se.created_at >= %s
     AND se.created_at < %s
-    AND se.status IN ('completed', 'failed')
+    AND se.status IN ('completed', 'failed', 'canceled')
     %s
 GROUP BY se.channel_id
-ORDER BY se.channel_id`, placeholder1, placeholder1, placeholder2, channelIDFilter)
+ORDER BY se.channel_id`, outputSpeedSQL("se", placeholder1), outputSpeedSQL("se", placeholder1), placeholder1, placeholder2, channelIDFilter)
 }

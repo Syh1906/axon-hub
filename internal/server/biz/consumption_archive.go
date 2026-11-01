@@ -23,13 +23,15 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 			q.Where(sql.GT(q.C("cache_requests"), 0))
 		}
 		q.AppendSelect(sql.As(sql.Count("*"), "requests"),
+			sql.As("SUM(CASE WHEN "+q.C("pricing_complete")+" THEN 0 ELSE 1 END)", "unpriced_requests"),
+			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = 1 THEN "+q.C("speed_sum")+" ELSE 0 END)", "speed_sum"),
+			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = 1 THEN "+q.C("speed_count")+" ELSE 0 END)", "speed_count"),
 			sql.As("COALESCE(SUM("+q.C("prompt_tokens")+" + "+q.C("completion_tokens")+"),0)", "tokens"))
 		for _, field := range [][2]string{
 			{"total_cost", "cost"}, {"cache_requests", "cache_requests"}, {"prompt_cached_tokens", "cache_read"},
 			{"cache_input", "cache_input"}, {"cache_creation_cost", "cache_creation_cost"},
 			{"success_count", "success_count"}, {"outcome_count", "outcome_count"},
 			{"first_token_sum", "first_token_sum"}, {"first_token_count", "first_token_count"},
-			{"speed_sum", "speed_sum"}, {"speed_count", "speed_count"},
 		} {
 			q.AppendSelect(sql.As("COALESCE(SUM("+q.C(field[0])+"),0)", field[1]))
 		}
@@ -58,6 +60,7 @@ func mergeConsumptionGroups(live, archived []consumptionGroup) []consumptionGrou
 		t.Requests += row.Requests
 		t.Tokens += row.Tokens
 		t.Cost += row.Cost
+		t.UnpricedRequests += row.UnpricedRequests
 		t.CacheRequests += row.CacheRequests
 		t.CacheRead += row.CacheRead
 		t.CacheInput += row.CacheInput

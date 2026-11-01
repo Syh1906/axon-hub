@@ -29,6 +29,11 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 		return table.Name == "cache_effectiveness_windows"
 	})
 	for _, table := range oldTables {
+		if table.Name == "usage_archives" {
+			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool {
+				return column.Name == "pricing_complete" || column.Name == "speed_version"
+			})
+		}
 		if table.Name == "request_executions" {
 			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool {
 				return slices.Contains([]string{"metrics_first_byte_latency_ms", "metrics_first_byte_recorded", "cache_compatibility_key", "theoretical_cache_tokens", "cache_ttl_bucket"}, column.Name)
@@ -37,6 +42,8 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 	}
 	require.NoError(t, migrate.Create(ctx, client.Schema, oldTables, migrate.WithForeignKeys(false)))
 	_, err = db.ExecContext(ctx, `INSERT INTO request_executions (created_at, updated_at, project_id, request_id, channel_id, model_id, request_body, status, metrics_latency_ms, metrics_first_token_latency_ms) VALUES (CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, 1, 1, 'legacy-model', '{}', 'completed', 1200, 700)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO usage_archives (kind, source_id, request_id, project_id, model_id, occurred_at, total_cost, speed_sum, speed_count) VALUES ('request', 1, 1, 1, 'legacy-model', CURRENT_TIMESTAMP, 0, 9999, 1)`)
 	require.NoError(t, err)
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)))
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)), "repeated upgrades are safe")
@@ -48,6 +55,9 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 	require.Nil(t, legacy.CacheCompatibilityKey)
 	require.Nil(t, legacy.TheoreticalCacheTokens)
 	require.Nil(t, legacy.CacheTTLBucket)
+	legacyArchive := client.UsageArchive.Query().OnlyX(ctx)
+	require.Nil(t, legacyArchive.PricingComplete, "unknown legacy zero cost must not become confirmed free")
+	require.Zero(t, legacyArchive.SpeedVersion, "legacy speed must not be treated as the corrected formula")
 
 	start := time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
 	createWindow := func(projectID int) error {

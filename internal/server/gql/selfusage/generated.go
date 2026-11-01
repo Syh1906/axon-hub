@@ -130,6 +130,7 @@ type ComplexityRoot struct {
 		Subtotal                    func(childComplexity int) int
 		TierBreakdown               func(childComplexity int) int
 		Unpriced                    func(childComplexity int) int
+		UnpricedReason              func(childComplexity int) int
 	}
 
 	SelfUsageDailyStat struct {
@@ -138,11 +139,14 @@ type ComplexityRoot struct {
 	}
 
 	SelfUsageImageOutput struct {
-		Height     func(childComplexity int) int
-		Source     func(childComplexity int) int
-		Tier       func(childComplexity int) int
-		TierSource func(childComplexity int) int
-		Width      func(childComplexity int) int
+		Height          func(childComplexity int) int
+		InspectionError func(childComplexity int) int
+		RequestedHeight func(childComplexity int) int
+		RequestedWidth  func(childComplexity int) int
+		Source          func(childComplexity int) int
+		Tier            func(childComplexity int) int
+		TierSource      func(childComplexity int) int
+		Width           func(childComplexity int) int
 	}
 
 	SelfUsageMeta struct {
@@ -657,6 +661,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageCostItem.Unpriced(childComplexity), true
+	case "SelfUsageCostItem.unpricedReason":
+		if e.complexity.SelfUsageCostItem.UnpricedReason == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageCostItem.UnpricedReason(childComplexity), true
 
 	case "SelfUsageDailyStat.date":
 		if e.complexity.SelfUsageDailyStat.Date == nil {
@@ -677,6 +687,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageImageOutput.Height(childComplexity), true
+	case "SelfUsageImageOutput.inspectionError":
+		if e.complexity.SelfUsageImageOutput.InspectionError == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.InspectionError(childComplexity), true
+	case "SelfUsageImageOutput.requestedHeight":
+		if e.complexity.SelfUsageImageOutput.RequestedHeight == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.RequestedHeight(childComplexity), true
+	case "SelfUsageImageOutput.requestedWidth":
+		if e.complexity.SelfUsageImageOutput.RequestedWidth == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageImageOutput.RequestedWidth(childComplexity), true
 	case "SelfUsageImageOutput.source":
 		if e.complexity.SelfUsageImageOutput.Source == nil {
 			break
@@ -3349,6 +3377,12 @@ func (ec *executionContext) fieldContext_SelfUsageCostItem_image(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "requestedWidth":
+				return ec.fieldContext_SelfUsageImageOutput_requestedWidth(ctx, field)
+			case "requestedHeight":
+				return ec.fieldContext_SelfUsageImageOutput_requestedHeight(ctx, field)
+			case "inspectionError":
+				return ec.fieldContext_SelfUsageImageOutput_inspectionError(ctx, field)
 			case "tierSource":
 				return ec.fieldContext_SelfUsageImageOutput_tierSource(ctx, field)
 			case "width":
@@ -3419,6 +3453,35 @@ func (ec *executionContext) fieldContext_SelfUsageCostItem_unpriced(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageCostItem_unpricedReason(ctx context.Context, field graphql.CollectedField, obj *SelfUsageCostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageCostItem_unpricedReason,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedReason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageCostItem_unpricedReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageCostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3654,6 +3717,93 @@ func (ec *executionContext) fieldContext_SelfUsageDailyStat_usage(_ context.Cont
 				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_requestedWidth(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_requestedWidth,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedWidth, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_requestedWidth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_requestedHeight(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_requestedHeight,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedHeight, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_requestedHeight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageImageOutput_inspectionError(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageImageOutput_inspectionError,
+		func(ctx context.Context) (any, error) {
+			return obj.InspectionError, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageImageOutput_inspectionError(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4556,6 +4706,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_costItems(_ context.Co
 				return ec.fieldContext_SelfUsageCostItem_imageRule(ctx, field)
 			case "unpriced":
 				return ec.fieldContext_SelfUsageCostItem_unpriced(ctx, field)
+			case "unpricedReason":
+				return ec.fieldContext_SelfUsageCostItem_unpricedReason(ctx, field)
 			case "itemCode":
 				return ec.fieldContext_SelfUsageCostItem_itemCode(ctx, field)
 			case "promptWriteCacheVariantCode":
@@ -8270,6 +8422,11 @@ func (ec *executionContext) _SelfUsageCostItem(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "unpricedReason":
+			out.Values[i] = ec._SelfUsageCostItem_unpricedReason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "itemCode":
 			out.Values[i] = ec._SelfUsageCostItem_itemCode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -8370,6 +8527,21 @@ func (ec *executionContext) _SelfUsageImageOutput(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageImageOutput")
+		case "requestedWidth":
+			out.Values[i] = ec._SelfUsageImageOutput_requestedWidth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestedHeight":
+			out.Values[i] = ec._SelfUsageImageOutput_requestedHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inspectionError":
+			out.Values[i] = ec._SelfUsageImageOutput_inspectionError(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "tierSource":
 			out.Values[i] = ec._SelfUsageImageOutput_tierSource(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

@@ -109,6 +109,36 @@ func TestUnknownImageIsNotRecordedAsFree(t *testing.T) {
 	require.True(t, log.CostItems[0].Unpriced)
 }
 
+func TestFlatFeePersistsWithoutProviderUsage(t *testing.T) {
+	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIImageGeneration), "image-proxy")
+	fee := decimal.RequireFromString("0.09")
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee}}}}
+	middleware.inbound.state.RequestExec.CostSnapshot = &objects.RequestCostSnapshot{Price: &price, PricedAt: time.Now(), ManualMultiplier: decimal.NewFromInt(1)}
+	response := &llm.Response{ID: "fixed-image", RequestType: llm.RequestTypeImage}
+	_, err := middleware.OnOutboundLlmResponse(ctx, response)
+	require.NoError(t, err)
+	log := ent.FromContext(ctx).UsageLog.Query().OnlyX(ctx)
+	require.NotNil(t, log.TotalCost)
+	require.InDelta(t, 0.09, *log.TotalCost, 1e-10)
+	require.Nil(t, response.Usage)
+	require.Zero(t, log.TotalTokens)
+}
+
+func TestImageEvidenceCapturedForTokenPricedStreams(t *testing.T) {
+	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIResponse), "mixed-image-model")
+	state := middleware.inbound.state
+	unit := decimal.NewFromInt(2)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &unit}}}}
+	state.RequestExec.CostSnapshot = &objects.RequestCostSnapshot{ModelPrice: &price, PricedAt: time.Now(), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+	state.RawProviderRequest = &httpclient.Request{Body: []byte(`{}`)}
+	captureImageCostEvidence(ctx, state, []byte(`{"output":[{"type":"image_generation_call","status":"completed","result":"invalid","size":"1024x1024"}]}`))
+	_, err := middleware.OnOutboundLlmResponse(ctx, &llm.Response{ID: "mixed-image", Usage: &llm.Usage{CompletionTokens: 100, TotalTokens: 100}})
+	require.NoError(t, err)
+	log := ent.FromContext(ctx).UsageLog.Query().OnlyX(ctx)
+	require.Len(t, log.CostSnapshot.Images, 1, "text protocols must retain image evidence independently of pricing mode")
+	require.InDelta(t, 0.0002, *log.TotalCost, 1e-10, "capturing output evidence must not change token pricing")
+}
+
 func setupUsageCostMiddleware(t *testing.T, format, modelID string) (*persistRequestMiddleware, context.Context, int) {
 	t.Helper()
 

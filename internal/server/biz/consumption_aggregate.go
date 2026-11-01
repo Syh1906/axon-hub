@@ -44,6 +44,7 @@ func consumptionEntries(rows []consumptionGroup, input ConsumptionFilter) []*Con
 		total.Requests += row.Requests
 		total.Tokens += row.Tokens
 		total.Cost += row.Cost
+		total.UnpricedRequests += row.UnpricedRequests
 		total.CacheRequests += row.CacheRequests
 		total.CacheRead += row.CacheRead
 		total.CacheInput += row.CacheInput
@@ -78,6 +79,11 @@ func (r consumptionGroup) metrics() ConsumptionMetrics {
 	metrics := ConsumptionMetrics{RequestCount: r.Requests, TotalTokens: r.Tokens, TotalCost: r.Cost, CacheRequests: r.CacheRequests, CacheReadTokens: r.CacheRead, CacheInputTokens: r.CacheInput, CacheCreationCost: r.CacheCreationCost}
 	metrics.AvgCostPerRequest = consumptionRatio(r.Cost, int64(r.Requests))
 	metrics.AvgCostPerMillionTokens = consumptionRatio(r.Cost*1_000_000, r.Tokens)
+	metrics.UnpricedRequestCount = r.UnpricedRequests
+	metrics.SpeedSampleCount = r.SpeedCount
+	if r.UnpricedRequests > 0 {
+		metrics.AvgCostPerRequest, metrics.AvgCostPerMillionTokens = nil, nil
+	}
 	metrics.SuccessRate = consumptionRatio(float64(r.SuccessCount), r.OutcomeCount)
 	metrics.AvgFirstTokenMs = consumptionRatio(r.FirstTokenSum, r.FirstTokenCount)
 	metrics.AvgTokensPerSecond = consumptionRatio(r.SpeedSum, r.SpeedCount)

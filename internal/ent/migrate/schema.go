@@ -1153,6 +1153,8 @@ var (
 		{Name: "cache_creation_cost", Type: field.TypeFloat64, Default: 0},
 		{Name: "first_token_sum", Type: field.TypeFloat64, Default: 0},
 		{Name: "speed_sum", Type: field.TypeFloat64, Default: 0},
+		{Name: "pricing_complete", Type: field.TypeBool, Nullable: true},
+		{Name: "speed_version", Type: field.TypeInt, Default: 0},
 		{Name: "prompt_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "completion_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},

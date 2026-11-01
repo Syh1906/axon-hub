@@ -99,6 +99,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             status
             clientIP
             clientStatusCode
+            outputTokensPerSecond
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
@@ -146,7 +147,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   promptWriteCachedTokens1h
                   totalCost
                   costPriceMultiplier
-                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
                 }
               }
             }
@@ -229,6 +230,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
           format
           ${REQUEST_ROUTING_DECISION_SELECTION}
           metricsReasoningDurationMs
+          outputTokensPerSecond
           usageLogs(first: 1) {
             edges {
               node {
@@ -241,7 +243,7 @@ function buildRequestDetailQuery(permissions: { canViewApiKeys: boolean; canView
                   promptWriteCachedTokens
                   totalCost
                   costPriceMultiplier
-                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
                 }
             }
           }
@@ -300,6 +302,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           format
           ${REQUEST_ROUTING_DECISION_SELECTION}
           metricsReasoningDurationMs
+          outputTokensPerSecond
         }
       }
     }

@@ -41,7 +41,7 @@ function buildUsageLogsQuery(permissions: { canViewChannels: boolean }) {
             source
             format
             totalCost
-            costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced
+            costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason
               itemCode
               quantity
               subtotal
@@ -93,7 +93,7 @@ function buildUsageLogDetailQuery(permissions: { canViewChannels: boolean }) {
           source
           format
           totalCost
-          costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource } imageRule unpriced
+          costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason
             itemCode
             quantity
             subtotal

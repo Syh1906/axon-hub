@@ -49,11 +49,22 @@ type ImageCondition struct {
 
 // ImageOutput contains billing evidence only, never image bytes or signed URLs.
 type ImageOutput struct {
-	Width      int    `json:"width,omitempty"`
-	Height     int    `json:"height,omitempty"`
-	Tier       string `json:"tier,omitempty"`
-	TierSource string `json:"tierSource,omitempty"`
-	Source     string `json:"source"`
+	Width           int    `json:"width,omitempty"`
+	Height          int    `json:"height,omitempty"`
+	RequestedWidth  int    `json:"requestedWidth,omitempty"`
+	RequestedHeight int    `json:"requestedHeight,omitempty"`
+	InspectionError string `json:"inspectionError,omitempty"`
+	Tier            string `json:"tier,omitempty"`
+	TierSource      string `json:"tierSource,omitempty"`
+	Source          string `json:"source"`
+}
+
+// BillingDimensions keeps requested dimensions distinct from observed output.
+func (i ImageOutput) BillingDimensions() (int, int) {
+	if i.Width > 0 && i.Height > 0 {
+		return i.Width, i.Height
+	}
+	return i.RequestedWidth, i.RequestedHeight
 }
 
 func (p *ImagePricing) Equals(other *ImagePricing) bool {
@@ -120,14 +131,15 @@ func (p *ImagePricing) MatchImage(image ImageOutput) *ImagePriceRule {
 			}
 			continue
 		}
-		if image.Width <= 0 || image.Height <= 0 || len(r.Conditions) == 0 {
+		width, height := image.BillingDimensions()
+		if width <= 0 || height <= 0 || len(r.Conditions) == 0 {
 			continue
 		}
 		matched := r.Match == "all"
 		for _, c := range r.Conditions {
-			value := image.Width
+			value := width
 			if c.Dimension == "height" {
-				value = image.Height
+				value = height
 			}
 			ok := false
 			switch c.Operator {

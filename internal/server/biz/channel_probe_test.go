@@ -63,6 +63,7 @@ func TestTPSCalculation_RetryScenario(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(1000).
 		SetMetricsFirstTokenLatencyMs(200).
+		SetMetricsFirstByteLatencyMs(200).
 		SetCreatedAt(now.Add(-2 * time.Minute)).
 		SetUpdatedAt(now.Add(-2 * time.Minute)).
 		Save(ctx)
@@ -77,6 +78,7 @@ func TestTPSCalculation_RetryScenario(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(2000).
 		SetMetricsFirstTokenLatencyMs(300).
+		SetMetricsFirstByteLatencyMs(300).
 		SetCreatedAt(now.Add(-1 * time.Minute)).
 		SetUpdatedAt(now.Add(-1 * time.Minute)).
 		Save(ctx)
@@ -92,6 +94,7 @@ func TestTPSCalculation_RetryScenario(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(3000).
 		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -185,6 +188,7 @@ func TestTPSCalculation_AllTokenTypes(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(2000).
 		SetMetricsFirstTokenLatencyMs(400).
+		SetMetricsFirstByteLatencyMs(400).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -264,6 +268,7 @@ func TestTPSCalculation_StreamingVsNonStreaming(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(3000).
 		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -376,6 +381,7 @@ func TestTPSCalculation_EdgeCases(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(1000).
 		SetMetricsFirstTokenLatencyMs(0).
+		SetMetricsFirstByteLatencyMs(0).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -480,6 +486,7 @@ func TestComputeAllChannelProbeStats_Integration(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(3000).
 		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -519,9 +526,8 @@ func TestComputeAllChannelProbeStats_Integration(t *testing.T) {
 	assert.Equal(t, 1, channelStats.total)
 	assert.Equal(t, 1, channelStats.success)
 
-	// Verify TPS calculation: 100 tokens (completion only) / ((3000 - 500) / 1000) = 100 / 2.5 = 40 tokens/s
-	require.NotNil(t, channelStats.avgTokensPerSecond, "avgTokensPerSecond should not be nil")
-	assert.InDelta(t, 40.0, *channelStats.avgTokensPerSecond, 0.01)
+	// Audio output is not a comparable text generation speed sample.
+	require.Nil(t, channelStats.avgTokensPerSecond)
 
 	// Verify TTFT calculation: 500ms / 1 request = 500ms
 	require.NotNil(t, channelStats.avgTimeToFirstTokenMs, "avgTimeToFirstTokenMs should not be nil")
@@ -587,6 +593,7 @@ func TestComputeAllChannelProbeStats_MultipleRequests(t *testing.T) {
 			SetStream(r.stream).
 			SetMetricsLatencyMs(r.latencyMs).
 			SetMetricsFirstTokenLatencyMs(r.firstTokenLatency).
+			SetMetricsFirstByteLatencyMs(r.firstTokenLatency).
 			SetCreatedAt(reqTime).
 			SetUpdatedAt(reqTime).
 			Save(ctx)
@@ -622,11 +629,9 @@ func TestComputeAllChannelProbeStats_MultipleRequests(t *testing.T) {
 	assert.Equal(t, 3, channelStats.total)
 	assert.Equal(t, 3, channelStats.success)
 
-	// Total completion tokens: 100 + 80 + 200 = 380 (reasoning tokens excluded)
-	// Effective latency: (3000-500) + (2000-400) + 4000 = 2500 + 1600 + 4000 = 8100
-	// TPS: 380 / 8.1 = 46.91 tokens/s
+	// Audio and non-stream responses are excluded; only 80 / 1.6 = 50 remains.
 	require.NotNil(t, channelStats.avgTokensPerSecond)
-	assert.InDelta(t, 46.91, *channelStats.avgTokensPerSecond, 0.1)
+	assert.InDelta(t, 50, *channelStats.avgTokensPerSecond, 0.1)
 
 	// TTFT: (500 + 400 + 0) / 2 = 450ms (only streaming requests count: 2 out of 3 requests are streaming)
 	require.NotNil(t, channelStats.avgTimeToFirstTokenMs)
@@ -816,6 +821,7 @@ func TestComputeAllChannelProbeStats_MultipleChannels(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(2000).
 		SetMetricsFirstTokenLatencyMs(400).
+		SetMetricsFirstByteLatencyMs(400).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -855,6 +861,7 @@ func TestComputeAllChannelProbeStats_MultipleChannels(t *testing.T) {
 		SetStream(true).
 		SetMetricsLatencyMs(3000).
 		SetMetricsFirstTokenLatencyMs(600).
+		SetMetricsFirstByteLatencyMs(600).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)
@@ -1003,8 +1010,7 @@ func TestComputeAllChannelProbeStats_CrossChannelRetryCountsFailedOriginalChanne
 	successStats := stats[successChannel.ID]
 	assert.Equal(t, 1, successStats.total)
 	assert.Equal(t, 1, successStats.success)
-	require.NotNil(t, successStats.avgTokensPerSecond)
-	assert.InDelta(t, 50.0, *successStats.avgTokensPerSecond, 0.01)
+	assert.Nil(t, successStats.avgTokensPerSecond, "non-streaming download time is not output speed")
 }
 
 // TestComputeAllChannelProbeStats_FailedExecutionsCountTowardTotalOnly tests that failed executions
@@ -1054,6 +1060,7 @@ func TestComputeAllChannelProbeStats_FailedExecutionsCountTowardTotalOnly(t *tes
 		SetStream(true).
 		SetMetricsLatencyMs(1000).
 		SetMetricsFirstTokenLatencyMs(200).
+		SetMetricsFirstByteLatencyMs(200).
 		SetCreatedAt(now.Add(-10 * time.Second)).
 		SetUpdatedAt(now.Add(-10 * time.Second)).
 		Save(ctx)
@@ -1069,6 +1076,7 @@ func TestComputeAllChannelProbeStats_FailedExecutionsCountTowardTotalOnly(t *tes
 		SetStream(true).
 		SetMetricsLatencyMs(3000).
 		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).
 		Save(ctx)

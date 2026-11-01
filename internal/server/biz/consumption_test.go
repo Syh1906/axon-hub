@@ -12,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -48,7 +49,7 @@ func (f *consumptionFixture) addRequest(t *testing.T, at time.Time, model string
 	at = at.UTC()
 	req := f.client.Request.Create().SetProjectID(f.project.ID).SetAPIKeyID(f.key.ID).SetChannelID(f.channel.ID).SetModelID("public-model").SetStatus(status).SetRequestBody([]byte(`{}`)).SetCreatedAt(at).SaveX(f.ctx)
 	exec := f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetModelID(model).SetStatus(requestexecution.Status(status)).SetRequestBody([]byte(`{}`)).SetCreatedAt(at).
-		SetMetricsLatencyMs(1200).SetMetricsFirstTokenLatencyMs(700).SetNillableMetricsFirstByteLatencyMs(byteLatency).
+		SetStream(true).SetMetricsLatencyMs(1200).SetMetricsFirstTokenLatencyMs(700).SetNillableMetricsFirstByteLatencyMs(byteLatency).
 		SetCacheCompatibilityKey("fixture-prefix").SetTheoreticalCacheTokens(1000).SetCacheTTLBucket("5m").SaveX(f.ctx)
 	if input+output > 0 {
 		f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetAPIKeyID(f.key.ID).SetModelID(model).
@@ -152,6 +153,53 @@ func TestConsumptionOutcomeAndSpeedSamples(t *testing.T) {
 	require.Equal(t, 9, metrics.RequestCount)
 	require.Equal(t, 0.5, *metrics.SuccessRate) // Two successes, one upstream failure, one new pre-byte cancellation.
 	require.Equal(t, 100.0, *metrics.AvgTokensPerSecond)
+}
+
+func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
+	f := newConsumptionFixture(t)
+	at := time.Now().Add(-time.Hour)
+	first, _ := f.addRequest(t, at, "model", request.StatusCompleted, 1000, 100, 0, 0, 0, lo.ToPtr(int64(200)))
+	f.addRequest(t, at, "model", request.StatusCompleted, 1000, 500, 0, 0, 2, lo.ToPtr(int64(200)))
+	for _, sample := range []struct {
+		stream              bool
+		format              string
+		duration, firstByte int64
+		image               bool
+	}{
+		{false, "openai/chat_completions", 60000, 59000, false},
+		{true, "openai/image_generations", 60000, 59000, false},
+		{true, "openai/chat_completions", 1200, 1150, false},
+		{true, "gemini/contents", 60000, 59000, true},
+	} {
+		req, _ := f.addRequest(t, at, "model", request.StatusCompleted, 1000, 4000, 0, 0, 0, lo.ToPtr(sample.firstByte))
+		f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetModelID("model").SetStatus(requestexecution.StatusCompleted).SetStream(sample.stream).SetFormat(sample.format).SetRequestBody([]byte(`{}`)).SetMetricsLatencyMs(sample.duration).SetMetricsFirstByteLatencyMs(sample.firstByte).SaveX(f.ctx)
+		if sample.image {
+			f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetCostSnapshot(&objects.RequestCostSnapshot{Images: []objects.ImageOutput{{Source: "file", Width: 1024, Height: 1024}}}).SaveX(f.ctx)
+		}
+	}
+	filter := ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll}
+	rows, err := f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
+	require.NoError(t, err)
+	metrics := rows[0].metrics()
+	require.EqualValues(t, 2, metrics.SpeedSampleCount)
+	require.Equal(t, 300.0, *metrics.AvgTokensPerSecond)
+	require.Zero(t, metrics.UnpricedRequestCount)
+	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{first.ID})
+	require.NoError(t, err)
+	require.Equal(t, 100.0, *speeds[first.ID])
+	usage := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(first.ID)).OnlyX(f.ctx)
+	f.client.UsageLog.UpdateOne(usage).ClearTotalCost().SaveX(f.ctx)
+	rows, err = f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
+	require.NoError(t, err)
+	metrics = rows[0].metrics()
+	require.Equal(t, 1, metrics.UnpricedRequestCount)
+	require.Nil(t, metrics.AvgCostPerRequest)
+	require.Nil(t, metrics.AvgCostPerMillionTokens)
+	require.Equal(t, 2.0, metrics.TotalCost)
+	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{first.ID}))
+	archived, err := f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, rows, archived)
 }
 
 func TestConsumptionLocalAdmissionOutcomes(t *testing.T) {

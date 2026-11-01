@@ -118,6 +118,47 @@ func (_u *UsageArchiveUpdate) AddSpeedSum(v float64) *UsageArchiveUpdate {
 	return _u
 }
 
+// SetPricingComplete sets the "pricing_complete" field.
+func (_u *UsageArchiveUpdate) SetPricingComplete(v bool) *UsageArchiveUpdate {
+	_u.mutation.SetPricingComplete(v)
+	return _u
+}
+
+// SetNillablePricingComplete sets the "pricing_complete" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillablePricingComplete(v *bool) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetPricingComplete(*v)
+	}
+	return _u
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (_u *UsageArchiveUpdate) ClearPricingComplete() *UsageArchiveUpdate {
+	_u.mutation.ClearPricingComplete()
+	return _u
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (_u *UsageArchiveUpdate) SetSpeedVersion(v int) *UsageArchiveUpdate {
+	_u.mutation.ResetSpeedVersion()
+	_u.mutation.SetSpeedVersion(v)
+	return _u
+}
+
+// SetNillableSpeedVersion sets the "speed_version" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableSpeedVersion(v *int) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetSpeedVersion(*v)
+	}
+	return _u
+}
+
+// AddSpeedVersion adds value to the "speed_version" field.
+func (_u *UsageArchiveUpdate) AddSpeedVersion(v int) *UsageArchiveUpdate {
+	_u.mutation.AddSpeedVersion(v)
+	return _u
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (_u *UsageArchiveUpdate) SetPromptTokens(v int64) *UsageArchiveUpdate {
 	_u.mutation.ResetPromptTokens()
@@ -444,6 +485,18 @@ func (_u *UsageArchiveUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.AddedSpeedSum(); ok {
 		_spec.AddField(usagearchive.FieldSpeedSum, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.PricingComplete(); ok {
+		_spec.SetField(usagearchive.FieldPricingComplete, field.TypeBool, value)
+	}
+	if _u.mutation.PricingCompleteCleared() {
+		_spec.ClearField(usagearchive.FieldPricingComplete, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SpeedVersion(); ok {
+		_spec.SetField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSpeedVersion(); ok {
+		_spec.AddField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)
 	}
@@ -625,6 +678,47 @@ func (_u *UsageArchiveUpdateOne) SetNillableSpeedSum(v *float64) *UsageArchiveUp
 // AddSpeedSum adds value to the "speed_sum" field.
 func (_u *UsageArchiveUpdateOne) AddSpeedSum(v float64) *UsageArchiveUpdateOne {
 	_u.mutation.AddSpeedSum(v)
+	return _u
+}
+
+// SetPricingComplete sets the "pricing_complete" field.
+func (_u *UsageArchiveUpdateOne) SetPricingComplete(v bool) *UsageArchiveUpdateOne {
+	_u.mutation.SetPricingComplete(v)
+	return _u
+}
+
+// SetNillablePricingComplete sets the "pricing_complete" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillablePricingComplete(v *bool) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetPricingComplete(*v)
+	}
+	return _u
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (_u *UsageArchiveUpdateOne) ClearPricingComplete() *UsageArchiveUpdateOne {
+	_u.mutation.ClearPricingComplete()
+	return _u
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (_u *UsageArchiveUpdateOne) SetSpeedVersion(v int) *UsageArchiveUpdateOne {
+	_u.mutation.ResetSpeedVersion()
+	_u.mutation.SetSpeedVersion(v)
+	return _u
+}
+
+// SetNillableSpeedVersion sets the "speed_version" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableSpeedVersion(v *int) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetSpeedVersion(*v)
+	}
+	return _u
+}
+
+// AddSpeedVersion adds value to the "speed_version" field.
+func (_u *UsageArchiveUpdateOne) AddSpeedVersion(v int) *UsageArchiveUpdateOne {
+	_u.mutation.AddSpeedVersion(v)
 	return _u
 }
 
@@ -983,6 +1077,18 @@ func (_u *UsageArchiveUpdateOne) sqlSave(ctx context.Context) (_node *UsageArchi
 	}
 	if value, ok := _u.mutation.AddedSpeedSum(); ok {
 		_spec.AddField(usagearchive.FieldSpeedSum, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.PricingComplete(); ok {
+		_spec.SetField(usagearchive.FieldPricingComplete, field.TypeBool, value)
+	}
+	if _u.mutation.PricingCompleteCleared() {
+		_spec.ClearField(usagearchive.FieldPricingComplete, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SpeedVersion(); ok {
+		_spec.SetField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSpeedVersion(); ok {
+		_spec.AddField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)

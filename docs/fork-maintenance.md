@@ -156,6 +156,10 @@ fork 改动，由用户决定。
 
 ### 用量统计与消耗排行榜
 
+- 2026-11-01 同阶段独立复审补齐：固定费保留缓存期限价格、历史预览保留缺失用量与缓存分量、Token 计价图片留证、失败／取消测速样本、同时间戳重试最终执行、模型样本数与自助未计价原因回读。实际 GraphQL 与隔离页面联调通过；审查结论、命令与限制见[复审记录](../.agent/summary/billing-tps-hover-review-20261101.md)。
+
+- 2026-11-01 测速、缺价与悬停修复（未发布）：请求日志、消耗榜、模型分析、性能统计和渠道探测共用 CCH `0c508eaa` 的首字节后逐请求速度平均；排除非流式、图片／音频、无效时间和无法唯一对应的用量，消费榜保留有效样本数。已知费用与未计价计数分开，费用不完整不展示均价；新增 Ent 归档字段 `pricing_complete` / `speed_version`，旧归档不猜测新口径。整行、候选列表及菜单使用统一主题悬停色，不缩放。固定费用无 Token 也记账；图片缺实际尺寸时使用明确请求像素并标记未确认；请求详情提供使用历史价格的只读补算。升级与验证入口见[统计说明](zh/development/consumption-statistics.md)、[成本追踪](zh/guides/cost-tracking.md)及对应英文版本；本轮证据见[实施记录](../.agent/summary/billing-tps-hover-20261101.md)。
+
 - 2026-10-31 标准成本补充（未发布）：渠道今日用量浮窗的模型行与总计增加 1× 标准成本。优先采用已保存的模式／阶梯后、渠道／Key 倍率前金额，旧记录只用历史价格版本或请求快照恢复；0× 与混合倍率不以统一除法推测。缺失依据明确显示部分或未知。悬浮时限定渠道／当天，分批读取必要字段，价格快照仅在旧明细不足时读取，不影响正常列表轮询或计费写入。无数据库迁移，GraphQL 增加标准成本与缺失计数，验证记录见[价格与标准成本验收](../.agent/summary/channel-price-inheritance-20261031.md)。
 
 - 2026-10-31 统计补充与性能修复（未发布）：项目用量页签按密钥分组／密钥／用户排列；渠道消耗榜在缓存系数后补整体缓存命中率。排行榜父行和展开模型均按可视区域渲染，回收闲置前端缓存；后端密钥标签只查必要字段。渠道今日用量增加按需模型明细，单渠道当天范围聚合，沿用权限、自然日和缺价语义，关闭停止轮询。新增 `channelTodayUsageDetails` 查询，无数据库迁移。定向统计回归与大列表对照见[补充验收记录](../.agent/summary/consumption-performance-20261031.md)。
@@ -957,8 +961,10 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- `.syh.9` 发布准备：汇总请求／渠道列表和价格继承优化（`b4d7f3e5`）、存储维护与数据库传输（`6cdd8ee8`），以及本阶段固定费、图片费用、CCH 测速和悬停修复。沿用 `publishBinaries=false` 与正式发布配置，云端测试、双架构构建、PostgreSQL 镜像启动检查后，仅发布镜像和 `release.json`。新增归档表／字段及清理索引由 Ent 管理，历史账单不自动补算；完整升级／回退说明见 `.github/release-notes.md`。发布结果待工作流完成后记录，不代表生产部署。
+
 - 最新正式发布：北京时间 **2026-10-31 19:25:49** 发布 [v1.0.0-beta10-fork.7.syh.8](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.8)，源码 `957ee29ad705bd3be53af8fd3698c8b8428ddf7b`；`draft=false`、`prerelease=false`，GitHub latest 已核实指向该版本。来源基线不变，未移动既有 tag。
-- `.syh.8` 内容：基于 `.syh.7` 汇总正则价格与预算、模式／分项／长上下文计费、Codex目录与协议、Responses完整历史恢复、密钥快捷编辑、请求与统计交互。业务及发布准备提交 `eafba007`，云端检查修正提交 `957ee29a`。详见 `.github/release-notes.md` 和 [累计差异](solutions/changes-since-syh7-20261031.md)。不新增数据库迁移，未执行生产部署。
+- `.syh.8` 内容：基于 `.syh.7` 汇总正则价格与预算、模式／分项／长上下文计费、Codex目录与协议、Responses完整历史恢复、密钥快捷编辑、请求与统计交互。业务及发布准备提交 `eafba007`，云端检查修正提交 `957ee29a`。详见[第八版发布说明](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.8)和[累计差异](solutions/changes-since-syh7-20261031.md)。不新增数据库迁移，未执行生产部署。
 - 发布流程优化：`release.config.json.publishBinaries=false` 默认只发布 GitHub 云端双架构 GHCR 镜像及固定摘要 `release.json`，跳过 GoReleaser 各平台包／校验和／schema附件；true 保留完整下载包流程。测试与PostgreSQL镜像启动检查保留，Docker上下文排除本地输出。实际附件从上版12个／377757202字节减少为1个／706字节（不包含GHCR镜像层和GitHub自动源码归档）。本版不供原生二进制下载升级。
 - `.syh.8` 验证：[Test](https://github.com/Syh1906/axon-hub/actions/runs/41195789293)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41195789327)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/41195789308) 及 [正式发版工作流](https://github.com/Syh1906/axon-hub/actions/runs/41196081617) 全部成功。发布工作流重新测试同一tag，构建amd64／arm64，连接临时PostgreSQL17进行固定摘要启动和版本检查；GoReleaser相关步骤确实跳过。首次Lint的导入／格式／注释及历史倒序遍历检查已修正，保留常规解析器处理非法请求体的原行为。
 - `.syh.8` 固定镜像：`ghcr.io/syh1906/axon-hub@sha256:3db506ddbdbe6a9a270f67dabd65f1c38694c540104514de74b95cfc7ba3b992`。公开下载的 `release.json` 已核对版本、源码、两层上游、双架构和运行地址。GitHub Packages版本列表API因本机身份缺少read:packages权限未能另行查询；镜像证据来自成功的云端推送、合成及固定摘要拉取启动检查，不将其称为本地再次拉取验证。

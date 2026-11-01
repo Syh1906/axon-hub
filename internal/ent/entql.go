@@ -770,6 +770,8 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagearchive.FieldCacheCreationCost:         {Type: field.TypeFloat64, Column: usagearchive.FieldCacheCreationCost},
 			usagearchive.FieldFirstTokenSum:             {Type: field.TypeFloat64, Column: usagearchive.FieldFirstTokenSum},
 			usagearchive.FieldSpeedSum:                  {Type: field.TypeFloat64, Column: usagearchive.FieldSpeedSum},
+			usagearchive.FieldPricingComplete:           {Type: field.TypeBool, Column: usagearchive.FieldPricingComplete},
+			usagearchive.FieldSpeedVersion:              {Type: field.TypeInt, Column: usagearchive.FieldSpeedVersion},
 			usagearchive.FieldPromptTokens:              {Type: field.TypeInt64, Column: usagearchive.FieldPromptTokens},
 			usagearchive.FieldCompletionTokens:          {Type: field.TypeInt64, Column: usagearchive.FieldCompletionTokens},
 			usagearchive.FieldTotalTokens:               {Type: field.TypeInt64, Column: usagearchive.FieldTotalTokens},
@@ -5332,6 +5334,16 @@ func (f *UsageArchiveFilter) WhereFirstTokenSum(p entql.Float64P) {
 // WhereSpeedSum applies the entql float64 predicate on the speed_sum field.
 func (f *UsageArchiveFilter) WhereSpeedSum(p entql.Float64P) {
 	f.Where(p.Field(usagearchive.FieldSpeedSum))
+}
+
+// WherePricingComplete applies the entql bool predicate on the pricing_complete field.
+func (f *UsageArchiveFilter) WherePricingComplete(p entql.BoolP) {
+	f.Where(p.Field(usagearchive.FieldPricingComplete))
+}
+
+// WhereSpeedVersion applies the entql int predicate on the speed_version field.
+func (f *UsageArchiveFilter) WhereSpeedVersion(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldSpeedVersion))
 }
 
 // WherePromptTokens applies the entql int64 predicate on the prompt_tokens field.

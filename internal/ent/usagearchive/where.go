@@ -124,6 +124,16 @@ func SpeedSum(v float64) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldSpeedSum, v))
 }
 
+// PricingComplete applies equality check predicate on the "pricing_complete" field. It's identical to PricingCompleteEQ.
+func PricingComplete(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldPricingComplete, v))
+}
+
+// SpeedVersion applies equality check predicate on the "speed_version" field. It's identical to SpeedVersionEQ.
+func SpeedVersion(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldSpeedVersion, v))
+}
+
 // PromptTokens applies equality check predicate on the "prompt_tokens" field. It's identical to PromptTokensEQ.
 func PromptTokens(v int64) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldPromptTokens, v))
@@ -872,6 +882,66 @@ func SpeedSumLT(v float64) predicate.UsageArchive {
 // SpeedSumLTE applies the LTE predicate on the "speed_sum" field.
 func SpeedSumLTE(v float64) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldLTE(FieldSpeedSum, v))
+}
+
+// PricingCompleteEQ applies the EQ predicate on the "pricing_complete" field.
+func PricingCompleteEQ(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldPricingComplete, v))
+}
+
+// PricingCompleteNEQ applies the NEQ predicate on the "pricing_complete" field.
+func PricingCompleteNEQ(v bool) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldPricingComplete, v))
+}
+
+// PricingCompleteIsNil applies the IsNil predicate on the "pricing_complete" field.
+func PricingCompleteIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldPricingComplete))
+}
+
+// PricingCompleteNotNil applies the NotNil predicate on the "pricing_complete" field.
+func PricingCompleteNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldPricingComplete))
+}
+
+// SpeedVersionEQ applies the EQ predicate on the "speed_version" field.
+func SpeedVersionEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldSpeedVersion, v))
+}
+
+// SpeedVersionNEQ applies the NEQ predicate on the "speed_version" field.
+func SpeedVersionNEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldSpeedVersion, v))
+}
+
+// SpeedVersionIn applies the In predicate on the "speed_version" field.
+func SpeedVersionIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldSpeedVersion, vs...))
+}
+
+// SpeedVersionNotIn applies the NotIn predicate on the "speed_version" field.
+func SpeedVersionNotIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldSpeedVersion, vs...))
+}
+
+// SpeedVersionGT applies the GT predicate on the "speed_version" field.
+func SpeedVersionGT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldSpeedVersion, v))
+}
+
+// SpeedVersionGTE applies the GTE predicate on the "speed_version" field.
+func SpeedVersionGTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldSpeedVersion, v))
+}
+
+// SpeedVersionLT applies the LT predicate on the "speed_version" field.
+func SpeedVersionLT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldSpeedVersion, v))
+}
+
+// SpeedVersionLTE applies the LTE predicate on the "speed_version" field.
+func SpeedVersionLTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldSpeedVersion, v))
 }
 
 // PromptTokensEQ applies the EQ predicate on the "prompt_tokens" field.

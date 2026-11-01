@@ -1,8 +1,9 @@
 import { commonPricingEvidence, type CostPricingEvidence } from './cost-pricing-evidence.ts';
 export type CostBreakdownItem = {
   pricingEvidence?: CostPricingEvidence | null;
-  image?: { width: number; height: number; tier: string; tierSource?: string; source: string } | null;
+  image?: { requestedWidth?: number; requestedHeight?: number; inspectionError?: string; width: number; height: number; tier: string; tierSource?: string; source: string } | null;
   imageRule?: string;
+  unpricedReason?: string;
   unpriced?: boolean;
   itemCode: string;
   variant: string | null;
@@ -32,7 +33,7 @@ export function buildCostBreakdown(total: number, breakdown: CostBreakdown) {
     .filter((item) => item.unpriced || item.quantity !== 0 || item.subtotal !== 0)
     .map((item) => ({
       ...item,
-      unitPrice: !item.unpriced && item.quantity ? ((item.pricingEvidence?.modeSubtotal ?? item.pricingEvidence?.baseSubtotal ?? item.subtotal) * (item.image ? 1 : 1_000_000)) / item.quantity : null,
+      unitPrice: !item.unpriced && item.quantity ? ((item.pricingEvidence?.modeSubtotal ?? item.pricingEvidence?.baseSubtotal ?? item.subtotal) * (item.image || item.pricingEvidence?.ruleSource === 'non_token' ? 1 : 1_000_000)) / item.quantity : null,
       tiers:
         item.tiers.length > 1
           ? item.tiers.map((tier, index) => {

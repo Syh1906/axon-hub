@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -36,4 +37,19 @@ func TestUsageArchivePreservesStatisticsAndAvoidsDoubleCounting(t *testing.T) {
 	result, err := QueryDashboardCosts(f.viewer(t, f.project.ID, string(scopes.ScopeReadDashboard)), f.client, periods, "UTC")
 	require.NoError(t, err)
 	require.Equal(t, 5.0, result.AllTime.TotalCost)
+}
+
+func TestUsageArchiveLegacyMetricsRemainUnknown(t *testing.T) {
+	f := newConsumptionFixture(t)
+	f.client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetSourceID(999).SetRequestID(999).
+		SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetAPIKeyID(f.key.ID).SetModelID("legacy").SetOccurredAt(time.Now().Add(-time.Hour)).
+		SetTotalCost(0).SetSpeedSum(9999).SetSpeedCount(1).SaveX(f.ctx)
+	rows, err := f.service.queryArchivedGroups(f.ctx, f.project.ID, ConsumptionFilter{Dimension: ConsumptionDimensionChannel}, nil, time.Now())
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	metrics := rows[0].metrics()
+	require.Nil(t, metrics.AvgTokensPerSecond)
+	require.Zero(t, metrics.SpeedSampleCount)
+	require.Equal(t, 1, metrics.UnpricedRequestCount)
+	require.Nil(t, metrics.AvgCostPerRequest)
 }

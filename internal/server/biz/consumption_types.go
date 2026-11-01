@@ -54,6 +54,8 @@ type ConsumptionMetrics struct {
 	RequestCount            int      `json:"requestCount"`
 	TotalTokens             int64    `json:"totalTokens"`
 	TotalCost               float64  `json:"totalCost"`
+	UnpricedRequestCount    int      `json:"unpricedRequestCount"`
+	SpeedSampleCount        int64    `json:"speedSampleCount"`
 	CacheRequests           int      `json:"cacheRequests"`
 	CacheReadTokens         int64    `json:"cacheReadTokens"`
 	CacheInputTokens        int64    `json:"cacheInputTokens"`

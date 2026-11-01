@@ -4,6 +4,27 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.9] - 2026-11-01
+
+### Added
+
+- Storage retention controls, resumable cleanup with preserved usage summaries, capacity reporting, and controlled database transfer/export tools.
+- Read-only historical fixed/image cost previews using frozen prices and retained evidence; missing usage remains unknown.
+- Valid text-speed sample counts and consistent row, menu and candidate-list hover feedback.
+
+### Fixed
+
+- Image pricing can use explicit outgoing request dimensions when output dimensions are unavailable, with unconfirmed evidence shown separately.
+- Flat fees work without token usage and preserve cache-duration-specific pricing; historical previews retain five-minute and one-hour cache quantities.
+- Request logs, consumption rankings, model analytics and performance queries share the CCH per-request speed average, including measured failed/canceled streams and deterministic final-attempt selection.
+- Incremental request/channel loading, refresh state, detailed daily channel usage and matched-model price inheritance.
+
+### Release
+
+- Cloud-only amd64/arm64 GHCR images and release.json; no cross-platform binary packages or image archives uploaded from local machines.
+- Ent adds usage archives, pricing completeness/speed-version fields and a request-execution cleanup index. Existing saved retention policies remain unchanged; back up before upgrading from .syh.8.
+- Historical production bills are not rewritten. Cleanup, database transfer and production deployment remain separately controlled operations.
+
 ## [v1.0.0-beta10-fork.7.syh.8] - 2026-10-31
 
 ### Added

@@ -466,7 +466,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                         pricingEvidence: item.pricingEvidence,
                         image: item.image,
                         imageRule: item.imageRule,
-                        unpriced: item.unpriced,
+                        unpriced: item.unpriced, unpricedReason: item.unpricedReason,
                         itemCode: item.itemCode,
                         variant: item.promptWriteCacheVariantCode ?? null,
                         quantity: item.quantity,

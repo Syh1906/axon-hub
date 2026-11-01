@@ -79,6 +79,7 @@ type SelfUsageCostItem {
   image: SelfUsageImageOutput
   imageRule: String!
   unpriced: Boolean!
+  unpricedReason: String!
   itemCode: String!
   promptWriteCacheVariantCode: String
   quantity: Int!
@@ -87,6 +88,9 @@ type SelfUsageCostItem {
 }
 
 type SelfUsageImageOutput {
+  requestedWidth: Int!
+  requestedHeight: Int!
+  inspectionError: String!
   tierSource: String!
   width: Int!
   height: Int!

@@ -33599,6 +33599,9 @@ type UsageArchiveMutation struct {
 	addfirst_token_sum             *float64
 	speed_sum                      *float64
 	addspeed_sum                   *float64
+	pricing_complete               *bool
+	speed_version                  *int
+	addspeed_version               *int
 	prompt_tokens                  *int64
 	addprompt_tokens               *int64
 	completion_tokens              *int64
@@ -34461,6 +34464,111 @@ func (m *UsageArchiveMutation) ResetSpeedSum() {
 	m.addspeed_sum = nil
 }
 
+// SetPricingComplete sets the "pricing_complete" field.
+func (m *UsageArchiveMutation) SetPricingComplete(b bool) {
+	m.pricing_complete = &b
+}
+
+// PricingComplete returns the value of the "pricing_complete" field in the mutation.
+func (m *UsageArchiveMutation) PricingComplete() (r bool, exists bool) {
+	v := m.pricing_complete
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPricingComplete returns the old "pricing_complete" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldPricingComplete(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPricingComplete is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPricingComplete requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPricingComplete: %w", err)
+	}
+	return oldValue.PricingComplete, nil
+}
+
+// ClearPricingComplete clears the value of the "pricing_complete" field.
+func (m *UsageArchiveMutation) ClearPricingComplete() {
+	m.pricing_complete = nil
+	m.clearedFields[usagearchive.FieldPricingComplete] = struct{}{}
+}
+
+// PricingCompleteCleared returns if the "pricing_complete" field was cleared in this mutation.
+func (m *UsageArchiveMutation) PricingCompleteCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldPricingComplete]
+	return ok
+}
+
+// ResetPricingComplete resets all changes to the "pricing_complete" field.
+func (m *UsageArchiveMutation) ResetPricingComplete() {
+	m.pricing_complete = nil
+	delete(m.clearedFields, usagearchive.FieldPricingComplete)
+}
+
+// SetSpeedVersion sets the "speed_version" field.
+func (m *UsageArchiveMutation) SetSpeedVersion(i int) {
+	m.speed_version = &i
+	m.addspeed_version = nil
+}
+
+// SpeedVersion returns the value of the "speed_version" field in the mutation.
+func (m *UsageArchiveMutation) SpeedVersion() (r int, exists bool) {
+	v := m.speed_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpeedVersion returns the old "speed_version" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldSpeedVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpeedVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpeedVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpeedVersion: %w", err)
+	}
+	return oldValue.SpeedVersion, nil
+}
+
+// AddSpeedVersion adds i to the "speed_version" field.
+func (m *UsageArchiveMutation) AddSpeedVersion(i int) {
+	if m.addspeed_version != nil {
+		*m.addspeed_version += i
+	} else {
+		m.addspeed_version = &i
+	}
+}
+
+// AddedSpeedVersion returns the value that was added to the "speed_version" field in this mutation.
+func (m *UsageArchiveMutation) AddedSpeedVersion() (r int, exists bool) {
+	v := m.addspeed_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSpeedVersion resets all changes to the "speed_version" field.
+func (m *UsageArchiveMutation) ResetSpeedVersion() {
+	m.speed_version = nil
+	m.addspeed_version = nil
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (m *UsageArchiveMutation) SetPromptTokens(i int64) {
 	m.prompt_tokens = &i
@@ -35167,7 +35275,7 @@ func (m *UsageArchiveMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageArchiveMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 29)
 	if m.kind != nil {
 		fields = append(fields, usagearchive.FieldKind)
 	}
@@ -35212,6 +35320,12 @@ func (m *UsageArchiveMutation) Fields() []string {
 	}
 	if m.speed_sum != nil {
 		fields = append(fields, usagearchive.FieldSpeedSum)
+	}
+	if m.pricing_complete != nil {
+		fields = append(fields, usagearchive.FieldPricingComplete)
+	}
+	if m.speed_version != nil {
+		fields = append(fields, usagearchive.FieldSpeedVersion)
 	}
 	if m.prompt_tokens != nil {
 		fields = append(fields, usagearchive.FieldPromptTokens)
@@ -35287,6 +35401,10 @@ func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
 		return m.FirstTokenSum()
 	case usagearchive.FieldSpeedSum:
 		return m.SpeedSum()
+	case usagearchive.FieldPricingComplete:
+		return m.PricingComplete()
+	case usagearchive.FieldSpeedVersion:
+		return m.SpeedVersion()
 	case usagearchive.FieldPromptTokens:
 		return m.PromptTokens()
 	case usagearchive.FieldCompletionTokens:
@@ -35350,6 +35468,10 @@ func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldFirstTokenSum(ctx)
 	case usagearchive.FieldSpeedSum:
 		return m.OldSpeedSum(ctx)
+	case usagearchive.FieldPricingComplete:
+		return m.OldPricingComplete(ctx)
+	case usagearchive.FieldSpeedVersion:
+		return m.OldSpeedVersion(ctx)
 	case usagearchive.FieldPromptTokens:
 		return m.OldPromptTokens(ctx)
 	case usagearchive.FieldCompletionTokens:
@@ -35488,6 +35610,20 @@ func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSpeedSum(v)
 		return nil
+	case usagearchive.FieldPricingComplete:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPricingComplete(v)
+		return nil
+	case usagearchive.FieldSpeedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpeedVersion(v)
+		return nil
 	case usagearchive.FieldPromptTokens:
 		v, ok := value.(int64)
 		if !ok {
@@ -35607,6 +35743,9 @@ func (m *UsageArchiveMutation) AddedFields() []string {
 	if m.addspeed_sum != nil {
 		fields = append(fields, usagearchive.FieldSpeedSum)
 	}
+	if m.addspeed_version != nil {
+		fields = append(fields, usagearchive.FieldSpeedVersion)
+	}
 	if m.addprompt_tokens != nil {
 		fields = append(fields, usagearchive.FieldPromptTokens)
 	}
@@ -35669,6 +35808,8 @@ func (m *UsageArchiveMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFirstTokenSum()
 	case usagearchive.FieldSpeedSum:
 		return m.AddedSpeedSum()
+	case usagearchive.FieldSpeedVersion:
+		return m.AddedSpeedVersion()
 	case usagearchive.FieldPromptTokens:
 		return m.AddedPromptTokens()
 	case usagearchive.FieldCompletionTokens:
@@ -35765,6 +35906,13 @@ func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddSpeedSum(v)
 		return nil
+	case usagearchive.FieldSpeedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSpeedVersion(v)
+		return nil
 	case usagearchive.FieldPromptTokens:
 		v, ok := value.(int64)
 		if !ok {
@@ -35860,6 +36008,9 @@ func (m *UsageArchiveMutation) ClearedFields() []string {
 	if m.FieldCleared(usagearchive.FieldTotalCost) {
 		fields = append(fields, usagearchive.FieldTotalCost)
 	}
+	if m.FieldCleared(usagearchive.FieldPricingComplete) {
+		fields = append(fields, usagearchive.FieldPricingComplete)
+	}
 	return fields
 }
 
@@ -35876,6 +36027,9 @@ func (m *UsageArchiveMutation) ClearField(name string) error {
 	switch name {
 	case usagearchive.FieldTotalCost:
 		m.ClearTotalCost()
+		return nil
+	case usagearchive.FieldPricingComplete:
+		m.ClearPricingComplete()
 		return nil
 	}
 	return fmt.Errorf("unknown UsageArchive nullable field %s", name)
@@ -35929,6 +36083,12 @@ func (m *UsageArchiveMutation) ResetField(name string) error {
 		return nil
 	case usagearchive.FieldSpeedSum:
 		m.ResetSpeedSum()
+		return nil
+	case usagearchive.FieldPricingComplete:
+		m.ResetPricingComplete()
+		return nil
+	case usagearchive.FieldSpeedVersion:
+		m.ResetSpeedVersion()
 		return nil
 	case usagearchive.FieldPromptTokens:
 		m.ResetPromptTokens()

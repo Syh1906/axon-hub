@@ -45,7 +45,7 @@
   "serviceTier.reason.conflicting_upstream": "上游声明冲突，按客户端请求",
   "serviceTier.reason.invalid_upstream": "上游档位无效，按客户端请求",
   "serviceTier.reason.unpriced_mode": "该模式尚未配置价格",
-  "serviceTier.cost.unpriced": "未定价",
+  "serviceTier.cost.unpriced": "未计价",
   "serviceTier.items.settings": "分项设置",
   "serviceTier.items.defaultMultiplier": "默认倍率",
   "serviceTier.items.itemized": "按分项计价",

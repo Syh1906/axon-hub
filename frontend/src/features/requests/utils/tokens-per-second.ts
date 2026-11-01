@@ -14,30 +14,9 @@ const VALID_DISPLAY_MODES: DisplayMode[] = ['latency', 'tokensPerSecond'];
  * @returns The numeric rate or null if calculation is not possible
  */
 export function getTokensPerSecondValue(request: Request): number | null {
-  const usageLog = request.usageLogs?.edges?.[0]?.node;
-  if (!usageLog || request.metricsLatencyMs == null || request.metricsLatencyMs <= 0) {
-    return null;
-  }
-
-  // Use completion tokens only (reasoning tokens are not included in throughput calculation)
-  const completionTokens = usageLog.completionTokens || 0;
-
-  if (completionTokens === 0) {
-    return null;
-  }
-
-  // Calculate effective latency:
-  // For streaming: subtract TTFT (time to first token) to get actual generation time
-  // For non-streaming: use full latency
-  let effectiveLatencyMs = request.metricsLatencyMs;
-  if (request.stream) {
-    if (request.metricsFirstTokenLatencyMs == null || request.metricsFirstTokenLatencyMs < 0) return null;
-    effectiveLatencyMs -= request.metricsFirstTokenLatencyMs;
-  }
-  if (effectiveLatencyMs <= 0) return null;
-
-  const latencySeconds = effectiveLatencyMs / 1000;
-  return completionTokens / latencySeconds;
+  // The server shares sample selection and timing with the leaderboard.
+  const speed = request.outputTokensPerSecond;
+  return speed != null && Number.isFinite(speed) && speed > 0 ? speed : null;
 }
 
 export function calculateTokensPerSecond(request: Request): string {

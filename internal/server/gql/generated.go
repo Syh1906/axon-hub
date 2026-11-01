@@ -305,6 +305,7 @@ type ComplexityRoot struct {
 		ID                       func(childComplexity int) int
 		Name                     func(childComplexity int) int
 		RequestCount             func(childComplexity int) int
+		SpeedSampleCount         func(childComplexity int) int
 		SuccessRate              func(childComplexity int) int
 		TotalTokens              func(childComplexity int) int
 	}
@@ -319,6 +320,7 @@ type ComplexityRoot struct {
 		ID                       func(childComplexity int) int
 		Name                     func(childComplexity int) int
 		RequestCount             func(childComplexity int) int
+		SpeedSampleCount         func(childComplexity int) int
 		SuccessRate              func(childComplexity int) int
 		TotalTokens              func(childComplexity int) int
 	}
@@ -932,9 +934,11 @@ type ComplexityRoot struct {
 		CacheReadTokens         func(childComplexity int) int
 		CacheRequests           func(childComplexity int) int
 		RequestCount            func(childComplexity int) int
+		SpeedSampleCount        func(childComplexity int) int
 		SuccessRate             func(childComplexity int) int
 		TotalCost               func(childComplexity int) int
 		TotalTokens             func(childComplexity int) int
+		UnpricedRequestCount    func(childComplexity int) int
 	}
 
 	ConsumptionModel struct {
@@ -974,6 +978,7 @@ type ComplexityRoot struct {
 		Subtotal                    func(childComplexity int) int
 		TierBreakdown               func(childComplexity int) int
 		Unpriced                    func(childComplexity int) int
+		UnpricedReason              func(childComplexity int) int
 	}
 
 	CostPricingEvidence struct {
@@ -990,6 +995,14 @@ type ComplexityRoot struct {
 		Reference         func(childComplexity int) int
 		RuleSource        func(childComplexity int) int
 		ServiceTier       func(childComplexity int) int
+	}
+
+	CostRecalculationPreview struct {
+		Images       func(childComplexity int) int
+		PricedAt     func(childComplexity int) int
+		ProposedCost func(childComplexity int) int
+		Reason       func(childComplexity int) int
+		RecordedCost func(childComplexity int) int
 	}
 
 	CostStatsByAPIKey struct {
@@ -1195,11 +1208,14 @@ type ComplexityRoot struct {
 	}
 
 	ImageOutput struct {
-		Height     func(childComplexity int) int
-		Source     func(childComplexity int) int
-		Tier       func(childComplexity int) int
-		TierSource func(childComplexity int) int
-		Width      func(childComplexity int) int
+		Height          func(childComplexity int) int
+		InspectionError func(childComplexity int) int
+		RequestedHeight func(childComplexity int) int
+		RequestedWidth  func(childComplexity int) int
+		Source          func(childComplexity int) int
+		Tier            func(childComplexity int) int
+		TierSource      func(childComplexity int) int
+		Width           func(childComplexity int) int
 	}
 
 	ImagePriceRule struct {
@@ -2046,6 +2062,7 @@ type ComplexityRoot struct {
 		ContentSavedAt             func(childComplexity int) int
 		ContentStorageID           func(childComplexity int) int
 		ContentStorageKey          func(childComplexity int) int
+		CostRecalculationPreview   func(childComplexity int) int
 		CreatedAt                  func(childComplexity int) int
 		DataStorage                func(childComplexity int) int
 		DataStorageID              func(childComplexity int) int
@@ -2057,6 +2074,7 @@ type ComplexityRoot struct {
 		MetricsLatencyMs           func(childComplexity int) int
 		MetricsReasoningDurationMs func(childComplexity int) int
 		ModelID                    func(childComplexity int) int
+		OutputTokensPerSecond      func(childComplexity int) int
 		Project                    func(childComplexity int) int
 		ProjectID                  func(childComplexity int) int
 		ReasoningEffort            func(childComplexity int) int
@@ -3399,6 +3417,9 @@ type RequestResolver interface {
 	ChannelID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
 
 	Channel(ctx context.Context, obj *ent.Request) (*ent.Channel, error)
+
+	OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error)
+	CostRecalculationPreview(ctx context.Context, obj *ent.Request) (*biz.CostRecalculationPreview, error)
 }
 type RequestExecutionResolver interface {
 	ID(ctx context.Context, obj *ent.RequestExecution) (*objects.GUID, error)
@@ -4283,6 +4304,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AnalyticsModelChannelStat.RequestCount(childComplexity), true
+	case "AnalyticsModelChannelStat.speedSampleCount":
+		if e.complexity.AnalyticsModelChannelStat.SpeedSampleCount == nil {
+			break
+		}
+
+		return e.complexity.AnalyticsModelChannelStat.SpeedSampleCount(childComplexity), true
 	case "AnalyticsModelChannelStat.successRate":
 		if e.complexity.AnalyticsModelChannelStat.SuccessRate == nil {
 			break
@@ -4350,6 +4377,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AnalyticsModelStat.RequestCount(childComplexity), true
+	case "AnalyticsModelStat.speedSampleCount":
+		if e.complexity.AnalyticsModelStat.SpeedSampleCount == nil {
+			break
+		}
+
+		return e.complexity.AnalyticsModelStat.SpeedSampleCount(childComplexity), true
 	case "AnalyticsModelStat.successRate":
 		if e.complexity.AnalyticsModelStat.SuccessRate == nil {
 			break
@@ -6819,6 +6852,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.RequestCount(childComplexity), true
+	case "ConsumptionMetrics.speedSampleCount":
+		if e.complexity.ConsumptionMetrics.SpeedSampleCount == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.SpeedSampleCount(childComplexity), true
 	case "ConsumptionMetrics.successRate":
 		if e.complexity.ConsumptionMetrics.SuccessRate == nil {
 			break
@@ -6837,6 +6876,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.TotalTokens(childComplexity), true
+	case "ConsumptionMetrics.unpricedRequestCount":
+		if e.complexity.ConsumptionMetrics.UnpricedRequestCount == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.UnpricedRequestCount(childComplexity), true
 
 	case "ConsumptionModel.metrics":
 		if e.complexity.ConsumptionModel.Metrics == nil {
@@ -6986,6 +7031,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CostItem.Unpriced(childComplexity), true
+	case "CostItem.unpricedReason":
+		if e.complexity.CostItem.UnpricedReason == nil {
+			break
+		}
+
+		return e.complexity.CostItem.UnpricedReason(childComplexity), true
 
 	case "CostPricingEvidence.baseSubtotal":
 		if e.complexity.CostPricingEvidence.BaseSubtotal == nil {
@@ -7065,6 +7116,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CostPricingEvidence.ServiceTier(childComplexity), true
+
+	case "CostRecalculationPreview.images":
+		if e.complexity.CostRecalculationPreview.Images == nil {
+			break
+		}
+
+		return e.complexity.CostRecalculationPreview.Images(childComplexity), true
+	case "CostRecalculationPreview.pricedAt":
+		if e.complexity.CostRecalculationPreview.PricedAt == nil {
+			break
+		}
+
+		return e.complexity.CostRecalculationPreview.PricedAt(childComplexity), true
+	case "CostRecalculationPreview.proposedCost":
+		if e.complexity.CostRecalculationPreview.ProposedCost == nil {
+			break
+		}
+
+		return e.complexity.CostRecalculationPreview.ProposedCost(childComplexity), true
+	case "CostRecalculationPreview.reason":
+		if e.complexity.CostRecalculationPreview.Reason == nil {
+			break
+		}
+
+		return e.complexity.CostRecalculationPreview.Reason(childComplexity), true
+	case "CostRecalculationPreview.recordedCost":
+		if e.complexity.CostRecalculationPreview.RecordedCost == nil {
+			break
+		}
+
+		return e.complexity.CostRecalculationPreview.RecordedCost(childComplexity), true
 
 	case "CostStatsByAPIKey.apiKeyId":
 		if e.complexity.CostStatsByAPIKey.APIKeyID == nil {
@@ -7784,6 +7866,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ImageOutput.Height(childComplexity), true
+	case "ImageOutput.inspectionError":
+		if e.complexity.ImageOutput.InspectionError == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.InspectionError(childComplexity), true
+	case "ImageOutput.requestedHeight":
+		if e.complexity.ImageOutput.RequestedHeight == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.RequestedHeight(childComplexity), true
+	case "ImageOutput.requestedWidth":
+		if e.complexity.ImageOutput.RequestedWidth == nil {
+			break
+		}
+
+		return e.complexity.ImageOutput.RequestedWidth(childComplexity), true
 	case "ImageOutput.source":
 		if e.complexity.ImageOutput.Source == nil {
 			break
@@ -12580,6 +12680,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ContentStorageKey(childComplexity), true
+	case "Request.costRecalculationPreview":
+		if e.complexity.Request.CostRecalculationPreview == nil {
+			break
+		}
+
+		return e.complexity.Request.CostRecalculationPreview(childComplexity), true
 	case "Request.createdAt":
 		if e.complexity.Request.CreatedAt == nil {
 			break
@@ -12651,6 +12757,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ModelID(childComplexity), true
+	case "Request.outputTokensPerSecond":
+		if e.complexity.Request.OutputTokensPerSecond == nil {
+			break
+		}
+
+		return e.complexity.Request.OutputTokensPerSecond(childComplexity), true
 	case "Request.project":
 		if e.complexity.Request.Project == nil {
 			break
@@ -16888,7 +17000,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -16919,6 +17031,7 @@ var sources = []*ast.Source{
 	{Name: "channel_accounts.graphql", Input: sourceData("channel_accounts.graphql"), BuiltIn: false},
 	{Name: "request_routing.graphql", Input: sourceData("request_routing.graphql"), BuiltIn: false},
 	{Name: "request_diagnostics.graphql", Input: sourceData("request_diagnostics.graphql"), BuiltIn: false},
+	{Name: "request_speed.graphql", Input: sourceData("request_speed.graphql"), BuiltIn: false},
 	{Name: "managed_group_usage.graphql", Input: sourceData("managed_group_usage.graphql"), BuiltIn: false},
 	{Name: "prompt.graphql", Input: sourceData("prompt.graphql"), BuiltIn: false},
 	{Name: "prompt_protection_rule.graphql", Input: sourceData("prompt_protection_rule.graphql"), BuiltIn: false},
@@ -25087,6 +25200,35 @@ func (ec *executionContext) fieldContext_AnalyticsModelChannelStat_avgOutputToke
 	return fc, nil
 }
 
+func (ec *executionContext) _AnalyticsModelChannelStat_speedSampleCount(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelChannelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AnalyticsModelChannelStat_speedSampleCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SpeedSampleCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AnalyticsModelChannelStat_speedSampleCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnalyticsModelChannelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AnalyticsModelStat_id(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -25377,6 +25519,35 @@ func (ec *executionContext) fieldContext_AnalyticsModelStat_avgOutputTokensPerSe
 	return fc, nil
 }
 
+func (ec *executionContext) _AnalyticsModelStat_speedSampleCount(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AnalyticsModelStat_speedSampleCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SpeedSampleCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AnalyticsModelStat_speedSampleCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnalyticsModelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AnalyticsModelStat_channels(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -25421,6 +25592,8 @@ func (ec *executionContext) fieldContext_AnalyticsModelStat_channels(_ context.C
 				return ec.fieldContext_AnalyticsModelChannelStat_avgFirstTokenLatencyMs(ctx, field)
 			case "avgOutputTokensPerSecond":
 				return ec.fieldContext_AnalyticsModelChannelStat_avgOutputTokensPerSecond(ctx, field)
+			case "speedSampleCount":
+				return ec.fieldContext_AnalyticsModelChannelStat_speedSampleCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AnalyticsModelChannelStat", field.Name)
 		},
@@ -38050,6 +38223,10 @@ func (ec *executionContext) fieldContext_ConsumptionEntry_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "unpricedRequestCount":
+				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
+			case "speedSampleCount":
+				return ec.fieldContext_ConsumptionMetrics_speedSampleCount(ctx, field)
 			case "cacheRequests":
 				return ec.fieldContext_ConsumptionMetrics_cacheRequests(ctx, field)
 			case "cacheReadTokens":
@@ -38196,6 +38373,64 @@ func (ec *executionContext) fieldContext_ConsumptionMetrics_totalCost(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_unpricedRequestCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_unpricedRequestCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedRequestCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_unpricedRequestCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_speedSampleCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_speedSampleCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SpeedSampleCount, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_speedSampleCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -38579,6 +38814,10 @@ func (ec *executionContext) fieldContext_ConsumptionModel_metrics(_ context.Cont
 				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "unpricedRequestCount":
+				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
+			case "speedSampleCount":
+				return ec.fieldContext_ConsumptionMetrics_speedSampleCount(ctx, field)
 			case "cacheRequests":
 				return ec.fieldContext_ConsumptionMetrics_cacheRequests(ctx, field)
 			case "cacheReadTokens":
@@ -39076,6 +39315,12 @@ func (ec *executionContext) fieldContext_CostItem_image(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "requestedWidth":
+				return ec.fieldContext_ImageOutput_requestedWidth(ctx, field)
+			case "requestedHeight":
+				return ec.fieldContext_ImageOutput_requestedHeight(ctx, field)
+			case "inspectionError":
+				return ec.fieldContext_ImageOutput_inspectionError(ctx, field)
 			case "tierSource":
 				return ec.fieldContext_ImageOutput_tierSource(ctx, field)
 			case "width":
@@ -39146,6 +39391,35 @@ func (ec *executionContext) fieldContext_CostItem_unpriced(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostItem_unpricedReason(ctx context.Context, field graphql.CollectedField, obj *objects.CostItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostItem_unpricedReason,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedReason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostItem_unpricedReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -39728,6 +40002,169 @@ func (ec *executionContext) fieldContext_CostPricingEvidence_costMultiplier(_ co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostRecalculationPreview_recordedCost(ctx context.Context, field graphql.CollectedField, obj *biz.CostRecalculationPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostRecalculationPreview_recordedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.RecordedCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostRecalculationPreview_recordedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostRecalculationPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostRecalculationPreview_proposedCost(ctx context.Context, field graphql.CollectedField, obj *biz.CostRecalculationPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostRecalculationPreview_proposedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.ProposedCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostRecalculationPreview_proposedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostRecalculationPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostRecalculationPreview_pricedAt(ctx context.Context, field graphql.CollectedField, obj *biz.CostRecalculationPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostRecalculationPreview_pricedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.PricedAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostRecalculationPreview_pricedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostRecalculationPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostRecalculationPreview_reason(ctx context.Context, field graphql.CollectedField, obj *biz.CostRecalculationPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostRecalculationPreview_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostRecalculationPreview_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostRecalculationPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostRecalculationPreview_images(ctx context.Context, field graphql.CollectedField, obj *biz.CostRecalculationPreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostRecalculationPreview_images,
+		func(ctx context.Context) (any, error) {
+			return obj.Images, nil
+		},
+		nil,
+		ec.marshalNImageOutput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutputᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostRecalculationPreview_images(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostRecalculationPreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "requestedWidth":
+				return ec.fieldContext_ImageOutput_requestedWidth(ctx, field)
+			case "requestedHeight":
+				return ec.fieldContext_ImageOutput_requestedHeight(ctx, field)
+			case "inspectionError":
+				return ec.fieldContext_ImageOutput_inspectionError(ctx, field)
+			case "tierSource":
+				return ec.fieldContext_ImageOutput_tierSource(ctx, field)
+			case "width":
+				return ec.fieldContext_ImageOutput_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ImageOutput_height(ctx, field)
+			case "tier":
+				return ec.fieldContext_ImageOutput_tier(ctx, field)
+			case "source":
+				return ec.fieldContext_ImageOutput_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageOutput", field.Name)
 		},
 	}
 	return fc, nil
@@ -43178,6 +43615,93 @@ func (ec *executionContext) fieldContext_ImageConditionDraft_value(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_requestedWidth(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_requestedWidth,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedWidth, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_requestedWidth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_requestedHeight(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_requestedHeight,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedHeight, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_requestedHeight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageOutput_inspectionError(ctx context.Context, field graphql.CollectedField, obj *objects.ImageOutput) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageOutput_inspectionError,
+		func(ctx context.Context) (any, error) {
+			return obj.InspectionError, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageOutput_inspectionError(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageOutput",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -66520,6 +67044,8 @@ func (ec *executionContext) fieldContext_Query_analyticsModelStats(ctx context.C
 				return ec.fieldContext_AnalyticsModelStat_avgFirstTokenLatencyMs(ctx, field)
 			case "avgOutputTokensPerSecond":
 				return ec.fieldContext_AnalyticsModelStat_avgOutputTokensPerSecond(ctx, field)
+			case "speedSampleCount":
+				return ec.fieldContext_AnalyticsModelStat_speedSampleCount(ctx, field)
 			case "channels":
 				return ec.fieldContext_AnalyticsModelStat_channels(ctx, field)
 			}
@@ -68746,6 +69272,76 @@ func (ec *executionContext) fieldContext_Request_usageLogs(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_outputTokensPerSecond(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_outputTokensPerSecond,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().OutputTokensPerSecond(ctx, obj)
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_outputTokensPerSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Request_costRecalculationPreview(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_costRecalculationPreview,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().CostRecalculationPreview(ctx, obj)
+		},
+		nil,
+		ec.marshalNCostRecalculationPreview2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐCostRecalculationPreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_costRecalculationPreview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "recordedCost":
+				return ec.fieldContext_CostRecalculationPreview_recordedCost(ctx, field)
+			case "proposedCost":
+				return ec.fieldContext_CostRecalculationPreview_proposedCost(ctx, field)
+			case "pricedAt":
+				return ec.fieldContext_CostRecalculationPreview_pricedAt(ctx, field)
+			case "reason":
+				return ec.fieldContext_CostRecalculationPreview_reason(ctx, field)
+			case "images":
+				return ec.fieldContext_CostRecalculationPreview_images(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CostRecalculationPreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.RequestConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -69100,6 +69696,10 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "outputTokensPerSecond":
+				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
+			case "costRecalculationPreview":
+				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -70051,6 +70651,10 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "outputTokensPerSecond":
+				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
+			case "costRecalculationPreview":
+				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -84875,6 +85479,8 @@ func (ec *executionContext) fieldContext_UsageLog_costItems(_ context.Context, f
 				return ec.fieldContext_CostItem_imageRule(ctx, field)
 			case "unpriced":
 				return ec.fieldContext_CostItem_unpriced(ctx, field)
+			case "unpricedReason":
+				return ec.fieldContext_CostItem_unpricedReason(ctx, field)
 			case "itemCode":
 				return ec.fieldContext_CostItem_itemCode(ctx, field)
 			case "promptWriteCacheVariantCode":
@@ -85017,6 +85623,10 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "outputTokensPerSecond":
+				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
+			case "costRecalculationPreview":
+				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -97239,7 +97849,7 @@ func (ec *executionContext) unmarshalInputCostItemInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"image", "imageRule", "unpriced", "itemCode", "quantity", "tierBreakdown", "subtotal"}
+	fieldsInOrder := [...]string{"image", "imageRule", "unpriced", "unpricedReason", "itemCode", "quantity", "tierBreakdown", "subtotal"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -97267,6 +97877,13 @@ func (ec *executionContext) unmarshalInputCostItemInput(ctx context.Context, obj
 				return it, err
 			}
 			it.Unpriced = data
+		case "unpricedReason":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("unpricedReason"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UnpricedReason = data
 		case "itemCode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("itemCode"))
 			data, err := ec.unmarshalNPriceItemCode2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPriceItemCode(ctx, v)
@@ -99933,13 +100550,34 @@ func (ec *executionContext) unmarshalInputImageOutputInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tierSource", "width", "height", "tier", "source"}
+	fieldsInOrder := [...]string{"requestedWidth", "requestedHeight", "inspectionError", "tierSource", "width", "height", "tier", "source"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "requestedWidth":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("requestedWidth"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RequestedWidth = data
+		case "requestedHeight":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("requestedHeight"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RequestedHeight = data
+		case "inspectionError":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inspectionError"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.InspectionError = data
 		case "tierSource":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tierSource"))
 			data, err := ec.unmarshalOString2string(ctx, v)
@@ -120988,6 +121626,11 @@ func (ec *executionContext) _AnalyticsModelChannelStat(ctx context.Context, sel 
 			out.Values[i] = ec._AnalyticsModelChannelStat_avgFirstTokenLatencyMs(ctx, field, obj)
 		case "avgOutputTokensPerSecond":
 			out.Values[i] = ec._AnalyticsModelChannelStat_avgOutputTokensPerSecond(ctx, field, obj)
+		case "speedSampleCount":
+			out.Values[i] = ec._AnalyticsModelChannelStat_speedSampleCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -121066,6 +121709,11 @@ func (ec *executionContext) _AnalyticsModelStat(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._AnalyticsModelStat_avgFirstTokenLatencyMs(ctx, field, obj)
 		case "avgOutputTokensPerSecond":
 			out.Values[i] = ec._AnalyticsModelStat_avgOutputTokensPerSecond(ctx, field, obj)
+		case "speedSampleCount":
+			out.Values[i] = ec._AnalyticsModelStat_speedSampleCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channels":
 			out.Values[i] = ec._AnalyticsModelStat_channels(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -126166,6 +126814,16 @@ func (ec *executionContext) _ConsumptionMetrics(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "unpricedRequestCount":
+			out.Values[i] = ec._ConsumptionMetrics_unpricedRequestCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "speedSampleCount":
+			out.Values[i] = ec._ConsumptionMetrics_speedSampleCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "cacheRequests":
 			out.Values[i] = ec._ConsumptionMetrics_cacheRequests(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -126453,6 +127111,11 @@ func (ec *executionContext) _CostItem(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "unpricedReason":
+			out.Values[i] = ec._CostItem_unpricedReason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "itemCode":
 			out.Values[i] = ec._CostItem_itemCode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -126575,6 +127238,56 @@ func (ec *executionContext) _CostPricingEvidence(ctx context.Context, sel ast.Se
 			out.Values[i] = ec._CostPricingEvidence_modeMultiplier(ctx, field, obj)
 		case "costMultiplier":
 			out.Values[i] = ec._CostPricingEvidence_costMultiplier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var costRecalculationPreviewImplementors = []string{"CostRecalculationPreview"}
+
+func (ec *executionContext) _CostRecalculationPreview(ctx context.Context, sel ast.SelectionSet, obj *biz.CostRecalculationPreview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, costRecalculationPreviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CostRecalculationPreview")
+		case "recordedCost":
+			out.Values[i] = ec._CostRecalculationPreview_recordedCost(ctx, field, obj)
+		case "proposedCost":
+			out.Values[i] = ec._CostRecalculationPreview_proposedCost(ctx, field, obj)
+		case "pricedAt":
+			out.Values[i] = ec._CostRecalculationPreview_pricedAt(ctx, field, obj)
+		case "reason":
+			out.Values[i] = ec._CostRecalculationPreview_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "images":
+			out.Values[i] = ec._CostRecalculationPreview_images(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -128225,6 +128938,21 @@ func (ec *executionContext) _ImageOutput(ctx context.Context, sel ast.SelectionS
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ImageOutput")
+		case "requestedWidth":
+			out.Values[i] = ec._ImageOutput_requestedWidth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestedHeight":
+			out.Values[i] = ec._ImageOutput_requestedHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inspectionError":
+			out.Values[i] = ec._ImageOutput_inspectionError(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "tierSource":
 			out.Values[i] = ec._ImageOutput_tierSource(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -137239,6 +137967,75 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 					}
 				}()
 				res = ec._Request_usageLogs(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "outputTokensPerSecond":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_outputTokensPerSecond(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "costRecalculationPreview":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_costRecalculationPreview(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -149161,6 +149958,20 @@ func (ec *executionContext) marshalNCostMultiplierSource2githubᚗcomᚋlooplj�
 	return res
 }
 
+func (ec *executionContext) marshalNCostRecalculationPreview2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐCostRecalculationPreview(ctx context.Context, sel ast.SelectionSet, v biz.CostRecalculationPreview) graphql.Marshaler {
+	return ec._CostRecalculationPreview(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCostRecalculationPreview2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐCostRecalculationPreview(ctx context.Context, sel ast.SelectionSet, v *biz.CostRecalculationPreview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CostRecalculationPreview(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNCostStatsByAPIKey2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐCostStatsByAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []*CostStatsByAPIKey) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -150150,6 +150961,54 @@ func (ec *executionContext) unmarshalNImageConditionDraftInput2githubᚗcomᚋlo
 func (ec *executionContext) unmarshalNImageConditionInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageCondition(ctx context.Context, v any) (objects.ImageCondition, error) {
 	res, err := ec.unmarshalInputImageConditionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNImageOutput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, sel ast.SelectionSet, v objects.ImageOutput) graphql.Marshaler {
+	return ec._ImageOutput(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNImageOutput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutputᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ImageOutput) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImageOutput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNImagePriceRule2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImagePriceRule(ctx context.Context, sel ast.SelectionSet, v objects.ImagePriceRule) graphql.Marshaler {

@@ -152,6 +152,7 @@ type AnalyticsModelChannelStat struct {
 	CacheHitRate             float64      `json:"cacheHitRate"`
 	AvgFirstTokenLatencyMs   *float64     `json:"avgFirstTokenLatencyMs,omitempty"`
 	AvgOutputTokensPerSecond *float64     `json:"avgOutputTokensPerSecond,omitempty"`
+	SpeedSampleCount         int          `json:"speedSampleCount"`
 }
 
 // Filter input for model detail analytics
@@ -182,6 +183,7 @@ type AnalyticsModelStat struct {
 	CacheHitRate             float64                      `json:"cacheHitRate"`
 	AvgFirstTokenLatencyMs   *float64                     `json:"avgFirstTokenLatencyMs,omitempty"`
 	AvgOutputTokensPerSecond *float64                     `json:"avgOutputTokensPerSecond,omitempty"`
+	SpeedSampleCount         int                          `json:"speedSampleCount"`
 	Channels                 []*AnalyticsModelChannelStat `json:"channels"`
 }
 

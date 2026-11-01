@@ -19,3 +19,17 @@ func hasImagePricingSnapshot(snapshot *objects.RequestCostSnapshot) bool {
 func NeedsImageCostEvidence(snapshot *objects.RequestCostSnapshot) bool {
 	return hasImagePricingSnapshot(snapshot)
 }
+
+// Non-token fees can be recorded even when the provider omits usage.
+func NeedsUsageLogWithoutTokens(snapshot *objects.RequestCostSnapshot) bool {
+	price := snapshot.CurrentPrice()
+	if price == nil {
+		return false
+	}
+	for _, item := range effectiveModelPriceItems(nil, *price, snapshot.PricedAt) {
+		if item.Pricing.Mode == objects.PricingModeFlatFee || item.Pricing.Mode == objects.PricingModeImageFixed {
+			return true
+		}
+	}
+	return false
+}

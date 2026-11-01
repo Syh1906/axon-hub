@@ -51,7 +51,7 @@
   "consumption.cacheCoefficientHelp": "Actual cache reads divided by theoretical cacheable tokens, adjusted for observable samples and sample count. A display-only score from 0 to 1, delayed by about 15–20 minutes.",
   "consumption.successRateHelp": "Successful requests divided by countable outcomes. Follows CCH exclusions for client aborts after response data, 404s, quota and rate limits.",
   "consumption.firstTokenHelp": "Average time from request start to the first meaningful output. Historical records without timing are excluded.",
-  "consumption.speedHelp": "Average of each request's output tokens divided by time after its first response body byte. Missing timings, zero output, and intervals below 100ms are excluded.",
+  "consumption.speedHelp": "Average of per-request output tokens divided by seconds after the first body byte. Only matched final text streams with at least 100ms and complete timing participate.",
   "consumption.noSample": "No usable samples",
   "consumption.empty": "No data in the selected time range",
   "consumption.cacheNote": "Only requests with cache reads or writes are included. Cost is the full historical cost of those requests. Cache coefficients lag by about 15–20 minutes.",
@@ -61,5 +61,9 @@
   "consumption.dimensions.API_KEY_GROUP": "Key groups",
   "consumption.entityColumns.API_KEY_GROUP": "Key group / Model",
   "consumption.allGroups": "All groups",
-  "consumption.overallCacheHitRateHelp": "Cache-read tokens divided by input tokens from all requests, including cache misses. Shown as — when there are no input tokens."
+  "consumption.overallCacheHitRateHelp": "Cache-read tokens divided by input tokens from all requests, including cache misses. Shown as — when there are no input tokens.",
+  "consumption.speedSamples": "Valid speed samples: {{count}}",
+  "consumption.unpriced": "Unpriced",
+  "consumption.partiallyPriced": "Partly unpriced",
+  "consumption.unpricedHelp": "{{count}} requests are not fully priced. Amount includes known costs only; cost averages are unavailable."
 }

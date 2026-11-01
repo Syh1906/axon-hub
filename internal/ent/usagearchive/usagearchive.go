@@ -46,6 +46,10 @@ const (
 	FieldFirstTokenSum = "first_token_sum"
 	// FieldSpeedSum holds the string denoting the speed_sum field in the database.
 	FieldSpeedSum = "speed_sum"
+	// FieldPricingComplete holds the string denoting the pricing_complete field in the database.
+	FieldPricingComplete = "pricing_complete"
+	// FieldSpeedVersion holds the string denoting the speed_version field in the database.
+	FieldSpeedVersion = "speed_version"
 	// FieldPromptTokens holds the string denoting the prompt_tokens field in the database.
 	FieldPromptTokens = "prompt_tokens"
 	// FieldCompletionTokens holds the string denoting the completion_tokens field in the database.
@@ -92,6 +96,8 @@ var Columns = []string{
 	FieldCacheCreationCost,
 	FieldFirstTokenSum,
 	FieldSpeedSum,
+	FieldPricingComplete,
+	FieldSpeedVersion,
 	FieldPromptTokens,
 	FieldCompletionTokens,
 	FieldTotalTokens,
@@ -144,6 +150,8 @@ var (
 	DefaultFirstTokenSum float64
 	// DefaultSpeedSum holds the default value on creation for the "speed_sum" field.
 	DefaultSpeedSum float64
+	// DefaultSpeedVersion holds the default value on creation for the "speed_version" field.
+	DefaultSpeedVersion int
 	// DefaultPromptTokens holds the default value on creation for the "prompt_tokens" field.
 	DefaultPromptTokens int64
 	// DefaultCompletionTokens holds the default value on creation for the "completion_tokens" field.
@@ -274,6 +282,16 @@ func ByFirstTokenSum(opts ...sql.OrderTermOption) OrderOption {
 // BySpeedSum orders the results by the speed_sum field.
 func BySpeedSum(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSpeedSum, opts...).ToFunc()
+}
+
+// ByPricingComplete orders the results by the pricing_complete field.
+func ByPricingComplete(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPricingComplete, opts...).ToFunc()
+}
+
+// BySpeedVersion orders the results by the speed_version field.
+func BySpeedVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpeedVersion, opts...).ToFunc()
 }
 
 // ByPromptTokens orders the results by the prompt_tokens field.

@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/ent/user"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
 type consumptionGroup struct {
@@ -26,6 +27,7 @@ type consumptionGroup struct {
 	Requests          int     `json:"requests"`
 	Tokens            int64   `json:"tokens"`
 	Cost              float64 `json:"cost"`
+	UnpricedRequests  int     `json:"unpriced_requests"`
 	CacheRequests     int     `json:"cache_requests"`
 	CacheRead         int64   `json:"cache_read"`
 	CacheInput        int64   `json:"cache_input"`
@@ -63,6 +65,7 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "total_cost"} {
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
 	}
+	query.AppendSelect(sql.As("SUM("+usageanalytics.TextTokensSQL(table.C("completion_tokens"), table.C("cost_snapshot"), table.C("completion_audio_tokens"), dialect)+")", "text_completion_tokens"))
 	query.AppendSelect(sql.As(sql.Count("*"), "usage_count"))
 	query.AppendSelect(sql.As(sql.Count(table.C("total_cost")), "priced_count"))
 	return query.As("usage")
@@ -125,6 +128,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
 		firstToken := execution.C("metrics_first_token_latency_ms")
 		q.AppendSelect(
+			sql.As("SUM("+consumptionUnpriced(u)+")", "unpriced_requests"),
 			sql.As(sql.Count("*"), "requests"),
 			sql.As("COALESCE(SUM("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+"), 0)", "tokens"),
 			sql.As("COALESCE(SUM("+u.C("total_cost")+"), 0)", "cost"),

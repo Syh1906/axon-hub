@@ -2,7 +2,7 @@ package biz
 
 import (
 	"entgo.io/ent/dialect/sql"
-	"fmt"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"strings"
 )
 
@@ -26,6 +26,13 @@ func consumptionOutcomeAndSpeed(u *sql.Selector, execution *sql.SelectTable) (st
 		exclusions = append(exclusions, "("+code+" = 429 AND "+message+" LIKE '"+pattern+"' ESCAPE '!')")
 	}
 	outcome := "CASE WHEN " + strings.Join(exclusions, " OR ") + " THEN NULL WHEN " + status + " = 'completed' THEN 1 WHEN " + status + " IN ('failed', 'canceled') THEN 0 ELSE NULL END"
-	speed := fmt.Sprintf("CASE WHEN %s > 0 AND %s IS NOT NULL AND %s IS NOT NULL AND %s < %s AND (%s - %s) >= 100 THEN %s * 1000.0 / (%s - %s) ELSE NULL END", u.C("completion_tokens"), duration, byteLatency, byteLatency, duration, duration, byteLatency, u.C("completion_tokens"), duration, byteLatency)
+	// Legacy usage rows are not execution-keyed. Multiple rows cannot safely be
+	// paired with the final attempt's duration, so omit that ambiguous sample.
+	tokens := "CASE WHEN " + u.C("usage_count") + " = 1 THEN " + u.C("text_completion_tokens") + " ELSE NULL END"
+	speed := usageanalytics.OutputSpeedSQL(tokens, duration, byteLatency, execution.C("stream"), execution.C("format"))
 	return outcome, speed
+}
+
+func consumptionUnpriced(u *sql.Selector) string {
+	return "CASE WHEN " + u.C("usage_count") + " IS NULL OR " + u.C("priced_count") + " < " + u.C("usage_count") + " THEN 1 ELSE 0 END"
 }

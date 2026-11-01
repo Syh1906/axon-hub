@@ -17,6 +17,7 @@ type SelfUsageCostItem struct {
 	Image                       *objects.ImageOutput         `json:"image,omitempty"`
 	ImageRule                   string                       `json:"imageRule"`
 	Unpriced                    bool                         `json:"unpriced"`
+	UnpricedReason              string                       `json:"unpricedReason"`
 	ItemCode                    string                       `json:"itemCode"`
 	PromptWriteCacheVariantCode *string                      `json:"promptWriteCacheVariantCode,omitempty"`
 	Quantity                    int                          `json:"quantity"`

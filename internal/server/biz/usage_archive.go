@@ -54,6 +54,7 @@ type archivedRequestFacts struct {
 	CacheRead         int64     `json:"cache_read"`
 	CacheWrite        int64     `json:"cache_write"`
 	Cost              float64   `json:"cost"`
+	UnpricedRequests  int       `json:"unpriced_requests"`
 	CacheCreationCost float64   `json:"cache_creation_cost"`
 	CacheRequests     int64     `json:"cache_requests"`
 	SuccessCount      int64     `json:"success_count"`
@@ -91,6 +92,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 			q.AppendSelect(sql.As("COALESCE("+u.C(field)+", 0)", field))
 		}
 		q.AppendSelect(sql.As(cacheRead, "cache_read"), sql.As(cacheWrite, "cache_write"),
+			sql.As(consumptionUnpriced(u), "unpriced_requests"),
 			sql.As("COALESCE("+u.C("total_cost")+", 0)", "cost"),
 			sql.As("CASE WHEN "+cacheWrite+" > 0 THEN COALESCE("+u.C("total_cost")+",0) ELSE 0 END", "cache_creation_cost"),
 			sql.As("CASE WHEN "+cacheRead+" > 0 OR "+cacheWrite+" > 0 THEN 1 ELSE 0 END", "cache_requests"),
@@ -108,6 +110,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 			SetPromptTokens(row.PromptTokens).SetCompletionTokens(row.CompletionTokens).SetTotalTokens(row.TotalTokens).
 			SetPromptCachedTokens(row.CacheRead).SetPromptWriteCachedTokens(row.CacheWrite).SetCacheInput(row.PromptTokens).
 			SetTotalCost(row.Cost).SetCacheCreationCost(row.CacheCreationCost).SetCacheRequests(row.CacheRequests).
+			SetPricingComplete(row.UnpricedRequests == 0).SetSpeedVersion(1).
 			SetSuccessCount(row.SuccessCount).SetOutcomeCount(row.OutcomeCount).
 			SetFirstTokenSum(row.FirstTokenSum).SetFirstTokenCount(row.FirstTokenCount).SetSpeedSum(row.SpeedSum).SetSpeedCount(row.SpeedCount).
 			OnConflict(sql.ConflictColumns(usagearchive.FieldKind, usagearchive.FieldSourceID)).DoNothing().Exec(ctx)

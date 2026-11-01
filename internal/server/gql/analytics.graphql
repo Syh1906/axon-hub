@@ -125,6 +125,7 @@ type AnalyticsModelChannelStat {
   cacheHitRate: Float!
   avgFirstTokenLatencyMs: Float
   avgOutputTokensPerSecond: Float
+  speedSampleCount: Int!
 }
 
 "Model attempt statistics with nested channel breakdown"
@@ -139,6 +140,7 @@ type AnalyticsModelStat {
   cacheHitRate: Float!
   avgFirstTokenLatencyMs: Float
   avgOutputTokensPerSecond: Float
+  speedSampleCount: Int!
   channels: [AnalyticsModelChannelStat!]!
 }
 

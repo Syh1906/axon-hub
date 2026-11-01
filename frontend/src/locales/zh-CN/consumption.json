@@ -51,7 +51,7 @@
   "consumption.cacheCoefficientHelp": "实际缓存读取量与理论可缓存量的比值，并按有效样本比例和样本量修正。范围 0–1，仅供比较；约滞后 15–20 分钟。",
   "consumption.successRateHelp": "成功请求占有效结果的比例。按 CCH 规则排除已收到响应后的客户端取消、404、额度和限流等结果。",
   "consumption.firstTokenHelp": "从请求开始到收到第一个有效输出的平均时间。缺失历史时间的记录不参与平均。",
-  "consumption.speedHelp": "逐条计算输出 Token ÷ 首个响应字节之后的耗时，再取平均。排除缺失时间、无输出以及有效耗时不足 100ms 的记录。",
+  "consumption.speedHelp": "仅统计可匹配最终执行的流式文本输出。逐条以输出 Token ÷ 首字节之后的秒数计算，再取平均；不足 100ms、非流式及缺失计时的记录不参与。",
   "consumption.noSample": "没有可计算的样本",
   "consumption.empty": "所选时间范围内暂无数据",
   "consumption.cacheNote": "仅统计发生缓存读写的请求；成本为这些请求的完整历史成本。缓存系数约滞后 15–20 分钟。",
@@ -61,5 +61,9 @@
   "consumption.dimensions.API_KEY_GROUP": "密钥分组",
   "consumption.entityColumns.API_KEY_GROUP": "密钥分组 / 模型",
   "consumption.allGroups": "全部分组",
-  "consumption.overallCacheHitRateHelp": "缓存读取 Token ÷ 全部请求的总输入 Token，包含未命中缓存的请求；无输入 Token 时显示“—”。"
+  "consumption.overallCacheHitRateHelp": "缓存读取 Token ÷ 全部请求的总输入 Token，包含未命中缓存的请求；无输入 Token 时显示“—”。",
+  "consumption.speedSamples": "有效测速样本：{{count}} 条",
+  "consumption.unpriced": "未计价",
+  "consumption.partiallyPriced": "部分未计价",
+  "consumption.unpricedHelp": "{{count}} 条请求未完整计价；金额仅含已知费用，均价暂不可计算。"
 }

@@ -89,3 +89,28 @@ func TestServiceTierItemsRecoveryAndSelfUsageGraphQL(t *testing.T) {
 	require.Contains(t, response.Body.String(), `"modeSubtotal":0.25`)
 	require.Contains(t, response.Body.String(), `"source":"custom"`)
 }
+
+func TestSelfUsageGraphQLRetainsUnpricedReason(t *testing.T) {
+	db := enttest.NewEntClient(t, "sqlite3", "file:unpriced_reason?mode=memory&_fk=0")
+	defer db.Close()
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), db))
+	project := db.Project.Create().SetName("unpriced").SaveX(ctx)
+	key := db.APIKey.Create().SetProjectID(project.ID).SetName("unpriced").SetKey("synthetic-unpriced").SetStatus("enabled").SaveX(ctx)
+	at := time.Now().UTC()
+	req := db.Request.Create().SetProjectID(project.ID).SetAPIKeyID(key.ID).SetModelID("mixed").SetStatus("completed").SetRequestBody([]byte(`{}`)).SetCreatedAt(at).SaveX(ctx)
+	db.UsageLog.Create().SetProjectID(project.ID).SetAPIKeyID(key.ID).SetRequestID(req.ID).SetModelID("mixed").SetCostItems([]objects.CostItem{{ItemCode: objects.PriceItemCodeCompletion, Unpriced: true, UnpricedReason: "usage_missing"}}).SaveX(ctx)
+	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db})
+	require.NoError(t, system.SetGeneralSettings(ctx, biz.SystemGeneralSettings{Timezone: "UTC", CurrencyCode: "USD"}))
+	server := handler.NewDefaultServer(NewSchema(biz.NewSelfUsageService(db, system)))
+	day := at.Format("2006-01-02")
+	body, err := json.Marshal(map[string]string{"query": `{selfUsageRequests(start:"` + day + `",end:"` + day + `"){items{cost costItems{unpriced unpricedReason}}}}`})
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(string(body))).WithContext(contexts.WithAPIKey(context.Background(), key))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+	require.NotContains(t, result, "errors")
+	require.Contains(t, response.Body.String(), `"unpriced":true,"unpricedReason":"usage_missing"`)
+}

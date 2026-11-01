@@ -106,6 +106,7 @@ export const analyticsModelChannelStatSchema = z.object({
   cacheHitRate: z.number(),
   avgFirstTokenLatencyMs: z.number().nullable(),
   avgOutputTokensPerSecond: z.number().nullable(),
+  speedSampleCount: z.number(),
 });
 
 export type AnalyticsModelChannelStat = z.infer<
@@ -123,6 +124,7 @@ export const analyticsModelStatSchema = z.object({
   cacheHitRate: z.number(),
   avgFirstTokenLatencyMs: z.number().nullable(),
   avgOutputTokensPerSecond: z.number().nullable(),
+  speedSampleCount: z.number(),
   channels: z.array(analyticsModelChannelStatSchema),
 });
 
@@ -235,6 +237,7 @@ const ANALYTICS_MODEL_STATS_QUERY = `
       cacheHitRate
       avgFirstTokenLatencyMs
       avgOutputTokensPerSecond
+      speedSampleCount
       channels {
         id
         name
@@ -246,6 +249,7 @@ const ANALYTICS_MODEL_STATS_QUERY = `
         cacheHitRate
         avgFirstTokenLatencyMs
         avgOutputTokensPerSecond
+        speedSampleCount
       }
     }
   }
