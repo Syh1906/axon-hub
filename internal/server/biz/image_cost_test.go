@@ -58,12 +58,14 @@ func TestImageRequestedDimensionsAndFlatFeeWithoutUsage(t *testing.T) {
 
 func TestFlatFeeDefaultPreservesCacheVariantPricing(t *testing.T) {
 	fee, fiveMinute, oneHour := decimal.RequireFromString("0.09"), decimal.NewFromInt(1), decimal.NewFromInt(4)
-	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeWriteCachedTokens,
-		Pricing: objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee},
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{
+		ItemCode: objects.PriceItemCodeWriteCachedTokens,
+		Pricing:  objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee},
 		PromptWriteCacheVariants: []objects.PromptWriteCacheVariant{
 			{VariantCode: objects.PromptWriteCacheVariantCode5Min, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &fiveMinute}},
 			{VariantCode: objects.PromptWriteCacheVariantCode1Hour, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &oneHour}},
-		}}}}
+		},
+	}}}
 	require.NoError(t, price.Validate())
 	usage := &llm.Usage{PromptTokensDetails: &llm.PromptTokensDetails{WriteCachedTokens: 1000000, WriteCached5MinTokens: 500000, WriteCached1HourTokens: 500000}}
 	items, total := ComputeUsageCost(usage, price, time.Now())

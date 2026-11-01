@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/looplj/axonhub/internal/pkg/sqlite"
 	"github.com/stretchr/testify/require"
+
+	_ "github.com/looplj/axonhub/internal/pkg/sqlite"
 )
 
 func TestThroughputQueriesAverageOnlyValidTextStreams(t *testing.T) {

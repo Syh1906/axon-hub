@@ -2,17 +2,21 @@ package gql
 
 import (
 	"context"
-	"github.com/99designs/gqlgen/graphql"
+	"maps"
 	"slices"
 	"sync"
+
+	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 type requestSpeedCacheKey struct{}
+
 type requestSpeedCache struct {
 	sync.Mutex
+
 	values map[int]*float64
 }
 
@@ -35,9 +39,7 @@ func cacheRequestSpeeds(ctx context.Context, client *ent.Client, page *ent.Reque
 	}
 	cache.Lock()
 	defer cache.Unlock()
-	for id, value := range values {
-		cache.values[id] = value
-	}
+	maps.Copy(cache.values, values)
 	return page, nil
 }
 

@@ -2,10 +2,10 @@ package qb
 
 import (
 	"fmt"
-	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"strconv"
 	"strings"
 
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
 )
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
@@ -13,7 +15,6 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/imagebilling"
 	"github.com/looplj/axonhub/llm"
-	"github.com/samber/lo"
 )
 
 // CostRecalculationPreview never writes accounting data or fetches image URLs.
@@ -66,9 +67,13 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 		if row.CostSnapshot != nil {
 			snapshot = row.CostSnapshot
 		}
-		usage = &llm.Usage{PromptTokens: row.PromptTokens, CompletionTokens: row.CompletionTokens, TotalTokens: row.TotalTokens,
-			PromptTokensDetails: &llm.PromptTokensDetails{CachedTokens: row.PromptCachedTokens, WriteCachedTokens: row.PromptWriteCachedTokens,
-				WriteCached5MinTokens: row.PromptWriteCachedTokens5m, WriteCached1HourTokens: row.PromptWriteCachedTokens1h}}
+		usage = &llm.Usage{
+			PromptTokens: row.PromptTokens, CompletionTokens: row.CompletionTokens, TotalTokens: row.TotalTokens,
+			PromptTokensDetails: &llm.PromptTokensDetails{
+				CachedTokens: row.PromptCachedTokens, WriteCachedTokens: row.PromptWriteCachedTokens,
+				WriteCached5MinTokens: row.PromptWriteCachedTokens5m, WriteCached1HourTokens: row.PromptWriteCachedTokens1h,
+			},
+		}
 		for _, item := range row.CostItems {
 			// Zero token columns also represent absent provider usage. Preserve
 			// the original unknown item, including legacy rows without a reason.

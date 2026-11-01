@@ -20,7 +20,7 @@ func NeedsImageCostEvidence(snapshot *objects.RequestCostSnapshot) bool {
 	return hasImagePricingSnapshot(snapshot)
 }
 
-// Non-token fees can be recorded even when the provider omits usage.
+// NeedsUsageLogWithoutTokens reports whether image or flat fees remain chargeable without usage.
 func NeedsUsageLogWithoutTokens(snapshot *objects.RequestCostSnapshot) bool {
 	price := snapshot.CurrentPrice()
 	if price == nil {

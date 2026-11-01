@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
-	"github.com/shopspring/decimal"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHistoricalCostPreviewDoesNotRewriteBilling(t *testing.T) {
@@ -97,8 +98,9 @@ func TestHistoricalPreviewPreservesCacheVariantUsage(t *testing.T) {
 	f := newConsumptionFixture(t)
 	req, _ := f.addRequest(t, time.Now().Add(-time.Hour), "cached", request.StatusCompleted, 1000000, 0, 0, 1000000, 2.5, nil)
 	fee, fiveMinute, oneHour := decimal.RequireFromString("0.09"), decimal.NewFromInt(1), decimal.NewFromInt(4)
-	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeWriteCachedTokens,
-		Pricing: objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee},
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{
+		ItemCode: objects.PriceItemCodeWriteCachedTokens,
+		Pricing:  objects.Pricing{Mode: objects.PricingModeFlatFee, FlatFee: &fee},
 		PromptWriteCacheVariants: []objects.PromptWriteCacheVariant{
 			{VariantCode: objects.PromptWriteCacheVariantCode5Min, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &fiveMinute}},
 			{VariantCode: objects.PromptWriteCacheVariantCode1Hour, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &oneHour}},
