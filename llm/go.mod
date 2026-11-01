@@ -3,6 +3,7 @@ module github.com/looplj/axonhub/llm
 go 1.26.0
 
 require (
+	github.com/MoeForge/moego v0.1.0-alpha.1
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/go-cmp v0.7.0

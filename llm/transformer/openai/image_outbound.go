@@ -3,7 +3,6 @@ package openai
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"net/textproto"
 	"strings"
 
+	"github.com/MoeForge/moego/base64"
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/llm"

@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
+	"github.com/MoeForge/moego/ojson"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -58,11 +57,11 @@ func PrepareHTTPTransportRequest(request *httpclient.Request, stripPreviousRespo
 }
 
 func withoutPreviousResponseID(body []byte) ([]byte, bool) {
-	if !gjson.GetBytes(body, "previous_response_id").Exists() {
+	if !ojson.GetBytes(body, "previous_response_id").Exists() {
 		return body, false
 	}
 
-	filtered, err := sjson.DeleteBytes(body, "previous_response_id")
+	filtered, err := ojson.DeleteBytes(body, "previous_response_id")
 	if err != nil {
 		return body, false
 	}

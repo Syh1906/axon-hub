@@ -71,6 +71,13 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### moego 图片与 Responses HTTP 局部试用
+
+- 状态：已实现并通过离线对照和定向回归，未发布、未部署。
+- 固定 `github.com/MoeForge/moego v0.1.0-alpha.1`：OpenAI 图片请求中的 Base64 编解码使用 `base64`；Responses HTTP 的 `previous_response_id` 检查和删除使用 `ojson`。保留既有请求克隆、正文与错误处理规则，其余库调用及参数覆盖循环不变。
+- 代码：`llm/transformer/openai/image_outbound.go`、`llm/transformer/openai/responses/http_executor.go`；主模块与 llm 模块依赖及校验和同步。
+- 无 schema migration、data migration、缓存形状或持久 fixture 变化。Windows/amd64 快速基准与局部回归通过，未测 Linux/arm64 或整体负载；数据、命令及限制见[离线试用记录](../.agent/summary/moego-offline-trial-20261102.md)。同步上游时核对这两处实现及固定依赖版本。
+
 ### 后台清理与长期存储维护
 
 - 正文短缓存（未发布）：新请求／响应／分片使用有期限、大小、容量和数量限制的 gzip 缓存，Responses 续聊与调试副本分开。实现为 `internal/pkg/payloadcache/`、`internal/server/biz/request_payload.go`；开关、旧正文和二进制资源边界见下列中英手册。仅改变新增留存，不自动清理历史正文或缩小数据库文件。无新增 data migration，既有正文保持可读；定向回归和独立审查记录见[本阶段汇总](../.agent/summary/request-stage-review-20261101.md)。
