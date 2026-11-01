@@ -73,15 +73,21 @@ func TestBulkImportChannelsUsesPerRowTransactionsForAnyOperationName(t *testing.
 				require.NoError(t, err)
 			}
 
-			errInjected := errors.New("injected import price version failure")
-			db.ChannelModelPriceVersion.Use(func(next ent.Mutator) ent.Mutator {
-				return hook.ChannelModelPriceVersionFunc(func(ctx context.Context, mutation *ent.ChannelModelPriceVersionMutation) (ent.Value, error) {
-					modelID, _ := mutation.ModelID()
-					if mutation.Op() == ent.OpCreate && modelID == "import-fail" {
+			errInjected := errors.New("injected failure after channel insert")
+			db.Channel.Use(func(next ent.Mutator) ent.Mutator {
+				return hook.ChannelFunc(func(ctx context.Context, mutation *ent.ChannelMutation) (ent.Value, error) {
+					value, err := next.Mutate(ctx, mutation)
+					if err != nil {
+						return nil, err
+					}
+					// Import inherits model prices without copying price rows. Fail
+					// after the insert so this still verifies a real row rollback.
+					name, _ := mutation.Name()
+					if mutation.Op() == ent.OpCreate && name == "Import Failure" {
 						return nil, errInjected
 					}
 
-					return next.Mutate(ctx, mutation)
+					return value, nil
 				})
 			})
 
@@ -128,10 +134,10 @@ func TestBulkImportChannelsUsesPerRowTransactionsForAnyOperationName(t *testing.
 
 			priceCount, err := db.ChannelModelPrice.Query().Count(ctx)
 			require.NoError(t, err)
-			require.Equal(t, 2, priceCount)
+			require.Zero(t, priceCount)
 			versionCount, err := db.ChannelModelPriceVersion.Query().Count(ctx)
 			require.NoError(t, err)
-			require.Equal(t, 2, versionCount)
+			require.Zero(t, versionCount)
 		})
 	}
 }
