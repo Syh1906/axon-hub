@@ -365,13 +365,15 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesAnthropicCitation
 	require.Equal(t, "https://example.com/source", persistedResp.Choices[0].Message.Annotations[0].URLCitation.URL)
 	require.Equal(t, "Example Source", persistedResp.Choices[0].Message.Annotations[0].URLCitation.Title)
 
-	require.NotEmpty(t, requests[0].ResponseChunks)
+	persistedChunks, err := requestService.LoadResponseChunks(ctx, requests[0])
+	require.NoError(t, err)
+	require.NotEmpty(t, persistedChunks)
 	var persistedChunk struct {
 		Event string          `json:"event"`
 		Data  json.RawMessage `json:"data"`
 	}
 	var foundPersistedAnnotationChunk bool
-	for _, rawChunk := range requests[0].ResponseChunks {
+	for _, rawChunk := range persistedChunks {
 		err := json.Unmarshal(rawChunk, &persistedChunk)
 		require.NoError(t, err)
 

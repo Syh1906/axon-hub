@@ -80,8 +80,10 @@ func TestImageCostPersistsWithoutProviderUsage(t *testing.T) {
 	state.RawProviderRequest = &httpclient.Request{Body: []byte(`{"resolution":"2k"}`)}
 	// Empty URL avoids any network call; metadata still proves two final outputs.
 	raw := &httpclient.Response{StatusCode: 200, Body: []byte(`{"data":[{"b64_json":"invalid","size":"2048x2048"},{"b64_json":"invalid","size":"2048x2048"}]}`)}
-	executionMiddleware := &persistRequestExecutionMiddleware{outbound: &PersistentOutboundTransformer{state: state}}
-	_, err := executionMiddleware.OnOutboundRawResponse(ctx, raw)
+	wrapped, err := openai.NewOutboundTransformer("https://example.com", "fixture")
+	require.NoError(t, err)
+	executionMiddleware := &persistRequestExecutionMiddleware{outbound: &PersistentOutboundTransformer{state: state, wrapped: wrapped}}
+	_, err = executionMiddleware.OnOutboundRawResponse(ctx, raw)
 	require.NoError(t, err)
 	response := &llm.Response{ID: "images", RequestType: llm.RequestTypeImage}
 	_, err = middleware.OnOutboundLlmResponse(ctx, response)
