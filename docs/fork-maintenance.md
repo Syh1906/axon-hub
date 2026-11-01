@@ -990,8 +990,13 @@ fork 改动，由用户决定。
   复用固定提交测试、双架构镜像及临时 PostgreSQL 启动检查；通过后保存 `snapshot.json`，
   不打 Git tag、不建 Release、不占 `.syh.N`，也不自动部署。程序版本使用基线加构建标识，
   镜像使用独立快照标签并按摘要部署。普通入口拒绝 schema／migration 变化；
-  无本轮 schema 或 data migration。新增真实 Git 历史、清单与版本排序回归，
-  实际执行结果以本轮交付为准，尚无云端快照或生产部署记录。
+  无本轮 schema 或 data migration。真实 Git 历史、清单与版本排序回归通过。
+- 首个快照：`snapshot-0133f85cad6e-41334569588-1`，源码
+  `0133f85cad6ee47da7e403ad6a9cb1644cc16f0a`，基线为正式 `.syh.10`；
+  [Actions 41334569588](https://github.com/Syh1906/axon-hub/actions/runs/41334569588)
+  的来源检查、后端／LLM 测试、前端单元测试、双架构构建及临时 PostgreSQL 启动检查全部通过。
+  固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:50233ad1eeea29c9d3708b02a0b28dfe5b642f8e70bd5f4f1fc0aaa2def3464f`，
+  `snapshot.json` 已保存为该任务附件。正式 Release 仍为 `.syh.10`；具体生产部署记录留在私有维护资料。
 - 快照由用户发起手动退役回收，不做自动检测、定时清理或发布钩子。
   清理时核对各目标实际部署及回退引用，只有已被验收正式版替代且无引用的产物才可回收；
   包括本地、GHCR 架构及多架构镜像和 Actions 附件，保留非敏感追溯收据。
