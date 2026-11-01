@@ -998,7 +998,18 @@ fork 改动，由用户决定。
   [Actions 41334569588](https://github.com/Syh1906/axon-hub/actions/runs/41334569588)
   的来源检查、后端／LLM 测试、前端单元测试、双架构构建及临时 PostgreSQL 启动检查全部通过。
   固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:50233ad1eeea29c9d3708b02a0b28dfe5b642f8e70bd5f4f1fc0aaa2def3464f`，
-  `snapshot.json` 已保存为该任务附件。正式 Release 仍为 `.syh.10`；具体生产部署记录留在私有维护资料。
+  `snapshot.json` 曾保存为该任务附件；该快照现已被后续快照替代并退役，原工作流历史保留。
+  正式 Release 仍为 `.syh.10`；具体生产部署记录留在私有维护资料。
+- 最新快照：`snapshot-30fbf51facbe-41337948306-1`，源码
+  `30fbf51facbef1ec8ef2d97cccb172b4a0f2e8de`，包含统计页缓存重入与列表悬浮反馈修正；
+  [Actions 41337948306](https://github.com/Syh1906/axon-hub/actions/runs/41337948306)
+  的全部测试、双架构构建和启动检查通过，固定镜像为
+  `ghcr.io/syh1906/axon-hub@sha256:1cd74d8f2fbee247e4513bfd5b704f6fc390f878960f529b2cf556a162e3618c`。
+  没有新增 schema／data migration，也未创建正式 Git tag 或 Release。
+- 旧快照退役：[预览 41338796608](https://github.com/Syh1906/axon-hub/actions/runs/41338796608)
+  核对精确目标后，[执行 41338911491](https://github.com/Syh1906/axon-hub/actions/runs/41338911491)
+  删除首个快照的 3 个 GHCR 包版本及 3 个构建附件，并检查目标已不存在；
+  新快照、正式镜像、原工作流历史及非敏感退役收据保留。
 - 快照由用户发起手动退役回收，不做自动检测、定时清理或发布钩子。
   清理时核对各目标实际部署及回退引用，只有已被验收正式版或新快照替代且无引用的产物才可回收；
   包括本地、GHCR 架构及多架构镜像和 Actions 附件，保留非敏感追溯收据。
