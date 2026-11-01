@@ -10,14 +10,14 @@ Set the explicit boolean `publishBinaries` in `release.config.json` before creat
 Image-only versions cannot be installed with the native binary download/upgrade scripts. Binary users must retain their existing version or wait for a new release with archives enabled. Do not rerun a published tag to change its artifact set. GitHub's automatic source archives remain available.
 
 Independent production machines use PostgreSQL and Docker Compose, with their
-own configuration and volumes. The private
-[axon-hub-ops](https://github.com/Syh1906/axon-hub-ops) repository manages staged
-deployment. Access to that repository requires authorization.
+own configuration and volumes. The active maintenance project manages staged
+deployment. The private [axon-hub-ops](https://github.com/Syh1906/axon-hub-ops)
+repository is an optional, separately authorized implementation, not a prerequisite.
 
 The latest stable version, source commit, publishing workflow, and artifact checks
 are recorded in the [release entry of the fork maintenance ledger](../../fork-maintenance.md#github-独立发布与两层上游追溯).
 That entry confirms application publication; production upgrade status belongs
-to the deployment repository.
+to the active maintenance records.
 
 ## Branches and sources
 
@@ -150,13 +150,58 @@ inspect existing draft assets before rerunning binary publication. Published
 versions must not be overwritten; issue a new syh number. Partial image tags do
 not establish a successful release: the complete published manifest does.
 
+## On-demand snapshot images
+
+Run `.github/workflows/snapshot.yml` manually from the maintenance branch, supplying
+a full 40-character `commit` and an already published official `base_version`, such
+as `v1.0.0-beta10-fork.7.syh.10`. This creates neither Git tags nor Releases, consumes
+no new `.syh.N` number, and does not deploy production. The workflow must exist on
+the GitHub default branch, currently `release/v1.0.x`.
+
+Preparation verifies repository, maintenance-branch ancestry, both upstream sources,
+and the base tag. It rejects an older base when a later numbered tag is already in
+the source history, and rejects changes under `internal/ent/schema/` or
+`internal/ent/migrate/` since the base. Review configuration, persistent writes and
+rollback compatibility separately; incompatible changes require a dedicated upgrade
+plan rather than this ordinary snapshot path.
+
+Tests and both native architecture builds use the exact source commit. After startup,
+version and revision-label checks against temporary PostgreSQL, the workflow uploads
+`snapshot.json`. The application version is
+`<base>+snapshot.<12-character-commit>.<run-id>.<attempt>`; the image tag is
+`snapshot-<12-character-commit>-<run-id>-<attempt>`. Build metadata does not advance
+version precedence. Retries have distinct identities; official image tags are never
+replaced. Partial images without a successful manifest are not deployable evidence.
+After a failure, rerun the entire workflow to prepare a new identity. Rerunning only
+failed jobs is rejected because it would reuse the previous snapshot identity.
+
+The manifest records `kind: snapshot`, `snapshotId`, base version and commit, source
+commit, application version, both upstream sources, immutable image digest, all three
+image tags, platforms and workflow attempt URL. Verify the successful run and retain
+the manifest in maintenance records before Actions artifacts expire. Deploy the same
+digest serially, retaining separate host receipts and the existing no-database-backup
+and application-only recreation rules. Startup checks do not verify real providers
+or billing.
+
+Snapshots are temporary, not long-term archives. Retirement is initiated manually by
+the user; do not add schedules, post-release detection or automatic deletion hooks.
+A published Release alone is insufficient: verify that target hosts have switched
+to and accepted the official image and that no runtime or rollback references remain.
+List precise local images, GHCR multi-platform and architecture child images, and
+Actions artifacts before deleting within the applicable authorization. Check all
+container references and shared digests; do not delete official images or sweep by
+prefix or age. Keep referenced or uncertain snapshots with a reason. Retain non-secret
+source, digest, run, deployment and cleanup receipts, including outstanding items.
+
 ## Independent production machines
 
-Configure actual inventory, dedicated SSH credentials and verified host keys in
-the private ops repository. Never commit production credentials to the application
-repository. First deploy canary, perform business acceptance, then select
-production with that successful run number. The workflow verifies the same version,
-image digest, ops commit and inventory before updating hosts serially.
+Use the active maintenance project for inventory, dedicated SSH credentials and
+verified host keys. A separate private ops repository is optional, not a prerequisite
+for official or snapshot deployment. Never commit production credentials to the
+application repository. Accept the first host before updating the others with the
+same manifest and digest; retain individual host receipts. When using the private
+ops implementation, select production with the successful canary run number and
+verify the same version, digest, ops commit and inventory.
 
 Each host pulls the immutable image, checks migrations and rollback compatibility,
 and temporarily saves configuration while the old application remains online. Change

@@ -16,7 +16,9 @@ $cases = @(
     @('v1.0.0-beta10-fork.7.syh.10', 'v1.0.0-beta10-fork.8', -1),
     @('v1.0.0-beta10', 'v1.0.0', -1),
     @('v1.0.0', 'v1.0.0-beta10', 1),
-    @('v1.0.0+build.1', 'v1.0.0+build.2', 0)
+    @('v1.0.0+build.1', 'v1.0.0+build.2', 0),
+    @('v1.0.0-beta10-fork.7.syh.10+snapshot.abcdef123456.123.1', 'v1.0.0-beta10-fork.7.syh.10', 0),
+    @('v1.0.0-beta10-fork.7.syh.10+snapshot.abcdef123456.123.1', 'v1.0.0-beta10-fork.7.syh.11', -1)
 )
 foreach ($case in $cases) {
     $actual = [Math]::Sign((Compare-Version $case[0] $case[1]))

@@ -3,6 +3,11 @@
 name: Test
 on:
   workflow_call:
+    inputs:
+      commit:
+        description: 测试指定源码提交；未指定时使用触发提交
+        required: false
+        type: string
   push:
     branches:
       - "unstable"
@@ -20,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.commit || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
@@ -35,6 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.commit || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -52,6 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.commit || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 

@@ -1,0 +1,151 @@
+name: 按需构建快照镜像
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 维护分支上的完整 40 位源码提交号
+        required: true
+        type: string
+      base_version:
+        description: 已正式发布的基线，例如 v1.0.0-beta10-fork.7.syh.10
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: 核对快照来源与升级范围
+    runs-on: ubuntu-latest
+    outputs:
+      prepared: ${{ steps.snapshot.outputs.prepared }}
+      version: ${{ steps.snapshot.outputs.version }}
+      commit: ${{ steps.snapshot.outputs.commit }}
+      image: ${{ steps.snapshot.outputs.image }}
+      image_tag: ${{ steps.snapshot.outputs.image_tag }}
+      run_attempt: ${{ steps.snapshot.outputs.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: 固定源码提交并核对迁移差异
+        id: snapshot
+        env:
+          SNAPSHOT_COMMIT: ${{ inputs.commit }}
+          BASE_VERSION: ${{ inputs.base_version }}
+        run: node scripts/release/snapshot.mjs prepare
+      - name: 核对基线是已公开的正式 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_VERSION: ${{ inputs.base_version }}
+        run: |
+          gh release view "$BASE_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,isPrerelease > "$RUNNER_TEMP/base-release.json"
+          jq -e '.isDraft == false and .isPrerelease == false' "$RUNNER_TEMP/base-release.json"
+
+  checks:
+    name: 快照源码测试
+    needs: prepare
+    uses: ./.github/workflows/test.yml
+    with:
+      commit: ${{ needs.prepare.outputs.commit }}
+    permissions:
+      contents: read
+
+  docker:
+    name: 构建快照镜像
+    needs: [prepare, checks]
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      image_tag: ${{ needs.prepare.outputs.image_tag }}
+      snapshot_attempt: ${{ needs.prepare.outputs.run_attempt }}
+      commit: ${{ needs.prepare.outputs.commit }}
+      image: ${{ needs.prepare.outputs.image }}
+    permissions:
+      contents: read
+      packages: write
+
+  verify:
+    name: 验证快照并保存部署清单
+    needs: [prepare, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: axonhub
+          POSTGRES_DB: axonhub
+          POSTGRES_PASSWORD: snapshot-test-only
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U axonhub -d axonhub"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      IMAGE: ${{ needs.prepare.outputs.image }}
+      IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      EXPECTED_COMMIT: ${{ needs.prepare.outputs.commit }}
+      SNAPSHOT_PREPARED: ${{ needs.prepare.outputs.prepared }}
+    steps:
+      - name: 核对快照清单身份
+        env:
+          EXPECTED_ATTEMPT: ${{ needs.prepare.outputs.run_attempt }}
+        run: |
+          if [ "$EXPECTED_ATTEMPT" != "$GITHUB_RUN_ATTEMPT" ]; then
+            echo '快照必须重跑整个工作流，以生成新的快照身份；不能只重跑失败任务。' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 验证固定摘要镜像的启动、版本和提交
+        run: |
+          trap 'docker rm -f axonhub-snapshot-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name axonhub-snapshot-smoke -p 127.0.0.1:18090:8090 \
+            --add-host host.docker.internal:host-gateway \
+            -e AXONHUB_DB_DIALECT=postgres \
+            -e 'AXONHUB_DB_DSN=postgres://axonhub:snapshot-test-only@host.docker.internal:15432/axonhub?sslmode=disable' \
+            "$IMAGE@$IMAGE_DIGEST"
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:18090/health >/dev/null; then ready=true; break; fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then docker logs axonhub-snapshot-smoke; exit 1; fi
+          docker exec axonhub-snapshot-smoke /app/axonhub version | grep -Fx "$VERSION"
+          actual_commit=$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' axonhub-snapshot-smoke)
+          test "$actual_commit" = "$EXPECTED_COMMIT"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: 保存已通过检查的快照清单
+        run: node scripts/release/snapshot.mjs manifest "$RUNNER_TEMP/snapshot.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ needs.prepare.outputs.image_tag }}
+          path: ${{ runner.temp }}/snapshot.json
+          if-no-files-found: error
+      - name: 记录部署入口
+        env:
+          SNAPSHOT_ID: ${{ needs.prepare.outputs.image_tag }}
+        run: |
+          echo "快照：$SNAPSHOT_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "程序版本：$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "固定镜像：$IMAGE@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          echo '未创建 Git tag 或 Release；生产部署另行执行。快照由用户发起手动退役回收，不自动检测或删除。' >> "$GITHUB_STEP_SUMMARY"

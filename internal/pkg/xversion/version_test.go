@@ -54,3 +54,14 @@ func TestParseComparableVersionRejectsInvalidInput(t *testing.T) {
 	_, err := Parse("not-a-version")
 	require.Error(t, err)
 }
+
+func TestParseSnapshotKeepsBaseOrderBeforeNextRelease(t *testing.T) {
+	base, err := Parse("v1.0.0-beta10-fork.7.syh.10")
+	require.NoError(t, err)
+	snapshot, err := Parse("v1.0.0-beta10-fork.7.syh.10+snapshot.abcdef123456.123.1")
+	require.NoError(t, err)
+	next, err := Parse("v1.0.0-beta10-fork.7.syh.11")
+	require.NoError(t, err)
+	require.True(t, base.Equal(snapshot))
+	require.True(t, snapshot.LessThan(next))
+}

@@ -985,6 +985,16 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- 按需快照（2026-11-02）：新增手动 `snapshot.yml`，指定维护分支完整提交与已正式发布基线，
+  复用固定提交测试、双架构镜像及临时 PostgreSQL 启动检查；通过后保存 `snapshot.json`，
+  不打 Git tag、不建 Release、不占 `.syh.N`，也不自动部署。程序版本使用基线加构建标识，
+  镜像使用独立快照标签并按摘要部署。普通入口拒绝 schema／migration 变化；
+  无本轮 schema 或 data migration。新增真实 Git 历史、清单与版本排序回归，
+  实际执行结果以本轮交付为准，尚无云端快照或生产部署记录。
+- 快照由用户发起手动退役回收，不做自动检测、定时清理或发布钩子。
+  清理时核对各目标实际部署及回退引用，只有已被验收正式版替代且无引用的产物才可回收；
+  包括本地、GHCR 架构及多架构镜像和 Actions 附件，保留非敏感追溯收据。
+
 - 最新正式发布：**2026-11-02 00:00:48（UTC+8）** 发布 [v1.0.0-beta10-fork.7.syh.10](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.10)，源码 `9b726fbbcff8c3a96b000923c53c74e02a518054`；`draft=false`、`prerelease=false`，GitHub latest 已核对。两层上游基线不变，未部署生产。
 - `.syh.10` 内容：费用／预算结算一致性、失败终态、正文短缓存与按需读取、有效样本成本统计、双向有界列表和模型候选加载。本台账这些 topic 中此前的“未发布”阶段描述现已随此版本发布。新增可空预留释放时间由 Ent 管理，历史账单与旧正文不自动改写；行为与升级边界见[本版发布说明](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.10)。
 - `.syh.10` 验证：[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41323209337)及[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/41323212856)全部成功，含后端完整测试、前端单元测试、发布脚本、双架构镜像和临时 PostgreSQL 17 启动／版本检查。本地未重复测试或构建，分支重复 Test／Build 已取消；旧测试的直接正文读取和缺失夹具依赖按新存储契约修正，保留原结果断言。
@@ -1023,8 +1033,9 @@ fork 改动，由用户决定。
 - 来源与版本：`scripts/release/` 校验 tag、维护分支及基线；升级检查及 Windows 升级脚本指向本 fork，
   与迁移共享 `internal/pkg/xversion` 的数值感知比较，保护 `.syh.9 < .syh.10`
   及当前自己的版本早于下一次直接上游版本的顺序。安装和升级脚本改用本 fork。
-- 独立生产机：私有 `Syh1906/axon-hub-ops` 仓库管理 PostgreSQL + Compose，
-  先单台、再逐台；备份或验证失败停止后续机器，不自动回退数据库。
+- 独立生产机：沿用实际维护项目管理 PostgreSQL + Compose，私有
+  `Syh1906/axon-hub-ops` 是可选部署实现，不是快照前提；先单台、再逐台，
+  准备或验证失败停止后续机器，不自动回退数据库。
 - 清理：删除旧每日 unstable 镜像工作流；模型目录定时同步仅原始上游启用；
   去掉上游 Homebrew 发布及构建后反写默认分支。保留 Go 模块路径和原始作者信息。
 - 历史：ChouUn 的 `4dc42806` 将镜像发布到 `chouun/axon-hub`，
