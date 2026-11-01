@@ -52,7 +52,7 @@ func newVideoServiceFixture(t *testing.T, channelType channel.Type, baseURL stri
 	require.NoError(t, err)
 
 	channelService := NewChannelServiceForTest(client)
-	requestService := &RequestService{AbstractService: &AbstractService{db: client}}
+	requestService := newResponsesSessionRequestService(t, client)
 
 	return videoServiceFixture{
 		client:  client,

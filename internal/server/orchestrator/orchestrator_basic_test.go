@@ -146,8 +146,10 @@ func TestChatCompletionOrchestrator_Process_NonStreaming_PreservesGeminiGroundin
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
 
+	persistedBody, err := requestService.LoadResponseBody(ctx, requests[0])
+	require.NoError(t, err)
 	var persistedResp openai.Response
-	err = json.Unmarshal(requests[0].ResponseBody, &persistedResp)
+	err = json.Unmarshal(persistedBody, &persistedResp)
 	require.NoError(t, err)
 	require.Len(t, persistedResp.Choices, 1)
 	require.NotNil(t, persistedResp.Choices[0].Message)
@@ -262,8 +264,10 @@ func TestChatCompletionOrchestrator_Process_NonStreaming_PreservesAnthropicCitat
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
 
+	persistedBody, err := requestService.LoadResponseBody(ctx, requests[0])
+	require.NoError(t, err)
 	var persistedResp openai.Response
-	err = json.Unmarshal(requests[0].ResponseBody, &persistedResp)
+	err = json.Unmarshal(persistedBody, &persistedResp)
 	require.NoError(t, err)
 	require.Len(t, persistedResp.Choices, 1)
 	require.NotNil(t, persistedResp.Choices[0].Message)

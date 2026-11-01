@@ -188,8 +188,10 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesGeminiGroundingAn
 	require.Len(t, requests, 1)
 	assert.Equal(t, request.StatusCompleted, requests[0].Status)
 
+	persistedBody, err := requestService.LoadResponseBody(ctx, requests[0])
+	require.NoError(t, err)
 	var persistedResp openai.Response
-	err = json.Unmarshal(requests[0].ResponseBody, &persistedResp)
+	err = json.Unmarshal(persistedBody, &persistedResp)
 	require.NoError(t, err)
 	require.Len(t, persistedResp.Choices, 1)
 	require.NotNil(t, persistedResp.Choices[0].Message)
@@ -202,13 +204,15 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesGeminiGroundingAn
 	require.NotNil(t, persistedResp.Choices[0].Message.Annotations[0].EndIndex)
 	require.EqualValues(t, 8, *persistedResp.Choices[0].Message.Annotations[0].EndIndex)
 
-	require.NotEmpty(t, requests[0].ResponseChunks)
+	persistedChunks, err := requestService.LoadResponseChunks(ctx, requests[0])
+	require.NoError(t, err)
+	require.NotEmpty(t, persistedChunks)
 	var persistedChunk struct {
 		Event string          `json:"event"`
 		Data  json.RawMessage `json:"data"`
 	}
 	var foundPersistedAnnotationChunk bool
-	for _, rawChunk := range requests[0].ResponseChunks {
+	for _, rawChunk := range persistedChunks {
 		err := json.Unmarshal(rawChunk, &persistedChunk)
 		require.NoError(t, err)
 
@@ -350,8 +354,10 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesAnthropicCitation
 	require.Len(t, requests, 1)
 	assert.Equal(t, request.StatusCompleted, requests[0].Status)
 
+	persistedBody, err := requestService.LoadResponseBody(ctx, requests[0])
+	require.NoError(t, err)
 	var persistedResp openai.Response
-	err = json.Unmarshal(requests[0].ResponseBody, &persistedResp)
+	err = json.Unmarshal(persistedBody, &persistedResp)
 	require.NoError(t, err)
 	require.Len(t, persistedResp.Choices, 1)
 	require.NotNil(t, persistedResp.Choices[0].Message)
