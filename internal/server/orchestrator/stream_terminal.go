@@ -10,6 +10,9 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
+// responseStatusCanceledAlternate preserves an accepted provider wire value.
+const responseStatusCanceledAlternate = "cancelled" //nolint:misspell // Preserve the provider protocol spelling.
+
 func (s *PersistenceState) observeStreamTerminal(event *httpclient.StreamEvent) {
 	if err := streamTerminalError(event); err != nil {
 		s.StreamTerminalError = err
@@ -34,8 +37,8 @@ func streamTerminalError(event *httpclient.StreamEvent) error {
 			status = "failed"
 		case "response.incomplete":
 			status = "incomplete"
-		case "response.cancelled", "response.canceled":
-			status = "cancelled"
+		case "response." + responseStatusCanceledAlternate, "response.canceled":
+			status = responseStatusCanceledAlternate
 		}
 	}
 	// Converted chat-completion streams also carry explicit failure reasons.
@@ -44,8 +47,8 @@ func streamTerminalError(event *httpclient.StreamEvent) error {
 			switch choice.Get("finish_reason").String() {
 			case "error":
 				status = "failed"
-			case "cancelled", "canceled":
-				status = "cancelled"
+			case responseStatusCanceledAlternate, "canceled":
+				status = responseStatusCanceledAlternate
 			}
 		}
 	}
@@ -63,14 +66,14 @@ func nonStreamingResponseError(format llm.APIFormat, body []byte) error {
 }
 
 func responseStatusError(status, message string) error {
-	if status != "failed" && status != "incomplete" && status != "canceled" && status != "cancelled" {
+	if status != "failed" && status != "incomplete" && status != "canceled" && status != responseStatusCanceledAlternate {
 		return nil
 	}
 	if message == "" {
 		message = "upstream response ended with status " + status
 	}
 	err := &llm.ResponseError{StatusCode: 502, Detail: llm.ErrorDetail{Type: "upstream_response_error", Code: status, Message: message}}
-	if status == "canceled" || status == "cancelled" {
+	if status == "canceled" || status == responseStatusCanceledAlternate {
 		return errors.Join(context.Canceled, err)
 	}
 	return err

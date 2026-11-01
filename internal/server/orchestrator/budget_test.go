@@ -201,7 +201,7 @@ func TestBudgetRepeatedUpstreamFailuresDoNotAccumulateReservations(t *testing.T)
 }
 
 func TestBudgetNonStreamingResponsesOutcomeAndBilling(t *testing.T) {
-	for _, status := range []string{"completed", "failed", "incomplete", "canceled", "cancelled"} {
+	for _, status := range []string{"completed", "failed", "incomplete", "canceled", responseStatusCanceledAlternate} {
 		for _, withUsage := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/usage=%t", status, withUsage), func(t *testing.T) {
 				ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
@@ -219,8 +219,8 @@ func TestBudgetNonStreamingResponsesOutcomeAndBilling(t *testing.T) {
 				require.NoError(t, err, "provider response remains available to the client")
 				require.EqualValues(t, 1, executor.requestCalls.Load(), "provider outcome does not introduce a transport retry")
 				actualStatus := gjson.GetBytes(result.ChatCompletion.Body, "status").String()
-				if status == "canceled" || status == "cancelled" {
-					require.Contains(t, []string{"canceled", "cancelled"}, actualStatus)
+				if status == "canceled" || status == responseStatusCanceledAlternate {
+					require.Contains(t, []string{"canceled", responseStatusCanceledAlternate}, actualStatus)
 				} else {
 					require.Equal(t, status, actualStatus)
 				}
@@ -243,7 +243,7 @@ func TestBudgetNonStreamingResponsesOutcomeAndBilling(t *testing.T) {
 				expectedStatus := "failed"
 				if status == "completed" {
 					expectedStatus = "completed"
-				} else if status == "canceled" || status == "cancelled" {
+				} else if status == "canceled" || status == responseStatusCanceledAlternate {
 					expectedStatus = "canceled"
 				}
 				require.Equal(t, request.Status(expectedStatus), storedRequest.Status)

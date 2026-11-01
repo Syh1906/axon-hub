@@ -103,17 +103,16 @@ func (m *performanceRecording) OnOutboundLlmResponse(ctx context.Context, respon
 	}
 	if m.outbound.state.ResponseTerminalError != nil {
 		m.OnOutboundRawError(ctx, m.outbound.state.ResponseTerminalError)
-		return response, nil
-	}
-
-	if response != nil && response.Usage != nil {
-		if tokenCount := response.Usage.GetCompletionTokens(); tokenCount != nil && *tokenCount > 0 {
-			m.outbound.state.Perf.CompletionTokens = *tokenCount
+	} else {
+		if response != nil && response.Usage != nil {
+			if tokenCount := response.Usage.GetCompletionTokens(); tokenCount != nil && *tokenCount > 0 {
+				m.outbound.state.Perf.CompletionTokens = *tokenCount
+			}
 		}
-	}
 
-	m.outbound.state.Perf.MarkSuccess()
-	m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, m.outbound.state.Perf)
+		m.outbound.state.Perf.MarkSuccess()
+		m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, m.outbound.state.Perf)
+	}
 
 	return response, nil
 }

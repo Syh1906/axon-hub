@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
-	"github.com/stretchr/testify/require"
 )
 
 func TestConsumptionPricingSamplesSurviveMissingEvidenceAndArchive(t *testing.T) {

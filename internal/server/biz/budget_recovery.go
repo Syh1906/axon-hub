@@ -176,7 +176,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 	return err
 }
 
-// Persist the provider's terminal outcome independently of request log retention.
+// RecordAsyncResult persists the provider's terminal outcome independently of request log retention.
 // Old tasks without this evidence remain pending, never assumed free or finished.
 func (s *BudgetService) RecordAsyncResult(ctx context.Context, executionID int, status string) error {
 	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, _ []*ent.BudgetAccount) error {

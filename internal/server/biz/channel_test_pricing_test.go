@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/stretchr/testify/require"
 )
 
 func TestChannelTestEntrypointsLoadPricingSnapshot(t *testing.T) {

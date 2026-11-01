@@ -74,17 +74,15 @@ func (m *modelCircuitBreakerTracker) OnOutboundLlmResponse(ctx context.Context, 
 	}
 	if m.outbound.state.ResponseTerminalError != nil {
 		m.OnOutboundRawError(ctx, m.outbound.state.ResponseTerminalError)
-		return response, nil
-	}
+	} else {
+		m.releaseProbeLease()
 
-	m.releaseProbeLease()
-
-	channel := m.outbound.GetCurrentChannel()
-	modelID := m.outbound.GetRequestedModel()
-	if channel == nil || modelID == "" {
-		return response, nil
+		channel := m.outbound.GetCurrentChannel()
+		modelID := m.outbound.GetRequestedModel()
+		if channel != nil && modelID != "" {
+			m.modelCircuitBreaker.RecordSuccess(ctx, channel.ID, modelID)
+		}
 	}
-	m.modelCircuitBreaker.RecordSuccess(ctx, channel.ID, modelID)
 
 	return response, nil
 }

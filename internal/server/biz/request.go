@@ -1284,7 +1284,7 @@ func (s *RequestService) GetTraceFirstRequest(ctx context.Context, traceID int, 
 	return request, nil
 }
 
-// List previews need the user's input, not the provider's full response or chunks.
+// GetTraceFirstUserQuery loads the user input for list previews without response payloads.
 func (s *RequestService) GetTraceFirstUserQuery(ctx context.Context, traceID int) (*string, error) {
 	req, err := s.GetTraceFirstRequest(ctx, traceID,
 		request.FieldID, request.FieldProjectID, request.FieldDataStorageID, request.FieldFormat, request.FieldRequestBody,

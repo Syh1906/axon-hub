@@ -72,8 +72,12 @@ func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 				SetSupportedModels([]string{"model"}).SetDefaultTestModel("model").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SaveX(f.ctx)
 			req := f.db.Request.Create().SetProjectID(f.key.ProjectID).SetAPIKeyID(f.key.ID).SetChannelID(ch.ID).
 				SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusProcessing).SaveX(f.ctx)
-			snapshot := &objects.RequestCostSnapshot{ModelPrice: &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
-				PricedAt: time.Now().UTC(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+			snapshot := &objects.RequestCostSnapshot{
+				ModelPrice:       &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
+				PricedAt:         time.Now().UTC(),
+				ManualMultiplier: decimal.NewFromInt(1),
+				Applied:          objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)},
+			}
 			execution := f.db.RequestExecution.Create().SetProjectID(req.ProjectID).SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("model").
 				SetFormat(llm.APIFormatZenmuxVideo.String()).SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).SetCostSnapshot(snapshot).SaveX(f.ctx)
 			require.NoError(t, f.service.Reserve(f.ctx, req.ProjectID, f.key.ID, req.ID, execution.ID, budgetAmount(t, "3"), nil))
@@ -127,8 +131,12 @@ func TestBudgetRecoveryRestoresMissingAsyncTaskBeforeReleasingHold(t *testing.T)
 				SetSupportedModels([]string{"model"}).SetDefaultTestModel("model").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SaveX(f.ctx)
 			req := f.db.Request.Create().SetProjectID(f.key.ProjectID).SetAPIKeyID(f.key.ID).SetChannelID(ch.ID).
 				SetModelID("model").SetExternalID("legacy-task").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusProcessing).SaveX(f.ctx)
-			snapshot := &objects.RequestCostSnapshot{ModelPrice: &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
-				PricedAt: time.Now().UTC(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+			snapshot := &objects.RequestCostSnapshot{
+				ModelPrice:       &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
+				PricedAt:         time.Now().UTC(),
+				ManualMultiplier: decimal.NewFromInt(1),
+				Applied:          objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)},
+			}
 			execution := f.db.RequestExecution.Create().SetProjectID(req.ProjectID).SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("model").
 				SetExternalID("legacy-task").SetResponseStatusCode(200).SetFormat(llm.APIFormatOpenAIVideo.String()).
 				SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).SetCostSnapshot(snapshot).SaveX(f.ctx)
@@ -239,8 +247,12 @@ func TestBudgetRecoveryRequiresSuccessForFeeWithoutUsage(t *testing.T) {
 			f := newBudgetFixture(t)
 			f.configure(t, "key", f.key.ID, "35")
 			req := f.db.Request.Create().SetProjectID(f.key.ProjectID).SetAPIKeyID(f.key.ID).SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus(status).SaveX(f.ctx)
-			snapshot := &objects.RequestCostSnapshot{ModelPrice: &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
-				PricedAt: time.Now().UTC(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+			snapshot := &objects.RequestCostSnapshot{
+				ModelPrice:       &objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 3)}},
+				PricedAt:         time.Now().UTC(),
+				ManualMultiplier: decimal.NewFromInt(1),
+				Applied:          objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)},
+			}
 			execution := f.db.RequestExecution.Create().SetProjectID(req.ProjectID).SetRequestID(req.ID).SetModelID("model").
 				SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.Status(status)).SetCostSnapshot(snapshot).SaveX(f.ctx)
 			require.NoError(t, f.service.Reserve(f.ctx, req.ProjectID, f.key.ID, req.ID, execution.ID, budgetAmount(t, "3"), nil))

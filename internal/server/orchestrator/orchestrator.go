@@ -387,7 +387,8 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		}
 		return ChatCompletionResult{RequestID: requestID}, healthGateTracker.finalize(ctx, err, false)
 	}
-	healthGateTracker.finalize(ctx, state.ResponseTerminalError, result.Stream)
+	// Record the provider outcome without replacing the already received response.
+	_ = healthGateTracker.finalize(ctx, state.ResponseTerminalError, result.Stream)
 
 	requestID := 0
 	if state.Request != nil {

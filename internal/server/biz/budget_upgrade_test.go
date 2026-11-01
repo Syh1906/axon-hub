@@ -2,9 +2,10 @@ package biz
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestBudgetHoldReleaseColumnUpgradePreservesUnsettledCharge(t *testing.T) {

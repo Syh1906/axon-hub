@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/looplj/axonhub/llm/httpclient"
 	"math"
 	"net/http"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/llm"
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 // BudgetDenied distinguishes a global restriction from a candidate quote that
