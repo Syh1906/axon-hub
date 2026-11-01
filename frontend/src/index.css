@@ -1547,6 +1547,11 @@
 tbody > [data-slot='table-row'] > td {
   transition: background-color 150ms ease;
 }
+/* 请求行立即切换底色，避免跨行悬浮及刷新时叠加旧行的退色动画。 */
+tbody > [data-slot='table-row'][data-request-id],
+tbody > [data-slot='table-row'][data-request-id] > td {
+  transition: none;
+}
 tbody > [data-slot='table-row']:not([aria-disabled='true']):is(:hover, :has(:focus-visible)) > td {
   background-color: var(--interactive-hover) !important;
 }
