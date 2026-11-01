@@ -5,6 +5,8 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
@@ -42,7 +44,14 @@ func (s *UsageLogService) RegisterBudgetRecovery(ctx context.Context, sched *sch
 }
 func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoService) error {
 	_, err := authz.RunWithSystemBypass(ctx, "budget-recovery", func(ctx context.Context) (bool, error) {
-		charges, err := s.db.BudgetCharge.Query().Where(budgetcharge.StatusIn(budgetcharge.StatusPrepared, budgetcharge.StatusSent, budgetcharge.StatusUnknown), budgetcharge.CheckAfterLTE(time.Now().UTC())).Order(ent.Asc(budgetcharge.FieldCheckAfter)).Limit(100).All(ctx)
+		charges, err := s.db.BudgetCharge.Query().Where(
+			budgetcharge.StatusIn(budgetcharge.StatusPrepared, budgetcharge.StatusSent, budgetcharge.StatusUnknown),
+			budgetcharge.CheckAfterLTE(time.Now().UTC()),
+			// A released hold with no billing evidence cannot change by polling the
+			// same empty record. RecordUsage makes it eligible when evidence arrives.
+			budgetcharge.Or(budgetcharge.StatusNEQ(budgetcharge.StatusUnknown), budgetcharge.ReservationReleasedAtIsNil(),
+				budgetcharge.ActualNotNil(), budgetcharge.UsageNotNil(), budgetcharge.CostSnapshotNotNil(), budgetcharge.AsyncTaskNotNil()),
+		).Order(ent.Asc(budgetcharge.FieldCheckAfter)).Limit(100).All(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -58,8 +67,13 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 				}
 				continue
 			}
-			req, reqErr := s.db.Request.Get(ctx, charge.RequestID)
-			execution, execErr := s.db.RequestExecution.Get(ctx, charge.ExecutionID)
+			req, reqErr := s.db.Request.Query().Where(request.IDEQ(charge.RequestID)).Select(
+				request.FieldID, request.FieldProjectID, request.FieldAPIKeyID, request.FieldSource, request.FieldFormat, request.FieldStatus, request.FieldExternalID,
+			).Only(ctx)
+			execution, execErr := s.db.RequestExecution.Query().Where(requestexecution.IDEQ(charge.ExecutionID)).Select(
+				requestexecution.FieldID, requestexecution.FieldChannelID, requestexecution.FieldModelID, requestexecution.FieldFormat,
+				requestexecution.FieldStatus, requestexecution.FieldResponseStatusCode,
+			).Only(ctx)
 			if reqErr != nil && !ent.IsNotFound(reqErr) {
 				return false, reqErr
 			}
@@ -71,7 +85,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 					log.Warn(ctx, "recover video budget", log.Int("request_id", req.ID), log.Cause(err))
 				}
 			}
-			if charge.AsyncTask != nil && charge.Actual == nil && video != nil {
+			if charge.AsyncTask != nil && !charge.AsyncTask.Finished() && charge.Actual == nil && video != nil {
 				response, taskErr := video.pollBudgetTask(ctx, charge.AsyncTask)
 				if taskErr != nil {
 					log.Warn(ctx, "recover async budget task", log.Int("charge_id", charge.ID), log.Cause(taskErr))
@@ -89,9 +103,15 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 						snapshot = &copied
 					}
 					usage := completedVideoUsage(response.Usage, response.Video.Status == "succeeded", snapshot)
-					cost, err := s.actualBudgetCost(ctx, usage, snapshot)
-					if err != nil {
-						return false, err
+					if usage == nil {
+						usage = charge.Usage
+					}
+					var cost *budget.Amount
+					if usage != nil || response.Video.Status == "succeeded" {
+						cost, err = s.actualBudgetCost(ctx, usage, snapshot)
+						if err != nil {
+							return false, err
+						}
 					}
 					if err := s.BudgetService.RecordUsage(ctx, charge.ExecutionID, usage, snapshot, cost); err != nil {
 						return false, err
@@ -101,9 +121,24 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 						value := int64(*cost)
 						charge.Actual = &value
 					}
+					if err := s.BudgetService.RecordAsyncResult(ctx, charge.ExecutionID, response.Video.Status); err != nil {
+						return false, err
+					}
+					charge.AsyncTask.Status = response.Video.Status
 				}
 			}
-			if charge.Actual != nil || charge.Usage != nil || (charge.AsyncTask == nil && charge.CostSnapshot != nil) {
+			if charge.AsyncTask != nil && charge.AsyncTask.Finished() && req != nil {
+				status := mapVideoStatusToRequestStatus(charge.AsyncTask.Status)
+				if req.Status != status {
+					if err := s.db.Request.UpdateOneID(req.ID).SetStatus(status).Select(request.FieldID).Exec(ctx); err != nil {
+						return false, err
+					}
+					req.Status = status
+				}
+			}
+			completedFee := charge.AsyncTask == nil && execution != nil && execution.Status == requestexecution.StatusCompleted &&
+				req != nil && req.Status == request.StatusCompleted && charge.CostSnapshot != nil
+			if charge.Actual != nil || charge.Usage != nil || completedFee {
 				var recordedCost *budget.Amount
 				if charge.Actual != nil {
 					value := budget.Amount(*charge.Actual)
@@ -121,8 +156,17 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 					}
 				}
 			}
-			// A missing result never proves a sent request was free. Keep its funds
-			// reserved and move it behind other work instead of repeatedly scanning it.
+			// Old finished attempts can retain holds after an upgrade or a crashed
+			// finalizer. Release only the hold; keep unknown cost evidence for later.
+			asyncFinished := charge.AsyncTask != nil && charge.AsyncTask.Finished()
+			if charge.ReservationReleasedAt == nil && (asyncFinished || execution != nil &&
+				(execution.Status == requestexecution.StatusCompleted || execution.Status == requestexecution.StatusFailed || execution.Status == requestexecution.StatusCanceled) &&
+				(req == nil || req.Status != request.StatusPending && req.Status != request.StatusProcessing)) {
+				if err := s.BudgetService.EndAttempt(ctx, charge.ExecutionID); err != nil {
+					return false, err
+				}
+			}
+			// Unknown is still unknown after releasing the temporary hold.
 			if err := s.db.BudgetCharge.UpdateOneID(charge.ID).SetCheckAfter(time.Now().UTC().Add(15 * time.Minute)).Exec(ctx); err != nil {
 				return false, err
 			}
@@ -130,6 +174,38 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 		return true, nil
 	})
 	return err
+}
+
+// Persist the provider's terminal outcome independently of request log retention.
+// Old tasks without this evidence remain pending, never assumed free or finished.
+func (s *BudgetService) RecordAsyncResult(ctx context.Context, executionID int, status string) error {
+	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, _ []*ent.BudgetAccount) error {
+		if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
+			return nil
+		}
+		update := db.BudgetCharge.UpdateOneID(charge.ID)
+		var task objects.BudgetAsyncTask
+		if charge.AsyncTask != nil {
+			task = *charge.AsyncTask
+		} else {
+			// Legacy submissions or a failed task save can still have the provider
+			// ID on the execution. GetTask has now confirmed the provider outcome;
+			// preserve that evidence before deciding whether to release its hold.
+			execution, err := db.RequestExecution.Query().Where(requestexecution.IDEQ(executionID)).Select(
+				requestexecution.FieldChannelID, requestexecution.FieldExternalID, requestexecution.FieldFormat, requestexecution.FieldCostSnapshot,
+			).Only(ctx)
+			if err != nil {
+				return err
+			}
+			task = objects.BudgetAsyncTask{ChannelID: execution.ChannelID, ExternalID: execution.ExternalID, Format: execution.Format}
+			if execution.CostSnapshot != nil {
+				task.Price = execution.CostSnapshot.CurrentPrice()
+				update.SetCostSnapshot(execution.CostSnapshot)
+			}
+		}
+		task.Status = status
+		return update.SetAsyncTask(&task).Exec(ctx)
+	})
 }
 
 // RecordAsyncTask saves the provider identifier before returning it to the caller.

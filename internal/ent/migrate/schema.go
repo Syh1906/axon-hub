@@ -236,6 +236,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"prepared", "sent", "unknown", "settled", "released"}, Default: "prepared"},
 		{Name: "check_after", Type: field.TypeTime},
 		{Name: "settled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "reservation_released_at", Type: field.TypeTime, Nullable: true},
 	}
 	// BudgetChargesTable holds the schema information for the "budget_charges" table.
 	BudgetChargesTable = &schema.Table{

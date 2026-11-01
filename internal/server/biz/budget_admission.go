@@ -14,7 +14,9 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/llm"
 )
 
 // BudgetDenied distinguishes a global restriction from a candidate quote that
@@ -172,15 +174,29 @@ func (s *BudgetService) MarkSent(ctx context.Context, executionID int) error {
 	})
 }
 
-// EndAttempt releases only requests that provably never reached the transport.
-// Sent requests retain their reservation; settlement callbacks may arrive later.
+// EndAttempt closes a synchronous attempt's temporary hold. Sent attempts keep
+// an unknown cost for reconciliation; releasing their hold does not declare them
+// free or prevent a later settlement. Accepted async tasks keep their hold.
 func (s *BudgetService) EndAttempt(ctx context.Context, executionID int) error {
 	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
 		if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
 			return nil
 		}
-		if charge.Status != budgetcharge.StatusPrepared {
-			return db.BudgetCharge.UpdateOneID(charge.ID).SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(time.Minute)).Exec(ctx)
+		update := db.BudgetCharge.UpdateOneID(charge.ID)
+		if charge.Status == budgetcharge.StatusPrepared {
+			update.SetStatus(budgetcharge.StatusReleased)
+		} else {
+			update.SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(time.Minute))
+			pending, err := budgetAsyncStillPending(ctx, db, charge)
+			if err != nil {
+				return err
+			}
+			if pending {
+				return update.Exec(ctx)
+			}
+		}
+		if charge.ReservationReleasedAt != nil {
+			return update.Exec(ctx)
 		}
 		for _, account := range accounts {
 			versions := charge.KeyVersions
@@ -197,8 +213,28 @@ func (s *BudgetService) EndAttempt(ctx context.Context, executionID int) error {
 				return err
 			}
 		}
-		return db.BudgetCharge.UpdateOneID(charge.ID).SetStatus(budgetcharge.StatusReleased).Exec(ctx)
+		return update.SetReservationReleasedAt(time.Now().UTC()).Exec(ctx)
 	})
+}
+
+func budgetAsyncStillPending(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge) (bool, error) {
+	if charge.AsyncTask != nil {
+		return !charge.AsyncTask.Finished(), nil
+	}
+	execution, err := db.RequestExecution.Query().Where(requestexecution.IDEQ(charge.ExecutionID)).
+		Select(requestexecution.FieldFormat, requestexecution.FieldResponseStatusCode).Only(ctx)
+	if ent.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if execution.Format != llm.APIFormatOpenAIVideo.String() && execution.Format != llm.APIFormatSeedanceVideo.String() {
+		return false, nil
+	}
+	// A successful video submission may precede a failed task-ID persistence.
+	// Without a definite HTTP rejection, recovery must check the task first.
+	return execution.ResponseStatusCode == nil || *execution.ResponseStatusCode < 400, nil
 }
 
 func (s *BudgetService) withCharge(ctx context.Context, executionID int, fn func(context.Context, *ent.Client, *ent.BudgetCharge, []*ent.BudgetAccount) error) error {

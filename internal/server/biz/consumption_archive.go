@@ -19,6 +19,7 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
 		selectConsumptionEntity(q, input, q.C("model_id"))
+		appendConsumptionPricing(q, q.C("pricing_complete"), q.C("total_cost"), "COALESCE("+q.C("prompt_tokens")+" + "+q.C("completion_tokens")+", 0)")
 		if input.Metric == ConsumptionMetricCache {
 			q.Where(sql.GT(q.C("cache_requests"), 0))
 		}
@@ -61,6 +62,11 @@ func mergeConsumptionGroups(live, archived []consumptionGroup) []consumptionGrou
 		t.Tokens += row.Tokens
 		t.Cost += row.Cost
 		t.UnpricedRequests += row.UnpricedRequests
+		t.PricedRequests += row.PricedRequests
+		t.PricedCost += row.PricedCost
+		t.TokenPricedRequests += row.TokenPricedRequests
+		t.TokenPricedCost += row.TokenPricedCost
+		t.PricedTokens += row.PricedTokens
 		t.CacheRequests += row.CacheRequests
 		t.CacheRead += row.CacheRead
 		t.CacheInput += row.CacheInput

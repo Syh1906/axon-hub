@@ -459,9 +459,7 @@ func (t *OutboundTransformer) transformStandardResponse(
 		Message: &msg,
 	}
 
-	if len(msg.ToolCalls) > 0 {
-		choice.FinishReason = lo.ToPtr("tool_calls")
-	} else if resp.Status != nil {
+	if resp.Status != nil {
 		switch *resp.Status {
 		case "completed":
 			choice.FinishReason = lo.ToPtr("stop")
@@ -472,6 +470,9 @@ func (t *OutboundTransformer) transformStandardResponse(
 		case "canceled", "cancelled":
 			choice.FinishReason = lo.ToPtr("cancelled")
 		}
+	}
+	if len(msg.ToolCalls) > 0 && (choice.FinishReason == nil || *choice.FinishReason == "stop") {
+		choice.FinishReason = lo.ToPtr("tool_calls")
 	}
 
 	llmResp.Choices = append(llmResp.Choices, choice)

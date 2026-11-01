@@ -43,7 +43,7 @@ func setupTestTraceMiddleware(t *testing.T) (*gin.Engine, *ent.Client, *biz.Trac
 	channelService := biz.NewChannelServiceForTest(client)
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
 	traceService := biz.NewTraceService(biz.TraceServiceParams{
-		RequestService: biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry()),
+		RequestService: biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()})),
 		Ent:            client,
 	})
 

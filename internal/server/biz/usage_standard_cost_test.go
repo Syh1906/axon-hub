@@ -89,3 +89,27 @@ func TestChannelTodayUsageStandardCostLoadsSavedVersions(t *testing.T) {
 	require.Len(t, rows, 1)
 	require.Equal(t, 5.0, *rows[0].StandardCost, "deleted channel overrides retain their immutable historical version")
 }
+
+func TestChannelTodayModelCostsUseMatchingPricedSamples(t *testing.T) {
+	f := newConsumptionFixture(t)
+	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	f.addRequest(t, start, "priced", request.StatusCompleted, 100, 100, 0, 0, 2, nil)
+	missing, _ := f.addRequest(t, start, "priced", request.StatusFailed, 900, 100, 0, 0, 0, nil)
+	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(missing.ID)).ClearTotalCost().ExecX(f.ctx)
+	f.addRequest(t, start, "priced", request.StatusCompleted, 100, 100, 0, 0, 0, nil)
+	flat, _ := f.addRequest(t, start, "priced", request.StatusCompleted, 0, 0, 0, 0, 0, nil)
+	f.client.UsageLog.Create().SetRequestID(flat.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetModelID("priced").SetTotalCost(3).SaveX(f.ctx)
+	partial, _ := f.addRequest(t, start, "priced", request.StatusCompleted, 100, 0, 0, 0, 5, nil)
+	f.client.UsageLog.Create().SetRequestID(partial.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).SetModelID("priced").SetPromptTokens(50).SetTotalTokens(50).SaveX(f.ctx)
+	f.addRequest(t, start, "unknown", request.StatusFailed, 0, 0, 0, 0, 0, nil)
+	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	require.Equal(t, "priced", rows[0].Model)
+	require.Equal(t, 2, rows[0].TokenPricedRequestCount)
+	require.Equal(t, 2, rows[0].UnpricedCount)
+	require.NotNil(t, rows[0].AvgCostPerMillionTokens)
+	require.Equal(t, 5000.0, *rows[0].AvgCostPerMillionTokens, "zero-cost tokens participate; unpriced requests and tokenless flat fees do not")
+	require.Equal(t, 10.0, rows[0].TotalCost)
+	require.Nil(t, rows[1].AvgCostPerMillionTokens)
+}

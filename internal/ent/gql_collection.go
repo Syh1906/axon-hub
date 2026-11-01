@@ -3842,7 +3842,7 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldExternalID)
 				fieldSeen[request.FieldExternalID] = struct{}{}
 			}
-		case "status":
+		case "status", "outputTokensPerSecond":
 			if _, ok := fieldSeen[request.FieldStatus]; !ok {
 				selectedFields = append(selectedFields, request.FieldStatus)
 				fieldSeen[request.FieldStatus] = struct{}{}
@@ -4065,6 +4065,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 			if _, ok := fieldSeen[requestexecution.FieldModelID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldModelID)
 				fieldSeen[requestexecution.FieldModelID] = struct{}{}
+			}
+		case "costSnapshot":
+			if _, ok := fieldSeen[requestexecution.FieldCostSnapshot]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldCostSnapshot)
+				fieldSeen[requestexecution.FieldCostSnapshot] = struct{}{}
 			}
 		case "format":
 			if _, ok := fieldSeen[requestexecution.FieldFormat]; !ok {

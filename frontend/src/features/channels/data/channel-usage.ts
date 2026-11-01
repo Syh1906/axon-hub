@@ -17,6 +17,8 @@ const channelTodayUsageDetailsSchema = z.object({
       cacheHitRate: z.number().nullable(),
       standardCost: z.number().nullable(),
       standardUnpricedCount: z.number(),
+      avgCostPerMillionTokens: z.number().nullable(),
+      tokenPricedRequestCount: z.number(),
     })
   ),
 });
@@ -33,7 +35,7 @@ export function useChannelTodayUsageDetails(channelId: string) {
         `query ChannelTodayUsageDetails($channelId: ID!) {
           channelTodayUsageDetails(channelId: $channelId) {
             channelId timezone currencyCode
-            models { model requestCount unpricedCount totalTokens totalCost cacheHitRate standardCost standardUnpricedCount }
+            models { model requestCount unpricedCount totalTokens totalCost cacheHitRate standardCost standardUnpricedCount avgCostPerMillionTokens tokenPricedRequestCount }
           }
         }`,
         { channelId },
@@ -51,7 +53,7 @@ export function useChannelTodayUsage(channelIds: string[]) {
     enabled: channelIds.length > 0,
     refetchInterval: 30_000,
     refetchOnWindowFocus: false,
-    gcTime: 60_000,
+    gcTime: 0,
     queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ channelTodayUsage: unknown }>(
         `query ChannelTodayUsage($channelIds: [ID!]!) {

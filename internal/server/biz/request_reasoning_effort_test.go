@@ -114,6 +114,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 		usageLogService,
 		dataStorageService,
 		NewLiveStreamRegistry(),
+		NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}),
 	)
 
 	channelEntity, err := client.Channel.Create().

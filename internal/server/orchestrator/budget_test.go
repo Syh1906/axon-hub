@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -26,6 +28,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/transformer/openai"
+	openairesponses "github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
 func setupBudgetRequest(t *testing.T) (context.Context, *ent.Client, *biz.Channel, *biz.RequestService, *biz.SystemService, *biz.UsageLogService, *ent.APIKey) {
@@ -177,4 +180,79 @@ func TestBudgetAcceptedVideoPersistenceFailureDoesNotRetry(t *testing.T) {
 	charge := db.BudgetCharge.Query().OnlyX(ctx)
 	require.Equal(t, budgetcharge.StatusUnknown, charge.Status)
 	require.Positive(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
+}
+
+func TestBudgetRepeatedUpstreamFailuresDoNotAccumulateReservations(t *testing.T) {
+	ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
+	executor := &mockExecutor{err: &httpclient.Error{StatusCode: 502, Body: []byte(`{"error":{"message":"synthetic upstream failure"}}`)}}
+	processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch}, "gpt-4")}, Inbound: openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+	for range 2 {
+		before := executor.requestCalls.Load()
+		_, err := processor.Process(ctx, buildTestRequest("gpt-4", "hello", false))
+		require.Error(t, err)
+		require.Greater(t, executor.requestCalls.Load(), before, "a previous failed attempt cannot exhaust the next request's budget")
+		require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
+	}
+	for _, charge := range db.BudgetCharge.Query().AllX(ctx) {
+		require.Equal(t, budgetcharge.StatusUnknown, charge.Status)
+		require.Nil(t, charge.Actual)
+		require.NotNil(t, charge.ReservationReleasedAt)
+	}
+}
+
+func TestBudgetNonStreamingResponsesOutcomeAndBilling(t *testing.T) {
+	for _, status := range []string{"completed", "failed", "incomplete", "canceled", "cancelled"} {
+		for _, withUsage := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/usage=%t", status, withUsage), func(t *testing.T) {
+				ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
+				outbound, err := openairesponses.NewOutboundTransformer(ch.BaseURL, "fixture-key")
+				require.NoError(t, err)
+				ch.Outbound = outbound
+				usageJSON := "null"
+				if withUsage {
+					usageJSON = `{"input_tokens":10,"output_tokens":20,"total_tokens":30}`
+				}
+				body := []byte(fmt.Sprintf(`{"id":"resp-outcome","object":"response","model":"gpt-4","status":%q,"output":[],"usage":%s}`, status, usageJSON))
+				executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: body}}
+				processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch}, "gpt-4")}, Inbound: openairesponses.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+				result, err := processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: []byte(`{"model":"gpt-4","input":"hello","stream":false}`)})
+				require.NoError(t, err, "provider response remains available to the client")
+				require.EqualValues(t, 1, executor.requestCalls.Load(), "provider outcome does not introduce a transport retry")
+				actualStatus := gjson.GetBytes(result.ChatCompletion.Body, "status").String()
+				if status == "canceled" || status == "cancelled" {
+					require.Contains(t, []string{"canceled", "cancelled"}, actualStatus)
+				} else {
+					require.Equal(t, status, actualStatus)
+				}
+				charge := db.BudgetCharge.Query().OnlyX(ctx)
+				require.NotNil(t, charge.ReservationReleasedAt)
+				require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
+				if withUsage || status == "completed" {
+					require.Equal(t, budgetcharge.StatusSettled, charge.Status)
+					require.EqualValues(t, 60000000, *charge.Actual)
+					require.Equal(t, 1, db.BudgetPosting.Query().CountX(ctx))
+					require.Equal(t, 1, db.UsageLog.Query().CountX(ctx))
+				} else {
+					require.Equal(t, budgetcharge.StatusUnknown, charge.Status, "failure without usage must not be charged as a successful fixed-fee call")
+					require.Nil(t, charge.Actual)
+					require.Zero(t, db.BudgetPosting.Query().CountX(ctx))
+					require.Zero(t, db.UsageLog.Query().CountX(ctx))
+				}
+				storedRequest := db.Request.Query().OnlyX(ctx)
+				storedExecution := db.RequestExecution.Query().OnlyX(ctx)
+				expectedStatus := "failed"
+				if status == "completed" {
+					expectedStatus = "completed"
+				} else if status == "canceled" || status == "cancelled" {
+					expectedStatus = "canceled"
+				}
+				require.Equal(t, request.Status(expectedStatus), storedRequest.Status)
+				require.Equal(t, requestexecution.Status(expectedStatus), storedExecution.Status)
+				require.Equal(t, "resp-outcome", storedExecution.ExternalID)
+				storedBody, err := requests.LoadRequestExecutionResponseBody(ctx, storedExecution)
+				require.NoError(t, err)
+				require.JSONEq(t, string(body), string(storedBody), "failure evidence still follows bounded payload storage")
+			})
+		}
+	}
 }

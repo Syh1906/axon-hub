@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -15,18 +15,17 @@ import {
 } from '@tanstack/react-table';
 import { IconArchive, IconBan, IconCheck, IconFlask, IconTrash, IconTemplate, IconX, IconEraser } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { Button } from '@/components/ui/button';
 import { Table, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IncrementalListFooter } from '@/components/incremental-list-footer';
-import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { useChannels } from '../context/channels-context';
 import type { ChannelListColumnVisibility } from '../data/channels';
 import { Channel } from '../data/schema';
 import type { ChannelTypeGroup } from '../utils/group-channel-types';
-import { ChannelsTableBody } from './channels-table-body';
 import { ChannelsDefaultSort } from './channels-default-sort';
+import { ChannelsTableBody } from './channels-table-body';
 import { DataTableToolbar } from './data-table-toolbar';
-
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -56,6 +55,7 @@ interface DataTableProps {
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
   scroll: IncrementalScrollOptions;
+  selectionScopeKey: string;
   onNameFilterChange: (filter: string) => void;
   onTypeFilterChange: (filters: string[]) => void;
   onStatusFilterChange: (filters: string[]) => void;
@@ -87,6 +87,7 @@ export function ChannelsTable({
   onSortingChange,
   onExitErrorOnlyMode,
   scroll,
+  selectionScopeKey,
   onNameFilterChange,
   onTypeFilterChange,
   onStatusFilterChange,
@@ -100,6 +101,7 @@ export function ChannelsTable({
   const scrolling = useIncrementalScroll(scroll);
   const { setSelectedChannels, setResetRowSelection, setOpen } = useChannels();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const selectedObjects = useRef(new Map<string, Channel>());
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
@@ -213,10 +215,14 @@ export function ChannelsTable({
     manualFiltering: true, // Enable manual filtering for server-side filtering
   });
 
-  const filteredSelectedRows = useMemo(
-    () => table.getFilteredSelectedRowModel().rows,
-    [table.getState().rowSelection, table.getFilteredRowModel().rows]
-  );
+  // Only explicit selections survive page eviction. Ordinary rows remain bounded.
+  const selectedRows = useMemo(() => {
+    const visible = new Map(data.map((channel) => [channel.id, channel]));
+    return Object.entries(rowSelection).flatMap(([id, selected]) => {
+      const channel = visible.get(id) ?? selectedObjects.current.get(id);
+      return selected && channel ? [channel] : [];
+    });
+  }, [data, rowSelection]);
 
   const getApiFormatLabel = useCallback(
     (apiFormat?: string) => {
@@ -229,7 +235,7 @@ export function ChannelsTable({
     [t]
   );
 
-  const selectedCount = useMemo(() => filteredSelectedRows.length, [filteredSelectedRows]);
+  const selectedCount = selectedRows.length;
   const isFiltered = useMemo(() => columnFilters.length > 0, [columnFilters.length]);
 
   useEffect(() => {
@@ -239,29 +245,16 @@ export function ChannelsTable({
     setResetRowSelection(resetFn);
   }, [setResetRowSelection]);
 
-  // Combine two useEffects into one to reduce re-renders
   useEffect(() => {
-    if (selectedCount === 0) {
-      setSelectedChannels([]);
-    } else {
-      const selected = filteredSelectedRows.map((row) => row.original as Channel);
-      setSelectedChannels(selected);
-    }
-  }, [filteredSelectedRows, selectedCount, setSelectedChannels]);
+    selectedObjects.current = new Map(selectedRows.map((channel) => [channel.id, channel]));
+    setSelectedChannels(selectedRows);
+  }, [selectedRows, setSelectedChannels]);
 
-  // Clear rowSelection when data changes and selected rows no longer exist
+  // A new filter/order starts a different selection scope; page changes do not.
   useEffect(() => {
-    if (Object.keys(rowSelection).length > 0 && data.length > 0) {
-      const dataIds = new Set(data.map((channel) => channel.id));
-      const selectedIds = Object.keys(rowSelection);
-      const anySelectedIdMissing = selectedIds.some((id) => !dataIds.has(id));
-
-      if (anySelectedIdMissing) {
-        // Some selected rows no longer exist in the new data, clear selection
-        setRowSelection({});
-      }
-    }
-  }, [data, rowSelection]);
+    setRowSelection({});
+    setExpanded({});
+  }, [selectionScopeKey]);
 
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
@@ -284,7 +277,13 @@ export function ChannelsTable({
         onApplyProvider={onApplyProvider}
       />
       <p className='text-muted-foreground mt-2 text-xs'>{t('channels.routing.clickHint')}</p>
-      <div ref={scrolling.containerRef} onScroll={scrolling.onScroll} data-testid='channels-scroll' className='shadow-soft relative mt-2 min-h-0 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'>
+      <div
+        ref={scrolling.containerRef}
+        onScroll={scrolling.onScroll}
+        data-testid='channels-scroll'
+        style={{ overflowAnchor: 'none' }}
+        className='shadow-soft relative mt-2 min-h-0 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'
+      >
         <div className='min-w-[1100px]'>
           <Table data-testid='channels-table' className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'>
             <TableHeader className='sticky top-0 z-20 bg-[var(--table-header)] shadow-sm'>
@@ -304,12 +303,28 @@ export function ChannelsTable({
                 </TableRow>
               ))}
             </TableHeader>
-            <ChannelsTableBody table={table} containerRef={scrolling.containerRef} loading={loading} pageSize={pageSize} getApiFormatLabel={getApiFormatLabel} scroll={scroll} />
+            <ChannelsTableBody
+              table={table}
+              containerRef={scrolling.containerRef}
+              loading={loading}
+              pageSize={pageSize}
+              getApiFormatLabel={getApiFormatLabel}
+              scroll={scroll}
+            />
           </Table>
         </div>
         <div ref={scrolling.sentinelRef} className='h-px' />
       </div>
-      <IncrementalListFooter loaded={data.length} total={totalCount} loading={scroll.loadingMore} hasMore={scroll.hasMore} error={scroll.error} atTop={scrolling.atTop} onLoadMore={scroll.onLoadMore} onBackToTop={scrolling.backToTop} />
+      <IncrementalListFooter
+        loaded={data.length}
+        total={totalCount}
+        loading={scroll.loadingMore}
+        hasMore={scroll.hasMore}
+        error={scroll.error}
+        atTop={scrolling.atTop}
+        onLoadMore={scroll.onLoadMore}
+        onBackToTop={scrolling.backToTop}
+      />
       {/* Floating Bulk Actions Bar */}
       {selectedCount > 0 && canWrite && (
         <div className='fixed bottom-6 left-1/2 z-50 -translate-x-1/2'>

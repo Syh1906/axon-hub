@@ -4,7 +4,25 @@ import (
 	"database/sql"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
+
+func TestBudgetHoldReleaseColumnUpgradePreservesUnsettledCharge(t *testing.T) {
+	f := newBudgetFixture(t)
+	f.configure(t, "key", f.key.ID, "35")
+	require.NoError(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, 1, 1, budgetAmount(t, "30"), nil))
+	require.NoError(t, f.service.MarkSent(f.ctx, 1))
+	before := f.db.BudgetCharge.Query().OnlyX(f.ctx)
+	var result sql.Result
+	require.NoError(t, f.db.Driver().Exec(f.ctx, "ALTER TABLE budget_charges DROP COLUMN reservation_released_at", []any{}, &result))
+	require.NoError(t, f.db.Schema.Create(f.ctx))
+	after := f.db.BudgetCharge.GetX(f.ctx, before.ID)
+	require.Equal(t, before.Estimate, after.Estimate)
+	require.Equal(t, before.Status, after.Status)
+	require.Nil(t, after.ReservationReleasedAt)
+	require.NoError(t, f.service.EndAttempt(f.ctx, after.ExecutionID))
+	require.WithinDuration(t, time.Now(), *f.db.BudgetCharge.GetX(f.ctx, after.ID).ReservationReleasedAt, time.Minute)
+}
 
 func TestBudgetSchemaUpgradePreservesExistingKeys(t *testing.T) {
 	f := newBudgetFixture(t)

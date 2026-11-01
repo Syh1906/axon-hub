@@ -18,26 +18,31 @@ import (
 )
 
 type consumptionGroup struct {
-	EntityID          int     `json:"entity_id"`
-	Name              string  `json:"name"`
-	FirstName         string  `json:"first_name"`
-	LastName          string  `json:"last_name"`
-	Email             string  `json:"email"`
-	Model             string  `json:"model"`
-	Requests          int     `json:"requests"`
-	Tokens            int64   `json:"tokens"`
-	Cost              float64 `json:"cost"`
-	UnpricedRequests  int     `json:"unpriced_requests"`
-	CacheRequests     int     `json:"cache_requests"`
-	CacheRead         int64   `json:"cache_read"`
-	CacheInput        int64   `json:"cache_input"`
-	CacheCreationCost float64 `json:"cache_creation_cost"`
-	SuccessCount      int64   `json:"success_count"`
-	OutcomeCount      int64   `json:"outcome_count"`
-	FirstTokenSum     float64 `json:"first_token_sum"`
-	FirstTokenCount   int64   `json:"first_token_count"`
-	SpeedSum          float64 `json:"speed_sum"`
-	SpeedCount        int64   `json:"speed_count"`
+	EntityID            int     `json:"entity_id"`
+	Name                string  `json:"name"`
+	FirstName           string  `json:"first_name"`
+	LastName            string  `json:"last_name"`
+	Email               string  `json:"email"`
+	Model               string  `json:"model"`
+	Requests            int     `json:"requests"`
+	Tokens              int64   `json:"tokens"`
+	Cost                float64 `json:"cost"`
+	UnpricedRequests    int     `json:"unpriced_requests"`
+	PricedRequests      int     `json:"priced_requests"`
+	PricedCost          float64 `json:"priced_cost"`
+	TokenPricedRequests int     `json:"token_priced_requests"`
+	TokenPricedCost     float64 `json:"token_priced_cost"`
+	PricedTokens        int64   `json:"priced_tokens"`
+	CacheRequests       int     `json:"cache_requests"`
+	CacheRead           int64   `json:"cache_read"`
+	CacheInput          int64   `json:"cache_input"`
+	CacheCreationCost   float64 `json:"cache_creation_cost"`
+	SuccessCount        int64   `json:"success_count"`
+	OutcomeCount        int64   `json:"outcome_count"`
+	FirstTokenSum       float64 `json:"first_token_sum"`
+	FirstTokenCount     int64   `json:"first_token_count"`
+	SpeedSum            float64 `json:"speed_sum"`
+	SpeedCount          int64   `json:"speed_count"`
 }
 
 // usageForConsumption collapses usage rows before joining attempts, so neither
@@ -126,6 +131,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
 		}
 		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
+		appendConsumptionPricing(q, "("+consumptionUnpriced(u)+") = 0", u.C("total_cost"), "COALESCE("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+", 0)")
 		firstToken := execution.C("metrics_first_token_latency_ms")
 		q.AppendSelect(
 			sql.As("SUM("+consumptionUnpriced(u)+")", "unpriced_requests"),
@@ -152,6 +158,21 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 		return nil, err
 	}
 	return mergeConsumptionGroups(rows, archived), nil
+}
+
+// Each average uses matching cost and quantity samples. Unknown costs never
+// become zero, and requests without token evidence do not dilute token prices.
+func appendConsumptionPricing(q *sql.Selector, complete, cost, tokens string) {
+	tokenComplete := "(" + complete + ") AND (" + tokens + ") > 0"
+	for _, item := range []struct{ condition, value, name string }{
+		{complete, "1", "priced_requests"},
+		{complete, cost, "priced_cost"},
+		{tokenComplete, "1", "token_priced_requests"},
+		{tokenComplete, cost, "token_priced_cost"},
+		{tokenComplete, tokens, "priced_tokens"},
+	} {
+		q.AppendSelect(sql.As("COALESCE(SUM(CASE WHEN "+item.condition+" THEN "+item.value+" ELSE 0 END), 0)", item.name))
+	}
 }
 
 func selectConsumptionEntity(q *sql.Selector, input ConsumptionFilter, model string) {

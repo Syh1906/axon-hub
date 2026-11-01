@@ -30,6 +30,7 @@ type responsesSessionStore struct {
 	byResponse map[responsesSessionKey]*responsesSessionRecord
 	totalBytes int
 	load       responsesSessionLoadFunc
+	save       func(context.Context, []byte, []byte)
 }
 
 type responsesSessionLoadFunc func(ctx context.Context, responseID string) (requestBody, responseBody []byte, found bool, err error)
@@ -216,6 +217,9 @@ func decodeResponseSessionRecord(requestBody, responseBody []byte) (string, stri
 }
 
 func (s *responsesSessionStore) record(ctx context.Context, requestBody, responseBody []byte) {
+	if s.save != nil {
+		s.save(ctx, requestBody, responseBody)
+	}
 	if len(responseBody) > responsesSessionMaxResponse {
 		return
 	}
@@ -370,6 +374,20 @@ func (s *responsesSessionStream) Next() bool {
 		}
 		if IsTerminalStreamEvent(s.current) {
 			s.terminal = true
+			// A final Responses event carries the complete output even when the
+			// bounded delta buffer was exceeded. Persist continuation separately.
+			var terminal struct {
+				Response json.RawMessage `json:"response"`
+			}
+			if s.overflow && json.Unmarshal(s.current.Data, &terminal) == nil && len(terminal.Response) > 0 {
+				var complete struct {
+					Output json.RawMessage `json:"output"`
+				}
+				if json.Unmarshal(terminal.Response, &complete) == nil && len(complete.Output) > 0 {
+					s.store.record(s.ctx, s.requestBody, terminal.Response)
+					s.recorded = true
+				}
+			}
 			s.recordCompleted()
 		}
 	}

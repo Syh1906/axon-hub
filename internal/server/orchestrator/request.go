@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -91,6 +92,16 @@ func (m *persistRequestMiddleware) OnOutboundLlmResponse(ctx context.Context, ll
 		}
 	}
 	m.injectUsageCost(ctx, llmResp)
+	defer func() {
+		if state.APIKey != nil && state.RequestExec != nil {
+			if err := state.UsageLogService.BudgetService.EndAttempt(persistCtx, state.RequestExec.ID); err != nil {
+				log.Error(persistCtx, "close completed budget attempt", log.Cause(err))
+			}
+		}
+	}()
+	if state.ResponseTerminalError != nil && usageToLog == nil {
+		return llmResp, nil
+	}
 
 	_, err := state.UsageLogService.CreateUsageLogFromRequest(persistCtx, state.Request, state.RequestExec, usageToLog)
 	if err != nil {
@@ -233,6 +244,16 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 
 	// STT text/srt/vtt responses are non-JSON; wrap them so the JSON response_body column accepts them.
 	respBody := audioSafeResponseBody(llmResp.RequestType, httpResp.Headers.Get("Content-Type"), httpResp.Body)
+	if state.ResponseTerminalError != nil {
+		status := request.StatusFailed
+		if errors.Is(state.ResponseTerminalError, context.Canceled) {
+			status = request.StatusCanceled
+		}
+		if err := state.RequestService.UpdateRequestStatusExternalIDAndResponseBody(persistCtx, state.Request.ID, status, llmResp.ID, respBody, metrics); err != nil {
+			log.Warn(persistCtx, "Failed to persist provider response outcome", log.Cause(err))
+		}
+		return httpResp, nil
+	}
 
 	err := state.RequestService.UpdateRequestCompleted(persistCtx, state.Request.ID, llmResp.ID, respBody, metrics)
 	if err != nil {

@@ -4708,6 +4708,7 @@ type RequestExecution implements Node {
   dataStorageID: ID
   externalID: String
   modelID: String!
+  costSnapshot: RequestCostSnapshot
   format: String!
   """
   Final reasoning effort sent to the upstream provider

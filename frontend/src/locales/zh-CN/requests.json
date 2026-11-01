@@ -274,5 +274,11 @@
   "requests.pagination.infinite": "滚动加载",
   "requests.pagination.pages": "页码翻页",
   "requests.pagination.target": "跳转到页码",
-  "requests.pagination.go": "跳转"
+  "requests.pagination.go": "跳转",
+  "requests.payload.disabled": "此请求未保存正文。Token、费用和请求摘要仍会记录。",
+  "requests.payload.too_large": "正文超过 5 MiB，已跳过调试保存；本次请求仍按完整内容处理。",
+  "requests.payload.expired": "调试正文已过期（默认保留 5 分钟）。Token、费用和请求摘要仍保留。",
+  "requests.payload.evicted": "调试缓存容量已满，此正文已被回收。Token、费用和请求摘要仍保留。",
+  "requests.payload.invalid": "无法保存此正文的调试副本。请求摘要和费用记录不受影响。",
+  "requests.payload.unavailable": "调试正文暂不可用，可能已被回收或缓存读取失败。"
 }

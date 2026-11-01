@@ -190,26 +190,27 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		Type: "BudgetCharge",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			budgetcharge.FieldCreatedAt:      {Type: field.TypeTime, Column: budgetcharge.FieldCreatedAt},
-			budgetcharge.FieldUpdatedAt:      {Type: field.TypeTime, Column: budgetcharge.FieldUpdatedAt},
-			budgetcharge.FieldProjectID:      {Type: field.TypeInt, Column: budgetcharge.FieldProjectID},
-			budgetcharge.FieldExecutionID:    {Type: field.TypeInt, Column: budgetcharge.FieldExecutionID},
-			budgetcharge.FieldRequestID:      {Type: field.TypeInt, Column: budgetcharge.FieldRequestID},
-			budgetcharge.FieldKeyID:          {Type: field.TypeInt, Column: budgetcharge.FieldKeyID},
-			budgetcharge.FieldGroupID:        {Type: field.TypeInt, Column: budgetcharge.FieldGroupID},
-			budgetcharge.FieldKeyAccountID:   {Type: field.TypeInt, Column: budgetcharge.FieldKeyAccountID},
-			budgetcharge.FieldGroupAccountID: {Type: field.TypeInt, Column: budgetcharge.FieldGroupAccountID},
-			budgetcharge.FieldEstimate:       {Type: field.TypeInt64, Column: budgetcharge.FieldEstimate},
-			budgetcharge.FieldActual:         {Type: field.TypeInt64, Column: budgetcharge.FieldActual},
-			budgetcharge.FieldUsage:          {Type: field.TypeJSON, Column: budgetcharge.FieldUsage},
-			budgetcharge.FieldAsyncTask:      {Type: field.TypeJSON, Column: budgetcharge.FieldAsyncTask},
-			budgetcharge.FieldCostSnapshot:   {Type: field.TypeJSON, Column: budgetcharge.FieldCostSnapshot},
-			budgetcharge.FieldUsageLogID:     {Type: field.TypeInt, Column: budgetcharge.FieldUsageLogID},
-			budgetcharge.FieldKeyVersions:    {Type: field.TypeJSON, Column: budgetcharge.FieldKeyVersions},
-			budgetcharge.FieldGroupVersions:  {Type: field.TypeJSON, Column: budgetcharge.FieldGroupVersions},
-			budgetcharge.FieldStatus:         {Type: field.TypeEnum, Column: budgetcharge.FieldStatus},
-			budgetcharge.FieldCheckAfter:     {Type: field.TypeTime, Column: budgetcharge.FieldCheckAfter},
-			budgetcharge.FieldSettledAt:      {Type: field.TypeTime, Column: budgetcharge.FieldSettledAt},
+			budgetcharge.FieldCreatedAt:             {Type: field.TypeTime, Column: budgetcharge.FieldCreatedAt},
+			budgetcharge.FieldUpdatedAt:             {Type: field.TypeTime, Column: budgetcharge.FieldUpdatedAt},
+			budgetcharge.FieldProjectID:             {Type: field.TypeInt, Column: budgetcharge.FieldProjectID},
+			budgetcharge.FieldExecutionID:           {Type: field.TypeInt, Column: budgetcharge.FieldExecutionID},
+			budgetcharge.FieldRequestID:             {Type: field.TypeInt, Column: budgetcharge.FieldRequestID},
+			budgetcharge.FieldKeyID:                 {Type: field.TypeInt, Column: budgetcharge.FieldKeyID},
+			budgetcharge.FieldGroupID:               {Type: field.TypeInt, Column: budgetcharge.FieldGroupID},
+			budgetcharge.FieldKeyAccountID:          {Type: field.TypeInt, Column: budgetcharge.FieldKeyAccountID},
+			budgetcharge.FieldGroupAccountID:        {Type: field.TypeInt, Column: budgetcharge.FieldGroupAccountID},
+			budgetcharge.FieldEstimate:              {Type: field.TypeInt64, Column: budgetcharge.FieldEstimate},
+			budgetcharge.FieldActual:                {Type: field.TypeInt64, Column: budgetcharge.FieldActual},
+			budgetcharge.FieldUsage:                 {Type: field.TypeJSON, Column: budgetcharge.FieldUsage},
+			budgetcharge.FieldAsyncTask:             {Type: field.TypeJSON, Column: budgetcharge.FieldAsyncTask},
+			budgetcharge.FieldCostSnapshot:          {Type: field.TypeJSON, Column: budgetcharge.FieldCostSnapshot},
+			budgetcharge.FieldUsageLogID:            {Type: field.TypeInt, Column: budgetcharge.FieldUsageLogID},
+			budgetcharge.FieldKeyVersions:           {Type: field.TypeJSON, Column: budgetcharge.FieldKeyVersions},
+			budgetcharge.FieldGroupVersions:         {Type: field.TypeJSON, Column: budgetcharge.FieldGroupVersions},
+			budgetcharge.FieldStatus:                {Type: field.TypeEnum, Column: budgetcharge.FieldStatus},
+			budgetcharge.FieldCheckAfter:            {Type: field.TypeTime, Column: budgetcharge.FieldCheckAfter},
+			budgetcharge.FieldSettledAt:             {Type: field.TypeTime, Column: budgetcharge.FieldSettledAt},
+			budgetcharge.FieldReservationReleasedAt: {Type: field.TypeTime, Column: budgetcharge.FieldReservationReleasedAt},
 		},
 	}
 	graph.Nodes[7] = &sqlgraph.Node{
@@ -2423,6 +2424,11 @@ func (f *BudgetChargeFilter) WhereCheckAfter(p entql.TimeP) {
 // WhereSettledAt applies the entql time.Time predicate on the settled_at field.
 func (f *BudgetChargeFilter) WhereSettledAt(p entql.TimeP) {
 	f.Where(p.Field(budgetcharge.FieldSettledAt))
+}
+
+// WhereReservationReleasedAt applies the entql time.Time predicate on the reservation_released_at field.
+func (f *BudgetChargeFilter) WhereReservationReleasedAt(p entql.TimeP) {
+	f.Where(p.Field(budgetcharge.FieldReservationReleasedAt))
 }
 
 // addPredicate implements the predicateAdder interface.

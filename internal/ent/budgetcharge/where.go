@@ -124,6 +124,11 @@ func SettledAt(v time.Time) predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldEQ(FieldSettledAt, v))
 }
 
+// ReservationReleasedAt applies equality check predicate on the "reservation_released_at" field. It's identical to ReservationReleasedAtEQ.
+func ReservationReleasedAt(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldReservationReleasedAt, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldEQ(FieldCreatedAt, v))
@@ -782,6 +787,56 @@ func SettledAtIsNil() predicate.BudgetCharge {
 // SettledAtNotNil applies the NotNil predicate on the "settled_at" field.
 func SettledAtNotNil() predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldNotNull(FieldSettledAt))
+}
+
+// ReservationReleasedAtEQ applies the EQ predicate on the "reservation_released_at" field.
+func ReservationReleasedAtEQ(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtNEQ applies the NEQ predicate on the "reservation_released_at" field.
+func ReservationReleasedAtNEQ(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNEQ(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtIn applies the In predicate on the "reservation_released_at" field.
+func ReservationReleasedAtIn(vs ...time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIn(FieldReservationReleasedAt, vs...))
+}
+
+// ReservationReleasedAtNotIn applies the NotIn predicate on the "reservation_released_at" field.
+func ReservationReleasedAtNotIn(vs ...time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotIn(FieldReservationReleasedAt, vs...))
+}
+
+// ReservationReleasedAtGT applies the GT predicate on the "reservation_released_at" field.
+func ReservationReleasedAtGT(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGT(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtGTE applies the GTE predicate on the "reservation_released_at" field.
+func ReservationReleasedAtGTE(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGTE(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtLT applies the LT predicate on the "reservation_released_at" field.
+func ReservationReleasedAtLT(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLT(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtLTE applies the LTE predicate on the "reservation_released_at" field.
+func ReservationReleasedAtLTE(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLTE(FieldReservationReleasedAt, v))
+}
+
+// ReservationReleasedAtIsNil applies the IsNil predicate on the "reservation_released_at" field.
+func ReservationReleasedAtIsNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIsNull(FieldReservationReleasedAt))
+}
+
+// ReservationReleasedAtNotNil applies the NotNil predicate on the "reservation_released_at" field.
+func ReservationReleasedAtNotNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotNull(FieldReservationReleasedAt))
 }
 
 // And groups predicates with the AND operator between them.

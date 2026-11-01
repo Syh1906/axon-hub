@@ -806,6 +806,7 @@ type ResponseMeta struct {
 	ID        string `json:"id"`
 	Usage     *Usage `json:"usage"`
 	Completed bool   `json:"completed,omitempty"`
+	Status    string `json:"status,omitempty"`
 }
 
 // Usage Represents the total token usage per request to OpenAI.

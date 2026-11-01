@@ -43,6 +43,8 @@ type PersistenceState struct {
 	Request     *ent.Request
 	RequestExec *ent.RequestExecution
 	BudgetStop  error
+	// A non-stream Responses outcome can fail while its HTTP status remains 200.
+	ResponseTerminalError error
 
 	// ChannelModelsCandidates is the primary state for channel selection
 	ChannelModelsCandidates []*ChannelModelsCandidate
@@ -61,6 +63,8 @@ type PersistenceState struct {
 	// versus a stream that completed successfully but the client disconnected
 	// immediately after receiving the last chunk.
 	StreamCompleted bool
+	// A failed terminal event wins over subsequent protocol end markers.
+	StreamTerminalError error
 	// StreamReturned marks that the retry loop handed the stream to its caller.
 	StreamReturned bool
 

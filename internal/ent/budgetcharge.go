@@ -60,8 +60,10 @@ type BudgetCharge struct {
 	// CheckAfter holds the value of the "check_after" field.
 	CheckAfter time.Time `json:"check_after,omitempty"`
 	// SettledAt holds the value of the "settled_at" field.
-	SettledAt    *time.Time `json:"settled_at,omitempty"`
-	selectValues sql.SelectValues
+	SettledAt *time.Time `json:"settled_at,omitempty"`
+	// ReservationReleasedAt holds the value of the "reservation_released_at" field.
+	ReservationReleasedAt *time.Time `json:"reservation_released_at,omitempty"`
+	selectValues          sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -75,7 +77,7 @@ func (*BudgetCharge) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case budgetcharge.FieldStatus:
 			values[i] = new(sql.NullString)
-		case budgetcharge.FieldCreatedAt, budgetcharge.FieldUpdatedAt, budgetcharge.FieldCheckAfter, budgetcharge.FieldSettledAt:
+		case budgetcharge.FieldCreatedAt, budgetcharge.FieldUpdatedAt, budgetcharge.FieldCheckAfter, budgetcharge.FieldSettledAt, budgetcharge.FieldReservationReleasedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -233,6 +235,13 @@ func (_m *BudgetCharge) assignValues(columns []string, values []any) error {
 				_m.SettledAt = new(time.Time)
 				*_m.SettledAt = value.Time
 			}
+		case budgetcharge.FieldReservationReleasedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reservation_released_at", values[i])
+			} else if value.Valid {
+				_m.ReservationReleasedAt = new(time.Time)
+				*_m.ReservationReleasedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -336,6 +345,11 @@ func (_m *BudgetCharge) String() string {
 	builder.WriteString(", ")
 	if v := _m.SettledAt; v != nil {
 		builder.WriteString("settled_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ReservationReleasedAt; v != nil {
+		builder.WriteString("reservation_released_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')

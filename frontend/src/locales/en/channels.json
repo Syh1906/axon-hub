@@ -1252,10 +1252,8 @@
   "channels.website.invalid": "Enter an HTTP or HTTPS website URL without credentials",
   "channels.columns.todayUsage": "Today",
   "channels.todayUsage.requests": "{{count}} requests",
-  "channels.todayUsage.unpriced": "Unpriced",
   "channels.todayUsage.loadFailed": "Failed to load",
   "channels.todayUsage.timezone": "Today in {{timezone}}",
-  "channels.todayUsage.partial": "{{count}} requests are unpriced; amount includes priced usage only",
   "channels.endpoints.supportsWebSockets": "Supports WebSocket",
   "channels.endpoints.webSocketsHint": "Follow the client: HTTPS stays available. WebSocket clients use WebSocket when supported, with safe HTTPS fallback.",
   "channels.endpoints.catalogURL": "Codex model catalog URL",
@@ -1271,5 +1269,6 @@
   "channels.todayUsage.standardTotal": "Standard total cost (1×)",
   "channels.todayUsage.standardCost": "Standard cost (1×)",
   "channels.todayUsage.standardHelp": "Uses historical request prices, modes and tiers with channel/key cost multipliers set to 1×.",
-  "channels.todayUsage.standardMissing": "{{count}} requests lack complete pricing evidence; standard cost includes only recoverable amounts."
+  "channels.todayUsage.perMillionCost": "Cost / 1M tokens",
+  "channels.todayUsage.perMillionHelp": "Cost per million tokens uses final actual costs after multipliers and token counts from the same requests."
 }

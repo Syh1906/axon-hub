@@ -159,6 +159,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 		}
 		state := m.outbound.state
 		if state != nil && state.RequestExec != nil {
+			state.ResponseTerminalError = nonStreamingResponseError(m.outbound.APIFormat(), response.Body)
 			if err := state.RequestService.SetExecutionUpstreamStatus(ctx, state.RequestExec.ID, response.StatusCode); err != nil {
 				log.Warn(ctx, "Failed to persist upstream response status", log.Cause(err))
 			}
@@ -217,6 +218,12 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 	// Audio responses (binary TTS / non-JSON STT) must be converted to JSON-safe payloads
 	// before persisting into the JSON response_body column.
 	respBody := audioSafeResponseBody(llmResp.RequestType, m.rawResponse.Headers.Get("Content-Type"), m.rawResponse.Body)
+	if state.ResponseTerminalError != nil {
+		if err := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, state.ResponseTerminalError, metrics, m.rawResponse); err != nil {
+			log.Warn(persistCtx, "Failed to persist provider response outcome", log.Cause(err))
+		}
+		return llmResp, nil
+	}
 
 	err := state.RequestService.UpdateRequestExecutionCompleted(
 		persistCtx,
@@ -268,7 +275,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 		_, latency, _ := state.Perf.Calculate()
 		metrics = &biz.LatencyMetrics{LatencyMs: &latency, FirstByteLatencyMs: state.Perf.FirstByteLatencyMs()}
 	}
-	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, err, metrics)
+	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, err, metrics, nil)
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))
 	}

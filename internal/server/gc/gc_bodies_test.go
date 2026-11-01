@@ -134,7 +134,7 @@ func TestCleanupResponseChunks_StripsOldChunks(t *testing.T) {
 func TestCleanupRequestBodies_DeletesExternalFilesOnly(t *testing.T) {
 	worker, ctx, fsStorage, baseDir := setupWorkerWithFSStorage(t)
 	client := worker.Ent
-	reqSvc := newBodyTestRequestService(worker)
+	reqSvc := newBodyTestRequestService(t, worker)
 
 	proj, err := client.Project.Create().
 		SetName("body-cleanup-fs").
@@ -597,7 +597,7 @@ func TestCleanupRequestBodies_PostgresImmutableJSON(t *testing.T) {
 	require.Equal(t, 1, item.EstimatedCount)
 }
 
-func newBodyTestRequestService(worker *Worker) *biz.RequestService {
+func newBodyTestRequestService(t *testing.T, worker *Worker) *biz.RequestService {
 	return biz.NewRequestService(
 		worker.Ent,
 		xcache.Config{Mode: xcache.ModeMemory},
@@ -605,6 +605,7 @@ func newBodyTestRequestService(worker *Worker) *biz.RequestService {
 		nil,
 		worker.DataStorageService,
 		nil,
+		biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}),
 	)
 }
 

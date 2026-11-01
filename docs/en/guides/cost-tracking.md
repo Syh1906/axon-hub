@@ -45,6 +45,10 @@ AxonHub supports the following pricing modes:
 
 Ordinary flat fees apply per successful request even when the provider omits token usage. Their breakdown uses a per-request amount instead of a per-million-token unit price.
 
+Recovery follows the same rule: a flat-price configuration alone cannot establish a charge for failed, canceled, or still-running requests. Both non-streaming Responses bodies and terminal stream events preserve failed, incomplete, or canceled outcomes; HTTP 200 or a subsequent end marker does not turn them into success. Known usage still settles against its frozen price. Confirmed asynchronous video outcomes are stored and end the temporary reservation. When an older task lacks a budget task record, saved execution details establish the confirmed outcome before its hold is released. A failed task without reliable usage retains an unknown cost, rather than an invented flat fee or zero. An empty price-item collection is missing pricing, distinct from an explicit zero rate.
+
+When settlement evidence arrives after an initially unpriced usage record, the budget posting and the existing usage record are updated in one transaction, without duplicate rows or charges. Cost/request and cost/million tokens use the resulting actual cost, including the request's final applied multiplier; standard cost is separate. Missing provider usage, historical pricing, or image specifications cannot be replaced with an estimate. Missing or archived historical data is not automatically repriced from current settings.
+
 ### Image specification fees
 
 Select **Image specification fee** in the existing price row in a channel's model prices or a model's pricing editor. Automatic identification is on by default: enter per-image prices for 1K, 2K and 4K. Zero is valid; empty prices cannot be saved. Time overrides share the editor. Channel rules apply only to that channel and model. Importing a standard price copies its complete rules for independent editing.

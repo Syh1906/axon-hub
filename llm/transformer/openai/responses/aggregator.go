@@ -230,7 +230,9 @@ func AggregateStreamChunks(_ context.Context, chunks []*httpclient.StreamEvent) 
 	}
 
 	meta := llm.ResponseMeta{
-		ID: agg.responseID,
+		ID:        agg.responseID,
+		Status:    agg.status,
+		Completed: agg.status == "completed",
 	}
 
 	if agg.usage != nil {
@@ -585,7 +587,9 @@ func (a *streamAggregator) processEvent(ev *StreamEvent) {
 
 	case StreamEventTypeResponseCompleted, "response.done":
 		a.applyResponseSnapshot(ev.Response)
-		a.status = "completed"
+		if ev.Response == nil || ev.Response.Status == nil {
+			a.status = "completed"
+		}
 		if ev.Response != nil {
 			a.previousResponseID = ev.Response.PreviousResponseID
 			if ev.Response.Usage != nil {

@@ -34,7 +34,7 @@ func TestRequestService_UpdateRequestCompletedWithAudio_ExternalStorage(t *testi
 		CacheConfig:   xcache.Config{Mode: xcache.ModeMemory},
 		Client:        client,
 	})
-	requestService := NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry())
+	requestService := NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry(), NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
 
 	// Non-primary fs data storage backed by a real temp dir.
 	dir := t.TempDir()
@@ -84,10 +84,11 @@ func TestRequestService_UpdateRequestCompletedWithAudio_ExternalStorage(t *testi
 	expectedKey := GenerateAudioKey(updated.ProjectID, reqRow.ID, "audio.mp3")
 	require.Equal(t, expectedKey, *updated.ContentStorageKey)
 
-	// With external storage, the metadata placeholder is offloaded too (not the DB column);
-	// it never contains the raw audio bytes.
-	respKey := GenerateResponseBodyKey(updated.ProjectID, reqRow.ID)
-	storedBody, err := dataStorageService.LoadData(ctx, ds, respKey)
+	// Response metadata uses the bounded debug store; binary content remains
+	// independently addressable after debug expiry.
+	_, managed := parsePayloadMarker(updated.ResponseBody)
+	require.True(t, managed)
+	storedBody, err := requestService.LoadResponseBody(ctx, updated)
 	require.NoError(t, err)
 	require.Contains(t, string(storedBody), "audio.speech")
 	require.NotContains(t, string(storedBody), "\xDE\xAD\xBE\xEF")

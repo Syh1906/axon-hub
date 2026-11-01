@@ -19,7 +19,7 @@ import (
 // Exercise real ownership storage together with the real weighted/latency
 // scorers. A UI conversation with a new thread must not inherit another owner.
 func TestHealthGateProductNewChannelAndSessionExpiry(t *testing.T) {
-	service := biz.NewRequestService(nil, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil)
+	service := biz.NewRequestService(nil, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil, biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 	old := healthGateSelectorCandidate(10, 0, "model")
 	old.Channel.OrderingWeight = 10
 	added := healthGateSelectorCandidate(15, 0, "model")

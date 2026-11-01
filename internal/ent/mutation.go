@@ -5537,43 +5537,44 @@ func (m *BudgetChangeMutation) ResetEdge(name string) error {
 // BudgetChargeMutation represents an operation that mutates the BudgetCharge nodes in the graph.
 type BudgetChargeMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	created_at          *time.Time
-	updated_at          *time.Time
-	project_id          *int
-	addproject_id       *int
-	execution_id        *int
-	addexecution_id     *int
-	request_id          *int
-	addrequest_id       *int
-	key_id              *int
-	addkey_id           *int
-	group_id            *int
-	addgroup_id         *int
-	key_account_id      *int
-	addkey_account_id   *int
-	group_account_id    *int
-	addgroup_account_id *int
-	estimate            *int64
-	addestimate         *int64
-	actual              *int64
-	addactual           *int64
-	usage               **llm.Usage
-	async_task          **objects.BudgetAsyncTask
-	cost_snapshot       **objects.RequestCostSnapshot
-	usage_log_id        *int
-	addusage_log_id     *int
-	key_versions        *map[budget.Period]int64
-	group_versions      *map[budget.Period]int64
-	status              *budgetcharge.Status
-	check_after         *time.Time
-	settled_at          *time.Time
-	clearedFields       map[string]struct{}
-	done                bool
-	oldValue            func(context.Context) (*BudgetCharge, error)
-	predicates          []predicate.BudgetCharge
+	op                      Op
+	typ                     string
+	id                      *int
+	created_at              *time.Time
+	updated_at              *time.Time
+	project_id              *int
+	addproject_id           *int
+	execution_id            *int
+	addexecution_id         *int
+	request_id              *int
+	addrequest_id           *int
+	key_id                  *int
+	addkey_id               *int
+	group_id                *int
+	addgroup_id             *int
+	key_account_id          *int
+	addkey_account_id       *int
+	group_account_id        *int
+	addgroup_account_id     *int
+	estimate                *int64
+	addestimate             *int64
+	actual                  *int64
+	addactual               *int64
+	usage                   **llm.Usage
+	async_task              **objects.BudgetAsyncTask
+	cost_snapshot           **objects.RequestCostSnapshot
+	usage_log_id            *int
+	addusage_log_id         *int
+	key_versions            *map[budget.Period]int64
+	group_versions          *map[budget.Period]int64
+	status                  *budgetcharge.Status
+	check_after             *time.Time
+	settled_at              *time.Time
+	reservation_released_at *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*BudgetCharge, error)
+	predicates              []predicate.BudgetCharge
 }
 
 var _ ent.Mutation = (*BudgetChargeMutation)(nil)
@@ -6702,6 +6703,55 @@ func (m *BudgetChargeMutation) ResetSettledAt() {
 	delete(m.clearedFields, budgetcharge.FieldSettledAt)
 }
 
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (m *BudgetChargeMutation) SetReservationReleasedAt(t time.Time) {
+	m.reservation_released_at = &t
+}
+
+// ReservationReleasedAt returns the value of the "reservation_released_at" field in the mutation.
+func (m *BudgetChargeMutation) ReservationReleasedAt() (r time.Time, exists bool) {
+	v := m.reservation_released_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReservationReleasedAt returns the old "reservation_released_at" field's value of the BudgetCharge entity.
+// If the BudgetCharge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BudgetChargeMutation) OldReservationReleasedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReservationReleasedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReservationReleasedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReservationReleasedAt: %w", err)
+	}
+	return oldValue.ReservationReleasedAt, nil
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (m *BudgetChargeMutation) ClearReservationReleasedAt() {
+	m.reservation_released_at = nil
+	m.clearedFields[budgetcharge.FieldReservationReleasedAt] = struct{}{}
+}
+
+// ReservationReleasedAtCleared returns if the "reservation_released_at" field was cleared in this mutation.
+func (m *BudgetChargeMutation) ReservationReleasedAtCleared() bool {
+	_, ok := m.clearedFields[budgetcharge.FieldReservationReleasedAt]
+	return ok
+}
+
+// ResetReservationReleasedAt resets all changes to the "reservation_released_at" field.
+func (m *BudgetChargeMutation) ResetReservationReleasedAt() {
+	m.reservation_released_at = nil
+	delete(m.clearedFields, budgetcharge.FieldReservationReleasedAt)
+}
+
 // Where appends a list predicates to the BudgetChargeMutation builder.
 func (m *BudgetChargeMutation) Where(ps ...predicate.BudgetCharge) {
 	m.predicates = append(m.predicates, ps...)
@@ -6736,7 +6786,7 @@ func (m *BudgetChargeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BudgetChargeMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, budgetcharge.FieldCreatedAt)
 	}
@@ -6797,6 +6847,9 @@ func (m *BudgetChargeMutation) Fields() []string {
 	if m.settled_at != nil {
 		fields = append(fields, budgetcharge.FieldSettledAt)
 	}
+	if m.reservation_released_at != nil {
+		fields = append(fields, budgetcharge.FieldReservationReleasedAt)
+	}
 	return fields
 }
 
@@ -6845,6 +6898,8 @@ func (m *BudgetChargeMutation) Field(name string) (ent.Value, bool) {
 		return m.CheckAfter()
 	case budgetcharge.FieldSettledAt:
 		return m.SettledAt()
+	case budgetcharge.FieldReservationReleasedAt:
+		return m.ReservationReleasedAt()
 	}
 	return nil, false
 }
@@ -6894,6 +6949,8 @@ func (m *BudgetChargeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCheckAfter(ctx)
 	case budgetcharge.FieldSettledAt:
 		return m.OldSettledAt(ctx)
+	case budgetcharge.FieldReservationReleasedAt:
+		return m.OldReservationReleasedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown BudgetCharge field %s", name)
 }
@@ -7042,6 +7099,13 @@ func (m *BudgetChargeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSettledAt(v)
+		return nil
+	case budgetcharge.FieldReservationReleasedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReservationReleasedAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge field %s", name)
@@ -7220,6 +7284,9 @@ func (m *BudgetChargeMutation) ClearedFields() []string {
 	if m.FieldCleared(budgetcharge.FieldSettledAt) {
 		fields = append(fields, budgetcharge.FieldSettledAt)
 	}
+	if m.FieldCleared(budgetcharge.FieldReservationReleasedAt) {
+		fields = append(fields, budgetcharge.FieldReservationReleasedAt)
+	}
 	return fields
 }
 
@@ -7257,6 +7324,9 @@ func (m *BudgetChargeMutation) ClearField(name string) error {
 		return nil
 	case budgetcharge.FieldSettledAt:
 		m.ClearSettledAt()
+		return nil
+	case budgetcharge.FieldReservationReleasedAt:
+		m.ClearReservationReleasedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge nullable field %s", name)
@@ -7325,6 +7395,9 @@ func (m *BudgetChargeMutation) ResetField(name string) error {
 		return nil
 	case budgetcharge.FieldSettledAt:
 		m.ResetSettledAt()
+		return nil
+	case budgetcharge.FieldReservationReleasedAt:
+		m.ResetReservationReleasedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge field %s", name)

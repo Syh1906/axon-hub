@@ -77,6 +77,8 @@ func NewChatCompletionOrchestrator(
 		quotaStrategy,
 	).WithStableTieOrder().WithRoundRobinHealthFilter(roundRobinHealthFilter)
 
+	sessions := newResponsesSessionStore(requestService.LoadCompletedResponsesSession)
+	sessions.save = requestService.SaveResponsesContext
 	return &ChatCompletionOrchestrator{
 		Inbound:            inbound,
 		RequestService:     requestService,
@@ -105,7 +107,7 @@ func NewChatCompletionOrchestrator(
 		modelCircuitBreaker:        modelCircuitBreaker,
 		quotaProvider:              quotaProvider,
 		proxy:                      nil,
-		responsesSessions:          newResponsesSessionStore(requestService.LoadCompletedResponsesSession),
+		responsesSessions:          sessions,
 	}
 }
 
@@ -361,6 +363,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 				requestExec.ID,
 				err,
 				nil,
+				nil,
 			); updateErr != nil {
 				log.Warn(persistCtx, "Failed to update request execution status from error", log.Cause(updateErr))
 			}
@@ -384,7 +387,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		}
 		return ChatCompletionResult{RequestID: requestID}, healthGateTracker.finalize(ctx, err, false)
 	}
-	healthGateTracker.finalize(ctx, nil, result.Stream)
+	healthGateTracker.finalize(ctx, state.ResponseTerminalError, result.Stream)
 
 	requestID := 0
 	if state.Request != nil {

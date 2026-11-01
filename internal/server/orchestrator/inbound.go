@@ -77,21 +77,22 @@ func (ts *InboundPersistentStream) Current() *httpclient.StreamEvent {
 		// For raw binary audio chunks (TTS stream_format=audio), persist only a size
 		// summary to avoid buffering the full audio payload in memory.
 		ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
-		if IsTerminalStreamEvent(event) {
-			ts.state.StreamCompleted = true
-		}
+		ts.state.observeStreamTerminal(event)
 	}
 
 	return event
 }
 
-// IsTerminalStreamEvent checks both SSE metadata and JSON data for a successful
-// protocol-level or semantic completion marker. The SSE writers use it to decide
+// IsTerminalStreamEvent checks both SSE metadata and JSON data for a terminal
+// protocol-level or semantic marker, including failures. The SSE writers use it to decide
 // whether the client actually received a completion marker, so this must stay the
 // single source of truth for "the stream ended properly".
 func IsTerminalStreamEvent(event *httpclient.StreamEvent) bool {
 	if event == nil {
 		return false
+	}
+	if streamTerminalError(event) != nil {
+		return true
 	}
 
 	// For chat completions, check for [DONE] event
@@ -148,6 +149,9 @@ func hasNonEmptyJSONStringField(data []byte, arrayPath, field string) bool {
 }
 
 func (ts *InboundPersistentStream) Err() error {
+	if ts.state.StreamTerminalError != nil {
+		return ts.state.StreamTerminalError
+	}
 	return ts.stream.Err()
 }
 
@@ -161,7 +165,7 @@ func (ts *InboundPersistentStream) Close() error {
 
 	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", len(ts.responseChunks)), log.Bool("received_done", ts.state.StreamCompleted))
 
-	streamErr := ts.stream.Err()
+	streamErr := ts.Err()
 	ctxErr := ctx.Err()
 
 	// If we received the [DONE] event, treat the stream as successfully completed

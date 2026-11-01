@@ -15,11 +15,11 @@ import { ChannelsPrimaryButtons } from './components/channels-primary-buttons';
 import { ChannelsTable } from './components/channels-table';
 import { ChannelsTypeTabs } from './components/channels-type-tabs';
 import ChannelsProvider, { useChannels } from './context/channels-context';
+import { useInfiniteChannels } from './data/channel-list';
 import { useChannelUpstreamStates, useRefreshUpstreamOnPage } from './data/channel-upstream';
 import { useChannelTodayUsage } from './data/channel-usage';
 import {
   DEFAULT_CHANNEL_COLUMN_VISIBILITY,
-  useInfiniteChannels,
   useAllChannelSummarys,
   useChannelTypes,
   useErrorChannelsCount,
@@ -237,7 +237,9 @@ function ChannelsContent() {
     hasMore: !!query.hasNextPage,
     error: query.isError,
     onLoadMore: query.loadMore,
-    onTrim: query.trimAfter,
+    hasPrevious: !!query.hasPreviousPage,
+    loadingPrevious: query.isFetchingPreviousPage,
+    onLoadPrevious: query.loadPrevious,
     onReset: query.resetToTop,
     onAtTopChange: (value: boolean) => {
       setAtTop(value);
@@ -380,6 +382,7 @@ function ChannelsContent() {
         onSortingChange={handleSortingChange}
         onExitErrorOnlyMode={handleExitErrorOnlyMode}
         scroll={scroll}
+        selectionScopeKey={query.selectionScopeKey}
         onNameFilterChange={handleNameFilterChange}
         onTypeFilterChange={handleTypeFilterChange}
         onStatusFilterChange={handleStatusFilterChange}

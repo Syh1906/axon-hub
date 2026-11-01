@@ -38,12 +38,7 @@ export function RequestLogStatusCell({ request, onOpen }: { request: Request; on
       </div>
       <div className='flex items-center gap-2 whitespace-nowrap'>
         <Badge className={getStatusColor(request.status)} asChild>
-          <button
-            type='button'
-            onClick={() =>
-              onOpen(request.status === 'failed' || request.status === 'canceled' ? 'errors' : retries ? 'routing' : 'response')
-            }
-          >
+          <button type='button' onClick={() => onOpen('errors')}>
             {t(`requests.status.${request.status}`)}
             {status != null ? ` · ${status}` : ''}
           </button>

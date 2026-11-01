@@ -4,12 +4,29 @@ Use **System Settings → Storage** for application retention and background cle
 
 This guide describes the new maintenance implementation. Upgrade older deployments through the [release workflow](../development/release.md), validate in isolation, then enable production policies. All paths and accounts below are examples. Keep real deployment inventories, addresses, measurements, backup destinations, and credentials in ignored `.local/` material or protected machine configuration, never in the public repository.
 
+## Short-lived payload storage
+
+New request/response debug bodies use local gzip caches instead of database JSON or long-lived object storage. Database rows keep only a status/reference. Tokens, costs, and outcomes are independent of payload retention. This follows CCH’s short-lived debugging approach without requiring Redis.
+
+Request lists load summaries only. Full details and drawers request payloads for the active request/response tab, and execution records load when their tab opens. Audio downloads start on the response tab; leaving cancels pending downloads and releases page resources. Video budget recovery selects and reads back only required fields, so status updates do not reload large legacy bodies.
+
+| Data | Maximum age | Uncompressed entry | Compressed total | Entry count |
+| --- | --- | --- | --- | --- |
+| Request/response/stream debug copies | 5 minutes | 5 MiB | 256 MiB | 4096 |
+| Required Responses continuation input/output | 2 hours | 32 MiB | 512 MiB | 2048 |
+
+The per-instance total is 768 MiB of compressed content, excluding filesystem metadata. Capacity/count pressure evicts oldest entries earlier. A minute task expires files; reads also enforce expiry. Oversized debug copies are skipped without truncating forwarded requests. Identical content is deduplicated without extending its original expiry. Detail views distinguish disabled, expired, evicted, and oversized payloads.
+
+`request_payload.directory` defaults to `data/request-payloads` and must be private to each application instance. These disposable files are excluded from database backups. Existing request/response storage switches remain authoritative. Disabling either switch also disables new disk continuation copies; the existing bounded memory cache remains independent and cannot guarantee `previous_response_id` restoration after expiry or restart. Disk continuation, when enabled, stores required input/output scoped by project and API key and can expire or be evicted.
+
+Upgrades do not remove old database/object payloads or shrink database files. Legacy payloads remain readable and follow the cleanup policies below. Binary audio resources and video files retain their separate storage and are outside these JSON cache limits. Forwarding still reads full live requests, so transient memory for very large requests is not eliminated.
+
 ## Retention and cleanup
 
 | Resource | New installation default | Effect |
 | --- | --- | --- |
-| Request and response bodies | 7 days | Removes the corresponding content; request cleanup also removes request headers |
-| Streaming chunks | 3 days | Removes frame replay; persistence is disabled by default |
+| Legacy bodies and payload markers | 7 days | Removes the corresponding content; request cleanup also removes request headers |
+| Legacy streaming chunks and markers | 3 days | Removes frame replay; persistence is disabled by default |
 | Requests and executions | 60 days | Removes detailed views after preserving compact statistics |
 | Usage details | 60 days | Removes detailed prices after preserving compact statistics |
 | Cache effectiveness windows | 60 days | Shortens available window history |

@@ -57,6 +57,9 @@ func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, m
 
 	if modelPrice, ok := ch.cachedModelPrices[modelID]; ok {
 		items, total := ComputeUsageCost(usage, modelPrice.Price, time.Now())
+		if len(items) == 0 {
+			return nil, nil, modelPrice.ReferenceID
+		}
 		for _, item := range items {
 			if item.Unpriced {
 				return items, nil, modelPrice.ReferenceID
@@ -120,8 +123,14 @@ type CreateUsageLogParams struct {
 
 // CreateUsageLog creates a new usage log record from LLM response usage data.
 func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsageLogParams) (*ent.UsageLog, error) {
+	return s.saveUsageLog(ctx, params, nil)
+}
+
+// Refresh an unpriced record in the same transaction as its budget settlement.
+// Missing late fields do not erase evidence from the earlier response.
+func (s *UsageLogService) saveUsageLog(ctx context.Context, params CreateUsageLogParams, existing *ent.UsageLog) (*ent.UsageLog, error) {
 	if params.Usage == nil && params.SettledCost == nil && !NeedsUsageLogWithoutTokens(params.CostSnapshot) {
-		return nil, nil // No usage data to log
+		return existing, nil
 	}
 	// Keep missing provider usage distinct during billing; zero token columns are
 	// only the storage representation for a non-token fee log.
@@ -132,40 +141,46 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 
 	client := s.entFromContext(ctx)
 
-	mut := client.UsageLog.Create().
-		SetRequestID(params.RequestID).
-		SetProjectID(params.ProjectID).
-		SetModelID(params.ActualModelID).
-		SetChannelID(params.ChannelID).
-		SetPromptTokens(params.Usage.PromptTokens).
-		SetCompletionTokens(params.Usage.CompletionTokens).
-		SetTotalTokens(params.Usage.TotalTokens).
-		SetSource(params.Source).
-		SetFormat(params.Format)
+	create := client.UsageLog.Create()
+	mut, save := create.Mutation(), create.Save
+	if existing != nil {
+		update := client.UsageLog.UpdateOneID(existing.ID)
+		mut, save = update.Mutation(), update.Save
+	} else {
+		mut.SetRequestID(params.RequestID)
+		mut.SetProjectID(params.ProjectID)
+		mut.SetModelID(params.ActualModelID)
+		mut.SetChannelID(params.ChannelID)
+		mut.SetSource(params.Source)
+		mut.SetFormat(params.Format)
+	}
+	if providerUsage != nil || existing == nil {
+		mut.SetPromptTokens(params.Usage.PromptTokens)
+		mut.SetCompletionTokens(params.Usage.CompletionTokens)
+		mut.SetTotalTokens(params.Usage.TotalTokens)
+	}
 
 	if params.APIKeyID != nil {
-		mut = mut.SetAPIKeyID(*params.APIKeyID)
+		mut.SetAPIKeyID(*params.APIKeyID)
 	} else if ctxAPIKey, ok := contexts.GetAPIKey(ctx); ok && ctxAPIKey != nil {
-		mut = mut.SetAPIKeyID(ctxAPIKey.ID)
+		mut.SetAPIKeyID(ctxAPIKey.ID)
 	}
 
 	// Set prompt tokens details if available
 	if params.Usage.PromptTokensDetails != nil {
-		mut = mut.
-			SetPromptAudioTokens(params.Usage.PromptTokensDetails.AudioTokens).
-			SetPromptCachedTokens(params.Usage.PromptTokensDetails.CachedTokens).
-			SetPromptWriteCachedTokens(params.Usage.PromptTokensDetails.WriteCachedTokens).
-			SetPromptWriteCachedTokens5m(params.Usage.PromptTokensDetails.WriteCached5MinTokens).
-			SetPromptWriteCachedTokens1h(params.Usage.PromptTokensDetails.WriteCached1HourTokens)
+		mut.SetPromptAudioTokens(params.Usage.PromptTokensDetails.AudioTokens)
+		mut.SetPromptCachedTokens(params.Usage.PromptTokensDetails.CachedTokens)
+		mut.SetPromptWriteCachedTokens(params.Usage.PromptTokensDetails.WriteCachedTokens)
+		mut.SetPromptWriteCachedTokens5m(params.Usage.PromptTokensDetails.WriteCached5MinTokens)
+		mut.SetPromptWriteCachedTokens1h(params.Usage.PromptTokensDetails.WriteCached1HourTokens)
 	}
 
 	// Set completion tokens details if available
 	if params.Usage.CompletionTokensDetails != nil {
-		mut = mut.
-			SetCompletionAudioTokens(params.Usage.CompletionTokensDetails.AudioTokens).
-			SetCompletionReasoningTokens(params.Usage.CompletionTokensDetails.ReasoningTokens).
-			SetCompletionAcceptedPredictionTokens(params.Usage.CompletionTokensDetails.AcceptedPredictionTokens).
-			SetCompletionRejectedPredictionTokens(params.Usage.CompletionTokensDetails.RejectedPredictionTokens)
+		mut.SetCompletionAudioTokens(params.Usage.CompletionTokensDetails.AudioTokens)
+		mut.SetCompletionReasoningTokens(params.Usage.CompletionTokensDetails.ReasoningTokens)
+		mut.SetCompletionAcceptedPredictionTokens(params.Usage.CompletionTokensDetails.AcceptedPredictionTokens)
+		mut.SetCompletionRejectedPredictionTokens(params.Usage.CompletionTokensDetails.RejectedPredictionTokens)
 	}
 
 	// Calculate cost if price is configured
@@ -175,7 +190,10 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 		priceReferenceID string
 	)
 
-	costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, providerUsage, params.CostSnapshot)
+	if providerUsage != nil || existing == nil || existing.TotalTokens == 0 && NeedsUsageLogWithoutTokens(params.CostSnapshot) {
+		costItems, totalCost, priceReferenceID = s.computeUsageCost(ctx, params.ChannelID, params.ActualModelID, providerUsage, params.CostSnapshot)
+		mut.SetCostItems(costItems)
+	}
 	if params.SettledCost != nil {
 		totalCost = lo.ToPtr(params.SettledCost.Decimal().InexactFloat64())
 	}
@@ -183,21 +201,21 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 		mut.SetCostSnapshot(params.CostSnapshot)
 	}
 
-	mut = mut.
-		SetNillableTotalCost(totalCost).
-		SetCostItems(costItems)
-
-	if priceReferenceID != "" {
-		mut = mut.SetCostPriceReferenceID(priceReferenceID)
+	if totalCost != nil {
+		mut.SetTotalCost(*totalCost)
 	}
 
-	usageLog, err := mut.Save(ctx)
+	if priceReferenceID != "" {
+		mut.SetCostPriceReferenceID(priceReferenceID)
+	}
+
+	usageLog, err := save(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create usage log: %w", err)
+		return nil, fmt.Errorf("failed to save usage log: %w", err)
 	}
 
 	if log.DebugEnabled(ctx) {
-		log.Debug(ctx, "Created usage log",
+		log.Debug(ctx, "Saved usage log",
 			log.Int("usage_log_id", usageLog.ID),
 			log.Int("request_id", params.RequestID),
 			log.String("model_id", params.ActualModelID),
@@ -250,10 +268,10 @@ func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request
 	if err != nil {
 		return nil, err
 	}
-	result, handled, err := s.BudgetService.Settle(ctx, requestExec.ID, cost, func(ctx context.Context, client *ent.Client) (*ent.UsageLog, error) {
+	result, handled, err := s.BudgetService.Settle(ctx, requestExec.ID, cost, func(ctx context.Context, client *ent.Client, existing *ent.UsageLog) (*ent.UsageLog, error) {
 		writer := *s
 		writer.OnUsageLogCreated = nil
-		return writer.CreateUsageLog(ent.NewContext(ctx, client), params)
+		return writer.saveUsageLog(ent.NewContext(ctx, client), params, existing)
 	})
 	if err != nil {
 		return nil, err

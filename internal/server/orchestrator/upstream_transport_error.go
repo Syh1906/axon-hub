@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"syscall"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -87,6 +89,7 @@ func persistRequestExecutionFailure(
 	executionID int,
 	rawErr error,
 	metrics *biz.LatencyMetrics,
+	response *httpclient.Response,
 ) error {
 	status := requestexecution.StatusFailed
 	if errors.Is(rawErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
@@ -95,13 +98,18 @@ func persistRequestExecutionFailure(
 
 	failure := ClassifyUpstreamTransportError(rawErr)
 	key, _ := contexts.GetChannelAPIKey(ctx)
+	info := extractExecutionErrorInfo(failure, key)
+	if response != nil {
+		info.ResponseBody = response.Body
+		info.ExternalID = gjson.GetBytes(response.Body, "id").String()
+	}
 
 	return requestService.UpdateRequestExecutionStatusWithMetrics(
 		ctx,
 		executionID,
 		status,
 		sanitizeDiagnosticText(ExtractErrorMessage(failure), key),
-		extractExecutionErrorInfo(failure, key),
+		info,
 		metrics,
 	)
 }

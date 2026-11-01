@@ -62,8 +62,5 @@
   "consumption.entityColumns.API_KEY_GROUP": "密钥分组 / 模型",
   "consumption.allGroups": "全部分组",
   "consumption.overallCacheHitRateHelp": "缓存读取 Token ÷ 全部请求的总输入 Token，包含未命中缓存的请求；无输入 Token 时显示“—”。",
-  "consumption.speedSamples": "有效测速样本：{{count}} 条",
-  "consumption.unpriced": "未计价",
-  "consumption.partiallyPriced": "部分未计价",
-  "consumption.unpricedHelp": "{{count}} 条请求未完整计价；金额仅含已知费用，均价暂不可计算。"
+  "consumption.speedSamples": "有效测速样本：{{count}} 条"
 }

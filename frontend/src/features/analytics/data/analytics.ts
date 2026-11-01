@@ -291,9 +291,12 @@ export function toGraphQLFilter(
 export function useAnalyticsMetadata() {
   return useQuery({
     queryKey: ['analyticsMetadata'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ analyticsMetadata: AnalyticsMetadata }>(
-        ANALYTICS_METADATA_QUERY
+        ANALYTICS_METADATA_QUERY,
+        undefined,
+        undefined,
+        { signal }
       );
       return analyticsMetadataSchema.parse(data.analyticsMetadata);
     },
@@ -304,11 +307,13 @@ export function useAnalyticsMetadata() {
 export function useAnalyticsOverview(filter: AnalyticsFilter | null) {
   return useQuery({
     queryKey: ['analyticsOverview', filter],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const gqlFilter = toGraphQLFilter(filter);
       const data = await graphqlRequest<{ analyticsOverview: AnalyticsOverview }>(
         ANALYTICS_OVERVIEW_QUERY,
-        { filter: gqlFilter }
+        { filter: gqlFilter },
+        undefined,
+        { signal }
       );
       return analyticsOverviewSchema.parse(data.analyticsOverview);
     },
@@ -320,11 +325,13 @@ export function useAnalyticsOverview(filter: AnalyticsFilter | null) {
 export function useAnalyticsDailyStats(filter: AnalyticsFilter | null) {
   return useQuery({
     queryKey: ['analyticsDailyStats', filter],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const gqlFilter = toGraphQLFilter(filter);
       const data = await graphqlRequest<{ analyticsDailyStats: AnalyticsDailyStat[] }>(
         ANALYTICS_DAILY_STATS_QUERY,
-        { filter: gqlFilter }
+        { filter: gqlFilter },
+        undefined,
+        { signal }
       );
       return data.analyticsDailyStats.map((item) => analyticsDailyStatSchema.parse(item));
     },
@@ -336,13 +343,15 @@ export function useAnalyticsDailyStats(filter: AnalyticsFilter | null) {
 export function useAnalyticsDimensionStats(filter: AnalyticsFilter | null, dimension: string) {
   return useQuery({
     queryKey: ['analyticsDimensionStats', filter, dimension],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const gqlFilter = toGraphQLFilter(filter);
       const data = await graphqlRequest<{
         analyticsDimensionStats: AnalyticsDimensionStat[];
       }>(
         ANALYTICS_DIMENSION_STATS_QUERY,
-        { filter: gqlFilter, dimension }
+        { filter: gqlFilter, dimension },
+        undefined,
+        { signal }
       );
       return data.analyticsDimensionStats.map((item) => analyticsDimensionStatSchema.parse(item));
     },
@@ -357,7 +366,7 @@ export function useAnalyticsAPIKeyTemplates() {
 
   return useQuery({
     queryKey: ['analyticsAPIKeyTemplates', selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const headers = selectedProjectId
         ? { 'X-Project-ID': selectedProjectId }
         : undefined;
@@ -366,7 +375,8 @@ export function useAnalyticsAPIKeyTemplates() {
       }>(
         ANALYTICS_API_KEY_TEMPLATES_QUERY,
         undefined,
-        headers
+        headers,
+        { signal }
       );
       return data.analyticsAPIKeyTemplates.map((item) =>
         analyticsAPIKeyTemplateSchema.parse(item)
@@ -381,7 +391,7 @@ export function useAnalyticsAPIKeyStats(filter: AnalyticsFilter | null) {
 
   return useQuery({
     queryKey: ['analyticsAPIKeyStats', filter, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const projectIDs = filter?.projectIDs?.length
         ? filter.projectIDs
         : selectedProjectId
@@ -398,7 +408,8 @@ export function useAnalyticsAPIKeyStats(filter: AnalyticsFilter | null) {
       }>(
         ANALYTICS_API_KEY_STATS_QUERY,
         { filter: gqlFilter },
-        headers
+        headers,
+        { signal }
       );
       return data.analyticsAPIKeyStats.map((item) =>
         analyticsAPIKeyStatSchema.parse(item)
@@ -414,14 +425,15 @@ export function useAnalyticsChannelTags() {
 
   return useQuery({
     queryKey: ['analyticsChannelTags', selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const headers = selectedProjectId
         ? { 'X-Project-ID': selectedProjectId }
         : undefined;
       const data = await graphqlRequest<{ analyticsChannelTags: string[] }>(
         ANALYTICS_CHANNEL_TAGS_QUERY,
         undefined,
-        headers
+        headers,
+        { signal }
       );
       return z.array(z.string()).parse(data.analyticsChannelTags);
     },
@@ -434,7 +446,7 @@ export function useAnalyticsModelStats(filter: AnalyticsModelFilter | null) {
 
   return useQuery({
     queryKey: ['analyticsModelStats', filter, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const projectIDs = filter?.projectIDs?.length
         ? filter.projectIDs
         : selectedProjectId
@@ -448,7 +460,7 @@ export function useAnalyticsModelStats(filter: AnalyticsModelFilter | null) {
         : undefined;
       const data = await graphqlRequest<{
         analyticsModelStats: AnalyticsModelStat[];
-      }>(ANALYTICS_MODEL_STATS_QUERY, { filter: gqlFilter }, headers);
+      }>(ANALYTICS_MODEL_STATS_QUERY, { filter: gqlFilter }, headers, { signal });
       return data.analyticsModelStats.map((item) =>
         analyticsModelStatSchema.parse(item)
       );

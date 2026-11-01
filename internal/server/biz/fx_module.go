@@ -16,6 +16,10 @@ var Module = fx.Module("biz",
 	fx.Provide(NewAuthService),
 	fx.Provide(NewChannelService),
 	fx.Provide(NewRequestService),
+	fx.Provide(NewRequestPayloadService),
+	fx.Invoke(func(lc fx.Lifecycle, svc *RequestPayloadService, s *scheduler.Scheduler) {
+		lc.Append(fx.Hook{OnStart: func(ctx context.Context) error { return svc.RegisterScheduledTasks(ctx, s) }})
+	}),
 	fx.Provide(NewSelfUsageService),
 	fx.Provide(NewConsumptionService),
 	fx.Provide(NewUsageLogService),

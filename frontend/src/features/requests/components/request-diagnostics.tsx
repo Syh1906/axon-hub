@@ -40,7 +40,11 @@ export function RequestDiagnostics({
   const [after, setAfter] = useState<string>();
   const [previous, setPrevious] = useState<RequestExecution[]>([]);
   const [selectedID, setSelectedID] = useState('');
-  const query = useRequestExecutions(request.id, { first: 50, after, orderBy: { field: 'CREATED_AT', direction: 'DESC' } }, { projectId });
+  const query = useRequestExecutions(
+    request.id,
+    { first: 50, after, orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
+    { projectId, includePayload: false }
+  );
   const executions = [...previous, ...(query.data?.edges.map((edge) => edge.node) ?? [])];
   const selected =
     executions.find((execution) => execution.id === selectedID) ??
@@ -171,8 +175,17 @@ export function RequestDiagnostics({
               {selection.upstreamTransport && (
                 <p className='text-xs'>
                   {t('requests.diagnostics.clientTransport')}: {selection.clientTransport === 'websocket' ? 'WebSocket' : 'HTTP(S)'}
-                  {' → '}{t('requests.diagnostics.upstreamTransport')}: {selection.upstreamTransport === 'websocket' ? 'WebSocket' : 'HTTP(S)'}
-                  {selection.transportFallbackReason && <> · {t(`requests.diagnostics.transportReasons.${selection.transportFallbackReason}`, { defaultValue: selection.transportFallbackReason })}</>}
+                  {' → '}
+                  {t('requests.diagnostics.upstreamTransport')}: {selection.upstreamTransport === 'websocket' ? 'WebSocket' : 'HTTP(S)'}
+                  {selection.transportFallbackReason && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      {t(`requests.diagnostics.transportReasons.${selection.transportFallbackReason}`, {
+                        defaultValue: selection.transportFallbackReason,
+                      })}
+                    </>
+                  )}
                 </p>
               )}
               <h3 className='text-sm font-semibold'>{t('requests.diagnostics.selectionTitle')}</h3>

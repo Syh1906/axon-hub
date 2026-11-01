@@ -117,4 +117,8 @@ func TestModelPriceFallbackPreservesExplicitChannelPrices(t *testing.T) {
 	missing := captureRequestCostSnapshot(ctx, f.client, ch, "missing", nil)
 	_, cost, _ := service.computeSnapshotUsageCost(ctx, &llm.Usage{}, missing)
 	require.Nil(t, cost, "a missing price is not a free request")
+	_, cost, _ = service.computeSnapshotUsageCost(ctx, &llm.Usage{PromptTokens: 100, TotalTokens: 100}, &objects.RequestCostSnapshot{
+		ModelPrice: &objects.ModelPrice{}, Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)},
+	})
+	require.Nil(t, cost, "an empty price configuration is not an explicit zero price")
 }

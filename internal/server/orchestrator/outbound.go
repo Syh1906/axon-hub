@@ -89,8 +89,8 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 		// Check if this is a terminal event, which indicates the stream completed successfully.
 		// For Chat Completions API this is the raw [DONE] event; for Responses API this is
 		// response.completed; for Anthropic Messages API this is message_stop.
-		if IsTerminalStreamEvent(event) {
-			ts.state.StreamCompleted = true
+		ts.state.observeStreamTerminal(event)
+		if ts.state.StreamCompleted {
 			ts.markPerformanceCompleted()
 		}
 	}
@@ -99,6 +99,9 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 }
 
 func (ts *OutboundPersistentStream) Err() error {
+	if ts.state.StreamTerminalError != nil {
+		return ts.state.StreamTerminalError
+	}
 	return ts.stream.Err()
 }
 
@@ -112,7 +115,7 @@ func (ts *OutboundPersistentStream) Close() error {
 
 	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", len(ts.responseChunks)), log.Bool("received_done", ts.state.StreamCompleted))
 
-	streamErr := ts.stream.Err()
+	streamErr := ts.Err()
 	ctxErr := ctx.Err()
 
 	// If we received the [DONE] event, treat the stream as successfully completed
@@ -314,7 +317,7 @@ func (ts *OutboundPersistentStream) persistExecutionFailure(ctx context.Context,
 		return
 	}
 
-	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec.ID, rawErr, ts.failureLatencyMetrics())
+	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec.ID, rawErr, ts.failureLatencyMetrics(), nil)
 	if err != nil {
 		log.Warn(ctx, "Failed to update request execution status from error", log.Cause(err))
 	}
@@ -387,6 +390,9 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 }
 
 func isCompletedAggregated(meta llm.ResponseMeta) bool {
+	if meta.Status != "" {
+		return meta.Status == "completed"
+	}
 	return meta.Completed ||
 		(meta.Usage != nil && meta.Usage.CompletionTokens > 0)
 }
@@ -503,6 +509,8 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 
 	p.state.CurrentCandidate = candidate
 	p.state.StreamCompleted = false
+	p.state.StreamTerminalError = nil
+	p.state.ResponseTerminalError = nil
 	ctx = contexts.WithChannelAPIKey(ctx, "")
 	p.refreshCandidateAPIFormat(ctx, candidate, p.state.CurrentModelIndex, llmRequest)
 

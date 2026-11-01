@@ -71,84 +71,28 @@ func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannel
 		return svc.queryChannelsByRoutingOrder(ctx, query, input)
 	}
 
-	// If the model is not specified, return the query result directly.
-	if input.Model == nil || *input.Model == "" {
-		// The default (ID) order field has no GraphQL name and must keep a nil cursor value.
-		if order := input.OrderBy; order != nil && order.Field != nil && order.Field.String() != "" {
-			RestoreZeroCursorValue(input.After, order.Field.Value)
-			RestoreZeroCursorValue(input.Before, order.Field.Value)
+	if input.Model != nil && *input.Model != "" {
+		// Model aliases depend on settings. Inspect only these small fields,
+		// then let Ent paginate and load details for the matching page.
+		var candidates []*ent.Channel
+		if err := query.Clone().Select(channel.FieldID, channel.FieldSupportedModels, channel.FieldSettings).Scan(ctx, &candidates); err != nil {
+			return nil, err
 		}
-
-		return query.Paginate(ctx, input.After, input.First, input.Before, input.Last,
-			ent.WithChannelOrder(input.OrderBy),
-		)
-	}
-
-	// When model filtering is required, we fetch all results and filter in-memory, bypassing database pagination.
-	return svc.queryChannelsWithModelFilter(ctx, query, input)
-}
-
-// queryChannelsWithModelFilter performs model filtering without pagination.
-// When model filtering is required, return all matching channels without pagination.
-func (svc *ChannelService) queryChannelsWithModelFilter(
-	ctx context.Context,
-	query *ent.ChannelQuery,
-	input QueryChannelsInput,
-) (*ent.ChannelConnection, error) {
-	// Fetch all channels from the database
-	if input.OrderBy != nil {
-		query = query.Order(input.OrderBy.ToOrderOption())
-	}
-
-	channels, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter channels by model support
-	var filteredChannels []*ent.Channel
-
-	for _, channel := range channels {
-		channelObj := Channel{Channel: channel}
-		if channelObj.IsModelSupported(*input.Model) {
-			filteredChannels = append(filteredChannels, channel)
+		ids := make([]int, 0, len(candidates))
+		for _, candidate := range candidates {
+			if (&Channel{Channel: candidate}).IsModelSupported(*input.Model) {
+				ids = append(ids, candidate.ID)
+			}
 		}
+		query = query.Where(channel.IDIn(ids...))
 	}
 
-	// Build connection without pagination (ignore all pagination params for model filtering)
-	return svc.buildConnectionInMemory(filteredChannels, input.OrderBy), nil
-}
-
-// buildConnectionInMemory builds a relay-style connection from filtered channels.
-func (svc *ChannelService) buildConnectionInMemory(
-	channels []*ent.Channel,
-	order *ent.ChannelOrder,
-) *ent.ChannelConnection {
-	conn := &ent.ChannelConnection{
-		Edges:    []*ent.ChannelEdge{},
-		PageInfo: ent.PageInfo{},
+	// The default (ID) order field has no GraphQL name and keeps a nil cursor value.
+	if order := input.OrderBy; order != nil && order.Field != nil && order.Field.String() != "" {
+		RestoreZeroCursorValue(input.After, order.Field.Value)
+		RestoreZeroCursorValue(input.Before, order.Field.Value)
 	}
-
-	// Handle empty result
-	if len(channels) == 0 {
-		conn.TotalCount = 0
-		return conn
-	}
-
-	// Return all channels without pagination
-	conn.Edges = make([]*ent.ChannelEdge, len(channels))
-	for i, ch := range channels {
-		conn.Edges[i] = ch.ToEdge(order)
-	}
-
-	conn.PageInfo.HasNextPage = false
-	conn.PageInfo.HasPreviousPage = false
-
-	conn.TotalCount = len(channels)
-	if len(conn.Edges) > 0 {
-		conn.PageInfo.StartCursor = &conn.Edges[0].Cursor
-		conn.PageInfo.EndCursor = &conn.Edges[len(conn.Edges)-1].Cursor
-	}
-
-	return conn
+	return query.Paginate(ctx, input.After, input.First, input.Before, input.Last,
+		ent.WithChannelOrder(input.OrderBy),
+	)
 }

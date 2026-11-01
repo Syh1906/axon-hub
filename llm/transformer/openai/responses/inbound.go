@@ -1137,6 +1137,8 @@ func convertToResponsesAPIResponse(chatResp *llm.Response) *Response {
 				resp.Status = lo.ToPtr("completed")
 			case "error":
 				resp.Status = lo.ToPtr("failed")
+			case "canceled", "cancelled":
+				resp.Status = lo.ToPtr("cancelled")
 			}
 		}
 	}

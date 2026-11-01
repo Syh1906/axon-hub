@@ -69,7 +69,7 @@ func setupSpeechAPITestServices(t *testing.T, client *ent.Client) (*biz.ChannelS
 	}
 	channelService := biz.NewChannelServiceForTest(client)
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
-	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry())
+	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 
 	return channelService, requestService, systemService, usageLogService
 }

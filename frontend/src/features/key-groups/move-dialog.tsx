@@ -23,6 +23,7 @@ export function MoveDialog({ group, onClose }: { group: Group; onClose: () => vo
   const [selected, setSelected] = useState<Map<string, Member>>(new Map());
   const [review, setReview] = useState(false);
   const query = useInfiniteQuery({
+    gcTime: 0,
     queryKey: ['managementMoveCandidates', user?.id, project, group.id, debounced],
     enabled: !!user && !!project,
     initialPageParam: undefined as string | undefined,

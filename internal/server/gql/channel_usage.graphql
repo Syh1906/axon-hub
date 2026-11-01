@@ -28,4 +28,6 @@ type ChannelTodayModelUsage {
   cacheHitRate: Float
   standardCost: Float
   standardUnpricedCount: Int!
+  avgCostPerMillionTokens: Float
+  tokenPricedRequestCount: Int!
 }

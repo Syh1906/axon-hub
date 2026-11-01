@@ -840,8 +840,7 @@ func (svc *ModelService) CountModelAssociatedChannels(ctx context.Context, m *en
 	if m.MatchType == "" || m.MatchType == objects.ModelMatchExact {
 		return svc.countAssociatedChannels(ctx, EffectiveModelAssociations(settings, m))
 	}
-	channels, err := svc.entFromContext(ctx).Channel.Query().
-		Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).All(ctx)
+	channels, err := svc.queryAssociationChannels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query channels: %w", err)
 	}
@@ -883,9 +882,7 @@ func (svc *ModelService) countAssociatedChannels(ctx context.Context, associatio
 	}
 
 	// Query all enabled/disabled channels
-	channels, err := svc.entFromContext(ctx).Channel.Query().
-		Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).
-		All(ctx)
+	channels, err := svc.queryAssociationChannels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query channels: %w", err)
 	}

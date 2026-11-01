@@ -3,7 +3,9 @@ package biz
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +20,34 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/xfile"
 	"github.com/looplj/axonhub/llm"
 )
+
+func TestTracePreviewDoesNotLoadResponsePayload(t *testing.T) {
+	svc, client := setupTestTraceService(t, nil)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(context.Background())
+	project := client.Project.Create().SetName("preview").SaveX(ctx)
+	trace := client.Trace.Create().SetProjectID(project.ID).SetTraceID("preview").SaveX(ctx)
+	client.Request.Create().SetProjectID(project.ID).SetTraceID(trace.ID).SetModelID("model").SetStatus("completed").
+		SetFormat(llm.APIFormatOpenAIChatCompletion.String()).
+		SetRequestBody([]byte(`{"model":"model","messages":[{"role":"user","content":"show this prompt"}]}`)).
+		SetResponseBody([]byte(`{"choices":[{"message":{"role":"assistant","content":"unneeded response"}}]}`)).SaveX(ctx)
+	var statements []string
+	debug := ent.NewClient(ent.Driver(client.Driver()), ent.Debug(), ent.Log(func(args ...any) { statements = append(statements, fmt.Sprint(args...)) }))
+	preview, err := svc.FirstUserQuery(ent.NewContext(ctx, debug), trace.ID)
+	require.NoError(t, err)
+	require.NotNil(t, preview)
+	require.Equal(t, "show this prompt", *preview)
+	var requestReads int
+	for _, statement := range statements {
+		if strings.Contains(statement, "FROM `requests`") {
+			requestReads++
+			require.NotContains(t, statement, "response_body")
+			require.NotContains(t, statement, "response_chunks")
+			require.NotContains(t, statement, "request_headers")
+		}
+	}
+	require.Equal(t, 1, requestReads)
+}
 
 func setupTestTraceService(t *testing.T, client *ent.Client) (*TraceService, *ent.Client) {
 	t.Helper()
@@ -53,7 +83,7 @@ func setupTestTraceService(t *testing.T, client *ent.Client) (*TraceService, *en
 	channelService := NewChannelServiceForTest(client)
 	usageLogService := NewUsageLogService(client, systemService, channelService)
 	traceService := NewTraceService(TraceServiceParams{
-		RequestService: NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry()),
+		RequestService: NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry(), NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()})),
 		Ent:            client,
 	})
 

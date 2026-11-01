@@ -5,7 +5,12 @@ import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useErrorHandler } from '@/hooks/use-error-handler';
-import { channelsNeedingPageRefresh, publishUpstreamStates, refreshUpstreamChannels, type UpstreamRefreshOptions } from './channel-upstream-refresh';
+import {
+  channelsNeedingPageRefresh,
+  publishUpstreamStates,
+  refreshUpstreamChannels,
+  type UpstreamRefreshOptions,
+} from './channel-upstream-refresh';
 import { channelUpstreamStateSchema, type ChannelUpstreamState, type UpstreamInput } from './schema';
 
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
@@ -25,7 +30,7 @@ export const upstreamStateFields = `channelId provider manualMultiplier keySessi
 export function useChannelUpstreamStates(channelIds: string[]) {
   return useQuery({
     queryKey: ['channel-upstream', channelIds],
-    gcTime: 60_000,
+    gcTime: 0,
     enabled: channelIds.length > 0,
     queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(

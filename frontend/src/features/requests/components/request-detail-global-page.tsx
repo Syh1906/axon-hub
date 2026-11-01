@@ -17,7 +17,7 @@ export default function RequestDetailGlobalPage() {
   const { t } = useTranslation();
   const { requestId } = useParams({ from: '/_authenticated/requests/$requestId' });
   const router = useRouter();
-  const { data: request } = useRequest(requestId, { projectId: null });
+  const { data: request } = useRequest(requestId, { projectId: null, includePayload: false });
 
   const copyRequestID = async () => {
     try {

@@ -130,17 +130,17 @@ export function ConsumptionTable({
       <TableCell
         key={column.key}
         className='text-center tabular-nums'
-        title={column.key === 'avgTokensPerSecond'
-          ? t('consumption.speedSamples', { count: metrics.speedSampleCount })
-          : column.format === 'currency' && metrics.unpricedRequestCount > 0
-            ? t('consumption.unpricedHelp', { count: metrics.unpricedRequestCount })
-            : metrics[column.key] === null ? t('consumption.noSample') : undefined}
+        title={
+          column.key === 'avgTokensPerSecond' ? t('consumption.speedSamples', { count: metrics.speedSampleCount }) : undefined
+        }
       >
-        {child && column.hideInModel ? '—' : column.key === 'totalCost' && metrics.unpricedRequestCount > 0
-          ? <span>{metrics.totalCost === 0 && metrics.unpricedRequestCount === metrics.requestCount
-            ? t('consumption.unpriced')
-            : <>{formatMetric(metrics.totalCost, column)} <span className='text-muted-foreground text-xs'>{t('consumption.partiallyPriced')}</span></>}</span>
-          : formatMetric(metrics[column.key], column)}
+        {child && column.hideInModel ? (
+          '—'
+        ) : column.key === 'totalCost' && metrics.requestCount > 0 && metrics.unpricedRequestCount === metrics.requestCount && metrics.totalCost === 0 ? (
+          '—'
+        ) : (
+          formatMetric(metrics[column.key], column)
+        )}
       </TableCell>
     ));
   const toggle = (id: string) =>

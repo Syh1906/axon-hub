@@ -57,6 +57,8 @@ const (
 	FieldCheckAfter = "check_after"
 	// FieldSettledAt holds the string denoting the settled_at field in the database.
 	FieldSettledAt = "settled_at"
+	// FieldReservationReleasedAt holds the string denoting the reservation_released_at field in the database.
+	FieldReservationReleasedAt = "reservation_released_at"
 	// Table holds the table name of the budgetcharge in the database.
 	Table = "budget_charges"
 )
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldCheckAfter,
 	FieldSettledAt,
+	FieldReservationReleasedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -222,6 +225,11 @@ func ByCheckAfter(opts ...sql.OrderTermOption) OrderOption {
 // BySettledAt orders the results by the settled_at field.
 func BySettledAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSettledAt, opts...).ToFunc()
+}
+
+// ByReservationReleasedAt orders the results by the reservation_released_at field.
+func ByReservationReleasedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReservationReleasedAt, opts...).ToFunc()
 }
 
 // MarshalGQL implements graphql.Marshaler interface.

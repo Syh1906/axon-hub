@@ -150,16 +150,7 @@ func (s *TraceService) GetFirstSegment(ctx context.Context, traceID int) (*Segme
 }
 
 func (s *TraceService) GetFirstUserQuery(ctx context.Context, traceID int) (*string, error) {
-	segment, err := s.GetFirstSegment(ctx, traceID)
-	if err != nil {
-		return nil, err
-	}
-
-	if segment == nil {
-		return nil, nil
-	}
-
-	return segment.FirstUserQuery(), nil
+	return s.requestService.GetTraceFirstUserQuery(ctx, traceID)
 }
 
 func (s *TraceService) GetFirstText(ctx context.Context, traceID int) (*string, error) {
@@ -609,16 +600,7 @@ func (s *TraceService) getPreviousTraceSpans(ctx context.Context, client *ent.Cl
 
 // FirstUserQuery is the resolver for the firstUserQuery field.
 func (s *TraceService) FirstUserQuery(ctx context.Context, id int) (*string, error) {
-	segment, err := s.GetFirstSegment(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if segment == nil {
-		return nil, nil
-	}
-
-	return segment.FirstUserQuery(), nil
+	return s.GetFirstUserQuery(ctx, id)
 }
 
 // FirstText is the resolver for the firstText field.

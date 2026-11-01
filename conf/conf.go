@@ -29,18 +29,19 @@ import (
 type Config struct {
 	fx.Out `yaml:"-" json:"-"`
 
-	DB               db.Config           `conf:"db" yaml:"db" json:"db"`
-	Log              log.Config          `conf:"log" yaml:"log" json:"log"`
-	APIServer        server.Config       `conf:"server" yaml:"server" json:"server"`
-	Metrics          metrics.Config      `conf:"metrics" yaml:"metrics" json:"metrics"`
-	GC               gc.Config           `conf:"gc" yaml:"gc" json:"gc"`
-	DatabaseTransfer datatransfer.Config `conf:"database_transfer" yaml:"database_transfer" json:"database_transfer"`
-	Cache            xcache.Config       `conf:"cache" yaml:"cache" json:"cache"`
-	ProviderQuota    providerQuotaConfig `conf:"provider_quota" yaml:"provider_quota" json:"provider_quota"`
-	OIDC             biz.OIDCConfig      `conf:"oidc" yaml:"oidc" json:"oidc"`
-	DisableSSLVerify bool                `name:"disable_ssl_verify" yaml:"-" json:"-"`
-	AllowNoAuth      bool                `name:"allow_no_auth" yaml:"-" json:"-"`
-	APIKeyPrefix     string              `name:"api_key_prefix" yaml:"-" json:"-"`
+	DB               db.Config                `conf:"db" yaml:"db" json:"db"`
+	Log              log.Config               `conf:"log" yaml:"log" json:"log"`
+	APIServer        server.Config            `conf:"server" yaml:"server" json:"server"`
+	Metrics          metrics.Config           `conf:"metrics" yaml:"metrics" json:"metrics"`
+	GC               gc.Config                `conf:"gc" yaml:"gc" json:"gc"`
+	DatabaseTransfer datatransfer.Config      `conf:"database_transfer" yaml:"database_transfer" json:"database_transfer"`
+	Cache            xcache.Config            `conf:"cache" yaml:"cache" json:"cache"`
+	RequestPayload   biz.RequestPayloadConfig `conf:"request_payload" yaml:"request_payload" json:"request_payload"`
+	ProviderQuota    providerQuotaConfig      `conf:"provider_quota" yaml:"provider_quota" json:"provider_quota"`
+	OIDC             biz.OIDCConfig           `conf:"oidc" yaml:"oidc" json:"oidc"`
+	DisableSSLVerify bool                     `name:"disable_ssl_verify" yaml:"-" json:"-"`
+	AllowNoAuth      bool                     `name:"allow_no_auth" yaml:"-" json:"-"`
+	APIKeyPrefix     string                   `name:"api_key_prefix" yaml:"-" json:"-"`
 }
 
 type providerQuotaConfig struct {
@@ -312,6 +313,7 @@ func setDefaults(v *viper.Viper) {
 
 	// Cache defaults
 	v.SetDefault("cache.mode", "memory")
+	v.SetDefault("request_payload.directory", "data/request-payloads")
 	v.SetDefault("cache.default_expiration", "5m")
 	v.SetDefault("cache.cleanup_interval", "10m")
 	v.SetDefault("cache.redis.addr", "")

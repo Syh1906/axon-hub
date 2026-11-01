@@ -420,7 +420,12 @@ func (svc *ChannelService) GetChannel(ctx context.Context, channelID int) (*Chan
 		return nil, fmt.Errorf("channel not found: %w", err)
 	}
 
-	return svc.buildChannelWithOutbounds(entity)
+	ch, err := svc.buildChannelWithOutbounds(entity)
+	if err != nil {
+		return nil, err
+	}
+	svc.preloadModelPrices(ctx, ch)
+	return ch, nil
 }
 
 // GetChannelWithKey returns a channel with the outbound transformer's API key
@@ -433,7 +438,12 @@ func (svc *ChannelService) GetChannelWithKey(ctx context.Context, channelID int,
 		return nil, fmt.Errorf("channel not found: %w", err)
 	}
 
-	return svc.buildChannelWithOutbounds(entity, apiKey)
+	ch, err := svc.buildChannelWithOutbounds(entity, apiKey)
+	if err != nil {
+		return nil, err
+	}
+	svc.preloadModelPrices(ctx, ch)
+	return ch, nil
 }
 
 // ListModelsInput represents the input for listing models with filters.

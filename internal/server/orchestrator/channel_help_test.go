@@ -80,7 +80,7 @@ func newTestRequestServiceForChannels(client *ent.Client, systemService *biz.Sys
 	channelService := biz.NewChannelServiceForTest(client)
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
 
-	return biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry())
+	return biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), nil)
 }
 
 // setupTest creates a test context and ent client for testing.
@@ -251,7 +251,7 @@ func setupTestServices(t *testing.T, client *ent.Client) (*biz.ChannelService, *
 
 	channelService := biz.NewChannelServiceForTest(client)
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
-	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry())
+	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 
 	channelService = biz.NewChannelServiceForTest(client)
 

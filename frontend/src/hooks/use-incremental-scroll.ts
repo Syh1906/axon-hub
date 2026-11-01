@@ -7,6 +7,9 @@ export type IncrementalScrollOptions = {
   hasMore: boolean;
   error: boolean;
   onLoadMore: () => void;
+  hasPrevious?: boolean;
+  loadingPrevious?: boolean;
+  onLoadPrevious?: () => void;
   onTrim?: (rowCount: number) => void;
   onReset: () => void | Promise<unknown>;
   onAtTopChange: (atTop: boolean, reason?: 'scroll' | 'reset') => void;
@@ -28,15 +31,20 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
   }, []);
   useEffect(() => clearTrim, [clearTrim]);
 
-  const backToTop = useCallback(() => {
+  const backToTop = useCallback(async () => {
     clearTrim();
+    optionsRef.current.onAtTopChange(false, 'reset');
+    // Begin cancellation first, then move the viewport before the first page
+    // arrives. Otherwise the old bottom position immediately fetches page two.
+    const reset = optionsRef.current.onReset();
+    containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    await reset;
     containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     lastTop.current = 0;
     direction.current = 'up';
     setAtTop(true);
     atTopRef.current = true;
     optionsRef.current.onAtTopChange(true, 'reset');
-    return optionsRef.current.onReset();
   }, [clearTrim]);
 
   useEffect(() => {
@@ -57,13 +65,16 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
     const top = container.scrollTop;
     direction.current = top < lastTop.current ? 'up' : top > lastTop.current ? 'down' : direction.current;
     lastTop.current = top;
-    const isTop = top <= 8;
+    const isTop = top <= 8 && !current.hasPrevious;
     if (atTopRef.current !== isTop) {
       atTopRef.current = isTop;
       setAtTop(isTop);
       current.onAtTopChange(isTop, 'scroll');
     }
     clearTrim();
+    if (top < 180 && direction.current === 'up' && current.hasPrevious && !current.fetching && !current.error) {
+      current.onLoadPrevious?.();
+    }
     if (current.onTrim && direction.current === 'up') {
       // 连续滚动只记位置。停止后才回收尾部批次，避免每个滚动事件
       // 都强制布局并取消查询，造成卡顿和上下往返时的重复取数。

@@ -19,6 +19,8 @@ const metricsSchema = z.object({
   totalTokens: z.number(),
   totalCost: z.number(),
   unpricedRequestCount: z.number(),
+  pricedRequestCount: z.number(),
+  tokenPricedRequestCount: z.number(),
   speedSampleCount: z.number(),
   cacheRequests: z.number(),
   cacheReadTokens: z.number(),
@@ -54,7 +56,7 @@ export type ConsumptionEntry = z.infer<typeof entrySchema>;
 export type ConsumptionResult = z.infer<typeof resultSchema>;
 
 const METRIC_FIELDS = `
-  requestCount totalTokens totalCost unpricedRequestCount speedSampleCount cacheRequests cacheReadTokens cacheInputTokens cacheCreationCost
+  requestCount totalTokens totalCost unpricedRequestCount pricedRequestCount tokenPricedRequestCount speedSampleCount cacheRequests cacheReadTokens cacheInputTokens cacheCreationCost
   cacheHitRate successRate avgFirstTokenMs avgTokensPerSecond avgCostPerRequest avgCostPerMillionTokens cacheCoefficient
 `;
 const RESULT_FIELDS = `

@@ -143,7 +143,7 @@ func (s *responsesInboundStream) Next() bool {
 			}
 
 			if err := s.enqueueEvent(&StreamEvent{
-				Type:     StreamEventTypeResponseCompleted,
+				Type:     responseTerminalEventType(response.Status),
 				Response: response,
 			}); err != nil {
 				s.err = fmt.Errorf("failed to enqueue response.completed event: %w", err)
@@ -356,7 +356,7 @@ func (s *responsesInboundStream) Next() bool {
 		}
 
 		err := s.enqueueEvent(&StreamEvent{
-			Type:     StreamEventTypeResponseCompleted,
+			Type:     responseTerminalEventType(response.Status),
 			Response: response,
 		})
 		if err != nil {

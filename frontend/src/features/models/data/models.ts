@@ -530,8 +530,8 @@ const standardPricePageSchema = z.object({
 });
 export type ModelStandardPrice = z.infer<typeof standardPricePageSchema>['edges'][number]['node'];
 
-async function queryModelStandardPricePage(where: Record<string, unknown>, after?: string) {
-  const data = await graphqlRequest<{ models: unknown }>(MODEL_STANDARD_PRICES_QUERY, { first: 50, after, where });
+async function queryModelStandardPricePage(where: Record<string, unknown>, after?: string, signal?: AbortSignal) {
+  const data = await graphqlRequest<{ models: unknown }>(MODEL_STANDARD_PRICES_QUERY, { first: 50, after, where }, undefined, { signal });
   return standardPricePageSchema.parse(data.models);
 }
 
@@ -539,9 +539,10 @@ export function useModelStandardPrices(search: string, enabled: boolean) {
   return useInfiniteQuery({
     queryKey: ['models', 'standard-prices', search],
     enabled,
+    gcTime: 0,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      queryModelStandardPricePage(search ? { or: [{ modelIDContainsFold: search }, { nameContainsFold: search }] } : {}, pageParam),
+    queryFn: ({ pageParam, signal }) =>
+      queryModelStandardPricePage(search ? { or: [{ modelIDContainsFold: search }, { nameContainsFold: search }] } : {}, pageParam, signal),
     getNextPageParam: (page) => (page.pageInfo.hasNextPage ? (page.pageInfo.endCursor ?? undefined) : undefined),
   });
 }
@@ -569,12 +570,23 @@ interface QueryAllModelsArgs {
 export function useQueryAllModels(args: QueryAllModelsArgs) {
   return useQuery({
     queryKey: ['models', 'all', args],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ models: ModelConnection }>(MODELS_QUERY, {
-        first: 10000,
-        ...args,
-      });
-      return modelConnectionSchema.parse(data.models);
+    staleTime: 30_000,
+    gcTime: 0,
+    queryFn: async ({ signal }) => {
+      let result: ModelConnection | undefined;
+      let after: string | undefined;
+      do {
+        const data = await graphqlRequest<{ models: ModelConnection }>(MODELS_QUERY, { ...args, first: 500, after }, undefined, { signal });
+        const page = modelConnectionSchema.parse(data.models);
+        if (result) {
+          result.edges.push(...page.edges);
+          result.pageInfo = { ...page.pageInfo, startCursor: result.pageInfo.startCursor, hasPreviousPage: false };
+        } else {
+          result = page;
+        }
+        after = page.pageInfo.hasNextPage ? (page.pageInfo.endCursor ?? undefined) : undefined;
+      } while (after);
+      return result!;
     },
   });
 }

@@ -142,3 +142,29 @@ func TestRequestLogPageJump(t *testing.T) {
 	_, err = resolver.RequestLogs(context.Background(), nil, lo.ToPtr(20), nil, nil, order, where, &RequestLogFilterInput{Offset: lo.ToPtr(20)})
 	require.Error(t, err)
 }
+
+func TestRequestListCalculatedFieldsDoNotSelectPayloadColumns(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:request_list_columns?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(context.Background())
+	body := objects.JSONRawMessage(`{"input":"` + strings.Repeat("x", 1024) + `"}`)
+	req := client.Request.Create().SetModelID("columns").SetRequestBody(body).SetStatus("completed").SaveX(ctx)
+	client.RequestExecution.Create().SetRequestID(req.ID).SetModelID("columns").SetRequestBody(body).SetStatus("completed").SaveX(ctx)
+	var statements []string
+	debug := ent.NewClient(ent.Driver(client.Driver()), ent.Debug(), ent.Log(func(args ...any) { statements = append(statements, fmt.Sprint(args...)) }))
+	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: debug}}))
+	httpRequest := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{requestLogs(first:1){edges{node{id status outputTokensPerSecond executions(first:1){edges{node{id costSnapshot{applied{value}}}}}}}}}"}`)).WithContext(ent.NewContext(ctx, debug))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httpRequest)
+	require.Equal(t, http.StatusOK, response.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+	require.NotContains(t, payload, "errors", response.Body.String())
+	require.NotEmpty(t, statements)
+	for _, statement := range statements {
+		for _, column := range []string{"request_body", "response_body", "response_chunks", "request_headers"} {
+			require.NotContains(t, statement, column, "list queries must stay small even when older rows retain large bodies")
+		}
+	}
+}

@@ -61,11 +61,14 @@ export const requestExecutionSchema = z.object({
   requestHeaders: z.any().nullable().optional(),
   requestBody: z.any(), // JSONRawMessage
   responseBody: z.any().nullable(), // JSONRawMessage
-  responseChunks: z.array(z.any()).nullable(), // [JSONRawMessage!]
+  responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
   errorMessage: z.string().nullable(),
   responseStatusCode: z.number().nullable().optional(),
   selection: executionSelectionSchema.nullable().optional(),
-  costSnapshot: z.object({ applied: z.object({ value: z.number() }) }).nullable().optional(),
+  costSnapshot: z
+    .object({ applied: z.object({ value: z.number() }) })
+    .nullable()
+    .optional(),
   failure: executionFailureSchema.nullable().optional(),
   retryDecision: z.string().nullable().optional(),
   status: requestExecutionStatusSchema,

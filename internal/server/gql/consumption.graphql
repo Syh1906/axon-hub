@@ -40,6 +40,8 @@ type ConsumptionMetrics {
   totalTokens: Int!
   totalCost: Float!
   unpricedRequestCount: Int!
+  pricedRequestCount: Int!
+  tokenPricedRequestCount: Int!
   speedSampleCount: Int!
   cacheRequests: Int!
   cacheReadTokens: Int!

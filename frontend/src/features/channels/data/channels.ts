@@ -1,6 +1,4 @@
-import type { ServiceTierSettings } from './schema';
 import { useEffect } from 'react';
-import { useCursorList } from '@/hooks/use-cursor-list';
 import { z } from 'zod';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
@@ -21,6 +19,7 @@ import {
   CHANNEL_QUERY_HEALTH_SELECTION,
   CHANNEL_QUERY_QUOTA_SELECTION,
 } from './channel-query-fields';
+import type { ServiceTierSettings } from './schema';
 import {
   Channel,
   ChannelConnection,
@@ -1039,7 +1038,10 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
     queryFn: async () => {
       try {
         const data = await graphqlRequest<{
-          node: { settings?: { serviceTierBilling?: ServiceTierSettings | null; modelPriceMultiplier?: string | number | null } | null; channelModelPrices: ChannelModelPrice[] };
+          node: {
+            settings?: { serviceTierBilling?: ServiceTierSettings | null; modelPriceMultiplier?: string | number | null } | null;
+            channelModelPrices: ChannelModelPrice[];
+          };
         }>(GET_CHANNEL_MODEL_PRICES_QUERY, { id: channelId });
         return {
           prices: (data.node?.channelModelPrices || []).map((p) => channelModelPriceSchema.parse(p)),
@@ -1165,22 +1167,6 @@ export function useQueryChannels(
   }, [handleError, result.data, result.error, result.isPlaceholderData, t]);
 
   return result;
-}
-
-export function useInfiniteChannels(variables: NonNullable<Parameters<typeof useQueryChannels>[0]>, enabled: boolean, atTop: boolean) {
-  const { columnVisibility, ...input } = variables;
-  return useCursorList({
-    queryKey: ['channels', 'infinite', input, columnVisibility],
-    gcTime: 60_000,
-    enabled,
-    interval: atTop ? 5000 : false,
-    fetchPage: async (after, signal) => {
-      const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(buildQueryChannelsQuery(columnVisibility), {
-        input: { ...input, after },
-      }, undefined, { signal });
-      return channelConnectionSchema.parse(data.queryChannels);
-    },
-  });
 }
 
 export function useChannelDetails(channelID?: string, options?: { enabled?: boolean }) {
@@ -1420,7 +1406,15 @@ export function useUpdateChannelSettings() {
 
 export interface SaveChannelEndpointsInput {
   channelID: string;
-  endpoints: Array<{ apiFormat: string; path?: string; baseURL?: string; transport?: string; supportsWebSockets?: boolean | null; catalogURL?: string | null; catalogJSON?: unknown }>;
+  endpoints: Array<{
+    apiFormat: string;
+    path?: string;
+    baseURL?: string;
+    transport?: string;
+    supportsWebSockets?: boolean | null;
+    catalogURL?: string | null;
+    catalogJSON?: unknown;
+  }>;
 }
 
 export function useSaveChannelEndpoints() {
@@ -1989,6 +1983,7 @@ export function useChannelProbeData(channelIDs: string[], options?: { enabled?: 
 
   return useQuery({
     queryKey: ['channelProbeData', channelIDs],
+    gcTime: 0,
     queryFn: async () => {
       try {
         const data = await graphqlRequest<{ channelProbeData: any[] }>(CHANNEL_PROBE_DATA_QUERY, {

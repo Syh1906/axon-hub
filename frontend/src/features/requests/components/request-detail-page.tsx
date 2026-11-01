@@ -136,6 +136,7 @@ export default function RequestDetailPage() {
 
   const { data: requestData, refetch: refetchRequest } = useRequest(requestId, {
     projectId: selectedProjectId,
+    includePayload: false,
     disableAutoRefresh: isPreviewStreaming,
   });
 

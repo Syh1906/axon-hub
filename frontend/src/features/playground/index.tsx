@@ -32,7 +32,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-e
 import { Response as UIResponse } from '@/components/ai-elements/response';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
-import { useQueryModels } from '@/features/models/data/models';
+import { useModelGatewayOptions } from '@/features/models/data/model-options';
 import { usePermissions } from '@/hooks/usePermissions';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
@@ -141,18 +141,7 @@ export default function Playground() {
   // 获取 channels 数据
   const { data: channelsData, isLoading: channelsLoading } = useAllChannelSummarys(selectedProjectId);
   const isModelGatewaySource = modelSource === 'model_gateway';
-  const { data: modelsData, isLoading: modelsLoading } = useQueryModels(
-    {
-      first: 10000,
-      orderBy: { field: 'NAME', direction: 'ASC' },
-      where: {
-        statusIn: ['enabled'],
-        typeIn: ['chat'],
-      },
-    },
-    { enabled: isModelGatewaySource && canUseModelGateway }
-  );
-
+  const { data: modelsData, isLoading: modelsLoading } = useModelGatewayOptions(isModelGatewaySource && canUseModelGateway);
   const [input, setInput] = useState('');
 
   const { messages, sendMessage, status, setMessages, regenerate, stop } = useChat({

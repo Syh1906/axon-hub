@@ -163,6 +163,9 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	})
 	gqlSrv.Use(&loggingTracer{})
 	gqlSrv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+		if graphql.GetOperationContext(ctx).Operation.Operation == ast.Query {
+			ctx = biz.WithModelAssociationQueryCache(ctx)
+		}
 		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
 	})
 	gqlSrv.Use(entgql.Transactioner{

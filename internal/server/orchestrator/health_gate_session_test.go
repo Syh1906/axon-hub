@@ -391,7 +391,7 @@ func TestHealthGateSession_LegacyDoesNotSeed(t *testing.T) {
 				cache := miniredis.RunT(t)
 				f.request = biz.NewRequestService(f.client, xcache.Config{
 					Mode: xcache.ModeRedis, Redis: xredis.Config{Addr: cache.Addr()},
-				}, nil, nil, nil, nil)
+				}, nil, nil, nil, nil, biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 				f.selector.previousChannelProvider = f.request
 				trace, err := f.client.Trace.Create().SetProjectID(f.projectID).SetTraceID("legacy-no-seed").Save(f.ctx)
 				require.NoError(t, err)

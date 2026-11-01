@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getPayloadState } from '../utils/payload-state';
 import { ChunkItem } from './chunk-item';
+import { PayloadNotice } from './request-payload-viewer';
 
 interface ChunksDialogProps {
   open: boolean;
@@ -95,11 +97,14 @@ export function ChunksDialog({ open, onOpenChange, chunks, title, isLive }: Chun
     }
   }, [pageInputValue, totalChunksPages, chunksPage]);
 
-  const handlePageInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handlePageInputBlur();
-    }
-  }, [handlePageInputBlur]);
+  const handlePageInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        handlePageInputBlur();
+      }
+    },
+    [handlePageInputBlur]
+  );
 
   // Reset page when dialog opens or chunks identity changes.
   // Keep chunksPage out of deps so manual page navigation is not reverted.
@@ -139,6 +144,7 @@ export function ChunksDialog({ open, onOpenChange, chunks, title, isLive }: Chun
               variant='ghost'
               size='icon'
               className='h-8 w-8'
+              disabled={chunks.length === 1 && !!getPayloadState(chunks[0])}
               onClick={handleCopyAll}
             >
               {copied ? <Check className='h-4 w-4 text-green-500' /> : <Copy className='h-4 w-4' />}
@@ -147,6 +153,7 @@ export function ChunksDialog({ open, onOpenChange, chunks, title, isLive }: Chun
               variant='ghost'
               size='icon'
               className='h-8 w-8'
+              disabled={chunks.length === 1 && !!getPayloadState(chunks[0])}
               onClick={handleDownloadAll}
             >
               <Download className='h-4 w-4' />
@@ -154,16 +161,14 @@ export function ChunksDialog({ open, onOpenChange, chunks, title, isLive }: Chun
           </DialogTitle>
         </DialogHeader>
 
-        {chunks.length > 0 ? (
+        {chunks.length === 1 && getPayloadState(chunks[0]) ? (
+          <PayloadNotice body={chunks[0]} />
+        ) : chunks.length > 0 ? (
           <>
             <div className='bg-muted/20 w-full flex-1 overflow-auto rounded-lg border p-4'>
               <div className='space-y-4'>
                 {paginatedChunks.map((chunk, index) => (
-                  <ChunkItem
-                    key={(chunksPage - 1) * pageSize + index}
-                    chunk={chunk}
-                    index={(chunksPage - 1) * pageSize + index}
-                  />
+                  <ChunkItem key={(chunksPage - 1) * pageSize + index} chunk={chunk} index={(chunksPage - 1) * pageSize + index} />
                 ))}
               </div>
             </div>
@@ -205,12 +210,7 @@ export function ChunksDialog({ open, onOpenChange, chunks, title, isLive }: Chun
                     <span className='text-muted-foreground text-sm'>/ {totalChunksPages}</span>
                   </div>
                   <div className='flex items-center space-x-2'>
-                    <Button
-                      variant='outline'
-                      className='h-8 w-8 p-0'
-                      onClick={() => handleChunksPageChange(1)}
-                      disabled={chunksPage === 1}
-                    >
+                    <Button variant='outline' className='h-8 w-8 p-0' onClick={() => handleChunksPageChange(1)} disabled={chunksPage === 1}>
                       <span className='sr-only'>{t('pagination.firstPage')}</span>
                       <DoubleArrowLeftIcon className='h-4 w-4' />
                     </Button>

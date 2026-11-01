@@ -770,6 +770,10 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		return nil // Intentionally skip this event
 	}
 
+	// Failed and incomplete terminal responses can still contain billable usage.
+	if s.responseCompleted && streamEvent.Response != nil && streamEvent.Response.Usage != nil {
+		resp.Usage = streamEvent.Response.Usage.ToUsage()
+	}
 	s.enqueue(resp)
 
 	return nil

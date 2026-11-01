@@ -466,7 +466,8 @@ const apiKeyOptionConnectionSchema = z.object({
 
 async function fetchAPIKeyOptions(
   selectedProjectId: string | null | undefined,
-  variables: { first: number; after?: string; where: Record<string, unknown> }
+  variables: { first: number; after?: string; where: Record<string, unknown> },
+  signal?: AbortSignal
 ) {
   const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
   const data = await graphqlRequest<{ apiKeys: unknown }>(
@@ -475,7 +476,8 @@ async function fetchAPIKeyOptions(
       ...variables,
       orderBy: { field: 'CREATED_AT', direction: 'DESC' },
     },
-    headers
+    headers,
+    { signal }
   );
   return apiKeyOptionConnectionSchema.parse(data?.apiKeys);
 }
@@ -490,18 +492,24 @@ export function useApiKeyOptions(options?: { search?: string; includeArchived?: 
 
   return useInfiniteQuery({
     queryKey: ['apiKeys', 'options', selectedProjectId, includeArchived, search],
-    queryFn: async ({ pageParam }) => {
+    gcTime: 0,
+    queryFn: async ({ pageParam, signal }) => {
       try {
-        return await fetchAPIKeyOptions(selectedProjectId, {
-          first: 100,
-          after: pageParam,
-          where: {
-            typeNotIn: [NOAUTH_API_KEY_TYPE],
-            statusIn: includeArchived ? ['enabled', 'disabled', 'archived'] : ['enabled', 'disabled'],
-            ...(search ? { nameContainsFold: search } : {}),
+        return await fetchAPIKeyOptions(
+          selectedProjectId,
+          {
+            first: 100,
+            after: pageParam,
+            where: {
+              typeNotIn: [NOAUTH_API_KEY_TYPE],
+              statusIn: includeArchived ? ['enabled', 'disabled', 'archived'] : ['enabled', 'disabled'],
+              ...(search ? { nameContainsFold: search } : {}),
+            },
           },
-        });
+          signal
+        );
       } catch (error) {
+        if (signal.aborted) throw error;
         handleError(error, t('common.errors.internalServerError'));
         throw error;
       }

@@ -14,6 +14,9 @@ import (
 
 // OutputTokensPerSecond is the resolver for the outputTokensPerSecond field.
 func (r *requestResolver) OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error) {
+	if obj.Status == "pending" || obj.Status == "processing" {
+		return nil, nil
+	}
 	return requestOutputSpeed(ctx, r.client, obj.ID)
 }
 

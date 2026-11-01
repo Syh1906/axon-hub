@@ -25,22 +25,20 @@ export function ChannelTodayUsageCell({ channel }: { channel: Channel }) {
           <span>{t('channels.todayUsage.requests', { count: usage.requestCount })}</span>
           <span className='text-muted-foreground'>
             {allUnpriced
-              ? t('channels.todayUsage.unpriced')
+              ? '—'
               : t('currencies.format', {
                   val: usage.totalCost,
                   currency: usage.currencyCode,
                   locale: i18n.language === 'zh' ? 'zh-CN' : 'en-US',
                   minimumFractionDigits: 6,
                 })}
-            {!allUnpriced && usage.unpricedCount > 0 ? '*' : ''}
           </span>
         </button>
       </HoverCardTrigger>
-      <HoverCardContent className='w-[786px] max-w-[calc(100vw-24px)] p-3 text-left text-xs' sideOffset={6} collisionPadding={12}>
+      <HoverCardContent className='w-[920px] max-w-[calc(100vw-24px)] p-3 text-left text-xs' sideOffset={6} collisionPadding={12}>
         <p className='mb-2 font-medium'>{t('channels.todayUsage.modelDetails')}</p>
         {open && <ChannelTodayUsageModels channelId={channel.id} />}
         <p>{t('channels.todayUsage.timezone', { timezone: usage.timezone })}</p>
-        {usage.unpricedCount > 0 && <p>{t('channels.todayUsage.partial', { count: usage.unpricedCount })}</p>}
       </HoverCardContent>
     </HoverCard>
   );
@@ -71,9 +69,8 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
       unpriced: total.unpriced + model.unpricedCount,
       standard: total.standard + (model.standardCost ?? 0),
       standardKnown: total.standardKnown || model.standardCost !== null,
-      missing: total.missing + model.standardUnpricedCount,
     }),
-    { actual: 0, requests: 0, unpriced: 0, standard: 0, standardKnown: false, missing: 0 }
+    { actual: 0, requests: 0, unpriced: 0, standard: 0, standardKnown: false }
   );
   const money = (value: number) => t('currencies.format', { val: value, currency: data.currencyCode, locale, minimumFractionDigits: 6 });
   return (
@@ -82,26 +79,25 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
         <div>
           <p className='text-muted-foreground'>{t('channels.todayUsage.actualTotal')}</p>
           <p className='mt-1 font-medium tabular-nums'>
-            {totals.unpriced === totals.requests && totals.actual === 0 ? t('channels.todayUsage.unpriced') : money(totals.actual)}
-            {totals.unpriced > 0 && (totals.unpriced < totals.requests || totals.actual !== 0) ? '*' : ''}
+            {totals.unpriced === totals.requests && totals.actual === 0 ? '—' : money(totals.actual)}
           </p>
         </div>
         <div>
           <p className='text-muted-foreground'>{t('channels.todayUsage.standardTotal')}</p>
           <p className='mt-1 font-medium tabular-nums'>
             {totals.standardKnown ? money(totals.standard) : '—'}
-            {totals.standardKnown && totals.missing > 0 ? '*' : ''}
           </p>
         </div>
       </div>
       <div className='mb-2 max-h-[min(320px,50vh)] overflow-auto'>
-        <table className='w-[760px] border-collapse text-xs whitespace-nowrap'>
+        <table className='w-[894px] border-collapse text-xs whitespace-nowrap'>
           <thead>
             <tr className='border-b border-current/20'>
               <th className='px-2 py-2 text-left'>{t('channels.todayUsage.model')}</th>
               <th className='px-2 py-2 text-right'>{t('consumption.columns.requestCount')}</th>
               <th className='px-2 py-2 text-right'>{t('consumption.columns.totalTokens')}</th>
               <th className='px-2 py-2 text-right'>{t('consumption.columns.totalCost')}</th>
+              <th className='px-2 py-2 text-right'>{t('channels.todayUsage.perMillionCost')}</th>
               <th className='px-2 py-2 text-right'>{t('channels.todayUsage.standardCost')}</th>
               <th className='px-2 py-2 text-right' title={t('consumption.overallCacheHitRateHelp')}>
                 {t('consumption.columns.cacheHitRate')}
@@ -118,25 +114,16 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
                 <td className='px-2 py-2 text-right tabular-nums' title={model.totalTokens.toLocaleString(locale)}>
                   {formatNumber(model.totalTokens)}
                 </td>
-                <td
-                  className='px-2 py-2 text-right tabular-nums'
-                  title={model.unpricedCount ? t('channels.todayUsage.partial', { count: model.unpricedCount }) : undefined}
-                >
+                <td className='px-2 py-2 text-right tabular-nums'>
                   {model.unpricedCount === model.requestCount && model.totalCost === 0
-                    ? t('channels.todayUsage.unpriced')
+                    ? '—'
                     : t('currencies.format', { val: model.totalCost, currency: data.currencyCode, locale, minimumFractionDigits: 6 })}
-                  {model.unpricedCount > 0 && (model.unpricedCount < model.requestCount || model.totalCost !== 0) ? '*' : ''}
                 </td>
-                <td
-                  className='px-2 py-2 text-right tabular-nums'
-                  title={
-                    model.standardUnpricedCount > 0
-                      ? t('channels.todayUsage.standardMissing', { count: model.standardUnpricedCount })
-                      : undefined
-                  }
-                >
+                <td className='px-2 py-2 text-right tabular-nums'>
+                  {model.avgCostPerMillionTokens === null ? '—' : money(model.avgCostPerMillionTokens)}
+                </td>
+                <td className='px-2 py-2 text-right tabular-nums'>
                   {model.standardCost === null ? '—' : money(model.standardCost)}
-                  {model.standardCost !== null && model.standardUnpricedCount > 0 ? '*' : ''}
                 </td>
                 <td className='px-2 py-2 text-right tabular-nums'>
                   {model.cacheHitRate === null ? '—' : `${(model.cacheHitRate * 100).toFixed(1)}%`}
@@ -146,10 +133,8 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
           </tbody>
         </table>
       </div>
+      <p className='text-muted-foreground mb-1'>{t('channels.todayUsage.perMillionHelp')}</p>
       <p className='text-muted-foreground mb-1'>{t('channels.todayUsage.standardHelp')}</p>
-      {totals.missing > 0 && (
-        <p className='text-muted-foreground mb-2'>{t('channels.todayUsage.standardMissing', { count: totals.missing })}</p>
-      )}
     </>
   );
 }

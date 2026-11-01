@@ -1252,10 +1252,8 @@
   "channels.website.invalid": "请输入不含登录凭据的 HTTP 或 HTTPS 官网地址",
   "channels.columns.todayUsage": "今日用量",
   "channels.todayUsage.requests": "{{count}} 次请求",
-  "channels.todayUsage.unpriced": "未计价",
   "channels.todayUsage.loadFailed": "读取失败",
   "channels.todayUsage.timezone": "按 {{timezone}} 的今天统计",
-  "channels.todayUsage.partial": "{{count}} 次请求尚未计价，金额仅包含已计价部分",
   "channels.endpoints.supportsWebSockets": "支持 WebSocket",
   "channels.endpoints.webSocketsHint": "跟随客户端选择：HTTPS 始终可用；客户端使用 WebSocket 时优先使用，并在安全条件下回退 HTTPS。",
   "channels.endpoints.catalogURL": "Codex 模型目录地址",
@@ -1271,5 +1269,6 @@
   "channels.todayUsage.standardTotal": "标准总成本（1×）",
   "channels.todayUsage.standardCost": "标准成本（1×）",
   "channels.todayUsage.standardHelp": "按请求当时价格、模式和阶梯计算，渠道／Key 成本倍率统一为 1×。",
-  "channels.todayUsage.standardMissing": "{{count}} 次请求缺少完整计价依据，标准成本仅合计可还原部分。"
+  "channels.todayUsage.perMillionCost": "每百万 Token 成本",
+  "channels.todayUsage.perMillionHelp": "每百万 Token 成本使用最终实际倍率后的费用，与同批请求的 Token 数量计算。"
 }

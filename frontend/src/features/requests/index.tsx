@@ -273,8 +273,11 @@ function RequestsContent() {
     loadingMore: listMode === 'infinite' && infinite.isFetchingNextPage,
     fetching: query.isFetching,
     hasMore: listMode === 'infinite' && !!infinite.hasNextPage,
+    hasPrevious: listMode === 'infinite' && !!infinite.hasPreviousPage,
+    loadingPrevious: listMode === 'infinite' && infinite.isFetchingPreviousPage,
     error: query.isError,
     onLoadMore: infinite.loadMore,
+    onLoadPrevious: infinite.loadPrevious,
     onReset: () => (listMode === 'infinite' ? infinite.resetToTop() : paged.refetch()),
     onAtTopChange: (value: boolean, reason?: 'scroll' | 'reset') => {
       const wasAtTop = topRef.current;

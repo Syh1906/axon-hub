@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, type RefObject } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslation } from 'react-i18next';
@@ -72,10 +72,62 @@ export function ChannelsTableBody({
     useFlushSync: false,
   });
   const items = virtualizer.getVirtualItems();
+  const windowPosition = useRef<{
+    firstId?: string;
+    starts: Map<string, number>;
+    hasPrevious?: boolean;
+    resetKey: string;
+  } | null>(null);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const starts = new Map(rows.map((row, index) => [row.id, virtualizer.measurementsCache[index]?.start ?? 40]));
+    const previous = windowPosition.current;
+    const firstId = rows[0]?.id;
+    if (
+      previous?.resetKey === scroll.resetKey &&
+      previous.firstId &&
+      firstId &&
+      previous.firstId !== firstId &&
+      (previous.hasPrevious || scroll.hasPrevious)
+    ) {
+      // Compensate for the inserted/removed prefix using the current physical
+      // scroll offset. A fast response may arrive before a scroll render.
+      const insertedStart = starts.get(previous.firstId);
+      const removedStart = previous.starts.get(firstId);
+      const shift =
+        insertedStart !== undefined
+          ? insertedStart - (previous.starts.get(previous.firstId) ?? 40)
+          : removedStart !== undefined
+            ? (starts.get(firstId) ?? 40) - removedStart
+            : 0;
+      if (shift) virtualizer.scrollToOffset(Math.max(0, container.scrollTop + shift));
+    }
+    windowPosition.current = { firstId, starts, hasPrevious: scroll.hasPrevious, resetKey: scroll.resetKey };
+  });
   const lastIndex = items.at(-1)?.index ?? -1;
   useEffect(() => {
-    if (rows.length > 0 && lastIndex >= rows.length - 3 && scroll.hasMore && !scroll.fetching && !scroll.error) scroll.onLoadMore();
+    // A cache window change can leave one render with the previous virtual range.
+    // Read the actual viewport before starting another page request.
+    const container = containerRef.current;
+    const nearBottom = !!container && container.scrollHeight - container.scrollTop - container.clientHeight < 400;
+    if (rows.length > 0 && lastIndex >= rows.length - 3 && nearBottom && scroll.hasMore && !scroll.fetching && !scroll.error)
+      scroll.onLoadMore();
   }, [lastIndex, rows.length, scroll.hasMore, scroll.fetching, scroll.error, scroll.onLoadMore]);
+  const firstIndex = items[0]?.index ?? -1;
+  useEffect(() => {
+    if (
+      rows.length > 0 &&
+      firstIndex >= 0 &&
+      firstIndex < 3 &&
+      (containerRef.current?.scrollTop ?? Infinity) < 180 &&
+      scroll.hasPrevious &&
+      !scroll.fetching &&
+      !scroll.error
+    ) {
+      scroll.onLoadPrevious?.();
+    }
+  }, [firstIndex, rows.length, scroll.hasPrevious, scroll.fetching, scroll.error, scroll.onLoadPrevious]);
   const columnCount = table.getVisibleLeafColumns().length;
   const top = Math.max(0, (items[0]?.start ?? 40) - 40);
   const bottom = Math.max(0, virtualizer.getTotalSize() - ((items.at(-1)?.end ?? 40) - 40));

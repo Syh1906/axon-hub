@@ -236,7 +236,7 @@ func newRequestPreviewTestSetup(t *testing.T) requestPreviewTestSetup {
 		Cache:           xcache.NewFromConfig[ent.DataStorage](xcache.Config{Mode: xcache.ModeMemory}),
 	}
 	liveStreamRegistry := biz.NewLiveStreamRegistry()
-	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, liveStreamRegistry)
+	requestService := biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, liveStreamRegistry, biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 	handlers := NewRequestPreviewHandlers(RequestPreviewHandlersParams{
 		RequestService:     requestService,
 		LiveStreamRegistry: liveStreamRegistry,

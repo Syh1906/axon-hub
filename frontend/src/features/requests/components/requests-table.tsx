@@ -428,6 +428,7 @@ export function RequestsTable({
         ref={scrolling.containerRef}
         onScroll={scrolling.onScroll}
         data-testid='requests-scroll'
+        style={{ overflowAnchor: 'none' }}
         className='shadow-soft relative mt-2 min-h-0 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)] [overflow-anchor:none] sm:mt-4'
       >
         <div className='w-full'>

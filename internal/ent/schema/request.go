@@ -95,7 +95,8 @@ func (Request) Fields() []ent.Field {
 			Optional().
 			MaxLen(512),
 		// The status of the request.
-		field.Enum("status").Values("pending", "processing", "completed", "failed", "canceled"),
+		field.Enum("status").Values("pending", "processing", "completed", "failed", "canceled").
+			Annotations(entgql.CollectedFor("outputTokensPerSecond")),
 		field.Int("client_status_code").Optional().Nillable(),
 		// Whether the request is a streaming request
 		field.Bool("stream").Default(false).Immutable(),

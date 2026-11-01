@@ -42,7 +42,7 @@ func newRequestStickyTestService(
 		Client:        client,
 	})
 
-	return ctx, client, NewRequestService(client, requestCacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry())
+	return ctx, client, NewRequestService(client, requestCacheConfig, systemService, usageLogService, dataStorageService, NewLiveStreamRegistry(), NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
 }
 
 func createRequestStickyScope(t *testing.T, ctx context.Context, client *ent.Client) (*ent.Thread, *ent.Trace, *ent.Channel) {

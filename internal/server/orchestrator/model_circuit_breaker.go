@@ -72,6 +72,10 @@ func (m *modelCircuitBreakerTracker) OnOutboundLlmResponse(ctx context.Context, 
 	if !m.shouldTrack() {
 		return response, nil
 	}
+	if m.outbound.state.ResponseTerminalError != nil {
+		m.OnOutboundRawError(ctx, m.outbound.state.ResponseTerminalError)
+		return response, nil
+	}
 
 	m.releaseProbeLease()
 

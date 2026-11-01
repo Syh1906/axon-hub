@@ -101,6 +101,10 @@ func (m *performanceRecording) OnOutboundLlmResponse(ctx context.Context, respon
 	if m.outbound.state.Perf == nil {
 		return response, nil
 	}
+	if m.outbound.state.ResponseTerminalError != nil {
+		m.OnOutboundRawError(ctx, m.outbound.state.ResponseTerminalError)
+		return response, nil
+	}
 
 	if response != nil && response.Usage != nil {
 		if tokenCount := response.Usage.GetCompletionTokens(); tokenCount != nil && *tokenCount > 0 {

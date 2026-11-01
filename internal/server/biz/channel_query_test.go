@@ -44,16 +44,16 @@ func TestChannelService_QueryChannels_WithModelFilter(t *testing.T) {
 		expectedEdgeCount int
 	}{
 		{
-			name: "filter by gpt-4 model - should return all without pagination",
+			name: "filter by gpt-4 model - first page",
 			input: QueryChannelsInput{
 				Model: lo.ToPtr("gpt-4"),
-				// First should be ignored when model is specified
+				// Model filtering keeps the requested page size
 				First: lo.ToPtr(2),
 			},
-			expectedIDs:       []int{channels[0].ID, channels[1].ID, channels[3].ID, channels[5].ID},
-			expectedHasNext:   false,
+			expectedIDs:       []int{channels[0].ID, channels[1].ID},
+			expectedHasNext:   true,
 			expectedHasPrev:   false,
-			expectedEdgeCount: 4,
+			expectedEdgeCount: 2,
 		},
 		{
 			name: "filter by gpt-4 model - all",
@@ -66,10 +66,10 @@ func TestChannelService_QueryChannels_WithModelFilter(t *testing.T) {
 			expectedEdgeCount: 4,
 		},
 		{
-			name: "filter by claude-3-opus - should return all without pagination",
+			name: "filter by claude-3-opus - exact page",
 			input: QueryChannelsInput{
 				Model: lo.ToPtr("claude-3-opus"),
-				First: lo.ToPtr(2), // Should be ignored
+				First: lo.ToPtr(2),
 			},
 			expectedIDs:       []int{channels[2].ID, channels[3].ID},
 			expectedHasNext:   false,
@@ -97,15 +97,15 @@ func TestChannelService_QueryChannels_WithModelFilter(t *testing.T) {
 			expectedEdgeCount: 0,
 		},
 		{
-			name: "filter by gpt-4 with Last parameter - should ignore pagination",
+			name: "filter by gpt-4 with Last parameter",
 			input: QueryChannelsInput{
 				Model: lo.ToPtr("gpt-4"),
-				Last:  lo.ToPtr(1), // Should be ignored
+				Last:  lo.ToPtr(1),
 			},
-			expectedIDs:       []int{channels[0].ID, channels[1].ID, channels[3].ID, channels[5].ID},
+			expectedIDs:       []int{channels[5].ID},
 			expectedHasNext:   false,
-			expectedHasPrev:   false,
-			expectedEdgeCount: 4,
+			expectedHasPrev:   true,
+			expectedEdgeCount: 1,
 		},
 	}
 
@@ -136,47 +136,45 @@ func TestChannelService_QueryChannels_WithModelFilter(t *testing.T) {
 	}
 }
 
-func TestChannelService_QueryChannels_ModelFilterNoPagination(t *testing.T) {
+func TestChannelService_QueryChannels_ModelFilterPagination(t *testing.T) {
 	svc, client := setupTestChannelService(t)
 	defer client.Close()
-
-	ctx := context.Background()
-	ctx = ent.NewContext(ctx, client)
-	ctx = authz.WithTestBypass(ctx)
-
-	// Create channels for testing
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	var expected []int
 	for i := 1; i <= 10; i++ {
-		var models []string
+		models := []string{"claude-3-opus"}
 		if i%2 == 0 {
 			models = []string{"gpt-4"}
-		} else {
-			models = []string{"claude-3-opus"}
 		}
-
-		_ = createTestChannel(t, client, ctx, "FwdChannel"+strconv.Itoa(i), models, nil)
+		ch := createTestChannel(t, client, ctx, "FwdChannel"+strconv.Itoa(i), models, nil)
+		if i%2 == 0 {
+			expected = append(expected, ch.ID)
+		}
 	}
-
-	t.Run("model filter returns all results ignoring pagination", func(t *testing.T) {
-		// Even with First=2, should return all 5 gpt-4 channels
-		result, err := svc.QueryChannels(ctx, QueryChannelsInput{
-			Model: lo.ToPtr("gpt-4"),
-			First: lo.ToPtr(2), // Should be ignored
-		})
+	var after *ent.Cursor
+	var actual []int
+	var second *ent.ChannelConnection
+	for page := 0; ; page++ {
+		result, err := svc.QueryChannels(ctx, QueryChannelsInput{Model: lo.ToPtr("gpt-4"), First: lo.ToPtr(2), After: after})
 		require.NoError(t, err)
-		require.Len(t, result.Edges, 5) // All 5 gpt-4 channels
-		require.False(t, result.PageInfo.HasNextPage)
-		require.False(t, result.PageInfo.HasPreviousPage)
-
-		// Even with Last=1, should return all 5 gpt-4 channels
-		result2, err := svc.QueryChannels(ctx, QueryChannelsInput{
-			Model: lo.ToPtr("gpt-4"),
-			Last:  lo.ToPtr(1), // Should be ignored
-		})
-		require.NoError(t, err)
-		require.Len(t, result2.Edges, 5) // All 5 gpt-4 channels
-		require.False(t, result2.PageInfo.HasNextPage)
-		require.False(t, result2.PageInfo.HasPreviousPage)
-	})
+		require.LessOrEqual(t, len(result.Edges), 2)
+		for _, edge := range result.Edges {
+			actual = append(actual, edge.Node.ID)
+		}
+		if page == 1 {
+			second = result
+		}
+		if !result.PageInfo.HasNextPage {
+			break
+		}
+		after = result.PageInfo.EndCursor
+	}
+	require.Equal(t, expected, actual)
+	previous, err := svc.QueryChannels(ctx, QueryChannelsInput{Model: lo.ToPtr("gpt-4"), Last: lo.ToPtr(2), Before: second.PageInfo.StartCursor})
+	require.NoError(t, err)
+	require.Len(t, previous.Edges, 2)
+	require.Equal(t, expected[0], previous.Edges[0].Node.ID)
+	require.Equal(t, expected[1], previous.Edges[1].Node.ID)
 }
 
 func TestChannelService_QueryChannels_WithModelMapping(t *testing.T) {

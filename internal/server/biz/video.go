@@ -61,7 +61,10 @@ func (s *VideoService) GetTask(ctx context.Context, requestID int) (*llm.Respons
 
 	if status == request.StatusCompleted || status == request.StatusFailed {
 		client := s.RequestService.entFromContext(ctx)
-		execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).Order(ent.Desc(requestexecution.FieldID)).First(ctx)
+		execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).
+			Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldProjectID, requestexecution.FieldChannelID,
+				requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldExternalID, requestexecution.FieldCostSnapshot).
+			Order(ent.Desc(requestexecution.FieldID)).First(ctx)
 		if execErr == nil {
 			usage := video.Usage
 			if usage == nil && status == request.StatusCompleted && execution.CostSnapshot != nil {
@@ -80,8 +83,15 @@ func (s *VideoService) GetTask(ctx context.Context, requestID int) (*llm.Respons
 					}
 				}
 			}
-			if _, err := s.RequestService.UsageLogService.CreateUsageLogFromRequest(ctx, task, execution, usage); err != nil {
-				log.Warn(ctx, "settle video budget", log.Cause(err))
+			if usage != nil || status == request.StatusCompleted {
+				if _, err := s.RequestService.UsageLogService.CreateUsageLogFromRequest(ctx, task, execution, usage); err != nil {
+					log.Warn(ctx, "settle video budget", log.Cause(err))
+				}
+			}
+			if err := s.RequestService.UsageLogService.BudgetService.RecordAsyncResult(ctx, execution.ID, video.Video.Status); err != nil {
+				log.Warn(ctx, "persist terminal video budget task", log.Cause(err))
+			} else if err := s.RequestService.UsageLogService.BudgetService.EndAttempt(ctx, execution.ID); err != nil {
+				log.Warn(ctx, "close terminal video budget task", log.Cause(err))
 			}
 		} else if !ent.IsNotFound(execErr) {
 			return nil, execErr
@@ -180,7 +190,10 @@ func (s *VideoService) loadTask(ctx context.Context, requestID int) (*ent.Reques
 		return nil, nil, nil, fmt.Errorf("%w: ent client not found in context", ErrInternal)
 	}
 
-	task, err := client.Request.Get(ctx, requestID)
+	task, err := client.Request.Query().Where(request.IDEQ(requestID)).Select(
+		request.FieldID, request.FieldProjectID, request.FieldAPIKeyID, request.FieldSource, request.FieldFormat,
+		request.FieldStatus, request.FieldChannelID, request.FieldExternalID,
+	).Only(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -201,6 +214,7 @@ func (s *VideoService) loadTask(ctx context.Context, requestID int) (*ent.Reques
 	videoKey := ""
 	executions, err := client.RequestExecution.Query().
 		Where(requestexecution.RequestID(requestID)).
+		Select(requestexecution.FieldFormat, requestexecution.FieldExternalID).
 		Order(ent.Desc(requestexecution.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -276,10 +290,10 @@ func (s *VideoService) pollBudgetTask(ctx context.Context, task *objects.BudgetA
 }
 
 func completedVideoUsage(usage *llm.Usage, completed bool, snapshot *objects.RequestCostSnapshot) *llm.Usage {
-	if usage != nil || !completed || snapshot == nil || snapshot.Price == nil {
+	if usage != nil || !completed || snapshot.CurrentPrice() == nil {
 		return usage
 	}
-	items := effectiveModelPriceItems(nil, *snapshot.Price, snapshot.PricedAt)
+	items := effectiveModelPriceItems(nil, *snapshot.CurrentPrice(), snapshot.PricedAt)
 	if len(items) == 0 {
 		return nil
 	}

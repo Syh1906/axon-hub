@@ -32,6 +32,8 @@ func queryChannelTodayUsageModels(ctx context.Context, client *ent.Client, id in
 		input, read   int64
 		standard      decimal.Decimal
 		standardKnown bool
+		pricedCost    float64
+		pricedTokens  int64
 	}
 	models := map[string]*modelTotals{}
 	for after := 0; after < lastID; {
@@ -79,18 +81,23 @@ func queryChannelTodayUsageModels(ctx context.Context, client *ent.Client, id in
 			}
 			total.RequestCount++
 			seen, unpriced, standardMissing := false, false, false
+			var requestCost float64
+			var requestTokens int64
 			for _, row := range byRequest[req.ID] {
 				if row.ProjectID != req.ProjectID {
 					continue
 				}
 				seen = true
-				total.TotalTokens += row.TotalTokens
+				tokens := row.PromptTokens + row.CompletionTokens
+				total.TotalTokens += tokens
+				requestTokens += tokens
 				total.input += row.PromptTokens
 				total.read += row.PromptCachedTokens
 				if row.TotalCost == nil {
 					unpriced = true
 				} else {
 					total.TotalCost += *row.TotalCost
+					requestCost += *row.TotalCost
 				}
 				if cost, ok := usageStandardCost(row, versions); ok {
 					total.standard = total.standard.Add(cost)
@@ -101,6 +108,10 @@ func queryChannelTodayUsageModels(ctx context.Context, client *ent.Client, id in
 			}
 			if !seen || unpriced {
 				total.UnpricedCount++
+			} else if requestTokens > 0 {
+				total.pricedCost += requestCost
+				total.pricedTokens += requestTokens
+				total.TokenPricedRequestCount++
 			}
 			if !seen || standardMissing {
 				total.StandardUnpricedCount++
@@ -110,6 +121,7 @@ func queryChannelTodayUsageModels(ctx context.Context, client *ent.Client, id in
 	}
 	result := make([]*objects.ChannelTodayModelUsage, 0, len(models))
 	for _, total := range models {
+		total.AvgCostPerMillionTokens = consumptionRatio(total.pricedCost*1_000_000, total.pricedTokens)
 		if total.input > 0 {
 			rate := min(1, max(0, float64(total.read)/float64(total.input)))
 			total.CacheHitRate = &rate

@@ -175,6 +175,26 @@ func (_u *BudgetChargeUpdate) ClearSettledAt() *BudgetChargeUpdate {
 	return _u
 }
 
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (_u *BudgetChargeUpdate) SetReservationReleasedAt(v time.Time) *BudgetChargeUpdate {
+	_u.mutation.SetReservationReleasedAt(v)
+	return _u
+}
+
+// SetNillableReservationReleasedAt sets the "reservation_released_at" field if the given value is not nil.
+func (_u *BudgetChargeUpdate) SetNillableReservationReleasedAt(v *time.Time) *BudgetChargeUpdate {
+	if v != nil {
+		_u.SetReservationReleasedAt(*v)
+	}
+	return _u
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (_u *BudgetChargeUpdate) ClearReservationReleasedAt() *BudgetChargeUpdate {
+	_u.mutation.ClearReservationReleasedAt()
+	return _u
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_u *BudgetChargeUpdate) Mutation() *BudgetChargeMutation {
 	return _u.mutation
@@ -306,6 +326,12 @@ func (_u *BudgetChargeUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.SettledAtCleared() {
 		_spec.ClearField(budgetcharge.FieldSettledAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReservationReleasedAt(); ok {
+		_spec.SetField(budgetcharge.FieldReservationReleasedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReservationReleasedAtCleared() {
+		_spec.ClearField(budgetcharge.FieldReservationReleasedAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -473,6 +499,26 @@ func (_u *BudgetChargeUpdateOne) ClearSettledAt() *BudgetChargeUpdateOne {
 	return _u
 }
 
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (_u *BudgetChargeUpdateOne) SetReservationReleasedAt(v time.Time) *BudgetChargeUpdateOne {
+	_u.mutation.SetReservationReleasedAt(v)
+	return _u
+}
+
+// SetNillableReservationReleasedAt sets the "reservation_released_at" field if the given value is not nil.
+func (_u *BudgetChargeUpdateOne) SetNillableReservationReleasedAt(v *time.Time) *BudgetChargeUpdateOne {
+	if v != nil {
+		_u.SetReservationReleasedAt(*v)
+	}
+	return _u
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (_u *BudgetChargeUpdateOne) ClearReservationReleasedAt() *BudgetChargeUpdateOne {
+	_u.mutation.ClearReservationReleasedAt()
+	return _u
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_u *BudgetChargeUpdateOne) Mutation() *BudgetChargeMutation {
 	return _u.mutation
@@ -634,6 +680,12 @@ func (_u *BudgetChargeUpdateOne) sqlSave(ctx context.Context) (_node *BudgetChar
 	}
 	if _u.mutation.SettledAtCleared() {
 		_spec.ClearField(budgetcharge.FieldSettledAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReservationReleasedAt(); ok {
+		_spec.SetField(budgetcharge.FieldReservationReleasedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReservationReleasedAtCleared() {
+		_spec.ClearField(budgetcharge.FieldReservationReleasedAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &BudgetCharge{config: _u.config}

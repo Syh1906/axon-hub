@@ -528,10 +528,10 @@ func (s *errorResponseStream) Close() error {
 // reported as a successful completion downstream.
 func TestInboundTransformer_TransformStream_MapsFinishReasonToCompletedStatus(t *testing.T) {
 	tests := []struct {
-		name                 string
-		finishReason         string
-		expectedStatus       string
-		expectedIncomplete   *ResponseIncompleteDetails
+		name               string
+		finishReason       string
+		expectedStatus     string
+		expectedIncomplete *ResponseIncompleteDetails
 	}{
 		{name: "length maps to incomplete", finishReason: "length", expectedStatus: "incomplete", expectedIncomplete: &ResponseIncompleteDetails{Reason: "max_output_tokens"}},
 		{name: "content_filter maps to incomplete", finishReason: "content_filter", expectedStatus: "incomplete", expectedIncomplete: &ResponseIncompleteDetails{Reason: "content_filter"}},
@@ -573,7 +573,7 @@ func TestInboundTransformer_TransformStream_MapsFinishReasonToCompletedStatus(t 
 			for stream.Next() {
 				var ev StreamEvent
 				require.NoError(t, json.Unmarshal(stream.Current().Data, &ev))
-				if ev.Type == StreamEventTypeResponseCompleted && ev.Response != nil {
+				if ev.Type == StreamEventType("response."+tt.expectedStatus) && ev.Response != nil {
 					completed = ev.Response
 				}
 			}
@@ -632,7 +632,7 @@ func TestInboundTransformer_TransformStream_UsageBeforeFinishReasonKeepsMappedSt
 	for stream.Next() {
 		var ev StreamEvent
 		require.NoError(t, json.Unmarshal(stream.Current().Data, &ev))
-		if ev.Type == StreamEventTypeResponseCompleted && ev.Response != nil {
+		if ev.Type == StreamEventTypeResponseIncomplete && ev.Response != nil {
 			completed = ev.Response
 		}
 	}

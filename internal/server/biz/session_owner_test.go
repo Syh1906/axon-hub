@@ -647,7 +647,7 @@ func TestRoutingDecisionIsPersisted(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:session-routing-decision?mode=memory&_fk=0")
 	defer client.Close()
 	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
-	svc := NewRequestService(client, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil)
+	svc := NewRequestService(client, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil, NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
 	req, err := client.Request.Create().SetTraceID(7).SetModelID("test-model").SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("completed").Save(ctx)
 	require.NoError(t, err)
 	decision := &objects.RequestRoutingDecision{
@@ -672,8 +672,8 @@ func TestRoutingDecisionIsPersisted(t *testing.T) {
 func TestSessionOwnerTwoLevelUsesAuthoritativeRedis(t *testing.T) {
 	server := miniredis.RunT(t)
 	cfg := xcache.Config{Mode: xcache.ModeTwoLevel, Redis: xredis.Config{Addrs: []string{server.Addr()}}}
-	first := NewRequestService(nil, cfg, nil, nil, nil, nil)
-	second := NewRequestService(nil, cfg, nil, nil, nil, nil)
+	first := NewRequestService(nil, cfg, nil, nil, nil, nil, NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
+	second := NewRequestService(nil, cfg, nil, nil, nil, nil, NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
 	ctx := t.Context()
 	setTestSessionOwner(first, ctx, 5, 7, SessionOwner{ChannelID: 10})
 	old, found, err := second.GetSessionOwner(ctx, 5, 7)
@@ -692,7 +692,7 @@ func TestSessionOwnerTwoLevelUsesAuthoritativeRedis(t *testing.T) {
 	require.NotEqual(t, "chain", second.sessionOwnerCache.GetType())
 	require.Equal(t, "chain", second.previousChannelCache.GetType(), "other routing strategies retain their cache policy")
 	require.Equal(t, xcache.ModeTwoLevel, cfg.Mode)
-	withoutRedis := NewRequestService(nil, xcache.Config{Mode: xcache.ModeTwoLevel}, nil, nil, nil, nil)
+	withoutRedis := NewRequestService(nil, xcache.Config{Mode: xcache.ModeTwoLevel}, nil, nil, nil, nil, NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}))
 	setTestSessionOwner(withoutRedis, ctx, 5, 7, SessionOwner{ChannelID: 15})
 	current, found, err := withoutRedis.GetSessionOwner(ctx, 5, 7)
 	require.NoError(t, err)

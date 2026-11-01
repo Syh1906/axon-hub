@@ -12,9 +12,10 @@ import (
 )
 
 // Settle commits a single actual cost, both constraint postings, counters and
-// the usage log together. A nil cost retains the reservation for reconciliation.
+// the usage log together. A nil cost remains unknown until evidence arrives;
+// EndAttempt releases the independent temporary hold.
 // handled=false means this attempt predates budget activation.
-func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budget.Amount, createLog func(context.Context, *ent.Client) (*ent.UsageLog, error)) (result *ent.UsageLog, handled bool, err error) {
+func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budget.Amount, saveLog func(context.Context, *ent.Client, *ent.UsageLog) (*ent.UsageLog, error)) (result *ent.UsageLog, handled bool, err error) {
 	err = s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
 		handled = true
 		if charge.UsageLogID != nil {
@@ -27,9 +28,9 @@ func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budge
 		if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
 			return nil
 		}
-		if charge.UsageLogID == nil && createLog != nil {
+		if saveLog != nil {
 			var err error
-			result, err = createLog(ctx, db)
+			result, err = saveLog(ctx, db, result)
 			if err != nil {
 				return err
 			}
@@ -53,7 +54,11 @@ func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budge
 			if versions[budget.Total] < 0 {
 				continue
 			}
-			if account.Reserved < charge.Estimate {
+			hold := int64(0)
+			if charge.ReservationReleasedAt == nil {
+				hold = charge.Estimate
+			}
+			if account.Reserved < hold {
 				return fmt.Errorf("inconsistent budget reservation")
 			}
 			if err := advanceBudget(account, now); err != nil {
@@ -100,9 +105,12 @@ func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budge
 					state.Counters[rule.Period] = counter
 				}
 			}
-			if err := db.BudgetAccount.UpdateOneID(account.ID).SetState(*state).AddReserved(-charge.Estimate).Exec(ctx); err != nil {
+			if err := db.BudgetAccount.UpdateOneID(account.ID).SetState(*state).AddReserved(-hold).Exec(ctx); err != nil {
 				return err
 			}
+		}
+		if charge.ReservationReleasedAt == nil {
+			update.SetReservationReleasedAt(now)
 		}
 		return update.SetActual(int64(*cost)).SetStatus(budgetcharge.StatusSettled).SetSettledAt(now).Exec(ctx)
 	})

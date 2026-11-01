@@ -37,6 +37,7 @@ func setupTestThreadService(t *testing.T) (*ThreadService, *ent.Client) {
 					},
 				),
 				NewLiveStreamRegistry(),
+				NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}),
 			),
 			Ent: client,
 		}),

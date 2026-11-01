@@ -66,6 +66,9 @@ func (s *UsageLogService) computeSnapshotUsageCost(ctx context.Context, usage *l
 		price = &version.Price
 	}
 	items, total := computeCostFromSnapshot(usage, *price, snapshot)
+	if len(items) == 0 {
+		return nil, nil, snapshot.PriceReferenceID
+	}
 	for _, item := range items {
 		if item.Unpriced {
 			return items, nil, snapshot.PriceReferenceID

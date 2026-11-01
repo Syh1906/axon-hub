@@ -29,7 +29,7 @@ func (BudgetCharge) Fields() []ent.Field {
 		field.Int64("estimate").Immutable(),
 		field.Int64("actual").Optional().Nillable(),
 		field.JSON("usage", &llm.Usage{}).Optional(),
- field.JSON("async_task", &objects.BudgetAsyncTask{}).Optional(),
+		field.JSON("async_task", &objects.BudgetAsyncTask{}).Optional(),
 		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).Optional(),
 		field.Int("usage_log_id").Optional().Nillable(),
 		field.JSON("key_versions", map[budget.Period]int64{}).Immutable(),
@@ -37,6 +37,8 @@ func (BudgetCharge) Fields() []ent.Field {
 		field.Enum("status").Values("prepared", "sent", "unknown", "settled", "released").Default("prepared"),
 		field.Time("check_after"),
 		field.Time("settled_at").Optional().Nillable(),
+		// Releasing a temporary hold does not settle an unknown provider cost.
+		field.Time("reservation_released_at").Optional().Nillable(),
 	}
 }
 func (BudgetCharge) Indexes() []ent.Index {

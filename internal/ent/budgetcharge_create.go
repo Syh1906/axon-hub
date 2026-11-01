@@ -209,6 +209,20 @@ func (_c *BudgetChargeCreate) SetNillableSettledAt(v *time.Time) *BudgetChargeCr
 	return _c
 }
 
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (_c *BudgetChargeCreate) SetReservationReleasedAt(v time.Time) *BudgetChargeCreate {
+	_c.mutation.SetReservationReleasedAt(v)
+	return _c
+}
+
+// SetNillableReservationReleasedAt sets the "reservation_released_at" field if the given value is not nil.
+func (_c *BudgetChargeCreate) SetNillableReservationReleasedAt(v *time.Time) *BudgetChargeCreate {
+	if v != nil {
+		_c.SetReservationReleasedAt(*v)
+	}
+	return _c
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_c *BudgetChargeCreate) Mutation() *BudgetChargeMutation {
 	return _c.mutation
@@ -410,6 +424,10 @@ func (_c *BudgetChargeCreate) createSpec() (*BudgetCharge, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SettledAt(); ok {
 		_spec.SetField(budgetcharge.FieldSettledAt, field.TypeTime, value)
 		_node.SettledAt = &value
+	}
+	if value, ok := _c.mutation.ReservationReleasedAt(); ok {
+		_spec.SetField(budgetcharge.FieldReservationReleasedAt, field.TypeTime, value)
+		_node.ReservationReleasedAt = &value
 	}
 	return _node, _spec
 }
@@ -616,6 +634,24 @@ func (u *BudgetChargeUpsert) UpdateSettledAt() *BudgetChargeUpsert {
 // ClearSettledAt clears the value of the "settled_at" field.
 func (u *BudgetChargeUpsert) ClearSettledAt() *BudgetChargeUpsert {
 	u.SetNull(budgetcharge.FieldSettledAt)
+	return u
+}
+
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (u *BudgetChargeUpsert) SetReservationReleasedAt(v time.Time) *BudgetChargeUpsert {
+	u.Set(budgetcharge.FieldReservationReleasedAt, v)
+	return u
+}
+
+// UpdateReservationReleasedAt sets the "reservation_released_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsert) UpdateReservationReleasedAt() *BudgetChargeUpsert {
+	u.SetExcluded(budgetcharge.FieldReservationReleasedAt)
+	return u
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (u *BudgetChargeUpsert) ClearReservationReleasedAt() *BudgetChargeUpsert {
+	u.SetNull(budgetcharge.FieldReservationReleasedAt)
 	return u
 }
 
@@ -873,6 +909,27 @@ func (u *BudgetChargeUpsertOne) UpdateSettledAt() *BudgetChargeUpsertOne {
 func (u *BudgetChargeUpsertOne) ClearSettledAt() *BudgetChargeUpsertOne {
 	return u.Update(func(s *BudgetChargeUpsert) {
 		s.ClearSettledAt()
+	})
+}
+
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (u *BudgetChargeUpsertOne) SetReservationReleasedAt(v time.Time) *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetReservationReleasedAt(v)
+	})
+}
+
+// UpdateReservationReleasedAt sets the "reservation_released_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsertOne) UpdateReservationReleasedAt() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateReservationReleasedAt()
+	})
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (u *BudgetChargeUpsertOne) ClearReservationReleasedAt() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearReservationReleasedAt()
 	})
 }
 
@@ -1296,6 +1353,27 @@ func (u *BudgetChargeUpsertBulk) UpdateSettledAt() *BudgetChargeUpsertBulk {
 func (u *BudgetChargeUpsertBulk) ClearSettledAt() *BudgetChargeUpsertBulk {
 	return u.Update(func(s *BudgetChargeUpsert) {
 		s.ClearSettledAt()
+	})
+}
+
+// SetReservationReleasedAt sets the "reservation_released_at" field.
+func (u *BudgetChargeUpsertBulk) SetReservationReleasedAt(v time.Time) *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetReservationReleasedAt(v)
+	})
+}
+
+// UpdateReservationReleasedAt sets the "reservation_released_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsertBulk) UpdateReservationReleasedAt() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateReservationReleasedAt()
+	})
+}
+
+// ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
+func (u *BudgetChargeUpsertBulk) ClearReservationReleasedAt() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearReservationReleasedAt()
 	})
 }
 

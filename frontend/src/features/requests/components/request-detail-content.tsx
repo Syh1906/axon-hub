@@ -1,32 +1,33 @@
-import { CostCell } from '@/components/request-usage-cells';
-import { SystemTime } from '@/components/system-time';
-import { apiKeyLabel } from '@/components/api-key-identity';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { DashboardIcon } from '@radix-ui/react-icons';
 import { Copy, Clock, Key, Database, FileText, Layers, Download, Terminal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { getTokenFromStorage } from '@/stores/authStore';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { extractNumberID } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { JsonViewer } from '@/components/json-tree-view';
+import { apiKeyLabel } from '@/components/api-key-identity';
+import { CostCell } from '@/components/request-usage-cells';
+import { SystemTime } from '@/components/system-time';
 import { useGeneralSettings } from '@/features/system/data/system';
-import { getTokenFromStorage } from '@/stores/authStore';
-import { useUsageLogs } from '../data/usage-logs';
 import { type Request, useRequest, useRequestExecutions } from '../data';
+import { useUsageLogs } from '../data/usage-logs';
+import { generateRequestCurl, generateExecutionCurl } from '../utils/curl-generator';
+import { getPayloadState } from '../utils/payload-state';
+import { parseRequestConversation } from '../utils/request-conversation';
+import { parseResponse } from '../utils/response-parser';
+import { getVideoLastFrameURL, isVideoRequestFormat } from '../utils/video-display';
 import { ChunksDialog } from './chunks-dialog';
 import { CostRecalculationPreview } from './cost-recalculation-preview';
 import { CurlPreviewDialog } from './curl-preview-dialog';
 import { getStatusColor } from './help';
 import { RequestConversationViewer } from './request-conversation-viewer';
+import { RequestPayloadViewer as JsonViewer, PayloadNotice } from './request-payload-viewer';
 import { ResponseFlow } from './response-flow';
-import { parseResponse } from '../utils/response-parser';
-import { parseRequestConversation } from '../utils/request-conversation';
-import { generateRequestCurl, generateExecutionCurl } from '../utils/curl-generator';
-import { getVideoLastFrameURL, isVideoRequestFormat } from '../utils/video-display';
 
 interface RequestDetailContentProps {
   requestId: string;
@@ -40,7 +41,6 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
   const [showResponseChunks, setShowResponseChunks] = useState(false);
   const [showExecutionChunks, setShowExecutionChunks] = useState(false);
-  const [selectedResponseChunks, setSelectedResponseChunks] = useState<any[]>([]);
   const [selectedExecutionChunks, setSelectedExecutionChunks] = useState<any[]>([]);
   const [showCurlPreview, setShowCurlPreview] = useState(false);
   const [curlCommand, setCurlCommand] = useState('');
@@ -50,10 +50,18 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
   const [audioLoadFailed, setAudioLoadFailed] = useState(false);
   const [responseView, setResponseView] = useState<'preview' | 'json'>('preview');
   const [requestBodyView, setRequestBodyView] = useState<'conversation' | 'json'>('conversation');
+  const [activeTab, setActiveTab] = useState('request');
 
   const { data: settings } = useGeneralSettings();
-  const { data: requestData, isLoading } = useRequest(requestId, { projectId, disableAutoRefresh: isPreviewStreaming });
-  const request = previewRequest ?? requestData;
+  const { data: requestData, isLoading } = useRequest(requestId, {
+    projectId,
+    disableAutoRefresh: isPreviewStreaming,
+    includePayload: activeTab !== 'executions',
+    payload: activeTab === 'response' ? 'response' : 'request',
+  });
+  const request = previewRequest
+    ? { ...requestData, ...previewRequest, requestHeaders: requestData?.requestHeaders, requestBody: requestData?.requestBody }
+    : requestData;
   const routingDecision = requestData?.routingDecision ?? request?.routingDecision;
 
   // Auto-select the appropriate request-body view once data is available:
@@ -78,7 +86,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
       first: 10,
       orderBy: { field: 'CREATED_AT', direction: 'DESC' },
     },
-    { projectId }
+    { projectId, enabled: activeTab === 'executions' }
   );
   const { data: usageLogs } = useUsageLogs(
     {
@@ -119,9 +127,11 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
     }
     if (toolCalls.length > 0) {
       if (result) result += '\n\n';
-      result += toolCalls.map(tc => {
-        return `Tool Call: ${tc.function?.name}\nArguments: ${tc.function?.arguments}`;
-      }).join('\n\n');
+      result += toolCalls
+        .map((tc) => {
+          return `Tool Call: ${tc.function?.name}\nArguments: ${tc.function?.arguments}`;
+        })
+        .join('\n\n');
     }
 
     return result.trim();
@@ -156,7 +166,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
   // fetchStoredContent downloads the binary artifact (video/audio) saved to external storage
   // via the content-type-agnostic /admin/requests/:id/content endpoint.
-  const fetchStoredContent = useCallback(async (): Promise<{ blob: Blob; filename: string } | null> => {
+  const fetchStoredContent = useCallback(async (signal?: AbortSignal): Promise<{ blob: Blob; filename: string } | null> => {
     if (!request?.contentSaved || !request?.contentStorageKey || !projectId) return null;
 
     const requestIdNumber = extractNumberID(request.id);
@@ -170,6 +180,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
     const url = `/admin/requests/${encodeURIComponent(requestIdNumber)}/content`;
     const resp = await fetch(url, {
+      signal,
       headers: {
         Authorization: `Bearer ${token}`,
         'X-Project-ID': projectId,
@@ -251,18 +262,19 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
   // Load the stored audio artifact into an object URL for inline playback (TTS).
   useEffect(() => {
-    if (!isSpeechRequest || !hasStoredContent) {
+    if (activeTab !== 'response' || !isSpeechRequest || !hasStoredContent) {
       return;
     }
 
     let cancelled = false;
     let createdUrl: string | null = null;
+    const controller = new AbortController();
 
     (async () => {
       try {
         setIsLoadingAudio(true);
         setAudioLoadFailed(false);
-        const result = await fetchStoredContent();
+        const result = await fetchStoredContent(controller.signal);
         if (cancelled) return;
         if (!result) {
           setAudioLoadFailed(true);
@@ -281,15 +293,16 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
     return () => {
       cancelled = true;
+      controller.abort();
       if (createdUrl) URL.revokeObjectURL(createdUrl);
       setAudioObjectUrl(null);
+      setIsLoadingAudio(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSpeechRequest, hasStoredContent, request?.id]);
+  }, [activeTab, isSpeechRequest, hasStoredContent, request?.id]);
 
   const showResponseChunksModal = useCallback(() => {
     if (request?.responseChunks) {
-      setSelectedResponseChunks(request.responseChunks);
       setShowResponseChunks(true);
     }
   }, [request]);
@@ -316,11 +329,14 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
     setShowCurlPreview(true);
   }, []);
 
-  const showExecutionCurlPreview = useCallback((headers: any, body: any, channel?: { baseURL?: string; type?: string }, apiFormat?: string, requestURL?: string) => {
-    const curl = generateExecutionCurl(headers, body, channel as any, apiFormat as any, requestURL);
-    setCurlCommand(curl);
-    setShowCurlPreview(true);
-  }, []);
+  const showExecutionCurlPreview = useCallback(
+    (headers: any, body: any, channel?: { baseURL?: string; type?: string }, apiFormat?: string, requestURL?: string) => {
+      const curl = generateExecutionCurl(headers, body, channel as any, apiFormat as any, requestURL);
+      setCurlCommand(curl);
+      setShowCurlPreview(true);
+    },
+    []
+  );
 
   const calculateLatency = (createdAt: string | Date, updatedAt: string | Date) => {
     if (!createdAt || !updatedAt) return null;
@@ -402,7 +418,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 <Key className='text-primary h-3.5 w-3.5' />
                 <span className='text-xs font-medium'>{t('requests.dialogs.requestDetail.fields.apiKeyName')}</span>
               </div>
-              <p className='text-muted-foreground font-mono text-xs'>{apiKeyLabel(request.apiKey ?? {}) || t('requests.columns.unknown')}</p>
+              <p className='text-muted-foreground font-mono text-xs'>
+                {apiKeyLabel(request.apiKey ?? {}) || t('requests.columns.unknown')}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -419,10 +437,23 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 {routingDecision.owner ? (
                   <div className='break-words'>
                     {routingDecision.owner.channelName || t('requests.routingDecision.channelId', { id: routingDecision.owner.channelID })}
-                    {routingDecision.owner.actualModel && <> · <span className='font-mono'>{routingDecision.owner.actualModel}</span></>}
-                    {routingDecision.owner.state && <> · {t(`requests.routingDecision.states.${routingDecision.owner.state}`, { defaultValue: routingDecision.owner.state })}</>}
+                    {routingDecision.owner.actualModel && (
+                      <>
+                        {' '}
+                        · <span className='font-mono'>{routingDecision.owner.actualModel}</span>
+                      </>
+                    )}
+                    {routingDecision.owner.state && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        {t(`requests.routingDecision.states.${routingDecision.owner.state}`, { defaultValue: routingDecision.owner.state })}
+                      </>
+                    )}
                   </div>
-                ) : <div>{t('requests.routingDecision.noOwner')}</div>}
+                ) : (
+                  <div>{t('requests.routingDecision.noOwner')}</div>
+                )}
               </div>
               <div>
                 <div className='text-muted-foreground'>{t('requests.routingDecision.temporaryFailover')}</div>
@@ -444,36 +475,56 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   {routingDecision.skipped.map((combo, index) => (
                     <li key={`${combo.channelID}-${combo.actualModel}-${index}`} className='rounded-md border px-3 py-2 break-words'>
                       {combo.channelName || t('requests.routingDecision.channelId', { id: combo.channelID })}
-                      {' · '}<span className='font-mono'>{combo.actualModel}</span>
+                      {' · '}
+                      <span className='font-mono'>{combo.actualModel}</span>
                       {combo.state && <> · {t(`requests.routingDecision.states.${combo.state}`, { defaultValue: combo.state })}</>}
                     </li>
                   ))}
                 </ul>
-              ) : <div>{t('requests.routingDecision.noneSkipped')}</div>}
+              ) : (
+                <div>{t('requests.routingDecision.noneSkipped')}</div>
+              )}
             </div>
             <div>
               <div className='text-muted-foreground'>{t('requests.routingDecision.migration')}</div>
               {routingDecision.migration ? (
                 <div className='break-words'>
-                  {routingDecision.migration.fromChannelName || t('requests.routingDecision.channelId', { id: routingDecision.migration.fromChannelID })}
+                  {routingDecision.migration.fromChannelName ||
+                    t('requests.routingDecision.channelId', { id: routingDecision.migration.fromChannelID })}
                   {' → '}
-                  {routingDecision.migration.toChannelName || t('requests.routingDecision.channelId', { id: routingDecision.migration.toChannelID })}
-                  {' · '}{t(`requests.routingDecision.reasons.${routingDecision.migration.reason}`, { defaultValue: routingDecision.migration.reason })}
+                  {routingDecision.migration.toChannelName ||
+                    t('requests.routingDecision.channelId', { id: routingDecision.migration.toChannelID })}
+                  {' · '}
+                  {t(`requests.routingDecision.reasons.${routingDecision.migration.reason}`, {
+                    defaultValue: routingDecision.migration.reason,
+                  })}
                 </div>
-              ) : <div>{t('requests.routingDecision.noMigration')}</div>}
+              ) : (
+                <div>{t('requests.routingDecision.noMigration')}</div>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
-
       {usageLogs?.edges.length === 0 && request.status === 'completed' && (
         <Card className='border-0 shadow-sm'>
-          <CardHeader><CardTitle className='text-base'>{t('requests.detail.tabs.usage')}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className='text-base'>{t('requests.detail.tabs.usage')}</CardTitle>
+          </CardHeader>
           <CardContent>
-            <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={(val) => t('currencies.format', {
-              val, currency: settings?.currencyCode ?? 'USD', locale: i18n.language === 'zh' ? 'zh-CN' : 'en-US', minimumFractionDigits: 6,
-            })} />
+            <CostRecalculationPreview
+              requestId={requestId}
+              projectId={projectId}
+              formatCurrency={(val) =>
+                t('currencies.format', {
+                  val,
+                  currency: settings?.currencyCode ?? 'USD',
+                  locale: i18n.language === 'zh' ? 'zh-CN' : 'en-US',
+                  minimumFractionDigits: 6,
+                })
+              }
+            />
           </CardContent>
         </Card>
       )}
@@ -533,7 +584,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {usage.totalCost == null && <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={formatCurrency} />}
+                {usage.totalCost == null && (
+                  <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={formatCurrency} />
+                )}
                 {usage.costItems?.some((item) => item.image) && (
                   <div className='mb-3 flex flex-col gap-2 rounded-md border p-3 text-sm'>
                     <div className='flex justify-between font-medium'>
@@ -550,9 +603,11 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {' '}
                                 · {item.image.width > 0 ? `${item.image.width} × ${item.image.height} · ` : ''}
                                 {t(`price.image.source.${item.image.source}`)}
-                  {item.image.requestedWidth != null && item.image.requestedWidth > 0 && ` · ${t('price.image.requestedDimensions', { width: item.image.requestedWidth, height: item.image.requestedHeight })}`}
-                  {item.image.inspectionError && ` · ${t(`price.image.reason.${item.image.inspectionError}`)}`}
-                  {item.unpricedReason && ` · ${t(`price.image.reason.${item.unpricedReason}`)}`}
+                                {item.image.requestedWidth != null &&
+                                  item.image.requestedWidth > 0 &&
+                                  ` · ${t('price.image.requestedDimensions', { width: item.image.requestedWidth, height: item.image.requestedHeight })}`}
+                                {item.image.inspectionError && ` · ${t(`price.image.reason.${item.image.inspectionError}`)}`}
+                                {item.unpricedReason && ` · ${t(`price.image.reason.${item.unpricedReason}`)}`}
                                 {item.image.tierSource &&
                                   item.image.tierSource !== item.image.source &&
                                   ` · ${t(`price.image.source.${item.image.tierSource}`)}`}
@@ -605,17 +660,27 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                           {t('requests.columns.writeCache')}: {writeCachedTokens.toLocaleString()}
                         </p>
                       )}
-                      <p className='text-muted-foreground text-xs'>{renderCost(cost > 0 ? (cacheReadCost || 0) + (cacheWriteCost || 0) : null)}</p>
+                      <p className='text-muted-foreground text-xs'>
+                        {renderCost(cost > 0 ? (cacheReadCost || 0) + (cacheWriteCost || 0) : null)}
+                      </p>
                     </div>
                   </div>
                   <div className='bg-muted/30 flex flex-col justify-center rounded-lg border px-2.5 py-2'>
                     <span className='text-muted-foreground text-xs font-medium'>{t('usageLogs.columns.totalTokens')}</span>
                     <div className='mt-1'>
                       <p className='text-sm font-semibold'>{usage.totalTokens.toLocaleString()}</p>
-                      <CostCell total={usage.totalCost ?? null} currencyCode={settings?.currencyCode ?? 'USD'} breakdown={{
-                        items: (usage.costItems ?? []).map((item) => ({ ...item, variant: item.promptWriteCacheVariantCode ?? null, tiers: item.tierBreakdown ?? [] })),
-                        multiplier: usage.costPriceMultiplier ?? 'mixed',
-                      }} />
+                      <CostCell
+                        total={usage.totalCost ?? null}
+                        currencyCode={settings?.currencyCode ?? 'USD'}
+                        breakdown={{
+                          items: (usage.costItems ?? []).map((item) => ({
+                            ...item,
+                            variant: item.promptWriteCacheVariantCode ?? null,
+                            tiers: item.tierBreakdown ?? [],
+                          })),
+                          multiplier: usage.costPriceMultiplier ?? 'mixed',
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -626,7 +691,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
       <Card className='border-0 shadow-sm'>
         <CardContent className='p-0'>
-          <Tabs defaultValue='request' className='w-full'>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
             <div className='bg-muted/20 border-b px-6 pt-6'>
               <TabsList className='bg-background grid w-full grid-cols-3'>
                 <TabsTrigger value='request' className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'>
@@ -647,6 +712,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   variant='outline'
                   size='sm'
                   onClick={() => showRequestCurlPreview(request.requestHeaders, request.requestBody, request.format)}
+                  disabled={!!getPayloadState(request.requestBody)}
                   className='hover:bg-primary hover:text-primary-foreground'
                 >
                   <Terminal className='mr-2 h-4 w-4' />
@@ -661,18 +727,35 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       {t('requests.columns.requestHeaders')}
                     </h4>
                     <div className='flex gap-2'>
-                      <Button variant='outline' size='sm' onClick={() => copyToClipboard(formatJson(request.requestHeaders))} className='hover:bg-primary hover:text-primary-foreground'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => copyToClipboard(formatJson(request.requestHeaders))}
+                        className='hover:bg-primary hover:text-primary-foreground'
+                      >
                         <Copy className='mr-2 h-4 w-4' />
                         {t('requests.dialogs.jsonViewer.copy')}
                       </Button>
-                      <Button variant='outline' size='sm' onClick={() => downloadFile(formatJson(request.requestHeaders), `request-headers-${request.id}.json`)} className='hover:bg-primary hover:text-primary-foreground'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => downloadFile(formatJson(request.requestHeaders), `request-headers-${request.id}.json`)}
+                        className='hover:bg-primary hover:text-primary-foreground'
+                      >
                         <Download className='mr-2 h-4 w-4' />
                         {t('requests.dialogs.jsonViewer.download')}
                       </Button>
                     </div>
                   </div>
                   <div className='bg-muted/20 h-[300px] w-full overflow-auto rounded-lg border p-4'>
-                    <JsonViewer data={request.requestHeaders} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                    <JsonViewer
+                      data={request.requestHeaders}
+                      rootName=''
+                      defaultExpanded={true}
+                      expandDepth='all'
+                      hideArrayIndices={true}
+                      className='text-sm'
+                    />
                   </div>
                 </div>
               )}
@@ -690,11 +773,22 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       </TabsList>
                     </Tabs>
                     <div className='flex gap-2'>
-                      <Button variant='outline' size='sm' onClick={() => copyToClipboard(formatJson(request.requestBody))} className='hover:bg-primary hover:text-primary-foreground'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        disabled={!!getPayloadState(request.requestBody)}
+                        onClick={() => copyToClipboard(formatJson(request.requestBody))}
+                        className='hover:bg-primary hover:text-primary-foreground'
+                      >
                         <Copy className='mr-2 h-4 w-4' />
                         {t('requests.dialogs.jsonViewer.copy')}
                       </Button>
-                      <Button variant='outline' size='sm' onClick={() => downloadFile(formatJson(request.requestBody), `request-body-${request.id}.json`)} className='hover:bg-primary hover:text-primary-foreground'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => downloadFile(formatJson(request.requestBody), `request-body-${request.id}.json`)}
+                        className='hover:bg-primary hover:text-primary-foreground'
+                      >
                         <Download className='mr-2 h-4 w-4' />
                         {t('requests.dialogs.jsonViewer.download')}
                       </Button>
@@ -705,7 +799,14 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   <RequestConversationViewer body={request.requestBody} format={request.format} />
                 ) : (
                   <div className='bg-muted/20 h-[500px] w-full overflow-auto rounded-lg border p-4'>
-                    <JsonViewer data={request.requestBody} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                    <JsonViewer
+                      data={request.requestBody}
+                      rootName=''
+                      defaultExpanded={true}
+                      expandDepth='all'
+                      hideArrayIndices={true}
+                      className='text-sm'
+                    />
                   </div>
                 )}
               </div>
@@ -766,7 +867,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                           copyToClipboard(formatJson(request.responseBody));
                         }
                       }}
-                      disabled={responseView === 'preview' ? !extractResponseText() : !hasResponseBody}
+                      disabled={
+                        !!getPayloadState(request.responseBody) || (responseView === 'preview' ? !extractResponseText() : !hasResponseBody)
+                      }
                       className='hover:bg-primary hover:text-primary-foreground disabled:opacity-50'
                     >
                       <Copy className='mr-2 h-4 w-4' />
@@ -776,7 +879,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       variant='outline'
                       size='sm'
                       onClick={() => downloadFile(formatJson(request.responseBody), `response-body-${request.id}.json`)}
-                      disabled={!hasResponseBody}
+                      disabled={!hasResponseBody || !!getPayloadState(request.responseBody)}
                       className='hover:bg-primary hover:text-primary-foreground disabled:opacity-50'
                     >
                       <Download className='mr-2 h-4 w-4' />
@@ -787,7 +890,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
 
                 <div className='mt-6'>
                   <TabsContent value='preview' className='mt-0 transition-all focus-visible:outline-none'>
-                    {isSpeechRequest ? (
+                    {getPayloadState(request.responseBody) && !isSpeechRequest && !isVideoRequest ? (
+                      <PayloadNotice body={request.responseBody} />
+                    ) : isSpeechRequest ? (
                       <div className='bg-muted/20 flex min-h-[200px] w-full flex-col items-center justify-center gap-4 rounded-lg border p-6'>
                         {audioObjectUrl ? (
                           <audio controls src={audioObjectUrl} className='w-full max-w-xl'>
@@ -847,7 +952,14 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                   <TabsContent value='json' className='mt-0 focus-visible:outline-none'>
                     {hasResponseBody ? (
                       <div className='bg-muted/20 h-[500px] w-full overflow-auto rounded-lg border p-4'>
-                        <JsonViewer data={request.responseBody} rootName='' defaultExpanded={true} expandDepth='all' hideArrayIndices={true} className='text-sm' />
+                        <JsonViewer
+                          data={request.responseBody}
+                          rootName=''
+                          defaultExpanded={true}
+                          expandDepth='all'
+                          hideArrayIndices={true}
+                          className='text-sm'
+                        />
                       </div>
                     ) : request.status === 'processing' ? (
                       <div className='bg-muted/20 flex h-[500px] w-full items-center justify-center rounded-lg border'>
@@ -925,7 +1037,11 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {t('requests.dialogs.requestDetail.fields.startTime')}
                               </span>
                               <p className='text-muted-foreground font-mono text-sm'>
-                                {execution.createdAt ? <SystemTime value={new Date(execution.createdAt)} pattern="yyyy-MM-dd HH:mm:ss" /> : t('requests.columns.unknown')}
+                                {execution.createdAt ? (
+                                  <SystemTime value={new Date(execution.createdAt)} pattern='yyyy-MM-dd HH:mm:ss' />
+                                ) : (
+                                  t('requests.columns.unknown')
+                                )}
                               </p>
                             </div>
                             <div className='bg-background space-y-2 rounded-lg border p-3'>
@@ -934,11 +1050,15 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {t('requests.dialogs.requestDetail.fields.endTime')}
                               </span>
                               <p className='text-muted-foreground font-mono text-sm'>
-                                {execution.status === 'completed' || execution.status === 'failed'
-                                  ? execution.updatedAt
-                                    ? <SystemTime value={new Date(execution.updatedAt)} pattern="yyyy-MM-dd HH:mm:ss" />
-                                    : t('requests.columns.unknown')
-                                  : '-'}
+                                {execution.status === 'completed' || execution.status === 'failed' ? (
+                                  execution.updatedAt ? (
+                                    <SystemTime value={new Date(execution.updatedAt)} pattern='yyyy-MM-dd HH:mm:ss' />
+                                  ) : (
+                                    t('requests.columns.unknown')
+                                  )
+                                ) : (
+                                  '-'
+                                )}
                               </p>
                             </div>
                             <div className='bg-background space-y-2 rounded-lg border p-3'>
@@ -947,7 +1067,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {t('requests.columns.latency')}
                               </span>
                               <p className='text-muted-foreground font-mono text-sm'>
-                                {execution.status === 'completed' || execution.status === 'failed' ? formatLatency(calculateLatency(execution.createdAt, execution.updatedAt)) : '-'}
+                                {execution.status === 'completed' || execution.status === 'failed'
+                                  ? formatLatency(calculateLatency(execution.createdAt, execution.updatedAt))
+                                  : '-'}
                               </p>
                             </div>
                             <div className='bg-background space-y-2 rounded-lg border p-3'>
@@ -956,7 +1078,10 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                 {t('requests.columns.firstTokenLatency')}
                               </span>
                               <p className='text-muted-foreground font-mono text-sm'>
-                                {(execution.status === 'completed' || execution.status === 'failed') && execution.metricsFirstTokenLatencyMs != null ? formatLatency(execution.metricsFirstTokenLatencyMs) : '-'}
+                                {(execution.status === 'completed' || execution.status === 'failed') &&
+                                execution.metricsFirstTokenLatencyMs != null
+                                  ? formatLatency(execution.metricsFirstTokenLatencyMs)
+                                  : '-'}
                               </p>
                             </div>
                           </div>
@@ -968,15 +1093,32 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                   <FileText className='h-4 w-4' />
                                   {t('common.messages.errorMessage')}
                                 </span>
-                                {execution.status === 'failed' && execution.responseStatusCode && <Badge variant='destructive'>HTTP {execution.responseStatusCode}</Badge>}
+                                {execution.status === 'failed' && execution.responseStatusCode && (
+                                  <Badge variant='destructive'>HTTP {execution.responseStatusCode}</Badge>
+                                )}
                               </div>
-                              {execution.errorMessage && <p className='text-destructive bg-destructive/10 rounded border p-3 text-sm'>{execution.errorMessage}</p>}
+                              {execution.errorMessage && (
+                                <p className='text-destructive bg-destructive/10 rounded border p-3 text-sm'>{execution.errorMessage}</p>
+                              )}
                             </div>
                           )}
 
                           {(execution.requestHeaders || execution.requestBody) && (
                             <div className='flex justify-end'>
-                              <Button variant='outline' size='sm' onClick={() => showExecutionCurlPreview(execution.requestHeaders, execution.requestBody, execution.channel, execution.execution.requestURL)} className='hover:bg-primary hover:text-primary-foreground'>
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                disabled={!!getPayloadState(execution.requestBody)}
+                                onClick={() =>
+                                  showExecutionCurlPreview(
+                                    execution.requestHeaders,
+                                    execution.requestBody,
+                                    execution.channel,
+                                    execution.requestURL
+                                  )
+                                }
+                                className='hover:bg-primary hover:text-primary-foreground'
+                              >
                                 <Terminal className='mr-2 h-4 w-4' />
                                 {t('requests.actions.copyCurl')}
                               </Button>
@@ -991,18 +1133,36 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                   {t('requests.columns.requestHeaders')}
                                 </span>
                                 <div className='flex gap-2'>
-                                  <Button variant='outline' size='sm' onClick={() => copyToClipboard(formatJson(execution.requestHeaders))} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() => copyToClipboard(formatJson(execution.requestHeaders))}
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Copy className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.copy')}
                                   </Button>
-                                  <Button variant='outline' size='sm' onClick={() => downloadFile(formatJson(execution.requestHeaders), `execution-${execution.id}-request-headers.json`)} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() =>
+                                      downloadFile(formatJson(execution.requestHeaders), `execution-${execution.id}-request-headers.json`)
+                                    }
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Download className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.download')}
                                   </Button>
                                 </div>
                               </div>
                               <div className='bg-background h-64 w-full overflow-auto rounded-lg border p-3'>
-                                <JsonViewer data={execution.requestHeaders} rootName='' defaultExpanded={false} hideArrayIndices={true} className='text-xs' />
+                                <JsonViewer
+                                  data={execution.requestHeaders}
+                                  rootName=''
+                                  defaultExpanded={false}
+                                  hideArrayIndices={true}
+                                  className='text-xs'
+                                />
                               </div>
                             </div>
                           )}
@@ -1015,18 +1175,37 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                   {t('requests.columns.requestBody')}
                                 </span>
                                 <div className='flex gap-2'>
-                                  <Button variant='outline' size='sm' onClick={() => copyToClipboard(formatJson(execution.requestBody))} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    disabled={!!getPayloadState(execution.requestBody)}
+                                    onClick={() => copyToClipboard(formatJson(execution.requestBody))}
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Copy className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.copy')}
                                   </Button>
-                                  <Button variant='outline' size='sm' onClick={() => downloadFile(formatJson(execution.requestBody), `execution-${execution.id}-request-body.json`)} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() =>
+                                      downloadFile(formatJson(execution.requestBody), `execution-${execution.id}-request-body.json`)
+                                    }
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Download className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.download')}
                                   </Button>
                                 </div>
                               </div>
                               <div className='bg-background h-80 w-full overflow-auto rounded-lg border p-3'>
-                                <JsonViewer data={execution.requestBody} rootName='' defaultExpanded={false} hideArrayIndices={true} className='text-xs' />
+                                <JsonViewer
+                                  data={execution.requestBody}
+                                  rootName=''
+                                  defaultExpanded={false}
+                                  hideArrayIndices={true}
+                                  className='text-xs'
+                                />
                               </div>
                             </div>
                           )}
@@ -1039,22 +1218,47 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                                   {t('requests.columns.responseBody')}
                                 </span>
                                 <div className='flex gap-2'>
-                                  <Button variant='outline' size='sm' onClick={() => copyToClipboard(formatJson(execution.responseBody))} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    disabled={!!getPayloadState(execution.responseBody)}
+                                    onClick={() => copyToClipboard(formatJson(execution.responseBody))}
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Copy className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.copy')}
                                   </Button>
-                                  <Button variant='outline' size='sm' onClick={() => downloadFile(formatJson(execution.responseBody), `execution-${execution.id}-response-body.json`)} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() =>
+                                      downloadFile(formatJson(execution.responseBody), `execution-${execution.id}-response-body.json`)
+                                    }
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Download className='mr-2 h-4 w-4' />
                                     {t('requests.dialogs.jsonViewer.download')}
                                   </Button>
-                                  <Button variant='outline' size='sm' onClick={() => showExecutionChunksModal(execution.responseChunks || [])} disabled={!execution.responseChunks || execution.responseChunks.length === 0} className='hover:bg-primary hover:text-primary-foreground'>
+                                  <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() => showExecutionChunksModal(execution.responseChunks || [])}
+                                    disabled={!execution.responseChunks || execution.responseChunks.length === 0}
+                                    className='hover:bg-primary hover:text-primary-foreground'
+                                  >
                                     <Layers className='mr-2 h-4 w-4' />
                                     {t('requests.columns.responseChunks')}
                                   </Button>
                                 </div>
                               </div>
                               <div className='bg-background h-80 w-full overflow-auto rounded-lg border p-3'>
-                                <JsonViewer data={execution.responseBody} rootName='' defaultExpanded={false} hideArrayIndices={true} className='text-xs' />
+                                <JsonViewer
+                                  data={execution.responseBody}
+                                  rootName=''
+                                  defaultExpanded={false}
+                                  hideArrayIndices={true}
+                                  className='text-xs'
+                                />
                               </div>
                             </div>
                           )}

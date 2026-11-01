@@ -70,7 +70,7 @@ func TestRequestServiceLoadCompletedResponsesSessionScopesByAPIKeyAndProject(t *
 	createSessionRequest(otherKey.ID, string(llm.APIFormatOpenAIResponse), "resp_shared", "other")
 	createSessionRequest(ownerKey.ID, string(llm.APIFormatOpenAIResponseWebSocket), "resp_websocket", "websocket")
 
-	service := newResponsesSessionRequestService(client)
+	service := newResponsesSessionRequestService(t, client)
 
 	ownerCtx := contexts.WithProjectID(contexts.WithAPIKey(ctx, ownerKey), projectEntity.ID)
 	requestBody, responseBody, found, err := service.LoadCompletedResponsesSession(ownerCtx, "resp_shared")
@@ -155,7 +155,7 @@ func TestRequestServiceLoadCompletedResponsesSessionRejectsEmptyBodies(t *testin
 	createSessionRequest("resp_empty_request", []byte(`{}`), []byte(`{"id":"resp_empty_request","status":"completed","output":[]}`))
 	createSessionRequest("resp_empty_response", []byte(`{"model":"gpt-5","input":"hello"}`), []byte(`{}`))
 
-	service := newResponsesSessionRequestService(client)
+	service := newResponsesSessionRequestService(t, client)
 
 	lookupCtx := contexts.WithProjectID(contexts.WithAPIKey(ctx, apiKey), projectEntity.ID)
 	for _, responseID := range []string{"resp_empty_request", "resp_empty_response"} {
@@ -165,7 +165,7 @@ func TestRequestServiceLoadCompletedResponsesSessionRejectsEmptyBodies(t *testin
 	}
 }
 
-func newResponsesSessionRequestService(client *ent.Client) *RequestService {
+func newResponsesSessionRequestService(t *testing.T, client *ent.Client) *RequestService {
 	var cacheConfig xcache.Config
 	cacheConfig.Mode = xcache.ModeMemory
 
@@ -188,5 +188,6 @@ func newResponsesSessionRequestService(client *ent.Client) *RequestService {
 		NewUsageLogService(client, systemService, channelService),
 		dataStorageService,
 		NewLiveStreamRegistry(),
+		NewRequestPayloadService(RequestPayloadConfig{Directory: t.TempDir()}),
 	)
 }
