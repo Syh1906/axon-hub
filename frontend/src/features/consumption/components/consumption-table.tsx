@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type RefObject } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, CornerDownRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -55,14 +55,14 @@ export function ConsumptionTable({
   metric,
   currencyCode,
   expandable = true,
-  scrollRef,
+  scrollElement,
 }: {
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
   metric: ConsumptionMetric;
   currencyCode: string;
   expandable?: boolean;
-  scrollRef: RefObject<HTMLDivElement | null>;
+  scrollElement: HTMLDivElement | null;
 }) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -95,7 +95,7 @@ export function ConsumptionTable({
   const getItemKey = useCallback((index: number) => rows[index].key, [rows]);
   const virtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollElement,
     getItemKey,
     estimateSize: () => 64,
     overscan: 6,

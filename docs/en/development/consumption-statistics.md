@@ -15,6 +15,8 @@ There is no leaderboard management permission. Navigation, route guards and back
 
 Project usage orders tabs as Key groups → API keys → Users and defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
 
+The consumption leaderboard orders tabs as Channels → Key groups → API keys → Users and defaults to channels.
+
 ## Dates and interaction
 
 Both pages offer Today, Yesterday, This week, This month, All time and Custom dates. The backend uses the configured system timezone; weeks start on Monday. Custom `YYYY-MM-DD` dates include the entire last day, using an inclusive start and exclusive next-day boundary, including 23/25-hour DST days. Reversed ranges are rejected.

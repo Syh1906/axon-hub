@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { BarChart3, Loader2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
@@ -25,12 +25,13 @@ import {
 export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'leaderboard' | 'usage' }) {
   const { t, i18n } = useTranslation();
   const isLeaderboard = view === 'leaderboard';
-  const [dimension, setDimension] = useState<ConsumptionDimension>('API_KEY_GROUP');
+  const [dimension, setDimension] = useState<ConsumptionDimension>(isLeaderboard ? 'CHANNEL' : 'API_KEY_GROUP');
   const [metric, setMetric] = useState<ConsumptionMetric>('COST');
   const [range, setRange] = useState<ConsumptionDateRange>({ period: 'TODAY' });
   const [projectID, setProjectID] = useState('all');
   const [search, setSearch] = useState('');
-  const tableScrollRef = useRef<HTMLDivElement>(null);
+  // 缓存命中时表格与容器同时挂载；用状态通知表格绑定已经挂载的容器。
+  const [tableScrollElement, setTableScrollElement] = useState<HTMLDivElement | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const selectedProjectID = useSelectedProjectId();
   const scope = isLeaderboard ? projectID : selectedProjectID;
@@ -54,7 +55,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     isKeyDimension
   );
   const dimensions: ConsumptionDimension[] = isLeaderboard
-    ? ['API_KEY_GROUP', 'CHANNEL', 'USER', 'API_KEY']
+    ? ['CHANNEL', 'API_KEY_GROUP', 'API_KEY', 'USER']
     : ['API_KEY_GROUP', 'API_KEY', 'USER'];
   const timezone = data?.timezone ?? 'UTC';
   const title = isLeaderboard ? t('consumption.title') : t('sidebar.items.usageStats');
@@ -184,7 +185,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
             </Alert>
           ) : (
             <div
-              ref={tableScrollRef}
+              ref={setTableScrollElement}
               className='border-border/70 relative min-h-0 flex-1 overflow-auto rounded-xl border'
               aria-busy={isFetching}
             >
@@ -198,7 +199,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               ) : data?.entries.length ? (
                 <ConsumptionTable
                   key={`${scope}:${dimension}:${metric}`}
-                  scrollRef={tableScrollRef}
+                  scrollElement={tableScrollElement}
                   entries={data.entries}
                   dimension={dimension}
                   metric={metric}
