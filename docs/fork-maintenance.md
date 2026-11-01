@@ -75,6 +75,7 @@ fork 改动，由用户决定。
 
 - 状态：已实现并通过离线对照和定向回归，未发布、未部署。
 - 固定 `github.com/MoeForge/moego v0.1.0-alpha.1`：OpenAI 图片请求中的 Base64 编解码使用 `base64`；Responses HTTP 的 `previous_response_id` 检查和删除使用 `ojson`。保留既有请求克隆、正文与错误处理规则，其余库调用及参数覆盖循环不变。
+- 独立 `cmd/schema` 模块同步记录同一版本的间接依赖及校验和，避免其经主模块导入 OpenAI 转换器时缺少依赖记录；2026-11-02 分支 CI 的配置生成器构建暴露该遗漏，修正不改变运行逻辑。
 - 代码：`llm/transformer/openai/image_outbound.go`、`llm/transformer/openai/responses/http_executor.go`；主模块与 llm 模块依赖及校验和同步。
 - 无 schema migration、data migration、缓存形状或持久 fixture 变化。Windows/amd64 快速基准与局部回归通过，未测 Linux/arm64 或整体负载；数据、命令及限制见[离线试用记录](../.agent/summary/moego-offline-trial-20261102.md)。同步上游时核对这两处实现及固定依赖版本。
 
