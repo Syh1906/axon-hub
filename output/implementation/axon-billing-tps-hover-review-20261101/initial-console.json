@@ -1,0 +1,8 @@
+[
+  {
+    "level": "error",
+    "message": "TypeError: Cannot read properties of undefined (reading '_nonReactive')\n    at loadRouteMatch (http://127.0.0.1:15173/node_modules/.vite/deps/@tanstack_react-router.js?v=d5b9ca3c:2633:11)\n    at async Promise.all (index 2)\n    at async loadMatches (http://127.0.0.1:15173/node_modules/.vite/deps/@tanstack_react-router.js?v=d5b9ca3c:2675:5)\n    at async RouterCore.preloadRoute (http://127.0.0.1:15173/node_modules/.vite/deps/@tanstack_react-router.js?v=d5b9ca3c:3904:19)",
+    "timestamp": "2026-11-01T07:20:22.669Z",
+    "url": "http://127.0.0.1:15173/node_modules/.vite/deps/@tanstack_react-router.js?v=d5b9ca3c"
+  }
+]

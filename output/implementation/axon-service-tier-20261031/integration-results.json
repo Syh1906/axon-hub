@@ -1,0 +1,87 @@
+{
+  "cases": [
+    {
+      "model": "tier-fast",
+      "stream": false,
+      "cost": "1.6032",
+      "mode": "fast",
+      "basis": "upstream",
+      "longContext": true
+    },
+    {
+      "model": "tier-down",
+      "stream": false,
+      "cost": "0.8016",
+      "mode": "standard",
+      "basis": "upstream",
+      "longContext": true
+    },
+    {
+      "model": "tier-missing",
+      "stream": false,
+      "cost": "1.6032",
+      "mode": "fast",
+      "basis": "client",
+      "longContext": true
+    },
+    {
+      "model": "tier-ultra-short",
+      "stream": false,
+      "cost": "0.192",
+      "mode": "ultrafast",
+      "basis": "upstream",
+      "longContext": false
+    },
+    {
+      "model": "tier-ultra",
+      "stream": true,
+      "cost": "4.8096",
+      "mode": "ultrafast",
+      "basis": "upstream",
+      "longContext": true
+    },
+    {
+      "model": "tier-zero",
+      "stream": false,
+      "cost": "0.0",
+      "mode": "fast",
+      "basis": "upstream",
+      "longContext": true
+    },
+    {
+      "model": "tier-client-down",
+      "stream": true,
+      "cost": "1.6032",
+      "mode": "fast",
+      "basis": "client",
+      "longContext": true
+    }
+  ],
+  "budget": {
+    "apiKeyBudget": {
+      "windows": [
+        {
+          "settled": "10.61280000",
+          "reserved": "0.00000000"
+        },
+        {
+          "settled": "10.61280000",
+          "reserved": "0.00000000"
+        },
+        {
+          "settled": "10.61280000",
+          "reserved": "0.00000000"
+        },
+        {
+          "settled": "10.61280000",
+          "reserved": "0.00000000"
+        },
+        {
+          "settled": "10.61280000",
+          "reserved": "0.00000000"
+        }
+      ]
+    }
+  },
+  "channelID": "gid://axonhub/Channel/1"
+}

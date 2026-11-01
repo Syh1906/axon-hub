@@ -1,0 +1,15 @@
+{
+  "passed": 10,
+  "checks": [
+    "grouped display label",
+    "ungrouped user label",
+    "group excludes ungrouped",
+    "project group usage",
+    "specific group keys",
+    "single key usage",
+    "member key group usage",
+    "move changes historical aggregation immediately",
+    "public group rechecks current membership",
+    "rename invalidates aggregate cache"
+  ]
+}

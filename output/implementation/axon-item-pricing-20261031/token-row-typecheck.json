@@ -1,0 +1,23 @@
+{
+  "count": 172,
+  "previousCount": 170,
+  "increased": [
+    {
+      "file": "src/features/channels/hooks/use-device-flow.ts",
+      "code": 2322,
+      "count": 2
+    },
+    {
+      "file": "src/features/requests/components/request-detail-page.tsx",
+      "code": 2769,
+      "count": 1
+    }
+  ],
+  "decreased": [
+    {
+      "file": "src/hooks/use-copy-to-clipboard.ts",
+      "code": 2503,
+      "count": 1
+    }
+  ]
+}

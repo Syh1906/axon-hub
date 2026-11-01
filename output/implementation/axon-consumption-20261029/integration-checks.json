@@ -1,0 +1,129 @@
+{
+  "http": {
+    "passed": 25,
+    "checks": [
+      "USER TODAY totals/model rollup",
+      "USER YESTERDAY totals/model rollup",
+      "USER WEEK totals/model rollup",
+      "USER MONTH totals/model rollup",
+      "USER ALL totals/model rollup",
+      "USER CUSTOM totals/model rollup",
+      "API_KEY TODAY totals/model rollup",
+      "API_KEY YESTERDAY totals/model rollup",
+      "API_KEY WEEK totals/model rollup",
+      "API_KEY MONTH totals/model rollup",
+      "API_KEY ALL totals/model rollup",
+      "API_KEY CUSTOM totals/model rollup",
+      "CHANNEL TODAY totals/model rollup",
+      "CHANNEL YESTERDAY totals/model rollup",
+      "CHANNEL WEEK totals/model rollup",
+      "CHANNEL MONTH totals/model rollup",
+      "CHANNEL ALL totals/model rollup",
+      "CHANNEL CUSTOM totals/model rollup",
+      "retry deduplication, exclusions, first-byte speed and costs",
+      "cache denominator and model selection",
+      "global header independence and project usage isolation",
+      "server-side search and empty results",
+      "read_leaderboard-only user can read projects, ranking and models",
+      "no-scope user denied after cache warmed",
+      "reversed custom date range rejected"
+    ]
+  },
+  "expected_totals": {
+    "TODAY": {
+      "requests": 6,
+      "cost": 10,
+      "tokens": 4410
+    },
+    "YESTERDAY": {
+      "requests": 1,
+      "cost": 5,
+      "tokens": 1100
+    },
+    "WEEK": {
+      "requests": 8,
+      "cost": 21,
+      "tokens": 6060
+    },
+    "MONTH": {
+      "requests": 9,
+      "cost": 28,
+      "tokens": 6830
+    },
+    "ALL": {
+      "requests": 10,
+      "cost": 36,
+      "tokens": 7710
+    },
+    "CUSTOM": {
+      "requests": 2,
+      "cost": 11,
+      "tokens": 1650
+    }
+  },
+  "midnight": [
+    {
+      "period": "TODAY",
+      "rangeStart": "2026-10-28T16:00:00Z",
+      "rangeEnd": "2026-10-29T16:00:00Z",
+      "model": "today",
+      "cost": 2
+    },
+    {
+      "period": "YESTERDAY",
+      "rangeStart": "2026-10-27T16:00:00Z",
+      "rangeEnd": "2026-10-28T16:00:00Z",
+      "model": "yesterday",
+      "cost": 1
+    }
+  ],
+  "cache_windows": {
+    "automatic_windows": [
+      [
+        1,
+        4,
+        3,
+        3000,
+        1100
+      ],
+      [
+        2,
+        2,
+        1,
+        1000,
+        400
+      ]
+    ],
+    "coefficients": {
+      "联调·主力渠道": 274,
+      "联调·备用渠道": 200
+    },
+    "status": "passed"
+  },
+  "browser": {
+    "primary": "Codex in-app browser",
+    "desktop": [
+      1584,
+      993
+    ],
+    "mobile": [
+      390,
+      844
+    ],
+    "mobile_page_width": 390,
+    "mobile_table_width": 720,
+    "mobile_table_container_width": 333,
+    "console_errors": 0,
+    "chrome_supplement": "read-only/no-scope users and native timezone formatter; temporary formatter change reverted by reload"
+  },
+  "service_cleanup": {
+    "frontend_stopped": true,
+    "backend_stopped": true,
+    "ports_released": [
+      5173,
+      8090
+    ],
+    "scratch_cleaned": true,
+    "original_preview_unchanged": true
+  }
+}

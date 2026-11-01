@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AxonHub · 本地前端效果预览</title>
+<style>
+  :root { color-scheme: light; font-family: system-ui, "Microsoft YaHei", sans-serif; color: #29231e; background: #f6f4f1; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px clamp(16px, 4vw, 64px); }
+  header { max-width: 1280px; margin: 0 auto 24px; }
+  .eyebrow { color: #9f572c; font-size: 13px; letter-spacing: .08em; }
+  h1 { font-size: clamp(24px, 3vw, 36px); margin: 8px 0 12px; }
+  p { color: #6c625a; line-height: 1.8; margin: 8px 0; }
+  a { color: #965021; }
+  .links { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0; }
+  button { font: inherit; border: 1px solid #d8cfc6; border-radius: 8px; background: #fff; color: #4f443b; padding: 10px 16px; cursor: pointer; }
+  button[aria-selected="true"] { background: #a75929; color: white; border-color: #a75929; }
+  button:focus-visible, a:focus-visible { outline: 3px solid #d99260; outline-offset: 3px; }
+  main { max-width: 1280px; margin: auto; }
+  [hidden] { display: none !important; }
+  h2 { font-size: 20px; margin: 0 0 8px; }
+  figure { margin: 20px 0 30px; }
+  img { display: block; width: 100%; height: auto; border: 1px solid #e3dcd4; border-radius: 10px; background: white; }
+  figcaption { margin-top: 9px; color: #786c61; font-size: 13px; }
+  footer { max-width: 1280px; margin: 28px auto 0; border-top: 1px solid #e3dcd4; padding-top: 16px; font-size: 13px; color: #786c61; }
+</style>
+<header>
+  <div class="eyebrow">AXONHUB / 本地预览</div>
+  <h1>这次前端改动，直接在本地看</h1>
+  <p>下方是本次代码在本地运行时的真实截图。切换页签查看四处改动，点击图片可放大。</p>
+  <div class="links">
+    <a href="http://127.0.0.1:5173/models" target="_blank" rel="noreferrer">打开真实前端，填写和保存配置 ↗</a>
+    <a href="verification-report.md" target="_blank" rel="noreferrer">实现与验收记录</a>
+  </div>
+  <p>真实前端使用独立本地数据库，首次需要初始化本地账号；修改前端源码后会自动更新。本页的截图用于查看布局，不会提交配置。</p>
+  <nav role="tablist" aria-label="预览范围">
+    <button type="button" role="tab" id="tab-model" aria-controls="model" aria-selected="true">模型入口与匹配</button>
+    <button type="button" role="tab" id="tab-association" aria-controls="association" aria-selected="false">模型关联</button>
+    <button type="button" role="tab" id="tab-key" aria-controls="key" aria-selected="false">密钥渠道优先级</button>
+    <button type="button" role="tab" id="tab-channel" aria-controls="channel" aria-selected="false">渠道请求设置</button>
+  </nav>
+</header>
+<main>
+  <section id="model" role="tabpanel" aria-labelledby="tab-model">
+    <h2>先创建模型配置，再关联渠道</h2>
+    <p>精确、前缀、后缀、正则四种入口；未保存也能测试匹配。公开模型 ID 单独填写零个、一个或多个。</p>
+    <figure><a href="01-model-rule.png" target="_blank"><img src="01-model-rule.png" alt="添加模型弹窗中的四种匹配方式与测试结果"></a><figcaption>原添加模型弹窗内的增量控件。</figcaption></figure>
+    <figure><a href="01b-public-model-ids.png" target="_blank"><img src="01b-public-model-ids.png" alt="多个明确公开模型 ID 的填写效果"></a><figcaption>公开名称与入口表达式分开配置。</figcaption></figure>
+  </section>
+  <section id="association" role="tabpanel" aria-labelledby="tab-association" hidden>
+    <h2>沿用请求名，或指定固定上游模型</h2>
+    <p>保留原关联方式、条件与继承设置；新增“渠道内沿用请求模型”，右侧按测试 ID 预览。</p>
+    <figure><a href="02-model-association.png" target="_blank"><img src="02-model-association.png" alt="现有模型关联弹窗，展示沿用请求模型与固定模型关联"></a></figure>
+  </section>
+  <section id="key" role="tabpanel" aria-labelledby="tab-key" hidden>
+    <h2>同一批渠道，每把密钥有自己的先后顺序</h2>
+    <p>在现有生效配置里添加优先级；数字越小越优先，未设置时继承模型关联。支持现有模板同步。</p>
+    <figure><a href="03-key-priorities.png" target="_blank"><img src="03-key-priorities.png" alt="密钥配置中的三个渠道优先级，分别为10、20、30"></a></figure>
+  </section>
+  <section id="channel" role="tabpanel" aria-labelledby="tab-channel" hidden>
+    <h2>每个渠道单独设置等待时间和会话复用</h2>
+    <p>渠道行菜单里的“请求设置”：流式首响应、非流式响应超时，以及不复用会话渠道。留空继承，0 取消该项渠道限制。</p>
+    <figure><a href="04-channel-request-settings.png" target="_blank"><img src="04-channel-request-settings.png" alt="渠道请求设置弹窗，展示20秒、120秒以及不复用会话开关"></a></figure>
+  </section>
+</main>
+<footer>静态效果页 · 截图来自隔离的本地验收环境 · 未连接线上数据</footer>
+<script>
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function activate(tab) {
+    tabs.forEach(item => {
+      const selected = item === tab;
+      item.setAttribute('aria-selected', String(selected));
+      document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
+    });
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activate(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].focus();
+      activate(tabs[next]);
+    });
+  });
+</script>
+</html>

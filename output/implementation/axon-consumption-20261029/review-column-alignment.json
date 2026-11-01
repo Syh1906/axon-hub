@@ -1,0 +1,186 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "rows": [
+    [
+      {
+        "offset": 0,
+        "text": "排名"
+      },
+      {
+        "offset": -0.01,
+        "text": "渠道 / 模型"
+      },
+      {
+        "offset": -0.01,
+        "text": "请求数"
+      },
+      {
+        "offset": 0,
+        "text": "成本"
+      },
+      {
+        "offset": -0.01,
+        "text": "Token 数"
+      },
+      {
+        "offset": -0.01,
+        "text": "成功率"
+      },
+      {
+        "offset": 0,
+        "text": "平均首字耗时"
+      },
+      {
+        "offset": 0,
+        "text": "平均输出速度"
+      },
+      {
+        "offset": 0,
+        "text": "单次成本"
+      },
+      {
+        "offset": 0,
+        "text": "每百万 Token 成本"
+      },
+      {
+        "offset": -0.01,
+        "text": "缓存系数"
+      }
+    ],
+    [
+      {
+        "offset": 0,
+        "text": "1"
+      },
+      {
+        "offset": -0.01,
+        "text": "主力渠道"
+      },
+      {
+        "offset": -0.01,
+        "text": "6"
+      },
+      {
+        "offset": -0.01,
+        "text": "$7.2000"
+      },
+      {
+        "offset": -0.01,
+        "text": "4K"
+      },
+      {
+        "offset": 0,
+        "text": "100.0%"
+      },
+      {
+        "offset": -0.01,
+        "text": "400 ms"
+      },
+      {
+        "offset": 0,
+        "text": "140.0 tok/s"
+      },
+      {
+        "offset": -0.01,
+        "text": "$1.2000"
+      },
+      {
+        "offset": 0,
+        "text": "$1,791.044776"
+      },
+      {
+        "offset": -0.01,
+        "text": "—"
+      }
+    ],
+    [
+      null,
+      {
+        "offset": -0.01,
+        "text": "claude-sonnet-4"
+      },
+      {
+        "offset": -0.01,
+        "text": "1"
+      },
+      {
+        "offset": -0.01,
+        "text": "$3.6000"
+      },
+      {
+        "offset": -0.01,
+        "text": "2K"
+      },
+      {
+        "offset": 0,
+        "text": "100.0%"
+      },
+      {
+        "offset": -0.01,
+        "text": "400 ms"
+      },
+      {
+        "offset": 0,
+        "text": "200.0 tok/s"
+      },
+      {
+        "offset": -0.01,
+        "text": "$3.6000"
+      },
+      {
+        "offset": -0.01,
+        "text": "$1,800.0000"
+      },
+      {
+        "offset": -0.01,
+        "text": "—"
+      }
+    ],
+    [
+      null,
+      {
+        "offset": -0.01,
+        "text": "gpt-4.1"
+      },
+      {
+        "offset": -0.01,
+        "text": "5"
+      },
+      {
+        "offset": -0.01,
+        "text": "$3.6000"
+      },
+      {
+        "offset": -0.01,
+        "text": "2K"
+      },
+      {
+        "offset": 0,
+        "text": "100.0%"
+      },
+      {
+        "offset": -0.01,
+        "text": "400 ms"
+      },
+      {
+        "offset": 0,
+        "text": "110.0 tok/s"
+      },
+      {
+        "offset": -0.01,
+        "text": "$0.7200"
+      },
+      {
+        "offset": 0,
+        "text": "$1,782.178218"
+      },
+      {
+        "offset": -0.01,
+        "text": "—"
+      }
+    ]
+  ]
+}

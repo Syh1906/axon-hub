@@ -158,12 +158,18 @@ repository. First deploy canary, perform business acceptance, then select
 production with that successful run number. The workflow verifies the same version,
 image digest, ops commit and inventory before updating hosts serially.
 
-Each host pre-pulls the application image, preserves configuration, stops the app,
-backs up PostgreSQL and updates only AXONHUB_IMAGE and the application service.
-Database images and data volumes are preserved. An unchanged host is verified
-without repeating maintenance. Backup/verification failure stops further hosts.
-There is no unconditional database rollback.
+Each host pulls the immutable image, checks migrations and rollback compatibility,
+and temporarily saves configuration while the old application remains online. Change
+only AXONHUB_IMAGE and recreate the application after preparation. Axon maintenance
+updates do not create database backups, including full or selected-table exports.
+Preserve database images and volumes. After deployment verification, delete this
+upgrade's temporary configuration copies and retain only non-secret version, hash
+and verification receipts. Historical copies require separate deletion authorization.
 
-The private ops README documents secrets, paths, backup states and recovery.
-Actual business behavior, backup restoration and network access remain acceptance
-requirements when real hosts are connected.
+Migration or verification failure stops further hosts and preserves the current state.
+Do not restore the database automatically or treat switching to an older image as a
+complete rollback. Record the actual scope of business, billing and network checks;
+this procedure establishes no database recovery point. The active maintenance
+repository and host records define paths, execution state and rollback limitations.
+Any private ops automation that still requires a database export is outside this
+procedure; these documentation changes do not establish that it was modified.

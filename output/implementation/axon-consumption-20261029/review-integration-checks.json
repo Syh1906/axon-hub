@@ -1,0 +1,25 @@
+{
+  "fixtureRequests": 7,
+  "checks": [
+    {
+      "name": "三类本地拒绝不影响父行与模型成功率，且保留请求数与金额",
+      "passed": true
+    },
+    {
+      "name": "完整姓名搜索：John Smith",
+      "passed": true
+    },
+    {
+      "name": "完整姓名搜索：john SMITH",
+      "passed": true
+    },
+    {
+      "name": "完整姓名搜索：ohn Smi",
+      "passed": true
+    },
+    {
+      "name": "Key 维度仍返回两个对象",
+      "passed": true
+    }
+  ]
+}
