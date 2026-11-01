@@ -2,6 +2,20 @@ import type { InfiniteData, QueryClient, QueryKey } from '@tanstack/react-query'
 
 export type CursorPageParam = string | null | { before: string };
 
+export async function prepareCursorListHead<Page extends { edges: unknown[] }>(client: QueryClient, queryKey: QueryKey) {
+  await client.cancelQueries({ queryKey, exact: true });
+  const updatedAt = client.getQueryState(queryKey)?.dataUpdatedAt;
+  client.setQueryData<InfiniteData<Page, CursorPageParam>>(
+    queryKey,
+    (current) =>
+      current?.pages.length
+        ? { pages: [current.pages[0]], pageParams: [null] }
+        : current,
+    // 保留可见记录，但下一次查询必须从最新首批开始，不能沿用历史窗口的游标。
+    { updatedAt }
+  );
+}
+
 export async function trimCursorList<Page extends { edges: unknown[] }>(client: QueryClient, queryKey: QueryKey, rowCount: number) {
   const cached = client.getQueryData<InfiniteData<Page, CursorPageParam>>(queryKey);
   if (!cached) return;

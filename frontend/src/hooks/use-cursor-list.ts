@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hashKey, useInfiniteQuery, useQueryClient, type InfiniteData, type QueryKey } from '@tanstack/react-query';
-import { trimCursorList, type CursorPageParam } from './cursor-list-cache';
+import { prepareCursorListHead, trimCursorList, type CursorPageParam } from './cursor-list-cache';
 
 type CursorPage = {
   edges: { node: { id: string }; cursor: string }[];
@@ -41,15 +41,13 @@ export function useCursorList<Page extends CursorPage>({
     let active = true;
     // Returning to a list also resets its scroll position. Prepare its cache
     // before enabling Query, otherwise mount/refetch replays every old cursor.
-    const prepare =
-      maxPages > 0 ? client.resetQueries({ queryKey: keyRef.current, exact: true }) : trimCursorList<Page>(client, keyRef.current, 0);
-    void prepare.then(() => {
+    void prepareCursorListHead<Page>(client, keyRef.current).then(() => {
       if (active) setReadyKey(resetKey);
     });
     return () => {
       active = false;
     };
-  }, [client, enabled, resetKey, maxPages]);
+  }, [client, enabled, resetKey]);
 
   const query = useInfiniteQuery<Page, Error, InfiniteData<Page, CursorPageParam>, QueryKey, CursorPageParam>({
     queryKey,
@@ -104,20 +102,14 @@ export function useCursorList<Page extends CursorPage>({
   );
 
   const resetToTop = useCallback(async () => {
-    if (maxPages > 0) {
-      trimming.current = true;
-      try {
-        await client.cancelQueries({ queryKey, exact: true });
-        await client.resetQueries({ queryKey, exact: true });
-      } finally {
-        trimming.current = false;
-      }
-      return;
+    trimming.current = true;
+    try {
+      await prepareCursorListHead<Page>(client, queryKey);
+      await client.refetchQueries({ queryKey, exact: true });
+    } finally {
+      trimming.current = false;
     }
-    await client.cancelQueries({ queryKey, exact: true });
-    await trimAfter(0);
-    await client.refetchQueries({ queryKey, exact: true });
-  }, [client, queryKey, trimAfter, maxPages]);
+  }, [client, queryKey]);
 
   const loadMore = useCallback(() => {
     if (!ready || query.isFetching || trimming.current) return;

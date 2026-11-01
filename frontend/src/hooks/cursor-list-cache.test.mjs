@@ -1,12 +1,93 @@
 import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { trimCursorList } from './cursor-list-cache.ts';
+import { prepareCursorListHead, trimCursorList } from './cursor-list-cache.ts';
 
 const page = (id) => ({
   edges: [{ node: { id: String(id) }, cursor: String(id) }],
   pageInfo: { hasNextPage: true, endCursor: String(id) },
 });
+
+for (const list of ['requests', 'channels']) {
+  test(`${list}: a failed head refresh keeps records visible and reports the error`, async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const key = [list, 'failed-head'];
+    const cached = { pages: [page(10), page(9)], pageParams: [null, '10'] };
+    client.setQueryData(key, cached);
+    const failure = new Error('head unavailable');
+    const observer = new InfiniteQueryObserver(client, {
+      queryKey: key,
+      enabled: false,
+      initialPageParam: null,
+      getNextPageParam: (value) => value.pageInfo.endCursor,
+      queryFn: async () => { throw failure; },
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await prepareCursorListHead(client, key);
+      await observer.refetch();
+      const result = observer.getCurrentResult();
+      assert.equal(result.isPending, false);
+      assert.equal(result.isRefetchError, true);
+      assert.equal(result.error, failure);
+      assert.equal(result.data.pages[0], cached.pages[0]);
+    } finally {
+      unsubscribe();
+      client.clear();
+    }
+  });
+
+  for (const firstParam of [null, { before: 'older-window' }]) {
+    test(`${list}: head refresh preserves visible data and restarts from latest (${JSON.stringify(firstParam)})`, async () => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+      const key = [list, 'infinite', 'active'];
+      const otherKey = [list, 'infinite', 'other'];
+      const cached = { pages: [page(10), page(9), page(8)], pageParams: [firstParam, '10', '9'] };
+      client.setQueryData(key, cached, { updatedAt: 1 });
+      client.setQueryData(otherKey, cached);
+      const pendingStates = [];
+      const calls = [];
+      let complete;
+      const observer = new InfiniteQueryObserver(client, {
+        queryKey: key,
+        enabled: false,
+        maxPages: 8,
+        initialPageParam: null,
+        getNextPageParam: (value) => value.pageInfo.endCursor,
+        queryFn: ({ pageParam }) => {
+          calls.push(pageParam);
+          return new Promise((resolve) => { complete = resolve; });
+        },
+      });
+      const unsubscribe = observer.subscribe((result) => pendingStates.push(result.isPending));
+      try {
+        await prepareCursorListHead(client, key);
+        assert.equal(client.getQueryState(key).dataUpdatedAt, 1);
+        assert.equal(client.getQueryData(key).pages[0], cached.pages[0]);
+        assert.deepEqual(client.getQueryData(key).pageParams, [null]);
+        const refreshing = observer.refetch();
+        assert.deepEqual(calls, [null]);
+        assert.equal(observer.getCurrentResult().isFetching, true);
+        assert.equal(observer.getCurrentResult().isPending, false);
+        assert.equal(client.getQueryData(key).pages[0], cached.pages[0]);
+        complete(page(20));
+        await refreshing;
+        assert.deepEqual(client.getQueryData(key).pages.map((value) => value.edges[0].node.id), ['20']);
+        assert.deepEqual(client.getQueryData(key).pageParams, [null]);
+        assert.equal(pendingStates.includes(true), false);
+        assert.equal(client.getQueryData(otherKey), cached);
+        const history = observer.fetchNextPage();
+        assert.deepEqual(calls, [null, '20']);
+        complete(page(19));
+        await history;
+        assert.deepEqual(client.getQueryData(key).pageParams, [null, '20']);
+      } finally {
+        unsubscribe();
+        client.clear();
+      }
+    });
+  }
+}
 
 for (const list of ['requests', 'channels']) {
   test(`${list}: returning to a cached filter refreshes only its head and can load history again`, async () => {
@@ -89,6 +170,39 @@ test('trimming cancels a pending history page so it cannot restore the discarded
       client.getQueryData(key).pages.map((value) => value.edges[0].node.id),
       ['1']
     );
+  } finally {
+    unsubscribe();
+    client.clear();
+  }
+});
+
+test('preparing the latest head cancels history loading without removing the visible head', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const key = ['requests', 'head-during-history'];
+  const cached = { pages: [page(10)], pageParams: [null] };
+  client.setQueryData(key, cached);
+  let complete;
+  let aborted = false;
+  const observer = new InfiniteQueryObserver(client, {
+    queryKey: key,
+    enabled: false,
+    initialPageParam: null,
+    getNextPageParam: (value) => value.pageInfo.endCursor,
+    queryFn: ({ signal }) => new Promise((resolve) => {
+      complete = resolve;
+      signal.addEventListener('abort', () => { aborted = true; });
+    }),
+  });
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    const pending = observer.fetchNextPage();
+    await prepareCursorListHead(client, key);
+    complete(page(9));
+    await pending;
+    assert.equal(aborted, true);
+    assert.equal(observer.getCurrentResult().isPending, false);
+    assert.equal(client.getQueryData(key).pages[0], cached.pages[0]);
+    assert.deepEqual(client.getQueryData(key).pageParams, [null]);
   } finally {
     unsubscribe();
     client.clear();

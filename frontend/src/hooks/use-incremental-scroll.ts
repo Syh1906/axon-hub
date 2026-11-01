@@ -25,6 +25,7 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
   const [atTop, setAtTop] = useState(true);
   const atTopRef = useRef(true);
   const trimTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const returningToTop = useRef(false);
   const clearTrim = useCallback(() => {
     if (trimTimer.current !== undefined) clearTimeout(trimTimer.current);
     trimTimer.current = undefined;
@@ -32,19 +33,25 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
   useEffect(() => clearTrim, [clearTrim]);
 
   const backToTop = useCallback(async () => {
+    if (returningToTop.current) return;
+    returningToTop.current = true;
     clearTrim();
     optionsRef.current.onAtTopChange(false, 'reset');
     // Begin cancellation first, then move the viewport before the first page
     // arrives. Otherwise the old bottom position immediately fetches page two.
-    const reset = optionsRef.current.onReset();
-    containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-    await reset;
-    containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-    lastTop.current = 0;
-    direction.current = 'up';
-    setAtTop(true);
-    atTopRef.current = true;
-    optionsRef.current.onAtTopChange(true, 'reset');
+    try {
+      const reset = optionsRef.current.onReset();
+      containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      await reset;
+      containerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      lastTop.current = 0;
+      direction.current = 'up';
+      setAtTop(true);
+      atTopRef.current = true;
+      optionsRef.current.onAtTopChange(true, 'reset');
+    } finally {
+      returningToTop.current = false;
+    }
   }, [clearTrim]);
 
   useEffect(() => {
@@ -65,6 +72,8 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
     const top = container.scrollTop;
     direction.current = top < lastTop.current ? 'up' : top > lastTop.current ? 'down' : direction.current;
     lastTop.current = top;
+    // 回顶产生的滚动不是用户再次进入顶部，不能据此取消或重启首批刷新。
+    if (returningToTop.current) return;
     const isTop = top <= 8 && !current.hasPrevious;
     if (atTopRef.current !== isTop) {
       atTopRef.current = isTop;

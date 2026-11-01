@@ -1544,12 +1544,9 @@
   --interactive-hover: color-mix(in srgb, var(--card) 78%, var(--primary));
   --interactive-selected: color-mix(in srgb, var(--card) 66%, var(--primary));
 }
+/* 表格行立即切换底色，避免快速跨行时叠加旧行的退色动画。 */
+tbody > [data-slot='table-row'],
 tbody > [data-slot='table-row'] > td {
-  transition: background-color 150ms ease;
-}
-/* 请求行立即切换底色，避免跨行悬浮及刷新时叠加旧行的退色动画。 */
-tbody > [data-slot='table-row'][data-request-id],
-tbody > [data-slot='table-row'][data-request-id] > td {
   transition: none;
 }
 tbody > [data-slot='table-row']:not([aria-disabled='true']):is(:hover, :has(:focus-visible)) > td {
@@ -1567,7 +1564,4 @@ tbody > [data-slot='table-row'][data-state='selected']:is(:hover, :has(:focus-vi
 [data-slot^='context-menu-'][data-highlighted],
 [data-slot='tabs-trigger'][data-state='inactive']:not(:disabled):is(:hover, :focus-visible) {
   background-color: var(--interactive-hover);
-}
-@media (prefers-reduced-motion: reduce) {
-  tbody > [data-slot='table-row'] > td { transition: none; }
 }
