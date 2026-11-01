@@ -186,12 +186,22 @@ or billing.
 Snapshots are temporary, not long-term archives. Retirement is initiated manually by
 the user; do not add schedules, post-release detection or automatic deletion hooks.
 A published Release alone is insufficient: verify that target hosts have switched
-to and accepted the official image and that no runtime or rollback references remain.
+to and accepted the replacement official image or snapshot and that no runtime or rollback references remain.
 List precise local images, GHCR multi-platform and architecture child images, and
 Actions artifacts before deleting within the applicable authorization. Check all
 container references and shared digests; do not delete official images or sweep by
 prefix or age. Keep referenced or uncertain snapshots with a reason. Retain non-secret
 source, digest, run, deployment and cleanup receipts, including outstanding items.
+
+For snapshot-to-snapshot replacement, manually run `retire-snapshot.yml` with
+`old_run` and the already accepted `replacement_run`. It defaults to a precise preview;
+set `execute=true` only within the deletion authorization after checking every target
+host and rollback reference. The workflow does not connect to servers or remove local
+images. It uses the publishing repository's existing `GITHUB_TOKEN`, not expanded
+personal-token scopes. It deletes only package versions for the old manifest's three
+exact tags and that run's manifest and `.dockerbuild` artifacts. Shared tags or a
+replacement digest block deletion. Preserve workflow history and retirement receipts;
+record completed operations and stop on partial failure without automatic retries.
 
 ## Independent production machines
 

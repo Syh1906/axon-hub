@@ -1,0 +1,55 @@
+name: 手动退役指定快照
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_run:
+        description: 待退役快照的成功构建编号
+        required: true
+        type: string
+      replacement_run:
+        description: 已在全部目标服务器验收的新快照构建编号
+        required: true
+        type: string
+      execute:
+        description: 已核对服务器运行及回退引用，执行删除（关闭时仅列出计划）
+        default: false
+        type: boolean
+
+concurrency:
+  group: retire-snapshot-${{ inputs.old_run }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+  packages: write
+
+jobs:
+  retire:
+    name: 核对并手动退役快照
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: 计算精确目标并按授权执行
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OLD_RUN: ${{ inputs.old_run }}
+          REPLACEMENT_RUN: ${{ inputs.replacement_run }}
+          EXECUTE: ${{ inputs.execute }}
+        run: |
+          args=("$OLD_RUN" "$REPLACEMENT_RUN" "$RUNNER_TEMP/retirement")
+          if [ "$EXECUTE" = true ]; then args+=(--execute); fi
+          node scripts/release/retire-snapshot.mjs "${args[@]}"
+      - name: 保存退役计划与执行收据
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: retirement-${{ inputs.old_run }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/retirement/retirement.json
+          if-no-files-found: warn
