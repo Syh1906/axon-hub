@@ -71,7 +71,9 @@ func newTestSystemService(client *ent.Client) *biz.SystemService {
 }
 
 // newTestRequestServiceForChannels creates a minimal request service for testing.
-func newTestRequestServiceForChannels(client *ent.Client, systemService *biz.SystemService) *biz.RequestService {
+func newTestRequestServiceForChannels(t *testing.T, client *ent.Client, systemService *biz.SystemService) *biz.RequestService {
+	t.Helper()
+
 	dataStorageService := &biz.DataStorageService{
 		AbstractService: &biz.AbstractService{},
 		SystemService:   systemService,
@@ -80,7 +82,7 @@ func newTestRequestServiceForChannels(client *ent.Client, systemService *biz.Sys
 	channelService := biz.NewChannelServiceForTest(client)
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
 
-	return biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), nil)
+	return biz.NewRequestService(client, systemService.CacheConfig, systemService, usageLogService, dataStorageService, biz.NewLiveStreamRegistry(), biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
 }
 
 // setupTest creates a test context and ent client for testing.

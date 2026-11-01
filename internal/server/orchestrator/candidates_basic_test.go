@@ -29,7 +29,7 @@ func TestDefaultChannelSelector_Select_SingleChannel(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -84,7 +84,7 @@ func TestDefaultChannelSelector_Select_NoChannelsAvailable(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -116,7 +116,7 @@ func TestDefaultChannelSelector_Select_ModelNotSupported(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -137,7 +137,7 @@ func TestDefaultChannelSelector_Select_EmptyRequest(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 

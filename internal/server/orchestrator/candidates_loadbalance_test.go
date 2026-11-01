@@ -23,7 +23,7 @@ func TestLoadBalancedSelector_Select_MultipleChannels_LoadBalancing(t *testing.T
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -99,7 +99,7 @@ func TestDefaultChannelSelector_Select_WithTraceContext(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 	require.NoError(t, requestService.UpdateRequestChannelID(ctx, stickyRequest.ID, channels[1].ID))
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
@@ -140,7 +140,7 @@ func TestDefaultChannelSelector_Select_WithChannelFailures(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -239,7 +239,7 @@ func TestDefaultChannelSelector_Select_WeightedRoundRobin_EqualWeights(t *testin
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -330,7 +330,7 @@ func TestDefaultChannelSelector_Select_WeightedRoundRobin(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
@@ -401,7 +401,7 @@ func TestDefaultChannelSelector_Select_WithDisabledChannels(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	selector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 

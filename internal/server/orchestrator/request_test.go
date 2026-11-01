@@ -366,7 +366,7 @@ func TestPersistRequestMiddleware_SpeechResponse_StoresMetadataPlaceholder(t *te
 	ctx = ent.NewContext(ctx, client)
 
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	// Create a persisted request row to update.
 	reqRow, err := client.Request.Create().
@@ -416,9 +416,11 @@ func TestPersistRequestMiddleware_SpeechResponse_StoresMetadataPlaceholder(t *te
 	updated, err := client.Request.Get(ctx, reqRow.ID)
 	require.NoError(t, err)
 	require.Equal(t, entrequest.StatusCompleted, updated.Status)
-	require.Contains(t, string(updated.ResponseBody), "audio.speech")
-	require.Contains(t, string(updated.ResponseBody), "audio/mpeg")
-	require.Contains(t, string(updated.ResponseBody), "\"bytes\":9")
+	body, err := requestService.LoadResponseBody(ctx, updated)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "audio.speech")
+	require.Contains(t, string(body), "audio/mpeg")
+	require.Contains(t, string(body), "\"bytes\":9")
 }
 
 func TestAudioSafeResponseBody(t *testing.T) {

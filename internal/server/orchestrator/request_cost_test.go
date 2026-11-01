@@ -29,8 +29,7 @@ func TestMatchedModelPriceReachesPersistedExecution(t *testing.T) {
 	channels := createTestChannels(t, ctx, client)
 	channelService := newTestChannelServiceForChannels(client)
 	system := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, system)
-	requestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()})
+	requestService := newTestRequestServiceForChannels(t, client, system)
 	price := &objects.ModelPrice{Items: []objects.ModelPriceItem{{
 		ItemCode: objects.PriceItemCodeUsage,
 		Pricing:  objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(2))},

@@ -60,7 +60,7 @@ func TestSelectedChannelsSelector_WithAllowedChannels(t *testing.T) {
 
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
-	requestService := newTestRequestServiceForChannels(client, systemService)
+	requestService := newTestRequestServiceForChannels(t, client, systemService)
 
 	baseSelector := newTestLoadBalancedSelector(channelService, client, systemService, requestService)
 
