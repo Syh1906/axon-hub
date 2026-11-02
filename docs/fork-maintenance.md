@@ -1009,7 +1009,7 @@ fork 改动，由用户决定。
   本地定向回归、浏览器验收及独立复审结果沿用[渠道与统计记录](../.agent/summary/channel-load-model-stats-20261102.md)和[自动目录记录](../.agent/summary/codex-auto-and-tool-name-20261102.md)，不因发版重复执行。
   新加坡时间 `16:31:43` 已[正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.12)，源码 `00098e7db017620e5fc1eb8af360efee4fef643b`；[发布任务 41412848581](https://github.com/Syh1906/axon-hub/actions/runs/41412848581) 全部成功，复用同提交 Test 41412294793；Build 与 Lint 同样通过。
   固定镜像 `ghcr.io/syh1906/axon-hub@sha256:e521f04d75441fb5da3b94cab9a4249f483bf7ef7d98274660fd34d1aa52404c`，唯一附件 [release.json](../output/implementation/release-syh12-20261102/release.json) 的摘要与 GitHub 一致。
-  云悠、泉哥依次更新及部署检查通过，数据库、资源配置与其他容器不变；不备份数据库，两台临时配置副本均已清理。泉哥观察到一条请求取消导致的 500，取消发起端未确定，未重放或主动发送收费推理。完整证据与未测范围见[发布部署记录](../.agent/summary/release-syh12-20261102.md)。
+  云悠、泉哥依次更新及部署检查通过，数据库、资源配置与其他容器不变；不备份数据库，两台临时配置副本均已清理。泉哥观察到一条请求取消导致的 500，取消发起端未确定，未重放或主动发送收费推理。用户追加授权后已删除两台暂留的 `.syh.11` 本地镜像，各增加约 185.62 MiB 可用空间。完整证据与未测范围见[发布部署记录](../.agent/summary/release-syh12-20261102.md)。
 
 - 第十一版发布（2026-11-02）：版本 `v1.0.0-beta10-fork.7.syh.11`，汇总 `.syh.10` 之后的
   Codex 多渠道目录定义、显示小数位设置、moego 局部优化及快照中的统计／列表修正。
