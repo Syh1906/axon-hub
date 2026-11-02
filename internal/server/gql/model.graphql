@@ -37,6 +37,7 @@ type ModelCardLimit {
 
 # ModelSettings represents model Association configuration
 type ModelSettings {
+  codexCatalog: JSONRawMessage
   disableDeveloperSettingsInheritance: Boolean!
   associations: [ModelAssociation!]!
   loadBalancerStrategy: String!
@@ -137,6 +138,7 @@ input ModelCardLimitInput {
 }
 
 input ModelSettingsInput {
+  codexCatalog: JSONRawMessageInput
   disableDeveloperSettingsInheritance: Boolean
   associations: [ModelAssociationInput!]!
   loadBalancerStrategy: String
@@ -229,6 +231,7 @@ type ModelStandardPriceMatch {
 }
 
 extend type Query {
+  previewModelCodexCatalog(id: ID!, clientVersion: String!): JSONRawMessage!
   matchModelStandardPrices(modelIDs: [String!]!): [ModelStandardPriceMatch!]!
   fetchModels(input: FetchModelsInput!): FetchModelsPayload!
   queryModels(input: QueryModelsInput!): [ModelIdentityWithStatus!]!

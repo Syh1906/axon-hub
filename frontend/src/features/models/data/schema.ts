@@ -150,6 +150,7 @@ export function normalizeModelRoutingPolicyValue<T extends string>(value?: T | n
 }
 
 export const modelSettingsSchema = z.object({
+  codexCatalog: z.record(z.string(), z.unknown()).nullable().optional(),
   disableDeveloperSettingsInheritance: z.boolean().optional().default(false),
   associations: z.array(modelAssociationSchema).optional().default([]),
   loadBalancerStrategy: z.enum(['default', 'adaptive', 'failover', 'circuit-breaker', 'round-robin', 'health-gated']).optional().default('default'),

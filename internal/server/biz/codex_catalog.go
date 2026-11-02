@@ -15,9 +15,11 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/model"
+	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/transformer/openai/codex"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -52,11 +54,31 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		channels[ch.ID] = ch
 	}
 	// Fetch each source once per request, even when several public aliases use it.
-	sources := make(map[int]map[string]map[string]any)
+	var connections []*ModelChannelConnection
+	for _, m := range visible {
+		if m.ConfiguredModel.Type == model.TypeChat && (m.ConfiguredModel.Settings == nil || len(m.ConfiguredModel.Settings.CodexCatalog) == 0 || string(m.ConfiguredModel.Settings.CodexCatalog) == "null") {
+			connections = append(connections, m.Connections...)
+		}
+	}
+	sources := s.fetchCatalogSources(ctx, connections, channels, version)
 	result := make([]map[string]any, 0, len(visible))
 	omitted := 0
 	for _, m := range visible {
 		if m.ConfiguredModel.Type != model.TypeChat {
+			continue
+		}
+		if settings := m.ConfiguredModel.Settings; settings != nil && len(settings.CodexCatalog) > 0 && string(settings.CodexCatalog) != "null" {
+			definition, definitionErr := decodeCodexDefinition(settings.CodexCatalog)
+			var merged map[string]any
+			if definitionErr == nil {
+				merged, definitionErr = definition.catalogModel(m, version)
+			}
+			if definitionErr != nil {
+				omitted++
+				log.Warn(ctx, "Codex model omitted", log.String("model", m.ID), log.String("reason", definitionErr.Error()))
+				continue
+			}
+			result = append(result, merged)
 			continue
 		}
 		var variants []map[string]any
@@ -67,12 +89,10 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 				complete = false
 				break
 			}
-			if _, fetched := sources[ch.ID]; !fetched {
-				sources[ch.ID], _ = s.channelCatalog(ctx, ch, version)
-			}
 			for _, entry := range connection.Models {
 				metadata := sources[ch.ID][entry.ActualModel]
 				if metadata == nil {
+					log.Warn(ctx, "Codex model metadata missing", log.String("model", m.ID), log.Int("channel_id", ch.ID), log.String("actual_model", entry.ActualModel))
 					complete = false
 					break
 				}
@@ -85,13 +105,14 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		}
 		merged, err := mergeCodexModels(m.ID, variants)
 		if err != nil {
+			log.Warn(ctx, "Codex model omitted", log.String("model", m.ID), log.String("reason", err.Error()))
 			omitted++
 			continue
 		}
 		result = append(result, merged)
 	}
 	if len(result) == 0 && omitted > 0 {
-		return nil, omitted, fmt.Errorf("no complete Codex metadata for permitted models; configure the channel Responses catalog URL or catalog JSON")
+		return nil, omitted, fmt.Errorf("no complete Codex metadata for permitted models; configure a confirmed model definition or channel Responses catalog")
 	}
 	body, err := json.Marshal(map[string]any{"models": result})
 	if len(body) > codexCatalogMaxBytes {
@@ -168,7 +189,7 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 		if err != nil {
 			return nil, fmt.Errorf("catalog read failed")
 		}
-		models, err := parseCodexCatalog(body)
+		models, err := parseRemoteCodexCatalog(body)
 		if err != nil {
 			return nil, err
 		}
@@ -242,4 +263,39 @@ func catalogCacheTTL(h http.Header) time.Duration {
 		ttl -= time.Duration(age) * time.Second
 	}
 	return max(ttl, 0)
+}
+
+// Bound the whole refresh, rather than paying a timeout for every candidate.
+func (s *CodexCatalogService) fetchCatalogSources(ctx context.Context, connections []*ModelChannelConnection, channels map[int]*Channel, version string) map[int]map[string]map[string]any {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	result := make(map[int]map[string]map[string]any)
+	seen := make(map[int]bool)
+	var mu sync.Mutex
+	var group errgroup.Group
+	group.SetLimit(4)
+	for _, connection := range connections {
+		id := connection.Channel.ID
+		if seen[id] || channels[id] == nil {
+			continue
+		}
+		seen[id] = true
+		group.Go(func() error {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					log.Error(ctx, "catalog refresh panicked", log.Any("panic", recovered))
+				}
+			}()
+			models, err := s.channelCatalog(ctx, channels[id], version)
+			if err != nil {
+				log.Warn(ctx, "Codex catalog source unavailable", log.Int("channel_id", id), log.String("reason", err.Error()))
+			}
+			mu.Lock()
+			result[id] = models
+			mu.Unlock()
+			return nil
+		})
+	}
+	_ = group.Wait()
+	return result
 }

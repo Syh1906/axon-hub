@@ -137,6 +137,8 @@ func (c *ModelCard) PriceSummary() ModelCardCost {
 }
 
 type ModelSettings struct {
+	// CodexCatalog is an administrator-confirmed, versioned model definition.
+	CodexCatalog                        JSONRawMessage      `json:"codexCatalog,omitempty"`
 	DisableDeveloperSettingsInheritance bool                `json:"disableDeveloperSettingsInheritance"`
 	Associations                        []*ModelAssociation `json:"associations"`
 	LoadBalancerStrategy                string              `json:"loadBalancerStrategy"`

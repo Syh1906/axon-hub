@@ -924,6 +924,7 @@ export function ModelsAssociationDialog() {
         id: currentRow!.id,
         input: {
           settings: {
+            ...currentRow!.settings,
             disableDeveloperSettingsInheritance: data.disableDeveloperSettingsInheritance ?? false,
             associations,
             loadBalancerStrategy: data.loadBalancerStrategy,

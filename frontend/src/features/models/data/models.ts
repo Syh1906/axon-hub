@@ -55,6 +55,7 @@ const MODELS_QUERY = `
             lastUpdated
           }
           settings {
+            codexCatalog
             disableDeveloperSettingsInheritance
             loadBalancerStrategy
             traceStickyMode
@@ -182,6 +183,7 @@ const CREATE_MODEL_MUTATION = `
         lastUpdated
       }
       settings {
+        codexCatalog
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode
@@ -284,6 +286,7 @@ const BULK_CREATE_MODELS_MUTATION = `
         lastUpdated
       }
       settings {
+        codexCatalog
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode
@@ -386,6 +389,7 @@ const UPDATE_MODEL_MUTATION = `
         lastUpdated
       }
       settings {
+        codexCatalog
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode

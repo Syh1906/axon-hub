@@ -348,5 +348,14 @@
   "models.bulk.followRequest": "跟随每次实际请求的模型 ID",
   "models.bulk.pattern": "正则表达式",
   "models.bulk.checking": "正在检查匹配",
-  "models.bulk.previewFailed": "预览失败，请检查表达式或重新打开"
+  "models.bulk.previewFailed": "预览失败，请检查表达式或重新打开",
+  "models.codex.title": "Codex 模型定义",
+  "models.codex.description": "从关联渠道导入或粘贴完整定义。model 保存指令和无目录渠道的继承基线；已有来源的能力保存在 routes.capabilities，额外缩减填入 limits。核对并确认全部关联后应用，再保存模型。",
+  "models.codex.version": "Codex 内置 CLI 版本，例如 0.159.2",
+  "models.codex.import": "从关联渠道导入",
+  "models.codex.confirm": "我已核对模型指令、工具能力及 routes 中的全部渠道关联；差异已在 limits 中缩减。",
+  "models.codex.apply": "应用已确认的定义",
+  "models.codex.clear": "清除模型定义",
+  "models.codex.invalid": "请输入完整的模型定义 JSON 对象。",
+  "models.codex.importFailed": "导入失败，请检查渠道目录来源。"
 }

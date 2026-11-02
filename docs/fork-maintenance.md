@@ -123,6 +123,8 @@ fork 改动，由用户决定。
 
 ### Codex 目录与客户端传输选择
 
+- 多渠道目录修复（2026-11-02，本地提交／未发布）：模型 `settings.codexCatalog` 保存管理员确认的完整模型定义、精确客户端版本和渠道／实际模型绑定；管理端支持从现有来源导入预览、确认应用、保存回读与清除。目录读取不再依赖已确认渠道逐家提供目录，逐路线保留来源能力，到请求时按当前 Key 可见候选合并限制；新关联需重新确认。无数据库 schema/data migration。按 ID 合并推理／服务档位、保留未知元数据、校验已知字段及完整嵌套消息、隔离远程坏记录；来源刷新并发 4、总预算 10 秒，错误响应也返回省略数量。独立 `gpt-6.1-sol / max` 审查、自检、真实管理页联调及 CLI 0.166.0 直连本地 Axon 目录通过，未验收生产与真实收费上游。验证与限制见[实现记录](../.agent/summary/codex-definition-20261102.md)。
+
 - 续聊恢复补全（2026-10-31，待提交）：逐轮恢复增量祖先，超 1 MiB 历史可用而不强制入缓存；缺失 / 循环不拼部分历史，读取异常只阻塞必须本地恢复的路径，原生 HTTP 可保留编号。当前参数与计费模式不继承旧轮次。无迁移；回归覆盖缓存过期、多轮工具顺序、Key / 项目隔离与取消。本地真实网关完成超限三轮恢复及 WS→HTTP 验收，证据见[本轮方案与验收](solutions/openai-service-tier-billing-20261031.md#12-实现与验收结果)。
 
 - 状态：已实现并完成本地验收及独立复核，待发布。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。

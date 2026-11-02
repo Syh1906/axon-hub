@@ -17,11 +17,11 @@ func (h *OpenAIHandlers) ListCodexModels(c *gin.Context) {
 		return
 	}
 	result, omitted, err := h.CodexCatalogService.Models(c.Request.Context(), version)
+	c.Header("X-AxonHub-Catalog-Omitted", strconv.Itoa(omitted))
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": gin.H{"code": "codex_catalog_unavailable", "message": err.Error()}})
 		return
 	}
 	c.Header("Cache-Control", "private, no-store")
-	c.Header("X-AxonHub-Catalog-Omitted", strconv.Itoa(omitted))
 	c.Data(http.StatusOK, "application/json", result)
 }

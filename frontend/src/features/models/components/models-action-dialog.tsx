@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { AutoComplete } from '@/components/auto-complete';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
+import { ModelCodexDefinitionEditor } from './model-codex-definition-editor';
 import { useModels } from '../context/models-context';
 import { modelCardFormValues, modelCardFromCatalog } from '../data/catalog-card';
 import { DEVELOPER_IDS, DEVELOPER_ICONS } from '../data/constants';
@@ -61,6 +62,10 @@ export function ModelsActionDialog() {
   const [dialogContent, setDialogContent] = useState<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
+  const [catalogValid, setCatalogValid] = useState(true);
+  useEffect(() => {
+    setCatalogValid(true);
+  }, [open, currentRow?.id]);
   const isEdit = open === 'edit';
   const isOpen = open === 'create' || open === 'edit';
 
@@ -272,6 +277,7 @@ export function ModelsActionDialog() {
   );
 
   const onSubmit = async (data: CreateModelInput, associate = false) => {
+    if (!catalogValid) return;
     try {
       if (isEdit && currentRow) {
         const updateData: UpdateModelInput = {
@@ -813,6 +819,15 @@ export function ModelsActionDialog() {
                       />
                     </div>
                   </div>
+                  {isEdit && currentRow?.type === 'chat' && (
+                    <ModelCodexDefinitionEditor
+                      key={currentRow.id}
+                      modelId={currentRow.id}
+                      value={form.watch('settings.codexCatalog')}
+                      onChange={(value) => form.setValue('settings.codexCatalog', value, { shouldDirty: true })}
+                      onValidityChange={setCatalogValid}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -821,7 +836,7 @@ export function ModelsActionDialog() {
               <Button type='button' variant='outline' onClick={handleClose}>
                 {t('common.buttons.cancel')}
               </Button>
-              <Button type='submit' disabled={createModel.isPending || updateModel.isPending}>
+              <Button type='submit' disabled={createModel.isPending || updateModel.isPending || !catalogValid}>
                 {isEdit ? t('common.buttons.save') : t('common.buttons.create')}
               </Button>
               {!isEdit && (

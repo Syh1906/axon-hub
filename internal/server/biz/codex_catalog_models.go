@@ -53,6 +53,10 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 		if !legacy {
 			return nil, fmt.Errorf("catalog model %q requires model instructions", slug)
 		}
+		if err := validateCodexWireModel(m); err != nil {
+			return nil, fmt.Errorf("catalog model %q: %w", slug, err)
+		}
+		normalizeCodexWireDefaults(m)
 		// Preserve both modern instructions and the legacy wire field used by older clients.
 		m["base_instructions"] = instructions
 		result[slug] = m
@@ -61,6 +65,10 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 }
 
 func mergeCodexModels(publicID string, variants []map[string]any) (map[string]any, error) {
+	return mergeCodexCapabilities(publicID, variants, false)
+}
+
+func mergeCodexCapabilities(publicID string, variants []map[string]any, canonical bool) (map[string]any, error) {
 	encoded, err := json.Marshal(variants[0])
 	if err != nil {
 		return nil, err
@@ -71,29 +79,82 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 	}
 	for _, next := range variants[1:] {
 		// Different tool dialects or instructions cannot be safely combined into one picker entry.
-		for _, field := range []string{"base_instructions", "model_messages", "shell_type", "apply_patch_tool_type", "web_search_tool_type", "truncation_policy", "tool_mode", "multi_agent_version"} {
+		for _, field := range []string{"base_instructions", "model_messages", "shell_type", "apply_patch_tool_type", "web_search_tool_type", "tool_mode", "multi_agent_version"} {
+			if canonical && (field == "base_instructions" || field == "model_messages") {
+				continue
+			}
 			if !reflect.DeepEqual(result[field], next[field]) {
 				return nil, fmt.Errorf("incompatible Codex metadata for %s", publicID)
 			}
 		}
-		for field, value := range result {
-			switch typed := value.(type) {
-			case bool:
-				other, _ := next[field].(bool)
-				result[field] = typed && other
-			case []any:
-				other, _ := next[field].([]any)
-				common := make([]any, 0)
-				for _, item := range typed {
-					for _, candidate := range other {
-						if reflect.DeepEqual(item, candidate) {
-							common = append(common, item)
-							break
+		policy, okA := result["truncation_policy"].(map[string]any)
+		otherPolicy, okB := next["truncation_policy"].(map[string]any)
+		if !okA || !okB || !reflect.DeepEqual(policy["mode"], otherPolicy["mode"]) {
+			return nil, fmt.Errorf("incompatible Codex truncation policy for %s", publicID)
+		}
+		if a, ok := policy["limit"].(float64); ok {
+			if b, ok := otherPolicy["limit"].(float64); ok {
+				policy["limit"] = min(a, b)
+			}
+		}
+		for _, field := range []string{"supported_in_api", "support_verbosity", "supports_parallel_tool_calls", "supports_experimental_context", "supports_image_detail_original", "supports_reasoning_effort_updates", "supports_search_tool", "use_responses_lite", "supports_reasoning_summary_parameter"} {
+			value, exists := result[field].(bool)
+			other, ok := next[field].(bool)
+			switch field {
+			case "supports_reasoning_summary_parameter":
+				if !exists {
+					value = true
+				}
+				if !ok {
+					other = true
+				}
+				result[field] = value && other
+			case "supports_image_detail_original", "supports_search_tool", "supports_experimental_context", "use_responses_lite", "supports_reasoning_effort_updates":
+				result[field] = value && other
+			default:
+				if exists && ok {
+					result[field] = value && other
+				} else {
+					delete(result, field)
+				}
+			}
+		}
+		for _, field := range []string{"node_repl_disabled", "node_repl_auto_review_required"} {
+			a, _ := result[field].(bool)
+			b, _ := next[field].(bool)
+			result[field] = a || b
+		}
+		for _, field := range []string{"supported_reasoning_levels", "service_tiers", "additional_speed_tiers", "input_modalities", "experimental_supported_tools"} {
+			values, exists := result[field].([]any)
+			if !exists {
+				continue
+			}
+			other, _ := next[field].([]any)
+			common := make([]any, 0)
+			for _, value := range values {
+				for _, candidate := range other {
+					equal := reflect.DeepEqual(value, candidate)
+					key := ""
+					if field == "supported_reasoning_levels" {
+						key = "effort"
+					} else if field == "service_tiers" || field == "additional_speed_tiers" {
+						key = "id"
+					}
+					if key != "" {
+						a, okA := value.(map[string]any)
+						b, okB := candidate.(map[string]any)
+						if okA && okB {
+							id, valid := a[key].(string)
+							equal = valid && id != "" && id == b[key]
 						}
 					}
+					if equal {
+						common = append(common, value)
+						break
+					}
 				}
-				result[field] = common
 			}
+			result[field] = common
 		}
 		for _, field := range []string{"context_window", "max_context_window", "auto_compact_token_limit", "effective_context_window_percent"} {
 			a, okA := result[field].(float64)
@@ -129,6 +190,39 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 		}
 		if !found {
 			result[field] = nil
+		}
+	}
+	if err := validateCodexWireModel(result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Isolate invalid remote entries; saved model definitions use strict validation.
+func parseRemoteCodexCatalog(body []byte) (map[string]map[string]any, error) {
+	if len(body) > codexCatalogMaxBytes {
+		return nil, fmt.Errorf("Codex catalog exceeds 1 MiB")
+	}
+	var wrapper struct {
+		Models []json.RawMessage `json:"models"`
+	}
+	if json.Unmarshal(body, &wrapper) != nil || wrapper.Models == nil {
+		return nil, fmt.Errorf("Codex catalog requires a models array, not an OpenAI data list")
+	}
+	result := make(map[string]map[string]any)
+	seen := make(map[string]bool)
+	for _, raw := range wrapper.Models {
+		parsed, err := parseCodexCatalog(append(append([]byte(`{"models":[`), raw...), []byte(`]}`)...))
+		if err != nil {
+			continue
+		}
+		for slug, metadata := range parsed {
+			if seen[slug] {
+				delete(result, slug)
+				continue
+			}
+			seen[slug] = true
+			result[slug] = metadata
 		}
 	}
 	return result, nil

@@ -59,6 +59,12 @@ func validateModelSettings(settings *objects.ModelSettings) error {
 		return nil
 	}
 
+	if len(settings.CodexCatalog) > 0 && string(settings.CodexCatalog) != "null" {
+		if _, err := decodeCodexDefinition(settings.CodexCatalog); err != nil {
+			return err
+		}
+	}
+
 	settings.NormalizeRoutingPolicy()
 	if !objects.IsValidLoadBalancerStrategy(settings.LoadBalancerStrategy) {
 		return fmt.Errorf("invalid load balancer strategy %q", settings.LoadBalancerStrategy)

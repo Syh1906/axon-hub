@@ -102,6 +102,14 @@ func (r *mutationResolver) BulkDeleteModels(ctx context.Context, ids []*objects.
 	return true, nil
 }
 
+// PreviewModelCodexCatalog is the resolver for the previewModelCodexCatalog field.
+func (r *queryResolver) PreviewModelCodexCatalog(ctx context.Context, id objects.GUID, clientVersion string) (objects.JSONRawMessage, error) {
+	if err := authz.RequireScope(ctx, scopes.ScopeWriteChannels); err != nil {
+		return nil, err
+	}
+	return r.modelService.PreviewCodexCatalog(ctx, id.ID, clientVersion)
+}
+
 // MatchModelStandardPrices is the resolver for the matchModelStandardPrices field.
 func (r *queryResolver) MatchModelStandardPrices(ctx context.Context, modelIDs []string) ([]*biz.ModelStandardPriceMatch, error) {
 	return r.modelService.MatchModelStandardPrices(ctx, modelIDs)

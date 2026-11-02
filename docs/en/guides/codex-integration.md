@@ -157,6 +157,26 @@ The catalog applies current project/key channel restrictions, allowed models, an
 
 Remote fetches have a 1 MiB limit and 10-second timeout. Cache entries are separated by channel, credentials, URL, and client version, respect `no-store`, `no-cache`, `max-age`, and `Age`, and expire within five minutes. Visibility is checked on every request; stale metadata is not served.
 
+### Multi-channel model definitions
+
+For routes whose providers only expose ordinary model lists, open **Models → Edit → Codex model definition**, enter the exact bundled Codex CLI version, and import from associated channels. Import previews complete metadata from available sources, retains the selected source's instructions, intersects known capabilities, and lists all channel/actual-model pairs for confirmation. It does not persist data.
+
+Verify the instructions, tools, capabilities and every route, including providers without catalogs. Matching names alone do not establish compatibility. Confirm, apply the definition, then save the model. A complete definition can also be pasted when no source is available. Incompatible model/tool routes require separate models or corrected associations.
+
+Import does not pre-intersect source capabilities. `model` keeps canonical instructions and the inheritance baseline for routes without catalogs; each catalog-backed route stores its own `capabilities`. Only currently permitted routes participate in output intersection. Edit a route's `limits` for manual restrictions; editing capabilities in `model` does not replace existing source snapshots.
+
+`settings.codexCatalog` stores `clientVersion`, provenance (`sourceChannelId`, `sourceModelId`), a complete `model` object and confirmed `routes`. Each route has integer `channelId`, actual upstream `modelId`, optional source `capabilities`, and optional `limits`, for example:
+
+```json
+{"channelId": 12, "modelId": "actual-model-id", "limits": {"context_window": 16000}}
+```
+
+Limits support context bounds, reasoning/service tiers, input modalities, experimental tools and API/verbosity/parallel-tool booleans. Arrays intersect, numeric bounds take the minimum, and booleans require common support. Unknown limit fields are rejected; unknown model metadata is preserved. Reasoning and service tiers match by identity rather than description text.
+
+Confirmed definitions are local configuration, independent of remote catalog availability. Current project/key restrictions are evaluated on every request; only visible routes constrain the result. New channel/model pairs must be imported and confirmed before use in the catalog. Unconfirmed routes omit only their model. Definitions currently match an exact client version; reimport after changing the bundled client version. Clearing the definition restores channel-based generation.
+
+The read-only admin GraphQL query `previewModelCodexCatalog(id, clientVersion)` requires channel-write permission. Save/clear through `updateModel.settings.codexCatalog`. Logs identify source failures, version mismatches and unconfirmed routes. `X-AxonHub-Catalog-Omitted` is included in success and failure responses. Remote refresh has concurrency 4 and a total 10-second budget; known fields and complete model-message structures are validated before saving and after merging; malformed remote entries are isolated. Equivalent shell aliases and documented capability defaults are normalized. If no permitted model has a usable definition, the endpoint still returns an explicit 503 rather than inventing instructions.
+
 ### WebSocket Capability and HTTP Fallback
 
 The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. WS clients use upstream WS only when the checkbox is enabled; otherwise AxonHub streams HTTP responses over the original client WS connection.
