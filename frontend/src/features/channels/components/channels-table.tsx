@@ -97,7 +97,23 @@ export function ChannelsTable({
   onColumnVisibilityChange,
   canWrite = true,
 }: DataTableProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const loadColumnWidths = useMemo(() => {
+    let current = 4;
+    let limit = 4;
+    for (const channel of data) {
+      for (const value of [channel.liveUsage?.inFlight, channel.liveUsage?.rpm]) {
+        current = Math.max(current, (value ?? 0).toLocaleString(i18n.language).length);
+      }
+      for (const value of [channel.settings?.rateLimit?.maxConcurrent, channel.settings?.rateLimit?.rpm]) {
+        limit = Math.max(limit, (value ?? 0).toLocaleString(i18n.language).length);
+      }
+    }
+    return {
+      '--channel-load-value-width': `${current}ch`,
+      '--channel-load-limit-width': `${limit + 2}ch`,
+    } as React.CSSProperties;
+  }, [data, i18n.language]);
   const scrolling = useIncrementalScroll(scroll);
   const { setSelectedChannels, setResetRowSelection, setOpen } = useChannels();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -285,7 +301,11 @@ export function ChannelsTable({
         className='shadow-soft relative mt-2 min-h-0 flex-1 overflow-auto rounded-2xl border border-[var(--table-border)]'
       >
         <div className='min-w-[1100px]'>
-          <Table data-testid='channels-table' className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'>
+          <Table
+            data-testid='channels-table'
+            style={loadColumnWidths}
+            className='border-separate border-spacing-0 rounded-2xl bg-[var(--table-background)]'
+          >
             <TableHeader className='sticky top-0 z-20 bg-[var(--table-header)] shadow-sm'>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='group/row border-0'>

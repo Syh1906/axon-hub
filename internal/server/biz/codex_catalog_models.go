@@ -2,10 +2,13 @@ package biz
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 )
+
+var errCodexPlainModelList = errors.New("Codex catalog requires a models array, not an OpenAI data list")
 
 func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 	if len(body) > codexCatalogMaxBytes {
@@ -198,8 +201,15 @@ func parseRemoteCodexCatalog(body []byte) (map[string]map[string]any, error) {
 	}
 	var wrapper struct {
 		Models []json.RawMessage `json:"models"`
+		Data   []json.RawMessage `json:"data"`
 	}
-	if json.Unmarshal(body, &wrapper) != nil || wrapper.Models == nil {
+	if json.Unmarshal(body, &wrapper) != nil {
+		return nil, fmt.Errorf("Codex catalog requires a models array, not an OpenAI data list")
+	}
+	if wrapper.Models == nil && wrapper.Data != nil {
+		return nil, errCodexPlainModelList
+	}
+	if wrapper.Models == nil {
 		return nil, fmt.Errorf("Codex catalog requires a models array, not an OpenAI data list")
 	}
 	result := make(map[string]map[string]any)

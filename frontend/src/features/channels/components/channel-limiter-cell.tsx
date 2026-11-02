@@ -21,26 +21,29 @@ export const ChannelLimiterCell = memo(({ channel }: ChannelLimiterCellProps) =>
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div tabIndex={0} className='mx-auto grid w-fit cursor-help grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs whitespace-nowrap'>
+        <div
+          tabIndex={0}
+          className='grid w-full min-w-max cursor-help grid-cols-[max-content_var(--channel-load-value-width,4ch)_var(--channel-load-limit-width,6ch)] justify-center gap-x-2 gap-y-1 text-xs whitespace-nowrap'
+        >
           {[
             { label: t('channels.columns.loadTooltip.concurrent'), value: usage?.inFlight, limit: limits?.maxConcurrent },
             { label: 'RPM', value: usage?.rpm, limit: limits?.rpm },
           ].map(({ label, value, limit }) => (
             <div key={label} className='contents'>
               <span className='text-muted-foreground text-left'>{label}</span>
-              <span className='text-left tabular-nums'>
-                <span
-                  className={cn(
-                    'font-medium',
-                    value != null &&
-                      limit != null &&
-                      limit > 0 &&
-                      (value >= limit ? 'text-red-500' : value >= limit / 2 ? 'text-yellow-600 dark:text-yellow-400' : undefined)
-                  )}
-                >
-                  {value == null ? '—' : format(value)}
-                </span>
-                {limit != null && limit > 0 && <span className='text-muted-foreground'> / {format(limit)}</span>}
+              <span
+                className={cn(
+                  'text-right font-medium tabular-nums',
+                  value != null &&
+                    limit != null &&
+                    limit > 0 &&
+                    (value >= limit ? 'text-red-500' : value >= limit / 2 ? 'text-yellow-600 dark:text-yellow-400' : undefined)
+                )}
+              >
+                {value == null ? '—' : format(value)}
+              </span>
+              <span className='text-muted-foreground text-left tabular-nums'>
+                {limit != null && limit > 0 ? `/ ${format(limit)}` : null}
               </span>
             </div>
           ))}

@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,10 +25,16 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-const codexCatalogMaxBytes = 1 << 20
+const (
+	codexCatalogMaxBytes = 1 << 20
+	// Codex allows five seconds including transport and decoding. Leave time
+	// for model filtering, serialization and the client-to-gateway connection.
+	codexCatalogRefreshTimeout = 3 * time.Second
+)
 
 type codexCatalogCache struct {
 	models  map[string]map[string]any
+	err     error
 	expires time.Time
 }
 
@@ -150,10 +158,10 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 	cached, found := s.cache[key]
 	s.mu.Unlock()
 	if found && time.Now().Before(cached.expires) {
-		return cached.models, nil
+		return cached.models, cached.err
 	}
 	value, err, _ := s.flight.Do(key, func() (any, error) {
-		fetchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		fetchCtx, cancel := context.WithTimeout(ctx, codexCatalogRefreshTimeout)
 		defer cancel()
 		req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, u.String(), nil)
 		if err != nil {
@@ -174,9 +182,9 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 		if err != nil {
 			return nil, fmt.Errorf("catalog read failed")
 		}
-		models, err := parseRemoteCodexCatalog(body)
-		if err != nil {
-			return nil, err
+		models, parseErr := parseRemoteCodexCatalog(body)
+		if parseErr != nil && !errors.Is(parseErr, errCodexPlainModelList) {
+			return nil, parseErr
 		}
 		ttl := catalogCacheTTL(resp.Header)
 		if ttl > 0 {
@@ -192,10 +200,13 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 					break
 				}
 			}
-			s.cache[key] = codexCatalogCache{models: models, expires: time.Now().Add(ttl)}
+			// An ordinary OpenAI list is a valid response without Codex metadata.
+			// Cache that fact under the same identity/version and freshness rules.
+			// Authentication, transport and malformed-response errors stay uncached.
+			s.cache[key] = codexCatalogCache{models: models, err: parseErr, expires: time.Now().Add(ttl)}
 			s.mu.Unlock()
 		}
-		return models, nil
+		return models, parseErr
 	})
 	if err != nil {
 		return nil, err
@@ -252,35 +263,61 @@ func catalogCacheTTL(h http.Header) time.Duration {
 
 // Bound the whole refresh, rather than paying a timeout for every candidate.
 func (s *CodexCatalogService) fetchCatalogSources(ctx context.Context, connections []*ModelChannelConnection, channels map[int]*Channel, version string) map[int]map[string]map[string]any {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, codexCatalogRefreshTimeout)
 	defer cancel()
 	result := make(map[int]map[string]map[string]any)
 	seen := make(map[int]bool)
-	var mu sync.Mutex
-	var group errgroup.Group
-	group.SetLimit(4)
+	var sources []*Channel
 	for _, connection := range connections {
 		id := connection.Channel.ID
 		if seen[id] || channels[id] == nil {
 			continue
 		}
 		seen[id] = true
+		sources = append(sources, channels[id])
+	}
+	// Ordinary /v1/models probes must not occupy every slot ahead of explicit
+	// catalogs. This changes fetch order, not model/profile selection priority.
+	slices.SortStableFunc(sources, func(a, b *Channel) int {
+		return codexCatalogSourcePriority(a) - codexCatalogSourcePriority(b)
+	})
+	var mu sync.Mutex
+	var group errgroup.Group
+	group.SetLimit(4)
+	for _, ch := range sources {
 		group.Go(func() error {
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					log.Error(ctx, "catalog refresh panicked", log.Any("panic", recovered))
 				}
 			}()
-			models, err := s.channelCatalog(ctx, channels[id], version)
+			models, err := s.channelCatalog(ctx, ch, version)
 			if err != nil {
-				log.Warn(ctx, "Codex catalog source unavailable", log.Int("channel_id", id), log.String("reason", err.Error()))
+				log.Warn(ctx, "Codex catalog source unavailable", log.Int("channel_id", ch.ID), log.String("reason", err.Error()))
 			}
 			mu.Lock()
-			result[id] = models
+			result[ch.ID] = models
 			mu.Unlock()
 			return nil
 		})
 	}
 	_ = group.Wait()
 	return result
+}
+
+func codexCatalogSourcePriority(ch *Channel) int {
+	for _, ep := range ch.ResolveEndpoints() {
+		if ep.APIFormat != llm.APIFormatOpenAIResponse.String() {
+			continue
+		}
+		if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
+			return 0
+		}
+		if ep.CatalogURL != "" || ch.Type == channel.TypeCodex ||
+			codexCatalogURL(ch, ep) == "https://chatgpt.com/backend-api/codex/models" {
+			return 1
+		}
+		break
+	}
+	return 2
 }

@@ -4,6 +4,11 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+### 修复
+
+- Codex 目录优先获取明确的完整来源，远程刷新预算调整为 3 秒，给客户端的 5 秒期限预留传输时间。普通 OpenAI 模型名单按上游缓存规则复用识别结果，减少重复探测。
+- 渠道并发 / RPM 采用整表统一的数字区域宽度，当前值右对齐，上限保留独立位置，覆盖不同位数和未配置上限的混合列表。
+
 ## [v1.0.0-beta10-fork.7.syh.12] - 2026-11-02
 
 ### 新增
