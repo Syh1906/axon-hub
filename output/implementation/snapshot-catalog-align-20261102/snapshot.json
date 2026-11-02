@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.0.0-beta10-fork.7.syh.12+snapshot.7f592ffb2ee0.41422746005.1",
+  "repository": "Syh1906/axon-hub",
+  "commit": "7f592ffb2ee03e59f39ba98f8cd65a5ec47277eb",
+  "upstream": {
+    "repository": "ChouUn/axon-hub",
+    "tag": "v1.0.0-beta10-fork.7",
+    "commit": "b205ae8eb0db9fed6078e3a5c624bda61b36de31"
+  },
+  "image": "ghcr.io/syh1906/axon-hub@sha256:9691bd45d09c174c10034aff3261fe30aa5c3e18fb75a68becf5b48de0d2fc07",
+  "originalUpstream": {
+    "repository": "looplj/axonhub",
+    "tag": "v1.0.0-beta10",
+    "commit": "939b2bc07cc05bdf7750d7ec872290d67784d13d"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "runURL": "https://github.com/Syh1906/axon-hub/actions/runs/41422746005/attempts/1",
+  "kind": "snapshot",
+  "snapshotId": "snapshot-7f592ffb2ee0-41422746005-1",
+  "baseVersion": "v1.0.0-beta10-fork.7.syh.12",
+  "baseCommit": "00098e7db017620e5fc1eb8af360efee4fef643b",
+  "imageTags": [
+    "snapshot-7f592ffb2ee0-41422746005-1",
+    "snapshot-7f592ffb2ee0-41422746005-1-amd64",
+    "snapshot-7f592ffb2ee0-41422746005-1-arm64"
+  ]
+}
