@@ -196,8 +196,9 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 不删除关联的正式镜像。仍使用、需要回退或用途未明的快照保留并注明原因。
 保留不含凭据的提交、摘要、构建地址、部署及回收收据；未清理项如实记录。
 
-快照替换快照时，可手动运行 `retire-snapshot.yml`，输入 `old_run` 和已经完成所有
-目标部署验收的 `replacement_run`。默认只列出精确计划；确认授权和运行／回退引用后，
+正式版或新快照替换旧快照时，可手动运行 `retire-snapshot.yml`，输入 `old_run` 和已经完成所有
+目标部署验收的 `replacement_run`。正式版须为成功的 release 工作流及已公开的非预发布版本，
+并校验 `release.json` 的版本、提交、双架构和构建地址。默认只列出精确计划；确认授权和运行／回退引用后，
 以 `execute=true` 执行。此入口不连接服务器，服务器核对和本地镜像删除仍由维护流程完成。
 它沿用发布时的仓库 `GITHUB_TOKEN` 管理本仓库关联的 GHCR 包，不要求扩大个人令牌范围。
 只删除旧清单的三个精确镜像标签对应的包版本，以及旧任务的清单和 `.dockerbuild`

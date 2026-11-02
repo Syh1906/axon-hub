@@ -4,6 +4,25 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.11] - 2026-11-02
+
+### 修复
+
+- 多渠道 Codex 模型目录支持保存管理员确认的完整定义及渠道绑定，按当前项目和 Key 可见路线合并能力，不再要求每个渠道都提供目录；隔离坏记录并校验已知字段及嵌套消息。
+- 修复统计页缓存重入空白、列表回顶闪色和请求行悬浮反馈，统一表格交互；采用 moego 优化局部图片编解码和请求字段处理。
+
+### 新增
+
+- 模型编辑提供按客户端版本导入、确认、保存回读及清除目录定义；取消旧请求，避免关闭重开后状态被覆盖。
+- 成本与额度展示小数位数可配置；只改变显示，不改变结算金额。
+- 按需快照构建及精确手动退役，支持已验收正式版本替代旧快照，保留共享镜像保护及回收收据。
+
+### 发布与升级
+
+- 双架构 GHCR 镜像及 release.json 精简发布，不生成独立二进制包；直接上游与原始上游基线不变。
+- 相对 .syh.10 无 schema/data migration 变化；目录定义写入既有 settings JSON。定义按精确 clientVersion 确认，客户端升级后需重新导入，缺少目录的渠道由管理员核实能力。
+- 生产部署与快照退役分别验收，不将云端启动检查当作真实供应商推理或计费验证。
+
 ## [v1.0.0-beta10-fork.7.syh.9] - 2026-11-01
 
 ### Added

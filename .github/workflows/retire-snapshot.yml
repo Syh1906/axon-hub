@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       replacement_run:
-        description: 已在全部目标服务器验收的新快照构建编号
+        description: 已在全部目标服务器验收的正式发布或新快照构建编号
         required: true
         type: string
       execute:

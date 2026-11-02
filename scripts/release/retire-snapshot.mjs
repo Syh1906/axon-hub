@@ -16,11 +16,22 @@ function validateManifest(manifest) {
   if (JSON.stringify(manifest.imageTags) !== JSON.stringify(expected)) throw new Error('快照镜像标签不完整');
 }
 
+function validateReplacement(manifest) {
+  if (manifest.kind === 'snapshot') return validateManifest(manifest);
+  if (manifest.schemaVersion !== 1 || manifest.repository !== 'Syh1906/axon-hub' ||
+    !/^v\d+\.\d+\.\d+-[^/]+\.syh\.[1-9]\d*$/.test(manifest.version) ||
+    !/^[a-f0-9]{40}$/.test(manifest.commit) ||
+    !/^ghcr\.io\/syh1906\/axon-hub@sha256:[a-f0-9]{64}$/.test(manifest.image) ||
+    JSON.stringify(manifest.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])) {
+    throw new Error('替代正式发布清单无效');
+  }
+}
+
 export function planRetirement(previous, replacement, versions, artifacts) {
   validateManifest(previous);
-  validateManifest(replacement);
+  validateReplacement(replacement);
   if (previous.snapshotId === replacement.snapshotId || previous.image === replacement.image) {
-    throw new Error('替代快照必须使用不同身份与镜像摘要');
+    throw new Error('替代产物必须使用不同身份与镜像摘要');
   }
   const tags = new Set(previous.imageTags);
   const candidates = versions.filter((item) => item.metadata.container.tags.some((tag) => tags.has(tag)));
@@ -38,7 +49,8 @@ export function planRetirement(previous, replacement, versions, artifacts) {
   if (!selectedArtifacts.some((item) => item.name === previous.snapshotId)) throw new Error('旧快照清单附件缺失');
   return {
     snapshotId: previous.snapshotId, oldImage: previous.image, oldCommit: previous.commit,
-    replacementSnapshotId: replacement.snapshotId, replacementImage: replacement.image, replacementCommit: replacement.commit,
+    replacementSnapshotId: replacement.snapshotId ?? null, replacementVersion: replacement.version,
+    replacementImage: replacement.image, replacementCommit: replacement.commit,
     packageVersions: candidates.map((item) => ({ id: item.id, digest: item.name, tags: item.metadata.container.tags })),
     artifacts: selectedArtifacts.map((item) => ({ id: item.id, name: item.name, bytes: item.size_in_bytes })),
   };
@@ -51,7 +63,7 @@ function gh(...args) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [oldRun, replacementRun, directory, execute] = process.argv.slice(2);
   if (![oldRun, replacementRun].every((id) => /^[1-9]\d*$/.test(id)) || oldRun === replacementRun) {
-    throw new Error('必须指定不同的新旧快照运行编号');
+    throw new Error('必须指定不同的旧快照与替代构建运行编号');
   }
   const repository = 'Syh1906/axon-hub';
   if (process.env.GITHUB_REPOSITORY !== repository) throw new Error('退役入口只能在本仓库运行');
@@ -74,7 +86,23 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     return { manifest, artifacts };
   };
   const previous = fetchManifest(oldRun, join(directory, 'old'));
-  const replacement = fetchManifest(replacementRun, join(directory, 'replacement'));
+  const replacementDirectory = join(directory, 'replacement');
+  const replacementBuild = JSON.parse(gh('api', `repos/${repository}/actions/runs/${replacementRun}`));
+  let replacement;
+  if (replacementBuild.path === '.github/workflows/release.yml' && replacementBuild.conclusion === 'success') {
+    const release = JSON.parse(gh('api', `repos/${repository}/releases/tags/${replacementBuild.head_branch}`));
+    if (release.draft || release.prerelease) throw new Error('替代正式版本必须已公开发布');
+    gh('release', 'download', release.tag_name, '--repo', repository, '--pattern', 'release.json', '--dir', replacementDirectory);
+    const manifest = JSON.parse(readFileSync(join(replacementDirectory, 'release.json'), 'utf8'));
+    validateReplacement(manifest);
+    if (manifest.version !== release.tag_name || manifest.commit !== replacementBuild.head_sha ||
+      manifest.runURL !== `https://github.com/${repository}/actions/runs/${replacementRun}`) {
+      throw new Error('正式发布清单与构建任务身份不一致');
+    }
+    replacement = { manifest };
+  } else {
+    replacement = fetchManifest(replacementRun, replacementDirectory);
+  }
   const endpoint = 'users/Syh1906/packages/container/axon-hub/versions';
   const versions = JSON.parse(gh('api', '--paginate', '--slurp', `${endpoint}?per_page=100`)).flat();
   const receipt = {

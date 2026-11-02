@@ -193,8 +193,10 @@ container references and shared digests; do not delete official images or sweep 
 prefix or age. Keep referenced or uncertain snapshots with a reason. Retain non-secret
 source, digest, run, deployment and cleanup receipts, including outstanding items.
 
-For snapshot-to-snapshot replacement, manually run `retire-snapshot.yml` with
-`old_run` and the already accepted `replacement_run`. It defaults to a precise preview;
+When a formal release or new snapshot replaces an old snapshot, manually run `retire-snapshot.yml` with
+`old_run` and the already accepted `replacement_run`. A formal replacement requires a successful release
+workflow and a published non-prerelease version; its `release.json` version, commit, platforms and run URL
+must match the build. It defaults to a precise preview;
 set `execute=true` only within the deletion authorization after checking every target
 host and rollback reference. The workflow does not connect to servers or remove local
 images. It uses the publishing repository's existing `GITHUB_TOKEN`, not expanded
