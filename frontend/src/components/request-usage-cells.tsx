@@ -7,6 +7,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { getStatusColor } from '@/features/requests/components/help';
 import { extractNumberID } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { buildCostBreakdown, type CostBreakdown } from './request-usage-cost-breakdown';
 
 export type { CostBreakdown, CostBreakdownItem } from './request-usage-cost-breakdown';
@@ -143,19 +144,21 @@ export function CostCell({
   currencyCode,
   breakdown,
   emptyLabel = '—',
+  currencyDisplayDecimals,
 }: {
   total: number | null;
   currencyCode: string;
   breakdown: CostBreakdown | null;
   emptyLabel?: string;
+  currencyDisplayDecimals?: number | null;
 }) {
   const { t, i18n } = useTranslation();
   const [costOpen, setCostOpen] = useState(false);
   if (total == null && !breakdown?.items.some((item) => item.unpriced)) return <span className='font-mono text-xs'>{emptyLabel}</span>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const money = (val: number, minimumFractionDigits: number, maximumFractionDigits = minimumFractionDigits) =>
-    t('currencies.format', { val, currency: currencyCode, locale, minimumFractionDigits, maximumFractionDigits });
-  // Per-million unit prices below keep 2–6 decimals so sub-cent prices such as 0.0028 stay visible.
+    t('currencies.format', { val, currency: currencyCode, locale, ...currencyFractionDigits(currencyDisplayDecimals, minimumFractionDigits, maximumFractionDigits) });
+  // Without an explicit display preference, preserve the existing precision for unit prices.
   const amount = total == null ? t('serviceTier.cost.unpriced') : money(total, 6);
   if (!breakdown) return <span className='font-mono text-xs font-medium'>{amount}</span>;
   const rows = buildCostBreakdown(total ?? 0, breakdown);

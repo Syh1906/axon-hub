@@ -345,11 +345,13 @@ input UpdateSystemChannelSettingsInput {
 type SystemGeneralSettings {
   currencyCode: String!
   timezone: String!
+  currencyDisplayDecimals: Int
 }
 
 input UpdateSystemGeneralSettingsInput {
   currencyCode: String
   timezone: String
+  currencyDisplayDecimals: Int
 }
 
 type VideoStorageSettings {

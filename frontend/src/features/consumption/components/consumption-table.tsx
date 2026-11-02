@@ -4,6 +4,8 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, CornerDownR
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/utils/format-number';
+import { currencyFractionDigits } from '@/utils/currency-display';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExpandableTableRow } from '@/components/expandable-table-row';
@@ -65,6 +67,7 @@ export function ConsumptionTable({
   scrollElement: HTMLDivElement | null;
 }) {
   const { t, i18n } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<{ key: MetricKey; direction: 'asc' | 'desc' } | null>(null);
   const columns = useMemo(() => columnsFor(dimension, metric), [dimension, metric]);
@@ -110,7 +113,7 @@ export function ConsumptionTable({
     if (value === null) return '—';
     switch (column.format) {
       case 'currency':
-        return t('currencies.format', { val: value, currency: currencyCode, locale, minimumFractionDigits: 4, maximumFractionDigits: 6 });
+        return t('currencies.format', { val: value, currency: currencyCode, locale, ...currencyFractionDigits(currencyDisplayDecimals, 4, 6) });
       case 'percent':
         return `${(value * 100).toFixed(1)}%`;
       case 'ms':

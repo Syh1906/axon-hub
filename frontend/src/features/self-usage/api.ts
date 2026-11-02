@@ -9,6 +9,8 @@ export type SelfUsageMeta = {
   timezone: string;
   maxRangeDays: number;
 };
+// Managed group pages may supply presentation options without changing the self-service API.
+export type SelfUsageDisplayMeta = SelfUsageMeta & { currencyDisplayDecimals?: number | null };
 export type Usage = {
   successRequests: number;
   failedRequests: number;

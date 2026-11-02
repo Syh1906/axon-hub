@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { BudgetView, BudgetWindow } from './data';
 
@@ -42,15 +43,19 @@ export function BudgetSchedule({ window }: { window: BudgetWindow }) {
     </div>
   );
 }
-export function BudgetTable({ view, currency, onlyLimited = false }: { view: BudgetView; currency: string; onlyLimited?: boolean }) {
+export function BudgetTable({ view, currency, onlyLimited = false, currencyDisplayDecimals }: {
+  view: BudgetView;
+  currency: string;
+  onlyLimited?: boolean;
+  currencyDisplayDecimals?: number | null;
+}) {
   const { t, i18n } = useTranslation();
   const amount = (value: string) =>
     t('currencies.format', {
       val: Number(value),
       currency,
       locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-      minimumFractionDigits: 6,
-      maximumFractionDigits: 8,
+      ...currencyFractionDigits(currencyDisplayDecimals, 6, 8),
     });
   return (
     <div className='overflow-x-auto'>

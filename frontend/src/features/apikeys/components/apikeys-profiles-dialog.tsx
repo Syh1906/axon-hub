@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { extractNumberID } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -477,6 +479,7 @@ function ProfileCard({
   selectedProjectId,
   onSaveTemplate,
 }: ProfileCardProps) {
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [localProfileName, setLocalProfileName] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(!defaultExpanded);
   const { data: channelsData } = useAllChannelSummarys(selectedProjectId, { enabled: true });
@@ -871,8 +874,12 @@ function ProfileCard({
                       <div>
                         <div className='text-muted-foreground text-xs'>{t('apikeys.profiles.quotaCost')}</div>
                         <div className='text-sm'>
-                          {(quotaUsage.usage.totalCost ?? 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}/
-                          {currentQuota?.cost ?? '∞'}
+                          {(quotaUsage.usage.totalCost ?? 0).toLocaleString(undefined, currencyFractionDigits(currencyDisplayDecimals, undefined, 6))}/
+                          {currentQuota?.cost == null
+                            ? '∞'
+                            : currencyDisplayDecimals == null
+                              ? currentQuota.cost
+                              : currentQuota.cost.toLocaleString(undefined, currencyFractionDigits(currencyDisplayDecimals))}
                         </div>
                       </div>
                     </div>

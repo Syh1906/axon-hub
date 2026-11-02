@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useGeneralSettings } from '@/features/system/data/system';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { BudgetSummary } from './budget-summary';
 import { BudgetTable, BudgetTime } from './budget-table';
 import {
@@ -123,6 +124,7 @@ function BudgetForm({
     setRules((values) => values.map((value, i) => (i === index ? { ...value, ...change } : value)));
   const { data: settings } = useGeneralSettings();
   const currency = settings?.currencyCode || 'USD';
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   async function save() {
     try {
       new Intl.DateTimeFormat('en', { timeZone: timezone });
@@ -319,7 +321,7 @@ function BudgetForm({
         </div>
         {details && (
           <>
-            <BudgetTable view={view} currency={currency} />
+            <BudgetTable view={view} currency={currency} currencyDisplayDecimals={currencyDisplayDecimals} />
             <p className='text-muted-foreground text-xs'>{t('budgets.reservedHelp')}</p>
           </>
         )}

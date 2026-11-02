@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import type { BudgetPeriod, BudgetView } from '@/features/budgets/data';
 import { extendBudgetExpiry } from '@/features/budgets/expiry';
 import { useGeneralSettings } from '@/features/system/data/system';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { useManagementAPI, type Group, type ManagementRow } from './data';
 import { localExpiry as toLocal, expiryInstant } from './quick-edit-date';
 import { useSubmission } from './submission';
@@ -203,6 +205,7 @@ function QuickForm({
   onPendingChange: (pending: boolean) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const id = useId();
   // Capture the revision with the values being edited, rather than silently overwriting newer changes.
   const [snapshot] = useState(target);
@@ -242,8 +245,7 @@ function QuickForm({
       val: Number(value),
       currency: settings?.currencyCode || 'USD',
       locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
+      ...currencyFractionDigits(currencyDisplayDecimals, 2, 8),
     });
   function save() {
     if (!valid) return;

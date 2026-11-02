@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { useGeneralSettings } from '@/features/system/data/system';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { BudgetTime } from './budget-table';
 import { useBudget, type BudgetTarget } from './data';
 
 export function BudgetSummary({ target }: { target: BudgetTarget }) {
   const { t, i18n } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const own = useBudget(target);
   const group = useBudget({ kind: 'group', ownerID: target.groupID ?? 0, name: '' }, !!target.groupID);
   const { data: settings } = useGeneralSettings();
@@ -32,8 +35,7 @@ export function BudgetSummary({ target }: { target: BudgetTarget }) {
             val: Number(first.window.available),
             currency: settings?.currencyCode || 'USD',
             locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-            minimumFractionDigits: 6,
-            maximumFractionDigits: 8,
+            ...currencyFractionDigits(currencyDisplayDecimals, 6, 8),
           }));
   }
   return (

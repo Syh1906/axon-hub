@@ -113,6 +113,11 @@ func (r *queryResolver) SystemDisplayTimezone(ctx context.Context) (string, erro
 	return r.systemService.DisplayTimezone(ctx)
 }
 
+// SystemCurrencyDisplayDecimals is the resolver for the systemCurrencyDisplayDecimals field.
+func (r *queryResolver) SystemCurrencyDisplayDecimals(ctx context.Context) (*int, error) {
+	return r.systemService.CurrencyDisplayDecimals(ctx)
+}
+
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*objects.UserInfo, error) {
 	// Get current user from context

@@ -16,6 +16,8 @@ import { useApiKeyProfileTemplates } from '@/features/apikeys/data/apikeys';
 import { useKeyGroups } from '@/features/apikeys/data/groups';
 import { BudgetTime } from '@/features/budgets/budget-table';
 import { useGeneralSettings } from '@/features/system/data/system';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { importedGroup, materialize, newDraft, newKey, parseTable, type Defaults, type Draft } from './drafts';
 import { BudgetPatchFields, Choice, GroupChoice, KeyInputFields, TemplateChoice } from './editors';
 import { ResultsPanel, SubmissionActions, useSubmission } from './submission';
@@ -81,6 +83,7 @@ export function CreateDialog({
   const groupQuery = useKeyGroups();
   const { i18n } = useTranslation();
   const { data: generalSettings } = useGeneralSettings();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [groups, setGroups] = useState(kind === 'group' || kind === 'groups');
   const templates = useApiKeyProfileTemplates(useSelectedProjectId());
   const [batch, setBatch] = useState(kind === 'groups' || kind === 'keys');
@@ -322,7 +325,7 @@ export function CreateDialog({
                               val: Number(limit),
                               currency: generalSettings?.currencyCode ?? 'USD',
                               locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-                              minimumFractionDigits: 6,
+                              ...currencyFractionDigits(currencyDisplayDecimals, 6),
                             });
                           return (
                             <TableRow key={d.id}>

@@ -36,6 +36,7 @@ type UserProjectInfo {
 
 extend type Query {
     systemDisplayTimezone: String!
+    systemCurrencyDisplayDecimals: Int
     me: UserInfo!
     myProjects: [Project!]!
 }

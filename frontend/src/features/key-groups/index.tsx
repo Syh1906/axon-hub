@@ -4,6 +4,8 @@ import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Plus, RefreshCw, 
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
 import { ExpandableTableRow } from '@/components/expandable-table-row';
@@ -43,6 +45,7 @@ function ProfileLoader({ id, onLoaded }: { id: string; onLoaded: () => void }) {
 }
 function GroupPage() {
   const { t, i18n } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { apiKeyPermissions } = usePermissions();
   const writable = apiKeyPermissions.canWrite;
   const { data: settings } = useGeneralSettings();
@@ -100,8 +103,7 @@ function GroupPage() {
       val: Number(value),
       currency: settings?.currencyCode || 'USD',
       locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
+      ...currencyFractionDigits(currencyDisplayDecimals, 2, 8),
     });
   const child = (id: number) => (
     <Members

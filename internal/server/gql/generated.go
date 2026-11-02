@@ -2008,6 +2008,7 @@ type ComplexityRoot struct {
 		StorageOverview                 func(childComplexity int) int
 		StoragePolicy                   func(childComplexity int) int
 		SystemChannelSettings           func(childComplexity int) int
+		SystemCurrencyDisplayDecimals   func(childComplexity int) int
 		SystemDisplayTimezone           func(childComplexity int) int
 		SystemGeneralSettings           func(childComplexity int) int
 		SystemModelSettings             func(childComplexity int) int
@@ -2613,8 +2614,9 @@ type ComplexityRoot struct {
 	}
 
 	SystemGeneralSettings struct {
-		CurrencyCode func(childComplexity int) int
-		Timezone     func(childComplexity int) int
+		CurrencyCode            func(childComplexity int) int
+		CurrencyDisplayDecimals func(childComplexity int) int
+		Timezone                func(childComplexity int) int
 	}
 
 	SystemModelSettingOnboarding struct {
@@ -3342,6 +3344,7 @@ type QueryResolver interface {
 	DashboardCostStats(ctx context.Context) (*biz.DashboardCostStats, error)
 	AllScopes(ctx context.Context, level *string) ([]*ScopeInfo, error)
 	SystemDisplayTimezone(ctx context.Context) (string, error)
+	SystemCurrencyDisplayDecimals(ctx context.Context) (*int, error)
 	Me(ctx context.Context) (*objects.UserInfo, error)
 	MyProjects(ctx context.Context) ([]*ent.Project, error)
 	PreviewGcCleanup(ctx context.Context, input gc.TriggerGcCleanupInput) ([]*gc.GcCleanupPreviewItem, error)
@@ -12390,6 +12393,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SystemChannelSettings(childComplexity), true
+	case "Query.systemCurrencyDisplayDecimals":
+		if e.complexity.Query.SystemCurrencyDisplayDecimals == nil {
+			break
+		}
+
+		return e.complexity.Query.SystemCurrencyDisplayDecimals(childComplexity), true
 	case "Query.systemDisplayTimezone":
 		if e.complexity.Query.SystemDisplayTimezone == nil {
 			break
@@ -14923,6 +14932,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SystemGeneralSettings.CurrencyCode(childComplexity), true
+	case "SystemGeneralSettings.currencyDisplayDecimals":
+		if e.complexity.SystemGeneralSettings.CurrencyDisplayDecimals == nil {
+			break
+		}
+
+		return e.complexity.SystemGeneralSettings.CurrencyDisplayDecimals(childComplexity), true
 	case "SystemGeneralSettings.timezone":
 		if e.complexity.SystemGeneralSettings.Timezone == nil {
 			break
@@ -64890,6 +64905,35 @@ func (ec *executionContext) fieldContext_Query_systemDisplayTimezone(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_systemCurrencyDisplayDecimals(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_systemCurrencyDisplayDecimals,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().SystemCurrencyDisplayDecimals(ctx)
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_systemCurrencyDisplayDecimals(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -65620,6 +65664,8 @@ func (ec *executionContext) fieldContext_Query_systemGeneralSettings(_ context.C
 				return ec.fieldContext_SystemGeneralSettings_currencyCode(ctx, field)
 			case "timezone":
 				return ec.fieldContext_SystemGeneralSettings_timezone(ctx, field)
+			case "currencyDisplayDecimals":
+				return ec.fieldContext_SystemGeneralSettings_currencyDisplayDecimals(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SystemGeneralSettings", field.Name)
 		},
@@ -80112,6 +80158,35 @@ func (ec *executionContext) fieldContext_SystemGeneralSettings_timezone(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SystemGeneralSettings_currencyDisplayDecimals(ctx context.Context, field graphql.CollectedField, obj *biz.SystemGeneralSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SystemGeneralSettings_currencyDisplayDecimals,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyDisplayDecimals, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SystemGeneralSettings_currencyDisplayDecimals(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SystemGeneralSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -115842,7 +115917,7 @@ func (ec *executionContext) unmarshalInputUpdateSystemGeneralSettingsInput(ctx c
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"currencyCode", "timezone"}
+	fieldsInOrder := [...]string{"currencyCode", "timezone", "currencyDisplayDecimals"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -115863,6 +115938,13 @@ func (ec *executionContext) unmarshalInputUpdateSystemGeneralSettingsInput(ctx c
 				return it, err
 			}
 			it.Timezone = data
+		case "currencyDisplayDecimals":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("currencyDisplayDecimals"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CurrencyDisplayDecimals = data
 		}
 	}
 
@@ -135956,6 +136038,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "systemCurrencyDisplayDecimals":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_systemCurrencyDisplayDecimals(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "me":
 			field := field
 
@@ -142537,6 +142638,8 @@ func (ec *executionContext) _SystemStatus(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "currencyDisplayDecimals":
+			out.Values[i] = ec._SystemGeneralSettings_currencyDisplayDecimals(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

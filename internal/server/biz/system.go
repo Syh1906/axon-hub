@@ -129,6 +129,8 @@ type SystemGeneralSettings struct {
 	// CurrencyCode is the code used for currency display (e.g., USD, CNY).
 	CurrencyCode string `json:"currency_code"`
 	Timezone     string `json:"timezone"`
+	// Nil preserves each view's existing precision; zero explicitly hides decimal places.
+	CurrencyDisplayDecimals *int `json:"currency_display_decimals,omitempty"`
 }
 
 // VideoStorageSettings represents system settings for persisting generated videos.
@@ -1594,6 +1596,10 @@ func (s *SystemService) GeneralSettings(ctx context.Context) (*SystemGeneralSett
 
 // SetGeneralSettings sets the general settings configuration.
 func (s *SystemService) SetGeneralSettings(ctx context.Context, settings SystemGeneralSettings) error {
+	if settings.CurrencyDisplayDecimals != nil && (*settings.CurrencyDisplayDecimals < 0 || *settings.CurrencyDisplayDecimals > 8) {
+		return fmt.Errorf("currency display decimals must be between 0 and 8")
+	}
+
 	jsonBytes, err := json.Marshal(settings)
 	if err != nil {
 		return fmt.Errorf("failed to marshal general settings: %w", err)

@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
@@ -31,6 +32,8 @@ const managedRequests = requestsQuery
 
 function UsageContent({ groupRef, meta, project, identity }: { groupRef: number; meta: SelfUsageMeta; project: string; identity: string }) {
   const { t } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
+  const displayMeta = { ...meta, currencyDisplayDecimals };
   const [range, setRange] = useState<DateRange>(() => presetRange('today', meta.timezone));
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((v) => v + 1), []);
@@ -59,7 +62,7 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       {budget.data && hasBudgetLimits(budget.data) && (
         <section className='rounded-lg border p-4'>
           <h2 className='mb-3 font-semibold'>{t('budgets.groupBudget')}</h2>
-          <BudgetTable view={budget.data} currency={meta.currencyCode} onlyLimited />
+          <BudgetTable view={budget.data} currency={meta.currencyCode} onlyLimited currencyDisplayDecimals={currencyDisplayDecimals} />
           <p className='text-muted-foreground mt-2 text-xs'>{t('budgets.statsIndependent')}</p>
         </section>
       )}
@@ -67,16 +70,16 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       {stats.isPending && <p role='status'>{t('selfUsage.loading')}</p>}
       {stats.data && (
         <>
-          <Summary usage={stats.data.totals} meta={meta} models={stats.data.models} />
-          <Trend daily={stats.data.daily} meta={meta} />
-          <ModelTable models={stats.data.models} meta={meta} />
+          <Summary usage={stats.data.totals} meta={displayMeta} models={stats.data.models} />
+          <Trend daily={stats.data.daily} meta={displayMeta} />
+          <ModelTable models={stats.data.models} meta={displayMeta} />
         </>
       )}
       <RequestLog
         key={`${range.start}:${range.end}`}
         keyValue=''
         range={range}
-        meta={meta}
+        meta={displayMeta}
         models={stats.data?.models.map((m) => m.model) ?? []}
         onUnauthorized={refresh}
         expectedScope={stats.data}

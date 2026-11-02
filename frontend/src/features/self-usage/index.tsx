@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RequestIdCell, TokensCell, ReadCacheCell, WriteCacheCell, CostCell, DurationCell } from '@/components/request-usage-cells';
 import { ThemeSwitch } from '@/components/theme-switch';
-import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatus, type SelfUsageMeta, type Usage } from './api';
+import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatus, type SelfUsageDisplayMeta as SelfUsageMeta, type Usage } from './api';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import type { SelfUsageIdentity } from './api';
 import { SelfUsageBudgets } from './components/budgets';
 import { Cost } from './components/cost';
@@ -30,7 +31,7 @@ function usePageLabels(meta: SelfUsageMeta) {
     displayCost(
       cost,
       unpricedRecords,
-      (val) => t('currencies.format', { val, currency: meta.currencyCode, locale, minimumFractionDigits: 6 }),
+      (val) => t('currencies.format', { val, currency: meta.currencyCode, locale, ...currencyFractionDigits(meta.currencyDisplayDecimals, 6) }),
       (count) => t('selfUsage.cost.unpriced', { count })
     );
   return { t, i18n, locale, number, money };
@@ -504,6 +505,7 @@ export function RequestLog({
                             <CostCell
                               total={item.cost}
                               currencyCode={meta.currencyCode}
+                              currencyDisplayDecimals={meta.currencyDisplayDecimals}
                               emptyLabel='-'
                               breakdown={{
                                 items: item.costItems.map((costItem) => ({

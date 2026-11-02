@@ -31,6 +31,10 @@ Name search matches users' displayed full names, name fragments and email addres
 
 ## Attribution and amounts
 
+Configure amount precision under **System Settings → General → Amount decimal places**. **Keep existing precision** preserves each page's current defaults. After an administrator saves 0–8 decimal places, costs and quotas on the consumption leaderboard, project usage statistics, key groups, and API keys are rounded and padded to that precision. Project users also read this display preference. Selecting the default restores the original display rules.
+
+This affects frontend display only: stored amounts, cost/quota API values, calculations, sorting, quota inputs, and budget enforcement retain their existing precision. For example, `1.23456789` displays as `1.23` with two decimal places while calculations continue using the original amount.
+
 Each terminal request counts once, assigned to its final channel. The final channel's latest execution supplies the actual model, status and timings. Usage is aggregated by request/channel/project before joining executions, preventing retries or multiple usage rows from multiplying counts. Actual execution models are used when present, otherwise the request model is used.
 
 Costs sum stored historical `total_cost` values without repricing old requests or changing routing. The UI shows evidenced amounts without a partially-unpriced label, asterisk, or pricing-coverage count. When no cost evidence exists it shows a dash; an explicit zero stays zero. Cost/request uses only fully priced requests. Cost/million tokens uses fully priced requests with positive input/output tokens, with cost and tokens from the same sample. One request with missing evidence does not hide averages from other valid samples; a dash appears only without valid samples. Explicit zero costs participate; tokenless flat-fee requests do not distort token averages. Total tokens use AxonHub input plus output tokens. Input already includes cached portions, so cache-read and cache-write tokens must not be added again.

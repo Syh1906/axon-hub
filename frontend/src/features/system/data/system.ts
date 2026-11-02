@@ -243,11 +243,13 @@ export interface BrandSettings {
 export interface SystemGeneralSettings {
   currencyCode: string;
   timezone: string;
+  currencyDisplayDecimals: number | null;
 }
 
 export interface UpdateSystemGeneralSettingsInput {
   currencyCode?: string;
   timezone?: string;
+  currencyDisplayDecimals?: number | null;
 }
 
 export interface VideoStorageSettings {
@@ -962,6 +964,7 @@ const SYSTEM_GENERAL_SETTINGS_QUERY = `
     systemGeneralSettings {
       currencyCode
       timezone
+      currencyDisplayDecimals
     }
   }
 `;
@@ -1169,6 +1172,7 @@ export function useUpdateGeneralSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['generalSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['system-currency-display-decimals'] });
       queryClient.invalidateQueries({ queryKey: ['system-display-timezone'] });
       queryClient.invalidateQueries({ queryKey: ['request-log-timezone'] });
       queryClient.invalidateQueries({ queryKey: ['channel-today-usage'] });

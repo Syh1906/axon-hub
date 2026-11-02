@@ -1,6 +1,8 @@
 import { MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { currencyFractionDigits } from '@/utils/currency-display';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -36,6 +38,7 @@ export function MemberRow({
   writable: boolean;
 }) {
   const { t, i18n } = useTranslation();
+  const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { data: settings } = useGeneralSettings();
   const budget = useBudget({ kind: 'key', ownerID: Number(extractNumberID(member.id)), name: member.name });
   const target = { ...keyQuickTarget(member), budget: budget.data };
@@ -44,8 +47,7 @@ export function MemberRow({
       val: Number(value),
       currency: settings?.currencyCode ?? 'USD',
       locale: i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
+      ...currencyFractionDigits(currencyDisplayDecimals, 2, 8),
     });
   return (
     <TableRow>

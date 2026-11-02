@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useSystemContext } from '../context/system-context';
 import { currencyCodes } from '../data/currencies';
@@ -45,6 +46,7 @@ export function GeneralSettings() {
 
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [timezone, setTimezone] = useState('UTC');
+  const [currencyDisplayDecimals, setCurrencyDisplayDecimals] = useState<number | null>(null);
 
   const currencyItems = React.useMemo(
     () =>
@@ -62,6 +64,7 @@ export function GeneralSettings() {
     if (settings) {
       setCurrencyCode(settings.currencyCode || 'USD');
       setTimezone(settings.timezone || 'UTC');
+      setCurrencyDisplayDecimals(settings.currencyDisplayDecimals);
     }
   }, [settings]);
 
@@ -91,6 +94,7 @@ export function GeneralSettings() {
       await updateSettings.mutateAsync({
         currencyCode: currencyCode.trim(),
         timezone: timezone.trim(),
+        currencyDisplayDecimals,
       });
     } finally {
       setIsLoading(false);
@@ -130,7 +134,9 @@ export function GeneralSettings() {
   };
 
   const hasChanges = settings
-    ? settings.currencyCode !== currencyCode || settings.timezone !== timezone
+    ? settings.currencyCode !== currencyCode ||
+      settings.timezone !== timezone ||
+      settings.currencyDisplayDecimals !== currencyDisplayDecimals
     : false;
 
   if (isLoadingSettings) {
@@ -162,6 +168,30 @@ export function GeneralSettings() {
               />
             </div>
             <div className='text-muted-foreground text-sm'>{t('system.general.currencyCode.description')}</div>
+          </div>
+
+          <div className='space-y-2'>
+            <Label htmlFor='currency-display-decimals'>{t('system.general.currencyDisplayDecimals.label')}</Label>
+            <div className='max-w-md'>
+              <Select
+                value={currencyDisplayDecimals === null ? 'default' : String(currencyDisplayDecimals)}
+                onValueChange={(value) => setCurrencyDisplayDecimals(value === 'default' ? null : Number(value))}
+              >
+                <SelectTrigger id='currency-display-decimals' className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='default'>{t('system.general.currencyDisplayDecimals.default')}</SelectItem>
+                  {Array.from({ length: 9 }, (_, digits) => (
+                    <SelectItem key={digits} value={String(digits)}>
+                      {t('system.general.currencyDisplayDecimals.digits', { digits })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='text-muted-foreground text-sm'>{t('system.general.currencyDisplayDecimals.description')}</div>
+            <div className='text-muted-foreground text-sm'>{t('system.general.currencyDisplayDecimals.options')}</div>
           </div>
 
           <div className='space-y-2'>
