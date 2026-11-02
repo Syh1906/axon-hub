@@ -1007,17 +1007,24 @@ export const createColumns = (
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.health')} className='justify-center' />,
       cell: ({ row }: { row: Row<Channel> }) => {
         const probePoints = (row.original as any).probePoints || [];
-        const limiterStats = row.original.liveLimiterStats;
         return (
           <div className='flex flex-col items-center gap-1'>
             <ChannelHealthCell points={probePoints} />
-            {limiterStats ? <ChannelLimiterCell stats={limiterStats} /> : null}
           </div>
         );
       },
       meta: {
         className: 'text-center',
       },
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'load',
+      accessorKey: 'liveUsage',
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.load')} className='justify-center' />,
+      cell: ({ row }) => <ChannelLimiterCell channel={row.original} />,
+      meta: { className: 'w-36 min-w-36 text-center' },
       enableSorting: false,
       enableHiding: true,
     },

@@ -35,30 +35,30 @@ func (m *rateLimitAdmissionMiddleware) Name() string {
 
 func (m *rateLimitAdmissionMiddleware) OnOutboundRawRequest(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
 	channel := m.outbound.GetCurrentChannel()
-	if channel == nil || channel.Settings == nil || channel.Settings.RateLimit == nil {
+	if channel == nil {
 		return request, nil
 	}
 
-	limit := channel.Settings.RateLimit.RPM
-	if limit == nil || *limit <= 0 {
-		return request, nil
+	var limit int64
+	if channel.Settings != nil && channel.Settings.RateLimit != nil && channel.Settings.RateLimit.RPM != nil {
+		limit = *channel.Settings.RateLimit.RPM
 	}
 
-	if !m.tracker.TryAcquireRequest(channel.ID, *limit) {
+	if !m.tracker.TryAcquireRequest(channel.ID, limit) {
 		log.Debug(ctx, "channel local RPM admission rejected",
 			log.Int("channel_id", channel.ID),
 			log.String("channel_name", channel.Name),
-			log.Int64("rpm_limit", *limit),
+			log.Int64("rpm_limit", limit),
 		)
 
-		return nil, newLocalRPMExhaustedError(channel, *limit)
+		return nil, newLocalRPMExhaustedError(channel, limit)
 	}
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "channel local RPM admission acquired",
 			log.Int("channel_id", channel.ID),
 			log.String("channel_name", channel.Name),
-			log.Int64("rpm_limit", *limit),
+			log.Int64("rpm_limit", limit),
 		)
 	}
 

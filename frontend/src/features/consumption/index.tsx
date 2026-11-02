@@ -55,8 +55,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     isKeyDimension
   );
   const dimensions: ConsumptionDimension[] = isLeaderboard
-    ? ['CHANNEL', 'API_KEY_GROUP', 'API_KEY', 'USER']
-    : ['API_KEY_GROUP', 'API_KEY', 'USER'];
+    ? ['CHANNEL', 'API_KEY_GROUP', 'MODEL', 'API_KEY', 'USER']
+    : ['API_KEY_GROUP', 'MODEL', 'API_KEY', 'USER'];
   const timezone = data?.timezone ?? 'UTC';
   const title = isLeaderboard ? t('consumption.title') : t('sidebar.items.usageStats');
   const formatDate = (value: string | Date) =>
@@ -204,7 +204,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                   dimension={dimension}
                   metric={metric}
                   currencyCode={data.currencyCode}
-                  expandable
+                  expandable={dimension !== 'MODEL'}
                 />
               ) : (
                 <div className='text-muted-foreground flex min-h-64 flex-col items-center justify-center gap-3 p-6'>
@@ -215,7 +215,11 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
             </div>
           )}
           <div className='text-muted-foreground flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs'>
-            <span>{metric === 'CACHE' ? t('consumption.cacheNote') : t('consumption.costNote')}</span>
+            <span>
+              {dimension === 'MODEL'
+                ? t(metric === 'CACHE' ? 'consumption.modelCacheNote' : 'consumption.modelCostNote')
+                : t(metric === 'CACHE' ? 'consumption.cacheNote' : 'consumption.costNote')}
+            </span>
             {data && (
               <span className='flex items-center gap-2'>
                 {isFetching && <Loader2 className='size-3 animate-spin' role='status' aria-label={t('common.loading')} />}

@@ -3,6 +3,7 @@ enum ConsumptionDimension {
   API_KEY
   API_KEY_GROUP
   CHANNEL
+  MODEL
 }
 
 enum ConsumptionMetric {
@@ -70,6 +71,7 @@ type ConsumptionEntry {
 
 type ConsumptionResult {
   entries: [ConsumptionEntry!]!
+  modelEntries: [ConsumptionModel!]!
   generatedAt: Time!
   rangeStart: Time
   rangeEnd: Time!

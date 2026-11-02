@@ -16,7 +16,7 @@ import {
   CHANNEL_QUERY_TAGS_SELECTION,
   CHANNEL_QUERY_PROXY_SELECTION,
   CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION,
-  CHANNEL_QUERY_HEALTH_SELECTION,
+  CHANNEL_QUERY_LOAD_SELECTION,
   CHANNEL_QUERY_QUOTA_SELECTION,
 } from './channel-query-fields';
 import type { ServiceTierSettings } from './schema';
@@ -1001,7 +1001,7 @@ export function buildQueryChannelsQuery(columnVisibility?: ChannelListColumnVisi
         isChannelColumnVisible(columnVisibility, 'tags') ? CHANNEL_QUERY_TAGS_SELECTION : '',
         isChannelColumnVisible(columnVisibility, 'proxy') ? CHANNEL_QUERY_PROXY_SELECTION : '',
         isChannelColumnVisible(columnVisibility, 'orderingWeight') ? CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION : '',
-        isChannelColumnVisible(columnVisibility, 'health') ? CHANNEL_QUERY_HEALTH_SELECTION : '',
+        isChannelColumnVisible(columnVisibility, 'load') ? CHANNEL_QUERY_LOAD_SELECTION : '',
         isChannelColumnVisible(columnVisibility, 'quota') ? CHANNEL_QUERY_QUOTA_SELECTION : '',
       ].join('');
 

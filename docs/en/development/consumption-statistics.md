@@ -1,6 +1,6 @@
 # Usage statistics and consumption leaderboard
 
-Project **Usage statistics** provides user, API key and key group dimensions. The admin **Consumption leaderboard** adds user, API key, key group and channel dimensions, cost/cache rankings and expandable model rows. Keys refer to AxonHub caller API keys, not upstream channel credentials. Full key values are never loaded by these pages.
+Project **Usage statistics** provides key group, model, API key and user dimensions. The admin **Consumption leaderboard** also provides the channel dimension and cost/cache rankings. Keys refer to AxonHub caller API keys. Full key values are never loaded by these pages.
 
 Fields and algorithms are ported from `claude-code-hub` commit `0c508eaa`: `src/repository/leaderboard.ts`, `src/repository/provider-cache-effectiveness.ts`, `src/lib/request-outcome.ts`, `src/lib/cache-effectiveness/{gate,service}.ts`, and `src/app/v1/_lib/proxy/affinity/fingerprint.ts`. The original MIT notice is retained in [LICENSE.cch](../../../internal/pkg/usageanalytics/LICENSE.cch). CCH has no separate key leaderboard; its user semantics are extended to API keys.
 
@@ -13,9 +13,11 @@ Fields and algorithms are ported from `claude-code-hub` commit `0c508eaa`: `src/
 
 There is no leaderboard management permission. Navigation, route guards and backend queries enforce read access. A project-level grant does not grant system-wide access. `consumptionProjects` provides project filter options without requiring project administration privileges. The leaderboard ignores the ambient project selected in the global header. Authorization runs before cache reads.
 
-Project usage orders tabs as Key groups → API keys → Users and defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
+Project usage orders tabs as Key groups → Models → API keys → Users and defaults to key groups with expandable models. Project read access includes other members' personal-key requests, while write permissions and project isolation remain independent.
 
-The consumption leaderboard orders tabs as Channels → Key groups → API keys → Users and defaults to channels.
+The consumption leaderboard orders tabs as Channels → Key groups → Models → API keys → Users and defaults to channels.
+
+The standalone model dimension combines channels by the final upstream model name, using the requested model when no execution model was recorded. Live and archived records contribute to one row per model, with model-name search. Rows show requests, cost, tokens, success rate, average first-token latency, average output speed and overall cache-hit rate. The model cache ranking shows cache-triggered requests, hit rate, cache-read/input tokens, average first-token latency, average output speed and costs for those requests. Missing valid samples display an em dash. Model names align left and numeric cells align centrally.
 
 ## Dates and interaction
 
@@ -27,7 +29,7 @@ All time includes retained request history, so log retention affects the availab
 
 The table mounts only the visible rows and a small buffer, including expanded models, so large key lists do not create all cells at once. Measured row heights use normal table flow and stable column widths. The frontend refreshes every minute and releases inactive queries after 60 seconds. The backend retains its one-minute result cache and loads only ID, name, user, project and group fields for key display labels.
 
-Name search matches users' displayed full names, name fragments and email addresses case-insensitively; key and channel searches use their names. Headers, parent rows and model rows are centered by column. Sort/expansion icons and model counts do not shift the text alignment.
+Name search matches users' displayed full names, name fragments and email addresses case-insensitively. Key, channel and model searches use their names. Numeric cells are centered by column. Sort/expansion icons and model counts do not shift the text alignment.
 
 ## Attribution and amounts
 

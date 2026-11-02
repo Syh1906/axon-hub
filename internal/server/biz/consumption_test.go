@@ -98,6 +98,77 @@ func TestConsumptionCountsModelsAndCacheDenominator(t *testing.T) {
 	require.Len(t, result.Entries[0].Models, 1)
 }
 
+func TestConsumptionModelTotalsSearchAndArchive(t *testing.T) {
+	f := newConsumptionFixture(t)
+	at := time.Now().Add(-time.Hour)
+	archived, _ := f.addRequest(t, at, "model-a", request.StatusCompleted, 1000, 100, 800, 0, 2, lo.ToPtr(int64(200)))
+	f.channel = f.client.Channel.Create().SetName("second").SetType("openai").SetBaseURL("https://example.test").
+		SetSupportedModels([]string{"model-a"}).SetDefaultTestModel("model-a").SetCredentials(objects.ChannelCredentials{}).SaveX(f.ctx)
+	f.addRequest(t, at, "model-a", request.StatusCompleted, 2000, 200, 0, 0, 3, nil)
+	_, missingPerformance := f.addRequest(t, at, "model-b", request.StatusCompleted, 500, 50, 450, 0, 1, nil)
+	missingPerformance.Update().ClearMetricsFirstTokenLatencyMs().SaveX(f.ctx)
+	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{archived.ID}))
+	ctx := f.viewer(t, f.project.ID, string(scopes.ScopeReadLeaderboard))
+	input := ConsumptionFilter{Dimension: ConsumptionDimensionModel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll}
+	result, err := f.service.Leaderboard(ctx, input)
+	require.NoError(t, err)
+	require.Empty(t, result.Entries)
+	require.Len(t, result.ModelEntries, 2)
+	model := result.ModelEntries[0]
+	require.Equal(t, "model-a", model.Model)
+	require.Equal(t, 2, model.Metrics.RequestCount)
+	require.Equal(t, 5.0, model.Metrics.TotalCost)
+	require.Equal(t, int64(3300), model.Metrics.TotalTokens)
+	require.InDelta(t, 800.0/3000, *model.Metrics.CacheHitRate, 1e-9)
+	require.Equal(t, 700.0, *model.Metrics.AvgFirstTokenMs)
+	require.Equal(t, 100.0, *model.Metrics.AvgTokensPerSecond)
+	require.Nil(t, result.ModelEntries[1].Metrics.AvgTokensPerSecond)
+	require.Nil(t, result.ModelEntries[1].Metrics.AvgFirstTokenMs)
+
+	input.Search = lo.ToPtr("MODEL-A")
+	filtered, err := f.service.Leaderboard(ctx, input)
+	require.NoError(t, err)
+	require.Len(t, filtered.ModelEntries, 1)
+	require.Equal(t, model.Metrics, filtered.ModelEntries[0].Metrics)
+
+	input.Search = nil
+	input.Metric = ConsumptionMetricCache
+	cached, err := f.service.Leaderboard(ctx, input)
+	require.NoError(t, err)
+	require.Len(t, cached.ModelEntries, 2)
+	require.Equal(t, "model-b", cached.ModelEntries[0].Model)
+	require.Equal(t, 0.9, *cached.ModelEntries[0].Metrics.CacheHitRate)
+	require.Equal(t, 1, cached.ModelEntries[1].Metrics.RequestCount)
+	require.Equal(t, 0.8, *cached.ModelEntries[1].Metrics.CacheHitRate)
+}
+
+func TestConsumptionModelProjectScope(t *testing.T) {
+	f := newConsumptionFixture(t)
+	firstProject := f.project
+	f.addRequest(t, time.Now().Add(-time.Hour), "same-model", request.StatusCompleted, 100, 10, 0, 0, 1, nil)
+	f.project = f.client.Project.Create().SetName("other").SaveX(f.ctx)
+	f.key = f.client.APIKey.Create().SetName("other").SetKey("other-fixture").SetUserID(f.user.ID).SetProjectID(f.project.ID).SaveX(f.ctx)
+	f.addRequest(t, time.Now().Add(-time.Hour), "same-model", request.StatusCompleted, 200, 20, 0, 0, 2, nil)
+	input := ConsumptionFilter{Dimension: ConsumptionDimensionModel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll}
+	reader := f.viewer(t, firstProject.ID, string(scopes.ScopeReadLeaderboard), string(scopes.ScopeReadRequests))
+	all, err := f.service.Leaderboard(reader, input)
+	require.NoError(t, err)
+	require.Len(t, all.ModelEntries, 1)
+	require.Equal(t, 3.0, all.ModelEntries[0].Metrics.TotalCost)
+	current, err := f.service.UsageStatistics(reader, input)
+	require.NoError(t, err)
+	require.Len(t, current.ModelEntries, 1)
+	require.Equal(t, 1.0, current.ModelEntries[0].Metrics.TotalCost)
+	input.ProjectID = &objects.GUID{Type: ent.TypeProject, ID: f.project.ID}
+	other, err := f.service.Leaderboard(reader, input)
+	require.NoError(t, err)
+	require.Equal(t, 2.0, other.ModelEntries[0].Metrics.TotalCost)
+	_, err = f.service.UsageStatistics(reader, input)
+	require.Error(t, err)
+	_, err = f.service.Leaderboard(f.viewer(t, firstProject.ID, string(scopes.ScopeReadRequests)), input)
+	require.Error(t, err)
+}
+
 func TestConsumptionPermissionsAndProjectIsolation(t *testing.T) {
 	f := newConsumptionFixture(t)
 	f.addRequest(t, time.Now().Add(-time.Hour), "model-a", request.StatusCompleted, 100, 10, 0, 0, 1, nil)

@@ -478,6 +478,7 @@ type ComplexityRoot struct {
 		HealthGate              func(childComplexity int) int
 		ID                      func(childComplexity int) int
 		LiveLimiterStats        func(childComplexity int) int
+		LiveUsage               func(childComplexity int) int
 		ManualModels            func(childComplexity int) int
 		Name                    func(childComplexity int) int
 		OrderingWeight          func(childComplexity int) int
@@ -564,6 +565,11 @@ type ComplexityRoot struct {
 		InFlight  func(childComplexity int) int
 		QueueSize func(childComplexity int) int
 		Waiting   func(childComplexity int) int
+	}
+
+	ChannelLiveUsage struct {
+		InFlight func(childComplexity int) int
+		Rpm      func(childComplexity int) int
 	}
 
 	ChannelModelAssociation struct {
@@ -959,6 +965,7 @@ type ComplexityRoot struct {
 		CurrencyCode func(childComplexity int) int
 		Entries      func(childComplexity int) int
 		GeneratedAt  func(childComplexity int) int
+		ModelEntries func(childComplexity int) int
 		RangeEnd     func(childComplexity int) int
 		RangeStart   func(childComplexity int) int
 		Timezone     func(childComplexity int) int
@@ -3077,6 +3084,7 @@ type ChannelResolver interface {
 	Credentials(ctx context.Context, obj *ent.Channel) (*objects.ChannelCredentials, error)
 	DisabledAPIKeys(ctx context.Context, obj *ent.Channel) ([]*objects.DisabledAPIKey, error)
 	LiveLimiterStats(ctx context.Context, obj *ent.Channel) (*ChannelLimiterStats, error)
+	LiveUsage(ctx context.Context, obj *ent.Channel) (*ChannelLiveUsage, error)
 	HealthGate(ctx context.Context, obj *ent.Channel) (*ChannelHealthGateStatus, error)
 }
 type ChannelModelPriceResolver interface {
@@ -5034,6 +5042,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Channel.LiveLimiterStats(childComplexity), true
+	case "Channel.liveUsage":
+		if e.complexity.Channel.LiveUsage == nil {
+			break
+		}
+
+		return e.complexity.Channel.LiveUsage(childComplexity), true
 	case "Channel.manualModels":
 		if e.complexity.Channel.ManualModels == nil {
 			break
@@ -5407,6 +5421,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelLimiterStats.Waiting(childComplexity), true
+
+	case "ChannelLiveUsage.inFlight":
+		if e.complexity.ChannelLiveUsage.InFlight == nil {
+			break
+		}
+
+		return e.complexity.ChannelLiveUsage.InFlight(childComplexity), true
+	case "ChannelLiveUsage.rpm":
+		if e.complexity.ChannelLiveUsage.Rpm == nil {
+			break
+		}
+
+		return e.complexity.ChannelLiveUsage.Rpm(childComplexity), true
 
 	case "ChannelModelAssociation.channelId":
 		if e.complexity.ChannelModelAssociation.ChannelID == nil {
@@ -6961,6 +6988,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionResult.GeneratedAt(childComplexity), true
+	case "ConsumptionResult.modelEntries":
+		if e.complexity.ConsumptionResult.ModelEntries == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionResult.ModelEntries(childComplexity), true
 	case "ConsumptionResult.rangeEnd":
 		if e.complexity.ConsumptionResult.RangeEnd == nil {
 			break
@@ -26145,6 +26178,8 @@ func (ec *executionContext) fieldContext_ApplyChannelOverrideTemplatePayload_cha
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -28125,6 +28160,8 @@ func (ec *executionContext) fieldContext_BulkImportChannelsResult_channels(_ con
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -28280,6 +28317,8 @@ func (ec *executionContext) fieldContext_BulkUpdateChannelOrderingResult_channel
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -29539,6 +29578,41 @@ func (ec *executionContext) fieldContext_Channel_liveLimiterStats(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Channel_liveUsage(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Channel_liveUsage,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Channel().LiveUsage(ctx, obj)
+		},
+		nil,
+		ec.marshalOChannelLiveUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐChannelLiveUsage,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Channel_liveUsage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Channel",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "inFlight":
+				return ec.fieldContext_ChannelLiveUsage_inFlight(ctx, field)
+			case "rpm":
+				return ec.fieldContext_ChannelLiveUsage_rpm(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelLiveUsage", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Channel_healthGate(ctx context.Context, field graphql.CollectedField, obj *ent.Channel) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30196,6 +30270,8 @@ func (ec *executionContext) fieldContext_ChannelEdge_node(_ context.Context, fie
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -31008,6 +31084,64 @@ func (ec *executionContext) fieldContext_ChannelLimiterStats_queueSize(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelLiveUsage_inFlight(ctx context.Context, field graphql.CollectedField, obj *ChannelLiveUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelLiveUsage_inFlight,
+		func(ctx context.Context) (any, error) {
+			return obj.InFlight, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelLiveUsage_inFlight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelLiveUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelLiveUsage_rpm(ctx context.Context, field graphql.CollectedField, obj *ChannelLiveUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelLiveUsage_rpm,
+		func(ctx context.Context) (any, error) {
+			return obj.Rpm, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelLiveUsage_rpm(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelLiveUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelModelAssociation_channelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelModelAssociation) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -31485,6 +31619,8 @@ func (ec *executionContext) fieldContext_ChannelModelPrice_channel(_ context.Con
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -33482,6 +33618,8 @@ func (ec *executionContext) fieldContext_ChannelProbe_channel(_ context.Context,
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -38238,6 +38376,8 @@ func (ec *executionContext) fieldContext_ClearChannelOverrideTemplatesPayload_ch
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -39146,6 +39286,41 @@ func (ec *executionContext) fieldContext_ConsumptionResult_entries(_ context.Con
 				return ec.fieldContext_ConsumptionEntry_models(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ConsumptionEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionResult_modelEntries(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionResult_modelEntries,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelEntries, nil
+		},
+		nil,
+		ec.marshalNConsumptionModel2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionModelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionResult_modelEntries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "model":
+				return ec.fieldContext_ConsumptionModel_model(ctx, field)
+			case "metrics":
+				return ec.fieldContext_ConsumptionModel_metrics(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionModel", field.Name)
 		},
 	}
 	return fc, nil
@@ -47132,6 +47307,8 @@ func (ec *executionContext) fieldContext_ModelChannelConnection_channel(_ contex
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -48812,6 +48989,8 @@ func (ec *executionContext) fieldContext_Mutation_createChannel(ctx context.Cont
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -48921,6 +49100,8 @@ func (ec *executionContext) fieldContext_Mutation_duplicateChannel(ctx context.C
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -49030,6 +49211,8 @@ func (ec *executionContext) fieldContext_Mutation_bulkCreateChannels(ctx context
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -49139,6 +49322,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannel(ctx context.Cont
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -49248,6 +49433,8 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelEndpoints(ctx conte
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -49357,6 +49544,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelStatus(ctx contex
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -54775,6 +54964,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelPriorities(ctx co
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -54884,6 +55075,8 @@ func (ec *executionContext) fieldContext_Mutation_updateChannelTagPriorities(ctx
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -62124,6 +62317,8 @@ func (ec *executionContext) fieldContext_ProviderQuotaStatus_channel(_ context.C
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -63618,6 +63813,8 @@ func (ec *executionContext) fieldContext_Query_allChannelSummarys(ctx context.Co
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -67438,6 +67635,8 @@ func (ec *executionContext) fieldContext_Query_consumptionLeaderboard(ctx contex
 			switch field.Name {
 			case "entries":
 				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
+			case "modelEntries":
+				return ec.fieldContext_ConsumptionResult_modelEntries(ctx, field)
 			case "generatedAt":
 				return ec.fieldContext_ConsumptionResult_generatedAt(ctx, field)
 			case "rangeStart":
@@ -67493,6 +67692,8 @@ func (ec *executionContext) fieldContext_Query_usageStatistics(ctx context.Conte
 			switch field.Name {
 			case "entries":
 				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
+			case "modelEntries":
+				return ec.fieldContext_ConsumptionResult_modelEntries(ctx, field)
 			case "generatedAt":
 				return ec.fieldContext_ConsumptionResult_generatedAt(ctx, field)
 			case "rangeStart":
@@ -69524,6 +69725,8 @@ func (ec *executionContext) fieldContext_Request_channel(_ context.Context, fiel
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -71101,6 +71304,8 @@ func (ec *executionContext) fieldContext_RequestExecution_channel(_ context.Cont
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -83882,6 +84087,8 @@ func (ec *executionContext) fieldContext_UnassociatedChannel_channel(_ context.C
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -86126,6 +86333,8 @@ func (ec *executionContext) fieldContext_UsageLog_channel(_ context.Context, fie
 				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
 			case "liveLimiterStats":
 				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
 			case "healthGate":
 				return ec.fieldContext_Channel_healthGate(ctx, field)
 			}
@@ -123588,6 +123797,39 @@ func (ec *executionContext) _Channel(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "liveUsage":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Channel_liveUsage(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "healthGate":
 			field := field
 
@@ -124096,6 +124338,50 @@ func (ec *executionContext) _ChannelLimiterStats(ctx context.Context, sel ast.Se
 			}
 		case "queueSize":
 			out.Values[i] = ec._ChannelLimiterStats_queueSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var channelLiveUsageImplementors = []string{"ChannelLiveUsage"}
+
+func (ec *executionContext) _ChannelLiveUsage(ctx context.Context, sel ast.SelectionSet, obj *ChannelLiveUsage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelLiveUsageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelLiveUsage")
+		case "inFlight":
+			out.Values[i] = ec._ChannelLiveUsage_inFlight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rpm":
+			out.Values[i] = ec._ChannelLiveUsage_rpm(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -127352,6 +127638,11 @@ func (ec *executionContext) _ConsumptionResult(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("ConsumptionResult")
 		case "entries":
 			out.Values[i] = ec._ConsumptionResult_entries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelEntries":
+			out.Values[i] = ec._ConsumptionResult_modelEntries(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -157387,6 +157678,13 @@ func (ec *executionContext) marshalOChannelLimiterStats2ᚖgithubᚗcomᚋlooplj
 		return graphql.Null
 	}
 	return ec._ChannelLimiterStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOChannelLiveUsage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐChannelLiveUsage(ctx context.Context, sel ast.SelectionSet, v *ChannelLiveUsage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ChannelLiveUsage(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOChannelModelAssociation2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelAssociation(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelModelAssociation) graphql.Marshaler {

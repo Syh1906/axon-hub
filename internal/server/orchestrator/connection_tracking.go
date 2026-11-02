@@ -17,7 +17,7 @@ import (
 // per-channel admission control via ChannelLimiterManager.
 //
 // Manager must be non-nil. Channels without a configured concurrency limit
-// (manager returns nil from GetOrCreate) bypass admission and run unmodified.
+// (manager returns nil from GetOrCreate) bypass admission but still track usage.
 // metrics may be nil — the middleware skips emissions in that case.
 func withChannelLimiter(
 	outbound *PersistentOutboundTransformer,
@@ -55,8 +55,9 @@ type channelLimiterMiddleware struct {
 // limiterSlot owns one Acquire/Release pair so each pipeline attempt has its
 // own once guard.
 type limiterSlot struct {
-	lim  *ChannelLimiter
-	once sync.Once
+	lim       *ChannelLimiter
+	channelID int
+	once      sync.Once
 }
 
 func (m *channelLimiterMiddleware) Name() string { return "channel-limiter" }
@@ -69,6 +70,8 @@ func (m *channelLimiterMiddleware) OnOutboundRawRequest(ctx context.Context, req
 
 	lim := m.manager.GetOrCreate(channel)
 	if lim == nil {
+		m.manager.startRequest(channel.ID)
+		m.current.Store(&limiterSlot{channelID: channel.ID})
 		return request, nil
 	}
 
@@ -99,7 +102,8 @@ func (m *channelLimiterMiddleware) OnOutboundRawRequest(ctx context.Context, req
 
 	m.metrics.ObserveQueueWait(ctx, channel, time.Since(acquireStart))
 
-	m.current.Store(&limiterSlot{lim: lim})
+	m.manager.startRequest(channel.ID)
+	m.current.Store(&limiterSlot{lim: lim, channelID: channel.ID})
 
 	if log.DebugEnabled(ctx) {
 		inFlight, waiting := lim.Stats()
@@ -146,6 +150,10 @@ func (m *channelLimiterMiddleware) releaseCurrent(ctx context.Context) {
 // Close time.
 func (m *channelLimiterMiddleware) releaseSlot(ctx context.Context, slot *limiterSlot) {
 	slot.once.Do(func() {
+		m.manager.finishRequest(slot.channelID)
+		if slot.lim == nil {
+			return
+		}
 		slot.lim.Release()
 
 		if log.DebugEnabled(ctx) {

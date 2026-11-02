@@ -14,6 +14,7 @@ const (
 	ConsumptionDimensionUser        ConsumptionDimension = "USER"
 	ConsumptionDimensionAPIKey      ConsumptionDimension = "API_KEY"
 	ConsumptionDimensionChannel     ConsumptionDimension = "CHANNEL"
+	ConsumptionDimensionModel       ConsumptionDimension = "MODEL"
 )
 
 type ConsumptionMetric string
@@ -85,6 +86,7 @@ type ConsumptionEntry struct {
 
 type ConsumptionResult struct {
 	Entries      []*ConsumptionEntry `json:"entries"`
+	ModelEntries []*ConsumptionModel `json:"modelEntries,omitempty"`
 	GeneratedAt  time.Time           `json:"generatedAt"`
 	RangeStart   *time.Time          `json:"rangeStart"`
 	RangeEnd     time.Time           `json:"rangeEnd"`

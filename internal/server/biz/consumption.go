@@ -84,7 +84,7 @@ func (s *ConsumptionService) UsageStatistics(ctx context.Context, input Consumpt
 		return nil, err
 	}
 	if input.Dimension == ConsumptionDimensionChannel || input.Metric != ConsumptionMetricCost {
-		return nil, fmt.Errorf("usage statistics supports user, API key and API key group cost summaries")
+		return nil, fmt.Errorf("usage statistics supports user, API key, API key group and model cost summaries")
 	}
 	if input.ProjectID != nil && (input.ProjectID.Type != ent.TypeProject || input.ProjectID.ID != projectID) {
 		return nil, fmt.Errorf("usage statistics project must match the current project")
@@ -93,7 +93,7 @@ func (s *ConsumptionService) UsageStatistics(ctx context.Context, input Consumpt
 }
 
 func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter, view string, projectID int) (*ConsumptionResult, error) {
-	if _, err := consumptionEnum(string(input.Dimension), "USER", "API_KEY", "API_KEY_GROUP", "CHANNEL"); err != nil {
+	if _, err := consumptionEnum(string(input.Dimension), "USER", "API_KEY", "API_KEY_GROUP", "CHANNEL", "MODEL"); err != nil {
 		return nil, err
 	}
 	if _, err := consumptionEnum(string(input.Metric), "COST", "CACHE"); err != nil {
@@ -156,7 +156,16 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		entries := consumptionEntries(rows, input)
+		entries := make([]*ConsumptionEntry, 0)
+		modelEntries := make([]*ConsumptionModel, 0)
+		if input.Dimension == ConsumptionDimensionModel {
+			for _, row := range rows {
+				modelEntries = append(modelEntries, &ConsumptionModel{Model: row.Model, Metrics: row.metrics()})
+			}
+			sortConsumptionModels(modelEntries, input)
+		} else {
+			entries = consumptionEntries(rows, input)
+		}
 		if input.Dimension == ConsumptionDimensionAPIKeyGroup && projectID == 0 && len(entries) > 0 {
 			ids := make([]int, 0, len(entries))
 			for _, entry := range entries {
@@ -201,7 +210,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 			}
 		}
 		sortConsumptionEntries(entries, input)
-		result := &ConsumptionResult{Entries: entries, GeneratedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
+		result := &ConsumptionResult{Entries: entries, ModelEntries: modelEntries, GeneratedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
 		_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
 		return result, nil
 	})

@@ -13,8 +13,10 @@ import (
 // a concurrency limit return nil from GetOrCreate so callers can fast-path past
 // admission control entirely.
 type ChannelLimiterManager struct {
-	mu      sync.RWMutex
-	entries map[int]*limiterEntry // key = channel.ID
+	mu             sync.RWMutex
+	entries        map[int]*limiterEntry // key = channel.ID
+	inFlight       map[int]int
+	requestTracker *ChannelRequestTracker
 }
 
 type limiterEntry struct {
@@ -25,7 +27,35 @@ type limiterEntry struct {
 
 // NewChannelLimiterManager returns an empty manager.
 func NewChannelLimiterManager() *ChannelLimiterManager {
-	return &ChannelLimiterManager{entries: make(map[int]*limiterEntry)}
+	return &ChannelLimiterManager{
+		entries:        make(map[int]*limiterEntry),
+		inFlight:       make(map[int]int),
+		requestTracker: NewChannelRequestTracker(),
+	}
+}
+
+// Usage includes channels without admission limits and requests still running
+// against a limiter that was replaced after a configuration change.
+func (m *ChannelLimiterManager) Usage(channelID int) (inFlight int, rpm int64) {
+	m.mu.RLock()
+	inFlight = m.inFlight[channelID]
+	m.mu.RUnlock()
+	return inFlight, m.requestTracker.GetRequestCount(channelID)
+}
+
+func (m *ChannelLimiterManager) startRequest(channelID int) {
+	m.mu.Lock()
+	m.inFlight[channelID]++
+	m.mu.Unlock()
+}
+
+func (m *ChannelLimiterManager) finishRequest(channelID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.inFlight[channelID]--
+	if m.inFlight[channelID] == 0 {
+		delete(m.inFlight, channelID)
+	}
 }
 
 // limiterConfig is the runtime view of ChannelRateLimit, normalized for the

@@ -376,6 +376,11 @@ export const channelLimiterStatsSchema = z.object({
 });
 export type ChannelLimiterStats = z.infer<typeof channelLimiterStatsSchema>;
 
+export const channelLiveUsageSchema = z.object({
+  inFlight: z.number().int().nonnegative(),
+  rpm: z.number().int().nonnegative(),
+});
+
 export const retryableErrorPatternSchema = z.object({
   pattern: z.string().min(1),
   regex: z.boolean().optional().nullable(),
@@ -581,6 +586,7 @@ export const channelSchema = z.object({
   remark: z.string().optional().nullable(),
   allModelEntries: z.array(channelModelEntrySchema).optional(),
   liveLimiterStats: channelLimiterStatsSchema.optional().nullable(),
+  liveUsage: channelLiveUsageSchema.optional().nullable(),
   endpoints: z.array(channelEndpointSchema).optional().default([]).nullable(),
   defaultEndpoints: z.array(channelEndpointSchema).optional().default([]).nullable(),
 });

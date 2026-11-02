@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 
-export type ConsumptionDimension = 'USER' | 'API_KEY' | 'API_KEY_GROUP' | 'CHANNEL';
+export type ConsumptionDimension = 'USER' | 'API_KEY' | 'API_KEY_GROUP' | 'CHANNEL' | 'MODEL';
 export type ConsumptionMetric = 'COST' | 'CACHE';
 export type ConsumptionPeriod = 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'ALL' | 'CUSTOM';
 export type ConsumptionDateRange = { period: ConsumptionPeriod; startDate?: string; endDate?: string };
@@ -51,6 +51,10 @@ const resultSchema = z.object({
   currencyCode: z.string(),
 });
 
+const modelResultSchema = resultSchema.extend({
+  entries: z.array(entrySchema.omit({ models: true })).transform((entries) => entries.map((entry) => ({ ...entry, models: [] }))),
+});
+
 export type ConsumptionMetrics = z.infer<typeof metricsSchema>;
 export type ConsumptionEntry = z.infer<typeof entrySchema>;
 export type ConsumptionResult = z.infer<typeof resultSchema>;
@@ -63,8 +67,10 @@ const RESULT_FIELDS = `
   entries { id name metrics { ${METRIC_FIELDS} } models { model metrics { ${METRIC_FIELDS} } } }
   generatedAt rangeStart rangeEnd timezone currencyCode
 `;
-const LEADERBOARD_QUERY = `query ConsumptionLeaderboard($input: ConsumptionFilter!) { consumptionLeaderboard(input: $input) { ${RESULT_FIELDS} } }`;
-const USAGE_QUERY = `query UsageStatistics($input: ConsumptionFilter!) { usageStatistics(input: $input) { ${RESULT_FIELDS} } }`;
+const MODEL_RESULT_FIELDS = `
+  entries: modelEntries { id: model name: model metrics { ${METRIC_FIELDS} } }
+  generatedAt rangeStart rangeEnd timezone currencyCode
+`;
 
 export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
   const projectID = view === 'usage' ? currentProjectID : undefined;
@@ -72,10 +78,11 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
     queryKey: ['consumption', view, projectID, input],
     queryFn: async ({ signal }) => {
       const field = view === 'usage' ? 'usageStatistics' : 'consumptionLeaderboard';
-      const query = view === 'usage' ? USAGE_QUERY : LEADERBOARD_QUERY;
+      const fields = input.dimension === 'MODEL' ? MODEL_RESULT_FIELDS : RESULT_FIELDS;
+      const query = `query Consumption($input: ConsumptionFilter!) { ${field}(input: $input) { ${fields} } }`;
       const headers = projectID ? { 'X-Project-ID': projectID } : undefined;
       const data = await graphqlRequest<Record<string, unknown>>(query, { input }, headers, { signal });
-      return resultSchema.parse(data[field]);
+      return (input.dimension === 'MODEL' ? modelResultSchema : resultSchema).parse(data[field]);
     },
     enabled: enabled && (view === 'leaderboard' || !!projectID),
     refetchInterval: 60_000,

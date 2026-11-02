@@ -54,7 +54,7 @@ func TestRateLimitAdmission_AllowsOnlyConfiguredRPM(t *testing.T) {
 	assert.Equal(t, int64(2), tracker.GetRequestCount(channel.ID))
 }
 
-func TestRateLimitAdmission_NoRPMBypasses(t *testing.T) {
+func TestRateLimitAdmission_NoRPMTracksUsage(t *testing.T) {
 	tracker := NewChannelRequestTracker()
 	channel := channelWithRPM(2, "no-rpm", 0)
 	outbound := newTestOutbound(channel)
@@ -65,7 +65,39 @@ func TestRateLimitAdmission_NoRPMBypasses(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	assert.Equal(t, int64(0), tracker.GetRequestCount(channel.ID))
+	assert.Equal(t, int64(3), tracker.GetRequestCount(channel.ID))
+}
+
+func TestRateLimitAdmission_NoSettingsTracksUsage(t *testing.T) {
+	tracker := NewChannelRequestTracker()
+	channel := &biz.Channel{Channel: &ent.Channel{ID: 6}}
+	middleware := withRateLimitAdmission(newTestOutbound(channel), tracker)
+	_, err := middleware.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), tracker.GetRequestCount(channel.ID))
+}
+
+func TestRateLimitAdmission_SharedChannelUsageAndRejection(t *testing.T) {
+	manager := NewChannelLimiterManager()
+	channel := channelWithRPM(7, "shared", 1)
+	for i := range 2 {
+		outbound := newTestOutbound(channel)
+		concurrency := withChannelLimiter(outbound, manager, nil)
+		rpm := withRateLimitAdmission(outbound, manager.requestTracker)
+		_, err := concurrency.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+		require.NoError(t, err)
+		_, err = rpm.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+		if i == 0 {
+			require.NoError(t, err)
+		} else {
+			require.ErrorIs(t, err, ErrLocalRPMExhausted)
+		}
+		concurrency.OnOutboundRawError(t.Context(), errors.New("attempt ended"))
+	}
+
+	inFlight, count := manager.Usage(channel.ID)
+	assert.Zero(t, inFlight)
+	assert.Equal(t, int64(1), count)
 }
 
 func TestRateLimitAdmission_SameChannelRetryCannotBypassRPM(t *testing.T) {

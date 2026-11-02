@@ -44,17 +44,13 @@ func (t *ChannelRequestTracker) getOrResetWindow(channelID int) *rateLimitWindow
 
 // TryAcquireRequest atomically checks and consumes one request slot for a
 // channel in the current fixed minute bucket. A non-positive limit means the
-// caller has no RPM limit configured, so no slot is consumed.
+// caller has no RPM limit configured; usage is still counted.
 func (t *ChannelRequestTracker) TryAcquireRequest(channelID int, limit int64) bool {
-	if limit <= 0 {
-		return true
-	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	w := t.getOrResetWindow(channelID)
-	if w.requests >= limit {
+	if limit > 0 && w.requests >= limit {
 		return false
 	}
 

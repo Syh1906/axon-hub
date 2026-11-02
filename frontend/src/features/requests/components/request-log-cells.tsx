@@ -68,7 +68,7 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
     state === 'new'
       ? 'text-emerald-600 dark:text-emerald-400'
       : state === 'reused'
-        ? 'text-teal-500'
+        ? 'text-violet-600 dark:text-violet-400'
         : state === 'switched'
           ? 'text-primary'
           : 'text-muted-foreground';

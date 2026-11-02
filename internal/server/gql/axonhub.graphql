@@ -777,6 +777,23 @@ extend type Channel {
   has no MaxConcurrent configured (no admission control).
   """
   liveLimiterStats: ChannelLimiterStats @goField(forceResolver: true)
+
+  """
+  Current instance usage, including channels without configured rate limits.
+  """
+  liveUsage: ChannelLiveUsage @goField(forceResolver: true)
+}
+
+type ChannelLiveUsage {
+  """
+  Admitted requests still running, excluding requests waiting in the queue.
+  """
+  inFlight: Int!
+  """
+  Admitted upstream attempts in the current natural minute, across protocols.
+  Includes retries. Resets at the minute boundary and on server restart.
+  """
+  rpm: Int!
 }
 
 """
@@ -796,7 +813,7 @@ type ChannelLimiterStats {
   """
   capacity: Int!
   """
-  Configured QueueSize (0 means soft mode — no waiting queue, only counts).
+  Configured QueueSize (0 means an unbounded waiting queue).
   """
   queueSize: Int!
 }

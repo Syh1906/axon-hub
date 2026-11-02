@@ -34,7 +34,8 @@ func NewChatCompletionOrchestrator(
 	channelLimiterManager *ChannelLimiterManager,
 	quotaProvider ProviderQuotaStatusProvider,
 ) *ChatCompletionOrchestrator {
-	rateLimitTracker := NewChannelRequestTracker()
+	// All protocol entry points share the channel's usage and rate-limit window.
+	rateLimitTracker := channelLimiterManager.requestTracker
 
 	channelService.SetChannelLimiterForgetter(channelLimiterManager)
 

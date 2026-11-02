@@ -27,9 +27,25 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
       ...(dimension === 'CHANNEL' ? [{ key: 'cacheCoefficient', format: 'coefficient', tooltip: 'cacheCoefficientHelp' } as Column] : []),
       { key: 'cacheReadTokens', format: 'tokens' },
       { key: 'cacheInputTokens', format: 'tokens' },
+      ...(dimension === 'MODEL'
+        ? ([
+            { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
+            { key: 'avgTokensPerSecond', format: 'speed', tooltip: 'speedHelp' },
+          ] as Column[])
+        : []),
       { key: 'totalCost', format: 'currency', hideInModel: dimension !== 'CHANNEL', tooltip: 'totalCostHelp' },
     ];
   }
+  if (dimension === 'MODEL')
+    return [
+      { key: 'requestCount', format: 'number' },
+      { key: 'totalCost', format: 'currency', tooltip: 'totalCostHelp' },
+      { key: 'totalTokens', format: 'tokens' },
+      { key: 'successRate', format: 'percent', tooltip: 'successRateHelp' },
+      { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
+      { key: 'avgTokensPerSecond', format: 'speed', tooltip: 'speedHelp' },
+      { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
+    ];
   if (dimension !== 'CHANNEL')
     return [
       { key: 'requestCount', format: 'number' },
@@ -158,12 +174,12 @@ export function ConsumptionTable({
     <Table
       className={cn(
         'consumption-table table-fixed border-separate border-spacing-0',
-        dimension === 'CHANNEL' && metric === 'COST' ? 'min-w-[1600px]' : 'min-w-[900px]'
+        dimension === 'CHANNEL' && metric === 'COST' ? 'min-w-[1600px]' : dimension === 'MODEL' ? 'min-w-[1150px]' : 'min-w-[900px]'
       )}
     >
       <colgroup>
         <col style={{ width: 56 }} />
-        <col style={{ width: dimension === 'CHANNEL' ? 280 : 380 }} />
+        <col style={{ width: dimension === 'MODEL' ? 240 : dimension === 'CHANNEL' ? 280 : 380 }} />
         {columns.map((column) => (
           <col key={column.key} />
         ))}
@@ -257,7 +273,7 @@ export function ConsumptionTable({
                   {index + 1}
                 </span>
               </TableCell>
-              <TableCell className='text-center font-medium'>
+              <TableCell className={cn('font-medium', dimension === 'MODEL' ? 'text-left' : 'text-center')}>
                 {hasModels ? (
                   <div className='px-14'>
                     <Button
@@ -279,8 +295,8 @@ export function ConsumptionTable({
                     </Button>
                   </div>
                 ) : (
-                  <span className='mx-auto block max-w-72 truncate' title={entry.name}>
-                    {entry.name}
+                  <span className={cn('block max-w-72 truncate', dimension !== 'MODEL' && 'mx-auto')} title={entry.name}>
+                    {entry.name || '—'}
                   </span>
                 )}
               </TableCell>

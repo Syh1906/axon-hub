@@ -142,6 +142,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             expiresAt
           }
           healthGate { disabled openCount unstableCount }
+          liveUsage { inFlight rpm }
           liveLimiterStats {
             inFlight
             waiting
@@ -225,7 +226,11 @@ export const CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION = `
           orderingWeight
 `;
 
-export const CHANNEL_QUERY_HEALTH_SELECTION = `
+export const CHANNEL_QUERY_LOAD_SELECTION = `
+          liveUsage { inFlight rpm }
+          settings {
+            rateLimit { rpm tpm maxConcurrent queueSize queueTimeoutMs }
+          }
           liveLimiterStats {
             inFlight
             waiting

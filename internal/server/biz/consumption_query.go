@@ -176,6 +176,14 @@ func appendConsumptionPricing(q *sql.Selector, complete, cost, tokens string) {
 }
 
 func selectConsumptionEntity(q *sql.Selector, input ConsumptionFilter, model string) {
+	if input.Dimension == ConsumptionDimensionModel {
+		q.Select(sql.As(model, "model"), sql.As(model, "name"))
+		q.GroupBy(model)
+		if input.Search != nil && *input.Search != "" {
+			q.Where(sql.ContainsFold(model, *input.Search))
+		}
+		return
+	}
 
 	var entityID string
 	var names []string

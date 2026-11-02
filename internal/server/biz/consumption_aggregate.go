@@ -63,21 +63,25 @@ func consumptionEntries(rows []consumptionGroup, input ConsumptionFilter) []*Con
 	}
 	for _, entry := range entries {
 		entry.Metrics = totals[entry.ID.ID].metrics()
-		slices.SortStableFunc(entry.Models, func(a, b *ConsumptionModel) int {
-			if input.Metric == ConsumptionMetricCache {
-				if order := compareOptionalDescending(a.Metrics.CacheHitRate, b.Metrics.CacheHitRate); order != 0 {
-					return order
-				}
-				if order := cmp.Compare(b.Metrics.RequestCount, a.Metrics.RequestCount); order != 0 {
-					return order
-				}
-			} else if order := cmp.Compare(b.Metrics.TotalCost, a.Metrics.TotalCost); order != 0 {
-				return order
-			}
-			return strings.Compare(a.Model, b.Model)
-		})
+		sortConsumptionModels(entry.Models, input)
 	}
 	return entries
+}
+
+func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) {
+	slices.SortStableFunc(models, func(a, b *ConsumptionModel) int {
+		if input.Metric == ConsumptionMetricCache {
+			if order := compareOptionalDescending(a.Metrics.CacheHitRate, b.Metrics.CacheHitRate); order != 0 {
+				return order
+			}
+			if order := cmp.Compare(b.Metrics.RequestCount, a.Metrics.RequestCount); order != 0 {
+				return order
+			}
+		} else if order := cmp.Compare(b.Metrics.TotalCost, a.Metrics.TotalCost); order != 0 {
+			return order
+		}
+		return strings.Compare(a.Model, b.Model)
+	})
 }
 
 func (r consumptionGroup) metrics() ConsumptionMetrics {

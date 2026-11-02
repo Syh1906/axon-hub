@@ -280,8 +280,16 @@ type ChannelLimiterStats struct {
 	Waiting int `json:"waiting"`
 	// Configured MaxConcurrent (capacity ceiling).
 	Capacity int `json:"capacity"`
-	// Configured QueueSize (0 means soft mode — no waiting queue, only counts).
+	// Configured QueueSize (0 means an unbounded waiting queue).
 	QueueSize int `json:"queueSize"`
+}
+
+type ChannelLiveUsage struct {
+	// Admitted requests still running, excluding requests waiting in the queue.
+	InFlight int `json:"inFlight"`
+	// Admitted upstream attempts in the current natural minute, across protocols.
+	// Includes retries. Resets at the minute boundary and on server restart.
+	Rpm int `json:"rpm"`
 }
 
 // Performance statistics for a specific channel on a given date

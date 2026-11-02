@@ -123,6 +123,15 @@ func (r *channelResolver) LiveLimiterStats(ctx context.Context, obj *ent.Channel
 	}, nil
 }
 
+// LiveUsage is the resolver for the liveUsage field.
+func (r *channelResolver) LiveUsage(ctx context.Context, obj *ent.Channel) (*ChannelLiveUsage, error) {
+	if r.channelLimiterManager == nil || obj == nil {
+		return nil, nil
+	}
+	inFlight, rpm := r.channelLimiterManager.Usage(obj.ID)
+	return &ChannelLiveUsage{InFlight: inFlight, Rpm: int(rpm)}, nil
+}
+
 // HeaderOverrideOperations is the resolver for the headerOverrideOperations field.
 func (r *channelSettingsResolver) HeaderOverrideOperations(ctx context.Context, obj *objects.ChannelSettings) ([]*objects.OverrideOperation, error) {
 	if obj == nil {

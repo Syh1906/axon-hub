@@ -70,7 +70,7 @@ func TestChannelLimiterMiddleware_AcquireAndReleaseOnResponse(t *testing.T) {
 	assert.Equal(t, 0, inFlight, "Release on response must drop in-flight")
 }
 
-func TestChannelLimiterMiddleware_NoLimitChannelBypasses(t *testing.T) {
+func TestChannelLimiterMiddleware_NoLimitChannelTracksUsage(t *testing.T) {
 	t.Parallel()
 
 	ch := &biz.Channel{Channel: &ent.Channel{ID: 9, Name: "open"}} // no settings
@@ -80,7 +80,54 @@ func TestChannelLimiterMiddleware_NoLimitChannelBypasses(t *testing.T) {
 
 	_, err := m.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
 	require.NoError(t, err)
-	assert.Nil(t, m.current.Load(), "channels without rate limit must not engage limiter")
+	require.NotNil(t, m.current.Load())
+	assert.Nil(t, m.current.Load().lim, "unlimited channels must not engage admission control")
+	inFlight, _ := mgr.Usage(ch.ID)
+	assert.Equal(t, 1, inFlight)
+
+	_, err = m.OnOutboundLlmResponse(t.Context(), &llm.Response{})
+	require.NoError(t, err)
+	m.OnOutboundRawError(t.Context(), errors.New("duplicate cleanup"))
+	inFlight, _ = mgr.Usage(ch.ID)
+	assert.Zero(t, inFlight)
+}
+
+func TestChannelLimiterMiddleware_UsageAcrossConfigChangeAndStreamRetry(t *testing.T) {
+	t.Parallel()
+
+	ch := channelWithLimit(21, "changing", 2, 0)
+	mgr := NewChannelLimiterManager()
+	out := newTestOutbound(ch)
+	m := withChannelLimiter(out, mgr, nil)
+	_, err := m.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	oldStream, err := m.OnOutboundLlmStream(t.Context(), &emptyResponseStream{})
+	require.NoError(t, err)
+
+	// Clearing the limit must not lose a request already using the old limiter.
+	mgr.Forget(ch.ID)
+	unlimited := &biz.Channel{Channel: &ent.Channel{ID: ch.ID}}
+	next := withChannelLimiter(newTestOutbound(unlimited), mgr, nil)
+	_, err = next.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	inFlight, _ := mgr.Usage(ch.ID)
+	assert.Equal(t, 2, inFlight)
+	require.NoError(t, oldStream.Close())
+	require.NoError(t, oldStream.Close())
+	inFlight, _ = mgr.Usage(ch.ID)
+	assert.Equal(t, 1, inFlight)
+
+	next.OnOutboundRawError(t.Context(), errors.New("upstream failure"))
+	_, err = next.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	stream, err := next.OnOutboundLlmStream(t.Context(), &emptyResponseStream{})
+	require.NoError(t, err)
+	inFlight, _ = mgr.Usage(ch.ID)
+	assert.Equal(t, 1, inFlight)
+	require.NoError(t, stream.Close())
+	next.OnOutboundRawError(t.Context(), errors.New("cancelled"))
+	inFlight, _ = mgr.Usage(ch.ID)
+	assert.Zero(t, inFlight)
 }
 
 func TestChannelLimiterMiddleware_QueueFullReturnsTypedError(t *testing.T) {
@@ -157,6 +204,8 @@ func TestChannelLimiterMiddleware_OnceProtection(t *testing.T) {
 
 	inFlight, _ = lim.Stats()
 	assert.Equal(t, 0, inFlight, "release must run exactly once across all paths")
+	active, _ := mgr.Usage(ch.ID)
+	assert.Zero(t, active)
 }
 
 func TestChannelLimiterMiddleware_StreamCloseReleases(t *testing.T) {

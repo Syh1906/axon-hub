@@ -2,76 +2,80 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChannelLimiterStats } from '../data/schema';
+import type { Channel } from '../data/schema';
 
 interface ChannelLimiterCellProps {
-  stats: ChannelLimiterStats | null | undefined;
+  channel: Channel;
 }
 
-/**
- * ChannelLimiterCell renders a compact text snapshot of the per-channel
- * concurrency limiter: `inFlight/capacity` for in-flight load, plus
- * `Q waiting/queueSize` when a queue is configured.
- *
- * Returns null when the channel has no MaxConcurrent configured (no admission
- * control); the parent column should render nothing in that case.
- */
-export const ChannelLimiterCell = memo(({ stats }: ChannelLimiterCellProps) => {
-  const { t } = useTranslation();
-
-  if (!stats || stats.capacity <= 0) {
-    return null;
-  }
-
-  const { inFlight, waiting, capacity, queueSize } = stats;
-
-  const utilization = inFlight / capacity;
-  const isFull = inFlight >= capacity;
-  const isWarn = !isFull && utilization >= 0.5;
-  const queueIsFull = queueSize > 0 && waiting >= queueSize;
-  const queueIsBusy = queueSize > 0 && waiting > 0 && !queueIsFull;
+export const ChannelLimiterCell = memo(({ channel }: ChannelLimiterCellProps) => {
+  const { t, i18n } = useTranslation();
+  const usage = channel.liveUsage;
+  const limits = channel.settings?.rateLimit;
+  const limiter = channel.liveLimiterStats;
+  const format = (value: number) => value.toLocaleString(i18n.language);
+  const formatLimit = (value: number | null | undefined) =>
+    value != null && value > 0 ? format(value) : t('channels.columns.loadTooltip.unlimited');
+  const hasConcurrencyLimit = (limits?.maxConcurrent ?? 0) > 0;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className='flex cursor-help items-center gap-1'>
-          <span
-            className={cn(
-              'text-xs tabular-nums',
-              isFull && 'text-red-500',
-              isWarn && 'text-yellow-600',
-              !isFull && !isWarn && 'text-blue-500'
-            )}
-          >
-            {inFlight}/{capacity}
-          </span>
-          {queueSize > 0 && (
-            <span
-              className={cn(
-                'text-muted-foreground text-[10px] tabular-nums',
-                queueIsFull && 'text-red-500',
-                queueIsBusy && 'text-yellow-600'
-              )}
-            >
-              Q {waiting}/{queueSize}
-            </span>
-          )}
+        <div tabIndex={0} className='mx-auto grid w-fit cursor-help grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs whitespace-nowrap'>
+          {[
+            { label: t('channels.columns.loadTooltip.concurrent'), value: usage?.inFlight, limit: limits?.maxConcurrent },
+            { label: 'RPM', value: usage?.rpm, limit: limits?.rpm },
+          ].map(({ label, value, limit }) => (
+            <div key={label} className='contents'>
+              <span className='text-muted-foreground text-left'>{label}</span>
+              <span className='text-left tabular-nums'>
+                <span
+                  className={cn(
+                    'font-medium',
+                    value != null &&
+                      limit != null &&
+                      limit > 0 &&
+                      (value >= limit ? 'text-red-500' : value >= limit / 2 ? 'text-yellow-600 dark:text-yellow-400' : undefined)
+                  )}
+                >
+                  {value == null ? '—' : format(value)}
+                </span>
+                {limit != null && limit > 0 && <span className='text-muted-foreground'> / {format(limit)}</span>}
+              </span>
+            </div>
+          ))}
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        <div className='space-y-1 text-xs'>
-          <div>
-            {t('channels.columns.limiterTooltip.inFlight')}: {inFlight}/{capacity}
-          </div>
-          {queueSize > 0 ? (
+        <div className='max-w-72 space-y-2 text-xs'>
+          <p>{t('channels.columns.loadTooltip.description')}</p>
+          {!usage && <p>{t('channels.columns.loadTooltip.unavailable')}</p>}
+          <div className='space-y-1'>
             <div>
-              {t('channels.columns.limiterTooltip.waiting')}: {waiting}/{queueSize}
+              {t('channels.columns.loadTooltip.concurrentLimit')} · {formatLimit(limits?.maxConcurrent)}
             </div>
-          ) : (
-            <div className='text-muted-foreground'>
-              {t('channels.columns.limiterTooltip.noQueue')}
+            <div>
+              {t('channels.columns.loadTooltip.rpmLimit')} · {formatLimit(limits?.rpm)}
             </div>
-          )}
+            {limits?.tpm != null && limits.tpm > 0 && (
+              <div>
+                {t('channels.columns.loadTooltip.tpmLimit')} · {format(limits.tpm)}
+              </div>
+            )}
+            {hasConcurrencyLimit && (
+              <>
+                <div>
+                  {t('channels.columns.loadTooltip.waiting')} · {limiter ? format(limiter.waiting) : '—'} / {formatLimit(limits?.queueSize)}
+                </div>
+                <div>
+                  {t('channels.columns.loadTooltip.queueTimeout')} ·{' '}
+                  {limits?.queueTimeoutMs != null && limits.queueTimeoutMs > 0
+                    ? t('channels.columns.loadTooltip.milliseconds', { value: format(limits.queueTimeoutMs) })
+                    : t('channels.columns.loadTooltip.unlimited')}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </TooltipContent>
     </Tooltip>
