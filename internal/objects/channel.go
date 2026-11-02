@@ -168,7 +168,8 @@ func (m ModelProtocol) IsEnabled() bool {
 }
 
 type ChannelSettings struct {
-	ServiceTierBilling *ServiceTierSettings `json:"serviceTierBilling,omitempty"`
+	ModelContexts      []ChannelModelContext `json:"modelContexts,omitempty"`
+	ServiceTierBilling *ServiceTierSettings  `json:"serviceTierBilling,omitempty"`
 	// Managed by routing mutations; ordinary channel edits preserve these values.
 	GlobalPriority *int                 `json:"globalPriority,omitempty"`
 	TagPriorities  []ChannelTagPriority `json:"tagPriorities,omitempty"`

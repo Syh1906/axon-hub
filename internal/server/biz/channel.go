@@ -615,6 +615,9 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 			return nil, err
 		}
 
+		if err := validateChannelModelContexts(input.Settings); err != nil {
+			return nil, err
+		}
 		if err := NormalizeRetryableStatusCodes(input.Settings); err != nil {
 			return nil, err
 		}
@@ -985,6 +988,12 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		}
 
 		if err := NormalizeRetryableErrorPatterns(input.Settings); err != nil {
+			return nil, err
+		}
+	}
+
+	if input.Settings != nil {
+		if err := validateChannelModelContexts(input.Settings); err != nil {
 			return nil, err
 		}
 	}

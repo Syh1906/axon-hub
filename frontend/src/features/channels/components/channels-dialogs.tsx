@@ -21,6 +21,7 @@ import { ChannelsErrorResolvedDialog } from './channels-error-resolved-dialog';
 import { ChannelsHealthGateDialog } from './channels-health-gate-dialog';
 import { ChannelsModelMappingDialog } from './channels-model-mapping-dialog';
 import { ChannelsModelPriceDialog } from './channels-model-price-dialog';
+import { ChannelsModelContextDialog } from './channels-model-context-dialog';
 import { ChannelsOverrideDialog } from './channels-override-dialog';
 import { ChannelsProxyDialog } from './channels-proxy-dialog';
 import { ChannelsRateLimitDialog } from './channels-rate-limit-dialog';
@@ -176,6 +177,7 @@ export function ChannelsDialogs() {
           />
 
           <ChannelsModelPriceDialog />
+          {open === 'modelContext' && <ChannelsModelContextDialog key={currentRow.id} channel={currentRow} onClose={() => setOpen(null)} />}
 
           <ChannelsOverrideDialog
             key={`channel-overrides-${currentRow.id}`}

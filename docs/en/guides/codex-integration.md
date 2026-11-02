@@ -183,6 +183,18 @@ Automatic results are not stored in `settings.codexCatalog`. New associations, k
 
 The following workflow is optional.
 
+### Configure catalog context windows
+
+Set the default and maximum supported context windows in **Models → Edit → Model catalog context**, in tokens. Settings apply to every public ID under the model rule. These are independent of the model card's descriptive limits and do not require a complete manual Codex definition.
+
+Use **Channels → More → Model context** to override each field for a specific channel model. Channel values take precedence; blank fields dynamically inherit the model rule matched by the request. Clear an override or choose **Restore inheritance** to follow subsequent model changes. With neither layer configured, preserve upstream catalog behavior. A maximum-only configuration uses the effective maximum as its default; an upstream maximum also supplies a missing upstream default. The default must not exceed the maximum. An inherited default above a channel maximum is reduced to that maximum.
+
+The gateway resolves each available route before merging their common capabilities for the requesting API key. Settings apply to automatic catalogs and existing manual definitions, changing only `context_window` and `max_context_window`. Clients see updates when they next fetch the catalog.
+
+A channel model may serve several public models or aliases, so inherited limits depend on the model rule matched by each request. The channel dialog displays explicit channel overrides and labels blank fields as inheriting from the request-matched model. It does not infer a unique effective value from the channel model ID.
+
+Published values do not increase the provider's actual capacity. Unconfigured fields are not replaced by hardcoded numbers; for example, `872000` is not a built-in default. Context settings cannot supply missing model instructions or tool metadata.
+
 ### Manual multi-channel model definitions
 
 To pin or customize a manual definition, open **Models → Edit → Codex manual override (optional)**, enter the actual three-part catalog request version, and import from associated channels. Import selects a complete client profile for each concrete public ID, keeping its instructions and tool settings separate from other IDs published by the same regex. It does not persist data.

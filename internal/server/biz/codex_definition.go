@@ -197,7 +197,7 @@ func (d *codexDefinition) catalogModel(m ModelFacade, version string) (map[strin
 			if err != nil {
 				return nil, err
 			}
-			variants = append(variants, effective)
+			variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
 		}
 	}
 	if len(variants) == 0 {

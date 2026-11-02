@@ -37,6 +37,7 @@ type ModelCardLimit {
 
 # ModelSettings represents model Association configuration
 type ModelSettings {
+  contextSettings: ModelContextSettings
   codexCatalog: JSONRawMessage
   disableDeveloperSettingsInheritance: Boolean!
   associations: [ModelAssociation!]!
@@ -138,11 +139,22 @@ input ModelCardLimitInput {
 }
 
 input ModelSettingsInput {
+  contextSettings: ModelContextSettingsInput
   codexCatalog: JSONRawMessageInput
   disableDeveloperSettingsInheritance: Boolean
   associations: [ModelAssociationInput!]!
   loadBalancerStrategy: String
   traceStickyMode: String
+}
+
+type ModelContextSettings {
+  defaultContextWindow: Int
+  maxContextWindow: Int
+}
+
+input ModelContextSettingsInput {
+  defaultContextWindow: Int
+  maxContextWindow: Int
 }
 
 input ModelAssociationInput {

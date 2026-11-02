@@ -581,6 +581,12 @@ type ComplexityRoot struct {
 		Frequency func(childComplexity int) int
 	}
 
+	ChannelModelContext struct {
+		DefaultContextWindow func(childComplexity int) int
+		MaxContextWindow     func(childComplexity int) int
+		ModelID              func(childComplexity int) int
+	}
+
 	ChannelModelEntry struct {
 		ActualModel  func(childComplexity int) int
 		RequestModel func(childComplexity int) int
@@ -743,6 +749,7 @@ type ComplexityRoot struct {
 		HideMappedModels                func(childComplexity int) int
 		HideOriginalModels              func(childComplexity int) int
 		LowercaseModelID                func(childComplexity int) int
+		ModelContexts                   func(childComplexity int) int
 		ModelMappings                   func(childComplexity int) int
 		ModelPriceMultiplier            func(childComplexity int) int
 		ModelProtocols                  func(childComplexity int) int
@@ -1385,6 +1392,11 @@ type ComplexityRoot struct {
 		TotalCount func(childComplexity int) int
 	}
 
+	ModelContextSettings struct {
+		DefaultContextWindow func(childComplexity int) int
+		MaxContextWindow     func(childComplexity int) int
+	}
+
 	ModelEdge struct {
 		Cursor func(childComplexity int) int
 		Node   func(childComplexity int) int
@@ -1452,6 +1464,7 @@ type ComplexityRoot struct {
 	ModelSettings struct {
 		Associations                        func(childComplexity int) int
 		CodexCatalog                        func(childComplexity int) int
+		ContextSettings                     func(childComplexity int) int
 		DisableDeveloperSettingsInheritance func(childComplexity int) int
 		LoadBalancerStrategy                func(childComplexity int) int
 		TraceStickyMode                     func(childComplexity int) int
@@ -5455,6 +5468,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ChannelModelAutoSyncSetting.Frequency(childComplexity), true
 
+	case "ChannelModelContext.defaultContextWindow":
+		if e.complexity.ChannelModelContext.DefaultContextWindow == nil {
+			break
+		}
+
+		return e.complexity.ChannelModelContext.DefaultContextWindow(childComplexity), true
+	case "ChannelModelContext.maxContextWindow":
+		if e.complexity.ChannelModelContext.MaxContextWindow == nil {
+			break
+		}
+
+		return e.complexity.ChannelModelContext.MaxContextWindow(childComplexity), true
+	case "ChannelModelContext.modelId":
+		if e.complexity.ChannelModelContext.ModelID == nil {
+			break
+		}
+
+		return e.complexity.ChannelModelContext.ModelID(childComplexity), true
+
 	case "ChannelModelEntry.actualModel":
 		if e.complexity.ChannelModelEntry.ActualModel == nil {
 			break
@@ -6064,6 +6096,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.LowercaseModelID(childComplexity), true
+	case "ChannelSettings.modelContexts":
+		if e.complexity.ChannelSettings.ModelContexts == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.ModelContexts(childComplexity), true
 	case "ChannelSettings.modelMappings":
 		if e.complexity.ChannelSettings.ModelMappings == nil {
 			break
@@ -8589,6 +8627,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ModelConnection.TotalCount(childComplexity), true
 
+	case "ModelContextSettings.defaultContextWindow":
+		if e.complexity.ModelContextSettings.DefaultContextWindow == nil {
+			break
+		}
+
+		return e.complexity.ModelContextSettings.DefaultContextWindow(childComplexity), true
+	case "ModelContextSettings.maxContextWindow":
+		if e.complexity.ModelContextSettings.MaxContextWindow == nil {
+			break
+		}
+
+		return e.complexity.ModelContextSettings.MaxContextWindow(childComplexity), true
+
 	case "ModelEdge.cursor":
 		if e.complexity.ModelEdge.Cursor == nil {
 			break
@@ -8798,6 +8849,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelSettings.CodexCatalog(childComplexity), true
+	case "ModelSettings.contextSettings":
+		if e.complexity.ModelSettings.ContextSettings == nil {
+			break
+		}
+
+		return e.complexity.ModelSettings.ContextSettings(childComplexity), true
 	case "ModelSettings.disableDeveloperSettingsInheritance":
 		if e.complexity.ModelSettings.DisableDeveloperSettingsInheritance == nil {
 			break
@@ -16787,6 +16844,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelEndpointInput,
 		ec.unmarshalInputChannelKeySettingsInput,
 		ec.unmarshalInputChannelModelAssociationInput,
+		ec.unmarshalInputChannelModelContextInput,
 		ec.unmarshalInputChannelModelPriceOrder,
 		ec.unmarshalInputChannelModelPriceVersionOrder,
 		ec.unmarshalInputChannelModelPriceVersionWhereInput,
@@ -16872,6 +16930,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputModelCardLimitInput,
 		ec.unmarshalInputModelCardModalitiesInput,
 		ec.unmarshalInputModelCardReasoningInput,
+		ec.unmarshalInputModelContextSettingsInput,
 		ec.unmarshalInputModelIDAssociationInput,
 		ec.unmarshalInputModelMappingInput,
 		ec.unmarshalInputModelOrder,
@@ -28851,6 +28910,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "modelContexts":
+				return ec.fieldContext_ChannelSettings_modelContexts(ctx, field)
 			case "serviceTierBilling":
 				return ec.fieldContext_ChannelSettings_serviceTierBilling(ctx, field)
 			case "upstreamAddresses":
@@ -31224,6 +31285,93 @@ func (ec *executionContext) fieldContext_ChannelModelAutoSyncSetting_frequency(_
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type AutoSyncFrequency does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelModelContext_modelId(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelModelContext) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelModelContext_modelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelModelContext_modelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelModelContext",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelModelContext_defaultContextWindow(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelModelContext) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelModelContext_defaultContextWindow,
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultContextWindow, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelModelContext_defaultContextWindow(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelModelContext",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelModelContext_maxContextWindow(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelModelContext) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelModelContext_maxContextWindow,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxContextWindow, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelModelContext_maxContextWindow(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelModelContext",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -34162,6 +34310,43 @@ func (ec *executionContext) fieldContext_ChannelRequestAssociation_channelId(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_modelContexts(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_modelContexts,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelContexts, nil
+		},
+		nil,
+		ec.marshalOChannelModelContext2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContextᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_modelContexts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "modelId":
+				return ec.fieldContext_ChannelModelContext_modelId(ctx, field)
+			case "defaultContextWindow":
+				return ec.fieldContext_ChannelModelContext_defaultContextWindow(ctx, field)
+			case "maxContextWindow":
+				return ec.fieldContext_ChannelModelContext_maxContextWindow(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelModelContext", field.Name)
 		},
 	}
 	return fc, nil
@@ -46029,6 +46214,8 @@ func (ec *executionContext) fieldContext_Model_settings(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "contextSettings":
+				return ec.fieldContext_ModelSettings_contextSettings(ctx, field)
 			case "codexCatalog":
 				return ec.fieldContext_ModelSettings_codexCatalog(ctx, field)
 			case "disableDeveloperSettingsInheritance":
@@ -47487,6 +47674,64 @@ func (ec *executionContext) fieldContext_ModelConnection_totalCount(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelContextSettings_defaultContextWindow(ctx context.Context, field graphql.CollectedField, obj *objects.ModelContextSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelContextSettings_defaultContextWindow,
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultContextWindow, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelContextSettings_defaultContextWindow(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelContextSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModelContextSettings_maxContextWindow(ctx context.Context, field graphql.CollectedField, obj *objects.ModelContextSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelContextSettings_maxContextWindow,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxContextWindow, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelContextSettings_maxContextWindow(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelContextSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ModelEdge_node(ctx context.Context, field graphql.CollectedField, obj *ent.ModelEdge) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -48487,6 +48732,41 @@ func (ec *executionContext) fieldContext_ModelProtocol_enabled(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModelSettings_contextSettings(ctx context.Context, field graphql.CollectedField, obj *objects.ModelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelSettings_contextSettings,
+		func(ctx context.Context) (any, error) {
+			return obj.ContextSettings, nil
+		},
+		nil,
+		ec.marshalOModelContextSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelContextSettings,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelSettings_contextSettings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "defaultContextWindow":
+				return ec.fieldContext_ModelContextSettings_defaultContextWindow(ctx, field)
+			case "maxContextWindow":
+				return ec.fieldContext_ModelContextSettings_maxContextWindow(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ModelContextSettings", field.Name)
 		},
 	}
 	return fc, nil
@@ -93733,6 +94013,47 @@ func (ec *executionContext) unmarshalInputChannelModelAssociationInput(ctx conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChannelModelContextInput(ctx context.Context, obj any) (objects.ChannelModelContext, error) {
+	var it objects.ChannelModelContext
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"modelId", "defaultContextWindow", "maxContextWindow"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "modelId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ModelID = data
+		case "defaultContextWindow":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defaultContextWindow"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DefaultContextWindow = data
+		case "maxContextWindow":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxContextWindow"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxContextWindow = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputChannelModelPriceOrder(ctx context.Context, obj any) (ent.ChannelModelPriceOrder, error) {
 	var it ent.ChannelModelPriceOrder
 	asMap := map[string]any{}
@@ -96490,13 +96811,20 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
+	fieldsInOrder := [...]string{"modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "modelContexts":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelContexts"))
+			data, err := ec.unmarshalOChannelModelContextInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContextᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ModelContexts = data
 		case "upstreamAddresses":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("upstreamAddresses"))
 			data, err := ec.unmarshalOChannelUpstreamAddressInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelUpstreamAddressᚄ(ctx, v)
@@ -102050,6 +102378,40 @@ func (ec *executionContext) unmarshalInputModelCardReasoningInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputModelContextSettingsInput(ctx context.Context, obj any) (objects.ModelContextSettings, error) {
+	var it objects.ModelContextSettings
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"defaultContextWindow", "maxContextWindow"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "defaultContextWindow":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("defaultContextWindow"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DefaultContextWindow = data
+		case "maxContextWindow":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxContextWindow"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxContextWindow = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputModelIDAssociationInput(ctx context.Context, obj any) (objects.ModelIDAssociation, error) {
 	var it objects.ModelIDAssociation
 	asMap := map[string]any{}
@@ -102345,13 +102707,20 @@ func (ec *executionContext) unmarshalInputModelSettingsInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"codexCatalog", "disableDeveloperSettingsInheritance", "associations", "loadBalancerStrategy", "traceStickyMode"}
+	fieldsInOrder := [...]string{"contextSettings", "codexCatalog", "disableDeveloperSettingsInheritance", "associations", "loadBalancerStrategy", "traceStickyMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "contextSettings":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contextSettings"))
+			data, err := ec.unmarshalOModelContextSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelContextSettings(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContextSettings = data
 		case "codexCatalog":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("codexCatalog"))
 			data, err := ec.unmarshalOJSONRawMessageInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx, v)
@@ -124491,6 +124860,49 @@ func (ec *executionContext) _ChannelModelAutoSyncSetting(ctx context.Context, se
 	return out
 }
 
+var channelModelContextImplementors = []string{"ChannelModelContext"}
+
+func (ec *executionContext) _ChannelModelContext(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelModelContext) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelModelContextImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelModelContext")
+		case "modelId":
+			out.Values[i] = ec._ChannelModelContext_modelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "defaultContextWindow":
+			out.Values[i] = ec._ChannelModelContext_defaultContextWindow(ctx, field, obj)
+		case "maxContextWindow":
+			out.Values[i] = ec._ChannelModelContext_maxContextWindow(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var channelModelEntryImplementors = []string{"ChannelModelEntry"}
 
 func (ec *executionContext) _ChannelModelEntry(ctx context.Context, sel ast.SelectionSet, obj *biz.ChannelModelEntry) graphql.Marshaler {
@@ -126061,6 +126473,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelSettings")
+		case "modelContexts":
+			out.Values[i] = ec._ChannelSettings_modelContexts(ctx, field, obj)
 		case "serviceTierBilling":
 			out.Values[i] = ec._ChannelSettings_serviceTierBilling(ctx, field, obj)
 		case "upstreamAddresses":
@@ -130799,6 +131213,44 @@ func (ec *executionContext) _ModelConnection(ctx context.Context, sel ast.Select
 	return out
 }
 
+var modelContextSettingsImplementors = []string{"ModelContextSettings"}
+
+func (ec *executionContext) _ModelContextSettings(ctx context.Context, sel ast.SelectionSet, obj *objects.ModelContextSettings) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, modelContextSettingsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModelContextSettings")
+		case "defaultContextWindow":
+			out.Values[i] = ec._ModelContextSettings_defaultContextWindow(ctx, field, obj)
+		case "maxContextWindow":
+			out.Values[i] = ec._ModelContextSettings_maxContextWindow(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var modelEdgeImplementors = []string{"ModelEdge"}
 
 func (ec *executionContext) _ModelEdge(ctx context.Context, sel ast.SelectionSet, obj *ent.ModelEdge) graphql.Marshaler {
@@ -131303,6 +131755,8 @@ func (ec *executionContext) _ModelSettings(ctx context.Context, sel ast.Selectio
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ModelSettings")
+		case "contextSettings":
+			out.Values[i] = ec._ModelSettings_contextSettings(ctx, field, obj)
 		case "codexCatalog":
 			out.Values[i] = ec._ModelSettings_codexCatalog(ctx, field, obj)
 		case "disableDeveloperSettingsInheritance":
@@ -149154,6 +149608,15 @@ func (ec *executionContext) marshalNChannelModelAutoSyncSetting2githubᚗcomᚋl
 	return ec._ChannelModelAutoSyncSetting(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNChannelModelContext2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContext(ctx context.Context, sel ast.SelectionSet, v objects.ChannelModelContext) graphql.Marshaler {
+	return ec._ChannelModelContext(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNChannelModelContextInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContext(ctx context.Context, v any) (objects.ChannelModelContext, error) {
+	res, err := ec.unmarshalInputChannelModelContextInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNChannelModelEntry2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelModelEntry(ctx context.Context, sel ast.SelectionSet, v biz.ChannelModelEntry) graphql.Marshaler {
 	return ec._ChannelModelEntry(ctx, sel, &v)
 }
@@ -157702,6 +158165,71 @@ func (ec *executionContext) unmarshalOChannelModelAssociationInput2ᚖgithubᚗc
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOChannelModelContext2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContextᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.ChannelModelContext) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNChannelModelContext2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContext(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOChannelModelContextInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContextᚄ(ctx context.Context, v any) ([]objects.ChannelModelContext, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]objects.ChannelModelContext, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNChannelModelContextInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContext(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) marshalOChannelModelPrice2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannelModelPriceᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.ChannelModelPrice) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -160108,6 +160636,21 @@ func (ec *executionContext) unmarshalOModelCardModalitiesInput2githubᚗcomᚋlo
 func (ec *executionContext) unmarshalOModelCardReasoningInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelCardReasoning(ctx context.Context, v any) (objects.ModelCardReasoning, error) {
 	res, err := ec.unmarshalInputModelCardReasoningInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOModelContextSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelContextSettings(ctx context.Context, sel ast.SelectionSet, v *objects.ModelContextSettings) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ModelContextSettings(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOModelContextSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelContextSettings(ctx context.Context, v any) (*objects.ModelContextSettings, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputModelContextSettingsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOModelEdge2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐModelEdge(ctx context.Context, sel ast.SelectionSet, v []*ent.ModelEdge) graphql.Marshaler {

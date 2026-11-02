@@ -171,6 +171,7 @@ input ChannelProviderQuotaSettingsInput {
 }
 
 type ChannelSettings {
+  modelContexts: [ChannelModelContext!]
   serviceTierBilling: ServiceTierSettings
   upstreamAddresses: [ChannelUpstreamAddress!]!
   addressFailover: Boolean!
@@ -252,6 +253,7 @@ input ModelMappingInput {
 }
 
 input ChannelSettingsInput {
+  modelContexts: [ChannelModelContextInput!]
   upstreamAddresses: [ChannelUpstreamAddressInput!]
   addressFailover: Boolean
   streamFirstEventTimeoutSeconds: Int
@@ -277,6 +279,18 @@ input ChannelSettingsInput {
   primaryApiFormat: String
   healthGateFailureThreshold: Int
   forceOneHourPromptCache: Boolean
+}
+
+type ChannelModelContext {
+  modelId: String!
+  defaultContextWindow: Int
+  maxContextWindow: Int
+}
+
+input ChannelModelContextInput {
+  modelId: String!
+  defaultContextWindow: Int
+  maxContextWindow: Int
 }
 
 input ChannelRateLimitInput {

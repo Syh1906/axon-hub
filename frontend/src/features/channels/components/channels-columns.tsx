@@ -298,6 +298,10 @@ const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
             <IconCoin size={16} className='mr-2' />
             {t('channels.actions.modelPrice')}
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setCurrentRow(channel); setOpen('modelContext'); }}>
+            <IconAdjustments size={16} className='mr-2' />
+            {t('modelContext.channelTitle')}
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => {
               setCurrentRow(channel);

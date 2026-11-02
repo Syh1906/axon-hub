@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { channelModelContextSchema } from '@/features/models/data/context-settings';
 import { pageInfoSchema } from '@/gql/pagination';
 
 const decimal = z.union([z.string(), z.number()]).transform(String);
@@ -431,6 +432,7 @@ export const channelSettingsSchema = z.object({
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   disableSessionReuse: z.boolean().optional(),
+  modelContexts: z.array(channelModelContextSchema).nullable().optional(),
   healthGateFailureThreshold: z.number().int().min(0).optional().nullable(),
   modelPriceMultiplier: z.union([z.string(), z.number()]).optional().nullable(),
   extraModelPrefix: z.string().optional(),

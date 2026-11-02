@@ -56,6 +56,7 @@ const MODELS_QUERY = `
           }
           settings {
             codexCatalog
+            contextSettings { defaultContextWindow maxContextWindow }
             disableDeveloperSettingsInheritance
             loadBalancerStrategy
             traceStickyMode
@@ -184,6 +185,7 @@ const CREATE_MODEL_MUTATION = `
       }
       settings {
         codexCatalog
+        contextSettings { defaultContextWindow maxContextWindow }
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode
@@ -287,6 +289,7 @@ const BULK_CREATE_MODELS_MUTATION = `
       }
       settings {
         codexCatalog
+        contextSettings { defaultContextWindow maxContextWindow }
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode
@@ -390,6 +393,7 @@ const UPDATE_MODEL_MUTATION = `
       }
       settings {
         codexCatalog
+        contextSettings { defaultContextWindow maxContextWindow }
         disableDeveloperSettingsInheritance
         loadBalancerStrategy
         traceStickyMode

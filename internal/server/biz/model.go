@@ -58,6 +58,9 @@ func validateModelSettings(settings *objects.ModelSettings) error {
 	if settings == nil {
 		return nil
 	}
+	if err := settings.ContextSettings.Validate(); err != nil {
+		return err
+	}
 
 	if len(settings.CodexCatalog) > 0 && string(settings.CodexCatalog) != "null" {
 		if _, err := decodeCodexDefinition(settings.CodexCatalog); err != nil {

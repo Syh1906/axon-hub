@@ -1,0 +1,30 @@
+{
+  "modelContext": {
+    "cardParameters": "Model card parameters",
+    "cardContext": "Card context",
+    "modelTitle": "Model catalog context",
+    "channelTitle": "Model context",
+    "modelDescription": "Configure context limits published by the gateway. Channels can override them. Leave unconfigured to use the upstream catalog.",
+    "defaultContextWindow": "Default context (tokens)",
+    "maxContextWindow": "Maximum supported context (tokens)",
+    "defaultFallback": "When no default is configured, use the effective maximum. The default cannot exceed the maximum supported context.",
+    "modelScope": "Applies to all public model IDs under this model rule.",
+    "channelDescription": "Override context for channel {{name}}; leave blank to inherit the model configuration.",
+    "upstream": "Use upstream catalog",
+    "useMaximum": "Use maximum context",
+    "inherit": "Inherit model configuration",
+    "search": "Search channel models…",
+    "channelModel": "Channel model",
+    "overridden": "Channel override",
+    "requestInheritance": "A channel model may serve multiple model rules. Inherited values come from the model matched by each request.",
+    "requestModel": "Use the request-matched model",
+    "restore": "Restore inheritance",
+    "activation": "Saved settings are published when the client next fetches the model catalog.",
+    "invalidValues": "Enter positive integers. The default context cannot exceed the maximum supported context.",
+    "invalidRange": "The default context cannot exceed the maximum supported context.",
+    "empty": "No matching channel models",
+    "previous": "Previous",
+    "next": "Next",
+    "actions": "Actions"
+  }
+}

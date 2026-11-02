@@ -113,6 +113,7 @@ const CREATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
         extraModelPrefix
@@ -210,6 +211,7 @@ const DUPLICATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
         extraModelPrefix
@@ -307,6 +309,7 @@ const BULK_CREATE_CHANNELS_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
         extraModelPrefix
@@ -404,6 +407,7 @@ const UPDATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
         extraModelPrefix
@@ -635,6 +639,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
           extraModelPrefix
@@ -878,6 +883,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
           extraModelPrefix

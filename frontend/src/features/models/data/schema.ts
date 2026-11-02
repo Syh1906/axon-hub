@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { pageInfoSchema } from '@/gql/pagination';
+import { modelContextSettingsSchema } from './context-settings';
 import { modelPriceInputSchema, modelPriceSchema } from '@/features/channels/data/schema';
 
 export const modelTypeSchema = z.enum(['chat', 'embedding', 'rerank', 'image_generation', 'video_generation']);
@@ -150,6 +151,7 @@ export function normalizeModelRoutingPolicyValue<T extends string>(value?: T | n
 }
 
 export const modelSettingsSchema = z.object({
+  contextSettings: modelContextSettingsSchema.nullable().optional(),
   codexCatalog: z.record(z.string(), z.unknown()).nullable().optional(),
   disableDeveloperSettingsInheritance: z.boolean().optional().default(false),
   associations: z.array(modelAssociationSchema).optional().default([]),

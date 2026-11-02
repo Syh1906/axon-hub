@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AutoComplete } from '@/components/auto-complete';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { ModelCodexDefinitionEditor } from './model-codex-definition-editor';
+import { ModelContextSettingsEditor } from './model-context-settings-editor';
 import { useModels } from '../context/models-context';
 import { modelCardFormValues, modelCardFromCatalog } from '../data/catalog-card';
 import { DEVELOPER_IDS, DEVELOPER_ICONS } from '../data/constants';
@@ -37,10 +38,11 @@ import {
   modelTypeSchema,
   normalizeModelRoutingPolicyValue,
 } from '../data/schema';
-import { modelCardInputSchema } from '../data/schema';
+import { modelCardInputSchema, modelSettingsSchema } from '../data/schema';
 import { ModelsCatalogImport } from './models-catalog-import';
 import { ModelMatchDetails, ModelMatchTypeField } from './models-match-fields';
 import { ModelsPriceEditor } from './models-price-editor';
+import { createModelContextSettingsSchema } from '../data/context-settings';
 
 function isDeveloper(provider: string) {
   return DEVELOPER_IDS.includes(provider);
@@ -125,6 +127,9 @@ export function ModelsActionDialog() {
   const formSchema = useMemo(
     () =>
       createModelInputSchema.extend({
+        settings: modelSettingsSchema.extend({
+          contextSettings: createModelContextSettingsSchema(t('modelContext.invalidRange')).nullable().optional(),
+        }),
         modelCard: modelCardInputSchema.extend({ price: createPriceValidationSchema(t).optional().nullable() }),
       }),
     [t]
@@ -658,7 +663,7 @@ export function ModelsActionDialog() {
                   <ModelsPriceEditor portalContainer={dialogContent} />
 
                   <div className='space-y-2'>
-                    <FormLabel>{t('models.modelCard.limit')}</FormLabel>
+                    <FormLabel>{t('modelContext.cardParameters')}</FormLabel>
                     <div className='grid grid-cols-2 gap-2'>
                       <FormField
                         control={form.control}
@@ -666,7 +671,7 @@ export function ModelsActionDialog() {
                         render={({ field }) => {
                           return (
                             <FormItem>
-                              <FormLabel className='text-xs'>{t('models.modelCard.context')}</FormLabel>
+                              <FormLabel className='text-xs'>{t('modelContext.cardContext')}</FormLabel>
                               <FormControl>
                                 <Input
                                   type='number'
@@ -819,6 +824,7 @@ export function ModelsActionDialog() {
                       />
                     </div>
                   </div>
+                  {form.watch('type') === 'chat' && <ModelContextSettingsEditor control={form.control} />}
                   {isEdit && currentRow?.type === 'chat' && (
                     <ModelCodexDefinitionEditor
                       key={currentRow.id}

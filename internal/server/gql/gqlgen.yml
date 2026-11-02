@@ -696,6 +696,14 @@ models:
   ModelSettingsInput:
     model:
       - github.com/looplj/axonhub/internal/objects.ModelSettings
+  ModelContextSettings:
+    model: github.com/looplj/axonhub/internal/objects.ModelContextSettings
+  ModelContextSettingsInput:
+    model: github.com/looplj/axonhub/internal/objects.ModelContextSettings
+  ChannelModelContext:
+    model: github.com/looplj/axonhub/internal/objects.ChannelModelContext
+  ChannelModelContextInput:
+    model: github.com/looplj/axonhub/internal/objects.ChannelModelContext
   ModelSettings:
     model:
       - github.com/looplj/axonhub/internal/objects.ModelSettings

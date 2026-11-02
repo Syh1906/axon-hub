@@ -15,7 +15,7 @@ function moduleURL(path, imports = {}) {
 }
 
 const paginationURL = moduleURL('../../gql/pagination.ts');
-const schemaURL = moduleURL('../channels/data/schema.ts', { '@/gql/pagination': paginationURL });
+const schemaURL = moduleURL('../channels/data/schema.ts', { '@/gql/pagination': paginationURL, '@/features/models/data/context-settings': moduleURL('./data/context-settings.ts') });
 const pricingURL = moduleURL('./data/pricing.ts', { '@/features/channels/data/schema': schemaURL });
 const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog, hasPriceConfiguration, switchImagePricingMode } = await import(pricingURL);
 const { modelCardFromCatalog } = await import(
