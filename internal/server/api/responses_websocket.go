@@ -104,6 +104,12 @@ func serveResponsesWebSocket(
 			}
 			continue
 		}
+		if handled, err := dispatcher.handleInterrupt(message); handled {
+			if err != nil {
+				return
+			}
+			continue
+		}
 
 		streamID, envelopeErr := responsesWebSocketEnvelopeStreamID(message)
 		if envelopeErr != nil {
@@ -156,6 +162,9 @@ type responsesWebSocketDispatcher struct {
 	namedStreams   int
 	wg             sync.WaitGroup
 	closeOnce      sync.Once
+	responsesMu    sync.Mutex
+	responses      map[string]*responsesWebSocketResponse
+	lastResponse   map[string]string
 }
 
 func newResponsesWebSocketDispatcher(
@@ -180,6 +189,8 @@ func newResponsesWebSocketDispatcher(
 		active:         make(chan struct{}, responsesWebSocketMaxActive),
 		pending:        make(chan struct{}, responsesWebSocketMaxPending),
 		lanes:          make(map[string]*responsesWebSocketLane),
+		responses:      make(map[string]*responsesWebSocketResponse),
+		lastResponse:   make(map[string]string),
 	}
 }
 
@@ -265,10 +276,12 @@ func (d *responsesWebSocketDispatcher) processMessage(session *responsesWebSocke
 		return writeResponsesWebSocketWarmup(d.writer, warmup, streamID)
 	}
 
-	requestCtx := d.ctx
-	cancel := func() {}
+	var requestCtx context.Context
+	var cancel context.CancelFunc
 	if d.requestTimeout > 0 {
 		requestCtx, cancel = context.WithTimeout(d.ctx, d.requestTimeout)
+	} else {
+		requestCtx, cancel = context.WithCancel(d.ctx)
 	}
 	defer cancel()
 	if request.RawRequest != nil {
@@ -281,7 +294,9 @@ func (d *responsesWebSocketDispatcher) processMessage(session *responsesWebSocke
 		return writeResponsesWebSocketError(d.writer, httpErr, streamID)
 	}
 
-	return writeResponsesWebSocketResult(requestCtx, d.writer, result, d.transformError, streamID)
+	response := &responsesWebSocketResponse{dispatcher: d, streamID: streamID, cancel: cancel}
+	defer response.finish()
+	return writeResponsesWebSocketResult(requestCtx, d.writer, result, d.transformError, streamID, response)
 }
 
 func (d *responsesWebSocketDispatcher) wait() {
@@ -608,6 +623,7 @@ func writeResponsesWebSocketResult(
 	result orchestrator.ChatCompletionResult,
 	transformError responsesWebSocketErrorFunc,
 	streamID string,
+	control *responsesWebSocketResponse,
 ) error {
 	if result.ChatCompletionStream != nil {
 		stream := result.ChatCompletionStream
@@ -615,6 +631,9 @@ func writeResponsesWebSocketResult(
 
 		terminalSeen := false
 		for stream.Next() {
+			if interrupted, err := control.writeInterruption(writer, result); interrupted {
+				return err
+			}
 			event := stream.Current()
 			if event == nil || len(event.Data) == 0 {
 				continue
@@ -622,13 +641,12 @@ func writeResponsesWebSocketResult(
 			if orchestrator.IsTerminalStreamEvent(event) {
 				terminalSeen = true
 			}
-			data, err := withResponsesWebSocketStreamID(event.Data, streamID)
-			if err != nil {
+			if err := control.write(writer, event.Data); err != nil {
 				return err
 			}
-			if err := writeResponsesWebSocketMessage(writer, websocket.TextMessage, data); err != nil {
-				return err
-			}
+		}
+		if interrupted, err := control.writeInterruption(writer, result); interrupted {
+			return err
 		}
 
 		if err := stream.Err(); err != nil && !terminalSeen {
@@ -645,11 +663,16 @@ func writeResponsesWebSocketResult(
 		}
 		response = result.ChatCompletion.Body
 
-		return writeResponsesWebSocketJSON(writer, responsesWebSocketEvent(streamID, gin.H{
+		data, err := json.Marshal(gin.H{
 			"type":            "response.completed",
 			"sequence_number": 0,
 			"response":        response,
-		}))
+		})
+		if err != nil {
+			return err
+		}
+		// 非流式结果也登记响应编号，以确认与完成事件交错到达的中断。
+		return control.write(writer, data)
 	}
 
 	return writeResponsesWebSocketError(writer, invalidResponsesWebSocketRequest("Responses request returned no result", ""), streamID)
@@ -741,24 +764,6 @@ func responsesWebSocketEvent(streamID string, event gin.H) gin.H {
 	}
 
 	return event
-}
-
-func withResponsesWebSocketStreamID(data []byte, streamID string) ([]byte, error) {
-	if streamID == "" {
-		return data, nil
-	}
-
-	var event map[string]json.RawMessage
-	if err := json.Unmarshal(data, &event); err != nil {
-		return nil, fmt.Errorf("failed to decode Responses WebSocket event: %w", err)
-	}
-	encodedStreamID, err := json.Marshal(streamID)
-	if err != nil {
-		return nil, err
-	}
-	event["stream_id"] = encodedStreamID
-
-	return json.Marshal(event)
 }
 
 func writeResponsesWebSocketMessage(writer *responsesWebSocketWriter, messageType int, data []byte) error {

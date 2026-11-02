@@ -32,6 +32,32 @@ func TestResponsesSessionStoreExpandsPreviousResponseForAnyUpstreamTransport(t *
 	)
 }
 
+func TestResponsesSessionStoreRestoresInterruptedResponseAfterCancellation(t *testing.T) {
+	store := newResponsesSessionStore()
+	ctx, cancel := context.WithCancel(shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1"))
+	saved := false
+	store.save = func(persistCtx context.Context, _, _ []byte) {
+		require.NoError(t, persistCtx.Err())
+		_, bounded := persistCtx.Deadline()
+		require.True(t, bounded)
+		scope, _ := shared.GetSessionScope(persistCtx)
+		require.Equal(t, "api-key:1", scope)
+		saved = true
+	}
+	retain := store.continuationRecorder(ctx, []byte(`{"model":"old","input":"first"}`))
+	cancel()
+	retain([]byte(`{"id":"resp_interrupted","status":"incomplete","incomplete_details":{"reason":"interrupted"},"output":[{"id":"rs_1","type":"reasoning","encrypted_content":"complete-item"}]}`))
+	require.True(t, saved)
+	prepared, _, err := store.prepare(context.WithoutCancel(ctx), []byte(`{"model":"new","previous_response_id":"resp_interrupted","input":"next"}`))
+	require.NoError(t, err)
+	require.JSONEq(t, `{"model":"new","input":[{"type":"message","role":"user","content":"first"},{"id":"rs_1","type":"reasoning","encrypted_content":"complete-item"},{"type":"message","role":"user","content":"next"}]}`, string(prepared))
+	other := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:2")
+	body := []byte(`{"previous_response_id":"resp_interrupted","input":"private"}`)
+	prepared, _, err = store.prepare(other, body)
+	require.NoError(t, err)
+	require.JSONEq(t, string(body), string(prepared))
+}
+
 func TestResponsesSessionStoreRestoresPersistedCustomToolCallOnMemoryMiss(t *testing.T) {
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 	loadCalls := 0

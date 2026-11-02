@@ -83,6 +83,7 @@ func TestRequestPayloadDisabledDoesNotWriteBodiesOrContext(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, svc.UpdateRequestCompleted(ctx, req.ID, "response-disabled", output, nil))
 	svc.SaveResponsesContext(ctx, input, output)
+	svc.SaveResponsesContext(ctx, input, []byte(`{"id":"response-interrupted-disabled","status":"incomplete","incomplete_details":{"reason":"interrupted"},"output":[]}`))
 	req = client.Request.GetX(ctx, req.ID)
 	for _, body := range [][]byte{req.RequestBody, req.ResponseBody} {
 		ref, ok := parsePayloadMarker(body)
@@ -119,6 +120,36 @@ func TestResponsesContextIndependentOfDebugAndScopedAcrossRestart(t *testing.T) 
 	} {
 		_, _, found, err := svc.LoadCompletedResponsesSession(other, "response-context")
 		require.NoError(t, err)
+		require.False(t, found)
+	}
+}
+
+func TestResponsesInterruptedContextSurvivesRestartWithoutRetainingFailures(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:interrupted_context?mode=memory&_fk=0")
+	t.Cleanup(func() { client.Close() })
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	ctx = contexts.WithAPIKey(contexts.WithProjectID(ctx, 1), &ent.APIKey{ID: 2})
+	svc := newResponsesSessionRequestService(t, client)
+	dir := t.TempDir()
+	svc.PayloadService = NewRequestPayloadService(RequestPayloadConfig{Directory: dir})
+	require.NoError(t, svc.SystemService.SetStoragePolicy(ctx, &StoragePolicy{StoreRequestBody: true, StoreResponseBody: true}))
+	input := []byte(`{"input":"first"}`)
+	output := []byte(`{"id":"response-interrupted","status":"incomplete","incomplete_details":{"reason":"interrupted"},"output":[{"id":"rs_1","type":"reasoning","encrypted_content":"complete-item"}]}`)
+	svc.SaveResponsesContext(ctx, input, output)
+	for _, rejected := range []string{
+		`{"id":"failed","status":"failed","output":[]}`,
+		`{"id":"incomplete","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[]}`,
+	} {
+		svc.SaveResponsesContext(ctx, input, []byte(rejected))
+	}
+	svc.PayloadService = NewRequestPayloadService(RequestPayloadConfig{Directory: dir})
+	loadedInput, loadedOutput, found, err := svc.LoadCompletedResponsesSession(ctx, "response-interrupted")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.JSONEq(t, string(input), string(loadedInput))
+	require.JSONEq(t, string(output), string(loadedOutput))
+	for _, id := range []string{"failed", "incomplete"} {
+		_, _, found := svc.loadResponsesContext(ctx, id)
 		require.False(t, found)
 	}
 }

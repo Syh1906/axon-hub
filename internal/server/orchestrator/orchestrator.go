@@ -181,6 +181,8 @@ type ChatCompletionResult struct {
 	RequestID            int
 	ChatCompletion       *httpclient.Response
 	ChatCompletionStream streams.Stream[*httpclient.StreamEvent]
+	// 保存网关结束当前生成时的完整项目，供 HTTP 上游的下一轮恢复历史。
+	RetainResponsesContinuation func(responseBody []byte)
 }
 
 func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, request *httpclient.Request) (ChatCompletionResult, error) {
@@ -398,13 +400,18 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	// Return result based on stream type
 	if result.Stream {
 		state.StreamReturned = true
+		var retainContinuation func([]byte)
 		if preparedResponsesBody != nil {
 			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
+			if shared.IsResponsesWebSocket(ctx) {
+				retainContinuation = processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
+			}
 		}
 		return ChatCompletionResult{
-			RequestID:            requestID,
-			ChatCompletion:       nil,
-			ChatCompletionStream: result.EventStream,
+			RequestID:                   requestID,
+			ChatCompletion:              nil,
+			ChatCompletionStream:        result.EventStream,
+			RetainResponsesContinuation: retainContinuation,
 		}, nil
 	}
 	if preparedResponsesBody != nil && result.Response != nil {

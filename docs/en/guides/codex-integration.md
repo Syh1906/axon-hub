@@ -211,6 +211,8 @@ Before `response.create` is sent, connection failures and handshake statuses `40
 
 Continuation fallback restores prior user input and model output. Unrecoverable `previous_response_id` returns `previous_response_not_found` instead of sending incomplete history. Once a WS send begins, disconnects, timeouts, and decoding failures cannot automatically resend or switch channels. Request details show client transport, actual upstream transport, and the fallback reason.
 
+Codex may send `response.interrupt` when new input or a subagent result arrives during generation. AxonHub acknowledges this control event on the client WS connection and stops the corresponding upstream call, including HTTP-only upstreams. By default it waits for the current output item to finish; explicit `discard_partial_items: true` permits dropping unfinished items. The gateway emits a terminal response with `incomplete_details.reason: "interrupted"` and retains completed reasoning items and tool calls for continuation without replaying the interrupted request. Interrupts affect only the specified response on the same connection; late interrupts racing with normal completion are also acknowledged. Disk retention continues to respect both body-storage switches; disabling storage leaves only the existing bounded in-memory cache.
+
 Published legacy `transport=websocket` and WS URLs are read as capability declarations. New saves use `supportsWebSockets`; explicit false overrides legacy values. HTTP and WS share the Responses address, which should accept both POST and Upgrade requests.
 
 ### Complete Continuation History and Mode Billing

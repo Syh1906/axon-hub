@@ -231,6 +231,15 @@ func (s *responsesSessionStore) record(ctx context.Context, requestBody, respons
 	s.cacheRecord(ctx, id, record)
 }
 
+// 取消生成后仍须保存客户端已收到的完整输出项，取消信号不应取消这次短暂的历史写入。
+func (s *responsesSessionStore) continuationRecorder(ctx context.Context, requestBody []byte) func([]byte) {
+	return func(responseBody []byte) {
+		persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		s.record(persistCtx, requestBody, responseBody)
+	}
+}
+
 func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, record *responsesSessionRecord) {
 	if record.size > responsesSessionMaxResponse {
 		return

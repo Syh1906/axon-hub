@@ -133,6 +133,8 @@ fork 改动，由用户决定。
 
 - 续聊恢复补全（2026-10-31，待提交）：逐轮恢复增量祖先，超 1 MiB 历史可用而不强制入缓存；缺失 / 循环不拼部分历史，读取异常只阻塞必须本地恢复的路径，原生 HTTP 可保留编号。当前参数与计费模式不继承旧轮次。无迁移；回归覆盖缓存过期、多轮工具顺序、Key / 项目隔离与取消。本地真实网关完成超限三轮恢复及 WS→HTTP 验收，证据见[本轮方案与验收](solutions/openai-service-tier-billing-20261031.md#12-实现与验收结果)。
 
+- WS 中断与 HTTP 续聊修复（2026-11-02，未发布）：接入本机 Codex `0.166.0-alpha.5.1` 实际发送的 `response.interrupt`，按连接／响应确认并在完整输出项边界停止上游调用，支持显式丢弃未完成项目、迟到中断和多流隔离。中断快照在取消后保留已完成的推理／工具项，供 HTTP 续聊恢复；落盘仍受正文存储开关与 Key／项目隔离约束，不把普通失败保留为完整历史。不改渠道 WS 能力选择、握手回退或发送后禁止重放的边界，无数据库迁移。验收包含原错误回归、真实 HTTPS/SSE 的未启用 WS 与握手拒绝两条路径、原生 WS、本机真实 Codex 的追加输入至完成流程、续聊快照与重启回读；未调用收费上游或部署生产。详见[实现与验收记录](../.agent/summary/ws-http-interrupt-20261102.md)。
+
 - 状态：已实现并完成本地验收及独立复核，待发布。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。
 - 新增 `/codex/models`，保留 `/v1/models`；目录元数据来自渠道可信 URL 或完整 JSON，按项目、Key、公开模型与别名筛选。缓存不绕过权限，不凭名称补造能力，多路由仅公布共同能力。
 - 渠道新增 `supportsWebSockets` 能力声明，客户端 HTTP 始终走 HTTP；客户端 WS 可走 WS 或桥接 HTTP。仅发送前的安全握手失败可降级；续聊恢复完整历史，缺失历史明确报错；发送后的未知结果禁止自动重放，包括超时和解码错误转换。

@@ -163,6 +163,8 @@ AxonHub 的模型配置文件支持将请求模型映射到具体提供商模型
 
 续聊回退前恢复历史用户输入和模型输出，无法恢复 `previous_response_id` 时明确返回 `previous_response_not_found`，不发送缺少历史的请求。WS 开始发送后不再自动重发或换渠道；连接中断、超时及解码失败均保留这一限制，避免重复执行和计费。请求详情的 **渠道过程** 展示客户端协议、实际上游协议和回退原因。
 
+Codex 在运行中追加输入或收到子代理结果时可能发送 `response.interrupt`。AxonHub 在客户端 WS 连接上确认该消息，并结束对应的当前上游调用；上游只有 HTTP(S) 时也适用，无须上游支持 WS 控制消息。默认等待正在输出的项目完整结束；显式 `discard_partial_items: true` 可丢弃尚未完成的项目。网关返回带 `incomplete_details.reason: "interrupted"` 的结束响应，保留已完成的推理项和工具调用供下一轮恢复，不重放被中断的请求。中断只影响同一连接中指定的响应；与完成事件交错到达的迟到中断仍会得到确认。历史落盘继续遵守请求／响应正文存储开关，关闭时仅保留原有的有界内存缓存。
+
 旧渠道的 `transport=websocket` 和 WS 地址仍按支持能力读取；新保存写入 `supportsWebSockets`，显式取消勾选优先于旧字段。HTTP 和 WS 共用 Responses 地址，上游应同时支持相应的 POST 与 Upgrade 请求。
 
 ### 完整续聊历史与模式计费

@@ -214,11 +214,19 @@ func (s *RequestService) SaveResponsesContext(ctx context.Context, requestBody, 
 		PreviousResponseID string          `json:"previous_response_id,omitempty"`
 	}
 	var output struct {
-		ID     string          `json:"id"`
-		Status string          `json:"status"`
-		Output json.RawMessage `json:"output"`
+		ID                string          `json:"id"`
+		Status            string          `json:"status"`
+		Output            json.RawMessage `json:"output"`
+		IncompleteDetails *struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details,omitempty"`
 	}
-	if json.Unmarshal(requestBody, &input) != nil || json.Unmarshal(responseBody, &output) != nil || output.Status != "completed" {
+	if json.Unmarshal(requestBody, &input) != nil || json.Unmarshal(responseBody, &output) != nil {
+		return
+	}
+	// 网关中断保留已完成的输出项；普通失败和上游意外截断仍不能作为完整续聊。
+	interrupted := output.Status == "incomplete" && output.IncompleteDetails != nil && output.IncompleteDetails.Reason == "interrupted"
+	if output.Status != "completed" && !interrupted {
 		return
 	}
 	key, ok := responsesContextKey(ctx, output.ID)
