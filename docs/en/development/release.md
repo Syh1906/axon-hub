@@ -96,8 +96,8 @@ For an illustrative v1.0.0-beta10-fork.8 target, first verify it actually exists
    when that baseline actually changes. Resolve commits with git rev-parse '<tag>^{commit}'.
 4. Update .github/release-notes.md with functionality, database/config changes,
    supported upgrade paths, actual verification and rollback conditions; update the ledger.
-5. Run relevant checks. Existing PR CI covers changes; release tests run again on
-   the exact publishing tag.
+5. Run relevant checks through PR and branch CI. Publication reuses the successful
+   maintenance-branch Test run for the exact source commit instead of rerunning it.
 6. Push the synchronization branch, review its PR and merge it into your maintained
    branch. Create your own syh release tag separately.
 
@@ -124,14 +124,17 @@ unrequested local lint/build commands remains applicable.
 
 ## Publishing
 
-Update the release notes and ensure the maintained commit passes its checks.
+Update the release notes, push the release commit to the maintenance branch and wait
+for Test to succeed before tagging. Publication checks the latest push-triggered Test
+run for that exact commit and branch; a missing, pending or failed result stops publication
+without rerunning tests. The release summary links the reused run.
 These commands illustrate the first release; documentation does not execute them:
 
     git tag -a v1.0.0-beta10-fork.7.syh.1 -m "release: v1.0.0-beta10-fork.7.syh.1"
     git push origin v1.0.0-beta10-fork.7.syh.1
 
-The workflow validates version/repository/branch ancestry, calls existing backend,
-llm, frontend and release-script tests, builds native amd64/arm64 images from the
+The workflow validates version/repository/branch ancestry, reuses the branch's backend,
+llm, frontend and release-script test result, builds native amd64/arm64 images from the
 same commit, and creates their GHCR manifest. A digest-pinned startup and version
 check against temporary PostgreSQL 17 precedes binary packaging. This is not a production-data migration rehearsal.
 

@@ -16,6 +16,9 @@ jobs:
   prepare:
     name: 核对发布来源与版本
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.release.outputs.version }}
       commit: ${{ steps.release.outputs.commit }}
@@ -33,6 +36,20 @@ jobs:
       - name: 验证发布版本、分支和上游基线
         id: release
         run: node scripts/release/release.mjs prepare
+      - name: 复用同一提交的分支测试结果
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT: ${{ steps.release.outputs.commit }}
+        run: |
+          branch=$(node -p "JSON.parse(require('fs').readFileSync('release.config.json', 'utf8')).branch")
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow test.yml --branch "$branch" \
+            --commit "$COMMIT" --event push --limit 1 \
+            --json headSha,status,conclusion,url > "$RUNNER_TEMP/source-tests.json"
+          if ! jq -e --arg commit "$COMMIT" 'length == 1 and .[0].headSha == $commit and .[0].status == "completed" and .[0].conclusion == "success"' "$RUNNER_TEMP/source-tests.json"; then
+            echo '请先等待该提交在维护分支上的 Test 成功，再发布 tag；发布流程不重复执行测试。' >&2
+            exit 1
+          fi
+          echo "复用分支测试：$(jq -r '.[0].url' "$RUNNER_TEMP/source-tests.json")" >> "$GITHUB_STEP_SUMMARY"
       - name: 拒绝覆盖已正式发布的版本
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,16 +61,9 @@ jobs:
             exit 1
           fi
 
-  checks:
-    name: 发布前测试
-    needs: prepare
-    uses: ./.github/workflows/test.yml
-    permissions:
-      contents: read
-
   docker:
     name: 发布镜像
-    needs: [prepare, checks]
+    needs: prepare
     uses: ./.github/workflows/docker-publish.yml
     permissions:
       contents: read

@@ -90,7 +90,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
    用 git rev-parse '<tag>^{commit}' 取得提交号，不根据版本名猜测。
 4. 更新 .github/release-notes.md，列出新增功能、数据库/配置变化、支持的升级路径、
    真实验收结果及回退条件；同步维护台账。
-5. 运行相关检查。PR 的现有 CI 执行检查，正式发布还会在同一 tag 上重新运行测试。
+5. 运行相关检查。PR 和分支 CI 执行检查；正式发布核对同一提交在维护分支上的成功 Test 记录，不重复运行测试。
 6. 推送同步分支并创建 PR，审阅后合回自己的维护分支，再独立打 syh tag。
 
 同步上游不会自动发版或部署。不要使用 git push --mirror 或把所有历史 tag 一次推到 origin。
@@ -112,7 +112,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 
 ## 发布一个版本
 
-先更新本次发布说明并确认维护分支检查通过；以下是首次发布示例，不是自动执行指令：
+先更新本次发布说明并推送维护分支，等待该提交的 Test 成功，再创建 tag。发布流程按完整提交号、维护分支和 push 事件读取最新测试记录；缺失、未完成或失败时停止发布，不自动重跑。以下是首次发布示例，不是自动执行指令：
 
     git tag -a v1.0.0-beta10-fork.7.syh.1 -m "release: v1.0.0-beta10-fork.7.syh.1"
     git push origin v1.0.0-beta10-fork.7.syh.1
@@ -120,7 +120,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 工作流顺序：
 
 1. 检查 tag 编号、仓库、维护分支包含关系及直接上游基线。
-2. 调用现有测试工作流，包括两个 Go 模块、前端单元测试和发布脚本测试。
+2. 复用同一提交的维护分支 Test，覆盖两个 Go 模块、前端单元测试和发布脚本测试，发布摘要记录原测试地址。
 3. 在 amd64、arm64 原生执行器构建同一源码并写入版本和提交号；
    推送各架构镜像，合成 ghcr.io/syh1906/axon-hub 的版本镜像。
 4. 拉取固定摘要的镜像，连接临时 PostgreSQL 17，做启动和自报版本检查。此检查不代表生产数据升级或业务验收。
