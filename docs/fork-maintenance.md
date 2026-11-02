@@ -123,7 +123,7 @@ fork 改动，由用户决定。
 
 ### Codex 目录与客户端传输选择
 
-- 多渠道目录修复（2026-11-02，本地提交／未发布）：模型 `settings.codexCatalog` 保存管理员确认的完整模型定义、精确客户端版本和渠道／实际模型绑定；管理端支持从现有来源导入预览、确认应用、保存回读与清除。目录读取不再依赖已确认渠道逐家提供目录，逐路线保留来源能力，到请求时按当前 Key 可见候选合并限制；新关联需重新确认。无数据库 schema/data migration。按 ID 合并推理／服务档位、保留未知元数据、校验已知字段及完整嵌套消息、隔离远程坏记录；来源刷新并发 4、总预算 10 秒，错误响应也返回省略数量。独立 `gpt-6.1-sol / max` 审查、自检、真实管理页联调及 CLI 0.166.0 直连本地 Axon 目录通过，未验收生产与真实收费上游。验证与限制见[实现记录](../.agent/summary/codex-definition-20261102.md)。
+- 多渠道目录修复（2026-11-02，已随 .syh.11 发布）：模型 `settings.codexCatalog` 保存管理员确认的完整模型定义、精确客户端版本和渠道／实际模型绑定；管理端支持从现有来源导入预览、确认应用、保存回读与清除。目录读取不再依赖已确认渠道逐家提供目录，逐路线保留来源能力，到请求时按当前 Key 可见候选合并限制；新关联需重新确认。无数据库 schema/data migration。按 ID 合并推理／服务档位、保留未知元数据、校验已知字段及完整嵌套消息、隔离远程坏记录；来源刷新并发 4、总预算 10 秒，错误响应也返回省略数量。独立 `gpt-6.1-sol / max` 审查、自检、真实管理页联调及 CLI 0.166.0 直连本地 Axon 目录通过；生产服务已升级，真实渠道定义及收费上游未验收。验证与限制见[实现记录](../.agent/summary/codex-definition-20261102.md)。
 
 - 续聊恢复补全（2026-10-31，待提交）：逐轮恢复增量祖先，超 1 MiB 历史可用而不强制入缓存；缺失 / 循环不拼部分历史，读取异常只阻塞必须本地恢复的路径，原生 HTTP 可保留编号。当前参数与计费模式不继承旧轮次。无迁移；回归覆盖缓存过期、多轮工具顺序、Key / 项目隔离与取消。本地真实网关完成超限三轮恢复及 WS→HTTP 验收，证据见[本轮方案与验收](solutions/openai-service-tier-billing-20261031.md#12-实现与验收结果)。
 
@@ -171,7 +171,7 @@ fork 改动，由用户决定。
 
 ### 用量统计与消耗排行榜
 
-- 2026-11-02（未发布）：系统常规设置新增金额显示小数位数，默认保留各页面现有精度，可选 0–8 位；覆盖排行榜、项目用量统计、密钥分组及 API 密钥的成本／额度展示。仅调整前端格式化，存储、统计、排序、额度输入与预算判断不变；普通登录用户通过独立查询读取展示偏好，不授予系统设置权限。无数据库迁移；同步上游时保留可空设置及默认显示规则，行为见[统计说明](zh/development/consumption-statistics.md)。
+- 2026-11-02（已随 .syh.11 发布）：系统常规设置新增金额显示小数位数，默认保留各页面现有精度，可选 0–8 位；覆盖排行榜、项目用量统计、密钥分组及 API 密钥的成本／额度展示。仅调整前端格式化，存储、统计、排序、额度输入与预算判断不变；普通登录用户通过独立查询读取展示偏好，不授予系统设置权限。无数据库迁移；同步上游时保留可空设置及默认显示规则，行为见[统计说明](zh/development/consumption-statistics.md)。
 
 - 2026-11-02（未发布）：消耗排行榜改为「渠道／密钥分组／密钥／用户」，默认渠道；项目用量保持默认密钥分组。修复两页命中前端缓存后重新进入时仅显示表头的问题：滚动容器挂载／替换后通过状态传递给表格，触发可视区域重新绑定，避免依赖后续排序或轮询才显示数据行。
 
@@ -992,12 +992,22 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 第十一版发布准备（2026-11-02）：版本 `v1.0.0-beta10-fork.7.syh.11`，汇总 `.syh.10` 之后的
+- 第十一版发布（2026-11-02）：版本 `v1.0.0-beta10-fork.7.syh.11`，汇总 `.syh.10` 之后的
   Codex 多渠道目录定义、显示小数位设置、moego 局部优化及快照中的统计／列表修正。
   `publishBinaries=false`、`prerelease=false`，无新增 schema/data migration；沿用云端测试、
   双架构镜像和 PostgreSQL 启动检查。手动快照退役入口新增已公开正式发布替代支持，
   校验构建与清单身份，保留精确删除和共享摘要保护，5 项定向回归通过。
-  发布与部署结果完成后单独回填，不将本条准备记录视为已上线。
+  新加坡时间 `12:06:36` 已[正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.11)，
+  源码 `65ac7cdf7c3b58e83e95602654018299f864173d`，GitHub latest、非草稿及非预发布状态已核对。
+  [发布工作流 41385737315](https://github.com/Syh1906/axon-hub/actions/runs/41385737315)
+  全部成功，含完整后端、前端单元、发布脚本测试、双架构镜像及临时 PostgreSQL 启动检查；
+  同提交的 Lint、Build、Test 亦全部成功。
+  固定镜像 `ghcr.io/syh1906/axon-hub@sha256:59c2d12c74e3cd1fff14b5582fe2d6740f9c678cd0efd395864b2682c2285d7f`，
+  唯一附件 [release.json](../output/implementation/release-syh11-20261102/release.json)
+  为 707 字节，文件 SHA-256 为 `7358c50f87afd5c8d91bca2aa677daed57cd8e73dc9882bba34c3fb7c0644499`。
+  两台目标服务器已依次完成应用升级与健康、版本、HTTPS 资源、鉴权边界及配置不变验收；
+  不创建数据库备份，本轮临时配置副本全部删除。具体主机收据保留在私有维护资料。
+  生产模型定义仍由管理员导入确认，没有自动确认未知渠道能力，未测试真实推理或计费。
 
 - 按需快照（2026-11-02）：新增手动 `snapshot.yml`，指定维护分支完整提交与已正式发布基线，
   复用固定提交测试、双架构镜像及临时 PostgreSQL 启动检查；通过后保存 `snapshot.json`，
@@ -1011,12 +1021,18 @@ fork 改动，由用户决定。
   固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:50233ad1eeea29c9d3708b02a0b28dfe5b642f8e70bd5f4f1fc0aaa2def3464f`，
   `snapshot.json` 曾保存为该任务附件；该快照现已被后续快照替代并退役，原工作流历史保留。
   正式 Release 仍为 `.syh.10`；具体生产部署记录留在私有维护资料。
-- 最新快照：`snapshot-30fbf51facbe-41337948306-1`，源码
+- 已退役快照：`snapshot-30fbf51facbe-41337948306-1`，源码
   `30fbf51facbef1ec8ef2d97cccb172b4a0f2e8de`，包含统计页缓存重入与列表悬浮反馈修正；
   [Actions 41337948306](https://github.com/Syh1906/axon-hub/actions/runs/41337948306)
   的全部测试、双架构构建和启动检查通过，固定镜像为
   `ghcr.io/syh1906/axon-hub@sha256:1cd74d8f2fbee247e4513bfd5b704f6fc390f878960f529b2cf556a162e3618c`。
   没有新增 schema／data migration，也未创建正式 Git tag 或 Release。
+- 上述第二次快照已被 `.syh.11` 替代，两台服务器确认无容器或回退引用后完成本地镜像删除。
+  [预览 41386936106](https://github.com/Syh1906/axon-hub/actions/runs/41386936106)
+  核对精确目标后，[退役 41387046399](https://github.com/Syh1906/axon-hub/actions/runs/41387046399)
+  删除 3 个 GHCR 包版本及 3 个原构建附件，并复核不存在；
+  [退役收据](../output/implementation/release-syh11-20261102/retirement/retirement.json)保留。
+  原构建历史、正式 `.syh.10`／`.syh.11` 镜像和其他历史产物未删除。
 - 旧快照退役：[预览 41338796608](https://github.com/Syh1906/axon-hub/actions/runs/41338796608)
   核对精确目标后，[执行 41338911491](https://github.com/Syh1906/axon-hub/actions/runs/41338911491)
   删除首个快照的 3 个 GHCR 包版本及 3 个构建附件，并检查目标已不存在；
@@ -1028,7 +1044,7 @@ fork 改动，由用户决定。
   默认只生成精确计划；执行时限定旧清单的镜像标签和原构建附件，拒绝共享标签／摘要，
   记录部分失败，不清除原工作流历史。它不检测或更新服务器，必须先由维护流程核对各台验收。
 
-- 最新正式发布：**2026-11-02 00:00:48（UTC+8）** 发布 [v1.0.0-beta10-fork.7.syh.10](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.10)，源码 `9b726fbbcff8c3a96b000923c53c74e02a518054`；`draft=false`、`prerelease=false`，GitHub latest 已核对。两层上游基线不变，未部署生产。
+- 历史正式发布：**2026-11-02 00:00:48（UTC+8）** 发布 [v1.0.0-beta10-fork.7.syh.10](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.10)，源码 `9b726fbbcff8c3a96b000923c53c74e02a518054`；`draft=false`、`prerelease=false`，发布时 GitHub latest 已核对。两层上游基线不变，本条保留当时的发布记录。
 - `.syh.10` 内容：费用／预算结算一致性、失败终态、正文短缓存与按需读取、有效样本成本统计、双向有界列表和模型候选加载。本台账这些 topic 中此前的“未发布”阶段描述现已随此版本发布。新增可空预留释放时间由 Ent 管理，历史账单与旧正文不自动改写；行为与升级边界见[本版发布说明](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.10)。
 - `.syh.10` 验证：[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41323209337)及[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/41323212856)全部成功，含后端完整测试、前端单元测试、发布脚本、双架构镜像和临时 PostgreSQL 17 启动／版本检查。本地未重复测试或构建，分支重复 Test／Build 已取消；旧测试的直接正文读取和缺失夹具依赖按新存储契约修正，保留原结果断言。
 - `.syh.10` 固定镜像：`ghcr.io/syh1906/axon-hub@sha256:a168c9c33110b9a9e01b22ea0ef38dab5cb26cf46dc9ca9ce38eb15ef8b1e0b6`，支持 amd64／arm64。`publishBinaries=false`，唯一附件为 707 字节的 [release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.10/release.json)，其版本、源码、两层上游、平台、镜像摘要与运行地址已核对。

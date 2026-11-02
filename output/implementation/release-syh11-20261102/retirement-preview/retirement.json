@@ -1,0 +1,55 @@
+{
+  "snapshotId": "snapshot-30fbf51facbe-41337948306-1",
+  "oldImage": "ghcr.io/syh1906/axon-hub@sha256:1cd74d8f2fbee247e4513bfd5b704f6fc390f878960f529b2cf556a162e3618c",
+  "oldCommit": "30fbf51facbef1ec8ef2d97cccb172b4a0f2e8de",
+  "replacementSnapshotId": null,
+  "replacementVersion": "v1.0.0-beta10-fork.7.syh.11",
+  "replacementImage": "ghcr.io/syh1906/axon-hub@sha256:59c2d12c74e3cd1fff14b5582fe2d6740f9c678cd0efd395864b2682c2285d7f",
+  "replacementCommit": "65ac7cdf7c3b58e83e95602654018299f864173d",
+  "packageVersions": [
+    {
+      "id": 1483761150,
+      "digest": "sha256:1cd74d8f2fbee247e4513bfd5b704f6fc390f878960f529b2cf556a162e3618c",
+      "tags": [
+        "snapshot-30fbf51facbe-41337948306-1"
+      ]
+    },
+    {
+      "id": 1483756215,
+      "digest": "sha256:ee4a3e1c9ddb41e8d9793367c3db5e090f0ff9a08d5929b163359e1e399a76ca",
+      "tags": [
+        "snapshot-30fbf51facbe-41337948306-1-arm64"
+      ]
+    },
+    {
+      "id": 1483755964,
+      "digest": "sha256:89feca5dc8e40c5444cf43212e33a9ab3482b26c72f33faf34613ba235f1cf4c",
+      "tags": [
+        "snapshot-30fbf51facbe-41337948306-1-amd64"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 13096800058,
+      "name": "Syh1906~axon-hub~EWC1H9.dockerbuild",
+      "bytes": 79235
+    },
+    {
+      "id": 13096715604,
+      "name": "snapshot-30fbf51facbe-41337948306-1",
+      "bytes": 639
+    },
+    {
+      "id": 13096267297,
+      "name": "Syh1906~axon-hub~55S72M.dockerbuild",
+      "bytes": 78527
+    }
+  ],
+  "oldRun": "41337948306",
+  "replacementRun": "41385737315",
+  "status": "planned",
+  "createdAt": "2026-11-02T04:10:23.551Z",
+  "deletedPackageVersions": [],
+  "deletedArtifacts": []
+}
