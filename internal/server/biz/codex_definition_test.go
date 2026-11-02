@@ -37,8 +37,18 @@ func TestCodexDefinitionMultiChannelOfflineAndPermissions(t *testing.T) {
 	createConfiguredModel(t, ctx, client, "test-model", model.TypeChat, &objects.ModelAssociation{Type: "model", ModelID: &objects.ModelIDAssociation{ModelID: "test-model"}})
 	reloadEnabledChannels(t, ctx, client, channels)
 	svc := NewCodexCatalogService(models, channels)
-	_, _, err := svc.Models(ctx, "0.162.1")
-	require.Error(t, err, "reproduce all-candidate metadata failure before confirmation")
+	automatic, omitted, err := svc.Models(ctx, "0.162.1")
+	require.NoError(t, err, "same-model routes automatically share a complete catalog source")
+	require.Zero(t, omitted)
+	autoCatalog, err := parseCodexCatalog(automatic)
+	require.NoError(t, err)
+	require.Len(t, autoCatalog, 1)
+	listOnlyKey := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "only", Profiles: []objects.APIKeyProfile{{Name: "only", ChannelIDs: []int{ids[1]}}}}}
+	automatic, _, err = svc.Models(contexts.WithAPIKey(ctx, listOnlyKey), "0.162.1")
+	require.NoError(t, err, "metadata sharing does not require inference permission on its source")
+	autoCatalog, err = parseCodexCatalog(automatic)
+	require.NoError(t, err)
+	require.Equal(t, float64(32000), autoCatalog["test-model"]["context_window"])
 	m := client.Model.Query().OnlyX(ctx)
 	preview, err := models.PreviewCodexCatalog(ctx, m.ID, "0.162.1")
 	require.NoError(t, err)
@@ -110,14 +120,13 @@ func TestCodexDefinitionMergeAndRemoteIsolation(t *testing.T) {
 	second["supported_reasoning_levels"] = []any{map[string]any{"effort": "medium", "description": "different text"}}
 	second["future_options"] = []any{"unrecognized"}
 	first["future_options"] = []any{"keep"}
-	second["base_instructions"] = "source-specific instructions"
-	merged, err := mergeCodexCapabilities("alias", []map[string]any{first, second}, true)
+	merged, err := mergeCodexModels("alias", []map[string]any{first, second})
 	require.NoError(t, err)
 	require.Equal(t, "medium", merged["default_reasoning_level"])
 	require.Equal(t, first["future_options"], merged["future_options"])
 	require.Equal(t, first["base_instructions"], merged["base_instructions"])
 	second["shell_type"] = "incompatible"
-	_, err = mergeCodexCapabilities("alias", []map[string]any{first, second}, true)
+	_, err = mergeCodexModels("alias", []map[string]any{first, second})
 	require.Error(t, err)
 	mixed := []byte(`{"models":[` + string(raw) + `,{"slug":"broken"},42]}`)
 	valid, err := parseRemoteCodexCatalog(mixed)
@@ -142,7 +151,7 @@ func TestCodexDefinitionCurrentClientSchema(t *testing.T) {
 	var restricted map[string]any
 	require.NoError(t, json.Unmarshal(changedJSON, &restricted))
 	restricted["supports_image_detail_original"] = false
-	merged, err := mergeCodexCapabilities("alias", []map[string]any{source, restricted}, true)
+	merged, err := mergeCodexModels("alias", []map[string]any{source, restricted})
 	require.NoError(t, err)
 	require.Equal(t, false, merged["supports_image_detail_original"])
 	for _, field := range []string{"model_messages", "node_repl_auto_review_required", "availability_nux", "multi_agent_reasoning_effort", "include_plugin_usage_instructions"} {
@@ -207,6 +216,8 @@ func TestCodexDefinitionRejectsMalformedKnownFieldsAndDefaults(t *testing.T) {
 			require.Len(t, filtered, 1)
 			require.Contains(t, filtered, "test-model")
 			definitionJSON, _ := json.Marshal(codexDefinition{ClientVersion: "0.166.0", Model: bad, Routes: []codexDefinitionRoute{{ChannelID: 1, ModelID: "broken"}}})
+			require.Error(t, validateModelSettings(&objects.ModelSettings{CodexCatalog: definitionJSON}))
+			definitionJSON, _ = json.Marshal(codexDefinition{ClientVersion: "0.166.0", Model: good, Models: map[string]codexModelProfile{"broken": {SourceChannelID: 1, SourceModelID: "broken", Model: bad}}, Routes: []codexDefinitionRoute{{ChannelID: 1, ModelID: "broken"}}})
 			require.Error(t, validateModelSettings(&objects.ModelSettings{CodexCatalog: definitionJSON}))
 		})
 	}
@@ -299,4 +310,120 @@ func TestCodexDefinitionRegexAndConditionalBindings(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &result))
 	require.Len(t, result.Models, 1)
 	require.Equal(t, "public-alias", result.Models[0]["slug"])
+}
+
+func TestCodexDefinitionHeterogeneousPublicProfiles(t *testing.T) {
+	ctx, client, models, channels, _ := setupListEnabledModelsTest(t)
+	metadata, err := parseCodexCatalog([]byte(catalogFixture))
+	require.NoError(t, err)
+	baseJSON, err := json.Marshal(metadata["test-model"])
+	require.NoError(t, err)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Bearer list-only" {
+			_, _ = w.Write([]byte(`{"data":[{"id":"gpt-6.1-sol"},{"id":"gpt-5.6-sol"}]}`))
+			return
+		}
+		var entries []map[string]any
+		for _, id := range []string{"gpt-6.1-sol", "gpt-5.6-sol"} {
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal(baseJSON, &entry))
+			entry["slug"] = id
+			entry["base_instructions"] = "fixture instructions for " + id
+			entry["web_search_tool_type"] = "text"
+			if id == "gpt-6.1-sol" {
+				entry["apply_patch_tool_type"] = "freeform"
+				entry["web_search_tool_type"] = "text_and_image"
+				entry["tool_mode"] = "code_mode_only"
+				entry["multi_agent_version"] = "v2"
+			}
+			if r.Header.Get("Authorization") == "Bearer second" {
+				entry["apply_patch_tool_type"] = "freeform"
+				entry["web_search_tool_type"] = "text"
+				entry["tool_mode"] = nil
+				entry["multi_agent_version"] = nil
+				entry["context_window"] = float64(16000)
+				entry["truncation_policy"] = map[string]any{"mode": "bytes", "limit": float64(4000)}
+			}
+			entries = append(entries, entry)
+		}
+		body, marshalErr := json.Marshal(map[string]any{"models": entries})
+		require.NoError(t, marshalErr)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	var associations []*objects.ModelAssociation
+	var secondID int
+	for _, name := range []string{"first", "second", "list-only"} {
+		ch := client.Channel.Create().SetType(channel.TypeOpenaiResponses).SetName(name).SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKey: name}).SetSupportedModels([]string{"gpt-6.1-sol", "gpt-5.6-sol"}).SetDefaultTestModel("gpt-6.1-sol").SetStatus(channel.StatusEnabled).SaveX(ctx)
+		associations = append(associations, &objects.ModelAssociation{Type: "channel_request", ChannelRequest: &objects.ChannelRequestAssociation{ChannelID: ch.ID}})
+		if name == "second" {
+			secondID = ch.ID
+		}
+	}
+	createConfiguredModel(t, ctx, client, "^gpt-.*-sol$", model.TypeChat, associations[0])
+	m := client.Model.Query().OnlyX(ctx)
+	m.Settings.Associations = associations
+	m = client.Model.UpdateOneID(m.ID).SetSettings(m.Settings).SetMatchType(objects.ModelMatchType("regex")).SetPublicModelIds([]string{"gpt-6.1-sol", "gpt-5.6-sol"}).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, client, channels)
+	autoService := NewCodexCatalogService(models, channels)
+	automatic, omitted, err := autoService.Models(ctx, "0.166.0")
+	require.NoError(t, err)
+	require.Zero(t, omitted)
+	autoCatalog, err := parseCodexCatalog(automatic)
+	require.NoError(t, err)
+	require.Len(t, autoCatalog, 2)
+	require.Equal(t, "code_mode_only", autoCatalog["gpt-6.1-sol"]["tool_mode"])
+	require.Nil(t, autoCatalog["gpt-5.6-sol"]["apply_patch_tool_type"])
+	require.Equal(t, float64(16000), autoCatalog["gpt-6.1-sol"]["context_window"])
+	require.Empty(t, client.Model.GetX(ctx, m.ID).Settings.CodexCatalog, "automatic reads never persist a manual override")
+	t.Logf("automatic wire catalog: %s", automatic)
+	raw, err := models.PreviewCodexCatalog(ctx, m.ID, "0.166.0")
+	require.NoError(t, err, "different concrete versions and source tool policies must produce a reviewable preview")
+	d, err := decodeCodexDefinition(raw)
+	require.NoError(t, err)
+	require.Len(t, d.Models, 2)
+	require.Len(t, d.Routes, 6)
+	require.NotEmpty(t, d.SourceDifferences)
+	for _, route := range d.Routes {
+		require.NotContains(t, route.Capabilities, "truncation_policy")
+	}
+	var fields []string
+	for _, difference := range d.SourceDifferences {
+		fields = append(fields, difference.Fields...)
+	}
+	for _, field := range []string{"apply_patch_tool_type", "web_search_tool_type", "tool_mode", "multi_agent_version", "truncation_policy"} {
+		require.Contains(t, fields, field)
+	}
+	// Published .syh.11 snapshots contained this field; it must not force the
+	// selected client profile to use a different clipping unit.
+	d.Routes[1].Capabilities["truncation_policy"] = map[string]any{"mode": "bytes", "limit": float64(4000)}
+	raw, err = json.Marshal(d)
+	require.NoError(t, err)
+	m.Settings.CodexCatalog = raw
+	_, err = models.UpdateModel(ctx, m.ID, &ent.UpdateModelInput{Settings: m.Settings})
+	require.NoError(t, err)
+	server.Close()
+	svc := NewCodexCatalogService(models, channels)
+	body, omitted, err := svc.Models(ctx, "0.166.0")
+	require.NoError(t, err)
+	require.Zero(t, omitted)
+	parsed, err := parseCodexCatalog(body)
+	require.NoError(t, err)
+	require.Len(t, parsed, 2)
+	for id, entry := range parsed {
+		require.Equal(t, "fixture instructions for "+id, entry["base_instructions"])
+		require.Equal(t, float64(16000), entry["context_window"])
+		require.Equal(t, "tokens", entry["truncation_policy"].(map[string]any)["mode"])
+	}
+	t.Logf("wire catalog: %s", body)
+	require.Nil(t, parsed["gpt-5.6-sol"]["apply_patch_tool_type"])
+	require.Equal(t, "code_mode_only", parsed["gpt-6.1-sol"]["tool_mode"])
+	key := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "alias", Profiles: []objects.APIKeyProfile{{Name: "alias", ChannelIDs: []int{secondID}, ModelIDs: []string{"client-alias"}, ModelMappings: []objects.ModelMapping{{From: "client-alias", To: "gpt-6.1-sol"}}}}}}
+	body, _, err = svc.Models(contexts.WithAPIKey(ctx, key), "0.166.0")
+	require.NoError(t, err)
+	parsed, err = parseCodexCatalog(body)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	require.Equal(t, "fixture instructions for gpt-6.1-sol", parsed["client-alias"]["base_instructions"])
+	require.Equal(t, "code_mode_only", parsed["client-alias"]["tool_mode"])
 }

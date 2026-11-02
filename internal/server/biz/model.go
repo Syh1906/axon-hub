@@ -827,7 +827,7 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 			continue
 		}
 		result = append(result, ModelFacade{
-			ID: requestID, DisplayName: requestID, CreatedAt: m.CreatedAt, Connections: connections,
+			ID: requestID, TargetID: targetID, DisplayName: requestID, CreatedAt: m.CreatedAt, Connections: connections,
 			Created: m.CreatedAt.Unix(), OwnedBy: "configured", ConfiguredModel: m,
 		})
 	}
@@ -989,6 +989,7 @@ type UnassociatedChannel struct {
 type ModelFacade struct {
 	Connections []*ModelChannelConnection `json:"-"`
 	ID          string                    `json:"id"`
+	TargetID    string                    `json:"-"`
 	// Display name, for user-friendly display from anthropic API.
 	DisplayName string `json:"display_name"`
 	// Created time in seconds.

@@ -349,13 +349,13 @@
   "models.bulk.pattern": "Regular expression",
   "models.bulk.checking": "Checking matches",
   "models.bulk.previewFailed": "Preview failed. Check the pattern or reopen the dialog.",
-  "models.codex.title": "Codex model definition",
-  "models.codex.description": "Import or paste a complete definition. model supplies instructions and defaults for routes without catalogs; source capabilities are stored per route, with additional restrictions in limits. Verify and apply, then save the model.",
+  "models.codex.title": "Codex manual override (optional)",
+  "models.codex.description": "Catalogs are generated automatically from model associations and key permissions. Exact-model metadata is preferred. Aliases without metadata inherit the configured public-model profile, retaining known route limits. Use this override only to pin a version or customize metadata. Clearing it restores automatic discovery.",
   "models.codex.version": "Bundled Codex CLI version, e.g. 0.159.2",
   "models.codex.import": "Import from associated channels",
-  "models.codex.confirm": "I verified the instructions, tools and every route; differences are restricted in limits.",
+  "models.codex.confirm": "I reviewed models, sourceDifferences and all routes, including their support for the selected tool format and inherited capabilities. Incompatible routes are removed or separated; limits narrows capabilities, not tool protocols.",
   "models.codex.apply": "Apply confirmed definition",
-  "models.codex.clear": "Clear definition",
+  "models.codex.clear": "Clear override and restore automatic discovery",
   "models.codex.invalid": "Enter a complete model definition JSON object.",
   "models.codex.importFailed": "Import failed. Check channel catalog sources."
 }

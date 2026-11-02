@@ -70,6 +70,7 @@ func filterResolvedCandidatesForRequest(
 }
 
 func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate, req *llm.Request) []*ChannelModelsCandidate {
+	requiresExplicitEndpoint := req.RequestType == llm.RequestTypeAlphaSearch || requiresResponsesToolProtocol(req)
 	filtered := make([]*ChannelModelsCandidate, 0, len(candidates))
 	for _, c := range candidates {
 		if c == nil || c.Channel == nil {
@@ -85,13 +86,12 @@ func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate
 			selectedModels := make([]biz.ChannelModelEntry, 0, len(c.Models))
 			selectedFormats := make([]string, 0, len(c.Models))
 			for _, entry := range c.Models {
-				endpoints := applyForcedAPIFormats(ctx, c.Channel, []biz.ChannelModelEntry{entry}, req.Model, baseEndpoints)
+				endpoints := biz.ApplyForcedAPIFormats(ctx, c.Channel, []biz.ChannelModelEntry{entry}, req.Model, baseEndpoints)
 				format := SelectAPIFormat(endpoints, req)
-				// Alpha Search has no generic fallback. A model whose forced protocol
-				// list cannot serve Alpha Search must not remain as the first retry
-				// entry, otherwise an empty candidate format falls back to the channel's
-				// primary (usually chat) outbound.
-				if req.RequestType == llm.RequestTypeAlphaSearch && format == "" {
+				// Alpha Search and Responses custom tools need a compatible endpoint.
+				// Remove incompatible retry entries so an empty format cannot fall back
+				// to the channel's primary (usually chat) outbound.
+				if requiresExplicitEndpoint && format == "" {
 					continue
 				}
 
@@ -103,18 +103,18 @@ func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate
 				continue
 			}
 
-			if req.RequestType == llm.RequestTypeAlphaSearch {
+			if requiresExplicitEndpoint {
 				c.Models = selectedModels
 			}
 			c.modelAPIFormats = selectedFormats
 			c.APIFormat = selectedFormats[0]
 		} else {
 			c.modelAPIFormats = nil
-			endpoints := applyForcedAPIFormats(ctx, c.Channel, c.Models, req.Model, baseEndpoints)
+			endpoints := biz.ApplyForcedAPIFormats(ctx, c.Channel, c.Models, req.Model, baseEndpoints)
 			c.APIFormat = SelectAPIFormat(endpoints, req)
 		}
 
-		if req.RequestType == llm.RequestTypeAlphaSearch && c.APIFormat == "" {
+		if requiresExplicitEndpoint && c.APIFormat == "" {
 			continue
 		}
 

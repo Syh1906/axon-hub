@@ -10,11 +10,13 @@ import (
 )
 
 type codexDefinition struct {
-	ClientVersion   string                 `json:"clientVersion"`
-	SourceChannelID int                    `json:"sourceChannelId"`
-	SourceModelID   string                 `json:"sourceModelId"`
-	Model           map[string]any         `json:"model"`
-	Routes          []codexDefinitionRoute `json:"routes"`
+	ClientVersion     string                       `json:"clientVersion"`
+	SourceChannelID   int                          `json:"sourceChannelId"`
+	SourceModelID     string                       `json:"sourceModelId"`
+	Model             map[string]any               `json:"model"`
+	Models            map[string]codexModelProfile `json:"models,omitempty"`
+	Routes            []codexDefinitionRoute       `json:"routes"`
+	SourceDifferences []codexSourceDifference      `json:"sourceDifferences,omitempty"`
 }
 
 type codexDefinitionRoute struct {
@@ -30,7 +32,7 @@ var codexCapabilityFields = []string{
 	"context_window", "max_context_window", "auto_compact_token_limit", "effective_context_window_percent",
 	"supported_reasoning_levels", "service_tiers", "additional_speed_tiers", "input_modalities", "experimental_supported_tools",
 	"supported_in_api", "support_verbosity", "supports_parallel_tool_calls", "supports_experimental_context", "supports_image_detail_original", "supports_reasoning_effort_updates", "supports_search_tool", "use_responses_lite", "supports_reasoning_summary_parameter",
-	"node_repl_disabled", "node_repl_auto_review_required", "default_reasoning_level", "default_service_tier", "default_verbosity", "truncation_policy",
+	"node_repl_disabled", "node_repl_auto_review_required", "default_reasoning_level", "default_service_tier", "default_verbosity",
 }
 
 func codexRouteCapabilities(metadata map[string]any) map[string]any {
@@ -61,6 +63,21 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	for _, metadata := range parsed {
 		d.Model = metadata
 	}
+	for id, profile := range d.Models {
+		if id == "" || profile.SourceChannelID <= 0 || profile.SourceModelID == "" {
+			return nil, fmt.Errorf("Codex model profiles require a public ID and source")
+		}
+		body, _ := json.Marshal(map[string]any{"models": []any{profile.Model}})
+		models, err := parseCodexCatalog(body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid Codex profile %s: %w", id, err)
+		}
+		profile.Model = models[profile.SourceModelID]
+		if profile.Model == nil {
+			return nil, fmt.Errorf("Codex profile source model does not match its metadata")
+		}
+		d.Models[id] = profile
+	}
 	seen := make(map[ChannelModelKey]bool)
 	for _, r := range d.Routes {
 		key := ChannelModelKey{ChannelID: r.ChannelID, ModelID: r.ModelID}
@@ -74,6 +91,11 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 		}
 		if r.Capabilities != nil {
 			known := codexRouteCapabilities(r.Capabilities)
+			// .syh.11 wrote this client policy into route snapshots. Keep reading
+			// those definitions; new imports only store it on the client profile.
+			if policy, exists := r.Capabilities["truncation_policy"]; exists {
+				known["truncation_policy"] = policy
+			}
 			if len(known) != len(r.Capabilities) {
 				return nil, fmt.Errorf("unknown route capability")
 			}
@@ -124,6 +146,18 @@ func (d *codexDefinition) catalogModel(m ModelFacade, version string) (map[strin
 	if version != d.ClientVersion {
 		return nil, fmt.Errorf("Codex definition does not support this client version")
 	}
+	canonical := d.Model
+	if len(d.Models) > 0 {
+		target := m.TargetID
+		if target == "" {
+			target = m.ID
+		}
+		profile, ok := d.Models[target]
+		if !ok {
+			return nil, fmt.Errorf("unconfirmed Codex public model %s", target)
+		}
+		canonical = profile.Model
+	}
 	bindings := make(map[ChannelModelKey]codexDefinitionRoute)
 	for _, r := range d.Routes {
 		bindings[ChannelModelKey{ChannelID: r.ChannelID, ModelID: r.ModelID}] = r
@@ -135,8 +169,8 @@ func (d *codexDefinition) catalogModel(m ModelFacade, version string) (map[strin
 			if !ok {
 				return nil, fmt.Errorf("unconfirmed Codex route channel=%d model=%s", connection.Channel.ID, entry.ActualModel)
 			}
-			variant := make(map[string]any, len(d.Model))
-			for k, v := range d.Model {
+			variant := make(map[string]any, len(canonical))
+			for k, v := range canonical {
 				variant[k] = v
 			}
 
@@ -148,6 +182,9 @@ func (d *codexDefinition) catalogModel(m ModelFacade, version string) (map[strin
 					variant[k] = v
 				}
 			}
+			// Truncation controls local tool output, not an upstream context limit.
+			// Keep accepting old route snapshots but use the confirmed client policy.
+			variant["truncation_policy"] = canonical["truncation_policy"]
 			normalizeCodexWireDefaults(variant)
 			limited := make(map[string]any, len(variant))
 			for k, v := range variant {
@@ -180,12 +217,14 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 		return nil, err
 	}
 	var connections []*ModelChannelConnection
+	byPublicID := make(map[string][]*ModelChannelConnection)
 	seenRoutes := make(map[ChannelModelKey]bool)
 	for _, publicID := range PublicModelIDs(m) {
 		matches, queryErr := svc.QueryModelChannelConnectionsForModel(ctx, EffectiveModelAssociationsForRequest(svc.modelSettingsOrDefault(ctx), m, publicID), publicID)
 		if queryErr != nil {
 			return nil, queryErr
 		}
+		byPublicID[publicID] = matches
 		for _, connection := range matches {
 			copyConnection := *connection
 			copyConnection.Models = nil
@@ -207,30 +246,32 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 		channels[ch.ID] = ch
 	}
 	sources := service.fetchCatalogSources(ctx, connections, channels, version)
-	d := codexDefinition{ClientVersion: version}
-	var variants []map[string]any
+	d := codexDefinition{ClientVersion: version, Models: make(map[string]codexModelProfile)}
+	for _, publicID := range PublicModelIDs(m) {
+		profile, differences := previewCodexModelProfile(publicID, byPublicID[publicID], sources)
+		if profile == nil {
+			continue
+		}
+		d.Models[publicID] = *profile
+		d.SourceDifferences = append(d.SourceDifferences, differences...)
+		if d.Model == nil {
+			d.Model = profile.Model
+			d.SourceChannelID = profile.SourceChannelID
+			d.SourceModelID = profile.SourceModelID
+		}
+	}
 	for _, c := range connections {
 		for _, entry := range c.Models {
 			route := codexDefinitionRoute{ChannelID: c.Channel.ID, ModelID: entry.ActualModel}
 			if metadata := sources[c.Channel.ID][entry.ActualModel]; metadata != nil {
-				if d.SourceChannelID == 0 {
-					d.SourceChannelID = c.Channel.ID
-					d.SourceModelID = entry.ActualModel
-				}
-				variants = append(variants, metadata)
 				route.Capabilities = codexRouteCapabilities(metadata)
 			}
 			d.Routes = append(d.Routes, route)
 		}
 	}
-	if len(variants) == 0 {
+	if d.Model == nil {
 		return nil, fmt.Errorf("no complete catalog source; import a complete model definition")
 	}
-	_, err = mergeCodexCapabilities(m.ModelID, variants, true)
-	if err != nil {
-		return nil, err
-	}
-	d.Model = variants[0]
 	body, err := json.Marshal(d)
 	if err != nil {
 		return nil, err

@@ -100,6 +100,27 @@ func TestSelectAPIFormat_AlphaSearchRequiresExplicitEndpoint(t *testing.T) {
 	}))
 }
 
+func TestCustomToolsRequireResponsesEndpoint(t *testing.T) {
+	for _, req := range []*llm.Request{
+		{RequestType: llm.RequestTypeChat, Tools: []llm.Tool{{Type: llm.ToolTypeResponsesCustomTool}}},
+		{RequestType: llm.RequestTypeChat, Messages: []llm.Message{{Role: "assistant", ToolCalls: []llm.ToolCall{{Type: llm.ToolTypeResponsesCustomTool}}}}},
+	} {
+		chat := []objects.ChannelEndpoint{{APIFormat: llm.APIFormatOpenAIChatCompletion.String()}}
+		require.Empty(t, SelectAPIFormat(chat, req))
+		mixed := append(chat, objects.ChannelEndpoint{APIFormat: llm.APIFormatOpenAIResponse.String()})
+		require.Equal(t, llm.APIFormatOpenAIResponse.String(), SelectAPIFormat(mixed, req))
+		ch := &biz.Channel{Channel: &ent.Channel{ID: 1, Endpoints: mixed, Settings: &objects.ChannelSettings{ModelProtocols: []objects.ModelProtocol{
+			{Model: "chat-only", APIFormats: []string{llm.APIFormatOpenAIChatCompletion.String()}},
+			{Model: "responses", APIFormats: []string{llm.APIFormatOpenAIResponse.String()}},
+		}}}}
+		candidate := &ChannelModelsCandidate{Channel: ch, Models: []biz.ChannelModelEntry{{ActualModel: "chat-only"}, {ActualModel: "responses"}}}
+		selected := populateAPIFormat(t.Context(), []*ChannelModelsCandidate{candidate}, req)
+		require.Len(t, selected, 1)
+		require.Equal(t, []biz.ChannelModelEntry{{ActualModel: "responses"}}, selected[0].Models)
+		require.Equal(t, []string{llm.APIFormatOpenAIResponse.String()}, selected[0].modelAPIFormats)
+	}
+}
+
 func TestFilterEndpointsByAPIFormats(t *testing.T) {
 	endpoints := []objects.ChannelEndpoint{
 		{APIFormat: "openai/responses"},
@@ -108,7 +129,7 @@ func TestFilterEndpointsByAPIFormats(t *testing.T) {
 	}
 
 	t.Run("restricts to allowed formats in allowed priority order", func(t *testing.T) {
-		filtered := FilterEndpointsByAPIFormats(endpoints, []string{"anthropic/messages", "openai/chat_completions"})
+		filtered := biz.FilterEndpointsByAPIFormats(endpoints, []string{"anthropic/messages", "openai/chat_completions"})
 		require.Equal(t, []objects.ChannelEndpoint{
 			{APIFormat: "anthropic/messages"},
 			{APIFormat: "openai/chat_completions"},
@@ -116,16 +137,16 @@ func TestFilterEndpointsByAPIFormats(t *testing.T) {
 	})
 
 	t.Run("drops formats the channel has no endpoint for", func(t *testing.T) {
-		filtered := FilterEndpointsByAPIFormats(endpoints, []string{"gemini/contents", "openai/responses"})
+		filtered := biz.FilterEndpointsByAPIFormats(endpoints, []string{"gemini/contents", "openai/responses"})
 		require.Equal(t, []objects.ChannelEndpoint{{APIFormat: "openai/responses"}}, filtered)
 	})
 
 	t.Run("nil allowed returns nil", func(t *testing.T) {
-		require.Nil(t, FilterEndpointsByAPIFormats(endpoints, nil))
+		require.Nil(t, biz.FilterEndpointsByAPIFormats(endpoints, nil))
 	})
 
 	t.Run("no intersection returns nil", func(t *testing.T) {
-		require.Nil(t, FilterEndpointsByAPIFormats(endpoints, []string{"gemini/contents"}))
+		require.Nil(t, biz.FilterEndpointsByAPIFormats(endpoints, []string{"gemini/contents"}))
 	})
 }
 
@@ -144,7 +165,7 @@ func TestSelectAPIFormat_ForcedModelProtocols(t *testing.T) {
 	chatClient := &llm.Request{RequestType: llm.RequestTypeChat, APIFormat: llm.APIFormatOpenAIChatCompletion}
 
 	forced := []string{"openai/responses", "anthropic/messages"}
-	filtered := FilterEndpointsByAPIFormats(endpoints, forced)
+	filtered := biz.FilterEndpointsByAPIFormats(endpoints, forced)
 
 	require.Equal(t, "anthropic/messages", SelectAPIFormat(filtered, claudeCode))
 	require.Equal(t, "openai/responses", SelectAPIFormat(filtered, codex))
@@ -163,21 +184,21 @@ func TestForcedAPIFormatsForCandidate(t *testing.T) {
 	}}
 
 	t.Run("matches the request model name", func(t *testing.T) {
-		forced := forcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
+		forced := biz.ForcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
 			{RequestModel: "glm-5.3-flash", ActualModel: "glm-5.3-flash"},
 		}, "glm-5.3-flash")
 		require.Equal(t, []string{llm.APIFormatAnthropicMessage.String()}, forced)
 	})
 
 	t.Run("matches the mapped actual model name", func(t *testing.T) {
-		forced := forcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
+		forced := biz.ForcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
 			{RequestModel: "claude-sonnet", ActualModel: "glm-5.3-flash"},
 		}, "claude-sonnet")
 		require.Equal(t, []string{llm.APIFormatAnthropicMessage.String()}, forced)
 	})
 
 	t.Run("unions request and actual model overrides in config order", func(t *testing.T) {
-		forced := forcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
+		forced := biz.ForcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
 			{RequestModel: "grok-4", ActualModel: "glm-5.3-flash"},
 		}, "grok-4")
 		require.Equal(t, []string{
@@ -188,15 +209,15 @@ func TestForcedAPIFormatsForCandidate(t *testing.T) {
 	})
 
 	t.Run("no override returns nil", func(t *testing.T) {
-		forced := forcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
+		forced := biz.ForcedAPIFormatsForCandidate(ch, []biz.ChannelModelEntry{
 			{RequestModel: "other", ActualModel: "other-actual"},
 		}, "other")
 		require.Nil(t, forced)
 	})
 
 	t.Run("nil settings returns nil", func(t *testing.T) {
-		require.Nil(t, forcedAPIFormatsForCandidate(&biz.Channel{Channel: &ent.Channel{}}, nil, "grok-4"))
-		require.Nil(t, forcedAPIFormatsForCandidate(nil, nil, "grok-4"))
+		require.Nil(t, biz.ForcedAPIFormatsForCandidate(&biz.Channel{Channel: &ent.Channel{}}, nil, "grok-4"))
+		require.Nil(t, biz.ForcedAPIFormatsForCandidate(nil, nil, "grok-4"))
 	})
 }
 
@@ -214,7 +235,7 @@ func TestApplyForcedAPIFormats(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("narrows to the forced formats", func(t *testing.T) {
-		filtered := applyForcedAPIFormats(ctx, ch, []biz.ChannelModelEntry{{ActualModel: "m"}}, "m", endpoints)
+		filtered := biz.ApplyForcedAPIFormats(ctx, ch, []biz.ChannelModelEntry{{ActualModel: "m"}}, "m", endpoints)
 		require.Equal(t, []objects.ChannelEndpoint{
 			{APIFormat: llm.APIFormatAnthropicMessage.String()},
 		}, filtered)
@@ -228,12 +249,12 @@ func TestApplyForcedAPIFormats(t *testing.T) {
 			}},
 		}}
 
-		filtered := applyForcedAPIFormats(ctx, drifted, nil, "m", endpoints)
+		filtered := biz.ApplyForcedAPIFormats(ctx, drifted, nil, "m", endpoints)
 		require.Equal(t, endpoints, filtered)
 	})
 
 	t.Run("no override keeps all endpoints", func(t *testing.T) {
-		filtered := applyForcedAPIFormats(ctx, ch, nil, "other", endpoints)
+		filtered := biz.ApplyForcedAPIFormats(ctx, ch, nil, "other", endpoints)
 		require.Equal(t, endpoints, filtered)
 	})
 }

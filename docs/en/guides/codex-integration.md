@@ -39,6 +39,20 @@ AxonHub can act as a drop-in replacement for OpenAI endpoints, letting Codex con
    ```
 3. Restart Codex to apply the configuration.
 
+#### Catalog URL and response format
+
+Place `base_url` and `model_catalog_url` in the selected provider table. The former routes inference, normally ends in `/v1`, and uses `wire_api = "responses"`; the latter must target `/codex/models`, not `/v1/models`. For a static token, replace the example's `env_key` with `experimental_bearer_token = "<AxonHub API Key>"`. Never commit a real key in configuration or documentation.
+
+| Purpose | Request | Successful response root |
+| --- | --- | --- |
+| OpenAI model names | `GET /v1/models` | `{"object":"list","data":[{"id":"model-id"}]}` |
+| Full Codex catalog | `GET /codex/models?client_version=0.166.0` | Root `models` array; each entry uses `slug` and includes complete instructions, capabilities and tool metadata |
+| Inference | `POST /v1/responses` | Responses protocol; separate from catalog discovery |
+
+Catalog requests use `Authorization: Bearer <AxonHub API Key>`. The client appends `client_version`: the tested bundled `0.166.0-alpha.5.1` executable requests `0.166.0`, so definitions must use the actual three-part request version. An effective `model_catalog_json` takes precedence and prevents remote fetching; see the [official remote catalog guidance](https://learn.chatgpt.com/docs/enterprise/roll-out-a-gateway#serve-a-remote-catalog).
+
+A 200 response from the ordinary list does not establish Codex catalog availability. Check the instance's key for a catalog 401, and model definitions, sources and import errors for a 503 with omitted models. Models without a manual override generate their catalogs automatically. Acceptance requires an authenticated catalog request and a real client's model list.
+
 #### Trace aggregation by conversation (important)
 Enable the built-in Codex trace extraction to reuse the `Session_id` header as the trace ID:
 
@@ -151,21 +165,33 @@ Configure **Endpoints and Paths → Responses** on each channel:
 
 - **Custom Codex catalog JSON** supplies complete metadata and takes precedence over the remote URL. Each `slug` identifies the actual upstream model. Include model instructions, tool capabilities, and reasoning levels, not just model names.
 - **Codex model catalog URL** supplies the complete trusted upstream URL. AxonHub sends channel credentials and `client_version`; redirects are rejected.
-- With both fields empty, official OpenAI API and Codex channels automatically use `https://chatgpt.com/backend-api/codex/models`. No extra gateway catalog setting is needed. Third-party Codex channels use their `/models` endpoint; other Responses channels try their same-origin `/v1/models`, respecting existing `/v1` and `#` URL rules. If a third party only serves an ordinary OpenAI model list, it must provide a full catalog URL or JSON. AxonHub never invents capabilities or sends third-party credentials to OpenAI.
+- With both fields empty, official OpenAI API and Codex channels automatically use `https://chatgpt.com/backend-api/codex/models`. No extra gateway catalog setting is needed. Third-party Codex channels use their `/models` endpoint; other Responses channels try their same-origin `/v1/models`, respecting existing `/v1` and `#` URL rules. If a third party only serves an ordinary OpenAI model list, its routes can share complete metadata from associated routes for the same actual model. A trusted catalog URL or definition is needed when all such sources are missing. Third-party credentials are sent only to the configured catalog service.
 
-The catalog applies current project/key channel restrictions, allowed models, and aliases. Public slugs match callable model IDs. Multiple routes advertise common capabilities and the smallest context limit; conflicting instructions or tool dialects omit the model. Missing metadata is counted in `X-AxonHub-Catalog-Omitted`. If all visible models lack metadata, the endpoint returns `503 codex_catalog_unavailable`; no visible models returns an empty list. Catalog failures do not block inference.
+The catalog applies current project/key channel restrictions, allowed models, and aliases. Public slugs match callable model IDs. Visible compatible routes advertise common capabilities and the smallest context limit. Instructions and client tool policies use the stable source selection below. Missing metadata is counted in `X-AxonHub-Catalog-Omitted`. If all visible models lack metadata, the endpoint returns `503 codex_catalog_unavailable`; no visible models returns an empty list. Catalog failures do not block inference.
 
 Remote fetches have a 1 MiB limit and 10-second timeout. Cache entries are separated by channel, credentials, URL, and client version, respect `no-store`, `no-cache`, `max-age`, and `Age`, and expire within five minutes. Visibility is checked on every request; stale metadata is not served.
 
-### Multi-channel model definitions
+### Automatic discovery and optional overrides
 
-For routes whose providers only expose ordinary model lists, open **Models → Edit → Codex model definition**, enter the exact bundled Codex CLI version, and import from associated channels. Import previews complete metadata from available sources, retains the selected source's instructions, intersects known capabilities, and lists all channel/actual-model pairs for confirmation. It does not persist data.
+By default, model configuration, associations and key permissions produce the catalog without a JSON import. Each request recomputes visible models, aliases and routes and fetches upstream metadata for its `client_version`. Source cache controls are honored with a maximum five-minute TTL. `no-store` and `no-cache` disable caching. Clients see changes when they fetch a fresh catalog.
 
-Verify the instructions, tools, capabilities and every route, including providers without catalogs. Matching names alone do not establish compatibility. Confirm, apply the definition, then save the model. A complete definition can also be pasted when no source is available. Incompatible model/tool routes require separate models or corrected associations.
+Each concrete public model selects a complete source independently. An actual-model match to the public target wins, followed by association priority, channel ID and actual-model ID. Instructions and client tool policies remain a complete source profile. Routes missing a catalog first look up the **same actual model** in the complete catalogs of associated channels, even if a source channel is not configured to route that model. If no exact entry exists, the model page's explicit association allows the route to inherit the selected public-model profile, including opaque upstream aliases such as `codex-auto-review`. This does not grant inference access to the source channel. Known capabilities on caller-visible routes still constrain the result. Inheritance relies on the administrator's configured model associations, and provider behavior requires verification.
 
-Import does not pre-intersect source capabilities. `model` keeps canonical instructions and the inheritance baseline for routes without catalogs; each catalog-backed route stores its own `capabilities`. Only currently permitted routes participate in output intersection. Edit a route's `limits` for manual restrictions; editing capabilities in `model` does not replace existing source snapshots.
+Profiles declaring `freeform` patch tools or `code_mode_only` use visible Responses routes, including per-model protocol overrides. Inference requests containing Responses custom tools or their call history also exclude incompatible endpoints, avoiding silent tool removal. Ordinary requests retain existing protocol selection.
 
-`settings.codexCatalog` stores `clientVersion`, provenance (`sourceChannelId`, `sourceModelId`), a complete `model` object and confirmed `routes`. Each route has integer `channelId`, actual upstream `modelId`, optional source `capabilities`, and optional `limits`, for example:
+Automatic results are not stored in `settings.codexCatalog`. New associations, key permissions and client versions do not require reimport. Existing manual overrides remain authoritative with their exact-version and confirmed-route rules. Clear an override to restore automatic discovery. If none of the public model's associated channels supplies a complete source profile, the missing metadata is logged and that model is omitted. If every model is unavailable the endpoint returns 503. Automatic discovery requires an available source after its cache expires.
+
+The following workflow is optional.
+
+### Manual multi-channel model definitions
+
+To pin or customize a manual definition, open **Models → Edit → Codex manual override (optional)**, enter the actual three-part catalog request version, and import from associated channels. Import selects a complete client profile for each concrete public ID, keeping its instructions and tool settings separate from other IDs published by the same regex. It does not persist data.
+
+Review every profile in `models`, the source differences listed in `sourceDifferences`, and all `routes`. Different source instructions, patch tools, web-search types, tool modes or multi-agent modes no longer prevent previewing. Administrators explicitly confirm the client settings; context and input capabilities still intersect across visible routes. Catalog-less routes need real capability evidence, not matching names alone. Verify each actual route supports the chosen tool format: for example, `freeform` generates Responses custom tools that ordinary Chat Completions outbound routes cannot directly carry. Remove or separate incompatible routes; `limits` cannot convert tool protocols. Confirm, apply, then save.
+
+Import does not pre-intersect source capabilities. `models[public ID].model` keeps that ID's instructions and inheritance baseline; each catalog-backed route stores its own `capabilities`. Only permitted routes constrain the result, and key aliases select profiles using their mapped target IDs. Edit route `limits` for manual reductions. `truncation_policy` clips local tool output and stays with the selected client profile; bytes and tokens are not interchangeable upstream context limits.
+
+`settings.codexCatalog` stores `clientVersion` and a `models` map keyed by public target ID. Each profile has `sourceChannelId`, `sourceModelId` and a complete `model`. `sourceDifferences` records source identities and differing field names without copying instruction text. Root `model` and provenance retain the legacy baseline; published definitions remain readable without forced migration. Each route has integer `channelId`, actual upstream `modelId`, optional source `capabilities`, and narrowing `limits`, for example:
 
 ```json
 {"channelId": 12, "modelId": "actual-model-id", "limits": {"context_window": 16000}}
@@ -173,7 +199,7 @@ Import does not pre-intersect source capabilities. `model` keeps canonical instr
 
 Limits support context bounds, reasoning/service tiers, input modalities, experimental tools and API/verbosity/parallel-tool booleans. Arrays intersect, numeric bounds take the minimum, and booleans require common support. Unknown limit fields are rejected; unknown model metadata is preserved. Reasoning and service tiers match by identity rather than description text.
 
-Confirmed definitions are local configuration, independent of remote catalog availability. Current project/key restrictions are evaluated on every request; only visible routes constrain the result. New channel/model pairs must be imported and confirmed before use in the catalog. Unconfirmed routes omit only their model. Definitions currently match an exact client version; reimport after changing the bundled client version. Clearing the definition restores channel-based generation.
+Confirmed definitions are local configuration, independent of remote catalog availability. Current project/key restrictions are evaluated on every request; only visible routes constrain the result. New channel/model pairs must be imported and confirmed before use in the catalog. Unconfirmed routes omit only their model. Definitions currently match an exact client version; reimport after changing the bundled client version. Clearing the definition restores automatic discovery as described above.
 
 The read-only admin GraphQL query `previewModelCodexCatalog(id, clientVersion)` requires channel-write permission. Save/clear through `updateModel.settings.codexCatalog`. Logs identify source failures, version mismatches and unconfirmed routes. `X-AxonHub-Catalog-Omitted` is included in success and failure responses. Remote refresh has concurrency 4 and a total 10-second budget; known fields and complete model-message structures are validated before saving and after merging; malformed remote entries are isolated. Equivalent shell aliases and documented capability defaults are normalized. If no permitted model has a usable definition, the endpoint still returns an explicit 503 rather than inventing instructions.
 

@@ -50,14 +50,21 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		return nil, 0, fmt.Errorf("cannot read models permitted by this API key")
 	}
 	channels := make(map[int]*Channel)
-	for _, ch := range s.channels.GetEnabledChannels() {
+	allChannels := s.channels.GetEnabledChannels()
+	for _, ch := range allChannels {
 		channels[ch.ID] = ch
 	}
-	// Fetch each source once per request, even when several public aliases use it.
+	// Model definitions may be shared by routes for the same actual model.
+	// Source discovery does not grant access to those routes: m.Connections stays
+	// scoped to the caller and is used separately for capability intersection.
 	var connections []*ModelChannelConnection
+	sourceConnections := make(map[string][]*ModelChannelConnection)
+	systemSettings := s.models.modelSettingsOrDefault(ctx)
 	for _, m := range visible {
 		if m.ConfiguredModel.Type == model.TypeChat && (m.ConfiguredModel.Settings == nil || len(m.ConfiguredModel.Settings.CodexCatalog) == 0 || string(m.ConfiguredModel.Settings.CodexCatalog) == "null") {
-			connections = append(connections, m.Connections...)
+			matched := MatchConnectionsForModel(EffectiveModelAssociationsForRequest(systemSettings, m.ConfiguredModel, m.TargetID), allChannels, m.TargetID)
+			sourceConnections[m.ID] = matched
+			connections = append(connections, matched...)
 		}
 	}
 	sources := s.fetchCatalogSources(ctx, connections, channels, version)
@@ -81,29 +88,7 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 			result = append(result, merged)
 			continue
 		}
-		var variants []map[string]any
-		complete := true
-		for _, connection := range m.Connections {
-			ch := channels[connection.Channel.ID]
-			if ch == nil {
-				complete = false
-				break
-			}
-			for _, entry := range connection.Models {
-				metadata := sources[ch.ID][entry.ActualModel]
-				if metadata == nil {
-					log.Warn(ctx, "Codex model metadata missing", log.String("model", m.ID), log.Int("channel_id", ch.ID), log.String("actual_model", entry.ActualModel))
-					complete = false
-					break
-				}
-				variants = append(variants, metadata)
-			}
-		}
-		if !complete || len(variants) == 0 {
-			omitted++
-			continue
-		}
-		merged, err := mergeCodexModels(m.ID, variants)
+		merged, err := automaticCodexModel(ctx, m, sourceConnections[m.ID], sources, channels, version)
 		if err != nil {
 			log.Warn(ctx, "Codex model omitted", log.String("model", m.ID), log.String("reason", err.Error()))
 			omitted++
@@ -112,7 +97,7 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		result = append(result, merged)
 	}
 	if len(result) == 0 && omitted > 0 {
-		return nil, omitted, fmt.Errorf("no complete Codex metadata for permitted models; configure a confirmed model definition or channel Responses catalog")
+		return nil, omitted, fmt.Errorf("no complete Codex metadata for permitted models; associated channels must provide metadata for the actual model, or configure a manual model definition")
 	}
 	body, err := json.Marshal(map[string]any{"models": result})
 	if len(body) > codexCatalogMaxBytes {

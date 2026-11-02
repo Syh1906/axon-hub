@@ -4,6 +4,18 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.12] - 2026-11-02
+
+### 修复
+
+- Codex 目录默认根据模型配置和 Key 权限自动生成，优先复用相同实际型号资料，缺资料的别名按模型页关联继承，保留已知能力限制并随客户端版本刷新；手动 JSON 改为可选覆盖。
+- Responses 自定义工具请求排除不兼容协议渠道，工具执行结果保留 `name`，修复仅有工具名称、没有 `call_id` 时转发失败。
+
+- Codex 目录导入按每个公开型号保存独立指令和客户端工具设置，避免同一正则规则下新旧型号及不同来源声明的差异阻止预览。
+- 来源差异列出待管理员核对的字段；上下文等能力仍按 Key 可见路线合并，Key 别名使用映射后的目标型号选择定义。
+- 客户端工具输出截断策略不再与渠道上下文限制混合；旧单模型定义和既有路线快照继续可读，无 SQL 迁移。
+- 明确 Codex 完整目录必须使用 /codex/models 的 models 结构；普通 /v1/models 的 data 名单不可替代。目录确认不能转换不兼容的推理工具协议。
+
 ## [v1.0.0-beta10-fork.7.syh.11] - 2026-11-02
 
 ### 修复

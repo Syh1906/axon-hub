@@ -973,8 +973,11 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 		return nil, fmt.Errorf("model %s not supported in channel %s", req.Model, channel.Name)
 	}
 
-	endpoints := applyForcedAPIFormats(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, channel.ResolveEndpoints())
+	endpoints := biz.ApplyForcedAPIFormats(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, channel.ResolveEndpoints())
 	apiFormat := SelectAPIFormat(endpoints, req)
+	if apiFormat == "" && requiresResponsesToolProtocol(req) {
+		return nil, fmt.Errorf("channel %s has no compatible endpoint for Responses custom tools", channel.Name)
+	}
 
 	candidate := &ChannelModelsCandidate{
 		Channel:   channel,

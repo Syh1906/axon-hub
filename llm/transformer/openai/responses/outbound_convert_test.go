@@ -17,6 +17,22 @@ func TestConvertToolMessage(t *testing.T) {
 		expected Item
 	}{
 		{
+			name: "named tool output without call ID",
+			msg: llm.Message{
+				Role: "tool", ToolCallName: lo.ToPtr("lookup"),
+				Content: llm.MessageContent{Content: lo.ToPtr("result")},
+			},
+			expected: Item{Type: "function_call_output", Name: "lookup", Output: &Input{Text: lo.ToPtr("result")}},
+		},
+		{
+			name: "custom tool output preserves name and call ID",
+			msg: llm.Message{
+				Role: "tool", ToolCallName: lo.ToPtr("apply_patch"), ToolCallID: lo.ToPtr("patch_1"),
+				Content: llm.MessageContent{Content: lo.ToPtr("done")},
+			},
+			expected: Item{Type: "custom_tool_call_output", Name: "apply_patch", CallID: "patch_1", Output: &Input{Text: lo.ToPtr("done")}},
+		},
+		{
 			name: "custom tool output uses custom_tool_call_output",
 			msg: llm.Message{
 				Role:       "tool",

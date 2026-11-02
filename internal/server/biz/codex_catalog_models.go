@@ -65,10 +65,6 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 }
 
 func mergeCodexModels(publicID string, variants []map[string]any) (map[string]any, error) {
-	return mergeCodexCapabilities(publicID, variants, false)
-}
-
-func mergeCodexCapabilities(publicID string, variants []map[string]any, canonical bool) (map[string]any, error) {
 	encoded, err := json.Marshal(variants[0])
 	if err != nil {
 		return nil, err
@@ -80,11 +76,8 @@ func mergeCodexCapabilities(publicID string, variants []map[string]any, canonica
 	for _, next := range variants[1:] {
 		// Different tool dialects or instructions cannot be safely combined into one picker entry.
 		for _, field := range []string{"base_instructions", "model_messages", "shell_type", "apply_patch_tool_type", "web_search_tool_type", "tool_mode", "multi_agent_version"} {
-			if canonical && (field == "base_instructions" || field == "model_messages") {
-				continue
-			}
 			if !reflect.DeepEqual(result[field], next[field]) {
-				return nil, fmt.Errorf("incompatible Codex metadata for %s", publicID)
+				return nil, fmt.Errorf("incompatible Codex metadata field %s for %s", field, publicID)
 			}
 		}
 		policy, okA := result["truncation_policy"].(map[string]any)

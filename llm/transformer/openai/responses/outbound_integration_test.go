@@ -17,6 +17,27 @@ import (
 	"github.com/looplj/axonhub/llm/internal/pkg/xtest"
 )
 
+func TestResponsesToolOutputNameRequestRoundTrip(t *testing.T) {
+	outbound, err := NewOutboundTransformer("https://example.com", "test-key")
+	require.NoError(t, err)
+	for _, identity := range []string{
+		`"name":"lookup"`,
+		`"call_id":"call_lookup","name":"lookup"`,
+		`"call_id":"call_lookup"`,
+	} {
+		t.Run(identity, func(t *testing.T) {
+			body := []byte(`{"model":"test-model","input":[{"type":"function_call_output",` + identity + `,"output":"result"}]}`)
+			request, err := NewInboundTransformer().TransformRequest(t.Context(), &httpclient.Request{
+				Method: http.MethodPost, Body: body,
+			})
+			require.NoError(t, err)
+			forwarded, err := outbound.TransformRequest(t.Context(), request)
+			require.NoError(t, err)
+			require.JSONEq(t, gjson.GetBytes(body, "input").Raw, gjson.GetBytes(forwarded.Body, "input").Raw)
+		})
+	}
+}
+
 func TestOutboundTransformer_TransformResponse_Integration(t *testing.T) {
 	trans, err := NewOutboundTransformer("https://api.openai.com", "test-api-key")
 	require.NoError(t, err)

@@ -152,7 +152,7 @@ func cloneHealthGateCandidate(ctx context.Context, req *llm.Request, source *Cha
 	if len(clone.modelAPIFormats) != 0 {
 		clone.APIFormat = clone.modelAPIFormats[0]
 	} else if indices[0] != 0 {
-		endpoints := applyForcedAPIFormats(ctx, clone.Channel, clone.Models[:1], req.Model, clone.Channel.ResolveEndpoints())
+		endpoints := biz.ApplyForcedAPIFormats(ctx, clone.Channel, clone.Models[:1], req.Model, clone.Channel.ResolveEndpoints())
 		clone.APIFormat = SelectAPIFormat(endpoints, req)
 	}
 	clone.healthGate = info
