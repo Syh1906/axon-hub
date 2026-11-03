@@ -59,7 +59,10 @@ func (o *retryTestOutbound) TransformRequest(ctx context.Context, req *llm.Reque
 func (o *retryTestOutbound) TransformStream(ctx context.Context, req *httpclient.Request, stream streams.Stream[*httpclient.StreamEvent]) (streams.Stream[*llm.Response], error) {
 	return o.real.TransformStream(ctx, req, stream)
 }
-func (*retryTestOutbound) CanRetry(err error) bool { return errors.Is(err, llm.ErrStreamIncomplete) }
+func (*retryTestOutbound) CanRetry(err error) bool {
+	var responseErr *llm.ResponseError
+	return errors.Is(err, llm.ErrStreamIncomplete) || errors.As(err, &responseErr) && responseErr.StatusCode == 502
+}
 func (o *retryTestOutbound) PrepareForRetry(context.Context) error {
 	*o.prepareCalls++
 	return nil
@@ -111,6 +114,34 @@ func TestResponsesIncompleteStreamRetriesBeforeCommit(t *testing.T) {
 	require.NotContains(t, payloads, "resp_first", "failed-attempt metadata must not leak")
 	require.Equal(t, 1, countPayload(payloads, "ok"))
 	require.Equal(t, 1, countPayload(payloads, "[DONE]"))
+}
+
+func TestResponsesFailedTerminalRetriesBeforeCommit(t *testing.T) {
+	realResponses, err := openairesponses.NewOutboundTransformer("https://api.openai.com", "test-api-key")
+	require.NoError(t, err)
+	attempts, prepareCalls := 0, 0
+	executor := &retryTestExecutor{attempts: &attempts, streams: [][]*httpclient.StreamEvent{
+		{
+			{Data: []byte(`{"type":"response.created","response":{"id":"resp_failed","model":"gpt-test","status":"in_progress"}}`)},
+			{Data: []byte(`{"type":"response.failed","response":{"id":"resp_failed","status":"failed","error":{"code":"tool_arguments_stalled","message":"tool arguments stalled"}}}`)},
+		},
+		{
+			{Data: []byte(`{"type":"response.created","response":{"id":"resp_success","model":"gpt-test","status":"in_progress"}}`)},
+			{Data: []byte(`{"type":"response.output_text.delta","item_id":"msg_ok","output_index":0,"content_index":0,"delta":"ok"}`)},
+			{Data: []byte(`{"type":"response.completed","response":{"id":"resp_success","status":"completed","output":[]}}`)},
+		},
+	}}
+	outbound := &retryTestOutbound{real: realResponses, prepareCalls: &prepareCalls}
+	p := llmpipeline.NewFactory(executor).Pipeline(&retryTestInbound{}, outbound, llmpipeline.WithRetry(0, 1, 0))
+	result, err := p.Process(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+	require.Equal(t, 1, prepareCalls)
+	events, err := streams.All(result.EventStream)
+	require.NoError(t, err)
+	for _, event := range events {
+		require.NotContains(t, string(event.Data), "resp_failed")
+	}
 }
 
 func TestResponsesIncompleteStreamRetriesAfterManyMetadataEvents(t *testing.T) {

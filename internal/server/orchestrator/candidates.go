@@ -37,6 +37,10 @@ type ChannelModelsCandidate struct {
 	TraceSticky        bool   // selected from the last successful trace or thread channel
 	ModelRoutingPolicy *ModelRoutingPolicy
 	ModelCard          *objects.ModelCard // resolved model's standard price and output limit
+
+	continuationBound   bool   // opaque Responses history must stay on this channel
+	continuationKeyRef  string // stable credential reference recovered from successful history
+	continuationKeyHint string // legacy, masked credential identity
 }
 
 // ModelRoutingPolicy contains model-level overrides carried from model
@@ -707,6 +711,16 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		}
 		*s.effectiveRoutingPolicy = resolvedPolicy
 		traceStickyMode = resolvedPolicy.TraceStickyMode
+	}
+	if selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider); handled || err != nil {
+		if err != nil || loadBalancer == nil {
+			return selected, err
+		}
+		if loadBalancer.healthGate != nil {
+			return s.selectHealthGated(ctx, req, selected, retryPolicy, traceStickyMode, loadBalancer)
+		}
+		loadBalancer.TrackSelection(selected[0])
+		return selected, nil
 	}
 	if loadBalancer != nil && loadBalancer.healthGate != nil {
 		return s.selectHealthGated(ctx, req, candidates, retryPolicy, traceStickyMode, loadBalancer)

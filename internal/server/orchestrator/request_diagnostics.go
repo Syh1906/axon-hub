@@ -44,6 +44,9 @@ func executionSelection(ctx context.Context, state *PersistenceState) *objects.R
 			selection.SessionState = "new"
 		}
 	}
+	if candidate.continuationBound {
+		selection.SessionState = "reused"
+	}
 	for index, item := range state.ChannelModelsCandidates {
 		models := make([]string, 0, len(item.Models))
 		for _, model := range item.Models {
@@ -52,13 +55,16 @@ func executionSelection(ctx context.Context, state *PersistenceState) *objects.R
 		selection.Candidates = append(selection.Candidates, objects.RequestRoutingCandidate{
 			ChannelID: item.Channel.ID, ChannelName: item.Channel.Name,
 			Provider: objects.ChannelProvider(string(item.Channel.Type)), Priority: item.Priority,
-			Models: models, SessionReuse: item.TraceSticky,
+			Models: models, SessionReuse: item.TraceSticky || item.continuationBound,
 		})
 		if index < state.CurrentCandidateIndex && item.TraceSticky {
 			selection.SessionState = "switched"
 		}
 	}
 	if key, ok := contexts.GetChannelAPIKey(ctx); ok && key != "" {
+		if !channel.Credentials.IsOAuth() {
+			selection.KeyRef = upstream.KeyRef(key)
+		}
 		selection.KeyHint = upstream.MaskKey(key)
 		selection.KeyRemark = channel.Settings.KeySettingsFor(upstream.KeyRef(key)).Remark
 	}

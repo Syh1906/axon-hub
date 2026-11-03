@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -83,8 +84,8 @@ type responsesInboundStream struct {
 	queueIndex int
 	err        error
 
-	// Error event tracking - when true, we've already emitted an error event
-	// to the client so Err() should return nil to avoid double error emission
+	// An emitted error or abnormal terminal already tells the client the outcome.
+	// Suppress a second error event from the source stream or SSE writer.
 	errorEventEmitted bool
 }
 
@@ -127,7 +128,8 @@ func (s *responsesInboundStream) Next() bool {
 
 	// Try to get the next chunk from source
 	if !s.source.Next() {
-		if s.err == nil && !s.errorEventEmitted && s.source.Err() == nil && s.hasFinished && !s.responseCompleted {
+		knownAbnormalEnd := s.hasFinished && s.aggregator.status != "" && s.aggregator.status != "in_progress" && s.aggregator.status != "completed"
+		if s.err == nil && !s.errorEventEmitted && (s.source.Err() == nil || knownAbnormalEnd) && s.hasFinished && !s.responseCompleted {
 			s.responseCompleted = true
 			// Only fall back to completed when no terminal status was mapped
 			// from a finish_reason (incomplete/failed/cancelled).
@@ -148,6 +150,9 @@ func (s *responsesInboundStream) Next() bool {
 			}); err != nil {
 				s.err = fmt.Errorf("failed to enqueue response.completed event: %w", err)
 				return false
+			}
+			if s.aggregator.status != "completed" {
+				s.errorEventEmitted = true
 			}
 
 			return s.Next()
@@ -244,6 +249,10 @@ func (s *responsesInboundStream) Next() bool {
 			s.err = fmt.Errorf("failed to enqueue response.in_progress event: %w", err)
 			return false
 		}
+	}
+
+	if chunk.Error != nil {
+		s.aggregator.responseError = responseStreamError(chunk.Error)
 	}
 
 	// Process choices
@@ -362,6 +371,9 @@ func (s *responsesInboundStream) Next() bool {
 		if err != nil {
 			s.err = fmt.Errorf("failed to enqueue response.completed event: %w", err)
 			return false
+		}
+		if s.aggregator.status != "completed" {
+			s.errorEventEmitted = true
 		}
 	}
 
@@ -720,6 +732,10 @@ func (s *responsesInboundStream) handleToolCalls(toolCalls []llm.ToolCall) error
 
 	for _, tc := range toolCalls {
 		toolCallIndex := tc.Index
+		completed, _ := tc.TransformerMetadata[responsesToolCallCompletedMetadataKey].(bool)
+		if stored := s.toolCalls[toolCallIndex]; completed && stored != nil && stored.TransformerMetadata[responsesToolCallCompletedMetadataKey] == true {
+			continue
+		}
 
 		// Initialize tool call tracking if needed
 		if _, ok := s.toolCalls[toolCallIndex]; !ok {
@@ -736,6 +752,11 @@ func (s *responsesInboundStream) handleToolCalls(toolCalls []llm.ToolCall) error
 			}
 		default:
 			if err := s.handleFunctionCallDelta(tc); err != nil {
+				return err
+			}
+		}
+		if completed {
+			if err := s.closeToolCallItem(toolCallIndex); err != nil {
 				return err
 			}
 		}
@@ -1103,96 +1124,121 @@ func (s *responsesInboundStream) closeCurrentOutputItem() error {
 		}
 	}
 
-	// Close any open tool call items
-	for idx, tc := range s.toolCalls {
-		if !s.toolCallItemStarted[idx] {
-			continue
-		}
-
-		itemID := tc.ID
-		if itemID == "" {
-			itemID = s.currentItemID
-		}
-
-		switch {
-		case tc.ResponseCustomToolCall != nil:
-			// Custom tool call - emit custom_tool_call_input.done then output_item.done
-			fullInput := tc.ResponseCustomToolCall.Input
-
-			err := s.enqueueEvent(&StreamEvent{
-				Type:        StreamEventTypeCustomToolCallInputDone,
-				ItemID:      &itemID,
-				OutputIndex: s.toolCallOutputIndex[idx],
-				Input:       fullInput,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to enqueue custom_tool_call_input.done event: %w", err)
-			}
-
-			item := Item{
-				ID:     itemID,
-				Type:   "custom_tool_call",
-				Status: lo.ToPtr("completed"),
-				CallID: tc.ResponseCustomToolCall.CallID,
-				Name:   tc.ResponseCustomToolCall.Name,
-				Input:  lo.ToPtr(fullInput),
-			}
-
-			err = s.enqueueEvent(&StreamEvent{
-				Type:        StreamEventTypeOutputItemDone,
-				OutputIndex: s.toolCallOutputIndex[idx],
-				Item:        &item,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to enqueue output_item.done event: %w", err)
-			}
-
-		default:
-			// Function call - emit function_call_arguments.done then output_item.done
-			err := s.enqueueEvent(&StreamEvent{
-				Type:        StreamEventTypeFunctionCallArgumentsDone,
-				ItemID:      &itemID,
-				OutputIndex: s.toolCallOutputIndex[idx],
-				CallID:      tc.ID,
-				Name:        tc.Function.Name,
-				Namespace:   tc.Function.Namespace,
-				Arguments:   tc.Function.Arguments,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to enqueue function_call_arguments.done event: %w", err)
-			}
-
-			item := Item{
-				ID:        itemID,
-				Type:      "function_call",
-				Status:    lo.ToPtr("completed"),
-				CallID:    tc.ID,
-				Name:      tc.Function.Name,
-				Namespace: tc.Function.Namespace,
-				Arguments: tc.Function.Arguments,
-			}
-
-			err = s.enqueueEvent(&StreamEvent{
-				Type:        StreamEventTypeOutputItemDone,
-				OutputIndex: s.toolCallOutputIndex[idx],
-				Item:        &item,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to enqueue output_item.done event: %w", err)
-			}
-		}
-
-		s.toolCallItemStarted[idx] = false
+	// A later item can arrive while an earlier tool is still receiving arguments.
+	// Only a successful response finish certifies all accumulated tool inputs.
+	if !s.hasFinished || (s.aggregator.status != "" && s.aggregator.status != "in_progress" && s.aggregator.status != "completed") {
+		return nil
 	}
+	indices := lo.Keys(s.toolCalls)
+	slices.Sort(indices)
+	for _, idx := range indices {
+		if err := s.closeToolCallItem(idx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *responsesInboundStream) closeToolCallItem(idx int) error {
+	if !s.toolCallItemStarted[idx] {
+		return nil
+	}
+	tc := s.toolCalls[idx]
+	itemID := tc.ID
+	if itemID == "" {
+		itemID = s.currentItemID
+	}
+
+	switch {
+	case tc.ResponseCustomToolCall != nil:
+		// Custom tool call - emit custom_tool_call_input.done then output_item.done
+		fullInput := tc.ResponseCustomToolCall.Input
+
+		err := s.enqueueEvent(&StreamEvent{
+			Type:        StreamEventTypeCustomToolCallInputDone,
+			ItemID:      &itemID,
+			OutputIndex: s.toolCallOutputIndex[idx],
+			Input:       fullInput,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to enqueue custom_tool_call_input.done event: %w", err)
+		}
+
+		item := Item{
+			ID:     itemID,
+			Type:   "custom_tool_call",
+			Status: lo.ToPtr("completed"),
+			CallID: tc.ResponseCustomToolCall.CallID,
+			Name:   tc.ResponseCustomToolCall.Name,
+			Input:  lo.ToPtr(fullInput),
+		}
+
+		err = s.enqueueEvent(&StreamEvent{
+			Type:        StreamEventTypeOutputItemDone,
+			OutputIndex: s.toolCallOutputIndex[idx],
+			Item:        &item,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to enqueue output_item.done event: %w", err)
+		}
+
+	default:
+		// Function call - emit function_call_arguments.done then output_item.done
+		err := s.enqueueEvent(&StreamEvent{
+			Type:        StreamEventTypeFunctionCallArgumentsDone,
+			ItemID:      &itemID,
+			OutputIndex: s.toolCallOutputIndex[idx],
+			CallID:      tc.ID,
+			Name:        tc.Function.Name,
+			Namespace:   tc.Function.Namespace,
+			Arguments:   tc.Function.Arguments,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to enqueue function_call_arguments.done event: %w", err)
+		}
+
+		item := Item{
+			ID:        itemID,
+			Type:      "function_call",
+			Status:    lo.ToPtr("completed"),
+			CallID:    tc.ID,
+			Name:      tc.Function.Name,
+			Namespace: tc.Function.Namespace,
+			Arguments: tc.Function.Arguments,
+		}
+
+		err = s.enqueueEvent(&StreamEvent{
+			Type:        StreamEventTypeOutputItemDone,
+			OutputIndex: s.toolCallOutputIndex[idx],
+			Item:        &item,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to enqueue output_item.done event: %w", err)
+		}
+	}
+
+	s.toolCallItemStarted[idx] = false
+	if tc.TransformerMetadata == nil {
+		tc.TransformerMetadata = make(map[string]any)
+	}
+	tc.TransformerMetadata[responsesToolCallCompletedMetadataKey] = true
 
 	return nil
 }
 
 func (s *responsesInboundStream) emitStreamErrorEvent(err error) error {
 	code, message := classifyStreamError(err)
+	var responseErr *llm.ResponseError
+	errors.As(err, &responseErr)
 
 	if s.hasResponseCreated {
 		response := s.buildFailedResponse(code, message)
+		if responseErr != nil {
+			if responseErr.Detail.Type != "" {
+				response.Error.Type = responseErr.Detail.Type
+			}
+			response.Error.Param = responseErr.Detail.Param
+		}
 		if err := s.enqueueEvent(&StreamEvent{
 			Type:     StreamEventTypeResponseFailed,
 			Response: response,
@@ -1204,6 +1250,7 @@ func (s *responsesInboundStream) emitStreamErrorEvent(err error) error {
 			Type:    StreamEventTypeError,
 			Code:    code,
 			Message: message,
+			Error:   responseStreamError(responseErr),
 		}); err != nil {
 			return err
 		}
@@ -1212,6 +1259,13 @@ func (s *responsesInboundStream) emitStreamErrorEvent(err error) error {
 	s.errorEventEmitted = true
 
 	return nil
+}
+
+func responseStreamError(err *llm.ResponseError) *Error {
+	if err == nil {
+		return nil
+	}
+	return &Error{Type: err.Detail.Type, Code: err.Detail.Code, Message: err.Detail.Message, Param: err.Detail.Param}
 }
 
 func classifyStreamError(err error) (code, message string) {
@@ -1233,6 +1287,17 @@ func classifyStreamError(err error) (code, message string) {
 	if errors.Is(err, context.DeadlineExceeded) {
 		code = "timeout"
 		message = "request timeout"
+		return code, message
+	}
+
+	var responseErr *llm.ResponseError
+	if errors.As(err, &responseErr) {
+		if responseErr.Detail.Code != "" {
+			code = responseErr.Detail.Code
+		}
+		if responseErr.Detail.Message != "" {
+			message = responseErr.Detail.Message
+		}
 		return code, message
 	}
 

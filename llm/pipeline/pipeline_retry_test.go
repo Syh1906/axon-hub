@@ -226,6 +226,24 @@ type llmErrorAfterStream struct {
 	closed  bool
 }
 
+func TestPreReadStreamPreservesFailedTerminalError(t *testing.T) {
+	upstreamErr := &llm.ResponseError{StatusCode: 502, Detail: llm.ErrorDetail{Code: "tool_arguments_stalled", Message: "tool arguments stalled"}}
+	for _, detectEmpty := range []bool{false, true} {
+		source := &llmErrorAfterStream{
+			items: []*llm.Response{
+				llmEmptyChunk(),
+				{Choices: []llm.Choice{{FinishReason: lo.ToPtr("error")}}},
+			},
+			err: upstreamErr,
+		}
+		p := &pipeline{maxSameChannelRetries: 1, emptyResponseDetection: detectEmpty}
+		stream, err := p.preReadLlmStream(t.Context(), source, nil)
+		require.ErrorIs(t, err, upstreamErr)
+		require.Nil(t, stream, "a terminal failure must remain inside the retry loop")
+		require.True(t, source.closed)
+	}
+}
+
 func (s *llmErrorAfterStream) Next() bool {
 	if s.index >= len(s.items) {
 		return false

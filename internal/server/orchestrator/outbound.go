@@ -558,8 +558,20 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		}
 	}
 
-	if p.addressIndex > 0 && p.addressAPIKey != "" {
+	if (p.addressIndex > 0 || candidate.continuationBound) && p.addressAPIKey != "" {
 		ctx = biz.WithFixedChannelAPIKey(ctx, p.addressAPIKey)
+	}
+	if candidate.continuationKeyRef != "" || candidate.continuationKeyHint != "" {
+		key, err := continuationCredential(candidate.Channel, biz.ResponsesContinuationRoute{
+			KeyRef:  candidate.continuationKeyRef,
+			KeyHint: candidate.continuationKeyHint,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if key != "" {
+			ctx = biz.WithFixedChannelAPIKey(ctx, key)
+		}
 	}
 	httpRequest, err := p.wrapped.TransformRequest(ctx, llmRequest)
 	if err != nil {
@@ -750,6 +762,9 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	if p.state.CurrentCandidate == nil {
 		return false
 	}
+	if p.state.CurrentCandidate.continuationBound && invalidResponsesContinuation(err) {
+		return false
+	}
 	if p.state.CurrentCandidate.healthGate != nil && p.state.CurrentCandidate.healthGate.lastResort || errors.Is(err, errSkipCandidateByHealthGate) {
 		return false
 	}
@@ -761,7 +776,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	// Trace/thread sticky candidates are intentionally one-shot. A failed
 	// sticky attempt must proceed to the normal fallback candidates instead of
 	// retrying the same channel or another mapped model on that channel.
-	if p.state.CurrentCandidate.TraceSticky {
+	if p.state.CurrentCandidate.TraceSticky && !p.state.CurrentCandidate.continuationBound {
 		return false
 	}
 
@@ -803,7 +818,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	}
 
 	// if there are more models available in the current candidate, try the next model.
-	if p.state.CurrentModelIndex+1 < len(p.state.CurrentCandidate.Models) {
+	if !p.state.CurrentCandidate.continuationBound && p.state.CurrentModelIndex+1 < len(p.state.CurrentCandidate.Models) {
 		return true
 	}
 
@@ -823,7 +838,7 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	decision := "same_channel"
 	if p.retryAddress {
 		decision = "next_address"
-	} else if p.state.CurrentModelIndex+1 < len(candidate.Models) {
+	} else if !candidate.continuationBound && p.state.CurrentModelIndex+1 < len(candidate.Models) {
 		decision = "next_model"
 	}
 	p.recordRetryDecision(ctx, decision)
@@ -839,10 +854,13 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 		p.retryAddress = false
 		return nil
 	}
-	p.addressIndex, p.addressAPIKey = 0, ""
+	p.addressIndex = 0
+	if !candidate.continuationBound {
+		p.addressAPIKey = ""
+	}
 
 	// If there's another model in the list, advance to it.
-	if p.state.CurrentModelIndex+1 < len(candidate.Models) {
+	if !candidate.continuationBound && p.state.CurrentModelIndex+1 < len(candidate.Models) {
 		// Increase the model index to the next model.
 		p.state.CurrentModelIndex++
 		p.refreshCandidateAPIFormat(ctx, candidate, p.state.CurrentModelIndex, p.state.LlmRequest)

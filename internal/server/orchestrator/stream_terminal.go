@@ -53,7 +53,12 @@ func streamTerminalError(event *httpclient.StreamEvent) error {
 		}
 	}
 	message := gjson.GetBytes(event.Data, "response.error.message").String()
-	return responseStatusError(status, message)
+	return responseStatusError(status, llm.ErrorDetail{
+		Message: message,
+		Code:    gjson.GetBytes(event.Data, "response.error.code").String(),
+		Type:    gjson.GetBytes(event.Data, "response.error.type").String(),
+		Param:   gjson.GetBytes(event.Data, "response.error.param").String(),
+	})
 }
 
 // Read provider status before protocol conversion can replace it with a tool-call
@@ -62,17 +67,28 @@ func nonStreamingResponseError(format llm.APIFormat, body []byte) error {
 	if !isResponsesFormat(format) {
 		return nil
 	}
-	return responseStatusError(gjson.GetBytes(body, "status").String(), gjson.GetBytes(body, "error.message").String())
+	return responseStatusError(gjson.GetBytes(body, "status").String(), llm.ErrorDetail{
+		Message: gjson.GetBytes(body, "error.message").String(),
+		Code:    gjson.GetBytes(body, "error.code").String(),
+		Type:    gjson.GetBytes(body, "error.type").String(),
+		Param:   gjson.GetBytes(body, "error.param").String(),
+	})
 }
 
-func responseStatusError(status, message string) error {
+func responseStatusError(status string, detail llm.ErrorDetail) error {
 	if status != "failed" && status != "incomplete" && status != "canceled" && status != responseStatusCanceledAlternate {
 		return nil
 	}
-	if message == "" {
-		message = "upstream response ended with status " + status
+	if detail.Message == "" {
+		detail.Message = "upstream response ended with status " + status
 	}
-	err := &llm.ResponseError{StatusCode: 502, Detail: llm.ErrorDetail{Type: "upstream_response_error", Code: status, Message: message}}
+	if detail.Code == "" {
+		detail.Code = status
+	}
+	if detail.Type == "" {
+		detail.Type = "upstream_response_error"
+	}
+	err := &llm.ResponseError{StatusCode: 502, Detail: detail}
 	if status == "canceled" || status == responseStatusCanceledAlternate {
 		return errors.Join(context.Canceled, err)
 	}

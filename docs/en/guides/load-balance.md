@@ -89,6 +89,18 @@ response = client.chat.completions.create(
 - **Advantage**: Avoids initialization delays from channel switching
 - **Scoring**: Matching channel gets 1000 points, otherwise 0 points
 
+### Responses encrypted continuation
+
+Requests carrying encrypted history or an unresolved `previous_response_id` recover their source channel from successful requests within the same project and caller API key. An explicit response ID selects that record. Otherwise, lookup starts with the current trace and then its thread. Database records survive application restarts and ordinary affinity-cache expiry. Recovery depends on the request-record retention period.
+
+These requests execute on the source channel after model, permission, and quota filtering. When a channel has models using different API formats, only models with a Responses route remain eligible before health gating. This prevents a switch to Chat Completions, which cannot carry the continuation history. New execution snapshots store an irreversible credential reference. Older snapshots can recover a credential from a uniquely matching masked suffix. An unavailable source channel, disabled credential, or ambiguous legacy match returns `409 continuation_error`, allowing the administrator to restore the original route. Providers that rotate accounts behind one channel remain responsible for encrypted-history compatibility.
+
+When older records have no credential information, the first attempt uses the channel's existing key-selection rules. Retries within that request retain the key actually selected by the first attempt. Recovering the historical account still depends on the available records.
+
+Before meaningful streaming output is delivered, transient failures use the existing retry budget on the same channel, model, and credential. Retry eligibility still follows the error's retry rules. Additional models on the channel do not make a source-bound request eligible for retry. Encrypted-history validation failures terminate the request. After output is delivered, failures are carried by streaming error events and unfinished tool arguments remain unfinished. Imported histories without a local source record and continuations fully expanded into plain text use ordinary candidate selection.
+
+During Responses stream conversion, tool-input deltas are forwarded incrementally. When the upstream explicitly marks an individual tool as `completed`, the gateway forwards any missing input suffix and its completion promptly. A later failure in another tool does not revert the completed tool. Starting another interleaved tool leaves earlier tools open. Without an explicit per-tool completion signal, synthesized completion waits until the response finishes successfully, so clients that wait for those events may execute tools later in these requests. An abnormal terminal event already sent to the client suppresses an additional failure event. Failed, incomplete, and cancelled outcomes are preserved with or without usage information.
+
 ### Error Aware Strategy
 - **Purpose**: Avoid unhealthy channels
 - **Base Score**: 200 points for healthy channels

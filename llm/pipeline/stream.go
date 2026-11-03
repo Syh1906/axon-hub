@@ -196,6 +196,10 @@ func (p *pipeline) preReadLlmStream(
 		}
 
 		event := llmStream.Current()
+		if event != nil && event.Error != nil {
+			llmStream.Close()
+			return nil, event.Error
+		}
 		if hasResponseContent(event) {
 			// Meaningful output commits the attempt immediately. Do not apply the
 			// private metadata budget to legitimate large media/audio payloads.
@@ -228,6 +232,10 @@ func (p *pipeline) preReadLlmStream(
 		// terminal events as new *llm.Response (e.g. OpenAI TTS binary streams) must
 		// still trigger empty-response handling when no audio chunks were produced.
 		if isTerminalLlmStreamEvent(event) {
+			if err := llmStream.Err(); err != nil {
+				llmStream.Close()
+				return nil, err
+			}
 			if !p.emptyResponseDetection {
 				return streams.PrependStream(llmStream, buffered...), nil
 			}

@@ -188,6 +188,7 @@ type ChatCompletionResult struct {
 func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, request *httpclient.Request) (ChatCompletionResult, error) {
 	var preparedResponsesBody []byte
 	if shared.IsResponsesAPI(ctx) && request != nil && processor.responsesSessions != nil {
+		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, responsePreviousID(request.Body))
 		var sessionID string
 		var restoreErr error
 		preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepare(ctx, request.Body)

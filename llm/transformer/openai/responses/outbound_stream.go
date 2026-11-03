@@ -364,56 +364,14 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			identityChanged = true
 		}
 
-		// Some upstreams provide the complete JSON arguments only in the done event.
-		// Preserve arguments already emitted through delta events and forward only the
-		// missing suffix so downstream Responses streams receive the full value once.
-		finalArgs := streamEvent.Arguments
-		missingArgs := ""
-		if finalArgs == "" {
-			if !identityChanged {
-				return nil // An empty done event must not overwrite accumulated deltas.
-			}
-		} else {
-			forwardedArgs := tc.Function.Arguments
-			switch {
-			case forwardedArgs == "":
-				missingArgs = finalArgs
-			case strings.HasPrefix(finalArgs, forwardedArgs):
-				missingArgs = strings.TrimPrefix(finalArgs, forwardedArgs)
-			case equalJSONValues(forwardedArgs, finalArgs):
-				// The final payload may be reformatted without changing its meaning.
-				// The complete arguments were already forwarded, so do not emit a duplicate.
-				missingArgs = ""
-			default:
-				return fmt.Errorf("function call arguments mismatch for call_id %q", callID)
-			}
-
-			tc.Function.Arguments = finalArgs
-			if missingArgs == "" && !identityChanged {
-				return nil
-			}
+		delta, err := s.finalToolInputDelta(callID, streamEvent.Arguments)
+		if err != nil {
+			return err
 		}
-
-		toolCallIdx := s.state.toolCallIndex[callID]
-		resp.Choices = []llm.Choice{
-			{
-				Index: 0,
-				Delta: &llm.Message{
-					ToolCalls: []llm.ToolCall{
-						{
-							ID:    tc.ID,
-							Type:  tc.Type,
-							Index: toolCallIdx,
-							Function: llm.FunctionCall{
-								Name:      tc.Function.Name,
-								Namespace: tc.Function.Namespace,
-								Arguments: missingArgs,
-							},
-						},
-					},
-				},
-			},
+		if delta.Function.Arguments == "" && !identityChanged {
+			return nil
 		}
+		resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
 
 	case StreamEventTypeCustomToolCallInputDelta:
 		// Custom tool call input delta - accumulate and emit as tool call delta
@@ -449,16 +407,21 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		}
 
 	case StreamEventTypeCustomToolCallInputDone:
-		// Custom tool call input completed - update state but don't emit an event
 		if streamEvent.ItemID != nil {
 			callID, ok := s.state.itemToCallID[*streamEvent.ItemID]
 			if !ok {
 				callID = *streamEvent.ItemID
 			}
 
-			if tc, ok := s.state.toolCalls[callID]; ok {
-				tc.ResponseCustomToolCall.Input = streamEvent.Input
+			delta, err := s.finalToolInputDelta(callID, streamEvent.Input)
+			if err != nil {
+				return err
 			}
+			if delta == nil || delta.ResponseCustomToolCall == nil || delta.ResponseCustomToolCall.Input == "" {
+				return nil
+			}
+			resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
+			break
 		}
 
 		return nil // Intentionally skip this event
@@ -516,6 +479,54 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 	case StreamEventTypeOutputItemDone:
 		if streamEvent.Item == nil {
 			return nil // Intentionally skip this event
+		}
+		if streamEvent.Item.Type == "function_call" || streamEvent.Item.Type == "custom_tool_call" {
+			if lo.FromPtr(streamEvent.Item.Status) != "completed" {
+				return nil
+			}
+			callID := streamEvent.Item.CallID
+			if callID == "" {
+				callID = s.state.itemToCallID[streamEvent.Item.ID]
+			}
+			stored := s.state.toolCalls[callID]
+			if stored == nil {
+				return nil
+			}
+			previousName, previousNamespace := stored.Function.Name, stored.Function.Namespace
+			if streamEvent.Item.Type == "function_call" {
+				if streamEvent.Item.Name != "" {
+					stored.Function.Name = streamEvent.Item.Name
+				}
+				if streamEvent.Item.Namespace != "" {
+					stored.Function.Namespace = streamEvent.Item.Namespace
+				}
+			}
+			input := streamEvent.Item.Arguments
+			if streamEvent.Item.Type == "custom_tool_call" {
+				input = lo.FromPtr(streamEvent.Item.Input)
+			}
+			delta, err := s.finalToolInputDelta(callID, input)
+			if err != nil {
+				return err
+			}
+			if delta == nil {
+				return nil
+			}
+			// The added event already delivered the identity. Repeating it in a
+			// completion-only delta would concatenate names/IDs in chat clients.
+			delta.ID = ""
+			if streamEvent.Item.Type == "function_call" {
+				delta.Type = ""
+				if delta.Function.Name == previousName {
+					delta.Function.Name = ""
+				}
+				if delta.Function.Namespace == previousNamespace {
+					delta.Function.Namespace = ""
+				}
+			}
+			delta.TransformerMetadata = map[string]any{responsesToolCallCompletedMetadataKey: true}
+			resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
+			break
 		}
 		if streamEvent.Item.Type == "compaction" || streamEvent.Item.Type == "compaction_summary" {
 			resp.Choices = []llm.Choice{{
@@ -585,7 +596,8 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		// These events don't need special handling - skip
 		return nil // Intentionally skip this event
 
-	case StreamEventTypeResponseCompleted, "response.done":
+	case StreamEventTypeResponseCompleted, "response.done", StreamEventTypeResponseFailed,
+		StreamEventTypeResponseIncomplete, StreamEventTypeResponseCancelled, "response.canceled":
 		if s.responseCompleted {
 			return nil
 		}
@@ -600,32 +612,32 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			s.state.transformerMetadataEmitted = true
 		}
 
-		// The Responses API signals abnormal completion via response.completed
-		// with a status other than "completed" (incomplete/failed/cancelled) - it
-		// does not emit separate events for those cases. Map the status onto the
-		// Chat Completions finish_reason; fall back to the tool_calls/stop
-		// inference only when the status is absent or plain "completed".
+		// Providers can send a dedicated terminal event or attach the outcome to
+		// response.completed. Preserve the same status, error and usage in either form.
 		finishReason := ""
+		status := strings.TrimPrefix(string(streamEvent.Type), "response.")
 		if streamEvent.Response != nil && streamEvent.Response.Status != nil {
-			switch *streamEvent.Response.Status {
-			case "incomplete":
-				// Distinguish truncation from content-filter rejection via the
-				// incomplete details the upstream attached to the response.
-				reason := ""
-				if streamEvent.Response.IncompleteDetails != nil {
-					reason = streamEvent.Response.IncompleteDetails.Reason
-				}
-				switch reason {
-				case "content_filter":
-					finishReason = "content_filter"
-				default:
-					finishReason = "length"
-				}
-			case "failed":
-				finishReason = "error"
-			case "cancelled", "canceled":
-				finishReason = "cancelled"
+			status = *streamEvent.Response.Status
+		}
+		switch status {
+		case "incomplete":
+			// Distinguish truncation from content-filter rejection via the
+			// incomplete details the upstream attached to the response.
+			reason := ""
+			if streamEvent.Response != nil && streamEvent.Response.IncompleteDetails != nil {
+				reason = streamEvent.Response.IncompleteDetails.Reason
 			}
+			switch reason {
+			case "content_filter":
+				finishReason = "content_filter"
+			default:
+				finishReason = "length"
+			}
+		case "failed":
+			finishReason = "error"
+			resp.Error = failedResponseError(streamEvent.Response)
+		case "cancelled", "canceled":
+			finishReason = "cancelled"
 		}
 		if finishReason == "" {
 			if len(s.state.toolCalls) > 0 {
@@ -662,48 +674,6 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			s.enqueue(usageResp)
 
 			return nil
-		}
-
-	case StreamEventTypeResponseFailed:
-		if s.responseCompleted {
-			return nil
-		}
-		// Response failed
-		s.responseCompleted = true
-		finishReason := "error"
-		resp.Choices = []llm.Choice{
-			{
-				Index:        0,
-				FinishReason: &finishReason,
-			},
-		}
-
-	case StreamEventTypeResponseIncomplete:
-		if s.responseCompleted {
-			return nil
-		}
-		// Response incomplete (e.g., max tokens)
-		s.responseCompleted = true
-		finishReason := "length"
-		resp.Choices = []llm.Choice{
-			{
-				Index:        0,
-				FinishReason: &finishReason,
-			},
-		}
-
-	case StreamEventTypeResponseCancelled:
-		if s.responseCompleted {
-			return nil
-		}
-		// Response cancelled
-		s.responseCompleted = true
-		finishReason := "cancelled"
-		resp.Choices = []llm.Choice{
-			{
-				Index:        0,
-				FinishReason: &finishReason,
-			},
 		}
 
 	case StreamEventTypeError:
@@ -770,10 +740,6 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		return nil // Intentionally skip this event
 	}
 
-	// Failed and incomplete terminal responses can still contain billable usage.
-	if s.responseCompleted && streamEvent.Response != nil && streamEvent.Response.Usage != nil {
-		resp.Usage = streamEvent.Response.Usage.ToUsage()
-	}
 	s.enqueue(resp)
 
 	return nil
@@ -810,6 +776,49 @@ func decodeJSONValue(value string) (any, error) {
 	}
 
 	return decoded, nil
+}
+
+// finalToolInputDelta forwards only input not already emitted by delta events.
+func (s *responsesOutboundStream) finalToolInputDelta(callID, finalInput string) (*llm.ToolCall, error) {
+	stored := s.state.toolCalls[callID]
+	if stored == nil {
+		return nil, nil
+	}
+	forwarded := stored.Function.Arguments
+	custom := stored.ResponseCustomToolCall != nil
+	if custom {
+		forwarded = stored.ResponseCustomToolCall.Input
+	}
+	missing := ""
+	if finalInput != "" {
+		switch {
+		case strings.HasPrefix(finalInput, forwarded):
+			missing = strings.TrimPrefix(finalInput, forwarded)
+		case !custom && equalJSONValues(forwarded, finalInput):
+			// JSON formatting can change while the argument value stays the same.
+		default:
+			if custom {
+				return nil, fmt.Errorf("custom tool input mismatch for call_id %q", callID)
+			}
+			return nil, fmt.Errorf("function call arguments mismatch for call_id %q", callID)
+		}
+		if custom {
+			stored.ResponseCustomToolCall.Input = finalInput
+		} else {
+			stored.Function.Arguments = finalInput
+		}
+	}
+	delta := &llm.ToolCall{
+		ID: stored.ID, Type: stored.Type, Index: s.state.toolCallIndex[callID],
+		Function: llm.FunctionCall{Name: stored.Function.Name, Namespace: stored.Function.Namespace, Arguments: missing},
+	}
+	if custom {
+		delta.Function = llm.FunctionCall{}
+		delta.ResponseCustomToolCall = &llm.ResponseCustomToolCall{
+			CallID: callID, Name: stored.ResponseCustomToolCall.Name, Input: missing,
+		}
+	}
+	return delta, nil
 }
 
 func (s *responsesOutboundStream) Current() *llm.Response {

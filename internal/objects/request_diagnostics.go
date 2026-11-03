@@ -14,6 +14,10 @@ type RequestExecutionSelection struct {
 	Strategy                string                    `json:"strategy"`
 	Priority                int                       `json:"priority"`
 	Candidates              []RequestRoutingCandidate `json:"candidates"`
+
+	// KeyRef identifies the upstream credential without retaining its value.
+	// It is internal routing metadata and is not exposed by GraphQL.
+	KeyRef string `json:"key_ref,omitempty"`
 }
 
 type RequestRoutingCandidate struct {

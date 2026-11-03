@@ -25,6 +25,7 @@ func TestExecutionSelectionKeepsActualKeyAndSession(t *testing.T) {
 	require.Equal(t, "first", first.KeyRemark)
 	require.Equal(t, "second", second.KeyRemark)
 	require.Equal(t, upstream.MaskKey(firstKey), first.KeyHint)
+	require.Equal(t, upstream.KeyRef(firstKey), first.KeyRef)
 	require.Equal(t, upstream.MaskKey(secondKey), second.KeyHint)
 	candidate.Channel.Name = "renamed"
 	require.Equal(t, "channel", first.ChannelName)
@@ -32,4 +33,8 @@ func TestExecutionSelectionKeepsActualKeyAndSession(t *testing.T) {
 	candidate.TraceSticky = false
 	candidate.healthGate = &healthGateCandidateInfo{decision: &healthGateRequestDecision{sticky: true, lookupFailed: true}}
 	require.Equal(t, "unrecorded", executionSelection(context.Background(), state).SessionState)
+	candidate.continuationBound = true
+	bound := executionSelection(context.Background(), state)
+	require.Equal(t, "reused", bound.SessionState)
+	require.True(t, bound.Candidates[0].SessionReuse)
 }

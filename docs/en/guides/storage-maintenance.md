@@ -15,6 +15,8 @@ Request lists load summaries only. Full details and drawers request payloads for
 | Request/response/stream debug copies | 5 minutes | 5 MiB | 256 MiB | 4096 |
 | Required Responses continuation input/output | 2 hours | 32 MiB | 512 MiB | 2048 |
 
+`store_request_body`, `store_response_body`, and `store_chunks` independently control request bodies, response bodies, and raw stream chunks. Capturing raw chunks requires `store_chunks`, including chunks received before a request fails or is canceled. All three debug categories share the 256 MiB and 4096-entry limits above. Keeping a switch enabled still allows content to expire on the short-cache schedule. The day-based body cleanup settings below apply to legacy payloads and database reference markers.
+
 The per-instance total is 768 MiB of compressed content, excluding filesystem metadata. Capacity/count pressure evicts oldest entries earlier. A minute task expires files; reads also enforce expiry. Oversized debug copies are skipped without truncating forwarded requests. Identical content is deduplicated without extending its original expiry. Detail views distinguish disabled, expired, evicted, and oversized payloads.
 
 `request_payload.directory` defaults to `data/request-payloads` and must be private to each application instance. These disposable files are excluded from database backups. Existing request/response storage switches remain authoritative. Disabling either switch also disables new disk continuation copies; the existing bounded memory cache remains independent and cannot guarantee `previous_response_id` restoration after expiry or restart. Disk continuation, when enabled, stores required input/output scoped by project and API key and can expire or be evicted.

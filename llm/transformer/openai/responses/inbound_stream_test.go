@@ -3,6 +3,7 @@ package responses
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -13,6 +14,36 @@ import (
 	"github.com/looplj/axonhub/llm/internal/pkg/xtest"
 	"github.com/looplj/axonhub/llm/streams"
 )
+
+func TestResponsesStreamPreservesStructuredErrorAcrossGateways(t *testing.T) {
+	detail := llm.ErrorDetail{
+		Type: "upstream_response_error", Code: "tool_arguments_stalled",
+		Message: "Tool arguments stopped making progress", Param: "output[1]",
+	}
+	for hop := range 2 {
+		source := &errorResponseStream{
+			items: []*llm.Response{{ID: "resp_failed", Model: "gpt-test", Created: 1}},
+			err:   fmt.Errorf("gateway: %w", &llm.ResponseError{StatusCode: 502, Detail: detail}),
+		}
+		stream, err := NewInboundTransformer().TransformStream(t.Context(), source)
+		require.NoError(t, err)
+		var failed *Error
+		for stream.Next() {
+			var event StreamEvent
+			require.NoError(t, json.Unmarshal(stream.Current().Data, &event))
+			if event.Type == StreamEventTypeResponseFailed {
+				failed = event.Response.Error
+			}
+		}
+		require.NoError(t, stream.Close())
+		require.NotNil(t, failed, "hop %d must deliver the failure", hop)
+		require.Equal(t, detail.Message, failed.Message)
+		require.Equal(t, detail.Code, failed.Code)
+		require.Equal(t, detail.Type, failed.Type)
+		require.Equal(t, detail.Param, failed.Param)
+		detail = llm.ErrorDetail{Type: failed.Type, Code: failed.Code, Message: failed.Message, Param: failed.Param}
+	}
+}
 
 // Compare each event.
 var ignoreFields = cmp.FilterPath(func(p cmp.Path) bool {
