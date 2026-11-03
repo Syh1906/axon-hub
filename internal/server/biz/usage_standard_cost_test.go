@@ -1,10 +1,15 @@
 package biz
 
 import (
+	"context"
+	stdsql "database/sql"
+	"encoding/json"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/intercept"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
@@ -12,6 +17,42 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
+
+func TestChannelTodayUsageCostItemsAcceptSQLiteText(t *testing.T) {
+	f := newConsumptionFixture(t)
+	start := time.Now().UTC().Truncate(24 * time.Hour)
+	req, _ := f.addRequest(t, start, "model", request.StatusCompleted, 100, 10, 0, 0, 1, nil)
+	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetCostItems([]objects.CostItem{{
+		Subtotal: decimal.NewFromInt(1), PricingEvidence: &objects.CostPricingEvidence{ModeSubtotal: lo.ToPtr(decimal.NewFromInt(2))},
+	}}).SaveX(f.ctx)
+	var result stdsql.Result
+	require.NoError(t, f.client.Driver().Exec(f.ctx, "UPDATE usage_logs SET cost_items = CAST(cost_items AS TEXT)", []any{}, &result))
+	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, 2.0, *rows[0].StandardCost)
+}
+
+func TestChannelUsageProjectionPreservesHistoricalEvidence(t *testing.T) {
+	for _, item := range []objects.CostItem{
+		{Subtotal: decimal.NewFromInt(6), Multiplier: lo.ToPtr(decimal.NewFromInt(2))},
+		{Subtotal: decimal.Zero, PricingEvidence: &objects.CostPricingEvidence{ModeSubtotal: lo.ToPtr(decimal.NewFromInt(3)), CostMultiplier: decimal.Zero}},
+		{Subtotal: decimal.Zero, PricingEvidence: &objects.CostPricingEvidence{BaseSubtotal: decimal.NewFromInt(2), ModeMultiplier: lo.ToPtr(decimal.NewFromInt(3))}},
+		{Subtotal: decimal.NewFromInt(8), PricingEvidence: &objects.CostPricingEvidence{CostMultiplier: decimal.NewFromInt(4)}},
+		{Subtotal: decimal.NewFromInt(8), Unpriced: true},
+		{Image: &objects.ImageOutput{Width: 1024, Height: 768}},
+	} {
+		encoded, err := json.Marshal([]objects.CostItem{item})
+		require.NoError(t, err)
+		var projected channelUsageCostItems
+		require.NoError(t, json.Unmarshal(encoded, &projected))
+		want, known := standardCostFromItems([]objects.CostItem{item})
+		got, projectedKnown := standardCostFromItems(projected)
+		require.Equal(t, known, projectedKnown)
+		require.True(t, want.Equal(got))
+		require.Equal(t, item.Image, projected[0].Image)
+	}
+}
 
 func TestUsageStandardCostPreservesModesAndHandlesZeroMultiplier(t *testing.T) {
 	items := []objects.CostItem{
@@ -80,14 +121,24 @@ func TestChannelTodayUsageStandardCostLoadsSavedVersions(t *testing.T) {
 	price := objects.ModelPrice{Items: []objects.ModelPriceItem{createPriceItem(objects.PricingModeFlatFee, 5)}}
 	prices, err := svc.SaveChannelModelPrices(f.ctx, f.channel.ID, []SaveChannelModelPriceInput{{ModelID: "model", Price: price}}, lo.ToPtr(decimal.Zero))
 	require.NoError(t, err)
-	req, _ := f.addRequest(t, start, "model", request.StatusCompleted, 100, 10, 0, 0, 0, nil)
-	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetCostPriceReferenceID(prices[0].ReferenceID).SaveX(f.ctx)
+	for range channelUsageBatchSize + 1 {
+		req, _ := f.addRequest(t, start, "model", request.StatusCompleted, 100, 10, 0, 0, 0, nil)
+		f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).SetCostPriceReferenceID(prices[0].ReferenceID).SaveX(f.ctx)
+	}
 	_, err = svc.SaveChannelModelPrices(f.ctx, f.channel.ID, nil, nil)
 	require.NoError(t, err)
+	var versionReads atomic.Int64
+	f.client.Intercept(intercept.Func(func(_ context.Context, query intercept.Query) error {
+		if query.Type() == ent.TypeChannelModelPriceVersion {
+			versionReads.Add(1)
+		}
+		return nil
+	}))
 	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	require.Equal(t, 5.0, *rows[0].StandardCost, "deleted channel overrides retain their immutable historical version")
+	require.Equal(t, float64((channelUsageBatchSize+1)*5), *rows[0].StandardCost, "deleted channel overrides retain their immutable historical version")
+	require.EqualValues(t, 1, versionReads.Load(), "the same immutable price version is loaded once across batches")
 }
 
 func TestChannelTodayModelCostsUseMatchingPricedSamples(t *testing.T) {

@@ -8,8 +8,14 @@ import (
 
 // Keep archival and live success/latency calculations identical.
 func consumptionOutcomeAndSpeed(u *sql.Selector, execution *sql.SelectTable) (string, string) {
+	tokens := "CASE WHEN " + u.C("usage_count") + " = 1 THEN " + u.C("text_completion_tokens") + " ELSE NULL END"
+	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+	return consumptionOutcome(execution), speed
+}
+
+func consumptionOutcome(execution *sql.SelectTable) string {
 	status, message, code := execution.C("status"), "LOWER(COALESCE("+execution.C("error_message")+", ''))", execution.C("response_status_code")
-	byteLatency, duration := execution.C("metrics_first_byte_latency_ms"), execution.C("metrics_latency_ms")
+	byteLatency := execution.C("metrics_first_byte_latency_ms")
 	// CCH excludes client aborts after a first byte, 404s, and quota/rate limits.
 	exclusions := []string{code + " = 404", message + " LIKE '%no available provider%'", "((" + status + " = 'canceled' OR " + code + " = 499) AND (" + byteLatency + " IS NOT NULL OR " + execution.C("metrics_first_byte_recorded") + " IS NULL))"}
 	for _, pattern := range []string{"insufficient quota", "quota exceeded", "rate limit", "rate_limit", "concurrency limit", "concurrent limit", "limit exceeded"} {
@@ -25,12 +31,7 @@ func consumptionOutcomeAndSpeed(u *sql.Selector, execution *sql.SelectTable) (st
 	for _, pattern := range localAdmission {
 		exclusions = append(exclusions, "("+code+" = 429 AND "+message+" LIKE '"+pattern+"' ESCAPE '!')")
 	}
-	outcome := "CASE WHEN " + strings.Join(exclusions, " OR ") + " THEN NULL WHEN " + status + " = 'completed' THEN 1 WHEN " + status + " IN ('failed', 'canceled') THEN 0 ELSE NULL END"
-	// Legacy usage rows are not execution-keyed. Multiple rows cannot safely be
-	// paired with the final attempt's duration, so omit that ambiguous sample.
-	tokens := "CASE WHEN " + u.C("usage_count") + " = 1 THEN " + u.C("text_completion_tokens") + " ELSE NULL END"
-	speed := usageanalytics.OutputSpeedSQL(tokens, duration, byteLatency, execution.C("stream"), execution.C("format"))
-	return outcome, speed
+	return "CASE WHEN " + strings.Join(exclusions, " OR ") + " THEN NULL WHEN " + status + " = 'completed' THEN 1 WHEN " + status + " IN ('failed', 'canceled') THEN 0 ELSE NULL END"
 }
 
 func consumptionUnpriced(u *sql.Selector) string {

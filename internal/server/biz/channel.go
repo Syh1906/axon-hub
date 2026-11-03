@@ -163,6 +163,7 @@ type ChannelService struct {
 	httpClient           *httpclient.HttpClient
 	upstreamRefreshOnce  sync.Once
 	upstreamRefreshLocks [64]chan struct{}
+	todayUsageCache      channelTodayUsageCache
 
 	// healthGate holds process-local health-gated routing state (fork).
 	healthGateOnce sync.Once

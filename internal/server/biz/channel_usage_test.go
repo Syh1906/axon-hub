@@ -1,15 +1,18 @@
 package biz
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"entgo.io/ent/dialect"
 	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +31,96 @@ func TestChannelTodayUsageReaderGetsSystemCurrency(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestChannelTodayUsagePerformanceUsesValidFinalSamples(t *testing.T) {
+	f := newConsumptionFixture(t)
+	start := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	_, first := f.addRequest(t, start, "measured", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
+	first.Update().SetMetricsFirstTokenLatencyMs(100).SaveX(f.ctx)
+	_, second := f.addRequest(t, start, "measured", request.StatusCompleted, 100, 300, 0, 0, 2, lo.ToPtr(int64(200)))
+	second.Update().SetMetricsFirstTokenLatencyMs(300).SetMetricsLatencyMs(2200).SaveX(f.ctx)
+	_, failed := f.addRequest(t, start, "measured", request.StatusFailed, 0, 0, 0, 0, 0, nil)
+	failed.Update().ClearMetricsFirstTokenLatencyMs().SaveX(f.ctx)
+	_, excluded := f.addRequest(t, start, "measured", request.StatusFailed, 0, 0, 0, 0, 0, nil)
+	excluded.Update().SetResponseStatusCode(404).ClearMetricsFirstTokenLatencyMs().SaveX(f.ctx)
+	nonStream, _ := f.addRequest(t, start, "non-stream", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
+	f.client.RequestExecution.Create().SetRequestID(nonStream.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
+		SetModelID("non-stream").SetStatus(requestexecution.StatusCompleted).SetRequestBody([]byte(`{}`)).
+		SetStream(false).SetMetricsLatencyMs(1200).SetMetricsFirstByteLatencyMs(200).SetMetricsFirstTokenLatencyMs(700).SaveX(f.ctx)
+	ambiguous, _ := f.addRequest(t, start, "ambiguous", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
+	f.client.UsageLog.Create().SetRequestID(ambiguous.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
+		SetModelID("ambiguous").SetCompletionTokens(100).SetTotalCost(1).SaveX(f.ctx)
+	f.addRequest(t, start, "too-short", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(1150)))
+	f.addRequest(t, start, "in-progress", request.StatusProcessing, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
+	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
+	require.NoError(t, err)
+	for _, row := range rows {
+		switch row.Model {
+		case "measured":
+			require.Equal(t, 4, row.RequestCount)
+			require.InDelta(t, 2.0/3, *row.SuccessRate, 1e-9)
+			require.Equal(t, 200.0, *row.AvgFirstTokenMs)
+			require.Equal(t, 125.0, *row.AvgTokensPerSecond)
+		case "in-progress":
+			require.Nil(t, row.SuccessRate)
+			require.Nil(t, row.AvgFirstTokenMs)
+			require.Nil(t, row.AvgTokensPerSecond)
+		default:
+			require.Equal(t, 1.0, *row.SuccessRate)
+			require.Equal(t, 700.0, *row.AvgFirstTokenMs)
+			require.Nil(t, row.AvgTokensPerSecond)
+		}
+	}
+}
+
+func TestChannelTodayUsageCacheFreshnessAndPermission(t *testing.T) {
+	f := newConsumptionFixture(t)
+	svc := &ChannelService{AbstractService: &AbstractService{db: f.client}, SystemService: f.service.system}
+	at := time.Now()
+	f.addRequest(t, at, "cached", request.StatusCompleted, 100, 10, 0, 0, 1, nil)
+	ctx := f.viewer(t, f.project.ID, string(scopes.ScopeReadChannels))
+	first, err := svc.TodayUsageDetails(ctx, f.channel.ID)
+	require.NoError(t, err)
+	f.addRequest(t, at, "cached", request.StatusCompleted, 100, 10, 0, 0, 2, nil)
+	warm, err := svc.TodayUsageDetails(ctx, f.channel.ID)
+	require.NoError(t, err)
+	require.Equal(t, first.Models, warm.Models)
+	require.Equal(t, 1, warm.Models[0].RequestCount)
+	// Cached data never grants access to a caller without channel permission.
+	_, err = svc.TodayUsageDetails(f.viewer(t, f.project.ID), f.channel.ID)
+	require.Error(t, err)
+	for _, key := range svc.todayUsageCache.entries.Keys() {
+		entry, _ := svc.todayUsageCache.entries.Peek(key)
+		entry.expires = time.Now().Add(-time.Second)
+		svc.todayUsageCache.entries.Add(key, entry)
+	}
+	fresh, err := svc.TodayUsageDetails(ctx, f.channel.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, fresh.Models[0].RequestCount)
+	require.Equal(t, 3.0, fresh.Models[0].TotalCost)
+	tx, err := f.client.Tx(f.ctx)
+	require.NoError(t, err)
+	transactional, err := svc.TodayUsageDetails(ent.NewContext(ctx, tx.Client()), f.channel.ID)
+	require.NoError(t, err)
+	require.Equal(t, fresh.Models, transactional.Models)
+	require.NoError(t, tx.Rollback())
+	reader := ent.NewClient(ent.Driver(f.client.Driver()))
+	uncached, err := svc.TodayUsageDetails(ent.NewContext(ctx, reader), f.channel.ID)
+	require.NoError(t, err, "a context reader without a transaction must start its own read snapshot")
+	require.Equal(t, fresh.Models, uncached.Models)
+	location := svc.SystemService.TimeLocation(ctx)
+	day := at.In(location)
+	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, location)
+	tomorrow, err := svc.cachedTodayUsageModels(f.ctx, f.channel.ID, start.AddDate(0, 0, 1), start.AddDate(0, 0, 2))
+	require.NoError(t, err)
+	require.Empty(t, tomorrow)
+	// An errored read is never entered into the cache.
+	canceled, cancel := context.WithCancel(f.ctx)
+	cancel()
+	_, err = svc.cachedTodayUsageModels(canceled, f.channel.ID, start.AddDate(0, 0, 2), start.AddDate(0, 0, 3))
+	require.Error(t, err)
+	require.Equal(t, 2, svc.todayUsageCache.entries.Len())
+}
+
 func TestChannelTodayUsageDetailsMatchesSummaryAndModels(t *testing.T) {
 	f := newConsumptionFixture(t)
 	start := time.Date(2026, 10, 31, 0, 0, 0, 0, time.FixedZone("report", 8*60*60))
@@ -41,6 +134,11 @@ func TestChannelTodayUsageDetailsMatchesSummaryAndModels(t *testing.T) {
 	// A later attempt on a different channel must not replace the final model.
 	f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID + 999).
 		SetModelID("wrong-channel").SetStatus(requestexecution.StatusFailed).SetRequestBody([]byte(`{}`)).SaveX(f.ctx)
+	otherProject := f.client.Project.Create().SetName("unrelated").SaveX(f.ctx)
+	f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(otherProject.ID).SetChannelID(f.channel.ID).
+		SetModelID("wrong-project").SetStatus(requestexecution.StatusFailed).SetRequestBody([]byte(`{}`)).SaveX(f.ctx)
+	f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(otherProject.ID).SetChannelID(f.channel.ID).
+		SetModelID("wrong-project").SetPromptTokens(999).SetTotalCost(999).SaveX(f.ctx)
 	f.addRequest(t, start.Add(time.Minute), "model-a", request.StatusCompleted, 200, 20, 0, 0, 1, nil)
 	missing, _ := f.addRequest(t, start.Add(2*time.Minute), " ", request.StatusFailed, 0, 0, 0, 0, 0, nil)
 	// No actual model falls back to the client request model.
@@ -75,6 +173,26 @@ func TestChannelTodayUsageDetailsMatchesSummaryAndModels(t *testing.T) {
 	require.Equal(t, summary[0].RequestCount, count)
 	require.Equal(t, summary[0].UnpricedCount, unpriced)
 	require.Equal(t, summary[0].TotalCost, cost)
+}
+
+func TestChannelTodayUsageKeepsAllUsageRowsBeforePaging(t *testing.T) {
+	f := newConsumptionFixture(t)
+	start := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	req, _ := f.addRequest(t, start, "model", request.StatusCompleted, 100, 10, 0, 0, 1, nil)
+	builders := make([]*ent.UsageLogCreate, channelUsageBatchSize)
+	for i := range builders {
+		builders[i] = f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).
+			SetChannelID(f.channel.ID).SetModelID("model").SetPromptTokens(100).SetCompletionTokens(10).SetTotalCost(1)
+	}
+	f.client.UsageLog.CreateBulk(builders...).SaveX(f.ctx)
+	f.addRequest(t, start, "model", request.StatusCompleted, 100, 10, 0, 0, 2, nil)
+	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, 2, rows[0].RequestCount)
+	require.Equal(t, int64((channelUsageBatchSize+2)*110), rows[0].TotalTokens)
+	require.Equal(t, float64(channelUsageBatchSize+3), rows[0].TotalCost)
+	require.Nil(t, rows[0].AvgTokensPerSecond)
 }
 
 func TestChannelTodayUsageDetailsPermissionsAndEmpty(t *testing.T) {

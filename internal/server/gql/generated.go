@@ -798,11 +798,14 @@ type ComplexityRoot struct {
 
 	ChannelTodayModelUsage struct {
 		AvgCostPerMillionTokens func(childComplexity int) int
+		AvgFirstTokenMs         func(childComplexity int) int
+		AvgTokensPerSecond      func(childComplexity int) int
 		CacheHitRate            func(childComplexity int) int
 		Model                   func(childComplexity int) int
 		RequestCount            func(childComplexity int) int
 		StandardCost            func(childComplexity int) int
 		StandardUnpricedCount   func(childComplexity int) int
+		SuccessRate             func(childComplexity int) int
 		TokenPricedRequestCount func(childComplexity int) int
 		TotalCost               func(childComplexity int) int
 		TotalTokens             func(childComplexity int) int
@@ -6305,6 +6308,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayModelUsage.AvgCostPerMillionTokens(childComplexity), true
+	case "ChannelTodayModelUsage.avgFirstTokenMs":
+		if e.complexity.ChannelTodayModelUsage.AvgFirstTokenMs == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.AvgFirstTokenMs(childComplexity), true
+	case "ChannelTodayModelUsage.avgTokensPerSecond":
+		if e.complexity.ChannelTodayModelUsage.AvgTokensPerSecond == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.AvgTokensPerSecond(childComplexity), true
 	case "ChannelTodayModelUsage.cacheHitRate":
 		if e.complexity.ChannelTodayModelUsage.CacheHitRate == nil {
 			break
@@ -6335,6 +6350,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayModelUsage.StandardUnpricedCount(childComplexity), true
+	case "ChannelTodayModelUsage.successRate":
+		if e.complexity.ChannelTodayModelUsage.SuccessRate == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.SuccessRate(childComplexity), true
 	case "ChannelTodayModelUsage.tokenPricedRequestCount":
 		if e.complexity.ChannelTodayModelUsage.TokenPricedRequestCount == nil {
 			break
@@ -35932,6 +35953,93 @@ func (ec *executionContext) fieldContext_ChannelTodayModelUsage_cacheHitRate(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelTodayModelUsage_successRate(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_successRate,
+		func(ctx context.Context) (any, error) {
+			return obj.SuccessRate, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_successRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_avgFirstTokenMs(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_avgFirstTokenMs,
+		func(ctx context.Context) (any, error) {
+			return obj.AvgFirstTokenMs, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_avgFirstTokenMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayModelUsage_avgTokensPerSecond(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_avgTokensPerSecond,
+		func(ctx context.Context) (any, error) {
+			return obj.AvgTokensPerSecond, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_avgTokensPerSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelTodayModelUsage_standardCost(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -36345,6 +36453,12 @@ func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_models(_ conte
 				return ec.fieldContext_ChannelTodayModelUsage_totalCost(ctx, field)
 			case "cacheHitRate":
 				return ec.fieldContext_ChannelTodayModelUsage_cacheHitRate(ctx, field)
+			case "successRate":
+				return ec.fieldContext_ChannelTodayModelUsage_successRate(ctx, field)
+			case "avgFirstTokenMs":
+				return ec.fieldContext_ChannelTodayModelUsage_avgFirstTokenMs(ctx, field)
+			case "avgTokensPerSecond":
+				return ec.fieldContext_ChannelTodayModelUsage_avgTokensPerSecond(ctx, field)
 			case "standardCost":
 				return ec.fieldContext_ChannelTodayModelUsage_standardCost(ctx, field)
 			case "standardUnpricedCount":
@@ -126913,6 +127027,12 @@ func (ec *executionContext) _ChannelTodayModelUsage(ctx context.Context, sel ast
 			}
 		case "cacheHitRate":
 			out.Values[i] = ec._ChannelTodayModelUsage_cacheHitRate(ctx, field, obj)
+		case "successRate":
+			out.Values[i] = ec._ChannelTodayModelUsage_successRate(ctx, field, obj)
+		case "avgFirstTokenMs":
+			out.Values[i] = ec._ChannelTodayModelUsage_avgFirstTokenMs(ctx, field, obj)
+		case "avgTokensPerSecond":
+			out.Values[i] = ec._ChannelTodayModelUsage_avgTokensPerSecond(ctx, field, obj)
 		case "standardCost":
 			out.Values[i] = ec._ChannelTodayModelUsage_standardCost(ctx, field, obj)
 		case "standardUnpricedCount":

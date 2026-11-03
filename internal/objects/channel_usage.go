@@ -24,6 +24,9 @@ type ChannelTodayModelUsage struct {
 	TotalTokens             int64    `json:"totalTokens"`
 	TotalCost               float64  `json:"totalCost"`
 	CacheHitRate            *float64 `json:"cacheHitRate"`
+	SuccessRate             *float64 `json:"successRate"`
+	AvgFirstTokenMs         *float64 `json:"avgFirstTokenMs"`
+	AvgTokensPerSecond      *float64 `json:"avgTokensPerSecond"`
 	StandardCost            *float64 `json:"standardCost"`
 	StandardUnpricedCount   int      `json:"standardUnpricedCount"`
 	AvgCostPerMillionTokens *float64 `json:"avgCostPerMillionTokens"`

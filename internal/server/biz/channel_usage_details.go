@@ -35,7 +35,7 @@ func (svc *ChannelService) TodayUsageDetails(ctx context.Context, id int) (*obje
 		location := svc.SystemService.TimeLocation(ctx)
 		now := time.Now().In(location)
 		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
-		models, err := queryChannelTodayUsageModels(ctx, svc.entFromContext(ctx), id, start, start.AddDate(0, 0, 1))
+		models, err := svc.cachedTodayUsageModels(ctx, id, start, start.AddDate(0, 0, 1))
 		if err != nil {
 			return nil, err
 		}

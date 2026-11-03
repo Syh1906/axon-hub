@@ -15,6 +15,9 @@ const channelTodayUsageDetailsSchema = z.object({
       totalTokens: z.number(),
       totalCost: z.number(),
       cacheHitRate: z.number().nullable(),
+      successRate: z.number().nullable(),
+      avgFirstTokenMs: z.number().nullable(),
+      avgTokensPerSecond: z.number().nullable(),
       standardCost: z.number().nullable(),
       standardUnpricedCount: z.number(),
       avgCostPerMillionTokens: z.number().nullable(),
@@ -26,8 +29,8 @@ const channelTodayUsageDetailsSchema = z.object({
 export function useChannelTodayUsageDetails(channelId: string) {
   return useQuery({
     queryKey: ['channel-today-usage-details', channelId],
-    staleTime: 30_000,
-    gcTime: 60_000,
+    staleTime: 20_000,
+    gcTime: 300_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
@@ -35,7 +38,7 @@ export function useChannelTodayUsageDetails(channelId: string) {
         `query ChannelTodayUsageDetails($channelId: ID!) {
           channelTodayUsageDetails(channelId: $channelId) {
             channelId timezone currencyCode
-            models { model requestCount unpricedCount totalTokens totalCost cacheHitRate standardCost standardUnpricedCount avgCostPerMillionTokens tokenPricedRequestCount }
+            models { model requestCount unpricedCount totalTokens totalCost cacheHitRate successRate avgFirstTokenMs avgTokensPerSecond standardCost standardUnpricedCount avgCostPerMillionTokens tokenPricedRequestCount }
           }
         }`,
         { channelId },

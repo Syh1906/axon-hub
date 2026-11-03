@@ -47,7 +47,7 @@ func standardCostFromItems(items []objects.CostItem) (decimal.Decimal, bool) {
 
 // Callers have already authorized and bounded these usage records. Only legacy
 // records without item evidence need their immutable historical price versions.
-func loadStandardCostVersions(ctx context.Context, client *ent.Client, logs []*ent.UsageLog) (map[string]objects.ModelPrice, error) {
+func loadStandardCostVersionsInto(ctx context.Context, client *ent.Client, logs []*ent.UsageLog, result map[string]objects.ModelPrice, loaded map[string]bool) error {
 	missing := make(map[int]*ent.UsageLog)
 	for _, row := range logs {
 		if _, ok := standardCostFromItems(row.CostItems); !ok && row.TotalCost != nil {
@@ -61,7 +61,7 @@ func loadStandardCostVersions(ctx context.Context, client *ent.Client, logs []*e
 		}
 		snapshots, err := client.UsageLog.Query().Where(usagelog.IDIn(ids...)).Select(usagelog.FieldID, usagelog.FieldCostSnapshot).All(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, row := range snapshots {
 			missing[row.ID].CostSnapshot = row.CostSnapshot
@@ -72,13 +72,12 @@ func loadStandardCostVersions(ctx context.Context, client *ent.Client, logs []*e
 		if row.CostSnapshot.CurrentPrice() != nil {
 			continue
 		}
-		if row.CostPriceReferenceID != "" {
+		if row.CostPriceReferenceID != "" && !loaded[row.CostPriceReferenceID] {
 			refs[row.CostPriceReferenceID] = struct{}{}
 		}
 	}
-	result := make(map[string]objects.ModelPrice, len(refs))
 	if len(refs) == 0 {
-		return result, nil
+		return nil
 	}
 	ids := make([]string, 0, len(refs))
 	for id := range refs {
@@ -87,12 +86,15 @@ func loadStandardCostVersions(ctx context.Context, client *ent.Client, logs []*e
 	versions, err := client.ChannelModelPriceVersion.Query().Where(channelmodelpriceversion.ReferenceIDIn(ids...)).
 		Select(channelmodelpriceversion.FieldReferenceID, channelmodelpriceversion.FieldPrice).All(ctx)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	for _, id := range ids {
+		loaded[id] = true
 	}
 	for _, version := range versions {
 		result[version.ReferenceID] = version.Price
 	}
-	return result, nil
+	return nil
 }
 
 func usageStandardCost(row *ent.UsageLog, versions map[string]objects.ModelPrice) (decimal.Decimal, bool) {

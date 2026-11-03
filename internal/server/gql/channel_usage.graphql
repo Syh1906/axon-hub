@@ -26,6 +26,9 @@ type ChannelTodayModelUsage {
   totalTokens: Int!
   totalCost: Float!
   cacheHitRate: Float
+  successRate: Float
+  avgFirstTokenMs: Float
+  avgTokensPerSecond: Float
   standardCost: Float
   standardUnpricedCount: Int!
   avgCostPerMillionTokens: Float
