@@ -53,6 +53,11 @@ func isRetryableTransportError(err error) bool {
 	if err == nil {
 		return false
 	}
+	var responseErr *llm.ResponseError
+	if errors.As(err, &responseErr) && responseErr.StatusCode == 0 &&
+		ExtractStatusCodeFromError(err) == 0 && responseErr.Detail.Code == "upstream_stream_read_error" {
+		return true
+	}
 
 	if errors.Is(err, io.EOF) ||
 		errors.Is(err, io.ErrUnexpectedEOF) ||

@@ -95,8 +95,16 @@ func TestCodexDefinitionMultiChannelOfflineAndPermissions(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &catalog))
 	require.Len(t, catalog.Models, 1)
 	client.Model.UpdateOneID(other.ID).SetStatus(model.StatusDisabled).SaveX(ctx)
-	_, _, err = svc.Models(ctx, "0.163.0")
-	require.ErrorContains(t, err, "no complete")
+	for _, version := range []string{"0.159.2", "0.163.0", "0.165.0", "0.166.0", "0.167.0"} {
+		body, omitted, err = svc.Models(ctx, version)
+		require.NoError(t, err, "导入版本是来源记录，不应作为客户端白名单")
+		require.Zero(t, omitted)
+		require.NoError(t, json.Unmarshal(body, &catalog))
+		require.Len(t, catalog.Models, 1)
+		require.Equal(t, "test-model", catalog.Models[0]["slug"])
+		require.Equal(t, float64(16000), catalog.Models[0]["context_window"])
+	}
+	require.Equal(t, before, calls.Load(), "兼容读取手动定义不应访问已离线来源")
 	d.Routes = d.Routes[:1]
 	raw, _ = json.Marshal(d)
 	m.Settings.CodexCatalog = raw
@@ -130,13 +138,15 @@ func TestCodexDefinitionMergeAndRemoteIsolation(t *testing.T) {
 	require.Error(t, err)
 	mixed := []byte(`{"models":[` + string(raw) + `,{"slug":"broken"},42]}`)
 	valid, err := parseRemoteCodexCatalog(mixed)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errCodexInvalidEntries)
+	require.ErrorContains(t, err, "2 entries omitted")
 	require.Len(t, valid, 1)
 	_, err = parseCodexCatalog(mixed)
 	require.Error(t, err)
 	duplicate := []byte(`{"models":[` + string(raw) + `,` + string(raw) + `]}`)
 	valid, err = parseRemoteCodexCatalog(duplicate)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errCodexInvalidEntries)
+	require.ErrorContains(t, err, "2 entries omitted")
 	require.Empty(t, valid)
 }
 
@@ -212,7 +222,7 @@ func TestCodexDefinitionRejectsMalformedKnownFieldsAndDefaults(t *testing.T) {
 			bad[name] = badValue
 			mixed, _ := json.Marshal(map[string]any{"models": []any{good, bad}})
 			filtered, err := parseRemoteCodexCatalog(mixed)
-			require.NoError(t, err)
+			require.ErrorIs(t, err, errCodexInvalidEntries)
 			require.Len(t, filtered, 1)
 			require.Contains(t, filtered, "test-model")
 			definitionJSON, _ := json.Marshal(codexDefinition{ClientVersion: "0.166.0", Model: bad, Routes: []codexDefinitionRoute{{ChannelID: 1, ModelID: "broken"}}})
@@ -257,7 +267,7 @@ func TestCodexDefinitionLimitsAndNestedKnownFields(t *testing.T) {
 		}
 		mixed, _ := json.Marshal(map[string]any{"models": []any{good, bad}})
 		filtered, err := parseRemoteCodexCatalog(mixed)
-		require.NoError(t, err)
+		require.ErrorIs(t, err, errCodexInvalidEntries)
 		require.Len(t, filtered, 1)
 	}
 	raw, _ := json.Marshal(codexDefinition{ClientVersion: "0.166.0", Model: good, Routes: []codexDefinitionRoute{{ChannelID: 1, ModelID: "test-model", Limits: map[string]any{"context_window": 0.5}}}})

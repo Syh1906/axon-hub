@@ -2,12 +2,17 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm"
@@ -16,7 +21,23 @@ import (
 	"github.com/looplj/axonhub/llm/streams"
 )
 
+func writeOrchestratorError(c *gin.Context, err error, orch *orchestrator.ChatCompletionOrchestrator) {
+	httpErr := transformOrchestratorError(c.Request.Context(), err, orch)
+	if httpErr.StatusCode == http.StatusTooManyRequests {
+		var original *httpclient.Error
+		if errors.As(err, &original) && original.StatusCode == http.StatusTooManyRequests {
+			if retryAfter := original.Headers.Get("Retry-After"); retryAfter != "" {
+				c.Header("Retry-After", retryAfter)
+			}
+		}
+	}
+	c.JSON(httpErr.StatusCode, json.RawMessage(httpErr.Body))
+}
+
 func transformOrchestratorError(ctx context.Context, err error, orch *orchestrator.ChatCompletionOrchestrator) *httpclient.Error {
+	if isCanceledRequest(ctx, err) {
+		return &httpclient.Error{StatusCode: 499, Status: "Client Closed Request", Body: []byte(`{"error":{"code":"request_canceled","type":"request_canceled","message":"The request was canceled before a response was delivered."}}`)}
+	}
 	if errors.Is(err, httpclient.ErrContinuationUnavailable) {
 		return &httpclient.Error{StatusCode: http.StatusBadRequest, Status: http.StatusText(http.StatusBadRequest), Body: []byte(`{"error":{"code":"previous_response_not_found","type":"invalid_request_error","param":"previous_response_id","message":"Previous response context is unavailable. Send complete input to resume."}}`)}
 	}
@@ -35,6 +56,10 @@ func transformOrchestratorError(ctx context.Context, err error, orch *orchestrat
 	}
 }
 
+func isCanceledRequest(ctx context.Context, err error) bool {
+	return errors.Is(ctx.Err(), context.Canceled) && errors.Is(err, context.Canceled)
+}
+
 func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz.SystemService) error {
 	if err == nil || systemService == nil {
 		return err
@@ -45,7 +70,7 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 		return err
 	}
 
-	policy := systemService.RetryPolicyOrDefault(ctx).UpstreamErrorPolicy
+	policy := loadUpstreamErrorPolicy(ctx, systemService)
 	if policy.Mode == biz.UpstreamErrorModePassthrough || policy.Mode == "" {
 		return err
 	}
@@ -101,6 +126,15 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 	}
 }
 
+func loadUpstreamErrorPolicy(ctx context.Context, systemService *biz.SystemService) biz.UpstreamErrorPolicy {
+	// Error delivery runs outside the orchestrator's privileged context, and the
+	// caller may already be canceled. Only this bounded settings read is privileged.
+	policyCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	policyCtx = authz.WithSystemBypass(policyCtx, "read-upstream-error-policy")
+	return systemService.RetryPolicyOrDefault(policyCtx).UpstreamErrorPolicy
+}
+
 type upstreamErrorStream struct {
 	stream        streams.Stream[*httpclient.StreamEvent]
 	ctx           context.Context
@@ -139,7 +173,7 @@ func (s *upstreamErrorStream) Err() error {
 		err = orchestrator.ClassifyUpstreamTransportError(pipeline.WrapUpstreamError(err))
 	}
 
-	policy := s.systemService.RetryPolicyOrDefault(s.ctx).UpstreamErrorPolicy
+	policy := loadUpstreamErrorPolicy(s.ctx, s.systemService)
 	if policy.Mode != "" && policy.Mode != biz.UpstreamErrorModePassthrough {
 		return applyUpstreamErrorPolicy(s.ctx, pipeline.WrapUpstreamError(err), s.systemService)
 	}

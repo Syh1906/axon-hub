@@ -226,7 +226,8 @@ func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, da
 			return fmt.Errorf("budget charge key account is missing")
 		}
 		create := db.BudgetCharge.Create().SetProjectID(key.ProjectID).SetExecutionID(nextExecution).SetRequestID(nextExecution).SetKeyID(key.OwnerID).SetKeyAccountID(key.ID).
-			SetEstimate(source.Estimate).SetNillableActual(source.Actual).SetKeyVersions(source.KeyVersions).SetGroupVersions(source.GroupVersions).SetStatus(source.Status).SetCheckAfter(source.CheckAfter).SetNillableSettledAt(source.SettledAt).SetCreatedAt(source.CreatedAt)
+			SetEstimate(source.Estimate).SetNillableActual(source.Actual).SetKeyVersions(source.KeyVersions).SetGroupVersions(source.GroupVersions).SetStatus(source.Status).SetCheckAfter(source.CheckAfter).SetNillableSettledAt(source.SettledAt).SetCreatedAt(source.CreatedAt).
+			SetNillableReservationReleasedAt(source.ReservationReleasedAt).SetNillableOwnerToken(source.OwnerToken).SetNillableOwnerExpiresAt(source.OwnerExpiresAt)
 		nextExecution--
 		if source.AsyncTask != nil {
 			task := *source.AsyncTask
@@ -320,7 +321,7 @@ func validateBudgetBackup(data BackupData) error {
 			}
 			ids = append(ids, group.ID)
 		}
-		if c.Status != budgetcharge.StatusPrepared && c.Status != budgetcharge.StatusSent && c.Status != budgetcharge.StatusUnknown {
+		if c.ReservationReleasedAt != nil || c.Status != budgetcharge.StatusPrepared && c.Status != budgetcharge.StatusSent && c.Status != budgetcharge.StatusUnknown {
 			continue
 		}
 		for _, id := range ids {

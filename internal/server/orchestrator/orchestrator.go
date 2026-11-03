@@ -376,6 +376,12 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	)
 
 	result, err := pipe.Process(ctx, request)
+	// Process owns non-stream attempts; streaming attempts transfer ownership to
+	// budgetStream.Close, which may run long after this method returns.
+	if err == nil && !result.Stream && state.BudgetAttempt != nil {
+		state.BudgetAttempt.Stop()
+		state.BudgetAttempt = nil
+	}
 	if err != nil {
 		err = classifyRequestFailure(ctx, err)
 		if endErr := outbound.endBudgetAttempt(ctx); endErr != nil {
@@ -417,7 +423,7 @@ func maybeEvaluateChannelAPIKeyRulesOnFailure(
 	outbound *PersistentOutboundTransformer,
 	rawErr error,
 ) {
-	if biz.IsBudgetDenied(rawErr) {
+	if biz.IsBudgetDenied(rawErr) || isChannelCooldownError(rawErr) {
 		return
 	}
 	if outbound == nil || outbound.state == nil || outbound.state.ChannelService == nil {

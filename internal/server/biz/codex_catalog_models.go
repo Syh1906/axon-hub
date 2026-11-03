@@ -9,6 +9,7 @@ import (
 )
 
 var errCodexPlainModelList = errors.New("Codex catalog requires a models array, not an OpenAI data list")
+var errCodexInvalidEntries = errors.New("Codex catalog contains invalid or duplicate model definitions")
 
 func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 	if len(body) > codexCatalogMaxBytes {
@@ -195,6 +196,7 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 }
 
 // Isolate invalid remote entries; saved model definitions use strict validation.
+// Partial results retain a diagnostic so callers can use valid entries and warn.
 func parseRemoteCodexCatalog(body []byte) (map[string]map[string]any, error) {
 	if len(body) > codexCatalogMaxBytes {
 		return nil, fmt.Errorf("Codex catalog exceeds 1 MiB")
@@ -227,6 +229,9 @@ func parseRemoteCodexCatalog(body []byte) (map[string]map[string]any, error) {
 			seen[slug] = true
 			result[slug] = metadata
 		}
+	}
+	if omitted := len(wrapper.Models) - len(result); omitted > 0 {
+		return result, fmt.Errorf("%w: %d entries omitted", errCodexInvalidEntries, omitted)
 	}
 	return result, nil
 }

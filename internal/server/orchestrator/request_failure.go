@@ -53,6 +53,11 @@ func isRequestSizeLimitError(err error) bool {
 		strings.Contains(message, "request limit")
 }
 
+func isUpstreamTimeoutError(err error) bool {
+	status := ExtractStatusCodeFromError(err)
+	return status == http.StatusGatewayTimeout || status == 524
+}
+
 func requestFailureCode(err error) string {
 	switch {
 	case isRequestSizeLimitError(err):
@@ -61,7 +66,7 @@ func requestFailureCode(err error) string {
 		return "upstream_first_event_timeout"
 	case errors.Is(err, pipeline.ErrNonStreamResponseTimeout):
 		return "upstream_response_timeout"
-	case ExtractStatusCodeFromError(err) == http.StatusGatewayTimeout || ExtractStatusCodeFromError(err) == 524:
+	case isUpstreamTimeoutError(err):
 		return "upstream_timeout"
 	default:
 		return ""
@@ -93,12 +98,15 @@ func classifyRequestFailure(ctx context.Context, err error) error {
 		return err
 	}
 	if response, ok := errors.AsType[*llm.ResponseError](err); ok {
-		if response.Detail.Code != "" {
+		timeoutMessage := code == "upstream_timeout" && (response.Detail.Message == "" || strings.HasPrefix(http.DetectContentType([]byte(response.Detail.Message)), "text/html"))
+		if response.Detail.Code != "" && !timeoutMessage {
 			return err
 		}
 		copy := *response
-		copy.Detail.Code = code
-		if copy.Detail.Message == "" && code == "upstream_timeout" {
+		if copy.Detail.Code == "" {
+			copy.Detail.Code = code
+		}
+		if timeoutMessage {
 			copy.Detail.Message = "The upstream provider timed out before returning a response."
 		}
 		copy.Cause = err

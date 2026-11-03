@@ -483,6 +483,10 @@ func (p *PersistentOutboundTransformer) APIFormat() llm.APIFormat {
 
 func (p *PersistentOutboundTransformer) TransformError(ctx context.Context, rawErr *httpclient.Error) *llm.ResponseError {
 	respErr := p.wrapped.TransformError(ctx, rawErr)
+	if respErr != nil && rawErr != nil && respErr.StatusCode == http.StatusTooManyRequests &&
+		respErr.Cause == nil && httpclient.HasRetryAfterHeader(rawErr) {
+		respErr.Cause = rawErr
+	}
 
 	// Pass-through forwarded the client's body verbatim, so hand the upstream error back
 	// verbatim too: clients such as Claude Code key their compatibility fallbacks on the
@@ -752,6 +756,9 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 // It implements the pipeline.ChannelRetryable interface, it just check the error is retryable, the
 // pipeline will ensure the maxSameChannelRetries is not exceeded.
 func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
+	if p.state.BudgetStop != nil {
+		return false
+	}
 	if biz.IsBudgetDenied(err) {
 		var denied *biz.BudgetDenied
 		if errors.As(err, &denied) && !denied.CandidateOnly {
@@ -778,6 +785,12 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	if p.state.CurrentCandidate.continuationUpstreamRef == "" && len(addresses) > 1 &&
 		p.state.CurrentCandidate.Channel.Settings.AddressFailover && isUpstreamAddressFailure(err) {
 		return p.CanRetryAfterTimeout(err)
+	}
+
+	// A timeout already exhausted the upstream wait. After eligible address
+	// failover, leave channel switching to the pipeline rather than repeat it.
+	if isUpstreamTimeoutError(err) {
+		return false
 	}
 
 	// Trace/thread sticky candidates are intentionally one-shot. A failed

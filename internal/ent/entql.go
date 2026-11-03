@@ -212,6 +212,8 @@ var schemaGraph = func() *sqlgraph.Schema {
 			budgetcharge.FieldCheckAfter:            {Type: field.TypeTime, Column: budgetcharge.FieldCheckAfter},
 			budgetcharge.FieldSettledAt:             {Type: field.TypeTime, Column: budgetcharge.FieldSettledAt},
 			budgetcharge.FieldReservationReleasedAt: {Type: field.TypeTime, Column: budgetcharge.FieldReservationReleasedAt},
+			budgetcharge.FieldOwnerToken:            {Type: field.TypeString, Column: budgetcharge.FieldOwnerToken},
+			budgetcharge.FieldOwnerExpiresAt:        {Type: field.TypeTime, Column: budgetcharge.FieldOwnerExpiresAt},
 		},
 	}
 	graph.Nodes[7] = &sqlgraph.Node{
@@ -2456,6 +2458,16 @@ func (f *BudgetChargeFilter) WhereSettledAt(p entql.TimeP) {
 // WhereReservationReleasedAt applies the entql time.Time predicate on the reservation_released_at field.
 func (f *BudgetChargeFilter) WhereReservationReleasedAt(p entql.TimeP) {
 	f.Where(p.Field(budgetcharge.FieldReservationReleasedAt))
+}
+
+// WhereOwnerToken applies the entql string predicate on the owner_token field.
+func (f *BudgetChargeFilter) WhereOwnerToken(p entql.StringP) {
+	f.Where(p.Field(budgetcharge.FieldOwnerToken))
+}
+
+// WhereOwnerExpiresAt applies the entql time.Time predicate on the owner_expires_at field.
+func (f *BudgetChargeFilter) WhereOwnerExpiresAt(p entql.TimeP) {
+	f.Where(p.Field(budgetcharge.FieldOwnerExpiresAt))
 }
 
 // addPredicate implements the predicateAdder interface.

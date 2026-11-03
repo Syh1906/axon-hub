@@ -25,6 +25,8 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+var errCodexMetadataUnavailable = errors.New("complete Codex metadata is not configured")
+
 const (
 	codexCatalogMaxBytes = 1 << 20
 	// Codex allows five seconds including transport and decoding. Leave time
@@ -86,7 +88,7 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 			definition, definitionErr := decodeCodexDefinition(settings.CodexCatalog)
 			var merged map[string]any
 			if definitionErr == nil {
-				merged, definitionErr = definition.catalogModel(m, version)
+				merged, definitionErr = definition.catalogModel(m)
 			}
 			if definitionErr != nil {
 				omitted++
@@ -98,7 +100,11 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		}
 		merged, err := automaticCodexModel(ctx, m, sourceConnections[m.ID], sources, channels, version)
 		if err != nil {
-			log.Warn(ctx, "Codex model omitted", log.String("model", m.ID), log.String("reason", err.Error()))
+			if errors.Is(err, errCodexMetadataUnavailable) {
+				log.Debug(ctx, "Codex model has no configured metadata", log.String("model", m.ID))
+			} else {
+				log.Warn(ctx, "Codex model omitted", log.String("model", m.ID), log.String("reason", err.Error()))
+			}
 			omitted++
 			continue
 		}
@@ -126,7 +132,7 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 		return parseCodexCatalog(ep.CatalogJSON)
 	}
 	if ep.APIFormat == "" {
-		return nil, fmt.Errorf("channel has no Responses catalog")
+		return nil, nil
 	}
 	u, err := url.Parse(codexCatalogURL(ch, ep))
 	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
@@ -183,7 +189,10 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 			return nil, fmt.Errorf("catalog read failed")
 		}
 		models, parseErr := parseRemoteCodexCatalog(body)
-		if parseErr != nil && !errors.Is(parseErr, errCodexPlainModelList) {
+		if errors.Is(parseErr, errCodexPlainModelList) {
+			parseErr = nil // A valid ordinary model list declares no Codex metadata.
+		}
+		if parseErr != nil && !errors.Is(parseErr, errCodexInvalidEntries) {
 			return nil, parseErr
 		}
 		ttl := catalogCacheTTL(resp.Header)
@@ -202,16 +211,17 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 			}
 			// An ordinary OpenAI list is a valid response without Codex metadata.
 			// Cache that fact under the same identity/version and freshness rules.
-			// Authentication, transport and malformed-response errors stay uncached.
+			// Partial catalogs retain invalid-entry diagnostics with their valid data;
+			// authentication, transport and malformed-response errors stay uncached.
 			s.cache[key] = codexCatalogCache{models: models, err: parseErr, expires: time.Now().Add(ttl)}
 			s.mu.Unlock()
 		}
 		return models, parseErr
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, errCodexInvalidEntries) {
 		return nil, err
 	}
-	return value.(map[string]map[string]any), nil
+	return value.(map[string]map[string]any), err
 }
 
 func codexCatalogURL(ch *Channel, ep objects.ChannelEndpoint) string {
@@ -292,7 +302,9 @@ func (s *CodexCatalogService) fetchCatalogSources(ctx context.Context, connectio
 				}
 			}()
 			models, err := s.channelCatalog(ctx, ch, version)
-			if err != nil {
+			if errors.Is(err, errCodexInvalidEntries) {
+				log.Warn(ctx, "Codex catalog contains invalid model definitions", log.Int("channel_id", ch.ID), log.String("reason", err.Error()))
+			} else if err != nil {
 				log.Warn(ctx, "Codex catalog source unavailable", log.Int("channel_id", ch.ID), log.String("reason", err.Error()))
 			}
 			mu.Lock()

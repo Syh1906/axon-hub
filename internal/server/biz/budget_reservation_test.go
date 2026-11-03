@@ -282,7 +282,7 @@ func TestBudgetRecoveryReleasesLegacyFinishedHoldAndPreservesActiveTasks(t *test
 		exec := f.db.RequestExecution.Create().SetProjectID(f.key.ProjectID).SetRequestID(req.ID).SetModelID("fixture").SetFormat(format.String()).SetRequestBody([]byte(`{}`)).SetStatus(executionStatus).SaveX(f.ctx)
 		require.NoError(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, req.ID, exec.ID, budgetAmount(t, estimate), nil))
 		require.NoError(t, f.service.MarkSent(f.ctx, exec.ID))
-		f.db.BudgetCharge.Update().Where(budgetcharge.ExecutionIDEQ(exec.ID)).SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(-time.Minute)).ExecX(f.ctx)
+		f.db.BudgetCharge.Update().Where(budgetcharge.ExecutionIDEQ(exec.ID)).SetStatus(budgetcharge.StatusUnknown).ClearOwnerToken().ClearOwnerExpiresAt().SetCheckAfter(time.Now().UTC().Add(-time.Minute)).ExecX(f.ctx)
 		return exec
 	}
 	failed := create(request.StatusFailed, requestexecution.StatusFailed, llm.APIFormatOpenAIChatCompletion, "30")

@@ -129,6 +129,16 @@ func ReservationReleasedAt(v time.Time) predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldEQ(FieldReservationReleasedAt, v))
 }
 
+// OwnerToken applies equality check predicate on the "owner_token" field. It's identical to OwnerTokenEQ.
+func OwnerToken(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldOwnerToken, v))
+}
+
+// OwnerExpiresAt applies equality check predicate on the "owner_expires_at" field. It's identical to OwnerExpiresAtEQ.
+func OwnerExpiresAt(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldOwnerExpiresAt, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldEQ(FieldCreatedAt, v))
@@ -837,6 +847,131 @@ func ReservationReleasedAtIsNil() predicate.BudgetCharge {
 // ReservationReleasedAtNotNil applies the NotNil predicate on the "reservation_released_at" field.
 func ReservationReleasedAtNotNil() predicate.BudgetCharge {
 	return predicate.BudgetCharge(sql.FieldNotNull(FieldReservationReleasedAt))
+}
+
+// OwnerTokenEQ applies the EQ predicate on the "owner_token" field.
+func OwnerTokenEQ(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldOwnerToken, v))
+}
+
+// OwnerTokenNEQ applies the NEQ predicate on the "owner_token" field.
+func OwnerTokenNEQ(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNEQ(FieldOwnerToken, v))
+}
+
+// OwnerTokenIn applies the In predicate on the "owner_token" field.
+func OwnerTokenIn(vs ...string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIn(FieldOwnerToken, vs...))
+}
+
+// OwnerTokenNotIn applies the NotIn predicate on the "owner_token" field.
+func OwnerTokenNotIn(vs ...string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotIn(FieldOwnerToken, vs...))
+}
+
+// OwnerTokenGT applies the GT predicate on the "owner_token" field.
+func OwnerTokenGT(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGT(FieldOwnerToken, v))
+}
+
+// OwnerTokenGTE applies the GTE predicate on the "owner_token" field.
+func OwnerTokenGTE(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGTE(FieldOwnerToken, v))
+}
+
+// OwnerTokenLT applies the LT predicate on the "owner_token" field.
+func OwnerTokenLT(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLT(FieldOwnerToken, v))
+}
+
+// OwnerTokenLTE applies the LTE predicate on the "owner_token" field.
+func OwnerTokenLTE(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLTE(FieldOwnerToken, v))
+}
+
+// OwnerTokenContains applies the Contains predicate on the "owner_token" field.
+func OwnerTokenContains(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldContains(FieldOwnerToken, v))
+}
+
+// OwnerTokenHasPrefix applies the HasPrefix predicate on the "owner_token" field.
+func OwnerTokenHasPrefix(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldHasPrefix(FieldOwnerToken, v))
+}
+
+// OwnerTokenHasSuffix applies the HasSuffix predicate on the "owner_token" field.
+func OwnerTokenHasSuffix(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldHasSuffix(FieldOwnerToken, v))
+}
+
+// OwnerTokenIsNil applies the IsNil predicate on the "owner_token" field.
+func OwnerTokenIsNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIsNull(FieldOwnerToken))
+}
+
+// OwnerTokenNotNil applies the NotNil predicate on the "owner_token" field.
+func OwnerTokenNotNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotNull(FieldOwnerToken))
+}
+
+// OwnerTokenEqualFold applies the EqualFold predicate on the "owner_token" field.
+func OwnerTokenEqualFold(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEqualFold(FieldOwnerToken, v))
+}
+
+// OwnerTokenContainsFold applies the ContainsFold predicate on the "owner_token" field.
+func OwnerTokenContainsFold(v string) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldContainsFold(FieldOwnerToken, v))
+}
+
+// OwnerExpiresAtEQ applies the EQ predicate on the "owner_expires_at" field.
+func OwnerExpiresAtEQ(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldEQ(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtNEQ applies the NEQ predicate on the "owner_expires_at" field.
+func OwnerExpiresAtNEQ(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNEQ(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtIn applies the In predicate on the "owner_expires_at" field.
+func OwnerExpiresAtIn(vs ...time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIn(FieldOwnerExpiresAt, vs...))
+}
+
+// OwnerExpiresAtNotIn applies the NotIn predicate on the "owner_expires_at" field.
+func OwnerExpiresAtNotIn(vs ...time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotIn(FieldOwnerExpiresAt, vs...))
+}
+
+// OwnerExpiresAtGT applies the GT predicate on the "owner_expires_at" field.
+func OwnerExpiresAtGT(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGT(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtGTE applies the GTE predicate on the "owner_expires_at" field.
+func OwnerExpiresAtGTE(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldGTE(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtLT applies the LT predicate on the "owner_expires_at" field.
+func OwnerExpiresAtLT(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLT(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtLTE applies the LTE predicate on the "owner_expires_at" field.
+func OwnerExpiresAtLTE(v time.Time) predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldLTE(FieldOwnerExpiresAt, v))
+}
+
+// OwnerExpiresAtIsNil applies the IsNil predicate on the "owner_expires_at" field.
+func OwnerExpiresAtIsNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldIsNull(FieldOwnerExpiresAt))
+}
+
+// OwnerExpiresAtNotNil applies the NotNil predicate on the "owner_expires_at" field.
+func OwnerExpiresAtNotNil() predicate.BudgetCharge {
+	return predicate.BudgetCharge(sql.FieldNotNull(FieldOwnerExpiresAt))
 }
 
 // And groups predicates with the AND operator between them.

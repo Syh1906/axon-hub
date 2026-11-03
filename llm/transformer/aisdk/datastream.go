@@ -178,7 +178,8 @@ func (t *DataStreamTransformer) TransformError(ctx context.Context, rawErr error
 		}
 	}
 
-	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok {
+	llmErr, isLLMError := errors.AsType[*llm.ResponseError](rawErr)
+	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok && !isLLMError {
 		return httpErr
 	}
 
@@ -191,7 +192,7 @@ func (t *DataStreamTransformer) TransformError(ctx context.Context, rawErr error
 		}
 	}
 
-	if llmErr, ok := errors.AsType[*llm.ResponseError](rawErr); ok {
+	if isLLMError {
 		return &httpclient.Error{
 			StatusCode: llmErr.StatusCode,
 			Status:     http.StatusText(llmErr.StatusCode),

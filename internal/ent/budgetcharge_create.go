@@ -223,6 +223,34 @@ func (_c *BudgetChargeCreate) SetNillableReservationReleasedAt(v *time.Time) *Bu
 	return _c
 }
 
+// SetOwnerToken sets the "owner_token" field.
+func (_c *BudgetChargeCreate) SetOwnerToken(v string) *BudgetChargeCreate {
+	_c.mutation.SetOwnerToken(v)
+	return _c
+}
+
+// SetNillableOwnerToken sets the "owner_token" field if the given value is not nil.
+func (_c *BudgetChargeCreate) SetNillableOwnerToken(v *string) *BudgetChargeCreate {
+	if v != nil {
+		_c.SetOwnerToken(*v)
+	}
+	return _c
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (_c *BudgetChargeCreate) SetOwnerExpiresAt(v time.Time) *BudgetChargeCreate {
+	_c.mutation.SetOwnerExpiresAt(v)
+	return _c
+}
+
+// SetNillableOwnerExpiresAt sets the "owner_expires_at" field if the given value is not nil.
+func (_c *BudgetChargeCreate) SetNillableOwnerExpiresAt(v *time.Time) *BudgetChargeCreate {
+	if v != nil {
+		_c.SetOwnerExpiresAt(*v)
+	}
+	return _c
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_c *BudgetChargeCreate) Mutation() *BudgetChargeMutation {
 	return _c.mutation
@@ -317,6 +345,11 @@ func (_c *BudgetChargeCreate) check() error {
 	}
 	if _, ok := _c.mutation.CheckAfter(); !ok {
 		return &ValidationError{Name: "check_after", err: errors.New(`ent: missing required field "BudgetCharge.check_after"`)}
+	}
+	if v, ok := _c.mutation.OwnerToken(); ok {
+		if err := budgetcharge.OwnerTokenValidator(v); err != nil {
+			return &ValidationError{Name: "owner_token", err: fmt.Errorf(`ent: validator failed for field "BudgetCharge.owner_token": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -428,6 +461,14 @@ func (_c *BudgetChargeCreate) createSpec() (*BudgetCharge, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ReservationReleasedAt(); ok {
 		_spec.SetField(budgetcharge.FieldReservationReleasedAt, field.TypeTime, value)
 		_node.ReservationReleasedAt = &value
+	}
+	if value, ok := _c.mutation.OwnerToken(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerToken, field.TypeString, value)
+		_node.OwnerToken = &value
+	}
+	if value, ok := _c.mutation.OwnerExpiresAt(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerExpiresAt, field.TypeTime, value)
+		_node.OwnerExpiresAt = &value
 	}
 	return _node, _spec
 }
@@ -652,6 +693,42 @@ func (u *BudgetChargeUpsert) UpdateReservationReleasedAt() *BudgetChargeUpsert {
 // ClearReservationReleasedAt clears the value of the "reservation_released_at" field.
 func (u *BudgetChargeUpsert) ClearReservationReleasedAt() *BudgetChargeUpsert {
 	u.SetNull(budgetcharge.FieldReservationReleasedAt)
+	return u
+}
+
+// SetOwnerToken sets the "owner_token" field.
+func (u *BudgetChargeUpsert) SetOwnerToken(v string) *BudgetChargeUpsert {
+	u.Set(budgetcharge.FieldOwnerToken, v)
+	return u
+}
+
+// UpdateOwnerToken sets the "owner_token" field to the value that was provided on create.
+func (u *BudgetChargeUpsert) UpdateOwnerToken() *BudgetChargeUpsert {
+	u.SetExcluded(budgetcharge.FieldOwnerToken)
+	return u
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (u *BudgetChargeUpsert) ClearOwnerToken() *BudgetChargeUpsert {
+	u.SetNull(budgetcharge.FieldOwnerToken)
+	return u
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (u *BudgetChargeUpsert) SetOwnerExpiresAt(v time.Time) *BudgetChargeUpsert {
+	u.Set(budgetcharge.FieldOwnerExpiresAt, v)
+	return u
+}
+
+// UpdateOwnerExpiresAt sets the "owner_expires_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsert) UpdateOwnerExpiresAt() *BudgetChargeUpsert {
+	u.SetExcluded(budgetcharge.FieldOwnerExpiresAt)
+	return u
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (u *BudgetChargeUpsert) ClearOwnerExpiresAt() *BudgetChargeUpsert {
+	u.SetNull(budgetcharge.FieldOwnerExpiresAt)
 	return u
 }
 
@@ -930,6 +1007,48 @@ func (u *BudgetChargeUpsertOne) UpdateReservationReleasedAt() *BudgetChargeUpser
 func (u *BudgetChargeUpsertOne) ClearReservationReleasedAt() *BudgetChargeUpsertOne {
 	return u.Update(func(s *BudgetChargeUpsert) {
 		s.ClearReservationReleasedAt()
+	})
+}
+
+// SetOwnerToken sets the "owner_token" field.
+func (u *BudgetChargeUpsertOne) SetOwnerToken(v string) *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetOwnerToken(v)
+	})
+}
+
+// UpdateOwnerToken sets the "owner_token" field to the value that was provided on create.
+func (u *BudgetChargeUpsertOne) UpdateOwnerToken() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateOwnerToken()
+	})
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (u *BudgetChargeUpsertOne) ClearOwnerToken() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearOwnerToken()
+	})
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (u *BudgetChargeUpsertOne) SetOwnerExpiresAt(v time.Time) *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetOwnerExpiresAt(v)
+	})
+}
+
+// UpdateOwnerExpiresAt sets the "owner_expires_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsertOne) UpdateOwnerExpiresAt() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateOwnerExpiresAt()
+	})
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (u *BudgetChargeUpsertOne) ClearOwnerExpiresAt() *BudgetChargeUpsertOne {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearOwnerExpiresAt()
 	})
 }
 
@@ -1374,6 +1493,48 @@ func (u *BudgetChargeUpsertBulk) UpdateReservationReleasedAt() *BudgetChargeUpse
 func (u *BudgetChargeUpsertBulk) ClearReservationReleasedAt() *BudgetChargeUpsertBulk {
 	return u.Update(func(s *BudgetChargeUpsert) {
 		s.ClearReservationReleasedAt()
+	})
+}
+
+// SetOwnerToken sets the "owner_token" field.
+func (u *BudgetChargeUpsertBulk) SetOwnerToken(v string) *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetOwnerToken(v)
+	})
+}
+
+// UpdateOwnerToken sets the "owner_token" field to the value that was provided on create.
+func (u *BudgetChargeUpsertBulk) UpdateOwnerToken() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateOwnerToken()
+	})
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (u *BudgetChargeUpsertBulk) ClearOwnerToken() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearOwnerToken()
+	})
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (u *BudgetChargeUpsertBulk) SetOwnerExpiresAt(v time.Time) *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.SetOwnerExpiresAt(v)
+	})
+}
+
+// UpdateOwnerExpiresAt sets the "owner_expires_at" field to the value that was provided on create.
+func (u *BudgetChargeUpsertBulk) UpdateOwnerExpiresAt() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.UpdateOwnerExpiresAt()
+	})
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (u *BudgetChargeUpsertBulk) ClearOwnerExpiresAt() *BudgetChargeUpsertBulk {
+	return u.Update(func(s *BudgetChargeUpsert) {
+		s.ClearOwnerExpiresAt()
 	})
 }
 

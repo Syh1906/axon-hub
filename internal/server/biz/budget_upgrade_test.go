@@ -44,3 +44,25 @@ func TestBudgetSchemaUpgradePreservesExistingKeys(t *testing.T) {
 	require.NoError(t, f.db.Schema.Create(f.ctx))
 	require.Equal(t, 1, f.db.BudgetAccount.Query().CountX(f.ctx))
 }
+
+func TestBudgetOwnerColumnsUpgradePreservesLegacyUnknownHold(t *testing.T) {
+	f := newBudgetFixture(t)
+	f.configure(t, "key", f.key.ID, "35")
+	require.NoError(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, 1, 1, budgetAmount(t, "7"), nil))
+	require.NoError(t, f.service.MarkSent(f.ctx, 1))
+	before := f.db.BudgetCharge.Query().OnlyX(f.ctx)
+	for _, column := range []string{"owner_token", "owner_expires_at"} {
+		var result sql.Result
+		require.NoError(t, f.db.Driver().Exec(f.ctx, "ALTER TABLE budget_charges DROP COLUMN "+column, []any{}, &result))
+	}
+	for range 2 {
+		require.NoError(t, f.db.Schema.Create(f.ctx))
+	}
+	after := f.db.BudgetCharge.GetX(f.ctx, before.ID)
+	require.Nil(t, after.OwnerToken)
+	require.Nil(t, after.OwnerExpiresAt)
+	require.Equal(t, before.Status, after.Status)
+	require.Equal(t, before.Estimate, after.Estimate)
+	require.NoError(t, NewBudgetService(f.db).RecoverAttempt(f.ctx, after.ExecutionID))
+	require.Nil(t, f.db.BudgetCharge.GetX(f.ctx, before.ID).ReservationReleasedAt)
+}

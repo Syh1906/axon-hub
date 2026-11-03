@@ -3,7 +3,9 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
@@ -137,4 +139,41 @@ func TestPersistentOutboundTransformer_CanRetry_LocalRPMExhausted(t *testing.T) 
 
 	assert.False(t, outbound.CanRetry(err))
 	assert.True(t, errors.Is(err, ErrLocalRPMExhausted))
+}
+
+func TestRateLimitAdmission_RespectsUpstreamCooldown(t *testing.T) {
+	tracker := NewChannelRequestTracker()
+	channel := channelWithRPM(8, "cooling-channel", 0)
+	outbound := newTestOutbound(channel)
+	until := time.Now().Add(30 * time.Second)
+	tracker.SetCooldown(channel.ID, until)
+	middleware := withRateLimitAdmission(outbound, tracker)
+
+	_, err := middleware.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.Error(t, err, "冷却中的唯一候选也不能继续向上游发送")
+	var httpErr *httpclient.Error
+	require.ErrorAs(t, err, &httpErr)
+	require.Equal(t, http.StatusTooManyRequests, httpErr.StatusCode)
+	require.Equal(t, "30", httpErr.Headers.Get("Retry-After"))
+	require.Zero(t, tracker.GetRequestCount(channel.ID))
+	require.False(t, outbound.CanRetry(err))
+	require.Equal(t, biz.HealthGateOutcomeNeutral, classifyHealthGateOutcome(t.Context(), err))
+
+	withRateLimitTracking(outbound, tracker).OnOutboundRawError(t.Context(), err)
+	currentUntil, cooling := tracker.GetCooldownUntil(channel.ID)
+	require.True(t, cooling)
+	require.Equal(t, until, currentUntil, "本地冷却拒绝不能延长上游指定的恢复时间")
+	info := extractExecutionErrorInfo(err, "")
+	require.Equal(t, "gateway", info.Failure.Source)
+	require.Nil(t, info.StatusCode, "没有发到上游，不能记录上游HTTP响应码")
+}
+
+func TestRateLimitAdmission_ExpiredCooldownAllowsRequest(t *testing.T) {
+	tracker := NewChannelRequestTracker()
+	channel := channelWithRPM(8, "recovered-channel", 0)
+	tracker.SetCooldown(channel.ID, time.Now().Add(-time.Second))
+	middleware := withRateLimitAdmission(newTestOutbound(channel), tracker)
+	_, err := middleware.OnOutboundRawRequest(t.Context(), &httpclient.Request{})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, tracker.GetRequestCount(channel.ID))
 }

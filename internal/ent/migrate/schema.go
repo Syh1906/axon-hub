@@ -237,6 +237,8 @@ var (
 		{Name: "check_after", Type: field.TypeTime},
 		{Name: "settled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "reservation_released_at", Type: field.TypeTime, Nullable: true},
+		{Name: "owner_token", Type: field.TypeString, Nullable: true, Size: 36},
+		{Name: "owner_expires_at", Type: field.TypeTime, Nullable: true},
 	}
 	// BudgetChargesTable holds the schema information for the "budget_charges" table.
 	BudgetChargesTable = &schema.Table{

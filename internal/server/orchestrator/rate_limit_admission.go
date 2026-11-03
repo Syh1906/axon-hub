@@ -8,9 +8,9 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 )
 
-// withRateLimitAdmission enforces strict per-instance RPM before an attempt is
-// sent upstream. It intentionally runs after channel concurrency admission so
-// queue rejections never consume RPM.
+// withRateLimitAdmission enforces provider cooldowns and per-instance RPM before
+// each upstream attempt. It runs after concurrency admission so queue rejections
+// never consume RPM, and cooldowns received while waiting are checked before send.
 func withRateLimitAdmission(outbound *PersistentOutboundTransformer, tracker *ChannelRequestTracker) pipeline.Middleware {
 	if tracker == nil {
 		return &noopRateLimitAdmission{}
@@ -37,6 +37,9 @@ func (m *rateLimitAdmissionMiddleware) OnOutboundRawRequest(ctx context.Context,
 	channel := m.outbound.GetCurrentChannel()
 	if channel == nil {
 		return request, nil
+	}
+	if until, cooling := m.tracker.GetCooldownUntil(channel.ID); cooling {
+		return nil, newChannelCooldownError(until)
 	}
 
 	var limit int64

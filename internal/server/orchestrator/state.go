@@ -40,10 +40,11 @@ type PersistenceState struct {
 	OriginalRequestStream *bool
 
 	// Persistence state
-	Request      *ent.Request
-	RequestExec  *ent.RequestExecution
-	FailureStage string
-	BudgetStop   error
+	Request       *ent.Request
+	RequestExec   *ent.RequestExecution
+	FailureStage  string
+	BudgetStop    error
+	BudgetAttempt *biz.BudgetAttempt
 	// A non-stream Responses outcome can fail while its HTTP status remains 200.
 	ResponseTerminalError error
 

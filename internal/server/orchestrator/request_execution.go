@@ -300,6 +300,11 @@ func extractExecutionErrorInfo(err error, secret string) *biz.ExecutionErrorInfo
 	}
 	failure := &objects.RequestExecutionFailure{Source: "gateway"}
 	info := &biz.ExecutionErrorInfo{Failure: failure}
+	if isChannelCooldownError(err) {
+		failure.Code = channelCooldownCode
+		failure.Type = "rate_limit_error"
+		return info
+	}
 	if denied, ok := xerrors.As[*biz.BudgetDenied](err); ok {
 		failure.Code = denied.Reason
 		failure.Type = "budget_error"

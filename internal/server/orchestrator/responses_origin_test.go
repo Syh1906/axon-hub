@@ -380,29 +380,40 @@ func TestResponsesOriginDoneTerminal(t *testing.T) {
 	}
 }
 
-func TestResponsesOriginRetriesSameAddressAfterTransientFailure(t *testing.T) {
+func TestResponsesOriginRetryKeepsSourceAndStopsOnTimeout(t *testing.T) {
 	response := &httpclient.Response{
 		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
 		Body: []byte(`{"id":"resp_retry","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_retry","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_retry-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
 	}
-	executor := &sequenceExecutor{steps: []executorStep{{resp: response}, {err: &httpclient.Error{StatusCode: 503}}, {resp: response}}}
-	ctx, processor, client, source := responsesOriginGateway(t, executor)
-	source.Channel.Settings = &objects.ChannelSettings{AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{
-		{ID: "main", URL: source.Channel.BaseURL, Enabled: true},
-		{ID: "backup", URL: "https://backup.example/v1", Priority: 1, Enabled: true},
-	}}
-	policy := processor.SystemService.RetryPolicyOrDefault(ctx)
-	policy.MaxSingleChannelRetries = 1
-	require.NoError(t, processor.SystemService.SetRetryPolicy(ctx, policy))
-	for _, input := range []string{`"first"`, `[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_retry-cipher"},{"role":"user","content":"continue"}]`} {
-		_, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(fmt.Sprintf(`{"model":"gpt-4","input":%s}`, input))})
-		require.NoError(t, err)
+	for _, status := range []int{503, 504, 524} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			executor := &sequenceExecutor{steps: []executorStep{{resp: response}, {err: &httpclient.Error{StatusCode: status}}, {resp: response}}}
+			ctx, processor, client, source := responsesOriginGateway(t, executor)
+			source.Channel.Settings = &objects.ChannelSettings{AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{
+				{ID: "main", URL: source.Channel.BaseURL, Enabled: true},
+				{ID: "backup", URL: "https://backup.example/v1", Priority: 1, Enabled: true},
+			}}
+			policy := processor.SystemService.RetryPolicyOrDefault(ctx)
+			policy.MaxSingleChannelRetries = 2
+			require.NoError(t, processor.SystemService.SetRetryPolicy(ctx, policy))
+			_, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"first"}`)})
+			require.NoError(t, err)
+			_, err = processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_retry-cipher"},{"role":"user","content":"continue"}]}`)})
+			if status != 503 {
+				require.Equal(t, status, ExtractStatusCodeFromError(err))
+				require.Len(t, executor.requests, 2, "续聊超时后不能重复原来源或切换来源")
+				require.Equal(t, executor.requests[0].URL, executor.requests[1].URL)
+				require.Equal(t, executor.requests[0].Auth, executor.requests[1].Auth)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, executor.requests, 3)
+			require.Equal(t, executor.requests[1].URL, executor.requests[2].URL)
+			require.Equal(t, executor.requests[1].Auth, executor.requests[2].Auth)
+			require.Equal(t, executor.requests[1].Body, executor.requests[2].Body)
+			require.NotContains(t, executor.requests[2].URL, "backup.example")
+			executions := client.RequestExecution.Query().Order(ent.Asc("id")).AllX(ctx)
+			require.Equal(t, "same_channel", executions[1].RetryDecision)
+		})
 	}
-	require.Len(t, executor.requests, 3)
-	require.Equal(t, executor.requests[1].URL, executor.requests[2].URL)
-	require.Equal(t, executor.requests[1].Auth, executor.requests[2].Auth)
-	require.Equal(t, executor.requests[1].Body, executor.requests[2].Body)
-	require.NotContains(t, executor.requests[2].URL, "backup.example")
-	executions := client.RequestExecution.Query().Order(ent.Asc("id")).AllX(ctx)
-	require.Equal(t, "same_channel", executions[1].RetryDecision)
 }

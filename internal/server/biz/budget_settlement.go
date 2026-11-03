@@ -112,7 +112,7 @@ func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budge
 		if charge.ReservationReleasedAt == nil {
 			update.SetReservationReleasedAt(now)
 		}
-		return update.SetActual(int64(*cost)).SetStatus(budgetcharge.StatusSettled).SetSettledAt(now).Exec(ctx)
+		return update.SetActual(int64(*cost)).SetStatus(budgetcharge.StatusSettled).SetSettledAt(now).ClearOwnerExpiresAt().Exec(ctx)
 	})
 	return
 }

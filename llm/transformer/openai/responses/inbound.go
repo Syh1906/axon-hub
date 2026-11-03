@@ -128,6 +128,10 @@ func (t *InboundTransformer) TransformError(ctx context.Context, rawErr error) *
 	}
 
 	if llmErr, ok := errors.AsType[*llm.ResponseError](rawErr); ok {
+		status := llmErr.StatusCode
+		if status == 0 {
+			status = http.StatusBadGateway
+		}
 		errResp := ResponseError{
 			Error: ResponseErrorDetail{
 				Message: llmErr.Detail.Message,
@@ -138,8 +142,8 @@ func (t *InboundTransformer) TransformError(ctx context.Context, rawErr error) *
 		}
 
 		return &httpclient.Error{
-			StatusCode: llmErr.StatusCode,
-			Status:     http.StatusText(llmErr.StatusCode),
+			StatusCode: status,
+			Status:     http.StatusText(status),
 			Body:       xjson.MustMarshal(&errResp),
 		}
 	}

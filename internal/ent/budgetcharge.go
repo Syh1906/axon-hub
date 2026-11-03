@@ -63,7 +63,11 @@ type BudgetCharge struct {
 	SettledAt *time.Time `json:"settled_at,omitempty"`
 	// ReservationReleasedAt holds the value of the "reservation_released_at" field.
 	ReservationReleasedAt *time.Time `json:"reservation_released_at,omitempty"`
-	selectValues          sql.SelectValues
+	// OwnerToken holds the value of the "owner_token" field.
+	OwnerToken *string `json:"owner_token,omitempty"`
+	// OwnerExpiresAt holds the value of the "owner_expires_at" field.
+	OwnerExpiresAt *time.Time `json:"owner_expires_at,omitempty"`
+	selectValues   sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -75,9 +79,9 @@ func (*BudgetCharge) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case budgetcharge.FieldID, budgetcharge.FieldProjectID, budgetcharge.FieldExecutionID, budgetcharge.FieldRequestID, budgetcharge.FieldKeyID, budgetcharge.FieldGroupID, budgetcharge.FieldKeyAccountID, budgetcharge.FieldGroupAccountID, budgetcharge.FieldEstimate, budgetcharge.FieldActual, budgetcharge.FieldUsageLogID:
 			values[i] = new(sql.NullInt64)
-		case budgetcharge.FieldStatus:
+		case budgetcharge.FieldStatus, budgetcharge.FieldOwnerToken:
 			values[i] = new(sql.NullString)
-		case budgetcharge.FieldCreatedAt, budgetcharge.FieldUpdatedAt, budgetcharge.FieldCheckAfter, budgetcharge.FieldSettledAt, budgetcharge.FieldReservationReleasedAt:
+		case budgetcharge.FieldCreatedAt, budgetcharge.FieldUpdatedAt, budgetcharge.FieldCheckAfter, budgetcharge.FieldSettledAt, budgetcharge.FieldReservationReleasedAt, budgetcharge.FieldOwnerExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -242,6 +246,20 @@ func (_m *BudgetCharge) assignValues(columns []string, values []any) error {
 				_m.ReservationReleasedAt = new(time.Time)
 				*_m.ReservationReleasedAt = value.Time
 			}
+		case budgetcharge.FieldOwnerToken:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_token", values[i])
+			} else if value.Valid {
+				_m.OwnerToken = new(string)
+				*_m.OwnerToken = value.String
+			}
+		case budgetcharge.FieldOwnerExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_expires_at", values[i])
+			} else if value.Valid {
+				_m.OwnerExpiresAt = new(time.Time)
+				*_m.OwnerExpiresAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -350,6 +368,16 @@ func (_m *BudgetCharge) String() string {
 	builder.WriteString(", ")
 	if v := _m.ReservationReleasedAt; v != nil {
 		builder.WriteString("reservation_released_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.OwnerToken; v != nil {
+		builder.WriteString("owner_token=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.OwnerExpiresAt; v != nil {
+		builder.WriteString("owner_expires_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')

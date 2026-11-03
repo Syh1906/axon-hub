@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -158,4 +159,54 @@ func TestRequestDeadlineClassifiedByProcess(t *testing.T) {
 	require.Equal(t, "request_deadline_exceeded", executions[0].Failure.Code)
 	require.Nil(t, executions[0].ResponseStatusCode, "本地超时不能伪造上游 HTTP 状态")
 	require.Equal(t, 504, responses.NewInboundTransformer().TransformError(ctx, err).StatusCode)
+}
+
+func TestUpstreamTimeoutSkipsRepeatedOrigin(t *testing.T) {
+	for _, status := range []int{http.StatusGatewayTimeout, 524} {
+		for _, bound := range []bool{false, true} {
+			ch := &biz.Channel{Channel: &ent.Channel{Settings: &objects.ChannelSettings{RetryableStatusCodes: []int{status, 503}}}}
+			candidate := &ChannelModelsCandidate{Channel: ch, continuationBound: bound, Models: []biz.ChannelModelEntry{{ActualModel: "one"}, {ActualModel: "two"}}}
+			p := &PersistentOutboundTransformer{state: &PersistenceState{CurrentCandidate: candidate}}
+			for _, err := range []error{&httpclient.Error{StatusCode: status}, pipeline.WrapUpstreamError(&llm.ResponseError{StatusCode: status})} {
+				require.False(t, p.CanRetry(err), "明确的上游超时应交给安全备用渠道，不再重复同一来源")
+			}
+			require.True(t, p.CanRetry(&httpclient.Error{StatusCode: 503}), "普通暂时不可用仍沿用原重试策略")
+		}
+	}
+}
+
+func TestUpstreamTimeoutUsesExistingChannelFallback(t *testing.T) {
+	ctx, client := setupTest(t)
+	first := createTestChannel(t, ctx, client)
+	second := client.Channel.Create().SetType("openai").SetName("timeout-backup").SetBaseURL("https://backup.example/v1").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SetSupportedModels([]string{"gpt-4"}).SetDefaultTestModel("gpt-4").SaveX(ctx)
+	executor := &sequenceExecutor{steps: []executorStep{
+		{err: &httpclient.Error{StatusCode: 524, Body: []byte("<!DOCTYPE html><html><title>A timeout occurred</title></html>")}},
+		{resp: healthGateResponse()},
+	}}
+	processCtx, processor, _ := healthGateOrchestratorFixture(t, ctx, client, executor, first, second)
+	policy := processor.SystemService.RetryPolicyOrDefault(processCtx)
+	policy.MaxSingleChannelRetries = 2
+	require.NoError(t, processor.SystemService.SetRetryPolicy(processCtx, policy))
+	_, err := processor.Process(processCtx, buildTestRequest("gpt-4", "hello", false))
+	require.NoError(t, err)
+	require.Len(t, executor.requests, 2)
+	require.Contains(t, executor.requests[1].URL, "backup.example")
+}
+
+func TestUpstreamTimeoutReplacesHTMLMessage(t *testing.T) {
+	for _, code := range []string{"", "provider_timeout"} {
+		original := &llm.ResponseError{StatusCode: 524, Detail: llm.ErrorDetail{
+			Code: code, Type: "api_error", Message: "<!DOCTYPE html><html><title>A timeout occurred</title></html>",
+		}}
+		err := classifyRequestFailure(context.Background(), pipeline.WrapUpstreamError(original))
+		require.ErrorIs(t, err, original)
+		wire := responses.NewInboundTransformer().TransformError(context.Background(), err)
+		require.Equal(t, 524, wire.StatusCode)
+		require.NotContains(t, string(wire.Body), "<!DOCTYPE")
+		require.Contains(t, string(wire.Body), "timed out")
+		if code != "" {
+			require.Contains(t, string(wire.Body), code)
+		}
+		require.Contains(t, original.Detail.Message, "<!DOCTYPE", "原上游错误仍可供诊断")
+	}
 }

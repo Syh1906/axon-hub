@@ -117,7 +117,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	connections = metadataConnections
 	profile, _ := previewCodexModelProfile(m.TargetID, connections, sources)
 	if profile == nil {
-		return nil, fmt.Errorf("no complete catalog source for model %s", m.ID)
+		return nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
 	}
 	// Prefer metadata for the exact actual model. Explicit model associations
 	// also define aliases whose providers may expose only a plain model list.
@@ -167,5 +167,5 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		}
 	}
 	m.Connections = eligible
-	return d.catalogModel(m, version)
+	return d.catalogModel(m)
 }

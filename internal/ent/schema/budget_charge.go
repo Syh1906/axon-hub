@@ -39,6 +39,10 @@ func (BudgetCharge) Fields() []ent.Field {
 		field.Time("settled_at").Optional().Nillable(),
 		// Releasing a temporary hold does not settle an unknown provider cost.
 		field.Time("reservation_released_at").Optional().Nillable(),
+		// A renewable execution lease distinguishes live attempts from crashed owners.
+		// NULL belongs to older releases and is never proof that an attempt died.
+		field.String("owner_token").MaxLen(36).Optional().Nillable(),
+		field.Time("owner_expires_at").Optional().Nillable(),
 	}
 }
 func (BudgetCharge) Indexes() []ent.Index {

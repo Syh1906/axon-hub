@@ -195,6 +195,46 @@ func (_u *BudgetChargeUpdate) ClearReservationReleasedAt() *BudgetChargeUpdate {
 	return _u
 }
 
+// SetOwnerToken sets the "owner_token" field.
+func (_u *BudgetChargeUpdate) SetOwnerToken(v string) *BudgetChargeUpdate {
+	_u.mutation.SetOwnerToken(v)
+	return _u
+}
+
+// SetNillableOwnerToken sets the "owner_token" field if the given value is not nil.
+func (_u *BudgetChargeUpdate) SetNillableOwnerToken(v *string) *BudgetChargeUpdate {
+	if v != nil {
+		_u.SetOwnerToken(*v)
+	}
+	return _u
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (_u *BudgetChargeUpdate) ClearOwnerToken() *BudgetChargeUpdate {
+	_u.mutation.ClearOwnerToken()
+	return _u
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (_u *BudgetChargeUpdate) SetOwnerExpiresAt(v time.Time) *BudgetChargeUpdate {
+	_u.mutation.SetOwnerExpiresAt(v)
+	return _u
+}
+
+// SetNillableOwnerExpiresAt sets the "owner_expires_at" field if the given value is not nil.
+func (_u *BudgetChargeUpdate) SetNillableOwnerExpiresAt(v *time.Time) *BudgetChargeUpdate {
+	if v != nil {
+		_u.SetOwnerExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (_u *BudgetChargeUpdate) ClearOwnerExpiresAt() *BudgetChargeUpdate {
+	_u.mutation.ClearOwnerExpiresAt()
+	return _u
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_u *BudgetChargeUpdate) Mutation() *BudgetChargeMutation {
 	return _u.mutation
@@ -247,6 +287,11 @@ func (_u *BudgetChargeUpdate) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := budgetcharge.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "BudgetCharge.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OwnerToken(); ok {
+		if err := budgetcharge.OwnerTokenValidator(v); err != nil {
+			return &ValidationError{Name: "owner_token", err: fmt.Errorf(`ent: validator failed for field "BudgetCharge.owner_token": %w`, err)}
 		}
 	}
 	return nil
@@ -332,6 +377,18 @@ func (_u *BudgetChargeUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ReservationReleasedAtCleared() {
 		_spec.ClearField(budgetcharge.FieldReservationReleasedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.OwnerToken(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerToken, field.TypeString, value)
+	}
+	if _u.mutation.OwnerTokenCleared() {
+		_spec.ClearField(budgetcharge.FieldOwnerToken, field.TypeString)
+	}
+	if value, ok := _u.mutation.OwnerExpiresAt(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.OwnerExpiresAtCleared() {
+		_spec.ClearField(budgetcharge.FieldOwnerExpiresAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -519,6 +576,46 @@ func (_u *BudgetChargeUpdateOne) ClearReservationReleasedAt() *BudgetChargeUpdat
 	return _u
 }
 
+// SetOwnerToken sets the "owner_token" field.
+func (_u *BudgetChargeUpdateOne) SetOwnerToken(v string) *BudgetChargeUpdateOne {
+	_u.mutation.SetOwnerToken(v)
+	return _u
+}
+
+// SetNillableOwnerToken sets the "owner_token" field if the given value is not nil.
+func (_u *BudgetChargeUpdateOne) SetNillableOwnerToken(v *string) *BudgetChargeUpdateOne {
+	if v != nil {
+		_u.SetOwnerToken(*v)
+	}
+	return _u
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (_u *BudgetChargeUpdateOne) ClearOwnerToken() *BudgetChargeUpdateOne {
+	_u.mutation.ClearOwnerToken()
+	return _u
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (_u *BudgetChargeUpdateOne) SetOwnerExpiresAt(v time.Time) *BudgetChargeUpdateOne {
+	_u.mutation.SetOwnerExpiresAt(v)
+	return _u
+}
+
+// SetNillableOwnerExpiresAt sets the "owner_expires_at" field if the given value is not nil.
+func (_u *BudgetChargeUpdateOne) SetNillableOwnerExpiresAt(v *time.Time) *BudgetChargeUpdateOne {
+	if v != nil {
+		_u.SetOwnerExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (_u *BudgetChargeUpdateOne) ClearOwnerExpiresAt() *BudgetChargeUpdateOne {
+	_u.mutation.ClearOwnerExpiresAt()
+	return _u
+}
+
 // Mutation returns the BudgetChargeMutation object of the builder.
 func (_u *BudgetChargeUpdateOne) Mutation() *BudgetChargeMutation {
 	return _u.mutation
@@ -584,6 +681,11 @@ func (_u *BudgetChargeUpdateOne) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := budgetcharge.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "BudgetCharge.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OwnerToken(); ok {
+		if err := budgetcharge.OwnerTokenValidator(v); err != nil {
+			return &ValidationError{Name: "owner_token", err: fmt.Errorf(`ent: validator failed for field "BudgetCharge.owner_token": %w`, err)}
 		}
 	}
 	return nil
@@ -686,6 +788,18 @@ func (_u *BudgetChargeUpdateOne) sqlSave(ctx context.Context) (_node *BudgetChar
 	}
 	if _u.mutation.ReservationReleasedAtCleared() {
 		_spec.ClearField(budgetcharge.FieldReservationReleasedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.OwnerToken(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerToken, field.TypeString, value)
+	}
+	if _u.mutation.OwnerTokenCleared() {
+		_spec.ClearField(budgetcharge.FieldOwnerToken, field.TypeString)
+	}
+	if value, ok := _u.mutation.OwnerExpiresAt(); ok {
+		_spec.SetField(budgetcharge.FieldOwnerExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.OwnerExpiresAtCleared() {
+		_spec.ClearField(budgetcharge.FieldOwnerExpiresAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &BudgetCharge{config: _u.config}

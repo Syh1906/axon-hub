@@ -64,7 +64,7 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 			if existing.Status != budgetcharge.StatusPrepared {
 				return fmt.Errorf("budget execution already dispatched")
 			}
-			return nil
+			return s.checkAttemptOwner(ctx, db, existing)
 		}
 		if !ent.IsNotFound(err) {
 			return err
@@ -143,8 +143,13 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 			}
 		}
 		groupVersions := map[budget.Period]int64{}
+		leaseNow, err := budgetDatabaseTime(ctx, db)
+		if err != nil {
+			return err
+		}
 		create := db.BudgetCharge.Create().SetProjectID(projectID).SetExecutionID(executionID).SetRequestID(requestID).SetKeyID(keyID).
-			SetKeyAccountID(keyAccount.ID).SetEstimate(int64(estimate)).SetKeyVersions(chargeVersions(keyAccount.State)).SetCheckAfter(now.Add(time.Minute))
+			SetKeyAccountID(keyAccount.ID).SetEstimate(int64(estimate)).SetKeyVersions(chargeVersions(keyAccount.State)).SetCheckAfter(now.Add(time.Minute)).
+			SetOwnerToken(s.ownerToken).SetOwnerExpiresAt(leaseNow.Add(budgetOwnerTTL))
 		if groupAccount != nil {
 			create.SetGroupID(groupAccount.OwnerID).SetGroupAccountID(groupAccount.ID)
 			groupVersions = chargeVersions(groupAccount.State)
@@ -170,6 +175,9 @@ func (s *BudgetService) MarkSent(ctx context.Context, executionID int) error {
 		if charge.Status != budgetcharge.StatusPrepared {
 			return fmt.Errorf("budget attempt is no longer prepared")
 		}
+		if err := s.checkAttemptOwner(ctx, db, charge); err != nil {
+			return err
+		}
 		return db.BudgetCharge.UpdateOneID(charge.ID).SetStatus(budgetcharge.StatusSent).Exec(ctx)
 	})
 }
@@ -178,43 +186,45 @@ func (s *BudgetService) MarkSent(ctx context.Context, executionID int) error {
 // an unknown cost for reconciliation; releasing their hold does not declare them
 // free or prevent a later settlement. Accepted async tasks keep their hold.
 func (s *BudgetService) EndAttempt(ctx context.Context, executionID int) error {
-	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
-		if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
-			return nil
+	return s.withCharge(ctx, executionID, endBudgetAttempt)
+}
+
+func endBudgetAttempt(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
+	if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
+		return nil
+	}
+	update := db.BudgetCharge.UpdateOneID(charge.ID).ClearOwnerExpiresAt()
+	if charge.Status == budgetcharge.StatusPrepared {
+		update.SetStatus(budgetcharge.StatusReleased)
+	} else {
+		update.SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(time.Minute))
+		pending, err := budgetAsyncStillPending(ctx, db, charge)
+		if err != nil {
+			return err
 		}
-		update := db.BudgetCharge.UpdateOneID(charge.ID)
-		if charge.Status == budgetcharge.StatusPrepared {
-			update.SetStatus(budgetcharge.StatusReleased)
-		} else {
-			update.SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(time.Minute))
-			pending, err := budgetAsyncStillPending(ctx, db, charge)
-			if err != nil {
-				return err
-			}
-			if pending {
-				return update.Exec(ctx)
-			}
-		}
-		if charge.ReservationReleasedAt != nil {
+		if pending {
 			return update.Exec(ctx)
 		}
-		for _, account := range accounts {
-			versions := charge.KeyVersions
-			if account.ID != charge.KeyAccountID {
-				versions = charge.GroupVersions
-			}
-			if versions[budget.Total] < 0 {
-				continue
-			}
-			if account.Reserved < charge.Estimate {
-				return fmt.Errorf("inconsistent budget reservation")
-			}
-			if err := db.BudgetAccount.UpdateOneID(account.ID).AddReserved(-charge.Estimate).Exec(ctx); err != nil {
-				return err
-			}
+	}
+	if charge.ReservationReleasedAt != nil {
+		return update.Exec(ctx)
+	}
+	for _, account := range accounts {
+		versions := charge.KeyVersions
+		if account.ID != charge.KeyAccountID {
+			versions = charge.GroupVersions
 		}
-		return update.SetReservationReleasedAt(time.Now().UTC()).Exec(ctx)
-	})
+		if versions[budget.Total] < 0 {
+			continue
+		}
+		if account.Reserved < charge.Estimate {
+			return fmt.Errorf("inconsistent budget reservation")
+		}
+		if err := db.BudgetAccount.UpdateOneID(account.ID).AddReserved(-charge.Estimate).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return update.SetReservationReleasedAt(time.Now().UTC()).Exec(ctx)
 }
 
 func budgetAsyncStillPending(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge) (bool, error) {

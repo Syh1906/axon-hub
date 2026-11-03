@@ -259,7 +259,8 @@ func (t *CompletionInboundTransformer) TransformError(ctx context.Context, rawEr
 		}
 	}
 
-	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok {
+	llmErr, isLLMError := errors.AsType[*llm.ResponseError](rawErr)
+	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok && !isLLMError {
 		return httpErr
 	}
 
@@ -271,7 +272,7 @@ func (t *CompletionInboundTransformer) TransformError(ctx context.Context, rawEr
 		}
 	}
 
-	if llmErr, ok := errors.AsType[*llm.ResponseError](rawErr); ok {
+	if isLLMError {
 		return &httpclient.Error{
 			StatusCode: llmErr.StatusCode,
 			Status:     http.StatusText(llmErr.StatusCode),

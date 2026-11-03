@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
@@ -882,6 +883,7 @@ func (s *RequestService) ClearStaleProcessingOnStartup(ctx context.Context) erro
 			Where(
 				request.StatusEQ(request.StatusProcessing),
 				request.CreatedAtLT(cutoff),
+				withoutBudgetHold(budgetcharge.FieldRequestID),
 			).
 			SetStatus(request.StatusCanceled).
 			Save(ctx)
@@ -894,6 +896,7 @@ func (s *RequestService) ClearStaleProcessingOnStartup(ctx context.Context) erro
 			Where(
 				requestexecution.StatusEQ(requestexecution.StatusProcessing),
 				requestexecution.CreatedAtLT(cutoff),
+				withoutBudgetHold(budgetcharge.FieldExecutionID),
 			).
 			SetStatus(requestexecution.StatusCanceled).
 			Save(ctx)

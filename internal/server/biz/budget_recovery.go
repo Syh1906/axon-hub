@@ -62,7 +62,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 				return false, err
 			}
 			if charge.Status == budgetcharge.StatusPrepared {
-				if err := s.BudgetService.EndAttempt(ctx, charge.ExecutionID); err != nil {
+				if err := s.BudgetService.RecoverAttempt(ctx, charge.ExecutionID); err != nil {
 					return false, err
 				}
 				continue
@@ -156,18 +156,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 					}
 				}
 			}
-			// Old finished attempts can retain holds after an upgrade or a crashed
-			// finalizer. Release only the hold; keep unknown cost evidence for later.
-			asyncFinished := charge.AsyncTask != nil && charge.AsyncTask.Finished()
-			if charge.ReservationReleasedAt == nil && (asyncFinished || execution != nil &&
-				(execution.Status == requestexecution.StatusCompleted || execution.Status == requestexecution.StatusFailed || execution.Status == requestexecution.StatusCanceled) &&
-				(req == nil || req.Status != request.StatusPending && req.Status != request.StatusProcessing)) {
-				if err := s.BudgetService.EndAttempt(ctx, charge.ExecutionID); err != nil {
-					return false, err
-				}
-			}
-			// Unknown is still unknown after releasing the temporary hold.
-			if err := s.db.BudgetCharge.UpdateOneID(charge.ID).SetCheckAfter(time.Now().UTC().Add(15 * time.Minute)).Exec(ctx); err != nil {
+			if err := s.BudgetService.RecoverAttempt(ctx, charge.ExecutionID); err != nil {
 				return false, err
 			}
 		}
@@ -218,7 +207,7 @@ func (s *BudgetService) RecordAsyncTask(ctx context.Context, execution *ent.Requ
 			return nil
 		}
 		task := &objects.BudgetAsyncTask{ChannelID: execution.ChannelID, ExternalID: externalID, Format: execution.Format}
-		update := db.BudgetCharge.UpdateOneID(charge.ID).SetAsyncTask(task).SetStatus(budgetcharge.StatusUnknown)
+		update := db.BudgetCharge.UpdateOneID(charge.ID).SetAsyncTask(task).SetStatus(budgetcharge.StatusUnknown).ClearOwnerExpiresAt()
 		if execution.CostSnapshot != nil {
 			task.Price = execution.CostSnapshot.CurrentPrice()
 			update.SetCostSnapshot(execution.CostSnapshot)

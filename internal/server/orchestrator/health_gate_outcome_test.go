@@ -27,6 +27,7 @@ func TestHealthGateOutcome_Boundaries(t *testing.T) {
 		{"forbidden", &llm.ResponseError{StatusCode: 403}, biz.HealthGateOutcomeFailure},
 		{"request timeout", &httpclient.Error{StatusCode: 408}, biz.HealthGateOutcomeFailure},
 		{"rate limit", &httpclient.Error{StatusCode: 429}, biz.HealthGateOutcomeNeutral},
+		{"provider stream interruption", &llm.ResponseError{Detail: llm.ErrorDetail{Code: "upstream_stream_read_error"}}, biz.HealthGateOutcomeFailure},
 		{"bad request", &httpclient.Error{StatusCode: 400}, biz.HealthGateOutcomeNeutral},
 		{"not found", &httpclient.Error{StatusCode: 404}, biz.HealthGateOutcomeNeutral},
 		{"unprocessable", &httpclient.Error{StatusCode: 422}, biz.HealthGateOutcomeNeutral},

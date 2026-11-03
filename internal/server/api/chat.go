@@ -106,10 +106,13 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 		}()
 	}
 	if err != nil {
-		log.Error(ctx, "Error processing chat completion", log.Cause(err))
+		if isCanceledRequest(ctx, err) {
+			log.Info(ctx, "Chat request canceled", log.Cause(err))
+		} else {
+			log.Error(ctx, "Error processing chat completion", log.Cause(err))
+		}
 
-		httpErr := transformOrchestratorError(ctx, err, handlers.ChatCompletionOrchestrator)
-		c.JSON(httpErr.StatusCode, json.RawMessage(httpErr.Body))
+		writeOrchestratorError(c, err, handlers.ChatCompletionOrchestrator)
 
 		return
 	}

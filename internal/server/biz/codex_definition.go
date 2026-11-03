@@ -142,10 +142,9 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 
 // Only current, caller-visible routes participate. Never turn a new association
 // into a confirmed route merely because its public model name matches.
-func (d *codexDefinition) catalogModel(m ModelFacade, version string) (map[string]any, error) {
-	if version != d.ClientVersion {
-		return nil, fmt.Errorf("Codex definition does not support this client version")
-	}
+func (d *codexDefinition) catalogModel(m ModelFacade) (map[string]any, error) {
+	// ClientVersion records import provenance, not a client allowlist. Schema
+	// validation and declared model capabilities are independent of version equality.
 	canonical := d.Model
 	if len(d.Models) > 0 {
 		target := m.TargetID

@@ -211,7 +211,9 @@ func (t *InboundTransformer) TransformError(ctx context.Context, rawErr error) *
 		}
 	}
 
-	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok {
+	// A transformed response may retain the original HTTP error as its cause.
+	// Keep the converted detail instead of returning another protocol's body.
+	if httpErr, ok := errors.AsType[*httpclient.Error](rawErr); ok && !isLLMError {
 		if httpErr == nil {
 			return &httpclient.Error{
 				StatusCode: http.StatusInternalServerError,

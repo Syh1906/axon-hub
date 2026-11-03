@@ -79,7 +79,7 @@ func (m *rateLimitTracking) OnOutboundRawError(ctx context.Context, err error) {
 	}
 
 	// Local admission rejections never reached upstream — they must not trigger cooldown.
-	if isChannelQueueError(err) || isLocalRPMExhaustedError(err) || biz.IsBudgetDenied(err) {
+	if isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
 		return
 	}
 

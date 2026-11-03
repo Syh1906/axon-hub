@@ -5573,6 +5573,8 @@ type BudgetChargeMutation struct {
 	check_after             *time.Time
 	settled_at              *time.Time
 	reservation_released_at *time.Time
+	owner_token             *string
+	owner_expires_at        *time.Time
 	clearedFields           map[string]struct{}
 	done                    bool
 	oldValue                func(context.Context) (*BudgetCharge, error)
@@ -6754,6 +6756,104 @@ func (m *BudgetChargeMutation) ResetReservationReleasedAt() {
 	delete(m.clearedFields, budgetcharge.FieldReservationReleasedAt)
 }
 
+// SetOwnerToken sets the "owner_token" field.
+func (m *BudgetChargeMutation) SetOwnerToken(s string) {
+	m.owner_token = &s
+}
+
+// OwnerToken returns the value of the "owner_token" field in the mutation.
+func (m *BudgetChargeMutation) OwnerToken() (r string, exists bool) {
+	v := m.owner_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerToken returns the old "owner_token" field's value of the BudgetCharge entity.
+// If the BudgetCharge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BudgetChargeMutation) OldOwnerToken(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerToken: %w", err)
+	}
+	return oldValue.OwnerToken, nil
+}
+
+// ClearOwnerToken clears the value of the "owner_token" field.
+func (m *BudgetChargeMutation) ClearOwnerToken() {
+	m.owner_token = nil
+	m.clearedFields[budgetcharge.FieldOwnerToken] = struct{}{}
+}
+
+// OwnerTokenCleared returns if the "owner_token" field was cleared in this mutation.
+func (m *BudgetChargeMutation) OwnerTokenCleared() bool {
+	_, ok := m.clearedFields[budgetcharge.FieldOwnerToken]
+	return ok
+}
+
+// ResetOwnerToken resets all changes to the "owner_token" field.
+func (m *BudgetChargeMutation) ResetOwnerToken() {
+	m.owner_token = nil
+	delete(m.clearedFields, budgetcharge.FieldOwnerToken)
+}
+
+// SetOwnerExpiresAt sets the "owner_expires_at" field.
+func (m *BudgetChargeMutation) SetOwnerExpiresAt(t time.Time) {
+	m.owner_expires_at = &t
+}
+
+// OwnerExpiresAt returns the value of the "owner_expires_at" field in the mutation.
+func (m *BudgetChargeMutation) OwnerExpiresAt() (r time.Time, exists bool) {
+	v := m.owner_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerExpiresAt returns the old "owner_expires_at" field's value of the BudgetCharge entity.
+// If the BudgetCharge object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BudgetChargeMutation) OldOwnerExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerExpiresAt: %w", err)
+	}
+	return oldValue.OwnerExpiresAt, nil
+}
+
+// ClearOwnerExpiresAt clears the value of the "owner_expires_at" field.
+func (m *BudgetChargeMutation) ClearOwnerExpiresAt() {
+	m.owner_expires_at = nil
+	m.clearedFields[budgetcharge.FieldOwnerExpiresAt] = struct{}{}
+}
+
+// OwnerExpiresAtCleared returns if the "owner_expires_at" field was cleared in this mutation.
+func (m *BudgetChargeMutation) OwnerExpiresAtCleared() bool {
+	_, ok := m.clearedFields[budgetcharge.FieldOwnerExpiresAt]
+	return ok
+}
+
+// ResetOwnerExpiresAt resets all changes to the "owner_expires_at" field.
+func (m *BudgetChargeMutation) ResetOwnerExpiresAt() {
+	m.owner_expires_at = nil
+	delete(m.clearedFields, budgetcharge.FieldOwnerExpiresAt)
+}
+
 // Where appends a list predicates to the BudgetChargeMutation builder.
 func (m *BudgetChargeMutation) Where(ps ...predicate.BudgetCharge) {
 	m.predicates = append(m.predicates, ps...)
@@ -6788,7 +6888,7 @@ func (m *BudgetChargeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BudgetChargeMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, budgetcharge.FieldCreatedAt)
 	}
@@ -6852,6 +6952,12 @@ func (m *BudgetChargeMutation) Fields() []string {
 	if m.reservation_released_at != nil {
 		fields = append(fields, budgetcharge.FieldReservationReleasedAt)
 	}
+	if m.owner_token != nil {
+		fields = append(fields, budgetcharge.FieldOwnerToken)
+	}
+	if m.owner_expires_at != nil {
+		fields = append(fields, budgetcharge.FieldOwnerExpiresAt)
+	}
 	return fields
 }
 
@@ -6902,6 +7008,10 @@ func (m *BudgetChargeMutation) Field(name string) (ent.Value, bool) {
 		return m.SettledAt()
 	case budgetcharge.FieldReservationReleasedAt:
 		return m.ReservationReleasedAt()
+	case budgetcharge.FieldOwnerToken:
+		return m.OwnerToken()
+	case budgetcharge.FieldOwnerExpiresAt:
+		return m.OwnerExpiresAt()
 	}
 	return nil, false
 }
@@ -6953,6 +7063,10 @@ func (m *BudgetChargeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSettledAt(ctx)
 	case budgetcharge.FieldReservationReleasedAt:
 		return m.OldReservationReleasedAt(ctx)
+	case budgetcharge.FieldOwnerToken:
+		return m.OldOwnerToken(ctx)
+	case budgetcharge.FieldOwnerExpiresAt:
+		return m.OldOwnerExpiresAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown BudgetCharge field %s", name)
 }
@@ -7108,6 +7222,20 @@ func (m *BudgetChargeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReservationReleasedAt(v)
+		return nil
+	case budgetcharge.FieldOwnerToken:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerToken(v)
+		return nil
+	case budgetcharge.FieldOwnerExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerExpiresAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge field %s", name)
@@ -7289,6 +7417,12 @@ func (m *BudgetChargeMutation) ClearedFields() []string {
 	if m.FieldCleared(budgetcharge.FieldReservationReleasedAt) {
 		fields = append(fields, budgetcharge.FieldReservationReleasedAt)
 	}
+	if m.FieldCleared(budgetcharge.FieldOwnerToken) {
+		fields = append(fields, budgetcharge.FieldOwnerToken)
+	}
+	if m.FieldCleared(budgetcharge.FieldOwnerExpiresAt) {
+		fields = append(fields, budgetcharge.FieldOwnerExpiresAt)
+	}
 	return fields
 }
 
@@ -7329,6 +7463,12 @@ func (m *BudgetChargeMutation) ClearField(name string) error {
 		return nil
 	case budgetcharge.FieldReservationReleasedAt:
 		m.ClearReservationReleasedAt()
+		return nil
+	case budgetcharge.FieldOwnerToken:
+		m.ClearOwnerToken()
+		return nil
+	case budgetcharge.FieldOwnerExpiresAt:
+		m.ClearOwnerExpiresAt()
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge nullable field %s", name)
@@ -7400,6 +7540,12 @@ func (m *BudgetChargeMutation) ResetField(name string) error {
 		return nil
 	case budgetcharge.FieldReservationReleasedAt:
 		m.ResetReservationReleasedAt()
+		return nil
+	case budgetcharge.FieldOwnerToken:
+		m.ResetOwnerToken()
+		return nil
+	case budgetcharge.FieldOwnerExpiresAt:
+		m.ResetOwnerExpiresAt()
 		return nil
 	}
 	return fmt.Errorf("unknown BudgetCharge field %s", name)

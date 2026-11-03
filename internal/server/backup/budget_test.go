@@ -2,6 +2,7 @@ package backup
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
@@ -203,4 +204,48 @@ func TestBudgetSettledVideoRestoreDoesNotRequireChannel(t *testing.T) {
 	require.Zero(t, restored.Reserved)
 	require.Equal(t, budget.Amount(actual), restored.State.Counters[budget.Total].Amount)
 	require.Zero(t, db.BudgetCharge.Query().OnlyX(ctx).AsyncTask.ChannelID)
+}
+
+func TestBudgetRestorePreservesOwnerAndReleasedUnknownHold(t *testing.T) {
+	for _, released := range []bool{false, true} {
+		t.Run(fmt.Sprintf("released=%v", released), func(t *testing.T) {
+			db, svc, ctx := setupBackupTest(t)
+			t.Cleanup(func() { require.NoError(t, db.Close()) })
+			p := db.Project.Create().SetName("owner-budget").SaveX(ctx)
+			owner, _ := contexts.GetUser(ctx)
+			key := db.APIKey.Create().SetName("owned").SetKey("fixture-owned").SetProjectID(p.ID).SetUserID(owner.ID).SaveX(ctx)
+			state := budget.NewState()
+			state.Policy.StartedAt = time.Now().UTC()
+			state.Policy.Rules = []budget.Rule{{Period: budget.Total, Mode: budget.Fixed, Limit: 1000000000}}
+			ownerToken := "older-instance"
+			expiredAt := time.Now().UTC().Add(-time.Minute)
+			charge := &ent.BudgetCharge{ID: 74, ProjectID: 72, KeyAccountID: 71, KeyID: 73, ExecutionID: 75, RequestID: 76, Estimate: 300000000, Status: budgetcharge.StatusUnknown,
+				KeyVersions: map[budget.Period]int64{}, GroupVersions: map[budget.Period]int64{}, OwnerToken: &ownerToken, OwnerExpiresAt: &expiredAt}
+			reserved := charge.Estimate
+			if released {
+				charge.ReservationReleasedAt = &expiredAt
+				charge.OwnerExpiresAt = nil
+				reserved = 0
+			}
+			data := BackupData{Version: BackupVersion,
+				BudgetAccounts: []*BackupBudgetAccount{{BudgetAccount: &ent.BudgetAccount{ID: 71, ProjectID: 72, OwnerID: 73, OwnerKind: budgetaccount.OwnerKindKey, State: state, Reserved: reserved}, ProjectName: p.Name, OwnerKey: key.Key}},
+				BudgetCharges:  []*ent.BudgetCharge{charge},
+			}
+			require.NoError(t, validateBudgetBackup(data))
+			body, err := json.Marshal(data)
+			require.NoError(t, err)
+			require.NoError(t, svc.Restore(ctx, body, RestoreOptions{IncludeAPIKeys: true}))
+			restored := db.BudgetCharge.Query().OnlyX(ctx)
+			require.Equal(t, charge.OwnerToken, restored.OwnerToken)
+			require.Equal(t, charge.ReservationReleasedAt, restored.ReservationReleasedAt)
+			require.Equal(t, charge.OwnerExpiresAt, restored.OwnerExpiresAt)
+			for range 2 {
+				require.NoError(t, biz.NewBudgetService(db).RecoverAttempt(ctx, restored.ExecutionID))
+			}
+			require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
+			restored = db.BudgetCharge.GetX(ctx, restored.ID)
+			require.NotNil(t, restored.ReservationReleasedAt)
+			require.Nil(t, restored.Actual)
+		})
+	}
 }

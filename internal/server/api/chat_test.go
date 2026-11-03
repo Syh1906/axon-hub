@@ -20,12 +20,17 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/enttest"
+	"github.com/looplj/axonhub/internal/ent/privacy"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/aisdk"
+	"github.com/looplj/axonhub/llm/transformer/openai"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
 func init() {
@@ -94,7 +99,9 @@ func setupUpstreamErrorPolicyTest(t *testing.T, policy biz.UpstreamErrorPolicy) 
 	})
 	require.NoError(t, err)
 
-	return ctx, systemService
+	requestCtx := ent.NewContext(authz.NewAPIKeyContext(t.Context(), 1, 1), client)
+	requestCtx = contexts.WithAPIKey(requestCtx, &ent.APIKey{ID: 1, ProjectID: 1})
+	return requestCtx, systemService
 }
 
 // errorAfterStream emits items then returns an error.
@@ -1342,4 +1349,180 @@ func TestApplyUpstreamErrorPolicy_CustomMessageDropsRawUpstream(t *testing.T) {
 	assert.Nil(t, out.RawUpstream)
 	assert.Equal(t, "模型服务暂时不可用，请稍后再试", out.Detail.Message)
 	assert.NotContains(t, err.Error(), "raw provider secret")
+}
+
+func TestUpstreamErrorPolicy_FinishedRequestUsesConfiguredMessage(t *testing.T) {
+	for _, stream := range []bool{false, true} {
+		for _, expired := range []bool{false, true} {
+			t.Run(fmt.Sprintf("stream=%t/expired=%t", stream, expired), func(t *testing.T) {
+				ctx, systemService := setupUpstreamErrorPolicyTest(t, biz.UpstreamErrorPolicy{
+					Mode:          biz.UpstreamErrorModeCustom,
+					CustomMessage: "模型服务暂时不可用，请稍后再试",
+				})
+				var cancel context.CancelFunc
+				wantContextErr := context.Canceled
+				if expired {
+					ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-time.Second))
+					wantContextErr = context.DeadlineExceeded
+				} else {
+					ctx, cancel = context.WithCancel(ctx)
+				}
+				cancel()
+				require.ErrorIs(t, ctx.Err(), wantContextErr)
+
+				rawErr := &httpclient.Error{
+					StatusCode: http.StatusServiceUnavailable,
+					Body:       []byte(`{"error":{"message":"provider detail","type":"overloaded_error","code":"overloaded"}}`),
+				}
+				var err error
+				if stream {
+					err = newUpstreamErrorStream(ctx, &errorAfterStream{err: rawErr}, systemService).Err()
+				} else {
+					err = applyUpstreamErrorPolicy(ctx, pipeline.WrapUpstreamError(rawErr), systemService)
+				}
+				var responseErr *llm.ResponseError
+				require.ErrorAs(t, err, &responseErr)
+				assert.Equal(t, http.StatusServiceUnavailable, responseErr.StatusCode)
+				assert.Equal(t, "模型服务暂时不可用，请稍后再试", responseErr.Detail.Message)
+				assert.Equal(t, "overloaded", responseErr.Detail.Code)
+				assert.Equal(t, "overloaded_error", responseErr.Detail.Type)
+				assert.ErrorIs(t, ctx.Err(), wantContextErr)
+			})
+		}
+	}
+}
+
+func TestUpstreamErrorPolicy_DoesNotGrantCallerSettingsAccess(t *testing.T) {
+	ctx, systemService := setupUpstreamErrorPolicyTest(t, biz.UpstreamErrorPolicy{
+		Mode: biz.UpstreamErrorModeHidden,
+	})
+	client := ent.FromContext(ctx)
+	_, err := client.System.Query().Count(ctx)
+	require.ErrorIs(t, err, privacy.Deny)
+
+	err = applyUpstreamErrorPolicy(ctx, pipeline.WrapUpstreamError(io.ErrUnexpectedEOF), systemService)
+	var responseErr *llm.ResponseError
+	require.ErrorAs(t, err, &responseErr)
+	assert.Equal(t, biz.DefaultUpstreamErrorMessage, responseErr.Detail.Message)
+
+	_, err = client.System.Query().Count(ctx)
+	require.ErrorIs(t, err, privacy.Deny)
+}
+
+func TestTransformOrchestratorErrorClassifiesCanceledRequest(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		cancel bool
+		err    error
+		status int
+	}{
+		{"request canceled", true, fmt.Errorf("request failed: %w", context.Canceled), 499},
+		{"upstream cancellation", false, context.Canceled, 500},
+		{"real error wins cancellation race", true, &llm.ResponseError{StatusCode: 524, Detail: llm.ErrorDetail{Code: "upstream_timeout", Message: "upstream timed out"}}, 524},
+		{"deadline is not cancellation", true, &llm.ResponseError{StatusCode: 504, Detail: llm.ErrorDetail{Code: "request_deadline_exceeded", Message: "request deadline exceeded"}}, 504},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, service := setupUpstreamErrorPolicyTest(t, biz.UpstreamErrorPolicy{Mode: biz.UpstreamErrorModePassthrough})
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			if tc.cancel {
+				cancel()
+			}
+			orch := &orchestrator.ChatCompletionOrchestrator{Inbound: responses.NewInboundTransformer(), SystemService: service}
+			wire := transformOrchestratorError(ctx, tc.err, orch)
+			require.Equal(t, tc.status, wire.StatusCode)
+			if tc.status == 499 {
+				require.Contains(t, string(wire.Body), "request_canceled")
+			}
+		})
+	}
+}
+
+func TestTransformOrchestratorErrorResponsesEventWithoutStatus(t *testing.T) {
+	ctx, service := setupUpstreamErrorPolicyTest(t, biz.UpstreamErrorPolicy{Mode: biz.UpstreamErrorModePassthrough})
+	outbound, err := responses.NewOutboundTransformer("https://upstream.example", "test-key")
+	require.NoError(t, err)
+	stream, err := outbound.TransformStream(ctx, nil, streams.SliceStream([]*httpclient.StreamEvent{{
+		Type: "error",
+		Data: []byte(`{"type":"error","code":"upstream_stream_read_error","message":"Upstream response stream was interrupted"}`),
+	}}))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, stream.Close()) })
+	require.False(t, stream.Next())
+	require.Error(t, stream.Err())
+	var upstreamErr *llm.ResponseError
+	require.ErrorAs(t, stream.Err(), &upstreamErr)
+	require.Zero(t, upstreamErr.StatusCode)
+
+	orch := &orchestrator.ChatCompletionOrchestrator{Inbound: responses.NewInboundTransformer(), SystemService: service}
+	wire := transformOrchestratorError(ctx, pipeline.WrapUpstreamError(stream.Err()), orch)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.JSON(wire.StatusCode, json.RawMessage(wire.Body))
+	require.Equal(t, http.StatusBadGateway, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "upstream_stream_read_error")
+	require.Contains(t, recorder.Body.String(), "Upstream response stream was interrupted")
+	require.Zero(t, upstreamErr.StatusCode, "HTTP 展示状态不能改变上游原始状态或重试判断")
+}
+
+func TestWriteOrchestratorErrorPreservesRetryAfter(t *testing.T) {
+	for _, endpoint := range []struct {
+		path       string
+		inbound    transformer.Inbound
+		flatDetail bool
+	}{
+		{"/v1/responses", responses.NewInboundTransformer(), false},
+		{"/v1/chat/completions", openai.NewInboundTransformer(), false},
+		{"/v1/completions", openai.NewCompletionInboundTransformer(), false},
+		{"/aisdk", aisdk.NewDataStreamTransformer(), true},
+	} {
+		for _, mode := range []string{biz.UpstreamErrorModePassthrough, biz.UpstreamErrorModeHidden, biz.UpstreamErrorModeCustom} {
+			t.Run(endpoint.path+"/"+mode, func(t *testing.T) {
+				ctx, service := setupUpstreamErrorPolicyTest(t, biz.UpstreamErrorPolicy{Mode: mode, CustomMessage: "请稍后重试"})
+				orch := &orchestrator.ChatCompletionOrchestrator{Inbound: endpoint.inbound, SystemService: service}
+				for _, tc := range []struct {
+					name      string
+					body      string
+					converted bool
+				}{
+					{"raw", `{"error":{"message":"provider limited","type":"rate_limit_error","code":"rate_limit_exceeded"}}`, false},
+					{"converted foreign JSON", `{"error":{"message":"raw provider cause","status":"RESOURCE_EXHAUSTED","code":429}}`, true},
+					{"converted non-JSON", "raw provider cause", true},
+				} {
+					t.Run(tc.name, func(t *testing.T) {
+						rawErr := &httpclient.Error{
+							StatusCode: http.StatusTooManyRequests, Body: []byte(tc.body),
+							Headers: http.Header{"Retry-After": {"30"}, "Set-Cookie": {"upstream-cookie"}, "X-Provider-Internal": {"private"}},
+						}
+						var err error = rawErr
+						if tc.converted {
+							err = &llm.ResponseError{
+								StatusCode: http.StatusTooManyRequests, Cause: rawErr,
+								Detail: llm.ErrorDetail{Type: "rate_limit_error", Code: "rate_limit_exceeded", Message: "provider limited"},
+							}
+						}
+						recorder := httptest.NewRecorder()
+						c, _ := gin.CreateTestContext(recorder)
+						c.Request = httptest.NewRequest(http.MethodPost, endpoint.path, nil).WithContext(ctx)
+						writeOrchestratorError(c, pipeline.WrapUpstreamError(err), orch)
+						require.Equal(t, http.StatusTooManyRequests, recorder.Code)
+						require.Equal(t, "30", recorder.Header().Get("Retry-After"))
+						require.Empty(t, recorder.Header().Get("Set-Cookie"))
+						require.Empty(t, recorder.Header().Get("X-Provider-Internal"))
+						message := "provider limited"
+						if mode == biz.UpstreamErrorModeHidden {
+							message = biz.DefaultUpstreamErrorMessage
+						} else if mode == biz.UpstreamErrorModeCustom {
+							message = "请稍后重试"
+						}
+						wantBody := fmt.Sprintf(`{"error":{"message":%q,"type":"rate_limit_error","code":"rate_limit_exceeded"}}`, message)
+						if endpoint.flatDetail && (tc.converted || mode != biz.UpstreamErrorModePassthrough) {
+							wantBody = fmt.Sprintf(`{"message":%q,"type":"rate_limit_error"}`, message)
+						}
+						require.JSONEq(t, wantBody, recorder.Body.String())
+					})
+				}
+			})
+		}
+	}
 }

@@ -59,6 +59,10 @@ const (
 	FieldSettledAt = "settled_at"
 	// FieldReservationReleasedAt holds the string denoting the reservation_released_at field in the database.
 	FieldReservationReleasedAt = "reservation_released_at"
+	// FieldOwnerToken holds the string denoting the owner_token field in the database.
+	FieldOwnerToken = "owner_token"
+	// FieldOwnerExpiresAt holds the string denoting the owner_expires_at field in the database.
+	FieldOwnerExpiresAt = "owner_expires_at"
 	// Table holds the table name of the budgetcharge in the database.
 	Table = "budget_charges"
 )
@@ -87,6 +91,8 @@ var Columns = []string{
 	FieldCheckAfter,
 	FieldSettledAt,
 	FieldReservationReleasedAt,
+	FieldOwnerToken,
+	FieldOwnerExpiresAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -113,6 +119,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// OwnerTokenValidator is a validator for the "owner_token" field. It is called by the builders before save.
+	OwnerTokenValidator func(string) error
 )
 
 // Status defines the type for the "status" enum field.
@@ -230,6 +238,16 @@ func BySettledAt(opts ...sql.OrderTermOption) OrderOption {
 // ByReservationReleasedAt orders the results by the reservation_released_at field.
 func ByReservationReleasedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReservationReleasedAt, opts...).ToFunc()
+}
+
+// ByOwnerToken orders the results by the owner_token field.
+func ByOwnerToken(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerToken, opts...).ToFunc()
+}
+
+// ByOwnerExpiresAt orders the results by the owner_expires_at field.
+func ByOwnerExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerExpiresAt, opts...).ToFunc()
 }
 
 // MarshalGQL implements graphql.Marshaler interface.

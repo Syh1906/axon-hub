@@ -102,7 +102,7 @@ func (m *modelCircuitBreakerTracker) OnOutboundRawError(ctx context.Context, err
 	}
 
 	// Local skips never reached upstream — must not count as model errors.
-	if errors.Is(err, errSkipCandidateByCircuitBreaker) || isChannelQueueError(err) || biz.IsBudgetDenied(err) {
+	if errors.Is(err, errSkipCandidateByCircuitBreaker) || isChannelQueueError(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
 		return
 	}
 

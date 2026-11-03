@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -16,9 +17,14 @@ import (
 
 // BudgetService owns authoritative budget transactions. Authentication and
 // management authorization must complete before entering its internal methods.
-type BudgetService struct{ db *ent.Client }
+type BudgetService struct {
+	db         *ent.Client
+	ownerToken string
+}
 
-func NewBudgetService(db *ent.Client) *BudgetService { return &BudgetService{db: db} }
+func NewBudgetService(db *ent.Client) *BudgetService {
+	return &BudgetService{db: db, ownerToken: uuid.NewString()}
+}
 
 func (s *BudgetService) transaction(ctx context.Context, fn func(context.Context, *ent.Client) error) error {
 	_, err := authz.RunWithSystemBypass(ctx, "budget-accounting", func(ctx context.Context) (bool, error) {

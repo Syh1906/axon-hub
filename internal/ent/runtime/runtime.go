@@ -332,6 +332,10 @@ func init() {
 	budgetcharge.DefaultUpdatedAt = budgetchargeDescUpdatedAt.Default.(func() time.Time)
 	// budgetcharge.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	budgetcharge.UpdateDefaultUpdatedAt = budgetchargeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// budgetchargeDescOwnerToken is the schema descriptor for owner_token field.
+	budgetchargeDescOwnerToken := budgetchargeFields[19].Descriptor()
+	// budgetcharge.OwnerTokenValidator is a validator for the "owner_token" field. It is called by the builders before save.
+	budgetcharge.OwnerTokenValidator = budgetchargeDescOwnerToken.Validators[0].(func(string) error)
 	budgetposting.Policy = privacy.NewPolicies(schema.BudgetPosting{})
 	budgetposting.Hooks[0] = func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {

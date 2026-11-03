@@ -303,6 +303,33 @@ func TestIsRetryableError(t *testing.T) {
 			expected: false,
 		},
 		{
+			name: "explicit upstream stream interruption without status is retryable",
+			err: &llm.ResponseError{Detail: llm.ErrorDetail{
+				Code: "upstream_stream_read_error", Message: "Upstream response stream was interrupted",
+			}},
+			expected: true,
+		},
+		{
+			name: "stream interruption code does not override explicit rejection",
+			err: &llm.ResponseError{StatusCode: http.StatusBadRequest, Detail: llm.ErrorDetail{
+				Code: "upstream_stream_read_error",
+			}},
+			expected: false,
+		},
+		{
+			name: "stream interruption message alone is not retryable",
+			err: &llm.ResponseError{Detail: llm.ErrorDetail{
+				Message: "Upstream response stream was interrupted",
+			}},
+			expected: false,
+		},
+		{
+			name: "wrapped HTTP rejection is not hidden by a statusless interruption",
+			err: &llm.ResponseError{Detail: llm.ErrorDetail{Code: "upstream_stream_read_error"},
+				Cause: &httpclient.Error{StatusCode: http.StatusBadRequest}},
+			expected: false,
+		},
+		{
 			name:     "wrapped upstream EOF is retryable",
 			err:      fmt.Errorf("HTTP stream request failed: %w", io.EOF),
 			expected: true,
