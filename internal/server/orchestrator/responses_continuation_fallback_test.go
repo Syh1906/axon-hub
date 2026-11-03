@@ -108,6 +108,7 @@ func TestResponsesContinuationStrictUnavailableStillRejects(t *testing.T) {
 
 type orderedOriginFixture struct {
 	fakePreviousChannelProvider
+
 	queries []string
 }
 
