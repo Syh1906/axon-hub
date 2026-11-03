@@ -98,5 +98,9 @@ func TestChannelFirstStreamEventTimeoutWithoutRetry(t *testing.T) {
 	_, err := processor.Process(processCtx, buildTestRequest("gpt-4", "hello", true))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "timeout")
+	require.Equal(t, "upstream_first_event_timeout", ExtractErrorInfo(err).Failure.Code)
+	executions := client.RequestExecution.Query().AllX(ctx)
+	require.Len(t, executions, 1)
+	require.Equal(t, "upstream_first_event_timeout", executions[0].Failure.Code)
 	require.Less(t, time.Since(start), 3*time.Second)
 }

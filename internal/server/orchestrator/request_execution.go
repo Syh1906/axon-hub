@@ -275,7 +275,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 		_, latency, _ := state.Perf.Calculate()
 		metrics = &biz.LatencyMetrics{LatencyMs: &latency, FirstByteLatencyMs: state.Perf.FirstByteLatencyMs()}
 	}
-	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, err, metrics, nil)
+	// Classify with the original request context before detaching persistence.
+	// The first failure snapshot is retained by RequestService during finalization.
+	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, classifyRequestFailure(ctx, err), metrics, nil)
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))
 	}
@@ -306,6 +308,9 @@ func extractExecutionErrorInfo(err error, secret string) *biz.ExecutionErrorInfo
 			}
 		}
 		failure.Type = sanitizeDiagnosticText(gjson.GetBytes(httpErr.Body, "error.type").String(), secret)
+		if failure.Code == "" {
+			failure.Code = requestFailureCode(err)
+		}
 		return info
 	}
 	if respErr, ok := xerrors.As[*llm.ResponseError](err); ok {
@@ -327,6 +332,9 @@ func extractExecutionErrorInfo(err error, secret string) *biz.ExecutionErrorInfo
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		failure.Source = "timeout"
+	}
+	if failure.Code == "" {
+		failure.Code = requestFailureCode(err)
 	}
 	return info
 }

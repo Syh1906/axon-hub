@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/samber/lo"
@@ -765,6 +766,11 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	if p.state.CurrentCandidate.continuationBound && invalidResponsesContinuation(err) {
 		return false
 	}
+	// Repeating the same payload/model/address cannot resolve this channel's
+	// explicit size limit. Only the already permitted channel fallback may help.
+	if isRequestSizeLimitError(err) {
+		return false
+	}
 	if p.state.CurrentCandidate.healthGate != nil && p.state.CurrentCandidate.healthGate.lastResort || errors.Is(err, errSkipCandidateByHealthGate) {
 		return false
 	}
@@ -809,7 +815,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	// is tried immediately. The load balancer (e.g. ErrorAware strategy) will
 	// deprioritize this channel for subsequent requests and it will naturally
 	// recover as the rate-limit window resets.
-	if httpclient.IsRateLimitErr(err) {
+	if ExtractStatusCodeFromError(err) == http.StatusTooManyRequests {
 		log.Debug(context.Background(), "429 rate limit, skipping same-channel retry to switch to next channel",
 			log.Int("channel_id", p.state.CurrentCandidate.Channel.ID),
 		)

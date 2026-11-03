@@ -236,7 +236,7 @@ func (s *RequestService) CreateRequest(
 	}
 
 	if storeRequestBody {
-		requestBodyBytes = s.PayloadService.saveDebug(ctx, requestBodyBytes)
+		requestBodyBytes = s.PayloadService.saveRequestDebug(ctx, requestBodyBytes)
 	} else {
 		requestBodyBytes = payloadMarker(requestPayloadReference{State: "disabled"})
 	}
@@ -312,7 +312,7 @@ func (s *RequestService) CreateRequestExecution(
 
 	requestBodyForDB := payloadMarker(requestPayloadReference{State: "disabled"})
 	if storeRequestBody {
-		requestBodyForDB = s.PayloadService.saveDebug(ctx, requestBodyBytes)
+		requestBodyForDB = s.PayloadService.saveRequestDebug(ctx, requestBodyBytes)
 	}
 
 	costSnapshot := captureRequestCostSnapshot(ctx, client, channel, modelID, modelCard)

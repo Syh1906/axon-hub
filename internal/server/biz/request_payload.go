@@ -45,11 +45,12 @@ func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadServic
 }
 
 type requestPayloadReference struct {
-	Version   int       `json:"version"`
-	State     string    `json:"state"`
-	Key       string    `json:"key,omitempty"`
-	Size      int       `json:"size,omitempty"`
-	ExpiresAt time.Time `json:"expiresAt,omitzero"`
+	Version   int                  `json:"version"`
+	State     string               `json:"state"`
+	Key       string               `json:"key,omitempty"`
+	Size      int                  `json:"size,omitempty"`
+	ExpiresAt time.Time            `json:"expiresAt,omitzero"`
+	Images    *requestImageSummary `json:"images,omitempty"`
 }
 
 type requestPayloadMarker struct {

@@ -23,6 +23,14 @@ The per-instance total is 768 MiB of compressed content, excluding filesystem me
 
 Upgrades do not remove old database/object payloads or shrink database files. Legacy payloads remain readable and follow the cleanup policies below. Binary audio resources and video files retain their separate storage and are outside these JSON cache limits. Forwarding still reads full live requests, so transient memory for very large requests is not eliminated.
 
+### Numeric image request summaries
+
+With `store_request_body` enabled, Responses and Chat Completions payload markers also retain a fixed set of integers: `images.count` (image occurrences), `inline_count`, `inline_encoded_bytes` (total inline encoded data bytes), and `largest_inline_encoded_bytes`. URL and file-ID images count as occurrences only; repeated images count separately. No image contents, URLs, or file IDs are retained in the summary. Images are neither fetched nor decoded, and image-like text or tool arguments are ignored. Encoded bytes are not decoded image size or provider relay capacity.
+
+Request rows summarize the inbound body actually retained in the request log; execution rows summarize the channel request's logged body. Each marker's `size` records that full body's length. Restored HTTP Responses continuation includes historical images, while WebSocket retains its existing display body. These figures therefore do not always describe the client's current upload, nor do they measure bytes on the wire. When a body exceeds 5 MiB, expires, or is evicted, the existing body-reading API returns an `_axon_payload` marker that retains the numeric summary. Available cached bodies are returned unchanged. No new frontend summary display is added.
+
+The summary does not expire with the five-minute file: it remains in the database payload marker until body cleanup (seven days by default on new installations) or request deletion. It remains retained if the relevant cleanup is disabled. Disabling request body storage prevents new summaries. Legacy markers without `images` remain readable without migration. Cache capacity is unchanged, but scanning large requests adds transient CPU and memory work proportional to body size.
+
 ## Retention and cleanup
 
 | Resource | New installation default | Effect |

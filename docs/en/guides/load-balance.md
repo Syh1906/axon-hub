@@ -75,6 +75,16 @@ response = client.chat.completions.create(
 )
 ```
 
+## Failure routing and feedback
+
+With address failover enabled, connection failures, response timeouts, and 5xx statuses (including 524) can select the next enabled address within the existing retry budget. Raw HTTP errors and normalized protocol errors follow the same status check. The model, request body, and selected credential remain unchanged. Address exhaustion returns control to existing channel fallback. Statuses 400, 401, 403, and 429 do not trigger address failover; 429 also skips same-channel and mapped-model retries.
+
+HTTP 413, or a 400 message containing both `image relay inline images exceed the configured` and `request limit`, indicates an upstream capacity rejection. It skips same-channel and mapped-model retries even if 400 is configured as retryable, while preserving existing cross-channel eligibility. Source-bound encrypted continuation still requires its original channel, model, and credential. Without an eligible candidate, the request fails; history is not deleted and images are not compressed automatically. Other 400 errors are not treated as capacity failures. Provider image-relay size is not equivalent to the entire client JSON size.
+
+When the provider supplies no error `code`, diagnostics add `upstream_request_too_large` (capacity rejection), `upstream_timeout` (504/524), `upstream_first_event_timeout` (first streaming event), or `upstream_response_timeout` (non-streaming response). Existing provider error fields are preserved. Exhaustion of the gateway's overall request deadline returns HTTP 504 with `request_deadline_exceeded` when `Process` returns an error before response delivery begins; client cancellation is not classified as an upstream timeout. Once streaming output is committed, its HTTP status cannot be rewritten: existing stream termination handling remains, and its timeout codes are not unified by this change. A gateway-generated 504 is not recorded as an actual upstream HTTP status. Existing error visibility policies still apply.
+
+This does not add retries, change timeout durations, buffer entire outputs for retry, or replay committed streaming content. Requests still fail when backup paths are unavailable or providers keep rejecting their size.
+
 ## 📊 Load Balancing Strategy Details
 
 ### Model Association Priority

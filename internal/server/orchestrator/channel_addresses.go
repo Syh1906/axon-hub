@@ -24,8 +24,8 @@ func isUpstreamAddressFailure(err error) bool {
 	if errors.Is(err, context.Canceled) {
 		return false
 	}
-	if response, ok := errors.AsType[*httpclient.Error](err); ok {
-		return response.StatusCode >= 500 && response.StatusCode <= 599
+	if status := ExtractStatusCodeFromError(err); status != 0 {
+		return status >= 500 && status <= 599
 	}
 	var networkError net.Error
 	return errors.As(err, &networkError) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, pipeline.ErrStreamFirstEventTimeout) || errors.Is(err, pipeline.ErrNonStreamResponseTimeout)

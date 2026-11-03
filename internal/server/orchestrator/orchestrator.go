@@ -352,6 +352,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 	result, err := pipe.Process(ctx, request)
 	if err != nil {
+		err = classifyRequestFailure(ctx, err)
 		if endErr := outbound.endBudgetAttempt(ctx); endErr != nil {
 			log.Error(ctx, "close budget attempt", log.Cause(endErr))
 		}
