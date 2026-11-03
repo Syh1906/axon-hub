@@ -1068,3 +1068,31 @@ export function useLoadApiKeyProfileTemplate() {
     },
   });
 }
+
+// Both management pages use one atomic deletion operation and cache lifecycle.
+export function useDeleteApiKeys() {
+  const { t } = useTranslation();
+  const cache = useQueryClient();
+  const project = useSelectedProjectId();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!project) throw new Error(t('apikeys.delete.projectRequired'));
+      const data = await graphqlRequest<{ deleteAPIKeys: boolean }>(
+        'mutation DeleteAPIKeys($ids:[ID!]!){deleteAPIKeys(ids:$ids)}',
+        { ids },
+        { 'X-Project-ID': project }
+      );
+      if (!data.deleteAPIKeys) throw new Error(t('apikeys.delete.failed'));
+    },
+    onSuccess: async (_, ids) => {
+      cache.removeQueries({ predicate: (query) => query.queryKey[0] === 'apiKey' && ids.includes(String(query.queryKey[1])) });
+      await Promise.all([
+        cache.resetQueries({ queryKey: ['apiKeys'] }),
+        ...['managedKeyGroups', 'managedGroupKeys', 'managementMoveCandidates', 'apiKeyProfileTemplates'].map((key) =>
+          cache.invalidateQueries({ queryKey: [key] })
+        ),
+      ]);
+      toast.success(t('apikeys.delete.success', { count: ids.length }));
+    },
+  });
+}

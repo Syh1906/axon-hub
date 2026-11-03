@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 )
 
@@ -212,7 +213,7 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, gr
 				return result, fmt.Errorf("group usage is unavailable")
 			}
 			result.id = fmt.Sprintf("group:%d", *current.GroupRef)
-			result.keyIDs, err = s.client.APIKey.Query().Where(apikey.ProjectIDEQ(key.ProjectID), apikey.GroupRefEQ(*current.GroupRef)).IDs(ctx)
+			result.keyIDs, err = s.client.APIKey.Query().Where(apikey.ProjectIDEQ(key.ProjectID), apikey.GroupRefEQ(*current.GroupRef)).IDs(schematype.SkipSoftDelete(ctx))
 		}
 		return result, err
 	})
@@ -494,7 +495,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		for _, req := range requests {
 			keyIDs = append(keyIDs, req.APIKeyID)
 		}
-		keys, err := s.client.APIKey.Query().Where(apikey.IDIn(keyIDs...), apikey.ProjectIDEQ(scope.projectID)).All(ctx)
+		keys, err := s.client.APIKey.Query().Where(apikey.IDIn(keyIDs...), apikey.ProjectIDEQ(scope.projectID)).All(schematype.SkipSoftDelete(ctx))
 		if err != nil {
 			return nil, err
 		}

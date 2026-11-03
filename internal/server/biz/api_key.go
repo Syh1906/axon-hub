@@ -104,7 +104,7 @@ func NewAPIKeyService(params APIKeyServiceParams) *APIKeyService {
 		TTL:             ttl,
 		RefreshInterval: 30 * time.Second,
 		DebounceDelay:   500 * time.Millisecond,
-		KeyFunc:         func(v *ent.APIKey) string { return buildAPIKeyCacheKey(v.Key) },
+		KeyFunc:         apiKeyCacheIdentity,
 		DeletedFunc:     func(v *ent.APIKey) bool { return v.DeletedAt != 0 },
 		Watcher:         notifier,
 		LoadOneFunc:     svc.onLoadOneKey,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ export function Members({
   writable,
   onAdd,
   onMove,
+  onDelete,
 }: {
   groupRef: number;
   selecting: boolean;
@@ -30,6 +31,7 @@ export function Members({
   writable: boolean;
   onAdd: () => void;
   onMove?: () => void;
+  onDelete: (member: Member) => void;
 }) {
   const { t } = useTranslation();
   const [offset, setOffset] = useState(0);
@@ -37,6 +39,11 @@ export function Members({
   const [budget, setBudget] = useState<Member | null>(null);
   const query = useManagedMembers(groupRef, offset);
   const items = query.data?.items ?? [];
+  useEffect(() => {
+    if (query.data && offset > 0 && offset >= query.data.total) {
+      setOffset(Math.max(0, Math.ceil(query.data.total / 10) - 1) * 10);
+    }
+  }, [query.data?.total, offset]);
   return (
     <div className='bg-background/70 m-3 flex flex-col gap-2 rounded-lg border p-3'>
       <div className='flex items-center justify-between'>
@@ -96,6 +103,7 @@ export function Members({
                 selected={selected.has(member.id)}
                 onSelect={(checked) => onSelect([member], checked)}
                 onEdit={() => setEditing(member)}
+                onDelete={() => onDelete(member)}
                 onProfile={() => onProfile(member.id)}
                 onBudget={() => setBudget(member)}
                 onDeferred={onDeferred}

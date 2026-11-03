@@ -688,6 +688,14 @@ func (r *requestResolver) ChannelID(ctx context.Context, obj *ent.Request) (*obj
 	}, nil
 }
 
+// APIKey is the resolver for the apiKey field.
+func (r *requestResolver) APIKey(ctx context.Context, obj *ent.Request) (*ent.APIKey, error) {
+	if key, err := obj.Edges.APIKeyOrErr(); err == nil {
+		return key, nil
+	}
+	return historicalRequestAPIKey(ctx, obj)
+}
+
 // Channel is the resolver for the channel field.
 func (r *requestResolver) Channel(ctx context.Context, obj *ent.Request) (*ent.Channel, error) {
 	return getNilableChannel(ctx, r.client, obj.ChannelID)

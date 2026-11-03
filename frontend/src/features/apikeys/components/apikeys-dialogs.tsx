@@ -9,17 +9,17 @@ import { ApiKeysCreateDialog } from './apikeys-create-dialog';
 import { ApiKeysEditDialog } from './apikeys-edit-dialog';
 import { ApiKeysProfileTemplatesDialog } from './apikeys-profile-templates-dialog';
 import { ApiKeyProfilesDialog } from './apikeys-profiles-dialog';
-// import { ApiKeysDeleteDialog } from './apikeys-delete-dialog'
 import { ApiKeysRotateDialog } from './apikeys-rotate-dialog';
 import { ApiKeysStatusDialog } from './apikeys-status-dialog';
 import { ApiKeysViewDialog } from './apikeys-view-dialog';
+import { DeleteKeysDialog } from './delete-keys-dialog';
 
 export function ApiKeysDialogs() {
   return (
     <>
       <ApiKeysCreateDialog />
       <ApiKeysEditDialog />
-      {/* <ApiKeysDeleteDialog /> */}
+      <ApiKeysDeleteDialog />
       <ApiKeysStatusDialog />
       <ApiKeysViewDialog />
       <ApiKeysArchiveDialog />
@@ -33,10 +33,26 @@ export function ApiKeysDialogs() {
   );
 }
 
+function ApiKeysDeleteDialog() {
+  const { isDialogOpen, closeDialog, selectedApiKey, resetRowSelection } = useApiKeysContext();
+  if (!isDialogOpen.delete || !selectedApiKey) return null;
+  return (
+    <DeleteKeysDialog
+      keys={[selectedApiKey]}
+      open
+      onOpenChange={(open) => !open && closeDialog('delete')}
+      onDeleted={() => {
+        closeDialog('delete');
+        resetRowSelection();
+      }}
+    />
+  );
+}
+
 function ApiKeysProfilesDialogWrapper() {
   const { isDialogOpen, closeDialog, selectedApiKey } = useApiKeysContext();
   const updateProfilesMutation = useUpdateApiKeyProfiles();
-  const { data: apiKeyDetail } = useApiKey(selectedApiKey?.id || '');
+  const { data: apiKeyDetail } = useApiKey(isDialogOpen.profiles ? selectedApiKey?.id || '' : '');
 
   const handleSubmit = (data: UpdateApiKeyProfilesInput) => {
     if (!selectedApiKey?.id) return;

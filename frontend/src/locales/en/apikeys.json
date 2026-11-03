@@ -276,5 +276,13 @@
   "apikeys.groups.current": "Current key",
   "apikeys.groups.scope": "Key group",
   "apikeys.groups.unavailable": "Unavailable group #{{id}}",
-  "apikeys.groups.removeSelection": "Remove {{name}}"
+  "apikeys.groups.removeSelection": "Remove {{name}}",
+  "apikeys.delete.title": "Permanently delete {{count}} API key(s)?",
+  "apikeys.delete.description": "Deleted keys stop working and cannot be restored. Historical requests and usage records are retained.",
+  "apikeys.delete.inFlight": "Accepted requests can still finish and charge the original key and group budgets. Deletion does not refund past usage.",
+  "apikeys.delete.confirm": "Permanently delete",
+  "apikeys.delete.selected": "Delete selected keys",
+  "apikeys.delete.failed": "Deletion failed or the outcome is unconfirmed. Refresh the list to check before trying again.",
+  "apikeys.delete.projectRequired": "Select a project first.",
+  "apikeys.delete.success": "Permanently deleted {{count}} API key(s)"
 }

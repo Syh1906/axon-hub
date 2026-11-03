@@ -303,7 +303,7 @@ func (r *queryResolver) RequestStatsByAPIKey(ctx context.Context, timeWindow *st
 	// Fetch API key details
 	apiKeys, err := r.client.APIKey.Query().
 		Where(apikey.IDIn(apiKeyIDs...)).
-		All(ctx)
+		All(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}
@@ -395,7 +395,7 @@ func (r *queryResolver) TokenStatsByAPIKey(ctx context.Context, timeWindow *stri
 	// Fetch API key details
 	apiKeys, err := r.client.APIKey.Query().
 		Where(apikey.IDIn(apiKeyIDs...)).
-		All(ctx)
+		All(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}
@@ -462,7 +462,7 @@ func (r *queryResolver) APIKeyTokenUsageStats(ctx context.Context, input *APIKey
 	// the caller can access in their project. Cross-project key IDs are dropped.
 	accessibleIDs, err := r.client.APIKey.Query().
 		Where(apikey.IDIn(apiKeyIDs...)).
-		IDs(ctx)
+		IDs(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate API key access: %w", err)
 	}
@@ -1746,7 +1746,7 @@ func (r *queryResolver) CostStatsByAPIKey(ctx context.Context, timeWindow *strin
 
 	apiKeys, err := r.client.APIKey.Query().
 		Where(apikey.IDIn(apiKeyIDs...)).
-		All(ctx)
+		All(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys: %w", err)
 	}

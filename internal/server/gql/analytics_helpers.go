@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
@@ -124,7 +125,7 @@ func (r *queryResolver) resolveFilterAPIKeyIDs(ctx context.Context, filter *Anal
 		userIDs := lo.Map(filter.UserIDs, func(g *objects.GUID, _ int) int { return g.ID })
 		apiKeys, err := r.client.APIKey.Query().
 			Where(apikey.UserIDIn(userIDs...)).
-			All(ctx)
+			All(schematype.SkipSoftDelete(ctx))
 		if err != nil {
 			return nil, hasUserFilter
 		}
@@ -142,7 +143,7 @@ func (r *queryResolver) resolveFilterAPIKeyIDs(ctx context.Context, filter *Anal
 			apiKeyQuery = apiKeyQuery.Where(apikey.ProjectIDEQ(projectID))
 		}
 
-		apiKeys, err := apiKeyQuery.All(ctx)
+		apiKeys, err := apiKeyQuery.All(schematype.SkipSoftDelete(ctx))
 		if err != nil {
 			return nil, true
 		}
@@ -282,7 +283,7 @@ func (r *queryResolver) queryAnalyticsAPIKeyStats(ctx context.Context, filter *A
 	if projectID, ok := contexts.GetProjectID(ctx); ok {
 		apiKeyQuery = apiKeyQuery.Where(apikey.ProjectIDEQ(projectID))
 	}
-	apiKeys, err := apiKeyQuery.All(ctx)
+	apiKeys, err := apiKeyQuery.All(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API keys for analytics stats: %w", err)
 	}
@@ -1009,7 +1010,7 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 
 	if len(rawResults) > 0 {
 		akIDs := lo.Map(rawResults, func(item apiKeyStatsRaw, _ int) int { return item.APIKeyID })
-		apiKeys, qErr := r.client.APIKey.Query().Where(apikey.IDIn(akIDs...)).All(ctx)
+		apiKeys, qErr := r.client.APIKey.Query().Where(apikey.IDIn(akIDs...)).All(schematype.SkipSoftDelete(ctx))
 		if qErr != nil {
 			return nil, fmt.Errorf("failed to get API key details: %w", qErr)
 		}

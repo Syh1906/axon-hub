@@ -1,13 +1,17 @@
 package schema
 
 import (
+	"context"
+
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 
+	"github.com/looplj/axonhub/internal/ent/hook"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -15,6 +19,17 @@ import (
 
 type APIKey struct {
 	ent.Schema
+}
+
+// A writer that loaded a key before deletion must not restore its credential or
+// settings after deletion commits. Apply the live-row condition at write time.
+func (APIKey) Hooks() []ent.Hook {
+	return []ent.Hook{hook.On(func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			m.(interface{ WhereP(...func(*sql.Selector)) }).WhereP(sql.FieldEQ("deleted_at", 0))
+			return next.Mutate(ctx, m)
+		})
+	}, ent.OpUpdate|ent.OpUpdateOne)}
 }
 
 func (APIKey) Mixin() []ent.Mixin {

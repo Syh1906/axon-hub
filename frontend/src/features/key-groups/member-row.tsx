@@ -1,8 +1,8 @@
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
-import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { currencyFractionDigits } from '@/utils/currency-display';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -22,6 +22,7 @@ export function MemberRow({
   selected,
   onSelect,
   onEdit,
+  onDelete,
   onProfile,
   onBudget,
   onDeferred,
@@ -32,6 +33,7 @@ export function MemberRow({
   selected: boolean;
   onSelect: (checked: boolean) => void;
   onEdit: () => void;
+  onDelete: () => void;
   onProfile: () => void;
   onBudget: () => void;
   onDeferred: () => void;
@@ -127,6 +129,12 @@ export function MemberRow({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          {writable && (
+            <Button size='sm' variant='outline' className='text-destructive' onClick={onDelete}>
+              <Trash2 className='size-4' />
+              {t('common.buttons.delete')}
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>

@@ -4597,7 +4597,7 @@ type Request implements Node {
   when the content file was saved
   """
   contentSavedAt: Time
-  apiKey: APIKey
+  apiKey: APIKey @goField(forceResolver: true)
   project: Project!
   trace: Trace
   dataStorage: DataStorage

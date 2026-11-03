@@ -1535,6 +1535,7 @@ type ComplexityRoot struct {
 		CreateUser                            func(childComplexity int, input ent.CreateUserInput) int
 		DeleteAPIKeyGroup                     func(childComplexity int, id int) int
 		DeleteAPIKeyProfileTemplate           func(childComplexity int, id objects.GUID) int
+		DeleteAPIKeys                         func(childComplexity int, ids []*objects.GUID) int
 		DeleteChannel                         func(childComplexity int, id objects.GUID) int
 		DeleteChannelOverrideTemplate         func(childComplexity int, id objects.GUID) int
 		DeleteChannelUpstreamAccount          func(childComplexity int, channelID objects.GUID, accountRef string) int
@@ -3292,6 +3293,7 @@ type MutationResolver interface {
 	BulkDisablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	PreviewPromptProtectionRule(ctx context.Context, input PromptProtectionRulePreviewInput) (*PromptProtectionRulePreviewResult, error)
 	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings) ([]*ent.ChannelModelPrice, error)
+	DeleteAPIKeys(ctx context.Context, ids []*objects.GUID) (bool, error)
 	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
 	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
 	PreviewKeyManagement(ctx context.Context, rows []*biz.KeyManagementRow) ([]*biz.KeyManagementResult, error)
@@ -3456,6 +3458,8 @@ type RequestResolver interface {
 	ResponseBody(ctx context.Context, obj *ent.Request) (objects.JSONRawMessage, error)
 	ResponseChunks(ctx context.Context, obj *ent.Request) ([]objects.JSONRawMessage, error)
 	ChannelID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
+
+	APIKey(ctx context.Context, obj *ent.Request) (*ent.APIKey, error)
 
 	Channel(ctx context.Context, obj *ent.Request) (*ent.Channel, error)
 
@@ -9469,6 +9473,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteAPIKeyProfileTemplate(childComplexity, args["id"].(objects.GUID)), true
+	case "Mutation.deleteAPIKeys":
+		if e.complexity.Mutation.DeleteAPIKeys == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAPIKeys_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAPIKeys(childComplexity, args["ids"].([]*objects.GUID)), true
 	case "Mutation.deleteChannel":
 		if e.complexity.Mutation.DeleteChannel == nil {
 			break
@@ -17989,6 +18004,17 @@ func (ec *executionContext) field_Mutation_deleteAPIKeyGroup_args(ctx context.Co
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteAPIKeys_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
 	return args, nil
 }
 
@@ -56858,6 +56884,47 @@ func (ec *executionContext) fieldContext_Mutation_saveChannelModelPrices(ctx con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_deleteAPIKeys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteAPIKeys,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().DeleteAPIKeys(ctx, fc.Args["ids"].([]*objects.GUID))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAPIKeys(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAPIKeys_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_saveAPIKeyGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -69837,7 +69904,7 @@ func (ec *executionContext) _Request_apiKey(ctx context.Context, field graphql.C
 		field,
 		ec.fieldContext_Request_apiKey,
 		func(ctx context.Context) (any, error) {
-			return obj.APIKey(ctx)
+			return ec.resolvers.Request().APIKey(ctx, obj)
 		},
 		nil,
 		ec.marshalOAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKey,
@@ -69851,7 +69918,7 @@ func (ec *executionContext) fieldContext_Request_apiKey(_ context.Context, field
 		Object:     "Request",
 		Field:      field,
 		IsMethod:   true,
-		IsResolver: false,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -133165,6 +133232,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "saveChannelModelPrices":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_saveChannelModelPrices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAPIKeys":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAPIKeys(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

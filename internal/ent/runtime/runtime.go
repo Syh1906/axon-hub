@@ -61,8 +61,11 @@ func init() {
 		})
 	}
 	apikeyMixinHooks1 := apikeyMixin[1].Hooks()
+	apikeyHooks := schema.APIKey{}.Hooks()
 
 	apikey.Hooks[1] = apikeyMixinHooks1[0]
+
+	apikey.Hooks[2] = apikeyHooks[0]
 	apikeyMixinInters1 := apikeyMixin[1].Interceptors()
 	apikey.Interceptors[0] = apikeyMixinInters1[0]
 	apikeyMixinFields0 := apikeyMixin[0].Fields()

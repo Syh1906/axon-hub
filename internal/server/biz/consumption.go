@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -125,7 +126,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 				keysQuery.Where(apikey.ProjectIDEQ(projectID))
 				groupsQuery.Where(apikeygroup.ProjectIDEQ(projectID))
 			}
-			latestKey, err := keysQuery.Select(apikey.FieldID, apikey.FieldUpdatedAt).Order(ent.Desc(apikey.FieldUpdatedAt)).First(ctx)
+			latestKey, err := keysQuery.Select(apikey.FieldID, apikey.FieldUpdatedAt).Order(ent.Desc(apikey.FieldUpdatedAt)).First(schematype.SkipSoftDelete(ctx))
 			if err != nil && !ent.IsNotFound(err) {
 				return nil, err
 			}
@@ -191,7 +192,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 			}
 			if len(ids) > 0 {
 				keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).
-					Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(ctx)
+					Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(schematype.SkipSoftDelete(ctx))
 				if err != nil {
 					return nil, err
 				}

@@ -18,6 +18,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/budgetposting"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 )
 
 type BackupBudgetAccount struct {
@@ -72,7 +73,7 @@ func (svc *BackupService) streamBudgets(ctx context.Context, o *objWriter, opts 
 			value.ProjectName = ownerProject.Name
 		}
 		if account.OwnerKind == budgetaccount.OwnerKindKey {
-			key, err := svc.db.APIKey.Get(ctx, account.OwnerID)
+			key, err := backupAPIKeys(svc.db).Where(apikey.IDEQ(account.OwnerID)).Only(schematype.SkipSoftDelete(ctx))
 			if err != nil && !ent.IsNotFound(err) {
 				return nil, false, err
 			}
@@ -181,7 +182,7 @@ func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, da
 		ownerID := nextOwner
 		nextOwner--
 		if projectID > 0 && source.OwnerKind == budgetaccount.OwnerKindKey && source.OwnerKey != "" {
-			key, err := db.APIKey.Query().Where(apikey.KeyEQ(source.OwnerKey), apikey.ProjectIDEQ(projectID)).Only(ctx)
+			key, err := db.APIKey.Query().Where(apikey.KeyEQ(source.OwnerKey), apikey.ProjectIDEQ(projectID)).Only(schematype.SkipSoftDelete(ctx))
 			if err != nil {
 				return fmt.Errorf("restore budget key: %w", err)
 			}

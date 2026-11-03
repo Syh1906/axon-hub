@@ -132,7 +132,8 @@ func (Request) Fields() []ent.Field {
 
 func (Request) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("api_key", APIKey.Type).Ref("requests").Field("api_key_id").Immutable().Unique(),
+		edge.From("api_key", APIKey.Type).Ref("requests").Field("api_key_id").Immutable().Unique().
+			Annotations(entgql.Directives(forceResolver())),
 		edge.From("project", Project.Type).
 			Ref("requests").
 			Field("project_id").

@@ -14,6 +14,7 @@ extend type Query {
 }
 
 extend type Mutation {
+  deleteAPIKeys(ids: [ID!]!): Boolean!
   saveAPIKeyGroup(id: Int, name: String!): APIKeyGroupOption!
   deleteAPIKeyGroup(id: Int!): Boolean!
 }

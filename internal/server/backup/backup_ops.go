@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -266,12 +267,12 @@ func (svc *BackupService) streamChannelModelPrices(ctx context.Context, o *objWr
 func (svc *BackupService) streamAPIKeys(ctx context.Context, o *objWriter, opts BackupOptions) error {
 	return streamArrayField(o, "api_keys", opts.IncludeAPIKeys, true,
 		func(lastID int) ([]*ent.APIKey, int, error) {
-			rows, err := svc.db.APIKey.Query().
+			rows, err := backupAPIKeys(svc.db).
 				WithProject().
 				Where(apikey.IDGT(lastID)).
 				Order(ent.Asc(apikey.FieldID)).
 				Limit(backupBatchSize).
-				All(ctx)
+				All(schematype.SkipSoftDelete(ctx))
 			if err != nil {
 				return nil, 0, err
 			}
@@ -317,12 +318,14 @@ func (svc *BackupService) streamUsageRequests(ctx context.Context, o *objWriter,
 				Limit(backupBatchSize).
 				WithProject().
 				WithChannel()
-			if opts.IncludeAPIKeys {
-				query.WithAPIKey()
-			}
 			rows, err := query.All(ctx)
 			if err != nil {
 				return nil, 0, err
+			}
+			if opts.IncludeAPIKeys {
+				if err := attachBackupAPIKeys(ctx, svc.db, rows); err != nil {
+					return nil, 0, err
+				}
 			}
 			nextID := 0
 			if len(rows) > 0 {
@@ -340,9 +343,9 @@ func (svc *BackupService) streamUsageRequests(ctx context.Context, o *objWriter,
 func (svc *BackupService) streamUsageLogs(ctx context.Context, o *objWriter, opts BackupOptions) error {
 	apiKeyKeys := map[int]string{}
 	if opts.IncludeUsageStats && opts.IncludeAPIKeys {
-		apiKeys, err := svc.db.APIKey.Query().
+		apiKeys, err := backupAPIKeys(svc.db).
 			Select(apikey.FieldID, apikey.FieldKey).
-			All(ctx)
+			All(schematype.SkipSoftDelete(ctx))
 		if err != nil {
 			return err
 		}

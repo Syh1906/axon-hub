@@ -142,13 +142,21 @@ function ApiKeysContent() {
     }
   }, [sorting]);
 
-  const { data, isLoading } = useApiKeys({
+  const { data, isLoading, isFetching, isPlaceholderData } = useApiKeys({
     ...(sortingCursorResetPending ? { first: pageSize } : paginationArgs),
     where: groupFilters.length ? { and: [whereClause ?? {}, groupFilter(groupFilters)] } : whereClause,
     orderBy: currentOrderBy,
   });
 
   const tableData = React.useMemo(() => data?.edges?.map((edge) => edge.node) ?? [], [data?.edges]);
+
+  React.useEffect(() => {
+    // A deletion can remove the last row after the current cursor. Keep the
+    // filters, sort and page size, and return to a valid page after refetch.
+    if (!isFetching && !isPlaceholderData && data && data.edges.length === 0 && hasPaginationCursor) {
+      resetCursor();
+    }
+  }, [data, isFetching, isPlaceholderData, hasPaginationCursor, resetCursor]);
 
   // Reset cursor when filters change
   React.useEffect(() => {

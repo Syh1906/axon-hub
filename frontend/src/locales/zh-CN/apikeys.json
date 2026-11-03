@@ -276,5 +276,13 @@
   "apikeys.groups.current": "当前密钥",
   "apikeys.groups.scope": "所属分组",
   "apikeys.groups.unavailable": "不可用分组 #{{id}}",
-  "apikeys.groups.removeSelection": "移除 {{name}}"
+  "apikeys.groups.removeSelection": "移除 {{name}}",
+  "apikeys.delete.title": "永久删除 {{count}} 个密钥？",
+  "apikeys.delete.description": "删除后密钥立即失效，无法恢复。历史请求与用量记录保留。",
+  "apikeys.delete.inFlight": "已受理的请求仍可完成，实际费用继续计入原密钥与分组额度；删除不会退还已消费额度。",
+  "apikeys.delete.confirm": "永久删除",
+  "apikeys.delete.selected": "删除所选密钥",
+  "apikeys.delete.failed": "删除未完成或结果未确认。请刷新列表核对后再操作。",
+  "apikeys.delete.projectRequired": "请先选择项目。",
+  "apikeys.delete.success": "已永久删除 {{count}} 个密钥"
 }

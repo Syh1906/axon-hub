@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
@@ -236,9 +237,9 @@ func newUsageRestoreResolver(ctx context.Context, db *ent.Client) (*usageRestore
 		return nil, err
 	}
 
-	apiKeys, err := db.APIKey.Query().
+	apiKeys, err := backupAPIKeys(db).
 		Select(apikey.FieldID, apikey.FieldKey).
-		All(ctx)
+		All(schematype.SkipSoftDelete(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +810,7 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 
 		existing, err := db.APIKey.Query().
 			Where(apikey.Key(akData.Key)).
-			First(ctx)
+			First(schematype.SkipSoftDelete(ctx))
 		if err != nil && !ent.IsNotFound(err) {
 			return err
 		}
@@ -825,6 +826,9 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 
 				return fmt.Errorf("API key %s already exists", akData.Name)
 			case ConflictStrategyOverwrite:
+				if existing.DeletedAt != 0 {
+					continue
+				} // Deletion records are immutable.
 				groupID, err := restoreKeyGroup(ctx, db, existing.ProjectID, akData.GroupName)
 				if err != nil {
 					return err
@@ -872,6 +876,7 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 			}
 			create := db.APIKey.Create().SetNillableGroupRef(groupID).
 				SetKey(akData.Key).
+				SetDeletedAt(akData.DeletedAt).
 				SetName(akData.Name).
 				SetType(akData.Type).
 				SetStatus(akData.Status).

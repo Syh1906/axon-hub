@@ -198,7 +198,7 @@ func selectConsumptionEntity(q *sql.Selector, input ConsumptionFilter, model str
 			q.Where(sql.EQ(group.C("id"), *input.GroupRef))
 		}
 		if input.Dimension == ConsumptionDimensionAPIKeyGroup {
-			q.Where(sql.And(sql.NotNull(group.C("id")), sql.EQ(key.C("deleted_at"), 0)))
+			q.Where(sql.NotNull(group.C("id")))
 			entityID = group.C("id")
 			names = []string{group.C("name")}
 			searchColumns = names
@@ -214,7 +214,6 @@ func selectConsumptionEntity(q *sql.Selector, input ConsumptionFilter, model str
 			}
 			searchColumns = append(append([]string{}, names...), fullName)
 		} else {
-			q.Where(sql.EQ(key.C("deleted_at"), 0))
 			entityID = key.C("id")
 			names = []string{key.C("name")}
 			searchColumns = names

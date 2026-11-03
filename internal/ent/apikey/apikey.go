@@ -110,7 +110,7 @@ func ValidColumn(column string) bool {
 //
 //	import _ "github.com/looplj/axonhub/internal/ent/runtime"
 var (
-	Hooks        [2]ent.Hook
+	Hooks        [3]ent.Hook
 	Interceptors [1]ent.Interceptor
 	Policy       ent.Policy
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.

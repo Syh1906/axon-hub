@@ -1,23 +1,24 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Plus, RefreshCw, Settings2 } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
-import { useDebounce } from '@/hooks/use-debounce';
-import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { currencyFractionDigits } from '@/utils/currency-display';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
+import { useDebounce } from '@/hooks/use-debounce';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from '@/components/ui/badge';
-import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuGroup } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExpandableTableRow } from '@/components/expandable-table-row';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
 import { ApiKeysDialogs } from '@/features/apikeys/components/apikeys-dialogs';
+import { DeleteKeysDialog, type DeleteKeyTarget } from '@/features/apikeys/components/delete-keys-dialog';
 import { ApiKeysProvider, useApiKeysContext } from '@/features/apikeys/context/apikeys-context';
 import { useApiKey } from '@/features/apikeys/data/apikeys';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
@@ -57,6 +58,12 @@ function GroupPage() {
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(20);
   const query = useManagedGroups(debounced, status, offset, limit, descending);
+  useEffect(() => {
+    // Removing the last matching key can also remove its group from a search.
+    if (!query.isFetching && !query.isPlaceholderData && query.data && offset > 0 && offset >= query.data.total) {
+      setOffset(Math.max(0, Math.ceil(query.data.total / limit) - 1) * limit);
+    }
+  }, [query.data?.total, query.isFetching, query.isPlaceholderData, offset, limit]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [mode, setMode] = useState('normal');
   const [selectedGroups, setSelectedGroups] = useState<Map<number, Group>>(new Map());
@@ -66,6 +73,7 @@ function GroupPage() {
   const [budget, setBudget] = useState<Group | null>(null);
   const [profile, setProfile] = useState<string | null>(null);
   const [move, setMove] = useState<Group | null>(null);
+  const [deleting, setDeleting] = useState<DeleteKeyTarget[] | null>(null);
   const [recoveryVersion, setRecoveryVersion] = useState(0);
   const deferRecovery = () => setRecoveryVersion((value) => value + 1);
   useEffect(() => subscribePendingRecovery(() => setRecoveryVersion((value) => value + 1)), []);
@@ -116,6 +124,11 @@ function GroupPage() {
       onAdd={() => setCreate({ kind: 'key', ids: [id] })}
       onDeferred={deferRecovery}
       onProfile={setProfile}
+      onDelete={(member) =>
+        setDeleting([
+          { ...member, displayName: id > 0 ? `${groups.find((group) => group.id === id)?.name ?? ''} · ${member.name}` : member.name },
+        ])
+      }
       onMove={
         id > 0
           ? () => {
@@ -236,6 +249,25 @@ function GroupPage() {
                   onClick={() => setCreate({ kind: 'keys', ids: [...selectedGroups.keys()] })}
                 >
                   {t('kg.addKey')}
+                </Button>
+              )}
+              {mode === 'key' && (
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='text-destructive'
+                  disabled={!selectedKeys.size}
+                  onClick={() =>
+                    setDeleting(
+                      [...selectedKeys.values()].map((member) => {
+                        const group = groups.find((item) => item.id === member.groupRef);
+                        return { ...member, displayName: group ? `${group.name} · ${member.name}` : member.name };
+                      })
+                    )
+                  }
+                >
+                  <Trash2 className='size-4' />
+                  {t('apikeys.delete.selected')}
                 </Button>
               )}
               <Button
@@ -541,6 +573,21 @@ function GroupPage() {
       )}
       {profile && <ProfileLoader id={profile} onLoaded={() => setProfile(null)} />}
       <ApiKeysDialogs />
+      {deleting && (
+        <DeleteKeysDialog
+          keys={deleting}
+          open
+          onOpenChange={(open) => !open && setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            setSelectedKeys((previous) => {
+              const next = new Map(previous);
+              deleting.forEach((key) => next.delete(key.id));
+              return next;
+            });
+          }}
+        />
+      )}
       {move && <MoveDialog group={move} onClose={() => setMove(null)} />}
     </>
   );

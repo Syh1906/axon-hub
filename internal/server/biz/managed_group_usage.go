@@ -10,6 +10,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
+	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
@@ -72,7 +73,8 @@ func (s *APIKeyService) managedGroupUsageScope(ctx context.Context, system *Syst
 	} else {
 		q.Where(apikey.GroupRefIsNil())
 	}
-	scope.keyIDs, err = q.IDs(ctx)
+	// Deleted credentials still own historical requests and usage.
+	scope.keyIDs, err = q.IDs(schematype.SkipSoftDelete(ctx))
 	return scope, first, err
 }
 

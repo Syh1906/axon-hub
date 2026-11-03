@@ -2,7 +2,7 @@ import React from 'react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Row } from '@tanstack/react-table';
 import { IconUserOff, IconUserCheck, IconEdit, IconSettings, IconArchive, IconCheck, IconRefresh } from '@tabler/icons-react';
-import { BarChart3, Wallet, ChartNoAxesCombined, RotateCcw } from 'lucide-react';
+import { BarChart3, Wallet, ChartNoAxesCombined, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -81,7 +81,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <span className='sr-only'>Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' className='w-[160px]'>
+        <DropdownMenuContent align='end' className='w-[180px]'>
           {(['settings', 'usage', 'reset'] as const)
             .filter((mode) => mode !== 'reset' || canResetBudget)
             .map((mode) => (
@@ -92,7 +92,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                   setTimeout(() => setBudgetMode(mode), 0);
                 }}
               >
-                {mode === 'settings' ? <Wallet className='mr-2 size-4' /> : mode === 'usage' ? <ChartNoAxesCombined className='mr-2 size-4' /> : <RotateCcw className='mr-2 size-4' />}
+                {mode === 'settings' ? (
+                  <Wallet className='mr-2 size-4' />
+                ) : mode === 'usage' ? (
+                  <ChartNoAxesCombined className='mr-2 size-4' />
+                ) : (
+                  <RotateCcw className='mr-2 size-4' />
+                )}
                 {t(mode === 'settings' ? 'budgets.title' : mode === 'usage' ? 'budgets.showUsage' : 'budgets.reset')}
               </DropdownMenuItem>
             ))}
@@ -144,6 +150,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                 <IconRefresh className='mr-2 h-4 w-4' />
                 {t('apikeys.dialogs.rotate.title')}
               </DropdownMenuItem>
+              {apiKey.type !== 'noauth' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className='text-destructive'
+                    onClick={() => {
+                      setOpen(false);
+                      setTimeout(() => openDialog('delete', apiKey), 0);
+                    }}
+                  >
+                    <Trash2 className='mr-2 size-4' />
+                    {t('apikeys.delete.confirm')}
+                  </DropdownMenuItem>
+                </>
+              )}
             </>
           )}
         </DropdownMenuContent>

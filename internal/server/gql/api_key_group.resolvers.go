@@ -7,8 +7,10 @@ package gql
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 // GroupName is the resolver for the groupName field.
@@ -36,6 +38,19 @@ func (r *aPIKeyResolver) DisplayName(ctx context.Context, obj *ent.APIKey) (stri
 		return obj.Name, nil
 	}
 	return obj.Name + " · " + owner, nil
+}
+
+// DeleteAPIKeys is the resolver for the deleteAPIKeys field.
+func (r *mutationResolver) DeleteAPIKeys(ctx context.Context, ids []*objects.GUID) (bool, error) {
+	keyIDs := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id == nil || id.Type != ent.TypeAPIKey || id.ID <= 0 {
+			return false, fmt.Errorf("invalid API key ID")
+		}
+		keyIDs = append(keyIDs, id.ID)
+	}
+	err := r.apiKeyService.DeleteAPIKeys(ctx, keyIDs)
+	return err == nil, err
 }
 
 // SaveAPIKeyGroup is the resolver for the saveAPIKeyGroup field.
