@@ -90,7 +90,8 @@ func TestResponsesWebSocketInterruptReportsRetentionFailure(t *testing.T) {
 				retained.Store(true)
 				return fmt.Errorf("fixture origin persistence failure")
 			},
-			ChatCompletionStream: &interruptTestStream{ctx: ctx, release: release, canceled: make(chan struct{}),
+			ChatCompletionStream: &interruptTestStream{
+				ctx: ctx, release: release, canceled: make(chan struct{}),
 				events: []*httpclient.StreamEvent{{Data: []byte(`{"type":"response.created","response":{"id":"resp_unretained","status":"in_progress","output":[]}}`)}},
 			},
 		}, nil

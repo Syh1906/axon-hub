@@ -12,7 +12,9 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 func responsesOriginRecorder(ctx context.Context, state *PersistenceState, requestBody []byte) func([]byte) error {
@@ -36,6 +38,7 @@ func responsesOriginRecorder(ctx context.Context, state *PersistenceState, reque
 
 type responsesOriginStream struct {
 	streams.Stream[*httpclient.StreamEvent]
+
 	record  func([]byte) error
 	current *httpclient.StreamEvent
 	err     error
@@ -86,4 +89,59 @@ func (s *responsesOriginStream) Err() error {
 		return s.err
 	}
 	return s.Stream.Err()
+}
+
+func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context.Context, state *PersistenceState, request *httpclient.Request, preparedResponsesBody []byte, result *pipeline.Result) (ChatCompletionResult, error) {
+	requestID := 0
+	if state.Request != nil {
+		requestID = state.Request.ID
+	}
+	// Return result based on stream type
+	var recordOrigin func([]byte) error
+	if state.LlmRequest != nil && isResponsesFormat(state.LlmRequest.APIFormat) {
+		recordOrigin = responsesOriginRecorder(ctx, state, request.Body)
+	}
+	if result.Stream {
+		state.StreamReturned = true
+		if recordOrigin != nil {
+			result.EventStream = &responsesOriginStream{Stream: result.EventStream, record: recordOrigin}
+		}
+		var retainContinuation func([]byte) error
+		if preparedResponsesBody != nil {
+			// Only history that passed origin recording may become restorable.
+			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
+			if shared.IsResponsesWebSocket(ctx) {
+				saveContext := processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
+				retainContinuation = func(body []byte) error {
+					if recordOrigin != nil {
+						if err := recordOrigin(body); err != nil {
+							return err
+						}
+					}
+					saveContext(body)
+					return nil
+				}
+			}
+		}
+		return ChatCompletionResult{
+			RequestID:                   requestID,
+			ChatCompletion:              nil,
+			ChatCompletionStream:        result.EventStream,
+			RetainResponsesContinuation: retainContinuation,
+		}, nil
+	}
+	if recordOrigin != nil && result.Response != nil {
+		if err := recordOrigin(result.Response.Body); err != nil {
+			return ChatCompletionResult{RequestID: requestID}, err
+		}
+	}
+	if preparedResponsesBody != nil && result.Response != nil {
+		processor.responsesSessions.record(ctx, preparedResponsesBody, result.Response.Body)
+	}
+
+	return ChatCompletionResult{
+		RequestID:            requestID,
+		ChatCompletion:       result.Response,
+		ChatCompletionStream: nil,
+	}, nil
 }

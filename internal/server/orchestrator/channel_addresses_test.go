@@ -162,8 +162,10 @@ func TestResponsesOriginKeepsAddressAfterPriorityChange(t *testing.T) {
 	require.NoError(t, err)
 	ch.Outbound = outbound
 	raw := &httpclient.Request{URL: "https://main.example/v1/responses", Headers: http.Header{"Chatgpt-Account-Id": {"fixture-account"}}}
-	candidate := &ChannelModelsCandidate{Channel: ch, APIFormat: string(llm.APIFormatOpenAIResponse), continuationBound: true,
-		continuationUpstreamRef: biz.ResponsesUpstreamRef(raw.URL, raw.Headers), Models: []biz.ChannelModelEntry{{ActualModel: "gpt-4"}}}
+	candidate := &ChannelModelsCandidate{
+		Channel: ch, APIFormat: string(llm.APIFormatOpenAIResponse), continuationBound: true,
+		continuationUpstreamRef: biz.ResponsesUpstreamRef(raw.URL, raw.Headers), Models: []biz.ChannelModelEntry{{ActualModel: "gpt-4"}},
+	}
 	p := &PersistentOutboundTransformer{wrapped: outbound, state: &PersistenceState{CurrentCandidate: candidate, ChannelModelsCandidates: []*ChannelModelsCandidate{candidate}}}
 	selected, err := applyUpstreamAddress(p).OnOutboundRawRequest(t.Context(), raw)
 	require.NoError(t, err)

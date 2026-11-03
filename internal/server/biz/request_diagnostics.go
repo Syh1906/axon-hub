@@ -15,7 +15,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 )
 
-// The intake row is created before admission. Finalize its normalized model
+// FinalizeRequestMetadata updates the intake row's normalized model
 // once mapping succeeds, preserving the existing request-log semantics.
 func (s *RequestService) FinalizeRequestMetadata(ctx context.Context, record *ent.Request, parsed *llm.Request) error {
 	if record.ModelID == parsed.Model && record.ReasoningEffort == parsed.ReasoningEffort {

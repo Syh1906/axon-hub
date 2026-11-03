@@ -45,11 +45,15 @@ func TestResponsesOriginEndToEnd(t *testing.T) {
 			policy.TraceStickyMode = biz.TraceStickyDisabled
 			require.NoError(t, processor.SystemService.SetRetryPolicy(ctx, policy))
 			candidate := func(ch *ent.Channel, model string) *ChannelModelsCandidate {
-				outbound, err := responses.NewOutboundTransformerWithConfig(&responses.Config{BaseURL: ch.BaseURL,
-					APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(ch.Credentials.APIKey))})
+				outbound, err := responses.NewOutboundTransformerWithConfig(&responses.Config{
+					BaseURL:        ch.BaseURL,
+					APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(ch.Credentials.APIKey)),
+				})
 				require.NoError(t, err)
-				return &ChannelModelsCandidate{Channel: &biz.Channel{Channel: ch, Outbound: outbound},
-					APIFormat: string(llm.APIFormatOpenAIResponse), Models: []biz.ChannelModelEntry{{RequestModel: model, ActualModel: model}}}
+				return &ChannelModelsCandidate{
+					Channel:   &biz.Channel{Channel: ch, Outbound: outbound},
+					APIFormat: string(llm.APIFormatOpenAIResponse), Models: []biz.ChannelModelEntry{{RequestModel: model, ActualModel: model}},
+				}
 			}
 			firstCandidate := candidate(first, "gpt-4")
 			otherModel := "gpt-luna"
@@ -58,11 +62,15 @@ func TestResponsesOriginEndToEnd(t *testing.T) {
 			}
 			secondCandidate := candidate(second, otherModel)
 			call := func(id, model, input string, candidates ...*ChannelModelsCandidate) ChatCompletionResult {
-				executor.response = &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
-					Body: []byte(fmt.Sprintf(`{"id":%q,"object":"response","status":"completed","model":%q,"output":[{"id":"rs_%s","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_cipher-%s"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`, id, model, id, id))}
+				executor.response = &httpclient.Response{
+					StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+					Body: []byte(fmt.Sprintf(`{"id":%q,"object":"response","status":"completed","model":%q,"output":[{"id":"rs_%s","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_cipher-%s"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`, id, model, id, id)),
+				}
 				processor.channelSelector = &staticChannelSelector{candidates: candidates}
-				result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", URL: "/v1/responses",
-					Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(fmt.Sprintf(`{"model":%q,"input":%s}`, model, input))})
+				result, err := processor.Process(ctx, &httpclient.Request{
+					Method: "POST", URL: "/v1/responses",
+					Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(fmt.Sprintf(`{"model":%q,"input":%s}`, model, input)),
+				})
 				require.NoError(t, err)
 				return result
 			}
@@ -113,11 +121,15 @@ func responsesOriginGateway(t *testing.T, executor pipeline.Executor) (context.C
 	processor.Inbound = responses.NewInboundTransformer()
 	processor.responsesSessions = newResponsesSessionStore(processor.RequestService.LoadCompletedResponsesSession)
 	processor.responsesSessions.save = processor.RequestService.SaveResponsesContext
-	outbound, err := responses.NewOutboundTransformerWithConfig(&responses.Config{BaseURL: ch.BaseURL,
-		APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(ch.Credentials.APIKey))})
+	outbound, err := responses.NewOutboundTransformerWithConfig(&responses.Config{
+		BaseURL:        ch.BaseURL,
+		APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(ch.Credentials.APIKey)),
+	})
 	require.NoError(t, err)
-	candidate := &ChannelModelsCandidate{Channel: &biz.Channel{Channel: ch, Outbound: outbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
-		Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}}}
+	candidate := &ChannelModelsCandidate{
+		Channel: &biz.Channel{Channel: ch, Outbound: outbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
+		Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+	}
 	processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{candidate}}
 	return shared.WithSessionScope(shared.WithResponsesAPI(ctx), "origin-fixture"), processor, client, candidate
 }
@@ -157,6 +169,7 @@ func TestResponsesOriginInterruptedHistoryRestoresAndRoutesTogether(t *testing.T
 
 type responsesGatewayExecutor struct {
 	mockExecutor
+
 	forward func(*httpclient.Request) (ChatCompletionResult, error)
 }
 
@@ -167,8 +180,10 @@ func (e *responsesGatewayExecutor) Do(_ context.Context, request *httpclient.Req
 }
 
 func TestResponsesOriginAcrossTwoGateways(t *testing.T) {
-	provider := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
-		Body: []byte(`{"id":"resp_vendor","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_vendor","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_vendor-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)}}
+	provider := &mockExecutor{response: &httpclient.Response{
+		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+		Body: []byte(`{"id":"resp_vendor","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_vendor","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_vendor-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
+	}}
 	innerCtx, inner, _, innerSource := responsesOriginGateway(t, provider)
 	bridge := &responsesGatewayExecutor{forward: func(req *httpclient.Request) (ChatCompletionResult, error) {
 		copy := *req
@@ -178,8 +193,10 @@ func TestResponsesOriginAcrossTwoGateways(t *testing.T) {
 	outerSource.Channel.Channel = outerDB.Channel.UpdateOneID(outerSource.Channel.ID).
 		SetBaseURL("https://inner-gateway.example/v1").SetCredentials(objects.ChannelCredentials{APIKey: "fixture-inner-gateway-key"}).SaveX(outerCtx)
 	var err error
-	outerSource.Channel.Outbound, err = responses.NewOutboundTransformerWithConfig(&responses.Config{BaseURL: outerSource.Channel.BaseURL,
-		APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(outerSource.Channel.Credentials.APIKey))})
+	outerSource.Channel.Outbound, err = responses.NewOutboundTransformerWithConfig(&responses.Config{
+		BaseURL:        outerSource.Channel.BaseURL,
+		APIKeyProvider: biz.NewChannelAPIKeyContextProvider(auth.NewStaticKeyProvider(outerSource.Channel.Credentials.APIKey)),
+	})
 	require.NoError(t, err)
 	for _, input := range []string{`"first"`, `[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_vendor-cipher"},{"role":"user","content":"continue"}]`} {
 		_, err := outer.Process(outerCtx, &httpclient.Request{Method: "POST", Body: []byte(fmt.Sprintf(`{"model":"gpt-4","input":%s}`, input))})
@@ -208,9 +225,11 @@ func TestResponsesOriginAcrossTwoGateways(t *testing.T) {
 }
 
 func TestResponsesOriginCompactToResponses(t *testing.T) {
-	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+	executor := &mockExecutor{response: &httpclient.Response{
+		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
 		Request: &httpclient.Request{RequestType: string(llm.RequestTypeCompact)},
-		Body:    []byte(`{"id":"cmp_origin","object":"response.compaction","model":"gpt-4","output":[{"id":"cmp_item","type":"compaction","encrypted_content":"gAAAA_compact"}],"usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}`)}}
+		Body:    []byte(`{"id":"cmp_origin","object":"response.compaction","model":"gpt-4","output":[{"id":"cmp_item","type":"compaction","encrypted_content":"gAAAA_compact"}],"usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}`),
+	}}
 	ctx, processor, client, source := responsesOriginGateway(t, executor)
 	// The compact endpoint does not install the ordinary Responses session flag.
 	projectID, _ := contexts.GetProjectID(ctx)
@@ -244,8 +263,10 @@ func rejectResponsesOriginWrites(client *ent.Client) {
 }
 
 func TestResponsesOriginWriteFailureStopsNonStreamDelivery(t *testing.T) {
-	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
-		Body: []byte(`{"id":"resp_write_failure","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_write_failure","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)}}
+	executor := &mockExecutor{response: &httpclient.Response{
+		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+		Body: []byte(`{"id":"resp_write_failure","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_write_failure","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
+	}}
 	ctx, processor, client, _ := responsesOriginGateway(t, executor)
 	rejectResponsesOriginWrites(client)
 	result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"first"}`)})
@@ -268,8 +289,10 @@ func TestResponsesOriginWriteFailureStopsNonStreamDelivery(t *testing.T) {
 func TestResponsesOriginNonStreamWithoutStatus(t *testing.T) {
 	for _, rejectWrites := range []bool{false, true} {
 		t.Run(fmt.Sprintf("reject_writes=%t", rejectWrites), func(t *testing.T) {
-			executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
-				Body: []byte(`{"id":"resp_no_status","object":"response","model":"gpt-4","output":[{"id":"rs_no_status","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_no-status-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)}}
+			executor := &mockExecutor{response: &httpclient.Response{
+				StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+				Body: []byte(`{"id":"resp_no_status","object":"response","model":"gpt-4","output":[{"id":"rs_no_status","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_no-status-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
+			}}
 			ctx, processor, client, source := responsesOriginGateway(t, executor)
 			passthrough := true
 			source.Channel.Settings = &objects.ChannelSettings{PassThroughBody: &passthrough}
@@ -358,8 +381,10 @@ func TestResponsesOriginDoneTerminal(t *testing.T) {
 }
 
 func TestResponsesOriginRetriesSameAddressAfterTransientFailure(t *testing.T) {
-	response := &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
-		Body: []byte(`{"id":"resp_retry","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_retry","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_retry-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)}
+	response := &httpclient.Response{
+		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
+		Body: []byte(`{"id":"resp_retry","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_retry","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_retry-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
+	}
 	executor := &sequenceExecutor{steps: []executorStep{{resp: response}, {err: &httpclient.Error{StatusCode: 503}}, {resp: response}}}
 	ctx, processor, client, source := responsesOriginGateway(t, executor)
 	source.Channel.Settings = &objects.ChannelSettings{AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{

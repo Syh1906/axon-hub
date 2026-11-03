@@ -243,9 +243,11 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	if shared.IsResponsesAPI(ctx) && request != nil {
 		// Register the original envelope before history restoration can reject it.
 		// Normal protocols register immediately after parsing, before admission.
-		metadata := &llm.Request{Model: gjson.GetBytes(request.Body, "model").String(),
+		metadata := &llm.Request{
+			Model:           gjson.GetBytes(request.Body, "model").String(),
 			Stream:          lo.ToPtr(gjson.GetBytes(request.Body, "stream").Bool()),
-			ReasoningEffort: gjson.GetBytes(request.Body, "reasoning.effort").String()}
+			ReasoningEffort: gjson.GetBytes(request.Body, "reasoning.effort").String(),
+		}
 		var err error
 		state.Request, err = processor.RequestService.CreateRequest(ctx, metadata, request, persistedRequestAPIFormat(ctx, llm.APIFormatOpenAIResponse))
 		if err != nil {
@@ -407,58 +409,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	// Record the provider outcome without replacing the already received response.
 	_ = healthGateTracker.finalize(ctx, state.ResponseTerminalError, result.Stream)
 
-	requestID := 0
-	if state.Request != nil {
-		requestID = state.Request.ID
-	}
-	// Return result based on stream type
-	var recordOrigin func([]byte) error
-	if state.LlmRequest != nil && isResponsesFormat(state.LlmRequest.APIFormat) {
-		recordOrigin = responsesOriginRecorder(ctx, state, request.Body)
-	}
-	if result.Stream {
-		state.StreamReturned = true
-		if recordOrigin != nil {
-			result.EventStream = &responsesOriginStream{Stream: result.EventStream, record: recordOrigin}
-		}
-		var retainContinuation func([]byte) error
-		if preparedResponsesBody != nil {
-			// Only history that passed origin recording may become restorable.
-			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
-			if shared.IsResponsesWebSocket(ctx) {
-				saveContext := processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
-				retainContinuation = func(body []byte) error {
-					if recordOrigin != nil {
-						if err := recordOrigin(body); err != nil {
-							return err
-						}
-					}
-					saveContext(body)
-					return nil
-				}
-			}
-		}
-		return ChatCompletionResult{
-			RequestID:                   requestID,
-			ChatCompletion:              nil,
-			ChatCompletionStream:        result.EventStream,
-			RetainResponsesContinuation: retainContinuation,
-		}, nil
-	}
-	if recordOrigin != nil && result.Response != nil {
-		if err := recordOrigin(result.Response.Body); err != nil {
-			return ChatCompletionResult{RequestID: requestID}, err
-		}
-	}
-	if preparedResponsesBody != nil && result.Response != nil {
-		processor.responsesSessions.record(ctx, preparedResponsesBody, result.Response.Body)
-	}
-
-	return ChatCompletionResult{
-		RequestID:            requestID,
-		ChatCompletion:       result.Response,
-		ChatCompletionStream: nil,
-	}, nil
+	return processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result)
 }
 
 func maybeEvaluateChannelAPIKeyRulesOnFailure(

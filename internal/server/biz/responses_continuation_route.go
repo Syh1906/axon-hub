@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
@@ -17,7 +19,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/llm"
-	"github.com/tidwall/gjson"
 )
 
 var ErrResponsesOriginConflict = errors.New("Responses history contains incompatible origins")
@@ -47,7 +48,7 @@ func ResponsesUpstreamRef(address string, headers http.Header) string {
 	u.User, u.RawQuery, u.Fragment = nil, "", ""
 	u.Path = strings.TrimSuffix(strings.TrimRight(u.Path, "/"), "/compact")
 	u.RawPath = ""
-	return responsesDigest(u.String() + "\x00" + headers.Get("Chatgpt-Account-Id") + "\x00" + headers.Get("OpenAI-Organization") + "\x00" + headers.Get("OpenAI-Project"))
+	return responsesDigest(u.String() + "\x00" + headers.Get("Chatgpt-Account-Id") + "\x00" + headers.Get("Openai-Organization") + "\x00" + headers.Get("Openai-Project"))
 }
 
 // RecordResponsesOrigin retains completed items even when generation is canceled.
