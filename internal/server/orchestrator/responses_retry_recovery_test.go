@@ -16,6 +16,7 @@ import (
 
 type responsesReadErrorExecutor struct {
 	mockExecutor
+
 	requests     []*httpclient.Request
 	withOutput   bool
 	unsafeSend   bool

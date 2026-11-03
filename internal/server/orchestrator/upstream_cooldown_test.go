@@ -116,8 +116,10 @@ func TestResponsesOriginCooldownDoesNotSwitchSource(t *testing.T) {
 	require.NoError(t, err)
 	processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{
 		source,
-		{Channel: &biz.Channel{Channel: backup, Outbound: backupOutbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
-			Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}}},
+		{
+			Channel: &biz.Channel{Channel: backup, Outbound: backupOutbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
+			Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+		},
 	}}
 	executor.err = &httpclient.Error{StatusCode: http.StatusTooManyRequests, Headers: http.Header{"Retry-After": {"30"}}, Body: []byte(`{"error":{"type":"rate_limit_error","message":"please retry later"}}`)}
 	body := []byte(`{"model":"gpt-4","input":[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_cooldown-origin"},{"role":"user","content":"continue"}]}`)

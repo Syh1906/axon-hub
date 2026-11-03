@@ -221,7 +221,11 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 	if err != nil && !errors.Is(err, errCodexInvalidEntries) {
 		return nil, err
 	}
-	return value.(map[string]map[string]any), err
+	models, ok := value.(map[string]map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("unexpected Codex catalog result type %T", value)
+	}
+	return models, err
 }
 
 func codexCatalogURL(ch *Channel, ep objects.ChannelEndpoint) string {

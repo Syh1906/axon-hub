@@ -20,6 +20,7 @@ import (
 
 type lostBudgetOwnerExecutor struct {
 	mockExecutor
+
 	db               *ent.Client
 	service          *biz.BudgetService
 	calls            int
@@ -69,8 +70,9 @@ func TestBudgetRevokedOwnerDoesNotReplayImmediateFailure(t *testing.T) {
 		t.Run(fmt.Sprintf("stream=%v", stream), func(t *testing.T) {
 			ctx, db, ch, requests, system, usage, _ := setupBudgetRequest(t)
 			executor := &lostBudgetOwnerExecutor{db: db, service: usage.BudgetService, immediateFailure: true}
-			processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch, ch}, "gpt-4")},
-				Inbound: openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage,
+			processor := &ChatCompletionOrchestrator{
+				channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch, ch}, "gpt-4")},
+				Inbound:         openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage,
 				PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
 			policy := system.RetryPolicyOrDefault(ctx)
 			policy.Enabled = true

@@ -325,8 +325,10 @@ func TestIsRetryableError(t *testing.T) {
 		},
 		{
 			name: "wrapped HTTP rejection is not hidden by a statusless interruption",
-			err: &llm.ResponseError{Detail: llm.ErrorDetail{Code: "upstream_stream_read_error"},
-				Cause: &httpclient.Error{StatusCode: http.StatusBadRequest}},
+			err: &llm.ResponseError{
+				Detail: llm.ErrorDetail{Code: "upstream_stream_read_error"},
+				Cause:  &httpclient.Error{StatusCode: http.StatusBadRequest},
+			},
 			expected: false,
 		},
 		{
