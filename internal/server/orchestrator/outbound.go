@@ -404,6 +404,7 @@ var errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit bre
 type PersistentOutboundTransformer struct {
 	wrapped                       transformer.Outbound
 	addressIndex                  int
+	continuationAddresses         []objects.ChannelUpstreamAddress
 	retryAddress                  bool
 	addressAPIKey                 string
 	state                         *PersistenceState
@@ -571,8 +572,13 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 			KeyRef:  candidate.continuationKeyRef,
 			KeyHint: candidate.continuationKeyHint,
 		})
-		if err != nil {
+		if err != nil && candidate.continuationStrict {
 			return nil, err
+		}
+		if err != nil {
+			// Self-contained history can use another enabled credential.
+			candidate.continuationKeyRef, candidate.continuationKeyHint = "", ""
+			candidate.continuationUpstreamRef = ""
 		}
 		if key != "" {
 			ctx = biz.WithFixedChannelAPIKey(ctx, key)
@@ -724,6 +730,7 @@ func (p *PersistentOutboundTransformer) NextChannel(ctx context.Context) error {
 
 	p.state.CurrentModelIndex = 0
 	p.addressIndex, p.retryAddress = 0, false
+	p.continuationAddresses = nil
 	p.addressAPIKey = ""
 	if p.state.CurrentCandidateIndex >= len(p.state.ChannelModelsCandidates) {
 		return errors.New("no more candidates available for retry")
@@ -782,7 +789,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 		return false
 	}
 	addresses := p.upstreamAddresses()
-	if p.state.CurrentCandidate.continuationUpstreamRef == "" && len(addresses) > 1 &&
+	if (!p.state.CurrentCandidate.continuationStrict || p.state.CurrentCandidate.continuationUpstreamRef == "") && len(addresses) > 1 &&
 		p.state.CurrentCandidate.Channel.Settings.AddressFailover && isUpstreamAddressFailure(err) {
 		return p.CanRetryAfterTimeout(err)
 	}
@@ -872,6 +879,9 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	if p.retryAddress {
 		p.addressIndex++
 		p.retryAddress = false
+		if !candidate.continuationStrict {
+			candidate.continuationUpstreamRef = ""
+		}
 		return nil
 	}
 	p.addressIndex = 0

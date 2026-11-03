@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -82,14 +83,19 @@ func TestResponsesOriginEndToEnd(t *testing.T) {
 			require.EqualValues(t, 3, executor.requestCalls.Load())
 			require.Equal(t, first.ID, client.Request.GetX(ctx, result.RequestID).ChannelID)
 			require.NotZero(t, client.ResponsesOrigin.Query().CountX(ctx))
-			// A real origin with no permitted candidate is a logged gateway refusal.
-			processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{secondCandidate}}
-			refused, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":[{"type":"reasoning","encrypted_content":"gAAAA_cipher-resp_first","summary":[]}]}`)})
-			require.Error(t, err)
-			recorded := client.Request.GetX(ctx, refused.RequestID)
-			require.NotNil(t, recorded.Failure)
-			require.Equal(t, "continuation_candidate_unavailable", recorded.Failure.Code)
-			require.EqualValues(t, 3, executor.requestCalls.Load(), "refused history must never be sent elsewhere")
+			// A disabled source is replaced without removing its history.
+			client.Channel.UpdateOneID(first.ID).SetStatus("disabled").SaveX(ctx)
+			result = call("resp_switched", "gpt-4", `[{"type":"reasoning","encrypted_content":"gAAAA_cipher-resp_first","summary":[]}]`, secondCandidate)
+			require.Equal(t, second.ID, client.Request.GetX(ctx, result.RequestID).ChannelID)
+			require.Contains(t, string(executor.lastRequest.Body), "gAAAA_cipher-resp_first")
+			// Once A returns, mixed A/B history must prefer the latest actual source B.
+			client.Channel.UpdateOneID(first.ID).SetStatus("enabled").SaveX(ctx)
+			firstCandidate.Priority, secondCandidate.Priority = 0, 9
+			result = call("resp_mixed", "gpt-4", `[{"type":"reasoning","encrypted_content":"gAAAA_cipher-resp_first","summary":[]},{"type":"reasoning","encrypted_content":"gAAAA_cipher-resp_switched","summary":[]}]`, firstCandidate, secondCandidate)
+			require.Equal(t, second.ID, client.Request.GetX(ctx, result.RequestID).ChannelID)
+			require.Contains(t, string(executor.lastRequest.Body), "gAAAA_cipher-resp_first")
+			require.Contains(t, string(executor.lastRequest.Body), "gAAAA_cipher-resp_switched")
+			require.EqualValues(t, 5, executor.requestCalls.Load())
 		})
 	}
 }
@@ -262,7 +268,7 @@ func rejectResponsesOriginWrites(client *ent.Client) {
 	})
 }
 
-func TestResponsesOriginWriteFailureStopsNonStreamDelivery(t *testing.T) {
+func TestResponsesOriginWriteFailurePreservesNonStreamDelivery(t *testing.T) {
 	executor := &mockExecutor{response: &httpclient.Response{
 		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
 		Body: []byte(`{"id":"resp_write_failure","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_write_failure","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
@@ -270,20 +276,13 @@ func TestResponsesOriginWriteFailureStopsNonStreamDelivery(t *testing.T) {
 	ctx, processor, client, _ := responsesOriginGateway(t, executor)
 	rejectResponsesOriginWrites(client)
 	result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"first"}`)})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "continuation_origin_persistence_failed")
-	require.Nil(t, result.ChatCompletion, "unregistered ciphertext must not be handed to the caller")
-	require.Nil(t, processor.responsesSessions.lookup(ctx, "resp_write_failure"), "unregistered history must not become restorable")
+	require.NoError(t, err)
+	require.Contains(t, string(result.ChatCompletion.Body), "gAAAA_unrecorded-cipher")
+	require.NotNil(t, processor.responsesSessions.lookup(ctx, "resp_write_failure"))
 	require.Zero(t, client.ResponsesOrigin.Query().CountX(ctx))
 	require.EqualValues(t, 1, executor.requestCalls.Load(), "an already completed generation must not be replayed")
-	require.Equal(t, "completed", string(client.RequestExecution.Query().OnlyX(ctx).Status), "the upstream did complete")
-	// A later stream finalizer must not replace the gateway's delivery failure.
-	require.NoError(t, processor.RequestService.UpdateRequestCompleted(ctx, result.RequestID, "resp_write_failure", []byte(`{}`), nil))
-	require.NoError(t, processor.RequestService.UpdateRequestStatusFromError(ctx, result.RequestID, context.Canceled))
-	recorded := client.Request.GetX(ctx, result.RequestID)
-	require.Equal(t, "failed", string(recorded.Status))
-	require.Equal(t, "continuation_origin_persistence_failed", recorded.Failure.Code)
-	require.Equal(t, "origin_persistence", recorded.Failure.Stage)
+	require.Equal(t, "completed", string(client.RequestExecution.Query().OnlyX(ctx).Status))
+	require.Equal(t, "completed", string(client.Request.GetX(ctx, result.RequestID).Status))
 }
 
 func TestResponsesOriginNonStreamWithoutStatus(t *testing.T) {
@@ -302,11 +301,11 @@ func TestResponsesOriginNonStreamWithoutStatus(t *testing.T) {
 			result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"first"}`)})
 			require.EqualValues(t, 1, executor.requestCalls.Load(), "origin recording must not replay generation")
 			if rejectWrites {
-				require.ErrorContains(t, err, "continuation_origin_persistence_failed")
-				require.Nil(t, result.ChatCompletion, "missing optional status must not bypass origin persistence")
-				require.Nil(t, processor.responsesSessions.lookup(ctx, "resp_no_status"))
+				require.NoError(t, err)
+				require.Equal(t, executor.response.Body, result.ChatCompletion.Body)
+				require.NotNil(t, processor.responsesSessions.lookup(ctx, "resp_no_status"))
 				require.Zero(t, client.ResponsesOrigin.Query().CountX(ctx))
-				require.Equal(t, "failed", string(client.Request.GetX(ctx, result.RequestID).Status))
+				require.Equal(t, "completed", string(client.Request.GetX(ctx, result.RequestID).Status))
 				return
 			}
 			require.NoError(t, err)
@@ -322,31 +321,32 @@ func TestResponsesOriginNonStreamWithoutStatus(t *testing.T) {
 	}
 }
 
-func TestResponsesOriginWriteFailureStopsStreamDelivery(t *testing.T) {
+func TestResponsesOriginWriteFailurePreservesStreamDelivery(t *testing.T) {
 	for _, passthrough := range []bool{false, true} {
 		t.Run(fmt.Sprintf("passthrough=%t", passthrough), func(t *testing.T) {
 			executor := &mockExecutor{streamEvents: []*httpclient.StreamEvent{
 				{Data: []byte(`{"type":"response.created","response":{"id":"resp_stream_write_failure","object":"response","status":"in_progress","model":"gpt-4","output":[]}}`)},
 				{Data: []byte(`{"type":"response.output_item.done","output_index":0,"item":{"id":"rs_done","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}}`)},
-				{Data: []byte(`{"type":"response.completed","response":{"id":"resp_stream_write_failure","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_done","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)},
+				{Data: []byte(`{"type":"response.completed","response":{"id":"resp_stream_write_failure","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_done","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_unrecorded-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`)},
 			}}
 			ctx, processor, client, source := responsesOriginGateway(t, executor)
 			source.Channel.Settings = &objects.ChannelSettings{PassThroughBody: &passthrough}
 			rejectResponsesOriginWrites(client)
 			result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","stream":true,"input":"first"}`)})
 			require.NoError(t, err)
+			deliveredCipher := false
 			for result.ChatCompletionStream.Next() {
-				require.NotContains(t, string(result.ChatCompletionStream.Current().Data), "gAAAA_unrecorded-cipher")
+				deliveredCipher = deliveredCipher || strings.Contains(string(result.ChatCompletionStream.Current().Data), "gAAAA_unrecorded-cipher")
 			}
-			require.ErrorContains(t, result.ChatCompletionStream.Err(), "continuation_origin_persistence_failed")
+			require.True(t, deliveredCipher)
+			require.NoError(t, result.ChatCompletionStream.Err())
 			require.NoError(t, result.ChatCompletionStream.Close())
-			require.Nil(t, processor.responsesSessions.lookup(ctx, "resp_stream_write_failure"))
+			require.NotNil(t, processor.responsesSessions.lookup(ctx, "resp_stream_write_failure"))
 			require.Zero(t, client.ResponsesOrigin.Query().CountX(ctx))
 			require.EqualValues(t, 1, executor.requestCalls.Load())
-			recorded := client.Request.GetX(ctx, result.RequestID)
-			require.Equal(t, "failed", string(recorded.Status))
-			require.Equal(t, "continuation_origin_persistence_failed", recorded.Failure.Code)
-			require.Equal(t, "origin_persistence", recorded.Failure.Stage)
+			require.Eventually(t, func() bool {
+				return string(client.Request.GetX(ctx, result.RequestID).Status) == "completed"
+			}, time.Second, 10*time.Millisecond)
 		})
 	}
 }
@@ -380,17 +380,18 @@ func TestResponsesOriginDoneTerminal(t *testing.T) {
 	}
 }
 
-func TestResponsesOriginRetryKeepsSourceAndStopsOnTimeout(t *testing.T) {
+func TestResponsesOriginRetryUsesConfiguredBackupAddress(t *testing.T) {
 	response := &httpclient.Response{
 		StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}},
 		Body: []byte(`{"id":"resp_retry","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_retry","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_retry-cipher"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
 	}
-	for _, status := range []int{503, 504, 524} {
-		t.Run(fmt.Sprint(status), func(t *testing.T) {
+	for _, scenario := range []struct{ status, sourcePriority int }{{503, 0}, {504, 0}, {524, 0}, {504, 9}} {
+		status := scenario.status
+		t.Run(fmt.Sprintf("status=%d/source_priority=%d", status, scenario.sourcePriority), func(t *testing.T) {
 			executor := &sequenceExecutor{steps: []executorStep{{resp: response}, {err: &httpclient.Error{StatusCode: status}}, {resp: response}}}
 			ctx, processor, client, source := responsesOriginGateway(t, executor)
 			source.Channel.Settings = &objects.ChannelSettings{AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{
-				{ID: "main", URL: source.Channel.BaseURL, Enabled: true},
+				{ID: "main", URL: source.Channel.BaseURL, Priority: 0, Enabled: true},
 				{ID: "backup", URL: "https://backup.example/v1", Priority: 1, Enabled: true},
 			}}
 			policy := processor.SystemService.RetryPolicyOrDefault(ctx)
@@ -398,22 +399,18 @@ func TestResponsesOriginRetryKeepsSourceAndStopsOnTimeout(t *testing.T) {
 			require.NoError(t, processor.SystemService.SetRetryPolicy(ctx, policy))
 			_, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"first"}`)})
 			require.NoError(t, err)
+			source.Channel.Settings.UpstreamAddresses[0].Priority = scenario.sourcePriority
 			_, err = processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_retry-cipher"},{"role":"user","content":"continue"}]}`)})
-			if status != 503 {
-				require.Equal(t, status, ExtractStatusCodeFromError(err))
-				require.Len(t, executor.requests, 2, "续聊超时后不能重复原来源或切换来源")
-				require.Equal(t, executor.requests[0].URL, executor.requests[1].URL)
-				require.Equal(t, executor.requests[0].Auth, executor.requests[1].Auth)
-				return
-			}
+
 			require.NoError(t, err)
 			require.Len(t, executor.requests, 3)
-			require.Equal(t, executor.requests[1].URL, executor.requests[2].URL)
-			require.Equal(t, executor.requests[1].Auth, executor.requests[2].Auth)
+			require.NotEqual(t, executor.requests[1].URL, executor.requests[2].URL)
+			require.NotEmpty(t, executor.requests[1].Headers.Get("Authorization"))
+			require.Equal(t, executor.requests[1].Headers.Get("Authorization"), executor.requests[2].Headers.Get("Authorization"))
 			require.Equal(t, executor.requests[1].Body, executor.requests[2].Body)
-			require.NotContains(t, executor.requests[2].URL, "backup.example")
+			require.Contains(t, executor.requests[2].URL, "backup.example")
 			executions := client.RequestExecution.Query().Order(ent.Asc("id")).AllX(ctx)
-			require.Equal(t, "same_channel", executions[1].RetryDecision)
+			require.Equal(t, "next_address", executions[1].RetryDecision)
 		})
 	}
 }

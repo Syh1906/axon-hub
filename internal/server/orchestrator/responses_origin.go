@@ -3,14 +3,12 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
-	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
@@ -22,15 +20,7 @@ func responsesOriginRecorder(ctx context.Context, state *PersistenceState, reque
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		if err := state.RequestService.RecordResponsesOrigin(persistCtx, state.RequestExec, requestBody, body); err != nil {
-			log.Error(persistCtx, "Unable to retain Responses output origin", log.Cause(err))
-			failure := &llm.ResponseError{StatusCode: http.StatusInternalServerError, Cause: err, Detail: llm.ErrorDetail{
-				Code: "continuation_origin_persistence_failed", Type: "gateway_error",
-				Message: "无法保存本次响应的续聊来源，已停止交付未登记的内容。请检查网关存储。",
-			}}
-			if state.StreamReturned {
-				persistRequestFailure(ctx, state, failure)
-			}
-			return failure
+			log.Warn(persistCtx, "Unable to retain optional Responses output origin", log.Cause(err))
 		}
 		return nil
 	}
@@ -108,7 +98,7 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 		}
 		var retainContinuation func([]byte) error
 		if preparedResponsesBody != nil {
-			// Only history that passed origin recording may become restorable.
+			// Full history remains restorable even when optional affinity is unavailable.
 			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
 			if shared.IsResponsesWebSocket(ctx) {
 				saveContext := processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)

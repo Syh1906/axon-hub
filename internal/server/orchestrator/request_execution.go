@@ -100,7 +100,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	selection := executionSelection(ctx, state)
 	if isResponsesFormat(format) {
 		selection.UpstreamRef = biz.ResponsesUpstreamRef(request.URL, request.Headers)
-		if candidate.continuationUpstreamRef != "" && candidate.continuationUpstreamRef != selection.UpstreamRef {
+		if candidate.continuationStrict && candidate.continuationUpstreamRef != "" && candidate.continuationUpstreamRef != selection.UpstreamRef {
 			return nil, continuationRouteError("continuation_upstream_changed", "原历史使用的上游地址或账号已改变，请恢复原上游身份后继续会话。")
 		}
 	}

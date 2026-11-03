@@ -7,6 +7,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm"
@@ -70,7 +71,34 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	if originalPreviousID != "" {
 		previousID = originalPreviousID
 	}
-	route, found, err := routes.GetResponsesContinuationRoute(ctx, previousID, responsesEncryptedContents(req)...)
+	strict := req.PreviousResponseID != nil && *req.PreviousResponseID != ""
+	contents := responsesEncryptedContents(req)
+	var route biz.ResponsesContinuationRoute
+	var found bool
+	var err error
+	if strict {
+		route, found, err = routes.GetResponsesContinuationRoute(ctx, previousID, contents...)
+	} else {
+		if previousID != "" {
+			route, found, err = routes.GetResponsesContinuationRoute(ctx, previousID)
+		}
+		if !found && err == nil && len(contents) > 0 {
+			route, found, err = routes.GetResponsesContinuationRoute(ctx, "", contents[len(contents)-1])
+		}
+	}
+	if !strict {
+		eligible := responsesContinuationCandidates(ctx, req, candidates)
+		if err != nil {
+			if !errors.Is(err, biz.ErrResponsesOriginConflict) {
+				log.Warn(ctx, "Unable to load optional Responses origin", log.Cause(err))
+			}
+			return eligible, true, nil
+		}
+		if !found || route.UnavailableCode != "" {
+			return eligible, true, nil
+		}
+		candidates = eligible
+	}
 	if errors.Is(err, biz.ErrResponsesOriginConflict) {
 		return nil, true, continuationRouteError("continuation_origin_conflict", "当前历史包含来自不同上游或凭据的加密内容，请使用同一来源的会话分支。")
 	}
@@ -92,6 +120,9 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	var source *ChannelModelsCandidate
 	for _, candidate := range candidates {
 		if candidate.Channel.ID != route.ChannelID {
+			continue
+		}
+		if !strict && !candidate.Channel.SessionReuseEnabled() {
 			continue
 		}
 		if len(candidate.Models) > 0 && len(candidate.modelAPIFormats) == len(candidate.Models) {
@@ -117,40 +148,82 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	if source != nil {
 		selected := *source
 		selected.continuationBound = true
+		selected.continuationStrict = strict
 		selected.continuationKeyRef = route.KeyRef
 		selected.continuationKeyHint = route.KeyHint
 		selected.continuationUpstreamRef = route.UpstreamRef
 		selected.TraceSticky = true
 		selected.SessionState = "reused"
-		return []*ChannelModelsCandidate{&selected}, true, nil
+		result := []*ChannelModelsCandidate{&selected}
+		if !strict {
+			for _, candidate := range candidates {
+				if candidate.Channel.ID != source.Channel.ID {
+					result = append(result, candidate)
+				}
+			}
+		}
+		return result, true, nil
+	}
+	if !strict {
+		return candidates, true, nil
 	}
 	return nil, true, continuationRouteError("continuation_candidate_unavailable", "原历史渠道未进入当前模型和调用权限的可选范围，请检查模型映射、协议支持及调用权限。")
 }
 
+// Preserve opaque history on protocols that can carry it unchanged. Candidates
+// have already passed model, project and API-key permission checks.
+func responsesContinuationCandidates(ctx context.Context, req *llm.Request, candidates []*ChannelModelsCandidate) []*ChannelModelsCandidate {
+	result := make([]*ChannelModelsCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if len(candidate.Models) > 0 && len(candidate.modelAPIFormats) == len(candidate.Models) {
+			var indices []int
+			for index, format := range candidate.modelAPIFormats {
+				if isResponsesFormat(llm.APIFormat(format)) {
+					indices = append(indices, index)
+				}
+			}
+			if len(indices) == 0 {
+				continue
+			}
+			candidate = cloneHealthGateCandidate(ctx, req, candidate, indices, nil)
+		} else if candidate.APIFormat != "" && !isResponsesFormat(llm.APIFormat(candidate.APIFormat)) {
+			continue
+		}
+		result = append(result, candidate)
+	}
+	return result
+}
+
 func responsesEncryptedContents(req *llm.Request) []string {
-	values := map[string]bool{}
+	var values []string
 	if req.RawRequest != nil {
 		for _, item := range gjson.GetBytes(req.RawRequest.Body, "input").Array() {
-			values[item.Get("encrypted_content").String()] = true
-		}
-	}
-	for _, message := range req.Messages {
-		if message.ReasoningSignature != nil {
-			values[*message.ReasoningSignature] = true
-		}
-		for _, item := range message.ReasoningItems {
-			values[item.Signature] = true
-		}
-		for _, part := range message.Content.MultipleContent {
-			if part.Compact != nil {
-				values[part.Compact.EncryptedContent] = true
+			if value := item.Get("encrypted_content").String(); value != "" {
+				values = append(values, value)
 			}
 		}
 	}
-	delete(values, "")
+	if len(values) > 0 {
+		return values // The actual input order identifies the latest source.
+	}
+	for _, message := range req.Messages {
+		if message.ReasoningSignature != nil {
+			values = append(values, *message.ReasoningSignature)
+		}
+		for _, item := range message.ReasoningItems {
+			values = append(values, item.Signature)
+		}
+		for _, part := range message.Content.MultipleContent {
+			if part.Compact != nil {
+				values = append(values, part.Compact.EncryptedContent)
+			}
+		}
+	}
 	result := make([]string, 0, len(values))
-	for value := range values {
-		result = append(result, value)
+	for _, value := range values {
+		if value != "" {
+			result = append(result, value)
+		}
 	}
 	return result
 }

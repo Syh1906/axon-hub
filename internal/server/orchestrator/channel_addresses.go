@@ -15,6 +15,9 @@ import (
 )
 
 func (p *PersistentOutboundTransformer) upstreamAddresses() []objects.ChannelUpstreamAddress {
+	if p.continuationAddresses != nil {
+		return p.continuationAddresses
+	}
 	if p.state.CurrentCandidate == nil {
 		return nil
 	}
@@ -40,7 +43,7 @@ func (p *PersistentOutboundTransformer) CanRetryAfterTimeout(err error) bool {
 		return false
 	}
 	candidate := p.state.CurrentCandidate
-	if candidate.continuationUpstreamRef != "" {
+	if candidate.continuationStrict && candidate.continuationUpstreamRef != "" {
 		return false
 	}
 	if candidate.healthGate != nil && candidate.healthGate.lastResort || candidate.Channel.Settings == nil || !candidate.Channel.Settings.AddressFailover {
@@ -85,8 +88,7 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		current.Path = strings.TrimRight(target.Path, "/") + strings.TrimPrefix(current.Path, basePath)
 		current.RawPath = ""
 		if origin := p.state.CurrentCandidate.continuationUpstreamRef; origin != "" {
-			// Re-select the actual origin even if priorities changed since the
-			// previous response. Another address is not evidence of compatibility.
+			// Prefer the actual origin even when address priorities changed.
 			for index, address := range addresses {
 				endpoint, err := url.Parse(channel.NormalizeUpstreamAddress(address.URL, format))
 				if err != nil {
@@ -99,6 +101,13 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 				if biz.ResponsesUpstreamRef(candidate.String(), request.Headers) == origin {
 					current = &candidate
 					p.addressIndex = index
+					if !p.state.CurrentCandidate.continuationStrict && p.continuationAddresses == nil {
+						// Keep the original source first, then every other configured
+						// address in priority order, including those before the source.
+						p.continuationAddresses = append([]objects.ChannelUpstreamAddress{address}, addresses[:index]...)
+						p.continuationAddresses = append(p.continuationAddresses, addresses[index+1:]...)
+						p.addressIndex = 0
+					}
 					break
 				}
 			}

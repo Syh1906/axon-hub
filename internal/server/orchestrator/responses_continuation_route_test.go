@@ -40,20 +40,19 @@ func TestResponsesContinuationRouting(t *testing.T) {
 	req := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, Model: "gpt-test", Messages: []llm.Message{{ReasoningSignature: lo.ToPtr("opaque-test-value")}}}
 	selected, err := selector.Select(t.Context(), req)
 	require.NoError(t, err)
-	require.Len(t, selected, 1)
+	require.Len(t, selected, 2)
 	require.Equal(t, 2, selected[0].Channel.ID)
 	require.True(t, selected[0].continuationBound)
 	require.Equal(t, "key-reference", selected[0].continuationKeyRef)
 	require.False(t, candidates[1].continuationBound, "do not mutate the shared candidate")
 
 	provider.route.ChannelID = 10
-	_, err = selector.Select(t.Context(), req)
-	var responseErr *llm.ResponseError
-	require.ErrorAs(t, err, &responseErr)
-	require.Equal(t, "continuation_candidate_unavailable", responseErr.Detail.Code)
+	selected, err = selector.Select(t.Context(), req)
+	require.NoError(t, err)
+	require.Len(t, selected, 2)
 	provider.err = errors.New("database unavailable")
 	_, err = selector.Select(t.Context(), req)
-	require.ErrorIs(t, err, provider.err)
+	require.NoError(t, err)
 
 	provider.err, provider.found = nil, false
 	selected, err = selector.Select(t.Context(), req)
@@ -71,7 +70,7 @@ func TestResponsesContinuationRouting(t *testing.T) {
 	req.Messages = []llm.Message{{ReasoningSignature: lo.ToPtr("opaque-test-value")}}
 	selected, err = selector.Select(ctx, req)
 	require.NoError(t, err)
-	require.Len(t, selected, 1)
+	require.Len(t, selected, 2)
 	require.Equal(t, "resp_original", provider.previousID, "preserve identity after local continuation expands the input")
 }
 

@@ -114,6 +114,15 @@ func (s *LoadBalancedSelector) selectHealthGated(
 	if policy.Enabled {
 		requiredCount += policy.MaxChannelRetries
 	}
+	for index, candidate := range filtered {
+		if candidate.continuationBound {
+			preferred := candidate
+			remaining := append(append([]*ChannelModelsCandidate{}, filtered[:index]...), filtered[index+1:]...)
+			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), false)
+			lb.TrackSelection(preferred)
+			return append([]*ChannelModelsCandidate{preferred}, fallbacks...), nil
+		}
+	}
 	if decision.sticky && decision.found && ownerAllowed {
 		if sticky, remaining := extractStickyCandidate(filtered, decision.owner.ChannelID); sticky != nil {
 			sticky.TraceSticky = true

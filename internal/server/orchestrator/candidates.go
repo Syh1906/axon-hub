@@ -38,7 +38,8 @@ type ChannelModelsCandidate struct {
 	ModelRoutingPolicy *ModelRoutingPolicy
 	ModelCard          *objects.ModelCard // resolved model's standard price and output limit
 
-	continuationBound       bool   // opaque Responses history must stay on this channel
+	continuationBound       bool   // prefer the original source and preserve this attempt's model
+	continuationStrict      bool   // unresolved previous_response_id needs its original upstream
 	continuationKeyRef      string // stable credential reference recovered from successful history
 	continuationKeyHint     string // legacy, masked credential identity
 	continuationUpstreamRef string // endpoint/account identity of the actual history
@@ -720,8 +721,16 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		if loadBalancer.healthGate != nil {
 			return s.selectHealthGated(ctx, req, selected, retryPolicy, traceStickyMode, loadBalancer)
 		}
-		loadBalancer.TrackSelection(selected[0])
-		return selected, nil
+		requiredCount := 1
+		if retryPolicy.Enabled {
+			requiredCount += retryPolicy.MaxChannelRetries
+		}
+		if len(selected) > 0 && selected[0].continuationBound {
+			fallbacks := s.sortCandidates(ctx, loadBalancer, selected[1:], req, max(requiredCount-1, 0), false)
+			loadBalancer.TrackSelection(selected[0])
+			return append(selected[:1:1], fallbacks...), nil
+		}
+		return s.sortCandidates(ctx, loadBalancer, selected, req, requiredCount, true), nil
 	}
 	if loadBalancer != nil && loadBalancer.healthGate != nil {
 		return s.selectHealthGated(ctx, req, candidates, retryPolicy, traceStickyMode, loadBalancer)

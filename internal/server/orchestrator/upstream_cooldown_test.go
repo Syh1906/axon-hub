@@ -96,7 +96,7 @@ func TestChannelCooldownFallsBackToAvailableCandidate(t *testing.T) {
 	require.Equal(t, channelCooldownCode, executions[0].Failure.Code)
 }
 
-func TestResponsesOriginCooldownDoesNotSwitchSource(t *testing.T) {
+func TestResponsesOriginCooldownSwitchesSource(t *testing.T) {
 	executor := &mockExecutor{response: &httpclient.Response{
 		StatusCode: http.StatusOK, Headers: http.Header{"Content-Type": {"application/json"}},
 		Body: []byte(`{"id":"resp_cooldown_origin","object":"response","status":"completed","model":"gpt-4","output":[{"id":"rs_origin","type":"reasoning","status":"completed","summary":[],"encrypted_content":"gAAAA_cooldown-origin"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`),
@@ -114,13 +114,7 @@ func TestResponsesOriginCooldownDoesNotSwitchSource(t *testing.T) {
 		SetCredentials(objects.ChannelCredentials{APIKey: "fixture-backup"}).SetSupportedModels([]string{"gpt-4"}).SetDefaultTestModel("gpt-4").SaveX(ctx)
 	backupOutbound, err := responses.NewOutboundTransformer(backup.BaseURL, backup.Credentials.APIKey)
 	require.NoError(t, err)
-	processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{
-		source,
-		{
-			Channel: &biz.Channel{Channel: backup, Outbound: backupOutbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
-			Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
-		},
-	}}
+
 	executor.err = &httpclient.Error{StatusCode: http.StatusTooManyRequests, Headers: http.Header{"Retry-After": {"30"}}, Body: []byte(`{"error":{"type":"rate_limit_error","message":"please retry later"}}`)}
 	body := []byte(`{"model":"gpt-4","input":[{"type":"reasoning","summary":[],"encrypted_content":"gAAAA_cooldown-origin"},{"role":"user","content":"continue"}]}`)
 	_, err = processor.Process(ctx, &httpclient.Request{Method: "POST", Body: body})
@@ -129,9 +123,19 @@ func TestResponsesOriginCooldownDoesNotSwitchSource(t *testing.T) {
 	require.EqualValues(t, 2, executor.requestCalls.Load())
 	until, cooling := processor.rateLimitTracker.GetCooldownUntil(source.Channel.ID)
 	require.True(t, cooling)
+	processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{
+		source,
+		{
+			Channel: &biz.Channel{Channel: backup, Outbound: backupOutbound}, APIFormat: string(llm.APIFormatOpenAIResponse),
+			Models: []biz.ChannelModelEntry{{RequestModel: "gpt-4", ActualModel: "gpt-4"}},
+		},
+	}}
+	executor.err = nil
 	_, err = processor.Process(ctx, &httpclient.Request{Method: "POST", Body: body})
-	require.True(t, isChannelCooldownError(err))
-	require.EqualValues(t, 2, executor.requestCalls.Load(), "原来源冷却时不能发送或切换其他来源")
+	require.NoError(t, err)
+	require.EqualValues(t, 3, executor.requestCalls.Load())
+	require.Contains(t, executor.lastRequest.URL, "backup.example")
+	require.Contains(t, string(executor.lastRequest.Body), "gAAAA_cooldown-origin")
 	currentUntil, cooling := processor.rateLimitTracker.GetCooldownUntil(source.Channel.ID)
 	require.True(t, cooling)
 	require.Equal(t, until, currentUntil)
