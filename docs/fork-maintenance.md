@@ -165,7 +165,7 @@ fork 改动，由用户决定。
 
 ### API 密钥分组
 
-- 永久删除密钥：API 密钥页提供删除菜单，分组成员支持逐条及勾选批量删除；同一选择整体提交、失败整体回滚。凭据原文不可恢复，保留删除身份关联历史请求、用量、分组及额度账目，已受理请求继续结算，不退还历史消费；数据库更新保护阻止旧编辑／轮换操作写回已删除密钥。缓存仅在最终提交后失效，删除身份参与周期刷新；历史统计和备份恢复保持关联及删除状态。普通管理列表不展示删除项，权限、项目与个人密钥边界不变。无新增 schema/data migration；业务、GraphQL、备份定向测试及隔离 SQLite 浏览器联调通过，未验证多数据库实例和真实 Redis 多实例。主要实现为 `internal/server/biz/api_key_delete.go`、`internal/ent/schema/api_key.go`、历史统计与备份读取链，以及两处页面共用的 `delete-keys-dialog.tsx`。 按用户指定的 gpt-6.1-sol / max 独立审查与主执行者自检，补齐 API 页删空 cursor 页、密钥搜索导致分组顶层页失效的回退，同请求内重复历史身份读取去重，以及删除时仍加载已关闭配置弹窗详情导致的错误提示；新增定向用例、两项实际分页重放及配置详情按需加载验收通过，未扩大到共享分页或全页加载重构。
+- 永久删除密钥（已随 `.syh.15` 发布）：API 密钥页提供删除菜单，分组成员支持逐条及勾选批量删除；同一选择整体提交、失败整体回滚。凭据原文不可恢复，保留删除身份关联历史请求、用量、分组及额度账目，已受理请求继续结算，不退还历史消费；数据库更新保护阻止旧编辑／轮换操作写回已删除密钥。缓存仅在最终提交后失效，删除身份参与周期刷新；历史统计和备份恢复保持关联及删除状态。普通管理列表不展示删除项，权限、项目与个人密钥边界不变。无新增 schema/data migration；业务、GraphQL、备份定向测试及隔离 SQLite 浏览器联调通过，未验证多数据库实例和真实 Redis 多实例。主要实现为 `internal/server/biz/api_key_delete.go`、`internal/ent/schema/api_key.go`、历史统计与备份读取链，以及两处页面共用的 `delete-keys-dialog.tsx`。 按用户指定的 gpt-6.1-sol / max 独立审查与主执行者自检，补齐 API 页删空 cursor 页、密钥搜索导致分组顶层页失效的回退，同请求内重复历史身份读取去重，以及删除时仍加载已关闭配置弹窗详情导致的错误提示；新增定向用例、两项实际分页重放及配置详情按需加载验收通过，未扩大到共享分页或全页加载重构。
 
 - 单项快捷编辑：名称／备注通过就地小表单保存，启停使用行内开关；额度支持设置、增加、取消单个周期限额，有效期支持快捷顺延、自选和永不过期。复用原管理接口的权限、版本检查及原请求恢复，批量预检和高级设置保留；不新增迁移。独立复审后补齐夏令时校验、可用金额下限、回读失败重试与在途切页恢复，定向测试和隔离接口故障注入通过，未发现剩余阻断；范围和限制见[快捷编辑验收](../output/implementation/axon-group-quick-edit-20261030/verification.md)。
 
@@ -498,7 +498,7 @@ fork 改动，由用户决定。
 
 ### 健康门控会话归属迟滞与决策记录
 
-- 2026-11-03 来源流程修正（未发布）：现场复现 `.syh.14` 按 trace/thread 最后成功请求误绑跨模型与同模型分支，以及中断历史可恢复但来源丢失。新增独立 `ResponsesOrigin` schema，按实际响应 ID／密文指纹登记与查询来源；完整输出项、压缩结果和中断快照使用相同证据，元数据独立于正文缓存。限制实际渠道、凭据和上游身份，未知来源不凭空绑定。请求新增 `failure` 字段，恢复、准入和选路前登记请求并向现有后台诊断展示拒绝原因，不伪造上游执行。自动 schema 升级，不新增 data migration；保留已发布迁移。旧版本仅保留精确响应 ID 的证据读取，以下 `.syh.14` 的 trace/thread 推断描述为历史行为。代码与验证见[本轮记录](../.agent/summary/responses-origin-fix-progress-20261103.md)，行为说明见中英文负载均衡指南。同步上游须核对来源表唯一索引、输出登记时机、请求登记顺序、协议转换与重试边界。
+- 2026-11-03 来源流程修正（已随 `.syh.15` 发布）：现场复现 `.syh.14` 按 trace/thread 最后成功请求误绑跨模型与同模型分支，以及中断历史可恢复但来源丢失。新增独立 `ResponsesOrigin` schema，按实际响应 ID／密文指纹登记与查询来源；完整输出项、压缩结果和中断快照使用相同证据，元数据独立于正文缓存。限制实际渠道、凭据和上游身份，未知来源不凭空绑定。请求新增 `failure` 字段，恢复、准入和选路前登记请求并向现有后台诊断展示拒绝原因，不伪造上游执行。自动 schema 升级，不新增 data migration；保留已发布迁移。旧版本仅保留精确响应 ID 的证据读取，以下 `.syh.14` 的 trace/thread 推断描述为历史行为。代码与验证见[本轮记录](../.agent/summary/responses-origin-fix-progress-20261103.md)，行为说明见中英文负载均衡指南。同步上游须核对来源表唯一索引、输出登记时机、请求登记顺序、协议转换与重试边界。
 - 同日独立审查补齐（未发布）：来源写入失败停止对应内容交付与缓存，不重放上游；覆盖 `response.done` 和可选空 `status`，补齐新旧凭据证据冲突判断，保留多地址配置下原地址的安全重试。后台区分上游完成与网关交付失败，显示来源保存阶段并将请求级失败加入复制诊断。独立 `gpt-6.1-sol / max` 复审、定向回归和本地真实 API／后台联调见[审查记录](../.agent/summary/responses-origin-review-20261103.md)；PostgreSQL／MySQL 实际升级及生产新版本效果仍未验证。
 
 - 2026-11-03 两轮复审补齐旧记录在同一请求内固定首次实际凭据的重试行为，以及混合接口渠道按每模型协议筛选后再应用健康门控。定向测试通过，独立 `gpt-6.1-sol / max` 对修正后代码的复核无待处理项，本地阶段验收通过，代码保留本地。详见[两类故障阶段复审](../.agent/summary/responses-stage-review-20261103.md)。
@@ -1028,6 +1028,10 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- 第十五版发布（2026-11-03）：版本 `v1.0.0-beta10-fork.7.syh.15`，包含续聊来源一致性、业务拒绝登记、独立复审补齐及密钥永久删除功能；正式源码 `910246cf35b888b93862e442ee26388e189a7d7a`。新增 `responses_origins` 表和 `requests.failure` 可空字段，由 Ent 自动升级；无新增 data migration，两层上游不变。工作区未提交的分组用量修复不在本版。
+  [发布任务 41640586579](https://github.com/Syh1906/axon-hub/actions/runs/41640586579) 全部成功，复用同提交 [Test 41639978133](https://github.com/Syh1906/axon-hub/actions/runs/41639978133)，Build、Lint 同样通过；双架构镜像和临时 PostgreSQL 启动检查通过。沿用既有精简流程 `publishBinaries=false`，没有再次修改工作流。UTC `13:07:13` [正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.15)并设为最新版本，唯一附件 [release.json](../output/implementation/release-syh15-20261103/release.json) 为 707 字节，SHA-256 `f03b7f4181d54c158801cf97b98ec8d1f5fe95cf62125c7ddf745cf824348577` 与 GitHub 一致。
+  固定镜像 `ghcr.io/syh1906/axon-hub@sha256:b4a2e22e65ef69c96e3db4add7a8f55d3ae9f048ecb5153777e9a0be12e5f58b`。云悠、泉哥依次部署完成；健康／版本／源码、首页资源、初始化与匿名鉴权、新表列及索引检查通过。数据库及其他容器未重建，未备份数据库，本轮配置副本已清理，旧正式镜像保留。泉哥 UTC `13:12:38` 观察到 1 条自然请求完成、2 条来源元数据写入；该短窗口不能证明全部续聊与上游错误已经消除。环境摘要差异、目录告警、恢复验收及未测边界见[发布部署记录](../.agent/summary/release-syh15-20261103.md)。
+
 - 第十四版发布（2026-11-03）：版本 `v1.0.0-beta10-fork.7.syh.14`，包含 `1c09b0ca` 加密续聊与工具流终态、`d54e4012` 状态筛选完整计数及 `69cf3d64` 备用地址切换、容量拒绝、超时诊断与图片数字摘要。两层上游不变，无 schema/data migration；`publishBinaries=false`、`prerelease=false`。本地阶段自检与独立复审通过，同源码 Test、Build、Lint 及精简发布全部成功，云悠、泉哥依次更新并通过部署验收。分组用量日志的其他会话改动不纳入本版。
   正式源码 `83a228ae755b2e3c62a096569be98e8d781a23f2`；[发布任务 41599019736](https://github.com/Syh1906/axon-hub/actions/runs/41599019736) 复用 [Test 41598569915](https://github.com/Syh1906/axon-hub/actions/runs/41598569915)，双架构及临时 PostgreSQL 启动／版本／提交检查通过。UTC `07:56:48` 正式发布并设为最新版本，唯一附件 [release.json](../output/implementation/release-syh14-20261103/release.json) 的 SHA-256 为 `ab3297c9e328c2647fc4dbdd5607cce9f9cc2f3588b74ef0e58ffd6b49715dc6`，与 GitHub 一致。
   固定镜像 `ghcr.io/syh1906/axon-hub@sha256:03810e634f6e7b1f9bc99dc8a63c5fff974eb5a156c722cb9eff8fcc867b065c`。两台本机／公网健康、版本与提交、首页资源、初始化及匿名鉴权通过；重建及健康等待分别为 `6.384`、`36.739` 秒，不等于逐请求中断实测。数据库、其他容器及原有配置不变，未备份数据库；本轮临时配置副本已清理，旧 `.syh.13` 镜像保留。泉哥观察到同一请求的上下文取消与 500 访问日志，复查健康且未新增同类错误；没有将其算作无错误运行或声称上游故障全部消除。验证边界及部署收据位置见[本轮发布记录](../.agent/summary/release-syh14-20261103.md)。
@@ -1114,7 +1118,6 @@ fork 改动，由用户决定。
 - `.syh.9` 验证：[Test](https://github.com/Syh1906/axon-hub/actions/runs/41290672323)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/41290672290)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/41290672300) 与[正式发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/41291097605) 全部成功。发布 tag 重新运行全量测试，云端双架构构建、摘要合成及临时 PostgreSQL 17 启动／版本核验通过。
 - `.syh.9` 固定镜像：`ghcr.io/syh1906/axon-hub@sha256:7baf4942ee92eb9c1cee7fa9e24e8c40cb2dfcdf66e07f403c4b042a5ef72c3f`。精简配置保持 `publishBinaries=false`，GoReleaser 及下载包步骤确实跳过，Release 仅含 706 字节的 [release.json](https://github.com/Syh1906/axon-hub/releases/download/v1.0.0-beta10-fork.7.syh.9/release.json)。已下载该小清单并核对 SHA-256、源码、两层上游、双架构与工作流地址；本地没有打包、上传二进制或拉取完整镜像。未执行生产部署。
 
-- 2026-11-03 `.syh.15` 发布准备：续聊来源修复与独立复审补齐、已提交的密钥删除功能；更新 VERSION 和发布说明。沿用 `publishBinaries=false`，复用同提交 Test 并保留双架构镜像和 PostgreSQL 启动检查。新增来源表及请求失败字段，无 data migration；正式产物与两台部署结果待完成后登记。
 - 上一正式发布：北京时间 **2026-10-31 19:25:49** 发布 [v1.0.0-beta10-fork.7.syh.8](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.8)，源码 `957ee29ad705bd3be53af8fd3698c8b8428ddf7b`；`draft=false`、`prerelease=false`，发布时已核实 GitHub latest 指向该版本。来源基线不变，未移动既有 tag。
 - `.syh.8` 内容：基于 `.syh.7` 汇总正则价格与预算、模式／分项／长上下文计费、Codex目录与协议、Responses完整历史恢复、密钥快捷编辑、请求与统计交互。业务及发布准备提交 `eafba007`，云端检查修正提交 `957ee29a`。详见[第八版发布说明](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.8)和[累计差异](solutions/changes-since-syh7-20261031.md)。不新增数据库迁移，未执行生产部署。
 - 发布流程优化：`release.config.json.publishBinaries=false` 默认只发布 GitHub 云端双架构 GHCR 镜像及固定摘要 `release.json`，跳过 GoReleaser 各平台包／校验和／schema附件；true 保留完整下载包流程。测试与PostgreSQL镜像启动检查保留，Docker上下文排除本地输出。实际附件从上版12个／377757202字节减少为1个／706字节（不包含GHCR镜像层和GitHub自动源码归档）。本版不供原生二进制下载升级。

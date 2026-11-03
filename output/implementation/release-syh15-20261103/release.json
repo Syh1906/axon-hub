@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.0.0-beta10-fork.7.syh.15",
+  "repository": "Syh1906/axon-hub",
+  "commit": "910246cf35b888b93862e442ee26388e189a7d7a",
+  "upstream": {
+    "repository": "ChouUn/axon-hub",
+    "tag": "v1.0.0-beta10-fork.7",
+    "commit": "b205ae8eb0db9fed6078e3a5c624bda61b36de31"
+  },
+  "image": "ghcr.io/syh1906/axon-hub@sha256:b4a2e22e65ef69c96e3db4add7a8f55d3ae9f048ecb5153777e9a0be12e5f58b",
+  "originalUpstream": {
+    "repository": "looplj/axonhub",
+    "tag": "v1.0.0-beta10",
+    "commit": "939b2bc07cc05bdf7750d7ec872290d67784d13d"
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "runURL": "https://github.com/Syh1906/axon-hub/actions/runs/41640586579"
+}
