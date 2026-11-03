@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/objects"
@@ -15,7 +17,6 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai"
-	"github.com/stretchr/testify/require"
 )
 
 type lostBudgetOwnerExecutor struct {
@@ -73,7 +74,8 @@ func TestBudgetRevokedOwnerDoesNotReplayImmediateFailure(t *testing.T) {
 			processor := &ChatCompletionOrchestrator{
 				channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch, ch}, "gpt-4")},
 				Inbound:         openai.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage,
-				PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+				PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager(),
+			}
 			policy := system.RetryPolicyOrDefault(ctx)
 			policy.Enabled = true
 			policy.MaxChannelRetries = 1

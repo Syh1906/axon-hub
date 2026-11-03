@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/llm"
-	"github.com/stretchr/testify/require"
 )
 
 func reserveOwnedBudget(t *testing.T, f budgetFixture, format llm.APIFormat) (*ent.Request, *ent.RequestExecution, *ent.BudgetCharge) {
