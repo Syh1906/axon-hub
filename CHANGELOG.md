@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Added
+
+- Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
+
+## [v1.0.0-beta10-fork.7.syh.16] - 2026-11-04
+
 ### 修复
 
 - 修复进程重启后同步请求预留长期占用额度：从预留开始持续确认执行归属，在主库确认失效后回收占用并保留未知费用；停止失去归属后的发送和重试，保护活跃长请求及异步视频。备份恢复保留归属与释放记录，旧版无归属记录需根据执行中断证据定向处理。
@@ -9,10 +15,6 @@
 - Responses 错误事件未提供状态码时，HTTP 错误出口返回 502，避免错误正文被发成 200；保留原始错误信息、上游状态及重试判断。
 - 明确的 `upstream_stream_read_error` 在无 HTTP 错误状态且尚未输出、允许安全重放时进入既有重试流程，继续遵守预算及加密续聊来源绑定。
 - 上游 429 提供 `Retry-After` 后，冷却期间不再向该渠道发送请求；保留允许的备用候选切换，否则返回 429 和剩余等待时间。本地拒绝不消耗 RPM、不延长冷却或触发凭据失败规则；保留客户端错误格式与隐藏／自定义文案策略。
-
-### Added
-
-- Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
 ## [v1.0.0-beta10-fork.7.syh.13] - 2026-11-03
 
