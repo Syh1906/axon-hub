@@ -151,7 +151,8 @@ func TestCodexCatalogUsesCompleteAssociatedCatalog(t *testing.T) {
 		{Channel: source, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
 		{Channel: listOnly, Models: []ChannelModelEntry{{ActualModel: "new-model"}}},
 	}
-	m := ModelFacade{ID: "client-alias", TargetID: "new-model", Connections: connections[1:]}
+	m := ModelFacade{ID: "client-alias", TargetID: "new-model", Connections: connections[1:],
+		ConfiguredModel: &ent.Model{ModelID: "new-model"}}
 	result, err := automaticCodexModel(t.Context(), m, connections,
 		map[int]map[string]map[string]any{1: {"test-model": old, "new-model": current}},
 		map[int]*Channel{1: {Channel: source}, 2: {Channel: listOnly}}, "0.166.0")
