@@ -410,7 +410,9 @@ func (s *RequestService) UpdateRequestCompleted(
 ) error {
 	client := s.entFromContext(ctx)
 
-	upd := client.Request.UpdateOneID(requestID).
+	// A downstream delivery failure may be recorded while the upstream stream
+	// is still draining. Late success must not replace that terminal outcome.
+	upd := client.Request.Update().Where(request.IDEQ(requestID), request.FailureIsNil()).
 		SetStatus(request.StatusCompleted).
 		SetExternalID(externalId)
 
@@ -431,7 +433,7 @@ func (s *RequestService) UpdateRequestCompleted(
 
 	upd.SetResponseBody(s.debugResponsePayload(ctx, responseBody))
 
-	_, err := upd.Save(ctx)
+	err := upd.Exec(ctx)
 	if err != nil {
 		log.Error(ctx, "Failed to update request status to completed", log.Cause(err))
 		return err
@@ -833,12 +835,16 @@ func (s *RequestService) UpdateRequestStatus(ctx context.Context, requestID int,
 }
 
 // UpdateRequestStatusFromError updates request status based on error type: canceled if context canceled, otherwise failed.
-func (s *RequestService) UpdateRequestStatusFromError(ctx context.Context, requestID int, rawErr error) error {
+func (s *RequestService) UpdateRequestStatusFromError(ctx context.Context, requestID int, rawErr error, failure ...*objects.RequestFailure) error {
+	status := request.StatusFailed
 	if errors.Is(rawErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
-		return s.UpdateRequestStatus(ctx, requestID, request.StatusCanceled)
+		status = request.StatusCanceled
 	}
-
-	return s.UpdateRequestStatus(ctx, requestID, request.StatusFailed)
+	if len(failure) > 0 && failure[0] != nil {
+		return s.entFromContext(ctx).Request.UpdateOneID(requestID).SetStatus(status).SetFailure(failure[0]).Exec(ctx)
+	}
+	// Stream cleanup may observe cancellation after an explicit delivery failure.
+	return s.entFromContext(ctx).Request.Update().Where(request.IDEQ(requestID), request.FailureIsNil()).SetStatus(status).Exec(ctx)
 }
 
 // cancelStaleRecords updates records older than maxAge to canceled status.

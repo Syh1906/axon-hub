@@ -775,7 +775,8 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 		return false
 	}
 	addresses := p.upstreamAddresses()
-	if len(addresses) > 1 && p.state.CurrentCandidate.Channel.Settings.AddressFailover && isUpstreamAddressFailure(err) {
+	if p.state.CurrentCandidate.continuationUpstreamRef == "" && len(addresses) > 1 &&
+		p.state.CurrentCandidate.Channel.Settings.AddressFailover && isUpstreamAddressFailure(err) {
 		return p.CanRetryAfterTimeout(err)
 	}
 

@@ -98,6 +98,8 @@ func (Request) Fields() []ent.Field {
 		field.Enum("status").Values("pending", "processing", "completed", "failed", "canceled").
 			Annotations(entgql.CollectedFor("outputTokensPerSecond")),
 		field.Int("client_status_code").Optional().Nillable(),
+		field.JSON("failure", &objects.RequestFailure{}).Optional().
+			Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)),
 		// Whether the request is a streaming request
 		field.Bool("stream").Default(false).Immutable(),
 		field.String("client_ip").Default("").Immutable(),

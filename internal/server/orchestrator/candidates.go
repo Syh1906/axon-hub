@@ -38,9 +38,10 @@ type ChannelModelsCandidate struct {
 	ModelRoutingPolicy *ModelRoutingPolicy
 	ModelCard          *objects.ModelCard // resolved model's standard price and output limit
 
-	continuationBound   bool   // opaque Responses history must stay on this channel
-	continuationKeyRef  string // stable credential reference recovered from successful history
-	continuationKeyHint string // legacy, masked credential identity
+	continuationBound       bool   // opaque Responses history must stay on this channel
+	continuationKeyRef      string // stable credential reference recovered from successful history
+	continuationKeyHint     string // legacy, masked credential identity
+	continuationUpstreamRef string // endpoint/account identity of the actual history
 }
 
 // ModelRoutingPolicy contains model-level overrides carried from model

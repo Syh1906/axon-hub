@@ -138,7 +138,7 @@ func (r *responsesWebSocketResponse) write(writer *responsesWebSocketWriter, dat
 	return writeResponsesWebSocketMessage(writer, websocket.TextMessage, encoded)
 }
 
-func (r *responsesWebSocketResponse) writeInterruption(writer *responsesWebSocketWriter, result orchestrator.ChatCompletionResult) (bool, error) {
+func (r *responsesWebSocketResponse) writeInterruption(ctx context.Context, writer *responsesWebSocketWriter, result orchestrator.ChatCompletionResult, transformError responsesWebSocketErrorFunc) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.canInterrupt() || r.id == "" {
@@ -167,7 +167,9 @@ func (r *responsesWebSocketResponse) writeInterruption(writer *responsesWebSocke
 	})
 	r.sequence++
 	if result.RetainResponsesContinuation != nil {
-		result.RetainResponsesContinuation(body)
+		if err := result.RetainResponsesContinuation(body); err != nil {
+			return true, writeResponsesWebSocketError(writer, transformResponsesWebSocketError(ctx, err, transformError), r.streamID)
+		}
 	}
 	return true, writeResponsesWebSocketJSON(writer, event)
 }

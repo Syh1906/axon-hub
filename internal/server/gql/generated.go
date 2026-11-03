@@ -2100,6 +2100,7 @@ type ComplexityRoot struct {
 		DataStorageID              func(childComplexity int) int
 		Executions                 func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestExecutionOrder, where *ent.RequestExecutionWhereInput) int
 		ExternalID                 func(childComplexity int) int
+		Failure                    func(childComplexity int) int
 		Format                     func(childComplexity int) int
 		ID                         func(childComplexity int) int
 		MetricsFirstTokenLatencyMs func(childComplexity int) int
@@ -2208,6 +2209,13 @@ type ComplexityRoot struct {
 		Strategy                func(childComplexity int) int
 		TransportFallbackReason func(childComplexity int) int
 		UpstreamTransport       func(childComplexity int) int
+	}
+
+	RequestFailure struct {
+		Code    func(childComplexity int) int
+		Message func(childComplexity int) int
+		Stage   func(childComplexity int) int
+		Type    func(childComplexity int) int
 	}
 
 	RequestLogStatusCount struct {
@@ -12922,6 +12930,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ExternalID(childComplexity), true
+	case "Request.failure":
+		if e.complexity.Request.Failure == nil {
+			break
+		}
+
+		return e.complexity.Request.Failure(childComplexity), true
 	case "Request.format":
 		if e.complexity.Request.Format == nil {
 			break
@@ -13439,6 +13453,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecutionSelection.UpstreamTransport(childComplexity), true
+
+	case "RequestFailure.code":
+		if e.complexity.RequestFailure.Code == nil {
+			break
+		}
+
+		return e.complexity.RequestFailure.Code(childComplexity), true
+	case "RequestFailure.message":
+		if e.complexity.RequestFailure.Message == nil {
+			break
+		}
+
+		return e.complexity.RequestFailure.Message(childComplexity), true
+	case "RequestFailure.stage":
+		if e.complexity.RequestFailure.Stage == nil {
+			break
+		}
+
+		return e.complexity.RequestFailure.Stage(childComplexity), true
+	case "RequestFailure.type":
+		if e.complexity.RequestFailure.Type == nil {
+			break
+		}
+
+		return e.complexity.RequestFailure.Type(childComplexity), true
 
 	case "RequestLogStatusCount.count":
 		if e.complexity.RequestLogStatusCount.Count == nil {
@@ -69636,6 +69675,45 @@ func (ec *executionContext) fieldContext_Request_clientStatusCode(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_failure(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_failure,
+		func(ctx context.Context) (any, error) {
+			return obj.Failure, nil
+		},
+		nil,
+		ec.marshalORequestFailure2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestFailure,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_failure(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stage":
+				return ec.fieldContext_RequestFailure_stage(ctx, field)
+			case "code":
+				return ec.fieldContext_RequestFailure_code(ctx, field)
+			case "type":
+				return ec.fieldContext_RequestFailure_type(ctx, field)
+			case "message":
+				return ec.fieldContext_RequestFailure_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestFailure", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_stream(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -70732,6 +70810,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_status(ctx, field)
 			case "clientStatusCode":
 				return ec.fieldContext_Request_clientStatusCode(ctx, field)
+			case "failure":
+				return ec.fieldContext_Request_failure(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -71728,6 +71808,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_status(ctx, field)
 			case "clientStatusCode":
 				return ec.fieldContext_Request_clientStatusCode(ctx, field)
+			case "failure":
+				return ec.fieldContext_Request_failure(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -72621,6 +72703,122 @@ func (ec *executionContext) fieldContext_RequestExecutionSelection_candidates(_ 
 				return ec.fieldContext_RequestRoutingCandidate_sessionReuse(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RequestRoutingCandidate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestFailure_stage(ctx context.Context, field graphql.CollectedField, obj *objects.RequestFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestFailure_stage,
+		func(ctx context.Context) (any, error) {
+			return obj.Stage, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestFailure_stage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestFailure_code(ctx context.Context, field graphql.CollectedField, obj *objects.RequestFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestFailure_code,
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestFailure_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestFailure_type(ctx context.Context, field graphql.CollectedField, obj *objects.RequestFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestFailure_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestFailure_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestFailure_message(ctx context.Context, field graphql.CollectedField, obj *objects.RequestFailure) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestFailure_message,
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestFailure_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestFailure",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -86750,6 +86948,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_status(ctx, field)
 			case "clientStatusCode":
 				return ec.fieldContext_Request_clientStatusCode(ctx, field)
+			case "failure":
+				return ec.fieldContext_Request_failure(ctx, field)
 			case "stream":
 				return ec.fieldContext_Request_stream(ctx, field)
 			case "clientIP":
@@ -139252,6 +139452,8 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "clientStatusCode":
 			out.Values[i] = ec._Request_clientStatusCode(ctx, field, obj)
+		case "failure":
+			out.Values[i] = ec._Request_failure(ctx, field, obj)
 		case "stream":
 			out.Values[i] = ec._Request_stream(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -140439,6 +140641,60 @@ func (ec *executionContext) _RequestExecutionSelection(ctx context.Context, sel 
 			}
 		case "candidates":
 			out.Values[i] = ec._RequestExecutionSelection_candidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestFailureImplementors = []string{"RequestFailure"}
+
+func (ec *executionContext) _RequestFailure(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestFailure) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestFailureImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestFailure")
+		case "stage":
+			out.Values[i] = ec._RequestFailure_stage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "code":
+			out.Values[i] = ec._RequestFailure_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._RequestFailure_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._RequestFailure_message(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -163351,6 +163607,13 @@ func (ec *executionContext) unmarshalORequestExecutionWhereInput2ᚖgithubᚗcom
 	}
 	res, err := ec.unmarshalInputRequestExecutionWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORequestFailure2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestFailure(ctx context.Context, sel ast.SelectionSet, v *objects.RequestFailure) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestFailure(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalORequestLogFilterInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogFilterInput(ctx context.Context, v any) (*RequestLogFilterInput, error) {

@@ -187,6 +187,18 @@ func (_u *RequestUpdate) ClearClientStatusCode() *RequestUpdate {
 	return _u
 }
 
+// SetFailure sets the "failure" field.
+func (_u *RequestUpdate) SetFailure(v *objects.RequestFailure) *RequestUpdate {
+	_u.mutation.SetFailure(v)
+	return _u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (_u *RequestUpdate) ClearFailure() *RequestUpdate {
+	_u.mutation.ClearFailure()
+	return _u
+}
+
 // SetMetricsLatencyMs sets the "metrics_latency_ms" field.
 func (_u *RequestUpdate) SetMetricsLatencyMs(v int64) *RequestUpdate {
 	_u.mutation.ResetMetricsLatencyMs()
@@ -578,6 +590,12 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ClientStatusCodeCleared() {
 		_spec.ClearField(request.FieldClientStatusCode, field.TypeInt)
 	}
+	if value, ok := _u.mutation.Failure(); ok {
+		_spec.SetField(request.FieldFailure, field.TypeJSON, value)
+	}
+	if _u.mutation.FailureCleared() {
+		_spec.ClearField(request.FieldFailure, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.MetricsLatencyMs(); ok {
 		_spec.SetField(request.FieldMetricsLatencyMs, field.TypeInt64, value)
 	}
@@ -920,6 +938,18 @@ func (_u *RequestUpdateOne) AddClientStatusCode(v int) *RequestUpdateOne {
 // ClearClientStatusCode clears the value of the "client_status_code" field.
 func (_u *RequestUpdateOne) ClearClientStatusCode() *RequestUpdateOne {
 	_u.mutation.ClearClientStatusCode()
+	return _u
+}
+
+// SetFailure sets the "failure" field.
+func (_u *RequestUpdateOne) SetFailure(v *objects.RequestFailure) *RequestUpdateOne {
+	_u.mutation.SetFailure(v)
+	return _u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (_u *RequestUpdateOne) ClearFailure() *RequestUpdateOne {
+	_u.mutation.ClearFailure()
 	return _u
 }
 
@@ -1343,6 +1373,12 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if _u.mutation.ClientStatusCodeCleared() {
 		_spec.ClearField(request.FieldClientStatusCode, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Failure(); ok {
+		_spec.SetField(request.FieldFailure, field.TypeJSON, value)
+	}
+	if _u.mutation.FailureCleared() {
+		_spec.ClearField(request.FieldFailure, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.MetricsLatencyMs(); ok {
 		_spec.SetField(request.FieldMetricsLatencyMs, field.TypeInt64, value)

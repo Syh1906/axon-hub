@@ -37,6 +37,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
@@ -85,6 +86,7 @@ const (
 	TypeProviderQuotaStatus      = "ProviderQuotaStatus"
 	TypeRequest                  = "Request"
 	TypeRequestExecution         = "RequestExecution"
+	TypeResponsesOrigin          = "ResponsesOrigin"
 	TypeRole                     = "Role"
 	TypeSystem                   = "System"
 	TypeThread                   = "Thread"
@@ -25003,6 +25005,7 @@ type RequestMutation struct {
 	status                            *request.Status
 	client_status_code                *int
 	addclient_status_code             *int
+	failure                           **objects.RequestFailure
 	stream                            *bool
 	client_ip                         *string
 	metrics_latency_ms                *int64
@@ -26047,6 +26050,55 @@ func (m *RequestMutation) ResetClientStatusCode() {
 	delete(m.clearedFields, request.FieldClientStatusCode)
 }
 
+// SetFailure sets the "failure" field.
+func (m *RequestMutation) SetFailure(of *objects.RequestFailure) {
+	m.failure = &of
+}
+
+// Failure returns the value of the "failure" field in the mutation.
+func (m *RequestMutation) Failure() (r *objects.RequestFailure, exists bool) {
+	v := m.failure
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailure returns the old "failure" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldFailure(ctx context.Context) (v *objects.RequestFailure, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailure is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailure requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailure: %w", err)
+	}
+	return oldValue.Failure, nil
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (m *RequestMutation) ClearFailure() {
+	m.failure = nil
+	m.clearedFields[request.FieldFailure] = struct{}{}
+}
+
+// FailureCleared returns if the "failure" field was cleared in this mutation.
+func (m *RequestMutation) FailureCleared() bool {
+	_, ok := m.clearedFields[request.FieldFailure]
+	return ok
+}
+
+// ResetFailure resets all changes to the "failure" field.
+func (m *RequestMutation) ResetFailure() {
+	m.failure = nil
+	delete(m.clearedFields, request.FieldFailure)
+}
+
 // SetStream sets the "stream" field.
 func (m *RequestMutation) SetStream(b bool) {
 	m.stream = &b
@@ -26810,7 +26862,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -26867,6 +26919,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m.client_status_code != nil {
 		fields = append(fields, request.FieldClientStatusCode)
+	}
+	if m.failure != nil {
+		fields = append(fields, request.FieldFailure)
 	}
 	if m.stream != nil {
 		fields = append(fields, request.FieldStream)
@@ -26941,6 +26996,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case request.FieldClientStatusCode:
 		return m.ClientStatusCode()
+	case request.FieldFailure:
+		return m.Failure()
 	case request.FieldStream:
 		return m.Stream()
 	case request.FieldClientIP:
@@ -27006,6 +27063,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldStatus(ctx)
 	case request.FieldClientStatusCode:
 		return m.OldClientStatusCode(ctx)
+	case request.FieldFailure:
+		return m.OldFailure(ctx)
 	case request.FieldStream:
 		return m.OldStream(ctx)
 	case request.FieldClientIP:
@@ -27165,6 +27224,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetClientStatusCode(v)
+		return nil
+	case request.FieldFailure:
+		v, ok := value.(*objects.RequestFailure)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailure(v)
 		return nil
 	case request.FieldStream:
 		v, ok := value.(bool)
@@ -27355,6 +27421,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldClientStatusCode) {
 		fields = append(fields, request.FieldClientStatusCode)
 	}
+	if m.FieldCleared(request.FieldFailure) {
+		fields = append(fields, request.FieldFailure)
+	}
 	if m.FieldCleared(request.FieldMetricsLatencyMs) {
 		fields = append(fields, request.FieldMetricsLatencyMs)
 	}
@@ -27419,6 +27488,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldClientStatusCode:
 		m.ClearClientStatusCode()
+		return nil
+	case request.FieldFailure:
+		m.ClearFailure()
 		return nil
 	case request.FieldMetricsLatencyMs:
 		m.ClearMetricsLatencyMs()
@@ -27502,6 +27574,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldClientStatusCode:
 		m.ResetClientStatusCode()
+		return nil
+	case request.FieldFailure:
+		m.ResetFailure()
 		return nil
 	case request.FieldStream:
 		m.ResetStream()
@@ -30606,6 +30681,1094 @@ func (m *RequestExecutionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown RequestExecution edge %s", name)
+}
+
+// ResponsesOriginMutation represents an operation that mutates the ResponsesOrigin nodes in the graph.
+type ResponsesOriginMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	project_id      *int
+	addproject_id   *int
+	api_key_id      *int
+	addapi_key_id   *int
+	fingerprint     *string
+	origin_ref      *string
+	channel_id      *int
+	addchannel_id   *int
+	key_ref         *string
+	key_hint        *string
+	upstream_ref    *string
+	request_id      *int
+	addrequest_id   *int
+	execution_id    *int
+	addexecution_id *int
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*ResponsesOrigin, error)
+	predicates      []predicate.ResponsesOrigin
+}
+
+var _ ent.Mutation = (*ResponsesOriginMutation)(nil)
+
+// responsesoriginOption allows management of the mutation configuration using functional options.
+type responsesoriginOption func(*ResponsesOriginMutation)
+
+// newResponsesOriginMutation creates new mutation for the ResponsesOrigin entity.
+func newResponsesOriginMutation(c config, op Op, opts ...responsesoriginOption) *ResponsesOriginMutation {
+	m := &ResponsesOriginMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeResponsesOrigin,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withResponsesOriginID sets the ID field of the mutation.
+func withResponsesOriginID(id int) responsesoriginOption {
+	return func(m *ResponsesOriginMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ResponsesOrigin
+		)
+		m.oldValue = func(ctx context.Context) (*ResponsesOrigin, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ResponsesOrigin.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withResponsesOrigin sets the old ResponsesOrigin of the mutation.
+func withResponsesOrigin(node *ResponsesOrigin) responsesoriginOption {
+	return func(m *ResponsesOriginMutation) {
+		m.oldValue = func(context.Context) (*ResponsesOrigin, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ResponsesOriginMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ResponsesOriginMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ResponsesOriginMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ResponsesOriginMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ResponsesOrigin.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ResponsesOriginMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ResponsesOriginMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ResponsesOriginMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ResponsesOriginMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ResponsesOriginMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ResponsesOriginMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ResponsesOriginMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ResponsesOriginMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *ResponsesOriginMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *ResponsesOriginMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ResponsesOriginMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *ResponsesOriginMutation) SetAPIKeyID(i int) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *ResponsesOriginMutation) APIKeyID() (r int, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldAPIKeyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *ResponsesOriginMutation) AddAPIKeyID(i int) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *ResponsesOriginMutation) AddedAPIKeyID() (r int, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *ResponsesOriginMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (m *ResponsesOriginMutation) SetFingerprint(s string) {
+	m.fingerprint = &s
+}
+
+// Fingerprint returns the value of the "fingerprint" field in the mutation.
+func (m *ResponsesOriginMutation) Fingerprint() (r string, exists bool) {
+	v := m.fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFingerprint returns the old "fingerprint" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFingerprint: %w", err)
+	}
+	return oldValue.Fingerprint, nil
+}
+
+// ResetFingerprint resets all changes to the "fingerprint" field.
+func (m *ResponsesOriginMutation) ResetFingerprint() {
+	m.fingerprint = nil
+}
+
+// SetOriginRef sets the "origin_ref" field.
+func (m *ResponsesOriginMutation) SetOriginRef(s string) {
+	m.origin_ref = &s
+}
+
+// OriginRef returns the value of the "origin_ref" field in the mutation.
+func (m *ResponsesOriginMutation) OriginRef() (r string, exists bool) {
+	v := m.origin_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginRef returns the old "origin_ref" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldOriginRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginRef: %w", err)
+	}
+	return oldValue.OriginRef, nil
+}
+
+// ResetOriginRef resets all changes to the "origin_ref" field.
+func (m *ResponsesOriginMutation) ResetOriginRef() {
+	m.origin_ref = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *ResponsesOriginMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *ResponsesOriginMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *ResponsesOriginMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *ResponsesOriginMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *ResponsesOriginMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetKeyRef sets the "key_ref" field.
+func (m *ResponsesOriginMutation) SetKeyRef(s string) {
+	m.key_ref = &s
+}
+
+// KeyRef returns the value of the "key_ref" field in the mutation.
+func (m *ResponsesOriginMutation) KeyRef() (r string, exists bool) {
+	v := m.key_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyRef returns the old "key_ref" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldKeyRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyRef: %w", err)
+	}
+	return oldValue.KeyRef, nil
+}
+
+// ResetKeyRef resets all changes to the "key_ref" field.
+func (m *ResponsesOriginMutation) ResetKeyRef() {
+	m.key_ref = nil
+}
+
+// SetKeyHint sets the "key_hint" field.
+func (m *ResponsesOriginMutation) SetKeyHint(s string) {
+	m.key_hint = &s
+}
+
+// KeyHint returns the value of the "key_hint" field in the mutation.
+func (m *ResponsesOriginMutation) KeyHint() (r string, exists bool) {
+	v := m.key_hint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyHint returns the old "key_hint" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldKeyHint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyHint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyHint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyHint: %w", err)
+	}
+	return oldValue.KeyHint, nil
+}
+
+// ResetKeyHint resets all changes to the "key_hint" field.
+func (m *ResponsesOriginMutation) ResetKeyHint() {
+	m.key_hint = nil
+}
+
+// SetUpstreamRef sets the "upstream_ref" field.
+func (m *ResponsesOriginMutation) SetUpstreamRef(s string) {
+	m.upstream_ref = &s
+}
+
+// UpstreamRef returns the value of the "upstream_ref" field in the mutation.
+func (m *ResponsesOriginMutation) UpstreamRef() (r string, exists bool) {
+	v := m.upstream_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamRef returns the old "upstream_ref" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldUpstreamRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamRef: %w", err)
+	}
+	return oldValue.UpstreamRef, nil
+}
+
+// ResetUpstreamRef resets all changes to the "upstream_ref" field.
+func (m *ResponsesOriginMutation) ResetUpstreamRef() {
+	m.upstream_ref = nil
+}
+
+// SetRequestID sets the "request_id" field.
+func (m *ResponsesOriginMutation) SetRequestID(i int) {
+	m.request_id = &i
+	m.addrequest_id = nil
+}
+
+// RequestID returns the value of the "request_id" field in the mutation.
+func (m *ResponsesOriginMutation) RequestID() (r int, exists bool) {
+	v := m.request_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestID returns the old "request_id" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldRequestID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestID: %w", err)
+	}
+	return oldValue.RequestID, nil
+}
+
+// AddRequestID adds i to the "request_id" field.
+func (m *ResponsesOriginMutation) AddRequestID(i int) {
+	if m.addrequest_id != nil {
+		*m.addrequest_id += i
+	} else {
+		m.addrequest_id = &i
+	}
+}
+
+// AddedRequestID returns the value that was added to the "request_id" field in this mutation.
+func (m *ResponsesOriginMutation) AddedRequestID() (r int, exists bool) {
+	v := m.addrequest_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequestID resets all changes to the "request_id" field.
+func (m *ResponsesOriginMutation) ResetRequestID() {
+	m.request_id = nil
+	m.addrequest_id = nil
+}
+
+// SetExecutionID sets the "execution_id" field.
+func (m *ResponsesOriginMutation) SetExecutionID(i int) {
+	m.execution_id = &i
+	m.addexecution_id = nil
+}
+
+// ExecutionID returns the value of the "execution_id" field in the mutation.
+func (m *ResponsesOriginMutation) ExecutionID() (r int, exists bool) {
+	v := m.execution_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionID returns the old "execution_id" field's value of the ResponsesOrigin entity.
+// If the ResponsesOrigin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponsesOriginMutation) OldExecutionID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionID: %w", err)
+	}
+	return oldValue.ExecutionID, nil
+}
+
+// AddExecutionID adds i to the "execution_id" field.
+func (m *ResponsesOriginMutation) AddExecutionID(i int) {
+	if m.addexecution_id != nil {
+		*m.addexecution_id += i
+	} else {
+		m.addexecution_id = &i
+	}
+}
+
+// AddedExecutionID returns the value that was added to the "execution_id" field in this mutation.
+func (m *ResponsesOriginMutation) AddedExecutionID() (r int, exists bool) {
+	v := m.addexecution_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExecutionID resets all changes to the "execution_id" field.
+func (m *ResponsesOriginMutation) ResetExecutionID() {
+	m.execution_id = nil
+	m.addexecution_id = nil
+}
+
+// Where appends a list predicates to the ResponsesOriginMutation builder.
+func (m *ResponsesOriginMutation) Where(ps ...predicate.ResponsesOrigin) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ResponsesOriginMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ResponsesOriginMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ResponsesOrigin, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ResponsesOriginMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ResponsesOriginMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ResponsesOrigin).
+func (m *ResponsesOriginMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ResponsesOriginMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.created_at != nil {
+		fields = append(fields, responsesorigin.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, responsesorigin.FieldUpdatedAt)
+	}
+	if m.project_id != nil {
+		fields = append(fields, responsesorigin.FieldProjectID)
+	}
+	if m.api_key_id != nil {
+		fields = append(fields, responsesorigin.FieldAPIKeyID)
+	}
+	if m.fingerprint != nil {
+		fields = append(fields, responsesorigin.FieldFingerprint)
+	}
+	if m.origin_ref != nil {
+		fields = append(fields, responsesorigin.FieldOriginRef)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, responsesorigin.FieldChannelID)
+	}
+	if m.key_ref != nil {
+		fields = append(fields, responsesorigin.FieldKeyRef)
+	}
+	if m.key_hint != nil {
+		fields = append(fields, responsesorigin.FieldKeyHint)
+	}
+	if m.upstream_ref != nil {
+		fields = append(fields, responsesorigin.FieldUpstreamRef)
+	}
+	if m.request_id != nil {
+		fields = append(fields, responsesorigin.FieldRequestID)
+	}
+	if m.execution_id != nil {
+		fields = append(fields, responsesorigin.FieldExecutionID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ResponsesOriginMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case responsesorigin.FieldCreatedAt:
+		return m.CreatedAt()
+	case responsesorigin.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case responsesorigin.FieldProjectID:
+		return m.ProjectID()
+	case responsesorigin.FieldAPIKeyID:
+		return m.APIKeyID()
+	case responsesorigin.FieldFingerprint:
+		return m.Fingerprint()
+	case responsesorigin.FieldOriginRef:
+		return m.OriginRef()
+	case responsesorigin.FieldChannelID:
+		return m.ChannelID()
+	case responsesorigin.FieldKeyRef:
+		return m.KeyRef()
+	case responsesorigin.FieldKeyHint:
+		return m.KeyHint()
+	case responsesorigin.FieldUpstreamRef:
+		return m.UpstreamRef()
+	case responsesorigin.FieldRequestID:
+		return m.RequestID()
+	case responsesorigin.FieldExecutionID:
+		return m.ExecutionID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ResponsesOriginMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case responsesorigin.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case responsesorigin.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case responsesorigin.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case responsesorigin.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case responsesorigin.FieldFingerprint:
+		return m.OldFingerprint(ctx)
+	case responsesorigin.FieldOriginRef:
+		return m.OldOriginRef(ctx)
+	case responsesorigin.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case responsesorigin.FieldKeyRef:
+		return m.OldKeyRef(ctx)
+	case responsesorigin.FieldKeyHint:
+		return m.OldKeyHint(ctx)
+	case responsesorigin.FieldUpstreamRef:
+		return m.OldUpstreamRef(ctx)
+	case responsesorigin.FieldRequestID:
+		return m.OldRequestID(ctx)
+	case responsesorigin.FieldExecutionID:
+		return m.OldExecutionID(ctx)
+	}
+	return nil, fmt.Errorf("unknown ResponsesOrigin field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResponsesOriginMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case responsesorigin.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case responsesorigin.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case responsesorigin.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case responsesorigin.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case responsesorigin.FieldFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFingerprint(v)
+		return nil
+	case responsesorigin.FieldOriginRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginRef(v)
+		return nil
+	case responsesorigin.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case responsesorigin.FieldKeyRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyRef(v)
+		return nil
+	case responsesorigin.FieldKeyHint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyHint(v)
+		return nil
+	case responsesorigin.FieldUpstreamRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamRef(v)
+		return nil
+	case responsesorigin.FieldRequestID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestID(v)
+		return nil
+	case responsesorigin.FieldExecutionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResponsesOrigin field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ResponsesOriginMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, responsesorigin.FieldProjectID)
+	}
+	if m.addapi_key_id != nil {
+		fields = append(fields, responsesorigin.FieldAPIKeyID)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, responsesorigin.FieldChannelID)
+	}
+	if m.addrequest_id != nil {
+		fields = append(fields, responsesorigin.FieldRequestID)
+	}
+	if m.addexecution_id != nil {
+		fields = append(fields, responsesorigin.FieldExecutionID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ResponsesOriginMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case responsesorigin.FieldProjectID:
+		return m.AddedProjectID()
+	case responsesorigin.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case responsesorigin.FieldChannelID:
+		return m.AddedChannelID()
+	case responsesorigin.FieldRequestID:
+		return m.AddedRequestID()
+	case responsesorigin.FieldExecutionID:
+		return m.AddedExecutionID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ResponsesOriginMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case responsesorigin.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case responsesorigin.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case responsesorigin.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case responsesorigin.FieldRequestID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestID(v)
+		return nil
+	case responsesorigin.FieldExecutionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExecutionID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ResponsesOrigin numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ResponsesOriginMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ResponsesOriginMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ResponsesOriginMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ResponsesOrigin nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ResponsesOriginMutation) ResetField(name string) error {
+	switch name {
+	case responsesorigin.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case responsesorigin.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case responsesorigin.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case responsesorigin.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case responsesorigin.FieldFingerprint:
+		m.ResetFingerprint()
+		return nil
+	case responsesorigin.FieldOriginRef:
+		m.ResetOriginRef()
+		return nil
+	case responsesorigin.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case responsesorigin.FieldKeyRef:
+		m.ResetKeyRef()
+		return nil
+	case responsesorigin.FieldKeyHint:
+		m.ResetKeyHint()
+		return nil
+	case responsesorigin.FieldUpstreamRef:
+		m.ResetUpstreamRef()
+		return nil
+	case responsesorigin.FieldRequestID:
+		m.ResetRequestID()
+		return nil
+	case responsesorigin.FieldExecutionID:
+		m.ResetExecutionID()
+		return nil
+	}
+	return fmt.Errorf("unknown ResponsesOrigin field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ResponsesOriginMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ResponsesOriginMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ResponsesOriginMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ResponsesOriginMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ResponsesOriginMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ResponsesOriginMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ResponsesOriginMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ResponsesOrigin unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ResponsesOriginMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ResponsesOrigin edge %s", name)
 }
 
 // RoleMutation represents an operation that mutates the Role nodes in the graph.

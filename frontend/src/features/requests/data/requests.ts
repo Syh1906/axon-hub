@@ -100,6 +100,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             status
             clientIP
             clientStatusCode
+            failure { stage code type message }
             outputTokensPerSecond
             metricsLatencyMs
             metricsFirstTokenLatencyMs
@@ -222,6 +223,7 @@ function buildRequestDetailQuery(
           stream
           clientIP
           clientStatusCode
+          failure { stage code type message }
           projectID
           dataStorageID
           contentSaved
@@ -296,6 +298,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           stream
           clientIP
           clientStatusCode
+          failure { stage code type message }
           projectID
           dataStorageID
           contentSaved

@@ -37,6 +37,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
@@ -131,6 +132,7 @@ func checkColumn(t, c string) error {
 			providerquotastatus.Table:      providerquotastatus.ValidColumn,
 			request.Table:                  request.ValidColumn,
 			requestexecution.Table:         requestexecution.ValidColumn,
+			responsesorigin.Table:          responsesorigin.ValidColumn,
 			role.Table:                     role.ValidColumn,
 			system.Table:                   system.ValidColumn,
 			thread.Table:                   thread.ValidColumn,

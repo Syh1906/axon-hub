@@ -62,6 +62,8 @@ type Request struct {
 	Status request.Status `json:"status,omitempty"`
 	// ClientStatusCode holds the value of the "client_status_code" field.
 	ClientStatusCode *int `json:"client_status_code,omitempty"`
+	// Failure holds the value of the "failure" field.
+	Failure *objects.RequestFailure `json:"failure,omitempty"`
 	// Stream holds the value of the "stream" field.
 	Stream bool `json:"stream,omitempty"`
 	// ClientIP holds the value of the "client_ip" field.
@@ -190,7 +192,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case request.FieldRequestHeaders, request.FieldRequestBody, request.FieldResponseBody, request.FieldResponseChunks, request.FieldRoutingDecision:
+		case request.FieldRequestHeaders, request.FieldRequestBody, request.FieldResponseBody, request.FieldResponseChunks, request.FieldRoutingDecision, request.FieldFailure:
 			values[i] = new([]byte)
 		case request.FieldStream, request.FieldContentSaved:
 			values[i] = new(sql.NullBool)
@@ -345,6 +347,14 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ClientStatusCode = new(int)
 				*_m.ClientStatusCode = int(value.Int64)
+			}
+		case request.FieldFailure:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field failure", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Failure); err != nil {
+					return fmt.Errorf("unmarshal field failure: %w", err)
+				}
 			}
 		case request.FieldStream:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -535,6 +545,9 @@ func (_m *Request) String() string {
 		builder.WriteString("client_status_code=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("failure=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Failure))
 	builder.WriteString(", ")
 	builder.WriteString("stream=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Stream))

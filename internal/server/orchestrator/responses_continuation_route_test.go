@@ -27,7 +27,7 @@ type continuationRouteFixture struct {
 	previousID string
 }
 
-func (p *continuationRouteFixture) GetResponsesContinuationRoute(_ context.Context, previousID string) (biz.ResponsesContinuationRoute, bool, error) {
+func (p *continuationRouteFixture) GetResponsesContinuationRoute(_ context.Context, previousID string, _ ...string) (biz.ResponsesContinuationRoute, bool, error) {
 	p.previousID = previousID
 	return p.route, p.found, p.err
 }
@@ -50,7 +50,7 @@ func TestResponsesContinuationRouting(t *testing.T) {
 	_, err = selector.Select(t.Context(), req)
 	var responseErr *llm.ResponseError
 	require.ErrorAs(t, err, &responseErr)
-	require.Equal(t, "continuation_channel_unavailable", responseErr.Detail.Code)
+	require.Equal(t, "continuation_candidate_unavailable", responseErr.Detail.Code)
 	provider.err = errors.New("database unavailable")
 	_, err = selector.Select(t.Context(), req)
 	require.ErrorIs(t, err, provider.err)

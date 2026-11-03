@@ -59,7 +59,7 @@ func (m *apiKeyModelMappingMiddleware) OnInboundLlmRequest(ctx context.Context, 
 
 	// Save the model for later use, e.g. retry from next channels, should use the original model to choose channel model.
 	// This should be done after the api key level model mapping.
-	// This should be done before the request is created.
+	// This should be done before the request metadata is finalized.
 	// The outbound transformer will restore the original model if it was mapped.
 	if m.inbound.state.OriginalModel == "" {
 		m.inbound.state.OriginalModel = llmRequest.Model

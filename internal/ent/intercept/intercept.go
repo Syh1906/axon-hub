@@ -34,6 +34,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
@@ -776,6 +777,33 @@ func (f TraverseRequestExecution) Traverse(ctx context.Context, q ent.Query) err
 	return fmt.Errorf("unexpected query type %T. expect *ent.RequestExecutionQuery", q)
 }
 
+// The ResponsesOriginFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ResponsesOriginFunc func(context.Context, *ent.ResponsesOriginQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ResponsesOriginFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ResponsesOriginQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ResponsesOriginQuery", q)
+}
+
+// The TraverseResponsesOrigin type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseResponsesOrigin func(context.Context, *ent.ResponsesOriginQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseResponsesOrigin) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseResponsesOrigin) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ResponsesOriginQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ResponsesOriginQuery", q)
+}
+
 // The RoleFunc type is an adapter to allow the use of ordinary function as a Querier.
 type RoleFunc func(context.Context, *ent.RoleQuery) (ent.Value, error)
 
@@ -1072,6 +1100,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.RequestQuery, predicate.Request, request.OrderOption]{typ: ent.TypeRequest, tq: q}, nil
 	case *ent.RequestExecutionQuery:
 		return &query[*ent.RequestExecutionQuery, predicate.RequestExecution, requestexecution.OrderOption]{typ: ent.TypeRequestExecution, tq: q}, nil
+	case *ent.ResponsesOriginQuery:
+		return &query[*ent.ResponsesOriginQuery, predicate.ResponsesOrigin, responsesorigin.OrderOption]{typ: ent.TypeResponsesOrigin, tq: q}, nil
 	case *ent.RoleQuery:
 		return &query[*ent.RoleQuery, predicate.Role, role.OrderOption]{typ: ent.TypeRole, tq: q}, nil
 	case *ent.SystemQuery:

@@ -3852,6 +3852,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldClientStatusCode)
 				fieldSeen[request.FieldClientStatusCode] = struct{}{}
 			}
+		case "failure":
+			if _, ok := fieldSeen[request.FieldFailure]; !ok {
+				selectedFields = append(selectedFields, request.FieldFailure)
+				fieldSeen[request.FieldFailure] = struct{}{}
+			}
 		case "stream":
 			if _, ok := fieldSeen[request.FieldStream]; !ok {
 				selectedFields = append(selectedFields, request.FieldStream)

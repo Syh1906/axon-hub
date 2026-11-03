@@ -17,7 +17,8 @@ type RequestExecutionSelection struct {
 
 	// KeyRef identifies the upstream credential without retaining its value.
 	// It is internal routing metadata and is not exposed by GraphQL.
-	KeyRef string `json:"key_ref,omitempty"`
+	KeyRef      string `json:"key_ref,omitempty"`
+	UpstreamRef string `json:"upstream_ref,omitempty"`
 }
 
 type RequestRoutingCandidate struct {
@@ -37,4 +38,12 @@ type RequestExecutionFailure struct {
 	Type          string `json:"type,omitempty"`
 	Body          string `json:"body,omitempty"`
 	BodyTruncated bool   `json:"body_truncated,omitempty"`
+}
+
+// RequestFailure also covers admission failures that have no upstream attempt.
+type RequestFailure struct {
+	Stage   string `json:"stage"`
+	Code    string `json:"code,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Message string `json:"message"`
 }

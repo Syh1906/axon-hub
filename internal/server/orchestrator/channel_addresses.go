@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 )
@@ -39,6 +40,9 @@ func (p *PersistentOutboundTransformer) CanRetryAfterTimeout(err error) bool {
 		return false
 	}
 	candidate := p.state.CurrentCandidate
+	if candidate.continuationUpstreamRef != "" {
+		return false
+	}
 	if candidate.healthGate != nil && candidate.healthGate.lastResort || candidate.Channel.Settings == nil || !candidate.Channel.Settings.AddressFailover {
 		return false
 	}
@@ -80,6 +84,25 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		current.Scheme, current.Host = target.Scheme, target.Host
 		current.Path = strings.TrimRight(target.Path, "/") + strings.TrimPrefix(current.Path, basePath)
 		current.RawPath = ""
+		if origin := p.state.CurrentCandidate.continuationUpstreamRef; origin != "" {
+			// Re-select the actual origin even if priorities changed since the
+			// previous response. Another address is not evidence of compatibility.
+			for index, address := range addresses {
+				endpoint, err := url.Parse(channel.NormalizeUpstreamAddress(address.URL, format))
+				if err != nil {
+					return nil, err
+				}
+				candidate := *current
+				candidate.Scheme, candidate.Host = endpoint.Scheme, endpoint.Host
+				original, _ := url.Parse(request.URL)
+				candidate.Path = strings.TrimRight(endpoint.Path, "/") + strings.TrimPrefix(original.Path, basePath)
+				if biz.ResponsesUpstreamRef(candidate.String(), request.Headers) == origin {
+					current = &candidate
+					p.addressIndex = index
+					break
+				}
+			}
+		}
 		copy := *request
 		copy.URL = current.String()
 		return &copy, nil

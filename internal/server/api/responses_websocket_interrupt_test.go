@@ -33,7 +33,7 @@ func TestResponsesWebSocketInterruptKeepsHTTPContinuation(t *testing.T) {
 			return orchestrator.ChatCompletionResult{ChatCompletion: &httpclient.Response{Body: []byte(`{"id":"resp_next","status":"completed","output":[]}`)}}, nil
 		}
 		return orchestrator.ChatCompletionResult{
-			RetainResponsesContinuation: func(body []byte) { retained <- append([]byte(nil), body...) },
+			RetainResponsesContinuation: func(body []byte) error { retained <- append([]byte(nil), body...); return nil },
 			ChatCompletionStream: &interruptTestStream{
 				ctx: ctx, release: release, finishItem: finishItem, canceled: canceled,
 				events: []*httpclient.StreamEvent{
@@ -78,6 +78,39 @@ func TestResponsesWebSocketInterruptKeepsHTTPContinuation(t *testing.T) {
 	_, next, err := conn.ReadMessage()
 	require.NoError(t, err)
 	require.Equal(t, "resp_next", gjson.GetBytes(next, "response.id").String())
+}
+
+func TestResponsesWebSocketInterruptReportsRetentionFailure(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	var retained atomic.Bool
+	process := func(ctx context.Context, _ *httpclient.Request) (orchestrator.ChatCompletionResult, error) {
+		return orchestrator.ChatCompletionResult{
+			RetainResponsesContinuation: func([]byte) error {
+				retained.Store(true)
+				return fmt.Errorf("fixture origin persistence failure")
+			},
+			ChatCompletionStream: &interruptTestStream{ctx: ctx, release: release, canceled: make(chan struct{}),
+				events: []*httpclient.StreamEvent{{Data: []byte(`{"type":"response.created","response":{"id":"resp_unretained","status":"in_progress","output":[]}}`)}},
+			},
+		}, nil
+	}
+	server := newResponsesWebSocketTestServer(t, process, nil)
+	conn := dialResponsesWebSocket(t, server.URL, nil)
+	defer conn.Close()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(3*time.Second)))
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.create","model":"test","input":"first"}`)))
+	_, _, err := conn.ReadMessage()
+	require.NoError(t, err)
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.interrupt","response_id":"resp_unretained"}`)))
+	_, ack, err := conn.ReadMessage()
+	require.NoError(t, err)
+	require.Equal(t, "response.interrupt.accepted", gjson.GetBytes(ack, "type").String())
+	_, failure, err := conn.ReadMessage()
+	require.NoError(t, err)
+	require.True(t, retained.Load())
+	require.Equal(t, "error", gjson.GetBytes(failure, "type").String(), "failed retention must not claim a resumable completed snapshot")
+	require.False(t, gjson.GetBytes(failure, "response").Exists())
 }
 
 func TestResponsesWebSocketInterruptUpstreamTransport(t *testing.T) {

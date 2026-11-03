@@ -62,6 +62,8 @@ type Tx struct {
 	Request *RequestClient
 	// RequestExecution is the client for interacting with the RequestExecution builders.
 	RequestExecution *RequestExecutionClient
+	// ResponsesOrigin is the client for interacting with the ResponsesOrigin builders.
+	ResponsesOrigin *ResponsesOriginClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// System is the client for interacting with the System builders.
@@ -236,6 +238,7 @@ func (tx *Tx) init() {
 	tx.ProviderQuotaStatus = NewProviderQuotaStatusClient(tx.config)
 	tx.Request = NewRequestClient(tx.config)
 	tx.RequestExecution = NewRequestExecutionClient(tx.config)
+	tx.ResponsesOrigin = NewResponsesOriginClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.System = NewSystemClient(tx.config)
 	tx.Thread = NewThreadClient(tx.config)

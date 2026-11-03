@@ -30,6 +30,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/providerquotastatus"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/schema"
 	"github.com/looplj/axonhub/internal/ent/system"
@@ -936,15 +937,15 @@ func init() {
 	// request.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
 	request.ExternalIDValidator = requestDescExternalID.Validators[0].(func(string) error)
 	// requestDescStream is the schema descriptor for stream field.
-	requestDescStream := requestFields[17].Descriptor()
+	requestDescStream := requestFields[18].Descriptor()
 	// request.DefaultStream holds the default value on creation for the stream field.
 	request.DefaultStream = requestDescStream.Default.(bool)
 	// requestDescClientIP is the schema descriptor for client_ip field.
-	requestDescClientIP := requestFields[18].Descriptor()
+	requestDescClientIP := requestFields[19].Descriptor()
 	// request.DefaultClientIP holds the default value on creation for the client_ip field.
 	request.DefaultClientIP = requestDescClientIP.Default.(string)
 	// requestDescContentSaved is the schema descriptor for content_saved field.
-	requestDescContentSaved := requestFields[22].Descriptor()
+	requestDescContentSaved := requestFields[23].Descriptor()
 	// request.DefaultContentSaved holds the default value on creation for the content_saved field.
 	request.DefaultContentSaved = requestDescContentSaved.Default.(bool)
 	requestexecutionMixin := schema.RequestExecution{}.Mixin()
@@ -990,6 +991,46 @@ func init() {
 	requestexecutionDescPassThroughApplied := requestexecutionFields[29].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
+	responsesoriginMixin := schema.ResponsesOrigin{}.Mixin()
+	responsesorigin.Policy = privacy.NewPolicies(schema.ResponsesOrigin{})
+	responsesorigin.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := responsesorigin.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	responsesoriginMixinFields0 := responsesoriginMixin[0].Fields()
+	_ = responsesoriginMixinFields0
+	responsesoriginFields := schema.ResponsesOrigin{}.Fields()
+	_ = responsesoriginFields
+	// responsesoriginDescCreatedAt is the schema descriptor for created_at field.
+	responsesoriginDescCreatedAt := responsesoriginMixinFields0[0].Descriptor()
+	// responsesorigin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	responsesorigin.DefaultCreatedAt = responsesoriginDescCreatedAt.Default.(func() time.Time)
+	// responsesoriginDescUpdatedAt is the schema descriptor for updated_at field.
+	responsesoriginDescUpdatedAt := responsesoriginMixinFields0[1].Descriptor()
+	// responsesorigin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	responsesorigin.DefaultUpdatedAt = responsesoriginDescUpdatedAt.Default.(func() time.Time)
+	// responsesorigin.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	responsesorigin.UpdateDefaultUpdatedAt = responsesoriginDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// responsesoriginDescFingerprint is the schema descriptor for fingerprint field.
+	responsesoriginDescFingerprint := responsesoriginFields[2].Descriptor()
+	// responsesorigin.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	responsesorigin.FingerprintValidator = responsesoriginDescFingerprint.Validators[0].(func(string) error)
+	// responsesoriginDescOriginRef is the schema descriptor for origin_ref field.
+	responsesoriginDescOriginRef := responsesoriginFields[3].Descriptor()
+	// responsesorigin.OriginRefValidator is a validator for the "origin_ref" field. It is called by the builders before save.
+	responsesorigin.OriginRefValidator = responsesoriginDescOriginRef.Validators[0].(func(string) error)
+	// responsesoriginDescKeyRef is the schema descriptor for key_ref field.
+	responsesoriginDescKeyRef := responsesoriginFields[5].Descriptor()
+	// responsesorigin.KeyRefValidator is a validator for the "key_ref" field. It is called by the builders before save.
+	responsesorigin.KeyRefValidator = responsesoriginDescKeyRef.Validators[0].(func(string) error)
+	// responsesoriginDescUpstreamRef is the schema descriptor for upstream_ref field.
+	responsesoriginDescUpstreamRef := responsesoriginFields[7].Descriptor()
+	// responsesorigin.UpstreamRefValidator is a validator for the "upstream_ref" field. It is called by the builders before save.
+	responsesorigin.UpstreamRefValidator = responsesoriginDescUpstreamRef.Validators[0].(func(string) error)
 	roleMixin := schema.Role{}.Mixin()
 	role.Policy = privacy.NewPolicies(schema.Role{})
 	role.Hooks[0] = func(next ent.Mutator) ent.Mutator {

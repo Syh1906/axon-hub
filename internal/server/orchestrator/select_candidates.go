@@ -19,6 +19,7 @@ import (
 // If no valid candidates are found, it returns ErrInvalidModel to fail fast.
 func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider ProviderQuotaStatusProvider, systemService QuotaEnforcementSettingsProvider) pipeline.Middleware {
 	return pipeline.OnLlmRequest("select-candidates", func(ctx context.Context, llmRequest *llm.Request) (*llm.Request, error) {
+		inbound.state.FailureStage = "routing"
 		// Only select candidates once
 		if len(inbound.state.ChannelModelsCandidates) > 0 {
 			return llmRequest, nil

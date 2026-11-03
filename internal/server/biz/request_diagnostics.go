@@ -3,12 +3,33 @@ package biz
 import (
 	"context"
 	"encoding/json"
-	"entgo.io/ent/dialect/sql"
-	"github.com/looplj/axonhub/internal/ent/requestexecution"
-	"github.com/looplj/axonhub/internal/objects"
 	"net/url"
 	"strings"
+
+	"entgo.io/ent/dialect/sql"
+
+	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 )
+
+// The intake row is created before admission. Finalize its normalized model
+// once mapping succeeds, preserving the existing request-log semantics.
+func (s *RequestService) FinalizeRequestMetadata(ctx context.Context, record *ent.Request, parsed *llm.Request) error {
+	if record.ModelID == parsed.Model && record.ReasoningEffort == parsed.ReasoningEffort {
+		return nil
+	}
+	err := s.entFromContext(ctx).Request.UpdateOneID(record.ID).Modify(func(update *sql.UpdateBuilder) {
+		update.Set(request.FieldModelID, parsed.Model)
+		update.Set(request.FieldReasoningEffort, parsed.ReasoningEffort)
+	}).Exec(ctx)
+	if err == nil {
+		record.ModelID, record.ReasoningEffort = parsed.Model, parsed.ReasoningEffort
+	}
+	return err
+}
 
 func (s *RequestService) SetExecutionTransport(ctx context.Context, id int, selection *objects.RequestExecutionSelection) error {
 	encoded, err := json.Marshal(selection)

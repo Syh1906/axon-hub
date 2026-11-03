@@ -93,7 +93,18 @@ export function RequestDiagnostics({
         </AlertDescription>
       </Alert>
     );
-  if (!selected) return <p className='text-muted-foreground'>{t('requests.diagnostics.noAttempts')}</p>;
+  const requestFailure = request.failure ? (
+    <Alert variant='destructive'>
+      <AlertCircle />
+      <AlertTitle>{t(selected ? 'requests.diagnostics.gatewayDeliveryFailure' : 'requests.diagnostics.gatewayFailure')}</AlertTitle>
+      <AlertDescription>
+        <p className='break-words'>{request.failure.message}</p>
+        <p>{t(`requests.diagnostics.stages.${request.failure.stage}`, { defaultValue: unknown })}</p>
+        {request.failure.code && <p className='break-all'>{request.failure.code}</p>}
+      </AlertDescription>
+    </Alert>
+  ) : null;
+  if (!selected) return requestFailure ?? <p className='text-muted-foreground'>{t('requests.diagnostics.noAttempts')}</p>;
   const failed = selected.status === 'failed' || selected.status === 'canceled';
   const kind = knownFailureKind(selected);
   const selection = selected.selection;
@@ -103,6 +114,7 @@ export function RequestDiagnostics({
       requestID: extractNumberID(request.id),
       finalStatus: request.status,
       clientStatusCode: request.clientStatusCode ?? null,
+      failure: request.failure ?? null,
       execution: {
         attempt: ordinal(selected),
         channel: channelName(selected),
@@ -123,6 +135,7 @@ export function RequestDiagnostics({
 
   return (
     <div className='flex flex-col gap-5'>
+      {request.failure?.type === 'gateway_error' && requestFailure}
       <Alert variant={failed ? 'destructive' : 'default'}>
         {failed ? <AlertCircle /> : <CheckCircle2 />}
         <AlertTitle className='line-clamp-none'>

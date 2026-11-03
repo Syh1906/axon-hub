@@ -4,12 +4,16 @@ import (
 	"context"
 	"time"
 
+	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/pipeline/cc"
@@ -182,25 +186,11 @@ type ChatCompletionResult struct {
 	ChatCompletion       *httpclient.Response
 	ChatCompletionStream streams.Stream[*httpclient.StreamEvent]
 	// 保存网关结束当前生成时的完整项目，供 HTTP 上游的下一轮恢复历史。
-	RetainResponsesContinuation func(responseBody []byte)
+	RetainResponsesContinuation func(responseBody []byte) error
 }
 
-func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, request *httpclient.Request) (ChatCompletionResult, error) {
+func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, request *httpclient.Request) (completion ChatCompletionResult, processErr error) {
 	var preparedResponsesBody []byte
-	if shared.IsResponsesAPI(ctx) && request != nil && processor.responsesSessions != nil {
-		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, responsePreviousID(request.Body))
-		var sessionID string
-		var restoreErr error
-		preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepare(ctx, request.Body)
-		if restoreErr != nil {
-			if ctx.Err() != nil {
-				return ChatCompletionResult{}, ctx.Err()
-			}
-			ctx = shared.WithResponsesRestoreError(ctx, restoreErr)
-		}
-		request.Body = preparedResponsesBody
-		ctx = shared.WithSessionID(ctx, sessionID)
-	}
 
 	// API key providers cannot return a derived context, so install the shared
 	// request container before provider selection mutates it.
@@ -244,6 +234,38 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		Proxy:                 processor.proxy,
 		CurrentCandidateIndex: 0,
 	}
+	defer func() {
+		if processErr != nil && state.Request != nil {
+			completion.RequestID = state.Request.ID
+			persistRequestFailure(ctx, state, processErr)
+		}
+	}()
+	if shared.IsResponsesAPI(ctx) && request != nil {
+		// Register the original envelope before history restoration can reject it.
+		// Normal protocols register immediately after parsing, before admission.
+		metadata := &llm.Request{Model: gjson.GetBytes(request.Body, "model").String(),
+			Stream:          lo.ToPtr(gjson.GetBytes(request.Body, "stream").Bool()),
+			ReasoningEffort: gjson.GetBytes(request.Body, "reasoning.effort").String()}
+		var err error
+		state.Request, err = processor.RequestService.CreateRequest(ctx, metadata, request, persistedRequestAPIFormat(ctx, llm.APIFormatOpenAIResponse))
+		if err != nil {
+			return ChatCompletionResult{}, err
+		}
+		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, responsePreviousID(request.Body))
+		if processor.responsesSessions != nil {
+			var sessionID string
+			var restoreErr error
+			preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepare(ctx, request.Body)
+			if restoreErr != nil {
+				if ctx.Err() != nil {
+					return ChatCompletionResult{}, ctx.Err()
+				}
+				ctx = shared.WithResponsesRestoreError(ctx, restoreErr)
+			}
+			request.Body = preparedResponsesBody
+			ctx = shared.WithSessionID(ctx, sessionID)
+		}
+	}
 
 	var pipelineOpts []pipeline.Option
 
@@ -279,6 +301,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 	// Add inbound middlewares (executed after inbound.TransformRequest)
 	middlewares = append(middlewares,
+		registerRequest(inbound),
 		enforceQuota(inbound, processor.QuotaService),
 		applyAutoReasoningEffort(processor.SystemService),
 		checkApiKeyModelAccess(inbound),
@@ -375,17 +398,6 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 			maybeEvaluateChannelAPIKeyRulesOnFailure(persistCtx, outbound, err)
 		}
 
-		// Update the main request status based on error
-		if request := outbound.GetRequest(); request != nil {
-			if updateErr := processor.RequestService.UpdateRequestStatusFromError(
-				persistCtx,
-				request.ID,
-				err,
-			); updateErr != nil {
-				log.Warn(persistCtx, "Failed to update request status from error", log.Cause(updateErr))
-			}
-		}
-
 		requestID := 0
 		if state.Request != nil {
 			requestID = state.Request.ID
@@ -400,13 +412,30 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		requestID = state.Request.ID
 	}
 	// Return result based on stream type
+	var recordOrigin func([]byte) error
+	if state.LlmRequest != nil && isResponsesFormat(state.LlmRequest.APIFormat) {
+		recordOrigin = responsesOriginRecorder(ctx, state, request.Body)
+	}
 	if result.Stream {
 		state.StreamReturned = true
-		var retainContinuation func([]byte)
+		if recordOrigin != nil {
+			result.EventStream = &responsesOriginStream{Stream: result.EventStream, record: recordOrigin}
+		}
+		var retainContinuation func([]byte) error
 		if preparedResponsesBody != nil {
+			// Only history that passed origin recording may become restorable.
 			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
 			if shared.IsResponsesWebSocket(ctx) {
-				retainContinuation = processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
+				saveContext := processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
+				retainContinuation = func(body []byte) error {
+					if recordOrigin != nil {
+						if err := recordOrigin(body); err != nil {
+							return err
+						}
+					}
+					saveContext(body)
+					return nil
+				}
 			}
 		}
 		return ChatCompletionResult{
@@ -415,6 +444,11 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 			ChatCompletionStream:        result.EventStream,
 			RetainResponsesContinuation: retainContinuation,
 		}, nil
+	}
+	if recordOrigin != nil && result.Response != nil {
+		if err := recordOrigin(result.Response.Body); err != nil {
+			return ChatCompletionResult{RequestID: requestID}, err
+		}
 	}
 	if preparedResponsesBody != nil && result.Response != nil {
 		processor.responsesSessions.record(ctx, preparedResponsesBody, result.Response.Body)

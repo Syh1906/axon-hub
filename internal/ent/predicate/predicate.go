@@ -81,6 +81,9 @@ type Request func(*sql.Selector)
 // RequestExecution is the predicate function for requestexecution builders.
 type RequestExecution func(*sql.Selector)
 
+// ResponsesOrigin is the predicate function for responsesorigin builders.
+type ResponsesOrigin func(*sql.Selector)
+
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 

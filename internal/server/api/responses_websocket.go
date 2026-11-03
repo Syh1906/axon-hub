@@ -631,7 +631,7 @@ func writeResponsesWebSocketResult(
 
 		terminalSeen := false
 		for stream.Next() {
-			if interrupted, err := control.writeInterruption(writer, result); interrupted {
+			if interrupted, err := control.writeInterruption(ctx, writer, result, transformError); interrupted {
 				return err
 			}
 			event := stream.Current()
@@ -645,7 +645,7 @@ func writeResponsesWebSocketResult(
 				return err
 			}
 		}
-		if interrupted, err := control.writeInterruption(writer, result); interrupted {
+		if interrupted, err := control.writeInterruption(ctx, writer, result, transformError); interrupted {
 			return err
 		}
 

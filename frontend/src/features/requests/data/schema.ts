@@ -128,6 +128,7 @@ export const requestSchema = z.object({
   routingDecision: requestRoutingDecisionSchema.nullable().optional(),
   status: requestStatusSchema,
   clientStatusCode: z.number().nullable().optional(),
+  failure: z.object({ stage: z.string(), code: z.string(), type: z.string(), message: z.string() }).nullable().optional(),
   format: z.string().optional(),
   clientIP: z.string().nullable().optional(),
   stream: z.boolean().nullable(),

@@ -29,6 +29,13 @@ type RequestExecutionFailure {
   bodyTruncated: Boolean!
 }
 
+type RequestFailure {
+  stage: String!
+  code: String!
+  type: String!
+  message: String!
+}
+
 input RequestLogTimeRangeInput {
   period: ConsumptionPeriod!
   "Wall-clock date and time in the configured reporting timezone."

@@ -110,6 +110,9 @@ models:
     model: github.com/looplj/axonhub/internal/objects.RequestRoutingCandidate
   RequestExecutionFailure:
     model: github.com/looplj/axonhub/internal/objects.RequestExecutionFailure
+
+  RequestFailure:
+    model: github.com/looplj/axonhub/internal/objects.RequestFailure
   ImagePricing:
     model: github.com/looplj/axonhub/internal/objects.ImagePricing
   ImagePricingInput:

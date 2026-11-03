@@ -5,10 +5,38 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/looplj/axonhub/internal/contexts"
+	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/xcontext"
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/pipeline"
 )
+
+func persistRequestFailure(ctx context.Context, state *PersistenceState, err error) {
+	stage := state.FailureStage
+	if stage == "" {
+		stage = "admission"
+	}
+	key, _ := contexts.GetChannelAPIKey(ctx)
+	failure := &objects.RequestFailure{Stage: stage, Message: sanitizeDiagnosticText(ExtractErrorMessage(err), key)}
+	if response, ok := errors.AsType[*llm.ResponseError](err); ok {
+		failure.Code, failure.Type = response.Detail.Code, response.Detail.Type
+		if failure.Code == "continuation_origin_persistence_failed" {
+			failure.Stage = "origin_persistence"
+		} else if strings.HasPrefix(failure.Code, "continuation_") {
+			failure.Stage = "continuation"
+		}
+	}
+	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if updateErr := state.RequestService.UpdateRequestStatusFromError(persistCtx, state.Request.ID, err, failure); updateErr != nil {
+		log.Warn(persistCtx, "Failed to persist request failure", log.Cause(updateErr))
+	}
+}
 
 // A provider-specific 400 must match the observed size rejection, rather than
 // treating all invalid requests as oversized. The original error stays intact.

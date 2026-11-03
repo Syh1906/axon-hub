@@ -150,8 +150,15 @@ func TestChatCompletionOrchestrator_Process_NoChannelsAvailable(t *testing.T) {
 	ctx = contexts.WithProjectID(ctx, project.ID)
 
 	// Execute
-	_, err := orchestrator.Process(ctx, httpRequest)
+	result, err := orchestrator.Process(ctx, httpRequest)
 	require.ErrorIs(t, err, biz.ErrInvalidModel)
+	require.NotZero(t, result.RequestID)
+	recorded := client.Request.GetX(ctx, result.RequestID)
+	require.Equal(t, "failed", string(recorded.Status))
+	require.NotNil(t, recorded.Failure)
+	require.Equal(t, "routing", recorded.Failure.Stage)
+	require.NotEmpty(t, recorded.Failure.Message)
+	require.Zero(t, client.RequestExecution.Query().CountX(ctx), "routing refusal must not fabricate an upstream attempt")
 }
 
 // TestChatCompletionOrchestrator_Process_InvalidRequest tests invalid request handling.

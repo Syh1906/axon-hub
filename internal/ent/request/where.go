@@ -790,6 +790,16 @@ func ClientStatusCodeNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldClientStatusCode))
 }
 
+// FailureIsNil applies the IsNil predicate on the "failure" field.
+func FailureIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldFailure))
+}
+
+// FailureNotNil applies the NotNil predicate on the "failure" field.
+func FailureNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldFailure))
+}
+
 // StreamEQ applies the EQ predicate on the "stream" field.
 func StreamEQ(v bool) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldStream, v))

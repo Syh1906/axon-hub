@@ -32,13 +32,19 @@ func persistRequest(inbound *PersistentInboundTransformer) pipeline.Middleware {
 	}
 }
 
+// Keep response persistence in its existing reverse middleware order while
+// registering the request before quota, permission, prompt and routing checks.
+func registerRequest(inbound *PersistentInboundTransformer) pipeline.Middleware {
+	return pipeline.OnLlmRequest("register-request", (&persistRequestMiddleware{inbound: inbound}).OnInboundLlmRequest)
+}
+
 func (m *persistRequestMiddleware) Name() string {
 	return "persist-request"
 }
 
 func (m *persistRequestMiddleware) OnInboundLlmRequest(ctx context.Context, llmRequest *llm.Request) (*llm.Request, error) {
 	if m.inbound.state.Request != nil {
-		return llmRequest, nil
+		return llmRequest, m.inbound.state.RequestService.FinalizeRequestMetadata(ctx, m.inbound.state.Request, llmRequest)
 	}
 
 	request, err := m.inbound.state.RequestService.CreateRequest(

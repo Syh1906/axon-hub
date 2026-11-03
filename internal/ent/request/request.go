@@ -56,6 +56,8 @@ const (
 	FieldStatus = "status"
 	// FieldClientStatusCode holds the string denoting the client_status_code field in the database.
 	FieldClientStatusCode = "client_status_code"
+	// FieldFailure holds the string denoting the failure field in the database.
+	FieldFailure = "failure"
 	// FieldStream holds the string denoting the stream field in the database.
 	FieldStream = "stream"
 	// FieldClientIP holds the string denoting the client_ip field in the database.
@@ -163,6 +165,7 @@ var Columns = []string{
 	FieldExternalID,
 	FieldStatus,
 	FieldClientStatusCode,
+	FieldFailure,
 	FieldStream,
 	FieldClientIP,
 	FieldMetricsLatencyMs,

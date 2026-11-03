@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,4 +149,41 @@ func TestAddressFailoverKeepsSelectedKeyThroughTransform(t *testing.T) {
 	require.Equal(t, first.Body, second.Body)
 	require.Equal(t, 1, keys.calls, "切换地址不重新选择账号 Key")
 	require.False(t, p.CanRetryAfterTimeout(pipeline.ErrStreamFirstEventTimeout))
+}
+
+func TestResponsesOriginKeepsAddressAfterPriorityChange(t *testing.T) {
+	ch := &biz.Channel{Channel: &ent.Channel{BaseURL: "https://main.example/v1", Settings: &objects.ChannelSettings{
+		AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{
+			{ID: "new-first", URL: "https://backup.example/v1", Priority: 0, Enabled: true},
+			{ID: "original", URL: "https://main.example/v1", Priority: 10, Enabled: true},
+		},
+	}}}
+	outbound, err := responses.NewOutboundTransformer(ch.BaseURL, "fixture-key")
+	require.NoError(t, err)
+	ch.Outbound = outbound
+	raw := &httpclient.Request{URL: "https://main.example/v1/responses", Headers: http.Header{"Chatgpt-Account-Id": {"fixture-account"}}}
+	candidate := &ChannelModelsCandidate{Channel: ch, APIFormat: string(llm.APIFormatOpenAIResponse), continuationBound: true,
+		continuationUpstreamRef: biz.ResponsesUpstreamRef(raw.URL, raw.Headers), Models: []biz.ChannelModelEntry{{ActualModel: "gpt-4"}}}
+	p := &PersistentOutboundTransformer{wrapped: outbound, state: &PersistenceState{CurrentCandidate: candidate, ChannelModelsCandidates: []*ChannelModelsCandidate{candidate}}}
+	selected, err := applyUpstreamAddress(p).OnOutboundRawRequest(t.Context(), raw)
+	require.NoError(t, err)
+	require.Equal(t, raw.URL, selected.URL, "address priority cannot move established encrypted history")
+	require.Equal(t, 1, p.addressIndex)
+	require.True(t, p.CanRetry(&httpclient.Error{StatusCode: 503}))
+	require.False(t, p.retryAddress, "a known origin can retry the same address without using a backup")
+	require.NoError(t, p.PrepareForRetry(t.Context()))
+	selected, err = applyUpstreamAddress(p).OnOutboundRawRequest(t.Context(), raw)
+	require.NoError(t, err)
+	require.Equal(t, raw.URL, selected.URL)
+	require.False(t, p.CanRetryAfterTimeout(pipeline.ErrNonStreamResponseTimeout))
+
+	// Changing only the account at the same endpoint must fail before an execution
+	// is created. The identity check must not depend on rotating OAuth tokens.
+	changed := *raw
+	changed.Headers = http.Header{"Chatgpt-Account-Id": {"another-account"}}
+	_, err = persistRequestExecution(p).OnOutboundRawRequest(t.Context(), &changed)
+	var failure *llm.ResponseError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, "continuation_upstream_changed", failure.Detail.Code)
+	require.Nil(t, p.state.RequestExec)
 }

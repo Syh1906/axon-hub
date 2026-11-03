@@ -4573,6 +4573,7 @@ type Request implements Node {
   externalID: String
   status: RequestStatus!
   clientStatusCode: Int
+  failure: RequestFailure
   stream: Boolean!
   clientIP: String!
   metricsLatencyMs: Int

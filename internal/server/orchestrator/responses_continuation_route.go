@@ -13,7 +13,7 @@ import (
 )
 
 type responsesContinuationRouteProvider interface {
-	GetResponsesContinuationRoute(context.Context, string) (biz.ResponsesContinuationRoute, bool, error)
+	GetResponsesContinuationRoute(context.Context, string, ...string) (biz.ResponsesContinuationRoute, bool, error)
 }
 
 type responsesPreviousIDContextKey struct{}
@@ -70,7 +70,10 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	if originalPreviousID != "" {
 		previousID = originalPreviousID
 	}
-	route, found, err := routes.GetResponsesContinuationRoute(ctx, previousID)
+	route, found, err := routes.GetResponsesContinuationRoute(ctx, previousID, responsesEncryptedContents(req)...)
+	if errors.Is(err, biz.ErrResponsesOriginConflict) {
+		return nil, true, continuationRouteError("continuation_origin_conflict", "当前历史包含来自不同上游或凭据的加密内容，请使用同一来源的会话分支。")
+	}
 	if err != nil {
 		return nil, true, err
 	}
@@ -78,6 +81,13 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		// Imported histories have no locally established origin. Preserve initial
 		// routing rather than treating the absence of optional history as an outage.
 		return nil, false, nil
+	}
+	if route.UnavailableCode != "" {
+		message := "生成当前加密历史的渠道已停用，请恢复原渠道后继续会话。"
+		if route.UnavailableCode == "continuation_channel_missing" {
+			message = "生成当前加密历史的渠道已删除，无法确认可用的原历史来源。"
+		}
+		return nil, true, continuationRouteError(route.UnavailableCode, message)
 	}
 	var source *ChannelModelsCandidate
 	for _, candidate := range candidates {
@@ -109,11 +119,40 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		selected.continuationBound = true
 		selected.continuationKeyRef = route.KeyRef
 		selected.continuationKeyHint = route.KeyHint
+		selected.continuationUpstreamRef = route.UpstreamRef
 		selected.TraceSticky = true
 		selected.SessionState = "reused"
 		return []*ChannelModelsCandidate{&selected}, true, nil
 	}
-	return nil, true, continuationRouteError("continuation_channel_unavailable", "加密会话历史绑定的渠道当前不可用，请恢复该渠道后继续会话。")
+	return nil, true, continuationRouteError("continuation_candidate_unavailable", "原历史渠道未进入当前模型和调用权限的可选范围，请检查模型映射、协议支持及调用权限。")
+}
+
+func responsesEncryptedContents(req *llm.Request) []string {
+	values := map[string]bool{}
+	if req.RawRequest != nil {
+		for _, item := range gjson.GetBytes(req.RawRequest.Body, "input").Array() {
+			values[item.Get("encrypted_content").String()] = true
+		}
+	}
+	for _, message := range req.Messages {
+		if message.ReasoningSignature != nil {
+			values[*message.ReasoningSignature] = true
+		}
+		for _, item := range message.ReasoningItems {
+			values[item.Signature] = true
+		}
+		for _, part := range message.Content.MultipleContent {
+			if part.Compact != nil {
+				values[part.Compact.EncryptedContent] = true
+			}
+		}
+	}
+	delete(values, "")
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	return result
 }
 
 func continuationCredential(channel *biz.Channel, route biz.ResponsesContinuationRoute) (string, error) {

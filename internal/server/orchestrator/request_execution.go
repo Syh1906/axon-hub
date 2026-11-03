@@ -97,6 +97,13 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	if state.RawRequest != nil && state.Request != nil {
 		cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
 	}
+	selection := executionSelection(ctx, state)
+	if isResponsesFormat(format) {
+		selection.UpstreamRef = biz.ResponsesUpstreamRef(request.URL, request.Headers)
+		if candidate.continuationUpstreamRef != "" && candidate.continuationUpstreamRef != selection.UpstreamRef {
+			return nil, continuationRouteError("continuation_upstream_changed", "原历史使用的上游地址或账号已改变，请恢复原上游身份后继续会话。")
+		}
+	}
 	requestExec, err := state.RequestService.CreateRequestExecution(
 		ctx,
 		channel,
@@ -106,7 +113,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		format,
 		state.PassThroughApplied,
 		cacheSample,
-		executionSelection(ctx, state),
+		selection,
 		candidate.ModelCard,
 		requestServiceTier(state, request, format),
 	)
@@ -130,6 +137,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	}
 
 	state.RequestExec = requestExec
+	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {
 		if requestExec.Selection == nil {
 			return

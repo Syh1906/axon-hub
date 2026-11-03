@@ -240,6 +240,12 @@ func (_c *RequestCreate) SetNillableClientStatusCode(v *int) *RequestCreate {
 	return _c
 }
 
+// SetFailure sets the "failure" field.
+func (_c *RequestCreate) SetFailure(v *objects.RequestFailure) *RequestCreate {
+	_c.mutation.SetFailure(v)
+	return _c
+}
+
 // SetStream sets the "stream" field.
 func (_c *RequestCreate) SetStream(v bool) *RequestCreate {
 	_c.mutation.SetStream(v)
@@ -629,6 +635,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 		_spec.SetField(request.FieldClientStatusCode, field.TypeInt, value)
 		_node.ClientStatusCode = &value
 	}
+	if value, ok := _c.mutation.Failure(); ok {
+		_spec.SetField(request.FieldFailure, field.TypeJSON, value)
+		_node.Failure = value
+	}
 	if value, ok := _c.mutation.Stream(); ok {
 		_spec.SetField(request.FieldStream, field.TypeBool, value)
 		_node.Stream = value
@@ -987,6 +997,24 @@ func (u *RequestUpsert) AddClientStatusCode(v int) *RequestUpsert {
 // ClearClientStatusCode clears the value of the "client_status_code" field.
 func (u *RequestUpsert) ClearClientStatusCode() *RequestUpsert {
 	u.SetNull(request.FieldClientStatusCode)
+	return u
+}
+
+// SetFailure sets the "failure" field.
+func (u *RequestUpsert) SetFailure(v *objects.RequestFailure) *RequestUpsert {
+	u.Set(request.FieldFailure, v)
+	return u
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateFailure() *RequestUpsert {
+	u.SetExcluded(request.FieldFailure)
+	return u
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestUpsert) ClearFailure() *RequestUpsert {
+	u.SetNull(request.FieldFailure)
 	return u
 }
 
@@ -1391,6 +1419,27 @@ func (u *RequestUpsertOne) UpdateClientStatusCode() *RequestUpsertOne {
 func (u *RequestUpsertOne) ClearClientStatusCode() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearClientStatusCode()
+	})
+}
+
+// SetFailure sets the "failure" field.
+func (u *RequestUpsertOne) SetFailure(v *objects.RequestFailure) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetFailure(v)
+	})
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateFailure() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateFailure()
+	})
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestUpsertOne) ClearFailure() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearFailure()
 	})
 }
 
@@ -1985,6 +2034,27 @@ func (u *RequestUpsertBulk) UpdateClientStatusCode() *RequestUpsertBulk {
 func (u *RequestUpsertBulk) ClearClientStatusCode() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearClientStatusCode()
+	})
+}
+
+// SetFailure sets the "failure" field.
+func (u *RequestUpsertBulk) SetFailure(v *objects.RequestFailure) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetFailure(v)
+	})
+}
+
+// UpdateFailure sets the "failure" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateFailure() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateFailure()
+	})
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (u *RequestUpsertBulk) ClearFailure() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearFailure()
 	})
 }
 
