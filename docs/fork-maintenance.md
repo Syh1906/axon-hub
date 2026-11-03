@@ -1023,6 +1023,8 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- 第十四版发布准备（2026-11-03）：版本 `v1.0.0-beta10-fork.7.syh.14`，包含 `1c09b0ca` 加密续聊与工具流终态、`d54e4012` 状态筛选完整计数及 `69cf3d64` 备用地址切换、容量拒绝、超时诊断与图片数字摘要。两层上游不变，无 schema/data migration；`publishBinaries=false`、`prerelease=false`。本地阶段自检与独立复审通过，云端检查、正式产物与两台部署结果待执行后补记。分组用量日志的其他会话改动不纳入本版。
+
 - 第十三版发布（2026-11-03）：版本 `v1.0.0-beta10-fork.7.syh.13`，包含 `7f592ffb` 的目录预算与列对齐、`c7c680bf` 的中断续聊、`a17b5cfa` 的目录上下文与渠道覆盖、`690011a5` 的今日模型指标及加载优化。两层上游不变，无 schema/data migration；`publishBinaries=false`、`prerelease=false`。本地验收与独立复审沿用各 topic 记录。
   新加坡时间 `09:43:20` 已[正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.13)并设为最新版本；源码 `38dc01bf864f10e2fb0d62037d7a656b728a5db7`。[发布任务 41560824804](https://github.com/Syh1906/axon-hub/actions/runs/41560824804) 复用同提交 Test 41560342807，双架构镜像、临时 PostgreSQL 启动／版本／提交检查全部通过；分支 Build 与 Lint 也通过。发布前仅同步既有目录测试夹具及其格式，未添加生产兜底。
   固定镜像 `ghcr.io/syh1906/axon-hub@sha256:bf8607f51530c40f8b21ab0c6741a215443efe4155e7756b28dabdab14946a32`；唯一发布附件 [release.json](../output/implementation/release-syh13-20261103/release.json) 的 SHA-256 与 GitHub 一致。
