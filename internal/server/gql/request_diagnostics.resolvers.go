@@ -8,11 +8,10 @@ package gql
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"entgo.io/contrib/entgql"
 	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/ent/request"
 )
 
 // RequestLogTimezone is the resolver for the requestLogTimezone field.
@@ -24,6 +23,34 @@ func (r *queryResolver) RequestLogTimezone(ctx context.Context) (string, error) 
 	return location.String(), nil
 }
 
+// RequestLogStatusCounts is the resolver for the requestLogStatusCounts field.
+func (r *queryResolver) RequestLogStatusCounts(ctx context.Context, where *ent.RequestWhereInput, filter *RequestLogFilterInput) ([]*RequestLogStatusCount, error) {
+	query, err := r.requestLogQuery(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	query, err = where.Filter(query)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Status request.Status `json:"status"`
+		Count  int            `json:"count"`
+	}
+	if err := query.GroupBy(request.FieldStatus).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	counts := make(map[request.Status]int, len(rows))
+	for _, row := range rows {
+		counts[row.Status] = row.Count
+	}
+	result := make([]*RequestLogStatusCount, 0, 5)
+	for _, status := range []request.Status{request.StatusPending, request.StatusProcessing, request.StatusCompleted, request.StatusFailed, request.StatusCanceled} {
+		result = append(result, &RequestLogStatusCount{Status: status, Count: counts[status]})
+	}
+	return result, nil
+}
+
 // RequestLogs is the resolver for the requestLogs field.
 func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error) {
 	if err := validatePaginationArgs(first, last); err != nil {
@@ -32,29 +59,9 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 	if orderBy != nil && orderBy.Field.String() == "CREATED_AT" {
 		orderBy.Field = ent.DefaultRequestOrder.Field
 	}
-	query := r.client.Request.Query()
-	if filter != nil {
-		if len(filter.ChannelTagsIn) > 0 {
-			query.Where(biz.RequestLogTagPredicate(filter.ChannelTagsIn))
-		}
-		if len(filter.APIKeyGroupRefsIn) > 0 {
-			p, err := biz.RequestLogGroupPredicate(filter.APIKeyGroupRefsIn)
-			if err != nil {
-				return nil, err
-			}
-			query.Where(p)
-		}
-		if period := filter.TimeRange; period != nil {
-			location, err := r.systemService.RequestLogLocation(ctx)
-			if err != nil {
-				return nil, err
-			}
-			predicates, err := biz.RequestLogDatePredicates(period.Period, period.Start, period.End, time.Now(), location)
-			if err != nil {
-				return nil, err
-			}
-			query.Where(predicates...)
-		}
+	query, err := r.requestLogQuery(ctx, filter)
+	if err != nil {
+		return nil, err
 	}
 	if filter != nil && filter.Offset != nil {
 		if after != nil || before != nil || last != nil || first == nil {

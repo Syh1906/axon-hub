@@ -2020,6 +2020,7 @@ type ComplexityRoot struct {
 		QueryModels                     func(childComplexity int, input QueryModelsInput) int
 		QueryUnassociatedChannels       func(childComplexity int) int
 		QuotaEnforcementSettings        func(childComplexity int) int
+		RequestLogStatusCounts          func(childComplexity int, where *ent.RequestWhereInput, filter *RequestLogFilterInput) int
 		RequestLogTimezone              func(childComplexity int) int
 		RequestLogs                     func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) int
 		RequestStats                    func(childComplexity int) int
@@ -2206,6 +2207,11 @@ type ComplexityRoot struct {
 		Strategy                func(childComplexity int) int
 		TransportFallbackReason func(childComplexity int) int
 		UpstreamTransport       func(childComplexity int) int
+	}
+
+	RequestLogStatusCount struct {
+		Count  func(childComplexity int) int
+		Status func(childComplexity int) int
 	}
 
 	RequestMetadata struct {
@@ -3411,6 +3417,7 @@ type QueryResolver interface {
 	ChannelTodayUsage(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelTodayUsage, error)
 	ChannelTodayUsageDetails(ctx context.Context, channelID objects.GUID) (*objects.ChannelTodayUsageDetails, error)
 	RequestLogTimezone(ctx context.Context) (string, error)
+	RequestLogStatusCounts(ctx context.Context, where *ent.RequestWhereInput, filter *RequestLogFilterInput) ([]*RequestLogStatusCount, error)
 	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
 	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
 	ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string) (*biz.SelfUsageStats, error)
@@ -12416,6 +12423,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.QuotaEnforcementSettings(childComplexity), true
+	case "Query.requestLogStatusCounts":
+		if e.complexity.Query.RequestLogStatusCounts == nil {
+			break
+		}
+
+		args, err := ec.field_Query_requestLogStatusCounts_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.RequestLogStatusCounts(childComplexity, args["where"].(*ent.RequestWhereInput), args["filter"].(*RequestLogFilterInput)), true
 	case "Query.requestLogTimezone":
 		if e.complexity.Query.RequestLogTimezone == nil {
 			break
@@ -13406,6 +13424,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecutionSelection.UpstreamTransport(childComplexity), true
+
+	case "RequestLogStatusCount.count":
+		if e.complexity.RequestLogStatusCount.Count == nil {
+			break
+		}
+
+		return e.complexity.RequestLogStatusCount.Count(childComplexity), true
+	case "RequestLogStatusCount.status":
+		if e.complexity.RequestLogStatusCount.Status == nil {
+			break
+		}
+
+		return e.complexity.RequestLogStatusCount.Status(childComplexity), true
 
 	case "RequestMetadata.cachedTokens":
 		if e.complexity.RequestMetadata.CachedTokens == nil {
@@ -20555,6 +20586,22 @@ func (ec *executionContext) field_Query_queryModels_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_requestLogStatusCounts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "where", ec.unmarshalORequestWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestWhereInput)
+	if err != nil {
+		return nil, err
+	}
+	args["where"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalORequestLogFilterInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogFilterInput)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg1
 	return args, nil
 }
 
@@ -67304,6 +67351,53 @@ func (ec *executionContext) fieldContext_Query_requestLogTimezone(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_requestLogStatusCounts(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_requestLogStatusCounts,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().RequestLogStatusCounts(ctx, fc.Args["where"].(*ent.RequestWhereInput), fc.Args["filter"].(*RequestLogFilterInput))
+		},
+		nil,
+		ec.marshalNRequestLogStatusCount2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogStatusCountᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_requestLogStatusCounts(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "status":
+				return ec.fieldContext_RequestLogStatusCount_status(ctx, field)
+			case "count":
+				return ec.fieldContext_RequestLogStatusCount_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestLogStatusCount", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_requestLogStatusCounts_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_requestLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -72460,6 +72554,64 @@ func (ec *executionContext) fieldContext_RequestExecutionSelection_candidates(_ 
 				return ec.fieldContext_RequestRoutingCandidate_sessionReuse(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RequestRoutingCandidate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestLogStatusCount_status(ctx context.Context, field graphql.CollectedField, obj *RequestLogStatusCount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestLogStatusCount_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNRequestStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋrequestᚐStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestLogStatusCount_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestLogStatusCount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type RequestStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestLogStatusCount_count(ctx context.Context, field graphql.CollectedField, obj *RequestLogStatusCount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestLogStatusCount_count,
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestLogStatusCount_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestLogStatusCount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -137913,6 +138065,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "requestLogStatusCounts":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_requestLogStatusCounts(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "requestLogs":
 			field := field
 
@@ -140191,6 +140365,50 @@ func (ec *executionContext) _RequestExecutionSelection(ctx context.Context, sel 
 			}
 		case "candidates":
 			out.Values[i] = ec._RequestExecutionSelection_candidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestLogStatusCountImplementors = []string{"RequestLogStatusCount"}
+
+func (ec *executionContext) _RequestLogStatusCount(ctx context.Context, sel ast.SelectionSet, obj *RequestLogStatusCount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestLogStatusCountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestLogStatusCount")
+		case "status":
+			out.Values[i] = ec._RequestLogStatusCount_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._RequestLogStatusCount_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -154693,6 +154911,60 @@ func (ec *executionContext) marshalNRequestExecutionStatus2githubᚗcomᚋlooplj
 func (ec *executionContext) unmarshalNRequestExecutionWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestExecutionWhereInput(ctx context.Context, v any) (*ent.RequestExecutionWhereInput, error) {
 	res, err := ec.unmarshalInputRequestExecutionWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRequestLogStatusCount2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogStatusCountᚄ(ctx context.Context, sel ast.SelectionSet, v []*RequestLogStatusCount) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNRequestLogStatusCount2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogStatusCount(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRequestLogStatusCount2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestLogStatusCount(ctx context.Context, sel ast.SelectionSet, v *RequestLogStatusCount) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RequestLogStatusCount(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNRequestOrderField2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestOrderField(ctx context.Context, v any) (*ent.RequestOrderField, error) {

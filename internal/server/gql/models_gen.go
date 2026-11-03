@@ -11,6 +11,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
+	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -532,6 +533,11 @@ type RequestLogFilterInput struct {
 	ChannelTagsIn     []string                  `json:"channelTagsIn,omitempty"`
 	APIKeyGroupRefsIn []int                     `json:"apiKeyGroupRefsIn,omitempty"`
 	TimeRange         *RequestLogTimeRangeInput `json:"timeRange,omitempty"`
+}
+
+type RequestLogStatusCount struct {
+	Status request.Status `json:"status"`
+	Count  int            `json:"count"`
 }
 
 type RequestLogTimeRangeInput struct {

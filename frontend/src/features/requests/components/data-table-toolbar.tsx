@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState } from 'react';
-import { Cross2Icon } from '@radix-ui/react-icons';
 import type { ReactNode } from 'react';
+import { Cross2Icon } from '@radix-ui/react-icons';
 import { Table } from '@tanstack/react-table';
 import { Filter, GripVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -21,12 +21,14 @@ import { useApiKeyOptions, useApiKeyOptionsByIDs } from '@/features/apikeys/data
 import { useKeyGroups } from '@/features/apikeys/data/groups';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
 import { getProviderFromChannelType } from '@/features/channels/data/config_providers';
+import { useRequestLogStatusCounts } from '../data/request-status-counts';
 import { RequestStatus } from '../data/schema';
 import { DataTableViewOptions } from './data-table-view-options';
 import { MODEL_ID_COLUMN } from './requests-columns';
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  queryWhere?: Record<string, any>;
   dateRange?: DateTimeRangeValue;
   onDateRangeChange?: (range: DateTimeRangeValue | undefined) => void;
   onResetFilters?: () => void;
@@ -69,6 +71,9 @@ interface RequestFilterControlsProps {
   handleToggleShowArchivedApiKeys: (checked: boolean) => void;
   isMobile?: boolean;
   onCloseAfterAction?: () => void;
+  statusCounts: ReadonlyMap<string, number>;
+  statusCountState?: 'loading' | 'error';
+  onStatusOpenChange: (open: boolean) => void;
 }
 
 /**
@@ -99,6 +104,9 @@ function RequestFilterControls({
   handleToggleShowArchivedApiKeys,
   isMobile = false,
   onCloseAfterAction,
+  statusCounts,
+  statusCountState,
+  onStatusOpenChange,
 }: RequestFilterControlsProps) {
   const { t } = useTranslation();
 
@@ -142,7 +150,21 @@ function RequestFilterControls({
   return (
     <div className={wrapperClass}>
       {table.getColumn('status') && (
-        <DataTableFacetedFilter column={table.getColumn('status')} title={t('requests.filters.status')} options={requestStatuses} />
+        <DataTableFacetedFilter
+          column={table.getColumn('status')}
+          title={t('requests.filters.status')}
+          options={requestStatuses}
+          counts={statusCounts}
+          countState={statusCountState}
+          onOpenChange={onStatusOpenChange}
+          footer={
+            statusCountState ? (
+              <div role='status' className='text-muted-foreground px-2 py-1.5 text-xs'>
+                {statusCountState === 'loading' ? t('common.loading') : t('requests.filters.countsUnavailable')}
+              </div>
+            ) : undefined
+          }
+        />
       )}
       {table.getColumn('source') && (
         <DataTableFacetedFilter column={table.getColumn('source')} title={t('requests.filters.source')} options={requestSources} />
@@ -202,6 +224,7 @@ function RequestFilterControls({
 
 export function DataTableToolbar<TData>({
   table,
+  queryWhere,
   dateRange,
   onDateRangeChange,
   onResetFilters,
@@ -216,6 +239,18 @@ export function DataTableToolbar<TData>({
   getColumnLabel,
 }: DataTableToolbarProps<TData>) {
   const { t } = useTranslation();
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const statusCountQuery = useRequestLogStatusCounts(
+    queryWhere,
+    statusFilterOpen,
+    autoRefreshActive && autoRefreshInterval !== null ? autoRefreshInterval : false
+  );
+  const statusCounts = useMemo(
+    () => new Map(statusCountQuery.data?.map(({ status, count }) => [status, count]) ?? []),
+    [statusCountQuery.data]
+  );
+  const statusCountState =
+    statusCountQuery.isFetching || statusCountQuery.isPending ? 'loading' : statusCountQuery.isError ? 'error' : undefined;
   const [showArchivedApiKeys, setShowArchivedApiKeys] = useState(false);
   const [apiKeySearch, setApiKeySearch] = useState('');
   const [showArchivedChannels, setShowArchivedChannels] = useState(false);
@@ -378,7 +413,13 @@ export function DataTableToolbar<TData>({
       />
 
       {/* Mobile: Filters button opens bottom sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setStatusFilterOpen(false);
+        }}
+      >
         <SheetTrigger asChild>
           <Button variant='outline' size='sm' className='h-8 gap-1 sm:hidden'>
             <Filter className='h-4 w-4' />
@@ -407,6 +448,9 @@ export function DataTableToolbar<TData>({
               isFiltered={isFiltered}
               hasDateRange={hasDateRange}
               requestStatuses={requestStatuses}
+              statusCounts={statusCounts}
+              statusCountState={statusCountState}
+              onStatusOpenChange={setStatusFilterOpen}
               requestSources={requestSources}
               canViewChannels={canViewChannels}
               channelOptions={channelOptions}
@@ -441,6 +485,9 @@ export function DataTableToolbar<TData>({
         isFiltered={isFiltered}
         hasDateRange={hasDateRange}
         requestStatuses={requestStatuses}
+        statusCounts={statusCounts}
+        statusCountState={statusCountState}
+        onStatusOpenChange={setStatusFilterOpen}
         requestSources={requestSources}
         canViewChannels={canViewChannels}
         channelOptions={channelOptions}
@@ -464,7 +511,15 @@ export function DataTableToolbar<TData>({
       <div className='flex shrink-0 flex-wrap items-center gap-2'>
         {refreshControls}
         {showRefresh && onRefresh && onAutoRefreshIntervalChange && (
-          <AutoRefreshControl interval={autoRefreshInterval} active={autoRefreshActive} refreshing={refreshing} onIntervalChange={onAutoRefreshIntervalChange} onRefresh={onRefresh} />
+          <AutoRefreshControl
+            interval={autoRefreshInterval}
+            active={autoRefreshActive}
+            refreshing={refreshing}
+            onIntervalChange={onAutoRefreshIntervalChange}
+            onRefresh={async () => {
+              await Promise.all([onRefresh(), ...(statusFilterOpen ? [statusCountQuery.refetch()] : [])]);
+            }}
+          />
         )}
         {enableColumnOrdering && (
           <>

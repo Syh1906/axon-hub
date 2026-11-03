@@ -44,7 +44,13 @@ input RequestLogFilterInput {
   timeRange: RequestLogTimeRangeInput
 }
 
+type RequestLogStatusCount {
+  status: RequestStatus!
+  count: Int!
+}
+
 extend type Query {
   requestLogTimezone: String!
+  requestLogStatusCounts(where: RequestWhereInput, filter: RequestLogFilterInput): [RequestLogStatusCount!]!
   requestLogs(after: Cursor, first: Int, before: Cursor, last: Int, orderBy: RequestOrder, where: RequestWhereInput, filter: RequestLogFilterInput): RequestConnection!
 }

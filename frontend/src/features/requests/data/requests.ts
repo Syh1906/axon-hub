@@ -8,6 +8,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { shareRequestList } from './request-list-cache';
+import { requestLogVariables } from './request-log-variables';
 import {
   Request,
   RequestConnection,
@@ -373,12 +374,6 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }, 
       }
     }
   `;
-}
-
-// Keep the Ent where input separate from log-specific filters in both list and drawer navigation.
-function requestLogVariables(where: Record<string, any> = {}) {
-  const { channelTagsIn, apiKeyGroupRefsIn, timeRange, offset, ...entWhere } = where;
-  return { where: entWhere, filter: { channelTagsIn, apiKeyGroupRefsIn, timeRange, offset } };
 }
 
 // Query hooks

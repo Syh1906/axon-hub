@@ -373,6 +373,7 @@ export function RequestsTable({
     <div className='flex flex-1 flex-col overflow-hidden'>
       <DataTableToolbar
         table={table}
+        queryWhere={queryWhere}
         dateRange={dateRange}
         onDateRangeChange={onDateRangeChange}
         onResetFilters={onResetFilters}

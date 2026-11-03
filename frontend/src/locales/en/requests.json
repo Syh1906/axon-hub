@@ -90,6 +90,7 @@
   "requests.actions.ipAlreadyBlocked": "This IP is already blocked",
   "requests.filters.filterModelId": "Filter by Model ID...",
   "requests.filters.status": "Status",
+  "requests.filters.countsUnavailable": "Counts unavailable. Reopen the filter to retry.",
   "requests.filters.source": "Source",
   "requests.filters.channel": "Channel",
   "requests.filters.apiKey": "API Key",

@@ -27,6 +27,9 @@ interface DataTableFacetedFilterProps<TData, TValue> {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void | Promise<unknown>;
+  counts?: ReadonlyMap<string, number>;
+  countState?: 'loading' | 'error';
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** Renders the searchable faceted filter backed by a TanStack Table column. */
@@ -44,10 +47,13 @@ export function DataTableFacetedFilter<TData, TValue>({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  counts,
+  countState,
+  onOpenChange,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const { t } = useTranslation();
 
-  const facets = column?.getFacetedUniqueValues() || new Map();
+  const facets = counts ?? column?.getFacetedUniqueValues() ?? new Map();
   const filterValue = column?.getFilterValue();
   const selectedValues = new Set(
     value ?? (singleSelect ? (filterValue ? [filterValue as string] : []) : ((filterValue || []) as string[]))
@@ -60,6 +66,7 @@ export function DataTableFacetedFilter<TData, TValue>({
   return (
     <Popover
       onOpenChange={(open) => {
+        onOpenChange?.(open);
         if (!open) onSearchValueChange?.('');
       }}
     >
@@ -136,9 +143,9 @@ export function DataTableFacetedFilter<TData, TValue>({
                       </div>
                       {option.icon && <option.icon className='text-muted-foreground h-4 w-4' />}
                       <span>{option.label}</span>
-                      {facets?.has(option.value) && (
-                        <span className='ml-auto flex h-4 w-4 items-center justify-center font-mono text-xs'>
-                          {facets.get(option.value)}
+                      {(countState || facets.has(option.value)) && (
+                        <span className='ml-auto flex h-4 min-w-4 items-center justify-end font-mono text-xs'>
+                          {countState === 'loading' ? '…' : countState === 'error' ? '—' : facets.get(option.value)}
                         </span>
                       )}
                     </CommandItem>

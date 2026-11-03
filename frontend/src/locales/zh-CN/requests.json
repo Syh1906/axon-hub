@@ -90,6 +90,7 @@
   "requests.actions.ipAlreadyBlocked": "该 IP 已在封禁列表中",
   "requests.filters.filterModelId": "按模型ID筛选...",
   "requests.filters.status": "状态",
+  "requests.filters.countsUnavailable": "数量暂不可用，请重新打开筛选重试",
   "requests.filters.source": "来源",
   "requests.filters.channel": "渠道",
   "requests.filters.apiKey": "API密钥",
