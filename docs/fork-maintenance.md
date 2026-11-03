@@ -1014,6 +1014,8 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- 第十三版准备（2026-11-03）：版本 `v1.0.0-beta10-fork.7.syh.13`，包含 `7f592ffb` 的目录预算与列对齐、`c7c680bf` 的中断续聊、`a17b5cfa` 的目录上下文与渠道覆盖、`690011a5` 的今日模型指标及加载优化。两层上游不变，无 schema/data migration；`publishBinaries=false`、`prerelease=false`。本地验收与独立复审结果沿用各 topic 记录，分支同提交 Test 成功后启动精简发布；两台生产及旧快照 `41422746005` 的退役待现场验收后补记。
+
 - 目录与列对齐快照（2026-11-02）已从 `.syh.12` 基线构建并部署。源码 `7f592ffb2ee03e59f39ba98f8cd65a5ec47277eb`，快照 `snapshot-7f592ffb2ee0-41422746005-1`，[构建任务](https://github.com/Syh1906/axon-hub/actions/runs/41422746005) 全部成功。
   固定镜像 `ghcr.io/syh1906/axon-hub@sha256:9691bd45d09c174c10034aff3261fe30aa5c3e18fb75a68becf5b48de0d2fc07`，部署依据 [snapshot.json](../output/implementation/snapshot-catalog-align-20261102/snapshot.json)。云悠、泉哥依次更新并通过部署检查，临时配置及被替换的 `.syh.12` 本地镜像已清理。
   分支提交使用 `[skip ci]`，云端测试集中在快照工作流执行一次。本地验收结论沿用前阶段。认证后目录与真实推理、计费范围见[部署记录](../.agent/summary/snapshot-catalog-align-20261102.md)。
