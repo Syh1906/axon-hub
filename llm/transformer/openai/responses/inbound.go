@@ -613,31 +613,17 @@ func convertItemToMessage(item *Item) (*llm.Message, error) {
 			},
 		}, nil
 
-	case "function_call_output":
+	case "function_call_output", "custom_tool_call_output":
 		if item.Output == nil {
-			return nil, fmt.Errorf("%w: %s", transformer.ErrInvalidRequest, "function_call_output item must have non-nil Output")
+			return nil, fmt.Errorf("%w: %s item must have non-nil Output", transformer.ErrInvalidRequest, item.Type)
 		}
-		// Function call output - convert to tool message
 		msg := &llm.Message{
 			Role:       "tool",
 			ToolCallID: lo.ToPtr(item.CallID),
 			Content:    convertToMessageContent(*item.Output),
-		}
-		if item.Name != "" {
-			msg.ToolCallName = lo.ToPtr(item.Name)
-		}
-
-		return msg, nil
-
-	case "custom_tool_call_output":
-		if item.Output == nil {
-			return nil, fmt.Errorf("%w: %s", transformer.ErrInvalidRequest, "custom_tool_call_output item must have non-nil Output")
-		}
-		// Custom tool call output - convert to tool message
-		msg := &llm.Message{
-			Role:       "tool",
-			ToolCallID: lo.ToPtr(item.CallID),
-			Content:    convertToMessageContent(*item.Output),
+			ResponsesToolOutput: &llm.ResponsesToolOutput{
+				Type: item.Type, ID: item.ID, Namespace: item.Namespace,
+			},
 		}
 		if item.Name != "" {
 			msg.ToolCallName = lo.ToPtr(item.Name)

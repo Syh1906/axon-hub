@@ -38,6 +38,21 @@ func TestResponsesToolOutputNameRequestRoundTrip(t *testing.T) {
 	}
 }
 
+// A continuation can refer to the original custom tool call by response ID:
+// the matching call need not be present in this request's input.
+func TestResponsesCustomToolOutputFromPreviousResponse(t *testing.T) {
+	const output = `{"type":"custom_tool_call_output","id":"ctco_result","name":"apply_patch","call_id":"call_edit","output":"done"}`
+	body := []byte(`{"model":"test","previous_response_id":"resp_first","input":[` + output + `]}`)
+	inbound, err := NewInboundTransformer().TransformRequest(t.Context(), &httpclient.Request{Method: http.MethodPost, Body: body})
+	require.NoError(t, err)
+	out, err := NewOutboundTransformer("https://example.com", "test-key")
+	require.NoError(t, err)
+	forwarded, err := out.TransformRequest(t.Context(), inbound)
+	require.NoError(t, err)
+	require.Equal(t, "resp_first", gjson.GetBytes(forwarded.Body, "previous_response_id").String())
+	require.JSONEq(t, "["+output+"]", gjson.GetBytes(forwarded.Body, "input").Raw)
+}
+
 func TestOutboundTransformer_TransformResponse_Integration(t *testing.T) {
 	trans, err := NewOutboundTransformer("https://api.openai.com", "test-api-key")
 	require.NoError(t, err)

@@ -131,15 +131,8 @@ func convertInputFromMessages(msgs []llm.Message, transformOptions llm.Transform
 				}
 			}
 		case "tool":
-			itemType := "function_call_output"
-
-			if msg.ToolCallID != nil {
-				if mapped, ok := toolResultItemTypeByCallID[*msg.ToolCallID]; ok {
-					itemType = mapped
-				}
-			}
-
-			items = append(items, convertToolMessageWithType(msg, itemType))
+			pairedType := toolResultItemTypeByCallID[lo.FromPtr(msg.ToolCallID)]
+			items = append(items, convertToolMessageWithType(msg, pairedType))
 		}
 	}
 
@@ -329,7 +322,7 @@ func convertAssistantMessage(msg llm.Message) []Item {
 	return items
 }
 
-func convertToolMessageWithType(msg llm.Message, itemType string) Item {
+func convertToolMessageWithType(msg llm.Message, pairedType string) Item {
 	var output Input
 
 	// Handle simple content first
@@ -371,12 +364,19 @@ func convertToolMessageWithType(msg llm.Message, itemType string) Item {
 		output.Text = lo.ToPtr("")
 	}
 
-	return Item{
-		Type:   itemType,
+	item := Item{
+		Type:   pairedType,
 		CallID: lo.FromPtr(msg.ToolCallID),
 		Name:   lo.FromPtr(msg.ToolCallName),
 		Output: &output,
 	}
+	if original := msg.ResponsesToolOutput; original != nil {
+		item.Type, item.ID, item.Namespace = original.Type, original.ID, original.Namespace
+	} else if item.Type == "" {
+		item.Type = "function_call_output"
+	}
+
+	return item
 }
 
 func convertImageGenerationToTool(src llm.Tool) Tool {

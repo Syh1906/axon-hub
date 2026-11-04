@@ -233,6 +233,14 @@ An explicit `upstream_stream_read_error` without an available HTTP error status 
 
 When an upstream 429 includes `Retry-After`, AxonHub records a channel cooldown using the existing parsing rules and checks it before each send. Requests blocked by the cooldown do not reach that channel or consume RPM. Ordinary requests and complete-history continuations can use existing eligible candidates; unresolved upstream response IDs cannot switch known sources. With no available candidate, the client receives 429 and the remaining `Retry-After` and decides when to retry. A 429 without that header does not imply a cooldown. Initial rate limits and provider stream interruptions can still occur. This local refusal does not extend the cooldown, charge actual usage or trigger credential disabling, and retains the gateway's cooldown message. Actual upstream 429 errors continue to use configured hidden or custom messages.
 
+### Cross-Thread Delivery and Tool Outputs
+
+Codex can represent a task delivered by another thread as a standalone tool output with `id`, `namespace`, `name`, and `output`. If the receiving thread did not make the corresponding tool call, the output has no `call_id`. The output item's own `id` must not substitute for a call ID.
+
+Responses-to-Responses conversion preserves the original tool-output `type`, `id`, `namespace`, name, and any actual `call_id`. Later turns replay the delivery as tool output. A `custom_tool_call_output` also retains its type when its matching call exists only in the response referenced by `previous_response_id`.
+
+This does not require enabling WebSocket on the client. Direct HTTPS and safe WSS-to-HTTPS fallback before sending share these conversions. The upstream must still support standalone tool outputs. For a missing-`call_id` error, first compare these fields in the inbound and outbound requests, then check upstream support. Switching transport does not establish field compatibility, and ordinary HTTP parameter errors do not trigger protocol fallback.
+
 ### Complete Continuation History and Mode Billing
 
 Restoration follows `previous_response_id` through every ancestor until a complete starting request or cached ancestor is available. Each lookup retains the current key and project scope. The 1 MiB limit controls cache admission, not usable history size: larger records can be used directly for the current request. Missing, cyclic, or malformed ancestors never produce partial input.

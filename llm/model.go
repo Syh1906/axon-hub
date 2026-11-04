@@ -377,6 +377,8 @@ type Message struct {
 	// The name of the tool call.
 	// Is is a help field, will not be sent to the llm service.
 	ToolCallName *string `json:"tool_call_name,omitempty"`
+	// Preserve Responses item identity without exposing it to other API formats.
+	ResponsesToolOutput *ResponsesToolOutput `json:"-"`
 	// This field is a help field, will not be sent to the llm service.
 	ToolCallIsError *bool      `json:"tool_call_is_error,omitempty"`
 	ToolCalls       []ToolCall `json:"tool_calls,omitempty"`
@@ -425,6 +427,14 @@ type Message struct {
 	// should emit them in place; others (OpenAI Chat Completions, plain text
 	// UIs) can safely drop the field.
 	InlineToolResults []InlineToolResult `json:"inline_tool_results,omitempty"`
+}
+
+// ResponsesToolOutput identifies the output item, not the call it answers.
+// The original type matters when the corresponding call is in a previous response.
+type ResponsesToolOutput struct {
+	Type      string
+	ID        string
+	Namespace string
 }
 
 // ReasoningItem is an ordered, provider-neutral reasoning item.

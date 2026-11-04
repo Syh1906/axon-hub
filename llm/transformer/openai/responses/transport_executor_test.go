@@ -12,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/shared"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,42 +72,82 @@ func TestTransportFollowsClientAndCapability(t *testing.T) {
 	}
 }
 
-func TestTransportHandshakeFallbackAndConnectionMemory(t *testing.T) {
-	var handshakes, posts atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if websocket.IsWebSocketUpgrade(r) {
-			handshakes.Add(1)
-			w.WriteHeader(405)
-			return
-		}
-		posts.Add(1)
-		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_ok\",\"status\":\"completed\",\"output\":[]}}\n\n"))
-	}))
-	defer srv.Close()
-	client := httpclient.NewHttpClientWithClient(srv.Client())
-	defer client.CloseIdleConnections()
-	ws := NewWebSocketExecutor(client)
-	defer ws.Close()
-	executor := NewTransportExecutor(client, ws, false)
-	ctx := WithTransportSession(shared.WithResponsesWebSocket(context.Background()))
-	var reasons []string
-	for range 2 {
-		r := &httpclient.Request{Method: "POST", URL: srv.URL + "/responses", Headers: make(http.Header), Body: []byte(`{"input":"hello","stream":true}`), OnTransportSelected: func(_, reason string) {
-			if reason != "" {
-				reasons = append(reasons, reason)
+// A new delivery and a replay with another tool's result must reach the HTTPS
+// endpoint unchanged, whether the client used HTTPS or fell back from WSS.
+func TestResponsesStandaloneThreadDeliveryReplay(t *testing.T) {
+	const user = `{"type":"message","role":"user","content":[{"type":"input_text","text":"inspect HUD"}]}`
+	const first = `{"type":"function_call_output","id":"fco_first","namespace":"codex_app","name":"send_message_to_thread","output":"<codex_delegation><source_thread_id>A</source_thread_id><input>inspect HUD</input></codex_delegation>"}`
+	const second = `{"type":"function_call_output","id":"fco_second","namespace":"codex_app","name":"send_message_to_thread","output":"<codex_delegation><source_thread_id>A</source_thread_id><input>save the result</input></codex_delegation>"}`
+	const paired = `{"type":"function_call","call_id":"call_lookup","name":"lookup","arguments":"{}"},{"type":"function_call_output","id":"fco_lookup","call_id":"call_lookup","output":"ok"}`
+	inputs := []string{"[" + user + "," + first + "]", "[" + user + "," + first + "," + paired + "," + second + "]"}
+
+	for _, tc := range []struct {
+		name           string
+		clientWS       bool
+		wantHandshakes int32
+		wantReasons    []string
+	}{
+		{name: "direct-https"},
+		{name: "wss-to-https", clientWS: true, wantHandshakes: 1, wantReasons: []string{"websocket_handshake_failed", "connection_uses_http_fallback"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var handshakes, posts atomic.Int32
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if websocket.IsWebSocketUpgrade(r) {
+					handshakes.Add(1)
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+				index := int(posts.Add(1)) - 1
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.NotNil(t, r.TLS)
+				var body struct{ Input json.RawMessage }
+				if index >= len(inputs) || json.NewDecoder(r.Body).Decode(&body) != nil {
+					http.Error(w, "unexpected POST", http.StatusBadRequest)
+					return
+				}
+				if !assert.JSONEq(t, inputs[index], string(body.Input)) {
+					http.Error(w, "tool history changed", http.StatusBadRequest)
+					return
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = w.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_ok\",\"status\":\"completed\",\"output\":[]}}\n\n"))
+			}))
+			defer srv.Close()
+			client := httpclient.NewHttpClientWithClient(srv.Client())
+			defer client.CloseIdleConnections()
+			out, err := NewOutboundTransformerWithConfig(&Config{BaseURL: srv.URL, Transport: TransportWebSocket, APIKeyProvider: auth.NewStaticKeyProvider("fixture")})
+			require.NoError(t, err)
+			defer out.Stop()
+			executor := out.CustomizeExecutor(client)
+			ctx := t.Context()
+			if tc.clientWS {
+				ctx = WithTransportSession(shared.WithResponsesWebSocket(ctx))
 			}
-		}}
-		stream, err := executor.DoStream(ctx, r)
-		require.NoError(t, err)
-		for stream.Next() {
-		}
-		require.NoError(t, stream.Err())
-		_ = stream.Close()
+			var reasons []string
+			for _, input := range inputs {
+				body := []byte(`{"model":"test","stream":true,"input":` + input + `}`)
+				req, err := NewInboundTransformer().TransformRequest(ctx, &httpclient.Request{Method: http.MethodPost, Body: body})
+				require.NoError(t, err)
+				forwarded, err := out.TransformRequest(ctx, req)
+				require.NoError(t, err)
+				forwarded.OnTransportSelected = func(_, reason string) {
+					if reason != "" {
+						reasons = append(reasons, reason)
+					}
+				}
+				stream, err := executor.DoStream(ctx, forwarded)
+				require.NoError(t, err)
+				for stream.Next() {
+				}
+				require.NoError(t, stream.Err())
+				require.NoError(t, stream.Close())
+			}
+			require.Equal(t, tc.wantHandshakes, handshakes.Load())
+			require.Equal(t, int32(len(inputs)), posts.Load())
+			require.Equal(t, tc.wantReasons, reasons)
+		})
 	}
-	require.Equal(t, int32(1), handshakes.Load())
-	require.Equal(t, int32(2), posts.Load())
-	require.Equal(t, []string{"websocket_handshake_failed", "connection_uses_http_fallback"}, reasons)
 }
 
 func TestTransportDoesNotReplayAuthFailureOrUnknownExecution(t *testing.T) {

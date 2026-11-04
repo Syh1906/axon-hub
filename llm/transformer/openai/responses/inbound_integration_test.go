@@ -16,10 +16,11 @@ import (
 
 func TestInboundTransformer_TransformRequest_WithTestData(t *testing.T) {
 	tests := []struct {
-		name         string
-		requestFile  string
-		expectedFile string
-		validate     func(t *testing.T, result *llm.Request, httpReq *httpclient.Request)
+		name           string
+		requestFile    string
+		expectedFile   string
+		toolOutputType string
+		validate       func(t *testing.T, result *llm.Request, httpReq *httpclient.Request)
 	}{
 		{
 			name:         "simple text request transformation",
@@ -52,16 +53,18 @@ func TestInboundTransformer_TransformRequest_WithTestData(t *testing.T) {
 			},
 		},
 		{
-			name:         "tool request transformation",
-			requestFile:  "tool.request.json",
-			expectedFile: "llm-tool.request.json",
+			name:           "tool request transformation",
+			requestFile:    "tool.request.json",
+			expectedFile:   "llm-tool.request.json",
+			toolOutputType: "function_call_output",
 			validate: func(t *testing.T, result *llm.Request, httpReq *httpclient.Request) {
 			},
 		},
 		{
-			name:         "custom tool request transformation",
-			requestFile:  "custom_tool.request.json",
-			expectedFile: "llm-custom_tool.request.json",
+			name:           "custom tool request transformation",
+			requestFile:    "custom_tool.request.json",
+			expectedFile:   "llm-custom_tool.request.json",
+			toolOutputType: "custom_tool_call_output",
 			validate: func(t *testing.T, result *llm.Request, httpReq *httpclient.Request) {
 				t.Helper()
 
@@ -114,9 +117,10 @@ func TestInboundTransformer_TransformRequest_WithTestData(t *testing.T) {
 			},
 		},
 		{
-			name:         "reasoning with function_call merge transformation",
-			requestFile:  "reasoning.request.json",
-			expectedFile: "llm-reasoning.request.json",
+			name:           "reasoning with function_call merge transformation",
+			requestFile:    "reasoning.request.json",
+			expectedFile:   "llm-reasoning.request.json",
+			toolOutputType: "function_call_output",
 			validate: func(t *testing.T, result *llm.Request, httpReq *httpclient.Request) {
 				t.Helper()
 
@@ -188,6 +192,12 @@ func TestInboundTransformer_TransformRequest_WithTestData(t *testing.T) {
 
 			expected.RequestType = llm.RequestTypeChat
 			expected.APIFormat = llm.APIFormatOpenAIResponse
+			// The common JSON fixtures do not serialize Responses-specific item identity.
+			for i := range expected.Messages {
+				if expected.Messages[i].Role == "tool" {
+					expected.Messages[i].ResponsesToolOutput = &llm.ResponsesToolOutput{Type: tt.toolOutputType}
+				}
+			}
 
 			// Copy TransformerMetadata from result as it contains dynamic fields (include, prompt_cache_key, etc.)
 			expected.TransformerMetadata = result.TransformerMetadata
