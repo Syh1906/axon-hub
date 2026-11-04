@@ -88,7 +88,7 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 			definition, definitionErr := decodeCodexDefinition(settings.CodexCatalog)
 			var merged map[string]any
 			if definitionErr == nil {
-				merged, definitionErr = definition.catalogModel(m)
+				merged, definitionErr = definition.catalogModel(m, true)
 			}
 			if definitionErr != nil {
 				omitted++

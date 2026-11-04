@@ -167,5 +167,5 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		}
 	}
 	m.Connections = eligible
-	return d.catalogModel(m)
+	return d.catalogModel(m, false)
 }

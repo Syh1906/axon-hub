@@ -52,8 +52,8 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	if len(raw) > codexCatalogMaxBytes || json.Unmarshal(raw, &d) != nil {
 		return nil, fmt.Errorf("invalid Codex model definition")
 	}
-	if len(d.ClientVersion) > 32 || !definitionVersion.MatchString(d.ClientVersion) || len(d.Routes) == 0 {
-		return nil, fmt.Errorf("Codex definition requires clientVersion and confirmed routes")
+	if len(d.ClientVersion) > 32 || !definitionVersion.MatchString(d.ClientVersion) {
+		return nil, fmt.Errorf("Codex definition requires a valid clientVersion")
 	}
 	body, _ := json.Marshal(map[string]any{"models": []any{d.Model}})
 	parsed, err := parseCodexCatalog(body)
@@ -140,9 +140,9 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	return &d, nil
 }
 
-// Only current, caller-visible routes participate. Never turn a new association
-// into a confirmed route merely because its public model name matches.
-func (d *codexDefinition) catalogModel(m ModelFacade) (map[string]any, error) {
+// The saved model profile supplies the baseline for every caller-visible route.
+// Saved route entries only refine capabilities for the channel/model pairs they match.
+func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool) (map[string]any, error) {
 	// ClientVersion records import provenance, not a client allowlist. Schema
 	// validation and declared model capabilities are independent of version equality.
 	canonical := d.Model
@@ -164,10 +164,7 @@ func (d *codexDefinition) catalogModel(m ModelFacade) (map[string]any, error) {
 	var variants []map[string]any
 	for _, connection := range m.Connections {
 		for _, entry := range connection.Models {
-			r, ok := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
-			if !ok {
-				return nil, fmt.Errorf("unconfirmed Codex route channel=%d model=%s", connection.Channel.ID, entry.ActualModel)
-			}
+			r := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
 			variant := make(map[string]any, len(canonical))
 			for k, v := range canonical {
 				variant[k] = v
@@ -200,13 +197,31 @@ func (d *codexDefinition) catalogModel(m ModelFacade) (map[string]any, error) {
 		}
 	}
 	if len(variants) == 0 {
-		return nil, fmt.Errorf("no confirmed visible route")
+		return nil, fmt.Errorf("no visible route")
 	}
-	return mergeCodexModels(m.ID, variants)
+	result, err := mergeCodexModels(m.ID, variants)
+	if err != nil || !preserveKnownContext {
+		return result, err
+	}
+
+	// Missing context metadata on a manual route must not erase known windows
+	// or compaction thresholds from other caller-visible routes.
+	for _, field := range []string{"context_window", "max_context_window", "auto_compact_token_limit"} {
+		var bound float64
+		for _, variant := range variants {
+			if value, ok := variant[field].(float64); ok && value > 0 && (bound == 0 || value < bound) {
+				bound = value
+			}
+		}
+		if bound > 0 {
+			result[field] = bound
+		}
+	}
+	return applyCodexContextSettings(result, nil, nil, ""), nil
 }
 
-// Preview is read-only. Saving the returned definition through UpdateModel is
-// the explicit confirmation of its instructions and all listed route bindings.
+// Preview is read-only. UpdateModel saves the selected model profiles and any
+// route-specific capability overrides.
 func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, version string) (objects.JSONRawMessage, error) {
 	if !definitionVersion.MatchString(version) || len(version) > 32 {
 		return nil, fmt.Errorf("invalid client version")

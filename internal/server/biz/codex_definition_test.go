@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -82,19 +83,26 @@ func TestCodexDefinitionMultiChannelOfflineAndPermissions(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &catalog))
 	require.Equal(t, "alias", catalog.Models[0]["slug"])
 	require.Equal(t, float64(32000), catalog.Models[0]["context_window"], "invisible routes do not shrink capabilities")
-	createConfiguredModel(t, ctx, client, "unconfirmed-other", model.TypeChat, &objects.ModelAssociation{Type: "model", ModelID: &objects.ModelIDAssociation{ModelID: "test-model"}})
-	other := client.Model.Query().Where(model.ModelIDEQ("unconfirmed-other")).OnlyX(ctx)
-	partial := *d
-	partial.Routes = partial.Routes[:1]
-	partialJSON, _ := json.Marshal(partial)
-	other.Settings.CodexCatalog = partialJSON
-	client.Model.UpdateOneID(other.ID).SetSettings(other.Settings).SaveX(ctx)
+	added := client.Channel.Create().SetType(channel.TypeDeepseek).SetName("new-channel").
+		SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKey: "new-channel"}).
+		SetSupportedModels([]string{"test-model"}).SetDefaultTestModel("test-model").
+		SetStatus(channel.StatusEnabled).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, client, channels)
 	body, omitted, err = svc.Models(ctx, "0.162.1")
 	require.NoError(t, err)
-	require.Equal(t, 1, omitted)
+	require.Zero(t, omitted)
 	require.NoError(t, json.Unmarshal(body, &catalog))
 	require.Len(t, catalog.Models, 1)
-	client.Model.UpdateOneID(other.ID).SetStatus(model.StatusDisabled).SaveX(ctx)
+	require.Equal(t, float64(16000), catalog.Models[0]["context_window"], "既有渠道的明确限制仍然生效")
+	newChannelKey := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "new", Profiles: []objects.APIKeyProfile{{Name: "new", ChannelIDs: []int{added.ID}}}}}
+	body, omitted, err = svc.Models(contexts.WithAPIKey(ctx, newChannelKey), "0.166.0")
+	require.NoError(t, err)
+	require.Zero(t, omitted)
+	require.NoError(t, json.Unmarshal(body, &catalog))
+	require.Len(t, catalog.Models, 1)
+	require.Equal(t, "test-model", catalog.Models[0]["slug"])
+	require.Equal(t, float64(32000), catalog.Models[0]["context_window"], "新增渠道没有目录或快照时使用模型级定义")
+	require.JSONEq(t, string(raw), string(client.Model.GetX(ctx, m.ID).Settings.CodexCatalog))
 	for _, version := range []string{"0.159.2", "0.163.0", "0.165.0", "0.166.0", "0.167.0"} {
 		body, omitted, err = svc.Models(ctx, version)
 		require.NoError(t, err, "导入版本是来源记录，不应作为客户端白名单")
@@ -105,13 +113,67 @@ func TestCodexDefinitionMultiChannelOfflineAndPermissions(t *testing.T) {
 		require.Equal(t, float64(16000), catalog.Models[0]["context_window"])
 	}
 	require.Equal(t, before, calls.Load(), "兼容读取手动定义不应访问已离线来源")
-	d.Routes = d.Routes[:1]
-	raw, _ = json.Marshal(d)
+	d.Routes = nil
+	raw, err = json.Marshal(d)
+	require.NoError(t, err)
 	m.Settings.CodexCatalog = raw
-	client.Model.UpdateOneID(m.ID).SetSettings(m.Settings).SaveX(ctx)
-	_, omitted, err = svc.Models(ctx, "0.162.1")
-	require.Error(t, err)
-	require.Equal(t, 1, omitted)
+	_, err = models.UpdateModel(ctx, m.ID, &ent.UpdateModelInput{Settings: m.Settings})
+	require.NoError(t, err, "保存模型级定义无需填写渠道快照")
+	body, omitted, err = svc.Models(ctx, "0.162.1")
+	require.NoError(t, err)
+	require.Zero(t, omitted)
+	require.NoError(t, json.Unmarshal(body, &catalog))
+	require.Len(t, catalog.Models, 1)
+	require.Equal(t, float64(32000), catalog.Models[0]["context_window"])
+
+	for _, metadata := range []map[string]any{d.Model, d.Models["test-model"].Model} {
+		delete(metadata, "context_window")
+		delete(metadata, "max_context_window")
+		delete(metadata, "auto_compact_token_limit")
+	}
+	capabilities := codexRouteCapabilities(d.Models["test-model"].Model)
+	capabilities["auto_compact_token_limit"] = float64(12000)
+	d.Routes = []codexDefinitionRoute{{
+		ChannelID: ids[0], ModelID: "test-model", Capabilities: capabilities,
+		Limits: map[string]any{"auto_compact_token_limit": float64(10000)},
+	}}
+	raw, err = json.Marshal(d)
+	require.NoError(t, err)
+	m.Settings.CodexCatalog = raw
+	_, err = models.UpdateModel(ctx, m.ID, &ent.UpdateModelInput{Settings: m.Settings})
+	require.NoError(t, err)
+	maximum := 16000
+	client.Channel.UpdateOneID(ids[0]).SetSettings(&objects.ChannelSettings{
+		ModelContexts: []objects.ChannelModelContext{{ModelID: "test-model", MaxContextWindow: &maximum}},
+	}).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, client, channels)
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want float64
+	}{
+		{name: "有上下文限制的渠道可见", ctx: ctx, want: float64(16000)},
+		{name: "只有未声明上下文的渠道可见", ctx: contexts.WithAPIKey(ctx, newChannelKey)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body, omitted, err := svc.Models(tc.ctx, "0.166.0")
+			require.NoError(t, err)
+			require.Zero(t, omitted)
+			entries, err := parseCodexCatalog(body)
+			require.NoError(t, err)
+			require.Contains(t, entries, "test-model")
+			for field, expected := range map[string]float64{
+				"context_window": tc.want, "max_context_window": tc.want, "auto_compact_token_limit": 10000,
+			} {
+				if tc.want == 0 {
+					require.NotContains(t, entries["test-model"], field)
+				} else {
+					require.Equal(t, expected, entries["test-model"][field], field)
+				}
+			}
+		})
+	}
+
 	key.Edges.Project = &ent.Project{Profiles: &objects.ProjectProfiles{ActiveProfile: "none", Profiles: []objects.ProjectProfile{{Name: "none", ChannelIDs: []int{99999}}}}}
 	body, _, err = svc.Models(contexts.WithAPIKey(ctx, key), "0.162.1")
 	require.NoError(t, err)
