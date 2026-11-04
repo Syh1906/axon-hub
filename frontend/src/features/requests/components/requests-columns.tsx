@@ -18,6 +18,7 @@ import { useGeneralSettings, useSecuritySettings, useUpdateSecuritySettings } fr
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { useRequestLogTimezone } from '../data/requests';
 import { Request } from '../data/schema';
+import { RequestReasoningBadge } from './request-reasoning-badge';
 import {
   RequestLogStatusCell,
   RequestChannelCell,
@@ -237,11 +238,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
             <div className='flex min-w-[160px] flex-col gap-1'>
               {modelLabel}
               <div className='flex items-center gap-1.5'>
-                {reasoningEffort && (
-                  <Badge className='border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300'>
-                    {reasoningEffort}
-                  </Badge>
-                )}
+                {reasoningEffort && <RequestReasoningBadge effort={reasoningEffort} />}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
