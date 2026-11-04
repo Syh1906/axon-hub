@@ -31,12 +31,12 @@ func (s *RequestService) FinalizeRequestMetadata(ctx context.Context, record *en
 	return err
 }
 
-func (s *RequestService) SetExecutionTransport(ctx context.Context, id int, selection *objects.RequestExecutionSelection) error {
+func (s *RequestService) SetExecutionSelection(ctx context.Context, id int, selection *objects.RequestExecutionSelection) error {
 	encoded, err := json.Marshal(selection)
 	if err != nil {
 		return err
 	}
-	// Selection identity stays immutable; only the current attempt's transport is completed.
+	// Selection identity stays immutable; dispatch and transport are filled in as the attempt runs.
 	return s.entFromContext(ctx).RequestExecution.UpdateOneID(id).Modify(func(u *sql.UpdateBuilder) {
 		u.Set(requestexecution.FieldSelection, string(encoded))
 	}).Exec(ctx)

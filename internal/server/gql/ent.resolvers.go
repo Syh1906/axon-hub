@@ -318,7 +318,11 @@ func (r *queryResolver) Node(ctx context.Context, id objects.GUID) (ent.Noder, e
 		return nil, fmt.Errorf("unknown node type: %s", id.Type)
 	}
 
-	return r.client.Noder(ctx, id.ID, ent.WithFixedNodeType(typ))
+	node, err := r.client.Noder(ctx, id.ID, ent.WithFixedNodeType(typ))
+	if req, ok := node.(*ent.Request); err == nil && ok {
+		cacheRequestChannelSessions(ctx, r.client, []*ent.Request{req}, false)
+	}
+	return node, err
 }
 
 // Nodes is the resolver for the nodes field.
@@ -780,7 +784,19 @@ func (r *requestExecutionResolver) Selection(ctx context.Context, obj *ent.Reque
 	if !authz.HasScope(ctx, scopes.ScopeReadChannels) {
 		return nil, nil
 	}
-	return obj.Selection, nil
+	if obj.ID == 0 {
+		return obj.Selection, nil
+	}
+	state := requestChannelSession(ctx, r.client, obj.ID)
+	if obj.Selection == nil {
+		if state == "" {
+			return nil, nil
+		}
+		return &objects.RequestExecutionSelection{SessionState: state, Candidates: []objects.RequestRoutingCandidate{}}, nil
+	}
+	selection := *obj.Selection
+	selection.SessionState = state
+	return &selection, nil
 }
 
 // Channel is the resolver for the channel field.

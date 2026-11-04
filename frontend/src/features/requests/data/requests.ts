@@ -105,6 +105,12 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
+            ${permissions.canViewChannels ? `sessionExecution {
+              id
+              channel { id name type tags }
+              selection { channelName provider keyHint keyRemark sessionState clientTransport upstreamTransport transportFallbackReason strategy priority }
+              costSnapshot { applied { value } }
+            }` : ''}
             executions(first: 10, orderBy: { field: CREATED_AT, direction: DESC }) {
               edges {
                 node {
@@ -218,6 +224,7 @@ function buildRequestDetailQuery(
           id
           createdAt
           updatedAt${apiKeyFields}${requestChannelFields}
+          ${permissions.canViewChannels ? 'sessionExecution { id }' : ''}
           source
           modelID
           stream
@@ -293,6 +300,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           id
           createdAt
           updatedAt${apiKeyFields}${requestChannelFields}
+          ${permissions.canViewChannels ? 'sessionExecution { id }' : ''}
           source
           modelID
           stream

@@ -2116,6 +2116,7 @@ type ComplexityRoot struct {
 		ResponseBody               func(childComplexity int) int
 		ResponseChunks             func(childComplexity int) int
 		RoutingDecision            func(childComplexity int) int
+		SessionExecution           func(childComplexity int) int
 		Source                     func(childComplexity int) int
 		Status                     func(childComplexity int) int
 		Stream                     func(childComplexity int) int
@@ -2247,6 +2248,13 @@ type ComplexityRoot struct {
 		Owner                func(childComplexity int) int
 		Skipped              func(childComplexity int) int
 		TemporaryFailover    func(childComplexity int) int
+	}
+
+	RequestSessionExecution struct {
+		Channel      func(childComplexity int) int
+		CostSnapshot func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Selection    func(childComplexity int) int
 	}
 
 	RequestStats struct {
@@ -3471,6 +3479,7 @@ type RequestResolver interface {
 
 	Channel(ctx context.Context, obj *ent.Request) (*ent.Channel, error)
 
+	SessionExecution(ctx context.Context, obj *ent.Request) (*RequestSessionExecution, error)
 	OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error)
 	CostRecalculationPreview(ctx context.Context, obj *ent.Request) (*biz.CostRecalculationPreview, error)
 }
@@ -13026,6 +13035,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.RoutingDecision(childComplexity), true
+	case "Request.sessionExecution":
+		if e.complexity.Request.SessionExecution == nil {
+			break
+		}
+
+		return e.complexity.Request.SessionExecution(childComplexity), true
 	case "Request.source":
 		if e.complexity.Request.Source == nil {
 			break
@@ -13596,6 +13611,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestRoutingDecision.TemporaryFailover(childComplexity), true
+
+	case "RequestSessionExecution.channel":
+		if e.complexity.RequestSessionExecution.Channel == nil {
+			break
+		}
+
+		return e.complexity.RequestSessionExecution.Channel(childComplexity), true
+	case "RequestSessionExecution.costSnapshot":
+		if e.complexity.RequestSessionExecution.CostSnapshot == nil {
+			break
+		}
+
+		return e.complexity.RequestSessionExecution.CostSnapshot(childComplexity), true
+	case "RequestSessionExecution.id":
+		if e.complexity.RequestSessionExecution.ID == nil {
+			break
+		}
+
+		return e.complexity.RequestSessionExecution.ID(childComplexity), true
+	case "RequestSessionExecution.selection":
+		if e.complexity.RequestSessionExecution.Selection == nil {
+			break
+		}
+
+		return e.complexity.RequestSessionExecution.Selection(childComplexity), true
 
 	case "RequestStats.requestsLastWeek":
 		if e.complexity.RequestStats.RequestsLastWeek == nil {
@@ -70418,6 +70458,45 @@ func (ec *executionContext) fieldContext_Request_usageLogs(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_sessionExecution(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_sessionExecution,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().SessionExecution(ctx, obj)
+		},
+		nil,
+		ec.marshalORequestSessionExecution2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestSessionExecution,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_sessionExecution(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RequestSessionExecution_id(ctx, field)
+			case "channel":
+				return ec.fieldContext_RequestSessionExecution_channel(ctx, field)
+			case "selection":
+				return ec.fieldContext_RequestSessionExecution_selection(ctx, field)
+			case "costSnapshot":
+				return ec.fieldContext_RequestSessionExecution_costSnapshot(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestSessionExecution", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_outputTokensPerSecond(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -70844,6 +70923,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "sessionExecution":
+				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
@@ -71842,6 +71923,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "sessionExecution":
+				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
@@ -73402,6 +73485,228 @@ func (ec *executionContext) fieldContext_RequestRoutingDecision_migration(_ cont
 				return ec.fieldContext_RoutingDecisionMigration_reason(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RoutingDecisionMigration", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestSessionExecution_id(ctx context.Context, field graphql.CollectedField, obj *RequestSessionExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestSessionExecution_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestSessionExecution_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestSessionExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestSessionExecution_channel(ctx context.Context, field graphql.CollectedField, obj *RequestSessionExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestSessionExecution_channel,
+		func(ctx context.Context) (any, error) {
+			return obj.Channel, nil
+		},
+		nil,
+		ec.marshalOChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannel,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestSessionExecution_channel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestSessionExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Channel_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Channel_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Channel_updatedAt(ctx, field)
+			case "type":
+				return ec.fieldContext_Channel_type(ctx, field)
+			case "baseURL":
+				return ec.fieldContext_Channel_baseURL(ctx, field)
+			case "websiteURL":
+				return ec.fieldContext_Channel_websiteURL(ctx, field)
+			case "name":
+				return ec.fieldContext_Channel_name(ctx, field)
+			case "status":
+				return ec.fieldContext_Channel_status(ctx, field)
+			case "supportedModels":
+				return ec.fieldContext_Channel_supportedModels(ctx, field)
+			case "manualModels":
+				return ec.fieldContext_Channel_manualModels(ctx, field)
+			case "autoSyncSupportedModels":
+				return ec.fieldContext_Channel_autoSyncSupportedModels(ctx, field)
+			case "autoSyncModelPattern":
+				return ec.fieldContext_Channel_autoSyncModelPattern(ctx, field)
+			case "tags":
+				return ec.fieldContext_Channel_tags(ctx, field)
+			case "defaultTestModel":
+				return ec.fieldContext_Channel_defaultTestModel(ctx, field)
+			case "policies":
+				return ec.fieldContext_Channel_policies(ctx, field)
+			case "settings":
+				return ec.fieldContext_Channel_settings(ctx, field)
+			case "orderingWeight":
+				return ec.fieldContext_Channel_orderingWeight(ctx, field)
+			case "errorMessage":
+				return ec.fieldContext_Channel_errorMessage(ctx, field)
+			case "autoDisabledAt":
+				return ec.fieldContext_Channel_autoDisabledAt(ctx, field)
+			case "remark":
+				return ec.fieldContext_Channel_remark(ctx, field)
+			case "endpoints":
+				return ec.fieldContext_Channel_endpoints(ctx, field)
+			case "requests":
+				return ec.fieldContext_Channel_requests(ctx, field)
+			case "executions":
+				return ec.fieldContext_Channel_executions(ctx, field)
+			case "usageLogs":
+				return ec.fieldContext_Channel_usageLogs(ctx, field)
+			case "channelProbes":
+				return ec.fieldContext_Channel_channelProbes(ctx, field)
+			case "channelModelPrices":
+				return ec.fieldContext_Channel_channelModelPrices(ctx, field)
+			case "providerQuotaStatus":
+				return ec.fieldContext_Channel_providerQuotaStatus(ctx, field)
+			case "defaultEndpoints":
+				return ec.fieldContext_Channel_defaultEndpoints(ctx, field)
+			case "allModelEntries":
+				return ec.fieldContext_Channel_allModelEntries(ctx, field)
+			case "credentials":
+				return ec.fieldContext_Channel_credentials(ctx, field)
+			case "disabledAPIKeys":
+				return ec.fieldContext_Channel_disabledAPIKeys(ctx, field)
+			case "liveLimiterStats":
+				return ec.fieldContext_Channel_liveLimiterStats(ctx, field)
+			case "liveUsage":
+				return ec.fieldContext_Channel_liveUsage(ctx, field)
+			case "healthGate":
+				return ec.fieldContext_Channel_healthGate(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Channel", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestSessionExecution_selection(ctx context.Context, field graphql.CollectedField, obj *RequestSessionExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestSessionExecution_selection,
+		func(ctx context.Context) (any, error) {
+			return obj.Selection, nil
+		},
+		nil,
+		ec.marshalORequestExecutionSelection2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestExecutionSelection,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestSessionExecution_selection(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestSessionExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "clientTransport":
+				return ec.fieldContext_RequestExecutionSelection_clientTransport(ctx, field)
+			case "upstreamTransport":
+				return ec.fieldContext_RequestExecutionSelection_upstreamTransport(ctx, field)
+			case "transportFallbackReason":
+				return ec.fieldContext_RequestExecutionSelection_transportFallbackReason(ctx, field)
+			case "channelName":
+				return ec.fieldContext_RequestExecutionSelection_channelName(ctx, field)
+			case "provider":
+				return ec.fieldContext_RequestExecutionSelection_provider(ctx, field)
+			case "keyHint":
+				return ec.fieldContext_RequestExecutionSelection_keyHint(ctx, field)
+			case "keyRemark":
+				return ec.fieldContext_RequestExecutionSelection_keyRemark(ctx, field)
+			case "sessionState":
+				return ec.fieldContext_RequestExecutionSelection_sessionState(ctx, field)
+			case "strategy":
+				return ec.fieldContext_RequestExecutionSelection_strategy(ctx, field)
+			case "priority":
+				return ec.fieldContext_RequestExecutionSelection_priority(ctx, field)
+			case "candidates":
+				return ec.fieldContext_RequestExecutionSelection_candidates(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestExecutionSelection", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestSessionExecution_costSnapshot(ctx context.Context, field graphql.CollectedField, obj *RequestSessionExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestSessionExecution_costSnapshot,
+		func(ctx context.Context) (any, error) {
+			return obj.CostSnapshot, nil
+		},
+		nil,
+		ec.marshalORequestCostSnapshot2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestCostSnapshot,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestSessionExecution_costSnapshot(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestSessionExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "priceReferenceId":
+				return ec.fieldContext_RequestCostSnapshot_priceReferenceId(ctx, field)
+			case "pricedAt":
+				return ec.fieldContext_RequestCostSnapshot_pricedAt(ctx, field)
+			case "keyLabel":
+				return ec.fieldContext_RequestCostSnapshot_keyLabel(ctx, field)
+			case "applied":
+				return ec.fieldContext_RequestCostSnapshot_applied(ctx, field)
+			case "manualMultiplier":
+				return ec.fieldContext_RequestCostSnapshot_manualMultiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestCostSnapshot", field.Name)
 		},
 	}
 	return fc, nil
@@ -86982,6 +87287,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "sessionExecution":
+				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
@@ -110295,7 +110602,7 @@ func (ec *executionContext) unmarshalInputRequestLogFilterInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"offset", "channelTagsIn", "apiKeyGroupRefsIn", "timeRange"}
+	fieldsInOrder := [...]string{"offset", "channelTagsIn", "channelIDsIn", "apiKeyGroupRefsIn", "timeRange"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -110316,6 +110623,13 @@ func (ec *executionContext) unmarshalInputRequestLogFilterInput(ctx context.Cont
 				return it, err
 			}
 			it.ChannelTagsIn = data
+		case "channelIDsIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelIDsIn"))
+			data, err := ec.unmarshalOID2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUIDᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelIDsIn = data
 		case "apiKeyGroupRefsIn":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKeyGroupRefsIn"))
 			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
@@ -139721,6 +140035,39 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "sessionExecution":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_sessionExecution(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "outputTokensPerSecond":
 			field := field
 
@@ -140908,6 +141255,51 @@ func (ec *executionContext) _RequestRoutingDecision(ctx context.Context, sel ast
 			}
 		case "migration":
 			out.Values[i] = ec._RequestRoutingDecision_migration(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestSessionExecutionImplementors = []string{"RequestSessionExecution"}
+
+func (ec *executionContext) _RequestSessionExecution(ctx context.Context, sel ast.SelectionSet, obj *RequestSessionExecution) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestSessionExecutionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestSessionExecution")
+		case "id":
+			out.Values[i] = ec._RequestSessionExecution_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channel":
+			out.Values[i] = ec._RequestSessionExecution_channel(ctx, field, obj)
+		case "selection":
+			out.Values[i] = ec._RequestSessionExecution_selection(ctx, field, obj)
+		case "costSnapshot":
+			out.Values[i] = ec._RequestSessionExecution_costSnapshot(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -163652,6 +164044,13 @@ func (ec *executionContext) marshalORequestRoutingDecision2ᚖgithubᚗcomᚋloo
 		return graphql.Null
 	}
 	return ec._RequestRoutingDecision(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORequestSessionExecution2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestSessionExecution(ctx context.Context, sel ast.SelectionSet, v *RequestSessionExecution) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestSessionExecution(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalORequestSource2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋrequestᚐSourceᚄ(ctx context.Context, v any) ([]request.Source, error) {

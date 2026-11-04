@@ -12,6 +12,7 @@ import {
 import { useAutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
+import { useRequestPermissions } from '@/hooks/useRequestPermissions';
 import useInterval from '@/hooks/useInterval';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
@@ -181,6 +182,7 @@ function clearRequestFilterSearch(draft: Record<string, unknown>) {
 
 function RequestsContent() {
   const navigate = useNavigate();
+  const { canViewChannels } = useRequestPermissions();
   const currentSearch = useRouterState({
     select: (state) => (state.location.search ?? {}) as Record<string, unknown>,
   });
@@ -227,7 +229,7 @@ function RequestsContent() {
     if (sourceFilter.length > 0) {
       where.sourceIn = sourceFilter;
     }
-    if (channelFilter.length > 0) {
+    if (canViewChannels && channelFilter.length > 0) {
       where.channelIDIn = channelFilter;
     }
     if (apiKeyFilter.length > 0) {
@@ -244,6 +246,7 @@ function RequestsContent() {
     apiKeyGroupFilter,
     statusFilter,
     sourceFilter,
+    canViewChannels,
     channelFilter,
     apiKeyFilter,
     debouncedModelIDFilter,

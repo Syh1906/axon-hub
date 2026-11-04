@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useRequestExecutions } from '../data';
-import type { Request, RequestExecution } from '../data/schema';
+import { isRequestChannelSessionState, type Request, type RequestExecution } from '../data/schema';
 import { getStatusColor } from './help';
 
 function knownFailureKind(execution: RequestExecution) {
@@ -46,13 +46,21 @@ export function RequestDiagnostics({
     { projectId, includePayload: false }
   );
   const executions = [...previous, ...(query.data?.edges.map((edge) => edge.node) ?? [])];
+  const sessionExecutionID = request.sessionExecution?.id;
+  const loadedSessionExecution = executions.find((execution) => execution.id === sessionExecutionID);
+  const loadSessionExecution = mode === 'routing' && !selectedID && !!sessionExecutionID && !!query.data && !loadedSessionExecution;
+  const sessionQuery = useRequestExecutions(
+    request.id,
+    { first: 1, where: { id: sessionExecutionID } },
+    { projectId, includePayload: false, enabled: loadSessionExecution }
+  );
+  const sessionExecution = loadedSessionExecution ?? sessionQuery.data?.edges[0]?.node;
   const selected =
     executions.find((execution) => execution.id === selectedID) ??
-    (mode === 'errors' ? executions.find((execution) => execution.status === 'failed' || execution.status === 'canceled') : undefined) ??
+    (mode === 'errors'
+      ? executions.find((execution) => execution.status === 'failed' || execution.status === 'canceled')
+      : sessionExecution) ??
     executions[0];
-  useEffect(() => {
-    if (!selectedID && selected) setSelectedID(selected.id);
-  }, [selectedID, selected]);
   const total = query.data?.totalCount ?? executions.length;
   const unknown = t('requests.diagnostics.unrecorded');
   const providerName = (provider?: string) => (provider ? t(`channels.providers.${provider}`, { defaultValue: provider }) : unknown);
@@ -79,15 +87,18 @@ export function RequestDiagnostics({
     return () => clearInterval(timer);
   }, [request.status, query.refetch, query.data]);
 
-  if (query.isPending && !executions.length) return <p role='status'>{t('common.loading')}</p>;
-  if (query.error)
+  if ((query.isPending && !executions.length) || (loadSessionExecution && sessionQuery.isFetching && !sessionExecution)) {
+    return <p role='status'>{t('common.loading')}</p>;
+  }
+  const failedQuery = query.error ? query : loadSessionExecution && sessionQuery.error ? sessionQuery : undefined;
+  if (failedQuery?.error)
     return (
       <Alert variant='destructive'>
         <AlertCircle />
         <AlertTitle>{t('requests.diagnostics.loadFailed')}</AlertTitle>
         <AlertDescription>
-          {query.error.message}
-          <Button variant='outline' size='sm' onClick={() => void query.refetch()}>
+          {failedQuery.error.message}
+          <Button variant='outline' size='sm' onClick={() => void failedQuery.refetch()}>
             {t('requests.diagnostics.retry')}
           </Button>
         </AlertDescription>
@@ -108,6 +119,14 @@ export function RequestDiagnostics({
   const failed = selected.status === 'failed' || selected.status === 'canceled';
   const kind = knownFailureKind(selected);
   const selection = selected.selection;
+  const sessionState = selection?.sessionState;
+  const sessionLabel = isRequestChannelSessionState(sessionState) ? t(`requests.diagnostics.sessions.${sessionState}`) : undefined;
+  const sessionDetails = sessionLabel && (
+    <p className='text-xs'>
+      {t('requests.diagnostics.session')}: {sessionLabel}
+      {selected.id === sessionExecutionID && !loadedSessionExecution && ` · ${channelName(selected)}`}
+    </p>
+  );
   const ordinal = (execution: RequestExecution) => total - executions.findIndex((item) => item.id === execution.id);
   const diagnosticText = JSON.stringify(
     {
@@ -183,7 +202,7 @@ export function RequestDiagnostics({
               </button>
             ))}
           </div>
-          {selection && (
+          {selection?.channelName && (
             <section className='flex flex-col gap-2'>
               {selection.upstreamTransport && (
                 <p className='text-xs'>
@@ -211,10 +230,7 @@ export function RequestDiagnostics({
                   priority: selection.priority,
                 })}
               </p>
-              <p className='text-xs'>
-                {t('requests.diagnostics.session')}:{' '}
-                {t(`requests.diagnostics.sessions.${selection.sessionState}`, { defaultValue: unknown })}
-              </p>
+              {sessionDetails}
               <div className='flex flex-col gap-1'>
                 {selection.candidates?.map((candidate, index) => (
                   <div key={`${candidate.channelID}-${index}`} className='flex gap-2 rounded border px-3 py-2 text-xs'>
@@ -225,7 +241,7 @@ export function RequestDiagnostics({
                       </span>
                       <p className='text-muted-foreground break-all'>
                         {candidate.models.join(', ')} · {t('requests.diagnostics.priority', { priority: candidate.priority })}
-                        {candidate.sessionReuse ? ` · ${t('requests.diagnostics.sessions.reused')}` : ''}
+                        {candidate.sessionReuse ? ` · ${t('requests.diagnostics.routingReuse')}` : ''}
                       </p>
                     </div>
                   </div>
@@ -233,6 +249,7 @@ export function RequestDiagnostics({
               </div>
             </section>
           )}
+          {!selection?.channelName && sessionDetails}
           {!!request.routingDecision?.skipped.length && (
             <section className='flex flex-col gap-2'>
               <h3 className='text-sm font-semibold'>{t('requests.diagnostics.skipped')}</h3>
@@ -285,10 +302,7 @@ export function RequestDiagnostics({
               ],
               [t('requests.diagnostics.key'), [selection?.keyRemark, selection?.keyHint].filter(Boolean).join(' · ') || unknown],
               [t('requests.diagnostics.clientStatus'), request.clientStatusCode ? `HTTP ${request.clientStatusCode}` : unknown],
-              [
-                t('requests.diagnostics.session'),
-                t(`requests.diagnostics.sessions.${selection?.sessionState || 'unrecorded'}`, { defaultValue: unknown }),
-              ],
+              ...(sessionLabel ? [[t('requests.diagnostics.session'), sessionLabel]] : []),
               [t('requests.diagnostics.code'), selected.failure?.code || selected.failure?.type || unknown],
               [t('requests.diagnostics.decision'), decisionName(selected.retryDecision)],
             ].map(([label, value]) => (

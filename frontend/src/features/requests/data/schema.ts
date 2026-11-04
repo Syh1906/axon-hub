@@ -16,6 +16,10 @@ export type RequestSource = z.infer<typeof requestSourceSchema>;
 export const requestExecutionStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed', 'canceled']);
 export type RequestExecutionStatus = z.infer<typeof requestExecutionStatusSchema>;
 
+export function isRequestChannelSessionState(state: string | undefined): state is 'new' | 'reused' | 'returned' {
+  return state === 'new' || state === 'reused' || state === 'returned';
+}
+
 export const executionSelectionSchema = z.object({
   channelName: z.string(),
   provider: z.string(),
@@ -135,6 +139,7 @@ export const requestSchema = z.object({
   metricsLatencyMs: z.number().nullable().optional(),
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
   metricsReasoningDurationMs: z.number().nullable().optional(),
+  sessionExecution: requestExecutionSchema.pick({ id: true, channel: true, selection: true, costSnapshot: true }).nullable().optional(),
   executions: z
     .object({
       edges: z.array(

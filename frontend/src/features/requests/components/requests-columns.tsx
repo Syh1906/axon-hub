@@ -24,6 +24,7 @@ import {
   RequestChannelCell,
   RequestCacheCell,
   RequestDurationCell,
+  finalRequestChannel,
   requestProvider,
   type RequestDiagnosticTab,
 } from './request-log-cells';
@@ -145,7 +146,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         ? ([
             {
               id: 'channel',
-              accessorFn: (row) => row.executions?.edges?.[0]?.node?.channel?.id ?? row.channel?.id ?? '',
+              accessorFn: (row) => finalRequestChannel(row).channel?.id ?? '',
               header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.channel')} />,
               enableSorting: false,
               enableHiding: true,
@@ -157,7 +158,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               ),
               filterFn: (row, _id, value) => {
                 if (value.length === 0) return true;
-                const channel = row.original.executions?.edges?.[0]?.node?.channel ?? row.original.channel;
+                const { channel } = finalRequestChannel(row.original);
                 return !!channel?.id && value.includes(channel.id);
               },
             },

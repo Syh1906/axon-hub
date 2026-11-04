@@ -47,6 +47,8 @@ input RequestLogFilterInput {
   "Skip this many matching requests for page navigation; cannot be combined with cursors."
   offset: Int
   channelTagsIn: [String!]
+  "Match the channel displayed in the request log."
+  channelIDsIn: [ID!]
   apiKeyGroupRefsIn: [Int!]
   timeRange: RequestLogTimeRangeInput
 }
@@ -54,6 +56,18 @@ input RequestLogFilterInput {
 type RequestLogStatusCount {
   status: RequestStatus!
   count: Int!
+}
+
+type RequestSessionExecution {
+  id: ID!
+  channel: Channel
+  selection: RequestExecutionSelection
+  costSnapshot: RequestCostSnapshot
+}
+
+extend type Request {
+  "Last execution dispatched for the session history of a finished request."
+  sessionExecution: RequestSessionExecution @goField(forceResolver: true)
 }
 
 extend type Query {

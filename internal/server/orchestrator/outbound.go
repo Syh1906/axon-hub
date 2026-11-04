@@ -961,6 +961,9 @@ func (p *PersistentOutboundTransformer) CustomizeExecutor(executor pipeline.Exec
 		customizedExecutor = custom.CustomizeExecutor(customizedExecutor)
 	}
 
+	if execution := p.state.RequestExec; execution != nil && execution.Selection != nil {
+		customizedExecutor = dispatchRecordingExecutor{Executor: customizedExecutor, service: p.state.RequestService, execution: execution}
+	}
 	return p.budgetExecutor(customizedExecutor)
 }
 

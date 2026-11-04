@@ -1,19 +1,20 @@
-import { ArrowLeftRight, CirclePlus, Link2, CircleHelp, Unlink } from 'lucide-react';
+import { CirclePlus, Link2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getProviderFromChannelType } from '@/features/channels/data/config_providers';
-import type { Request } from '../data/schema';
+import { isRequestChannelSessionState, type Request } from '../data/schema';
 import { getTokensPerSecondValue } from '../utils/tokens-per-second';
 import { getStatusColor } from './help';
 
 export type RequestDiagnosticTab = 'request' | 'response' | 'routing' | 'errors';
 
 export function finalRequestChannel(request: Request) {
-  const execution = request.executions?.edges[0]?.node;
-  return { execution, channel: execution?.channel ?? request.channel };
+  const execution = request.sessionExecution ?? request.executions?.edges[0]?.node;
+  const channel = request.sessionExecution ? request.sessionExecution.channel : execution?.channel ?? request.channel;
+  return { execution, channel };
 }
 
 export function requestProvider(request: Request) {
@@ -53,8 +54,6 @@ export function RequestLogStatusCell({ request, onOpen }: { request: Request; on
   );
 }
 
-const SESSION_ICONS = { new: CirclePlus, reused: Link2, switched: ArrowLeftRight, disabled: Unlink, unrecorded: CircleHelp };
-
 export function RequestChannelCell({ request, onOpen }: { request: Request; onOpen: () => void }) {
   const { t } = useTranslation();
   const { execution, channel } = finalRequestChannel(request);
@@ -62,16 +61,8 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   const name = selection?.channelName || channel?.name;
   if (!name) return <span className='text-muted-foreground'>—</span>;
   const tags = channel?.tags ?? [];
-  const state = selection?.sessionState || 'unrecorded';
-  const Icon = SESSION_ICONS[state as keyof typeof SESSION_ICONS] ?? CircleHelp;
-  const iconColor =
-    state === 'new'
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : state === 'reused'
-        ? 'text-violet-600 dark:text-violet-400'
-        : state === 'switched'
-          ? 'text-primary'
-          : 'text-muted-foreground';
+  const state = selection?.sessionState;
+  const sessionLabel = isRequestChannelSessionState(state) ? t(`requests.diagnostics.sessions.${state}`) : undefined;
   const provider = requestProvider(request);
   const usage = request.usageLogs?.edges?.[0]?.node;
   const multiplier = execution?.costSnapshot
@@ -90,7 +81,9 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
           aria-label={t('requests.diagnostics.openRouting', { name })}
         >
           <span className='flex w-full items-center gap-1.5'>
-            <Icon className={`size-4 shrink-0 ${iconColor}`} />
+            {state === 'new' && <CirclePlus className='size-4 shrink-0 text-emerald-600 dark:text-emerald-400' />}
+            {state === 'reused' && <Link2 className='size-4 shrink-0 text-violet-600 dark:text-violet-400' />}
+            {state === 'returned' && <RotateCcw className='text-primary size-4 shrink-0' />}
             <span className='truncate text-sm font-medium'>{name}</span>
             <Badge variant='outline' className='shrink-0 px-1 text-[10px]'>
               {multiplierLabel}
@@ -120,10 +113,7 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
             {name}
             {provider ? ` · ${t(`channels.providers.${provider}`, { defaultValue: provider })}` : ''}
           </strong>
-          <p>
-            {t('requests.diagnostics.session')}:{' '}
-            {t(`requests.diagnostics.sessions.${state}`, { defaultValue: t('requests.diagnostics.unrecorded') })}
-          </p>
+          {sessionLabel && <p>{t('requests.diagnostics.session')}: {sessionLabel}</p>}
           <p className='break-all'>
             {t('requests.diagnostics.key')}:{' '}
             {selection?.keyHint

@@ -19,7 +19,15 @@ type RequestExecutionSelection struct {
 	// It is internal routing metadata and is not exposed by GraphQL.
 	KeyRef      string `json:"key_ref,omitempty"`
 	UpstreamRef string `json:"upstream_ref,omitempty"`
+
+	// An empty dispatch value denotes a legacy row without dispatch tracking.
+	Dispatch string `json:"dispatch,omitempty"`
 }
+
+const (
+	RequestExecutionDispatchPending = "pending"
+	RequestExecutionDispatchStarted = "started"
+)
 
 type RequestRoutingCandidate struct {
 	ChannelID    int      `json:"channel_id"`

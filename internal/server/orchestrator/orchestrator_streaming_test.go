@@ -698,6 +698,8 @@ func TestChatCompletionOrchestrator_Process_StreamingSuccess_NotMarkedAsError(t 
 
 	dbExec := executions[0]
 	assert.Equal(t, requestexecution.StatusCompleted, dbExec.Status, "successful stream execution should be marked as completed")
+	require.NotNil(t, dbExec.Selection)
+	assert.Equal(t, objects.RequestExecutionDispatchStarted, dbExec.Selection.Dispatch)
 }
 
 // mockExecutorWithErrorStream returns a stream that emits events then errors.
@@ -842,6 +844,8 @@ func TestChatCompletionOrchestrator_Process_QueueRejectionDoesNotConsumeRPM(t *t
 	require.NotNil(t, execution.ResponseStatusCode)
 	assert.Equal(t, http.StatusTooManyRequests, *execution.ResponseStatusCode)
 	assert.Equal(t, "channel "+ch.Name+" is at capacity (queue_timeout); please retry shortly", execution.ErrorMessage)
+	require.NotNil(t, execution.Selection)
+	assert.Equal(t, objects.RequestExecutionDispatchPending, execution.Selection.Dispatch)
 
 	assert.Zero(t, rateLimitTracker.GetRequestCount(ch.ID),
 		"queue rejection must not consume RPM budget — middleware order regression")
@@ -930,6 +934,11 @@ func TestChatCompletionOrchestrator_Process_RPMAdmissionBlocksBeforeUpstream(t *
 	require.NotNil(t, execution.ResponseStatusCode)
 	assert.Equal(t, http.StatusTooManyRequests, *execution.ResponseStatusCode)
 	assert.Equal(t, "channel "+ch.Name+" exhausted local RPM limit 1; please retry shortly", execution.ErrorMessage)
+	require.NotNil(t, execution.Selection)
+	assert.Equal(t, objects.RequestExecutionDispatchPending, execution.Selection.Dispatch)
+	dispatched := client.RequestExecution.Query().Where(requestexecution.StatusEQ(requestexecution.StatusCompleted)).OnlyX(ctx)
+	require.NotNil(t, dispatched.Selection)
+	assert.Equal(t, objects.RequestExecutionDispatchStarted, dispatched.Selection.Dispatch)
 }
 
 // TestChatCompletionOrchestrator_Process_ChannelLimiter exercises the channel admission

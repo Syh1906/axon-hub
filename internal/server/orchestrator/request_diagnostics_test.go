@@ -8,6 +8,8 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
+	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -37,4 +39,22 @@ func TestExecutionSelectionKeepsActualKeyAndSession(t *testing.T) {
 	bound := executionSelection(context.Background(), state)
 	require.Equal(t, "reused", bound.SessionState)
 	require.True(t, bound.Candidates[0].SessionReuse)
+}
+
+func TestSessionDispatchDoesNotCountLocalContinuationRejection(t *testing.T) {
+	ctx, client := setupTest(t)
+	req := client.Request.Create().SetModelID("test").SetRequestBody(objects.JSONRawMessage(`{}`)).
+		SetStatus("failed").SaveX(ctx)
+	attempt := client.RequestExecution.Create().SetRequestID(req.ID).SetModelID("test").
+		SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("failed").
+		SetSelection(&objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchPending}).SaveX(ctx)
+	_, requests, _, _ := setupTestServices(t, client)
+	upstream := &mockExecutor{}
+	executor := dispatchRecordingExecutor{
+		Executor: responses.NewTransportExecutor(upstream, nil, true), service: requests, execution: attempt,
+	}
+	_, err := executor.Do(ctx, &httpclient.Request{Body: []byte(`{"previous_response_id":"resp_missing"}`)})
+	require.ErrorIs(t, err, httpclient.ErrContinuationUnavailable)
+	require.False(t, upstream.requestCalled)
+	require.Equal(t, objects.RequestExecutionDispatchPending, client.RequestExecution.GetX(ctx, attempt.ID).Selection.Dispatch)
 }

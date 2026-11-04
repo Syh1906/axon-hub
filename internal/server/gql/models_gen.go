@@ -529,8 +529,10 @@ type RemoveUserFromProjectInput struct {
 
 type RequestLogFilterInput struct {
 	// Skip this many matching requests for page navigation; cannot be combined with cursors.
-	Offset            *int                      `json:"offset,omitempty"`
-	ChannelTagsIn     []string                  `json:"channelTagsIn,omitempty"`
+	Offset        *int     `json:"offset,omitempty"`
+	ChannelTagsIn []string `json:"channelTagsIn,omitempty"`
+	// Match the channel displayed in the request log.
+	ChannelIDsIn      []*objects.GUID           `json:"channelIDsIn,omitempty"`
 	APIKeyGroupRefsIn []int                     `json:"apiKeyGroupRefsIn,omitempty"`
 	TimeRange         *RequestLogTimeRangeInput `json:"timeRange,omitempty"`
 }
@@ -545,6 +547,13 @@ type RequestLogTimeRangeInput struct {
 	// Wall-clock date and time in the configured reporting timezone.
 	Start *string `json:"start,omitempty"`
 	End   *string `json:"end,omitempty"`
+}
+
+type RequestSessionExecution struct {
+	ID           objects.GUID                       `json:"id"`
+	Channel      *ent.Channel                       `json:"channel,omitempty"`
+	Selection    *objects.RequestExecutionSelection `json:"selection,omitempty"`
+	CostSnapshot *objects.RequestCostSnapshot       `json:"costSnapshot,omitempty"`
 }
 
 type RequestStats struct {

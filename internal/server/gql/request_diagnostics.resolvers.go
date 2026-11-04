@@ -8,10 +8,15 @@ package gql
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"entgo.io/contrib/entgql"
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/scopes"
 )
 
 // RequestLogTimezone is the resolver for the requestLogTimezone field.
@@ -63,13 +68,46 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 	if err != nil {
 		return nil, err
 	}
+	var page *ent.RequestConnection
 	if filter != nil && filter.Offset != nil {
 		if after != nil || before != nil || last != nil || first == nil {
 			return nil, fmt.Errorf("offset requires first and cannot be combined with cursor pagination")
 		}
-		page, err := paginateRequestLogOffset(ctx, query, *filter.Offset, first, orderBy, where)
-		return cacheRequestSpeeds(ctx, r.client, page, err)
+		page, err = paginateRequestLogOffset(ctx, query, *filter.Offset, first, orderBy, where)
+	} else {
+		page, err = query.Paginate(ctx, after, first, before, last, ent.WithRequestOrder(orderBy), ent.WithRequestFilter(where.Filter))
 	}
-	page, err := query.Paginate(ctx, after, first, before, last, ent.WithRequestOrder(orderBy), ent.WithRequestFilter(where.Filter))
+	if err == nil && page != nil {
+		requests := make([]*ent.Request, 0, len(page.Edges))
+		for _, edge := range page.Edges {
+			requests = append(requests, edge.Node)
+		}
+		cacheRequestChannelSessions(ctx, r.client, requests, true)
+	}
 	return cacheRequestSpeeds(ctx, r.client, page, err)
+}
+
+// SessionExecution is the resolver for the sessionExecution field.
+func (r *requestResolver) SessionExecution(ctx context.Context, obj *ent.Request) (*RequestSessionExecution, error) {
+	if !authz.HasScope(ctx, scopes.ScopeReadChannels) {
+		return nil, nil
+	}
+	execution := requestSessionExecution(ctx, r.client, obj.ID)
+	if execution == nil {
+		return nil, nil
+	}
+	result := &RequestSessionExecution{
+		ID:           objects.GUID{Type: ent.TypeRequestExecution, ID: execution.ID},
+		Channel:      execution.Edges.Channel,
+		CostSnapshot: execution.CostSnapshot,
+	}
+	if slices.ContainsFunc(graphql.CollectFieldsCtx(ctx, []string{"RequestSessionExecution"}),
+		func(field graphql.CollectedField) bool { return field.Name == "selection" }) {
+		var err error
+		result.Selection, err = (&requestExecutionResolver{r.Resolver}).Selection(ctx, execution)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }

@@ -166,6 +166,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 		if graphql.GetOperationContext(ctx).Operation.Operation == ast.Query {
 			ctx = biz.WithModelAssociationQueryCache(ctx)
 		}
+		ctx = withRequestChannelSessionCache(ctx)
 		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
 	})
 	gqlSrv.Use(entgql.Transactioner{

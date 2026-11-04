@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -34,6 +35,209 @@ func TestRequestSelectionRequiresChannelPermission(t *testing.T) {
 	value, err = resolver.Selection(ctx, record)
 	require.NoError(t, err)
 	require.Equal(t, record.Selection, value)
+}
+
+func TestRequestLogChannelSessionHistory(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:request_log_channel_session?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(context.Background())
+	project := client.Project.Create().SetName("会话标记").SaveX(ctx)
+	thread := client.Thread.Create().SetProjectID(project.ID).SetThreadID("session").SaveX(ctx)
+	firstTrace := client.Trace.Create().SetProjectID(project.ID).SetTraceID("initial").SetThreadID(thread.ID).SaveX(ctx)
+	continuedTrace := client.Trace.Create().SetProjectID(project.ID).SetTraceID("continued").SetThreadID(thread.ID).SaveX(ctx)
+	otherTrace := client.Trace.Create().SetProjectID(project.ID).SetTraceID("separate").SaveX(ctx)
+	newRequest := func(traceID, channelID int) *ent.Request {
+		return client.Request.Create().SetProjectID(project.ID).SetTraceID(traceID).SetChannelID(channelID).SetModelID("session-model").SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("completed").SaveX(ctx)
+	}
+	addExecution := func(req *ent.Request, channelID int, state string) *ent.RequestExecution {
+		return client.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(channelID).SetModelID(req.ModelID).
+			SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("completed").
+			SetSelection(&objects.RequestExecutionSelection{SessionState: state, ChannelName: "recorded"}).SaveX(ctx)
+	}
+	first := addExecution(newRequest(firstTrace.ID, 1), 1, "reused")
+	switchTo := newRequest(continuedTrace.ID, 2)
+	intermediate := addExecution(switchTo, 3, "unrecorded")
+	client.RequestExecution.UpdateOne(intermediate).SetStatus("failed").SaveX(ctx)
+	second := addExecution(switchTo, 2, "switched")
+	third := addExecution(newRequest(continuedTrace.ID, 3), 3, "reused")
+	backRequest := newRequest(continuedTrace.ID, 1)
+	client.Request.UpdateOne(backRequest).SetStatus("failed").SaveX(ctx)
+	back := client.RequestExecution.Create().SetRequestID(backRequest.ID).SetChannelID(1).SetModelID(backRequest.ModelID).
+		SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("failed").SaveX(ctx)
+	withoutChannel := newRequest(continuedTrace.ID, 0)
+	client.Request.UpdateOne(withoutChannel).SetStatus("failed").SaveX(ctx)
+	// Retention can remove executions before it removes their request row.
+	newRequest(continuedTrace.ID, 2)
+	inProgress := newRequest(continuedTrace.ID, 2)
+	inProgressExecution := addExecution(inProgress, 2, "unrecorded")
+	client.Request.UpdateOne(inProgress).SetStatus("processing").SaveX(ctx)
+	client.RequestExecution.UpdateOne(inProgressExecution).SetStatus("processing").SaveX(ctx)
+	same := addExecution(newRequest(continuedTrace.ID, 1), 1, "unrecorded")
+	other := addExecution(newRequest(otherTrace.ID, 1), 1, "reused")
+	otherAgain := addExecution(newRequest(otherTrace.ID, 1), 1, "disabled")
+	standalone := addExecution(newRequest(0, 1), 1, "unrecorded")
+	standaloneAgain := addExecution(newRequest(0, 1), 1, "reused")
+
+	var mu sync.Mutex
+	var queries int
+	debug := ent.NewClient(ent.Driver(client.Driver()), ent.Debug(), ent.Log(func(args ...any) {
+		if strings.Contains(fmt.Sprint(args...), "previous_channel") {
+			mu.Lock()
+			queries++
+			mu.Unlock()
+		}
+	}))
+	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: debug}}))
+	query := `{ requestLogs(first: 11, orderBy: {field: CREATED_AT, direction: DESC}) { edges { node { attempts: executions(first: 3) { edges { node { id selection { sessionState channelName } } } } } } } }`
+	body, err := json.Marshal(map[string]string{"query": query})
+	require.NoError(t, err)
+	httpRequest := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(string(body))).WithContext(ent.NewContext(withRequestChannelSessionCache(ctx), debug))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httpRequest)
+	require.Equal(t, http.StatusOK, response.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+	require.NotContains(t, payload, "errors", response.Body.String())
+	states := map[string]string{}
+	for _, edge := range payload["data"].(map[string]any)["requestLogs"].(map[string]any)["edges"].([]any) {
+		for _, execution := range edge.(map[string]any)["node"].(map[string]any)["attempts"].(map[string]any)["edges"].([]any) {
+			node := execution.(map[string]any)["node"].(map[string]any)
+			if selection, ok := node["selection"].(map[string]any); ok {
+				if node["id"] == fmt.Sprintf("gid://axonhub/RequestExecution/%d", back.ID) {
+					require.Empty(t, selection["channelName"], "legacy selection must not invent a snapshot")
+				} else {
+					require.Equal(t, "recorded", selection["channelName"])
+				}
+				states[node["id"].(string)] = selection["sessionState"].(string)
+			}
+		}
+	}
+	require.NotContains(t, states, fmt.Sprintf("gid://axonhub/RequestExecution/%d", first.ID), "prior use is outside the returned page")
+	for _, expected := range []struct {
+		execution *ent.RequestExecution
+		state     string
+	}{
+		{intermediate, ""}, {second, "new"}, {third, "new"}, {back, "returned"}, {inProgressExecution, ""}, {same, "reused"},
+		{other, "new"}, {otherAgain, "reused"}, {standalone, "new"}, {standaloneAgain, "new"},
+	} {
+		id := fmt.Sprintf("gid://axonhub/RequestExecution/%d", expected.execution.ID)
+		require.Contains(t, states, id)
+		require.Equal(t, expected.state, states[id], id)
+	}
+	require.Equal(t, 1, queries, "the page must use one batch history query")
+	query = fmt.Sprintf(`{ node(id: "gid://axonhub/Request/%d") { ... on Request { executions(first: 3) { edges { node { selection { sessionState } } } } } } }`, switchTo.ID)
+	body, err = json.Marshal(map[string]string{"query": query})
+	require.NoError(t, err)
+	httpRequest = httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(string(body))).WithContext(ent.NewContext(withRequestChannelSessionCache(ctx), debug))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	server.ServeHTTP(response, httpRequest)
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Body.String(), `"sessionState":"new"`)
+	require.Contains(t, response.Body.String(), `"sessionState":""`)
+	require.Equal(t, 2, queries, "the detail must also use one batch history query")
+	resolver := &requestExecutionResolver{&Resolver{client: client}}
+	selection, err := resolver.Selection(ctx, first)
+	require.NoError(t, err)
+	require.Equal(t, "new", selection.SessionState)
+	require.Equal(t, "reused", first.Selection.SessionState, "reading the log must not rewrite the selection snapshot")
+}
+
+func TestRequestLogSessionExecutionSkipsUndispatchedRetries(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:session_execution_dispatch?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(context.Background())
+	project := client.Project.Create().SetName("dispatch").SaveX(ctx)
+	trace := client.Trace.Create().SetProjectID(project.ID).SetTraceID("dispatch").SaveX(ctx)
+	makeChannel := func(name string) int {
+		return client.Channel.Create().SetName(name).SetType("openai").SetBaseURL("https://example.test").
+			SetSupportedModels([]string{"test"}).SetDefaultTestModel("test").SetCredentials(objects.ChannelCredentials{}).
+			SetTags([]string{name}).SaveX(ctx).ID
+	}
+	channelA, channelB := makeChannel("A"), makeChannel("B")
+	create := func(channelID int) *ent.Request {
+		return client.Request.Create().SetProjectID(project.ID).SetTraceID(trace.ID).SetChannelID(channelID).
+			SetModelID("test").SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("failed").SaveX(ctx)
+	}
+	attempt := func(req *ent.Request, channelID int, name, dispatch string) *ent.RequestExecution {
+		return client.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(channelID).SetModelID(req.ModelID).
+			SetRequestBody(objects.JSONRawMessage(`{}`)).SetStatus("failed").
+			SetSelection(&objects.RequestExecutionSelection{ChannelName: name, Dispatch: dispatch}).
+			SetFailure(&objects.RequestExecutionFailure{Source: "upstream_http", Type: "rate_limit_error", Code: "channel_rpm_exhausted"}).
+			SaveX(ctx)
+	}
+	retried := create(channelB)
+	a := attempt(retried, channelA, "A", objects.RequestExecutionDispatchStarted)
+	for range 11 {
+		attempt(retried, channelB, "B", objects.RequestExecutionDispatchPending)
+	}
+	onlyRejected := create(channelB)
+	attempt(onlyRejected, channelB, "B", objects.RequestExecutionDispatchPending)
+	again := create(channelA)
+	attempt(again, channelA, "A", objects.RequestExecutionDispatchStarted)
+	firstB := create(channelB)
+	attempt(firstB, channelB, "B", objects.RequestExecutionDispatchStarted)
+
+	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: client}}))
+	query := `{ requestLogs(first: 4) { edges { node { id actual: sessionExecution { id selection { channelName sessionState } }
+		executions(first: 1, orderBy: { field: CREATED_AT, direction: DESC }) { edges { node { selection { channelName sessionState } } } }
+	} } } }`
+	body, err := json.Marshal(map[string]string{"query": query})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(string(body))).
+		WithContext(ent.NewContext(withRequestChannelSessionCache(ctx), client))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, req)
+	require.Equal(t, http.StatusOK, response.Code)
+	type execution struct {
+		ID        string
+		Selection struct{ ChannelName, SessionState string }
+	}
+	type result struct {
+		ID         string
+		Actual     *execution
+		Executions struct{ Edges []struct{ Node execution } }
+	}
+	var payload struct {
+		Errors []any
+		Data   struct {
+			RequestLogs struct{ Edges []struct{ Node result } }
+		}
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+	require.Empty(t, payload.Errors)
+	rows := make(map[string]result)
+	for _, edge := range payload.Data.RequestLogs.Edges {
+		rows[edge.Node.ID] = edge.Node
+	}
+	row := func(req *ent.Request) result {
+		id := fmt.Sprintf("gid://axonhub/Request/%d", req.ID)
+		require.Contains(t, rows, id)
+		return rows[id]
+	}
+	require.NotNil(t, row(retried).Actual)
+	require.Equal(t, fmt.Sprintf("gid://axonhub/RequestExecution/%d", a.ID), row(retried).Actual.ID)
+	require.Equal(t, "A", row(retried).Actual.Selection.ChannelName)
+	require.Equal(t, "new", row(retried).Actual.Selection.SessionState)
+	require.Equal(t, "B", row(retried).Executions.Edges[0].Node.Selection.ChannelName)
+	require.Empty(t, row(retried).Executions.Edges[0].Node.Selection.SessionState)
+	require.Nil(t, row(onlyRejected).Actual)
+	require.NotNil(t, row(again).Actual)
+	require.Equal(t, "reused", row(again).Actual.Selection.SessionState)
+	require.NotNil(t, row(firstB).Actual)
+	require.Equal(t, "new", row(firstB).Actual.Selection.SessionState)
+
+	resolver := &queryResolver{&Resolver{client: client}}
+	for _, filter := range []*RequestLogFilterInput{
+		{ChannelIDsIn: []*objects.GUID{{Type: ent.TypeChannel, ID: channelA}}},
+		{ChannelTagsIn: []string{"A"}},
+	} {
+		filtered, err := resolver.requestLogQuery(ctx, filter)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []int{retried.ID, again.ID}, filtered.IDsX(ctx))
+	}
 }
 
 func TestRequestLogTimezoneWithoutSettingsPermission(t *testing.T) {

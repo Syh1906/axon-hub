@@ -8,6 +8,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
@@ -17,6 +18,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
+	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -98,6 +100,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
 	}
 	selection := executionSelection(ctx, state)
+	selection.Dispatch = objects.RequestExecutionDispatchPending
 	if isResponsesFormat(format) {
 		selection.UpstreamRef = biz.ResponsesUpstreamRef(request.URL, request.Headers)
 		if candidate.continuationStrict && candidate.continuationUpstreamRef != "" && candidate.continuationUpstreamRef != selection.UpstreamRef {
@@ -150,12 +153,54 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		selection.UpstreamTransport = protocol
 		selection.TransportFallbackReason = reason
 		requestExec.Selection = &selection
-		if err := state.RequestService.SetExecutionTransport(ctx, requestExec.ID, &selection); err != nil {
+		if err := state.RequestService.SetExecutionSelection(ctx, requestExec.ID, &selection); err != nil {
 			log.Warn(ctx, "Failed to persist selected transport", log.Cause(err))
 		}
 	}
 
 	return request, nil
+}
+
+// This wrapper runs inside budget admission, after MarkSent, for both standard
+// and channel-specific executors.
+type dispatchRecordingExecutor struct {
+	pipeline.Executor
+	service   *biz.RequestService
+	execution *ent.RequestExecution
+}
+
+func (e dispatchRecordingExecutor) record(ctx context.Context, err error) {
+	// Responses can reject a continuation inside its executor before delegating
+	// to HTTP. These typed errors never represent a provider response.
+	if errors.Is(err, httpclient.ErrContinuationUnavailable) || errors.Is(err, httpclient.ErrContinuationRestoreFailed) {
+		return
+	}
+	selection := *e.execution.Selection
+	selection.Dispatch = objects.RequestExecutionDispatchStarted
+	e.execution.Selection = &selection
+	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := e.service.SetExecutionSelection(persistCtx, e.execution.ID, &selection); err != nil {
+		log.Warn(ctx, "Failed to persist request dispatch", log.Cause(err))
+	}
+}
+
+func (e dispatchRecordingExecutor) Do(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
+	active := ctx.Err() == nil
+	response, err := e.Executor.Do(ctx, request)
+	if active {
+		e.record(ctx, err)
+	}
+	return response, err
+}
+
+func (e dispatchRecordingExecutor) DoStream(ctx context.Context, request *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
+	active := ctx.Err() == nil
+	stream, err := e.Executor.DoStream(ctx, request)
+	if active {
+		e.record(ctx, err)
+	}
+	return stream, err
 }
 
 func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Context, response *httpclient.Response) (*httpclient.Response, error) {
