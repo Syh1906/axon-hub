@@ -165,3 +165,55 @@ func TestCodexCatalogUsesCompleteAssociatedCatalog(t *testing.T) {
 	require.Equal(t, "new-model instructions", result["base_instructions"])
 	require.Equal(t, float64(64000), result["context_window"])
 }
+
+func TestCodexCatalogAutomaticUltraUsesClientReasoningEffort(t *testing.T) {
+	ctx, client, models, channels, _ := setupListEnabledModelsTest(t)
+	parsed, err := parseCodexCatalog([]byte(catalogFixture))
+	require.NoError(t, err)
+	profile := parsed["test-model"]
+	profile["multi_agent_reasoning_effort"] = "xhigh"
+	profile["multi_agent_version"] = "v2"
+	profile["supported_reasoning_levels"] = []any{
+		map[string]any{"effort": "medium", "description": "Medium"},
+		map[string]any{"effort": "xhigh", "description": "Extra high"},
+		map[string]any{"effort": "ultra", "description": "Client delegation"},
+	}
+	var associations []*objects.ModelAssociation
+	var ids []int
+	for _, name := range []string{"client-profile", "route-without-ultra"} {
+		if name == "route-without-ultra" {
+			profile["supported_reasoning_levels"] = profile["supported_reasoning_levels"].([]any)[:2]
+			// A route's preferred client mode must not replace the selected profile.
+			profile["multi_agent_reasoning_effort"] = "high"
+		}
+		body, err := json.Marshal(map[string]any{"models": []any{profile}})
+		require.NoError(t, err)
+		ch := client.Channel.Create().SetType(channel.TypeOpenaiResponses).SetName(name).
+			SetBaseURL("http://127.0.0.1:1").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).
+			SetSupportedModels([]string{"test-model"}).SetDefaultTestModel("test-model").
+			SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: body}}).
+			SetStatus(channel.StatusEnabled).SaveX(ctx)
+		ids = append(ids, ch.ID)
+		associations = append(associations, &objects.ModelAssociation{Type: "channel_request", ChannelRequest: &objects.ChannelRequestAssociation{ChannelID: ch.ID}})
+	}
+	createConfiguredModel(t, ctx, client, "test-model", model.TypeChat, associations[0])
+	m := client.Model.Query().OnlyX(ctx)
+	m.Settings.Associations = associations
+	client.Model.UpdateOneID(m.ID).SetSettings(m.Settings).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, client, channels)
+	svc := NewCodexCatalogService(models, channels)
+	for _, allowed := range [][]int{ids, {ids[1]}} {
+		key := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "only", Profiles: []objects.APIKeyProfile{{Name: "only", ChannelIDs: allowed}}}}
+		body, omitted, err := svc.Models(contexts.WithAPIKey(ctx, key), "0.166.0")
+		require.NoError(t, err)
+		require.Zero(t, omitted)
+		catalog, err := parseCodexCatalog(body)
+		require.NoError(t, err)
+		var efforts []string
+		for _, level := range catalog["test-model"]["supported_reasoning_levels"].([]any) {
+			efforts = append(efforts, level.(map[string]any)["effort"].(string))
+		}
+		require.Equal(t, []string{"medium", "xhigh", "ultra"}, efforts)
+		require.Equal(t, "xhigh", catalog["test-model"]["multi_agent_reasoning_effort"])
+	}
+}

@@ -169,3 +169,56 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	m.Connections = eligible
 	return d.catalogModel(m, false)
 }
+
+// Ultra is a client delegation mode. Codex sends the selected profile's
+// multi_agent_reasoning_effort, so a route can support it without advertising
+// the UI option itself. Explicit route limits are applied after this inheritance.
+func inheritCodexUltraLevel(variant, profile map[string]any) bool {
+	effort, _ := profile["multi_agent_reasoning_effort"].(string)
+	if effort == "" || effort == "ultra" {
+		return false
+	}
+	levels, _ := variant["supported_reasoning_levels"].([]any)
+	supportsEffort := false
+	for _, item := range levels {
+		level, _ := item.(map[string]any)
+		if level["effort"] == "ultra" {
+			return false
+		}
+		if level["effort"] == effort {
+			supportsEffort = true
+		}
+	}
+	if !supportsEffort {
+		return false
+	}
+	profileLevels, _ := profile["supported_reasoning_levels"].([]any)
+	for _, item := range profileLevels {
+		level, _ := item.(map[string]any)
+		if level["effort"] == "ultra" {
+			variant["supported_reasoning_levels"] = append(slices.Clone(levels), item)
+			return true
+		}
+	}
+	return false
+}
+
+// Inheritance is valid only while the selected effort survives every route limit
+// and the final intersection. Existing all-route Ultra declarations are unchanged.
+func constrainInheritedCodexUltraLevel(result, profile map[string]any) {
+	effort, _ := profile["multi_agent_reasoning_effort"].(string)
+	levels, _ := result["supported_reasoning_levels"].([]any)
+	for _, item := range levels {
+		level, _ := item.(map[string]any)
+		if level["effort"] == effort {
+			return
+		}
+	}
+	result["supported_reasoning_levels"] = slices.DeleteFunc(levels, func(item any) bool {
+		level, _ := item.(map[string]any)
+		return level["effort"] == "ultra"
+	})
+	if result["default_reasoning_level"] == "ultra" {
+		result["default_reasoning_level"] = nil
+	}
+}

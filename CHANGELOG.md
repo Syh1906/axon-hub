@@ -4,6 +4,20 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.17] - 2026-11-04
+
+### 修复与调整
+
+- 修复多渠道 Codex 目录错误隐藏 Ultra：根据所选资料的实际推理档位继承选项，应用全部路线与人工限制后再次核对，保留未知映射和显式限制边界。
+- 手动目录随当前模型关联生效，新路线继承已确认资料，保留权限和已声明的上下文限制。
+- Responses 同协议转换保留跨聊天工具输出的原始类型、自身标识和命名空间，以及通过 previous_response_id 关联的自定义工具输出类型。
+- 请求会话标记、详情和渠道筛选按实际派发渠道统一判断；思考档位标签采用适配明暗主题的分级配色。
+
+### 发布与升级
+
+- 双架构 GHCR 镜像及 release.json 精简正式发布；相对 .syh.16 无 schema/data migration，生产仅更新 Axon 应用。
+- Ultra 定向回归与独立复审通过；真实供应商推理与完整多代理流程未验证。未纳入工作区未提交的分组用量 GraphQL 修改。
+
 ## [v1.0.0-beta10-fork.7.syh.16] - 2026-11-04
 
 ### 修复

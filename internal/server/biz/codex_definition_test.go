@@ -499,3 +499,133 @@ func TestCodexDefinitionHeterogeneousPublicProfiles(t *testing.T) {
 	require.Equal(t, "fixture instructions for gpt-6.1-sol", parsed["client-alias"]["base_instructions"])
 	require.Equal(t, "code_mode_only", parsed["client-alias"]["tool_mode"])
 }
+
+func TestCodexDefinitionUltraUsesClientReasoningEffort(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		clientEffort    string
+		routeEffort     string
+		profileHasUltra bool
+		limitUltra      bool
+		wantUltra       bool
+	}{
+		{"xhigh route without ultra", "xhigh", "xhigh", true, false, true},
+		{"max configured by client profile", "max", "max", true, false, true},
+		{"actual effort unavailable", "xhigh", "high", true, false, false},
+		{"profile does not offer ultra", "xhigh", "xhigh", false, false, false},
+		{"unknown client effort", "", "xhigh", true, false, false},
+		{"ultra cannot map to itself", "ultra", "xhigh", true, false, false},
+		{"explicit limit still removes ultra", "xhigh", "xhigh", true, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed, err := parseCodexCatalog([]byte(catalogFixture))
+			require.NoError(t, err)
+			profile := parsed["test-model"]
+			profile["multi_agent_reasoning_effort"] = tc.clientEffort
+			profile["multi_agent_version"] = "v2"
+			profile["supported_reasoning_levels"] = []any{
+				map[string]any{"effort": "medium", "description": "Medium"},
+				map[string]any{"effort": "high", "description": "High"},
+				map[string]any{"effort": "xhigh", "description": "Extra high"},
+				map[string]any{"effort": "max", "description": "Max"},
+			}
+			if tc.profileHasUltra {
+				profile["supported_reasoning_levels"] = append(profile["supported_reasoning_levels"].([]any), map[string]any{"effort": "ultra", "description": "Client delegation"})
+			}
+			routeLevels := []any{
+				map[string]any{"effort": "medium", "description": "Medium"},
+				map[string]any{"effort": tc.routeEffort, "description": "Route effort"},
+			}
+			capabilities := codexRouteCapabilities(profile)
+			capabilities["supported_reasoning_levels"] = routeLevels
+			d := codexDefinition{Model: profile, Routes: []codexDefinitionRoute{
+				{ChannelID: 1, ModelID: "test-model", Capabilities: codexRouteCapabilities(profile)},
+				{ChannelID: 2, ModelID: "test-model", Capabilities: capabilities},
+			}}
+			if tc.limitUltra {
+				d.Routes[1].Limits = map[string]any{"supported_reasoning_levels": routeLevels}
+			}
+			m := ModelFacade{ID: "test-model", ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
+				{Channel: &ent.Channel{ID: 2}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
+				{Channel: &ent.Channel{ID: 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
+			}}
+			before, err := json.Marshal(d)
+			require.NoError(t, err)
+			result, err := d.catalogModel(m, true)
+			require.NoError(t, err)
+			var efforts []string
+			for _, level := range result["supported_reasoning_levels"].([]any) {
+				efforts = append(efforts, level.(map[string]any)["effort"].(string))
+			}
+			want := []string{"medium", tc.routeEffort}
+			if tc.wantUltra {
+				want = append(want, "ultra")
+			}
+			require.Equal(t, want, efforts)
+			after, err := json.Marshal(d)
+			require.NoError(t, err)
+			require.Equal(t, string(before), string(after), "source profiles and cached route capabilities must remain unchanged")
+		})
+	}
+}
+
+func TestCodexDefinitionInheritedUltraRequiresFinalEffort(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		secondEfforts []string
+		thirdEfforts  []string
+		limits        []string
+		want          []string
+	}{
+		{"mixed ultra mappings", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh"}, nil, []string{"medium"}},
+		{"limits remove actual effort", []string{"medium", "xhigh", "ultra"}, []string{"medium", "xhigh"}, []string{"medium", "ultra"}, []string{"medium"}},
+		{"all routes retain actual effort", []string{"medium", "xhigh", "ultra"}, []string{"medium", "xhigh"}, nil, []string{"medium", "xhigh", "ultra"}},
+		{"existing ultra declarations remain unchanged", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh", "ultra"}, nil, []string{"medium", "ultra"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			levels := func(efforts []string) []any {
+				var result []any
+				for _, effort := range efforts {
+					result = append(result, map[string]any{"effort": effort, "description": effort})
+				}
+				return result
+			}
+			parsed, err := parseCodexCatalog([]byte(catalogFixture))
+			require.NoError(t, err)
+			profile := parsed["test-model"]
+			profile["multi_agent_reasoning_effort"] = "xhigh"
+			profile["supported_reasoning_levels"] = levels([]string{"medium", "xhigh", "ultra"})
+			profile["default_reasoning_level"] = "ultra"
+			d := codexDefinition{Model: profile}
+			m := ModelFacade{ID: "test-model", ConfiguredModel: &ent.Model{}}
+			for i, efforts := range [][]string{{"medium", "xhigh", "ultra"}, tc.secondEfforts, tc.thirdEfforts} {
+				capabilities := codexRouteCapabilities(profile)
+				capabilities["supported_reasoning_levels"] = levels(efforts)
+				d.Routes = append(d.Routes, codexDefinitionRoute{ChannelID: i + 1, ModelID: "test-model", Capabilities: capabilities})
+				m.Connections = append(m.Connections, &ModelChannelConnection{Channel: &ent.Channel{ID: i + 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}})
+			}
+			if tc.limits != nil {
+				d.Routes[2].Limits = map[string]any{"supported_reasoning_levels": levels(tc.limits)}
+			}
+			before, err := json.Marshal(d)
+			require.NoError(t, err)
+			for _, preserveContext := range []bool{false, true} {
+				result, err := d.catalogModel(m, preserveContext)
+				require.NoError(t, err)
+				var efforts []string
+				for _, item := range result["supported_reasoning_levels"].([]any) {
+					efforts = append(efforts, item.(map[string]any)["effort"].(string))
+				}
+				require.Equal(t, tc.want, efforts)
+				if len(tc.want) == 1 {
+					require.Nil(t, result["default_reasoning_level"])
+				} else {
+					require.Equal(t, "ultra", result["default_reasoning_level"])
+				}
+			}
+			after, err := json.Marshal(d)
+			require.NoError(t, err)
+			require.Equal(t, string(before), string(after))
+		})
+	}
+}
