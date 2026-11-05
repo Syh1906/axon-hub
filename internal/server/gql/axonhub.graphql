@@ -181,6 +181,7 @@ type ChannelSettings {
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean!
+  allowImageGenerationTool: Boolean
   modelPriceMultiplier: Decimal
   extraModelPrefix: String
   modelMappings: [ModelMapping!]
@@ -259,6 +260,7 @@ input ChannelSettingsInput {
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean
+  allowImageGenerationTool: Boolean
   extraModelPrefix: String
   modelMappings: [ModelMappingInput!]
   autoTrimedModelPrefixes: [String!]

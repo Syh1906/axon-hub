@@ -380,6 +380,11 @@ Open **Request settings** from a channel row's action menu.
 - **Stream first response timeout** waits for the first upstream stream event. It does not limit later event gaps or specifically measure the first visible token.
 - **Non-stream response timeout** waits for the complete non-streaming response.
 - **Do not reuse session channel** prevents session-based preference or ownership binding to this channel. Normal selection can still choose it.
+- **Allow built-in image generation** is enabled by default. When disabled, requests containing the `image_generation` tool skip this channel and continue selecting another permitted channel. The tool remains in the request.
+
+Tool permission filtering stays within the project and API key's channel scope and applies regardless of request body pass-through.
+If every eligible candidate disables the tool, the gateway returns HTTP `503` with code `image_generation_tool_not_allowed` and message `没有允许内置生图工具的可用渠道。` (no available channel allows the built-in image generation tool). The request is recorded as a routing failure without an upstream attempt.
+Ordinary requests without this tool and standalone image endpoints such as `/v1/images/generations` and `/v1/images/edits` are unaffected. Existing channels without the setting remain enabled.
 
 Leave timeouts empty to inherit the system setting, enter `0` to remove that channel-specific timeout, or enter a positive integer in seconds.
 The overall request deadline still applies. Every attempt uses the selected channel's values, including after failover.

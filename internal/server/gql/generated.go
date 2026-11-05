@@ -738,6 +738,7 @@ type ComplexityRoot struct {
 
 	ChannelSettings struct {
 		AddressFailover                 func(childComplexity int) int
+		AllowImageGenerationTool        func(childComplexity int) int
 		AutoTrimedModelPrefixes         func(childComplexity int) int
 		BodyOverrideOperations          func(childComplexity int) int
 		DisableSessionReuse             func(childComplexity int) int
@@ -6082,6 +6083,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.AddressFailover(childComplexity), true
+	case "ChannelSettings.allowImageGenerationTool":
+		if e.complexity.ChannelSettings.AllowImageGenerationTool == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.AllowImageGenerationTool(childComplexity), true
 	case "ChannelSettings.autoTrimedModelPrefixes":
 		if e.complexity.ChannelSettings.AutoTrimedModelPrefixes == nil {
 			break
@@ -29250,6 +29257,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_nonStreamResponseTimeoutSeconds(ctx, field)
 			case "disableSessionReuse":
 				return ec.fieldContext_ChannelSettings_disableSessionReuse(ctx, field)
+			case "allowImageGenerationTool":
+				return ec.fieldContext_ChannelSettings_allowImageGenerationTool(ctx, field)
 			case "modelPriceMultiplier":
 				return ec.fieldContext_ChannelSettings_modelPriceMultiplier(ctx, field)
 			case "extraModelPrefix":
@@ -34953,6 +34962,35 @@ func (ec *executionContext) _ChannelSettings_disableSessionReuse(ctx context.Con
 }
 
 func (ec *executionContext) fieldContext_ChannelSettings_disableSessionReuse(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_allowImageGenerationTool(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_allowImageGenerationTool,
+		func(ctx context.Context) (any, error) {
+			return obj.AllowImageGenerationTool, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_allowImageGenerationTool(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ChannelSettings",
 		Field:      field,
@@ -98449,7 +98487,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
+	fieldsInOrder := [...]string{"modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -98498,6 +98536,13 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.DisableSessionReuse = data
+		case "allowImageGenerationTool":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowImageGenerationTool"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowImageGenerationTool = data
 		case "extraModelPrefix":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extraModelPrefix"))
 			data, err := ec.unmarshalOString2string(ctx, v)
@@ -128514,6 +128559,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "allowImageGenerationTool":
+			out.Values[i] = ec._ChannelSettings_allowImageGenerationTool(ctx, field, obj)
 		case "modelPriceMultiplier":
 			out.Values[i] = ec._ChannelSettings_modelPriceMultiplier(ctx, field, obj)
 		case "extraModelPrefix":

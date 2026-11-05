@@ -69,6 +69,7 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 			selector = WithAnthropicNativeToolsSelector(selector)
 		}
 
+		selector = WithImageGenerationToolSelector(selector)
 		selector = WithStreamPolicySelector(selector)
 
 		quotaSelector := WithProviderQuotaSelector(selector, quotaProvider, systemService)

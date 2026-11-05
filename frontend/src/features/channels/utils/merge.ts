@@ -115,6 +115,7 @@ export function mergeChannelSettingsForUpdate(
     modelContexts: pick('modelContexts', existing?.modelContexts ?? []),
     nonStreamResponseTimeoutSeconds: pick('nonStreamResponseTimeoutSeconds', existing?.nonStreamResponseTimeoutSeconds ?? null),
     disableSessionReuse: pick('disableSessionReuse', existing?.disableSessionReuse ?? false),
+    allowImageGenerationTool: pick('allowImageGenerationTool', existing?.allowImageGenerationTool ?? true),
     healthGateFailureThreshold: pick('healthGateFailureThreshold', existing?.healthGateFailureThreshold ?? null),
     extraModelPrefix: pick('extraModelPrefix', existing?.extraModelPrefix ?? ''),
     modelMappings: pick('modelMappings', existing?.modelMappings ?? []),

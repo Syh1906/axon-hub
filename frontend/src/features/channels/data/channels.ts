@@ -113,6 +113,7 @@ const CREATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        allowImageGenerationTool
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -211,6 +212,7 @@ const DUPLICATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        allowImageGenerationTool
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -309,6 +311,7 @@ const BULK_CREATE_CHANNELS_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        allowImageGenerationTool
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -407,6 +410,7 @@ const UPDATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        allowImageGenerationTool
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -639,6 +643,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          allowImageGenerationTool
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -883,6 +888,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          allowImageGenerationTool
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover

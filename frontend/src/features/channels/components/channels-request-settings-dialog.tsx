@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,6 +18,7 @@ const requestSettingsSchema = z.object({
   streamFirstEventTimeoutSeconds: timeoutField,
   nonStreamResponseTimeoutSeconds: timeoutField,
   disableSessionReuse: z.boolean(),
+  allowImageGenerationTool: z.boolean(),
 });
 type RequestSettings = z.infer<typeof requestSettingsSchema>;
 
@@ -25,6 +27,7 @@ function valuesFromChannel(channel: Channel): RequestSettings {
     streamFirstEventTimeoutSeconds: channel.settings?.streamFirstEventTimeoutSeconds ?? '',
     nonStreamResponseTimeoutSeconds: channel.settings?.nonStreamResponseTimeoutSeconds ?? '',
     disableSessionReuse: channel.settings?.disableSessionReuse ?? false,
+    allowImageGenerationTool: channel.settings?.allowImageGenerationTool ?? true,
   };
 }
 
@@ -51,6 +54,7 @@ export function ChannelsRequestSettingsDialog({
           streamFirstEventTimeoutSeconds: values.streamFirstEventTimeoutSeconds === '' ? null : values.streamFirstEventTimeoutSeconds,
           nonStreamResponseTimeoutSeconds: values.nonStreamResponseTimeoutSeconds === '' ? null : values.nonStreamResponseTimeoutSeconds,
           disableSessionReuse: values.disableSessionReuse,
+          allowImageGenerationTool: values.allowImageGenerationTool,
         },
       });
       toast.success(t('channels.messages.updateSuccess'));
@@ -61,56 +65,79 @@ export function ChannelsRequestSettingsDialog({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-xl'>
+      <DialogContent className='flex max-h-[90vh] flex-col overflow-hidden sm:max-w-xl'>
         <DialogHeader className='text-left'>
           <DialogTitle>{t('channels.requestSettings.title')}</DialogTitle>
           <DialogDescription>{t('channels.requestSettings.description', { name: currentRow.name })}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-            <div className='space-y-4 rounded-md border p-4'>
-              {(['streamFirstEventTimeoutSeconds', 'nonStreamResponseTimeoutSeconds'] as const).map((name) => (
-                <FormField
-                  key={name}
-                  control={form.control}
-                  name={name}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t(`channels.requestSettings.${name}`)}</FormLabel>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='flex min-h-0 flex-col gap-6'>
+            <div className='min-h-0 space-y-6 overflow-y-auto'>
+              <div className='space-y-4 rounded-md border p-4'>
+                {(['streamFirstEventTimeoutSeconds', 'nonStreamResponseTimeoutSeconds'] as const).map((name) => (
+                  <FormField
+                    key={name}
+                    control={form.control}
+                    name={name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t(`channels.requestSettings.${name}`)}</FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            min='0'
+                            step='1'
+                            placeholder={t('channels.requestSettings.inherit')}
+                            value={field.value}
+                            onChange={(event) => field.onChange(event.target.value === '' ? '' : Number(event.target.value))}
+                          />
+                        </FormControl>
+                        <FormDescription>{t(`channels.requestSettings.${name}Help`)}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.timeoutHelp')}</p>
+              </div>
+              <FormField
+                control={form.control}
+                name='disableSessionReuse'
+                render={({ field }) => (
+                  <FormItem className='rounded-md border p-4'>
+                    <div className='flex items-center justify-between gap-4'>
+                      <FormLabel>{t('channels.requestSettings.disableSessionReuse')}</FormLabel>
                       <FormControl>
-                        <Input
-                          type='number'
-                          min='0'
-                          step='1'
-                          placeholder={t('channels.requestSettings.inherit')}
-                          value={field.value}
-                          onChange={(event) => field.onChange(event.target.value === '' ? '' : Number(event.target.value))}
-                        />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <FormDescription>{t(`channels.requestSettings.${name}Help`)}</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
-              <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.timeoutHelp')}</p>
+                    </div>
+                    <FormDescription>{t('channels.requestSettings.sessionHelp')}</FormDescription>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='allowImageGenerationTool'
+                render={({ field }) => (
+                  <FormItem className='rounded-md border p-4'>
+                    <div className='flex items-center justify-between gap-4'>
+                      <div className='flex flex-wrap items-center gap-2'>
+                        <FormLabel>{t('channels.requestSettings.allowImageGenerationTool')}</FormLabel>
+                        <Badge variant='secondary'>{t('channels.requestSettings.defaultEnabled')}</Badge>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </div>
+                    <FormDescription className='whitespace-pre-line'>
+                      {t('channels.requestSettings.imageGenerationToolHelp')}
+                    </FormDescription>
+                    <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.imageGenerationToolScope')}</p>
+                  </FormItem>
+                )}
+              />
             </div>
-            <FormField
-              control={form.control}
-              name='disableSessionReuse'
-              render={({ field }) => (
-                <FormItem className='rounded-md border p-4'>
-                  <div className='flex items-center justify-between gap-4'>
-                    <FormLabel>{t('channels.requestSettings.disableSessionReuse')}</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </div>
-                  <FormDescription>{t('channels.requestSettings.sessionHelp')}</FormDescription>
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
+            <DialogFooter className='shrink-0'>
               <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
                 {t('common.buttons.cancel')}
               </Button>

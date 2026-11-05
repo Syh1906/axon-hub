@@ -4,6 +4,22 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.18] - 2026-11-05
+
+### 新增与调整
+
+- 支持文字输入、图片输入及对应缓存分项价格，覆盖渠道／模型标准价、阶梯、分时和加速计费；费用明细、预算预估及模型信息接口同步支持，缺失必要数量或价格时保持未定价。
+- Key 和分组用量默认近 7 天，Token 使用 K/M/B 并保留精确提示，模型统计新增缓存命中率，成本精度遵循系统设置。
+- 分组用量统一跳转独立 /self-usage 页面；请求日志复用后台模型、状态、缓存和耗时组件，显示路由、推理强度及调用方，保留权限边界。
+- 渠道请求设置新增默认开启的内置生图工具权限；关闭的渠道不参与此类请求选路，全部候选关闭时返回明确错误，普通请求和独立图片接口不受影响。
+
+### 修复与升级
+
+- 修复管理端分组用量日志缺少图片规格和未定价字段导致的 GraphQL 422。
+- usage_logs 新增四个可空分项用量字段，由 Ent 自动升级；旧记录不回填，无新增 data migration。分项价下模型信息旧单价摘要可能为 null，完整价格通过 pricing.items 提供。
+- 精简正式发布仅含双架构 GHCR 镜像和 release.json；不备份数据库，生产只更新应用。旧版不识别新价格及权限，不视为可直接保持业务契约的回退版本。
+- 本地定向测试、真实页面及独立复审完成；真实供应商账单、Image 2.6 调用与 MySQL 升级未验证。
+
 ## [v1.0.0-beta10-fork.7.syh.17] - 2026-11-04
 
 ### 修复与调整

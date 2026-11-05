@@ -39,3 +39,14 @@ test('channel save and unrelated settings patches preserve context values and ex
   assert.deepEqual(cleared.modelContexts, []);
   assert.equal(cleared.disableSessionReuse, true);
 });
+
+test('image tool permission defaults to enabled and survives unrelated channel patches', () => {
+  assert.equal(mergeChannelSettingsForUpdate(undefined, {}).allowImageGenerationTool, true);
+  const disabled = channelSettingsInputSchema.parse(mergeChannelSettingsForUpdate(null, { allowImageGenerationTool: false }));
+  assert.equal(disabled.allowImageGenerationTool, false);
+  const unrelated = channelSettingsInputSchema.parse(mergeChannelSettingsForUpdate(disabled, { disableSessionReuse: true }));
+  assert.equal(unrelated.allowImageGenerationTool, false);
+  const enabled = channelSettingsInputSchema.parse(mergeChannelSettingsForUpdate(unrelated, { allowImageGenerationTool: true }));
+  assert.equal(enabled.allowImageGenerationTool, true);
+  assert.equal(enabled.disableSessionReuse, true);
+});

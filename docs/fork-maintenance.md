@@ -6,7 +6,7 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-04）：最新正式版为 `.syh.17`，云悠、泉哥均已更新并通过部署验收，源码 `5b47dd71`；本机同版 Codex 强制刷新确认 Astra 已恢复 Ultra。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
+发布状态总览（2026-11-05）：`.syh.18` 已完成本地实现和发布准备，待同提交分支检查、正式发布及双机更新；当前最新正式版和云悠、泉哥仍为 `.syh.17`，源码 `5b47dd71`。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
 
 本仓库继承 ChouUn 的维护版本；下列既有功能保留原提交归属。直接上游与原始上游
 分别记录在 `release.config.json`，自己的 `.syh.N` 发版规则见[独立发版与部署](zh/development/release.md)。
@@ -344,6 +344,8 @@ fork 改动，由用户决定。
   保持顶部且不自动展开候选列表。
 
 ### 密钥渠道优先级与渠道请求设置
+
+- 内置生图权限（2026-11-05，未发布）：请求设置新增独立 `allowImageGenerationTool` 开关，缺省／空值按允许处理。带 `image_generation` 工具的请求在项目和 Key 权限过滤后、负载均衡前排除显式关闭的渠道，不删除工具、不扩大权限；全部候选关闭时返回 HTTP 503／`image_generation_tool_not_allowed` 并记录选路失败。独立图片接口和无此工具的请求不受影响。复用 settings JSON，无数据库迁移。实现见 `candidates_image_tool.go`；回归覆盖默认值、备用渠道、权限范围、工具保留、无上游尝试及保存回读。维护时同步 GraphQL 输入／输出、所有渠道设置查询及前端设置合并函数。
 
 - 行为：`APIKeyProfile.channelPriorities` 只覆盖已经过项目和密钥渠道／标签过滤的候选；数值越小越优先，
   无覆盖时先继承请求标签默认值，再继承模型关联优先级。同渠道同有效优先级合并并去重实际模型，同时保留每个模型的协议，
@@ -1056,6 +1058,8 @@ fork 改动，由用户决定。
   `scripts/e2e/fixtures/channel-groups.sql`。
 
 ### GitHub 独立发布与两层上游追溯
+
+- 第十八版准备（2026-11-05）：版本 `v1.0.0-beta10-fork.7.syh.18`，纳入文字／图片输入分项计费、Key／分组用量统一入口、分组日志 GraphQL 422 修复及渠道内置生图权限。`usage_logs` 自动新增四个可空分项字段，历史行不回填，无新增 data migration。两层上游不变，`publishBinaries=false`、`prerelease=false`；等待同提交分支 Test 后推送标签，再按云悠、泉哥顺序更新固定镜像摘要。各阶段本地定向测试与独立复审已完成，生产结果待更新；旧程序不理解新价格和工具权限，不直接承诺业务兼容回退。
 
 - 第十七版发布（2026-11-04）：版本 `v1.0.0-beta10-fork.7.syh.17`，正式源码 `5b47dd71706a91c8fb492d94621daddf9c0cbdfb`。包含 Ultra 目录继承与最终限制核对、手动目录随关联生效、跨聊天工具输出身份和续聊类型保留、实际派发渠道会话标记及思考档位配色。相对 `.syh.16` 无 schema/data migration；工作区分组用量 GraphQL 修改未纳入。
   同提交 [Test 41784330449](https://github.com/Syh1906/axon-hub/actions/runs/41784330449)、[Build 41784330442](https://github.com/Syh1906/axon-hub/actions/runs/41784330442)、[Lint 41784330625](https://github.com/Syh1906/axon-hub/actions/runs/41784330625) 均通过。[发布任务 41784902432](https://github.com/Syh1906/axon-hub/actions/runs/41784902432) 复用该 Test，双架构镜像、合成及临时 PostgreSQL 启动检查通过；`publishBinaries=false`，二进制包步骤跳过。新加坡时间 `14:27:42` [正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.17)并设为最新版本。唯一附件 [release.json](../output/implementation/release-syh17-20261104/release.json) 为707字节，SHA-256 `c5ff99f4757271464c5c62efadb0c501443c23a4ef374159a2a17e7f66cd3850` 与GitHub一致，两层上游和源码均核对通过。

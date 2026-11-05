@@ -20,3 +20,7 @@ func ValidateChannelResponseTimeouts(settings *objects.ChannelSettings) error {
 func (c *Channel) SessionReuseEnabled() bool {
 	return c.Settings == nil || !c.Settings.DisableSessionReuse
 }
+
+func (c *Channel) ImageGenerationToolAllowed() bool {
+	return c.Settings == nil || c.Settings.AllowImageGenerationTool == nil || *c.Settings.AllowImageGenerationTool
+}

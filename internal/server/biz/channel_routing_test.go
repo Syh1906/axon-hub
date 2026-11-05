@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"testing"
+	"time"
 
 	"entgo.io/contrib/entgql"
 	"github.com/samber/lo"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/xcache/live"
 )
 
 func TestChannelTagPrioritiesSaveAndRestore(t *testing.T) {
@@ -58,6 +60,46 @@ func TestChannelTagPrioritiesSaveAndRestore(t *testing.T) {
 	stored = client.Channel.GetX(ctx, ch.ID)
 	require.Nil(t, stored.Settings.PriorityForTags(stored.Tags, []string{"Codex"}))
 	require.Equal(t, 20, stored.OrderingWeight, "a later invalid row rolls back the whole save")
+}
+
+func TestChannelImageGenerationToolSaveAndRestore(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+	defer svc.Stop()
+	ctx := channelAutoPriceTestContext(client)
+	ch := createTestChannel(t, client, ctx, "image tool permission", []string{"model"}, nil)
+	require.True(t, (&Channel{Channel: ch}).ImageGenerationToolAllowed())
+	// Exercise the production notification and snapshot refresh path, not only
+	// GetChannel, which reads directly from the database.
+	svc.enabledChannelsCache.Stop()
+	svc.enabledChannelsCache = live.NewCache(live.Options[[]*Channel]{
+		Name: "test_image_tool_permission", InitialValue: []*Channel{},
+		RefreshInterval: time.Hour, RefreshFunc: svc.onCacheRefreshed,
+		OnSwap: svc.onEnabledChannelsSwap, Watcher: svc.channelNotifier,
+	})
+	require.NoError(t, svc.enabledChannelsCache.Load(ctx, true))
+	require.Len(t, svc.GetEnabledChannels(), 1)
+	require.True(t, svc.GetEnabledChannels()[0].ImageGenerationToolAllowed())
+	previousAsyncReloadDisabled := asyncReloadDisabled
+	asyncReloadDisabled = false
+	defer func() { asyncReloadDisabled = previousAsyncReloadDisabled }()
+	for _, enabled := range []bool{false, true} {
+		version := svc.GetCacheVersion()
+		_, err := svc.UpdateChannel(ctx, ch.ID, &ent.UpdateChannelInput{Settings: &objects.ChannelSettings{
+			AllowImageGenerationTool: lo.ToPtr(enabled), StreamFirstEventTimeoutSeconds: lo.ToPtr(20),
+		}})
+		require.NoError(t, err)
+		stored := client.Channel.GetX(ctx, ch.ID)
+		require.Equal(t, enabled, (&Channel{Channel: stored}).ImageGenerationToolAllowed())
+		require.Equal(t, 20, *stored.Settings.StreamFirstEventTimeoutSeconds)
+		loaded, err := svc.GetChannel(ctx, ch.ID)
+		require.NoError(t, err)
+		require.Equal(t, enabled, loaded.ImageGenerationToolAllowed())
+		require.Eventually(t, func() bool {
+			channels := svc.GetEnabledChannels()
+			return svc.GetCacheVersion() > version && len(channels) == 1 && channels[0].ImageGenerationToolAllowed() == enabled
+		}, 5*time.Second, 10*time.Millisecond, "settings save must refresh the routing snapshot")
+	}
 }
 
 func TestChannelPrioritiesSaveAndRestore(t *testing.T) {
