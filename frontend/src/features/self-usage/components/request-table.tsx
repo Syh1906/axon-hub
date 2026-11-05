@@ -109,7 +109,6 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
                   <CostCell
                     total={item.cost}
                     currencyCode={meta.currencyCode}
-                    currencyDisplayDecimals={meta.currencyDisplayDecimals}
                     breakdown={{
                       items: item.costItems.map((costItem) => ({
                         pricingEvidence: costItem.pricingEvidence,
