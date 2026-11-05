@@ -2,21 +2,31 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { currencyFractionDigits } from '@/utils/currency-display';
+import { formatNumber } from '@/utils/format-number';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RequestIdCell, TokensCell, ReadCacheCell, WriteCacheCell, CostCell, DurationCell } from '@/components/request-usage-cells';
-import { ThemeSwitch } from '@/components/theme-switch';
-import { fetchMeta, fetchRequests, fetchStats, SelfUsageError, type RequestStatus, type SelfUsageDisplayMeta as SelfUsageMeta, type Usage } from './api';
-import { currencyFractionDigits } from '@/utils/currency-display';
+import {
+  fetchMeta,
+  fetchRequests,
+  fetchStats,
+  SelfUsageError,
+  type RequestStatus,
+  type SelfUsageDisplayMeta as SelfUsageMeta,
+  type Usage,
+} from './api';
 import type { SelfUsageIdentity } from './api';
 import { SelfUsageBudgets } from './components/budgets';
-import { Cost } from './components/cost';
 import { CacheHitCard } from './components/cache-hit-card';
+import { CompactTokens } from './components/compact-tokens';
+import { Cost } from './components/cost';
 import { PageError } from './components/page-error';
+import { UsagePageShell } from './components/page-shell';
+import { UsageRequestTable } from './components/request-table';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
 import { sameUsageScope } from './scope';
@@ -31,7 +41,8 @@ function usePageLabels(meta: SelfUsageMeta) {
     displayCost(
       cost,
       unpricedRecords,
-      (val) => t('currencies.format', { val, currency: meta.currencyCode, locale, ...currencyFractionDigits(meta.currencyDisplayDecimals, 6) }),
+      (val) =>
+        t('currencies.format', { val, currency: meta.currencyCode, locale, ...currencyFractionDigits(meta.currencyDisplayDecimals, 6) }),
       (count) => t('selfUsage.cost.unpriced', { count })
     );
   return { t, i18n, locale, number, money };
@@ -99,8 +110,8 @@ function Login({
 
 export function DatePicker({ meta, onChange }: { meta: SelfUsageMeta; onChange: (range: DateRange) => void }) {
   const { t } = useTranslation();
-  const [preset, setPreset] = useState<DatePreset | 'custom'>('today');
-  const [draft, setDraft] = useState<DateRange>(() => presetRange('today', meta.timezone));
+  const [preset, setPreset] = useState<DatePreset | 'custom'>('last7');
+  const [draft, setDraft] = useState<DateRange>(() => presetRange('last7', meta.timezone));
   const [invalid, setInvalid] = useState(false);
   function applyPreset(value: DatePreset | 'custom') {
     setPreset(value);
@@ -177,7 +188,9 @@ export function Summary({ usage, meta, models }: { usage: Usage; meta: SelfUsage
             <CardHeader className='pb-1'>
               <CardTitle className='text-muted-foreground text-sm font-medium'>{t(`selfUsage.summary.${label}`)}</CardTitle>
             </CardHeader>
-            <CardContent className='text-2xl font-semibold tabular-nums'>{number.format(value)}</CardContent>
+            <CardContent className='text-2xl font-semibold tabular-nums'>
+              {label === 'success' || label === 'failed' ? number.format(value) : <CompactTokens value={value} />}
+            </CardContent>
           </Card>
         ))}
         <Card>
@@ -222,7 +235,11 @@ export function Trend({ daily, meta }: { daily: { date: string; usage: Usage }[]
             <AreaChart data={points} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray='3 3' stroke='var(--border)' vertical={false} />
               <XAxis dataKey='date' tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} width={60} />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                width={60}
+                tickFormatter={metric === 'tokens' ? (value) => formatNumber(value, { digits: 2 }) : undefined}
+              />
               <Tooltip
                 content={({ active, payload, label }) =>
                   active && payload?.length ? (
@@ -317,6 +334,7 @@ export function ModelTable({ models, meta }: { models: { model: string; usage: U
               <TableHead>{t('selfUsage.summary.success')}</TableHead>
               <TableHead>{t('selfUsage.summary.failed')}</TableHead>
               <TableHead>{t('selfUsage.summary.total')}</TableHead>
+              <TableHead>{t('selfUsage.models.cacheHitRate')}</TableHead>
               <TableHead>{t('selfUsage.summary.cost')}</TableHead>
             </TableRow>
           </TableHeader>
@@ -326,7 +344,14 @@ export function ModelTable({ models, meta }: { models: { model: string; usage: U
                 <TableCell>{model}</TableCell>
                 <TableCell>{number.format(usage.successRequests)}</TableCell>
                 <TableCell>{number.format(usage.failedRequests)}</TableCell>
-                <TableCell>{number.format(usage.totalTokens)}</TableCell>
+                <TableCell>
+                  <CompactTokens value={usage.totalTokens} />
+                </TableCell>
+                <TableCell
+                  title={`${t('selfUsage.cacheHit.formula')} (${number.format(usage.cacheReadTokens)} / ${number.format(usage.inputTokens)})`}
+                >
+                  {usage.inputTokens > 0 ? `${((usage.cacheReadTokens / usage.inputTokens) * 100).toFixed(1)}%` : '—'}
+                </TableCell>
                 <TableCell>
                   <Cost value={usage.cost} unpriced={usage.unpricedRecords} money={money} />
                 </TableCell>
@@ -334,7 +359,7 @@ export function ModelTable({ models, meta }: { models: { model: string; usage: U
             ))}
             {!models.length && (
               <TableRow>
-                <TableCell colSpan={5}>{t('selfUsage.requests.empty')}</TableCell>
+                <TableCell colSpan={6}>{t('selfUsage.requests.empty')}</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -374,7 +399,7 @@ export function RequestLog({
   scopeRevision: number;
   onScopeMismatch: () => void;
 }) {
-  const { t, locale } = usePageLabels(meta);
+  const { t } = usePageLabels(meta);
   const [model, setModel] = useState<string | null>(null);
   const [status, setStatus] = useState<RequestStatus | null>(null);
   const [page, setPage] = useState(1);
@@ -453,109 +478,7 @@ export function RequestLog({
         {(result.isPending || scopeMismatch || !expectedScope) && <p role='status'>{t('selfUsage.loading')}</p>}
         {data && (
           <>
-            <div className='overflow-x-auto'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('common.columns.id')}</TableHead>
-                    <TableHead>{t('requests.columns.caller')}</TableHead>
-                    <TableHead>{t('requests.columns.model')}</TableHead>
-                    <TableHead>{t('requests.columns.tokens')}</TableHead>
-                    <TableHead>{t('requests.columns.readCache')}</TableHead>
-                    <TableHead>{t('requests.columns.writeCache')}</TableHead>
-                    <TableHead>{t('requests.columns.cost')}</TableHead>
-                    <TableHead>{t('requests.columns.duration')}</TableHead>
-                    <TableHead>{t('selfUsage.requests.createdAt', { timezone: meta.timezone })}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <RequestIdCell id={item.id} status={item.requestStatus} stream={item.stream} />
-                      </TableCell>
-                      <TableCell>{item.apiKeyName}</TableCell>
-                      <TableCell>{item.model}</TableCell>
-                      {item.usageRecords === 0 ? (
-                        <>
-                          {[0, 1, 2, 3].map((index) => (
-                            <TableCell key={index}>
-                              <div className='text-muted-foreground text-xs'>-</div>
-                            </TableCell>
-                          ))}
-                        </>
-                      ) : (
-                        <>
-                          <TableCell>
-                            <TokensCell
-                              prompt={item.inputTokens}
-                              completion={item.outputTokens}
-                              reasoning={item.reasoningTokens}
-                              cached={item.cacheReadTokens}
-                              writeCached={item.cacheWriteTokens}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <ReadCacheCell cached={item.cacheReadTokens} prompt={item.inputTokens} />
-                          </TableCell>
-                          <TableCell>
-                            <WriteCacheCell writeCached={item.cacheWriteTokens} prompt={item.inputTokens} />
-                          </TableCell>
-                          <TableCell>
-                            <CostCell
-                              total={item.cost}
-                              currencyCode={meta.currencyCode}
-                              currencyDisplayDecimals={meta.currencyDisplayDecimals}
-                              emptyLabel='-'
-                              breakdown={{
-                                items: item.costItems.map((costItem) => ({
-                                  pricingEvidence: costItem.pricingEvidence,
-                                  image: costItem.image,
-                                  imageRule: costItem.imageRule,
-                                  unpriced: costItem.unpriced,
-                                  itemCode: costItem.itemCode,
-                                  variant: costItem.promptWriteCacheVariantCode,
-                                  quantity: costItem.quantity,
-                                  subtotal: costItem.subtotal,
-                                  tiers: costItem.tierBreakdown,
-                                })),
-                                multiplier: item.costMultiplierMixed ? 'mixed' : (item.costMultiplier ?? 1),
-                                unpricedRecords: item.unpricedRecords,
-                              }}
-                            />
-                          </TableCell>
-                        </>
-                      )}
-                      <TableCell>
-                        <DurationCell
-                          status={item.requestStatus}
-                          stream={item.stream}
-                          latencyMs={item.latencyMs}
-                          firstTokenLatencyMs={item.firstTokenLatencyMs}
-                        />
-                      </TableCell>
-                      <TableCell className='whitespace-nowrap'>
-                        {new Intl.DateTimeFormat(locale, {
-                          timeZone: meta.timezone,
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hourCycle: 'h23',
-                        }).format(new Date(item.createdAt))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!data.items.length && (
-                    <TableRow>
-                      <TableCell colSpan={9}>{t('selfUsage.requests.empty')}</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <UsageRequestTable items={data.items} meta={meta} />
             <div className='flex items-center justify-between gap-2 text-sm'>
               <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t('selfUsage.requests.previous')}
@@ -589,7 +512,7 @@ function Dashboard({
   // Advance both queries together so old totals and a new group log cannot mix.
   const [scopeRevision, setScopeRevision] = useState(0);
   const syncScope = useCallback(() => setScopeRevision((value) => value + 1), []);
-  const [range, setRange] = useState<DateRange>(() => presetRange('today', meta.timezone));
+  const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
   const stats = useQuery({
     queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end],
     queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group),
@@ -650,10 +573,7 @@ function Dashboard({
 }
 
 function PageContent() {
-  const { t, i18n } = useTranslation();
-  useEffect(() => {
-    document.title = `${t('selfUsage.title')} · AxonHub`;
-  }, [t, i18n.language]);
+  const { t } = useTranslation();
   const [keyValue, setKeyValue] = useState<string | null>(getPageKey);
   const [verifiedMeta, setVerifiedMeta] = useState<SelfUsageMeta | null>(null);
   const [loginError, setLoginError] = useState<Error | null>(null);
@@ -684,64 +604,34 @@ function PageContent() {
     [meta.data]
   );
   return (
-    <main className='bg-background text-foreground min-h-screen'>
-      <div className='mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6'>
-        <header className='flex flex-wrap items-center justify-between gap-3 border-b pb-5'>
-          <div>
-            <h1 className='text-2xl font-semibold'>{t('selfUsage.title')}</h1>
-            <p className='text-muted-foreground text-sm'>
-              {activeMeta
-                ? `${activeMeta.apiKeyName} · ${t('selfUsage.timezone', { timezone: activeMeta.timezone })}`
-                : t('selfUsage.subtitle')}
-            </p>
-          </div>
-          <div className='flex items-center gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              aria-label={t('selfUsage.language')}
-              onClick={() => {
-                void i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en' : 'zh-CN');
-              }}
-            >
-              {i18n.language.startsWith('zh') ? 'English' : '中文'}
-            </Button>
-            <ThemeSwitch />
-            {keyValue && (
-              <Button variant='outline' size='sm' onClick={logout}>
-                {t('selfUsage.logout')}
-              </Button>
-            )}
-          </div>
-        </header>
-        {!keyValue ? (
-          <Login
-            error={loginError}
-            onError={setLoginError}
-            onLogin={(key, value) => {
-              selfUsageQueryClient.clear();
-              setPageKey(key);
-              setVerifiedMeta(value);
-              setKeyValue(key);
-              setLoginError(null);
+    <UsagePageShell meta={activeMeta} onLogout={keyValue ? logout : undefined}>
+      {!keyValue ? (
+        <Login
+          error={loginError}
+          onError={setLoginError}
+          onLogin={(key, value) => {
+            selfUsageQueryClient.clear();
+            setPageKey(key);
+            setVerifiedMeta(value);
+            setKeyValue(key);
+            setLoginError(null);
+          }}
+        />
+      ) : !activeMeta ? (
+        meta.error ? (
+          <PageError
+            error={meta.error}
+            retry={() => {
+              void meta.refetch();
             }}
           />
-        ) : !activeMeta ? (
-          meta.error ? (
-            <PageError
-              error={meta.error}
-              retry={() => {
-                void meta.refetch();
-              }}
-            />
-          ) : (
-            <p role='status'>{t('selfUsage.loading')}</p>
-          )
         ) : (
-          <Dashboard key={keyValue} keyValue={keyValue} meta={activeMeta} onUnauthorized={logout} onIdentity={updateIdentity} />
-        )}
-      </div>
-    </main>
+          <p role='status'>{t('selfUsage.loading')}</p>
+        )
+      ) : (
+        <Dashboard key={keyValue} keyValue={keyValue} meta={activeMeta} onUnauthorized={logout} onIdentity={updateIdentity} />
+      )}
+    </UsagePageShell>
   );
 }
 

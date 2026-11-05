@@ -1,4 +1,5 @@
 {
+  "selfUsage.models.cacheHitRate": "Cache hit rate",
   "selfUsage.title": "API Key usage",
   "selfUsage.subtitle": "View API request usage for this key",
   "selfUsage.login.title": "Sign in with an API Key",

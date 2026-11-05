@@ -1,4 +1,5 @@
 {
+  "selfUsage.models.cacheHitRate": "缓存命中率",
   "selfUsage.title": "API Key 自助用量",
   "selfUsage.subtitle": "查看此 Key 的 API 请求用量",
   "selfUsage.login.title": "使用 API Key 登录",

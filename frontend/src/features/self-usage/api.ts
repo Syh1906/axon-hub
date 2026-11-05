@@ -6,11 +6,11 @@ export type SelfUsageMeta = {
   groupName: string | null;
   apiKeyType: string;
   currencyCode: string;
+  currencyDisplayDecimals: number | null;
   timezone: string;
   maxRangeDays: number;
 };
-// Managed group pages may supply presentation options without changing the self-service API.
-export type SelfUsageDisplayMeta = SelfUsageMeta & { currencyDisplayDecimals?: number | null };
+export type SelfUsageDisplayMeta = SelfUsageMeta;
 export type Usage = {
   successRequests: number;
   failedRequests: number;
@@ -35,7 +35,16 @@ export type SelfUsageStats = SelfUsageIdentity & {
 export type RequestStatus = 'SUCCESS' | 'FAILED' | 'PROCESSING';
 export type SelfUsageCostItem = {
   pricingEvidence?: CostPricingEvidence | null;
-  image?: { requestedWidth?: number; requestedHeight?: number; inspectionError?: string; width: number; height: number; tier: string; tierSource?: string; source: string } | null;
+  image?: {
+    requestedWidth?: number;
+    requestedHeight?: number;
+    inspectionError?: string;
+    width: number;
+    height: number;
+    tier: string;
+    tierSource?: string;
+    source: string;
+  } | null;
   imageRule?: string;
   unpricedReason?: string;
   unpriced?: boolean;
@@ -51,7 +60,19 @@ export type UsageRequest = Omit<Usage, 'successRequests' | 'failedRequests'> & {
   createdAt: string;
   model: string;
   status: RequestStatus;
-  requestStatus: string;
+  requestStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
+  callerKeyName: string;
+  callerGroupName: string | null;
+  executedModels: string[];
+  reasoningEffort: string | null;
+  format: string;
+  outboundFormat: string | null;
+  passThroughApplied: boolean;
+  clientStatusCode: number | null;
+  retryCount: number;
+  cacheWriteTokens5m: number;
+  cacheWriteTokens1h: number;
+  outputTokensPerSecond: number | null;
   costItems: SelfUsageCostItem[];
   costMultiplier: number | null;
   costMultiplierMixed: boolean;
@@ -73,7 +94,7 @@ export class SelfUsageError extends Error {
 }
 
 export const summaryFields = `successRequests failedRequests inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords`;
-const metaQuery = `query SelfUsageMeta { selfUsageMeta { apiKeyName groupName apiKeyType currencyCode timezone maxRangeDays } }`;
+const metaQuery = `query SelfUsageMeta { selfUsageMeta { apiKeyName groupName apiKeyType currencyCode currencyDisplayDecimals timezone maxRangeDays } }`;
 export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, $group: Boolean!) {
   selfUsageStats(start: $start, end: $end, group: $group) {
     scopeID apiKeyName groupName start end totals { ${summaryFields} }
@@ -83,7 +104,7 @@ export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, 
 }`;
 export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
   selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
-    items { apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
+    items { callerKeyName callerGroupName executedModels reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
     scopeID apiKeyName groupName page pageSize total
   }
 }`;

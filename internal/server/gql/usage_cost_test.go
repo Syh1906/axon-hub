@@ -22,14 +22,15 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 )
 
-func TestManagedGroupUsageRequestsSupportsPricingEvidence(t *testing.T) {
-	// The managed group page shares the self-service request list. Its nested
-	// cost evidence must also be accepted by the main GraphQL schema.
+func TestManagedGroupUsageRequestsSupportsRequestLogFields(t *testing.T) {
+	// 分组页面复用自助用量查询，主接口也必须接受完整的请求日志字段。
 	_, err := gqlparser.LoadQuery(NewExecutableSchema(Config{}).Schema(), `
-		query {
-			managedGroupUsageRequests(groupRef: 1, start: "2026-10-31", end: "2026-11-01") {
+		query ManagedGroupRequests($start: String!, $end: String!, $model: String, $status: String, $page: Int!, $pageSize: Int!, $groupRef: Int!) {
+			managedGroupUsageRequests(groupRef: $groupRef, start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize) {
 				items {
-					inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens
+					apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs
+					inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens
+					cost usageRecords unpricedRecords costMultiplier costMultiplierMixed
 					costItems {
 						pricingEvidence {
 							serviceTier { mode basis client outbound upstream confirmed reason source referenceModel version }
@@ -38,8 +39,12 @@ func TestManagedGroupUsageRequestsSupportsPricingEvidence(t *testing.T) {
 							itemMethod ruleSource baseUnitPrice finalUnitPrice modeSubtotal modeTierSubtotals
 							reference { source referenceModel version sourceURL verifiedAt application currency unit }
 						}
+						image { width height tier source tierSource requestedWidth requestedHeight inspectionError }
+						imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal
+						tierBreakdown { upTo units subtotal }
 					}
 				}
+				scopeID apiKeyName groupName page pageSize total
 			}
 		}`)
 	require.Empty(t, err)

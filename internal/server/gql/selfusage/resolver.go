@@ -60,7 +60,13 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 		})
 	}
 	return &SelfUsageRequest{APIKeyName: value.APIKeyName,
-		ID: value.ID, CreatedAt: value.CreatedAt, Model: value.Model,
+		CallerKeyName: value.CallerKeyName, CallerGroupName: value.CallerGroupName,
+		ExecutedModels: value.ExecutedModels, ReasoningEffort: value.ReasoningEffort,
+		Format: value.Format, OutboundFormat: value.OutboundFormat, PassThroughApplied: value.PassThroughApplied,
+		ClientStatusCode: value.ClientStatusCode, RetryCount: value.RetryCount,
+		CacheWriteTokens5m: value.CacheWriteTokens5m, CacheWriteTokens1h: value.CacheWriteTokens1h,
+		OutputTokensPerSecond: value.OutputTokensPerSecond,
+		ID:                    value.ID, CreatedAt: value.CreatedAt, Model: value.Model,
 		Status: SelfUsageRequestStatus(value.Status), RequestStatus: value.RequestStatus, Stream: value.Stream,
 		LatencyMs: value.LatencyMs, FirstTokenLatencyMs: value.FirstTokenLatencyMs,
 		InputTokens: value.InputTokens, OutputTokens: value.OutputTokens,

@@ -47,7 +47,7 @@ func (s *APIKeyService) ManagedGroupUsageMeta(ctx context.Context, system *Syste
 		if err != nil {
 			return nil, err
 		}
-		meta := &SelfUsageMeta{APIKeyType: "group", CurrencyCode: settings.CurrencyCode, Timezone: system.TimeLocation(ctx).String(), MaxRangeDays: selfUsageMaxRangeDays}
+		meta := &SelfUsageMeta{APIKeyType: "group", CurrencyCode: settings.CurrencyCode, CurrencyDisplayDecimals: settings.CurrencyDisplayDecimals, Timezone: system.TimeLocation(ctx).String(), MaxRangeDays: selfUsageMaxRangeDays}
 		if group != nil {
 			meta.GroupName = &group.Name
 			meta.APIKeyName = group.Name

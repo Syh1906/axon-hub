@@ -13,7 +13,7 @@ export type RequestDiagnosticTab = 'request' | 'response' | 'routing' | 'errors'
 
 export function finalRequestChannel(request: Request) {
   const execution = request.sessionExecution ?? request.executions?.edges[0]?.node;
-  const channel = request.sessionExecution ? request.sessionExecution.channel : execution?.channel ?? request.channel;
+  const channel = request.sessionExecution ? request.sessionExecution.channel : (execution?.channel ?? request.channel);
   return { execution, channel };
 }
 
@@ -22,7 +22,15 @@ export function requestProvider(request: Request) {
   return execution?.selection?.provider || (channel?.type ? (getProviderFromChannelType(channel.type) ?? channel.type) : undefined);
 }
 
-export function RequestLogStatusCell({ request, onOpen }: { request: Request; onOpen: (tab: RequestDiagnosticTab) => void }) {
+export function RequestLogStatusCell({
+  request,
+  onOpen,
+}: {
+  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'stream'> & {
+    executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount: number };
+  };
+  onOpen?: (tab: RequestDiagnosticTab) => void;
+}) {
   const { t } = useTranslation();
   const execution = request.executions?.edges[0]?.node;
   const status = request.clientStatusCode ?? execution?.responseStatusCode;
@@ -30,21 +38,32 @@ export function RequestLogStatusCell({ request, onOpen }: { request: Request; on
   return (
     <div className='flex min-w-[150px] flex-col gap-1.5'>
       <div className='flex items-center gap-2'>
-        <button type='button' onClick={() => onOpen('request')} className='text-primary font-mono text-xs hover:underline'>
-          #{extractNumberID(request.id)}
-        </button>
+        {onOpen ? (
+          <button type='button' onClick={() => onOpen('request')} className='text-primary font-mono text-xs hover:underline'>
+            #{extractNumberID(request.id)}
+          </button>
+        ) : (
+          <span className='text-primary font-mono text-xs'>#{extractNumberID(request.id)}</span>
+        )}
         <span className='text-muted-foreground text-xs'>
           {t(request.stream ? 'requests.stream.streaming' : 'requests.stream.nonStreaming')}
         </span>
       </div>
       <div className='flex items-center gap-2 whitespace-nowrap'>
-        <Badge className={getStatusColor(request.status)} asChild>
-          <button type='button' onClick={() => onOpen('errors')}>
-            {t(`requests.status.${request.status}`)}
-            {status != null ? ` · ${status}` : ''}
-          </button>
+        <Badge className={getStatusColor(request.status)} asChild={!!onOpen}>
+          {onOpen ? (
+            <button type='button' onClick={() => onOpen('errors')}>
+              {t(`requests.status.${request.status}`)}
+              {status != null ? ` · ${status}` : ''}
+            </button>
+          ) : (
+            <span>
+              {t(`requests.status.${request.status}`)}
+              {status != null ? ` · ${status}` : ''}
+            </span>
+          )}
         </Badge>
-        {retries > 0 && (
+        {retries > 0 && onOpen && (
           <button type='button' className='text-muted-foreground text-xs hover:underline' onClick={() => onOpen('routing')}>
             {t('requests.diagnostics.retries', { count: retries })}
           </button>
@@ -113,7 +132,11 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
             {name}
             {provider ? ` · ${t(`channels.providers.${provider}`, { defaultValue: provider })}` : ''}
           </strong>
-          {sessionLabel && <p>{t('requests.diagnostics.session')}: {sessionLabel}</p>}
+          {sessionLabel && (
+            <p>
+              {t('requests.diagnostics.session')}: {sessionLabel}
+            </p>
+          )}
           <p className='break-all'>
             {t('requests.diagnostics.key')}:{' '}
             {selection?.keyHint
@@ -133,7 +156,7 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   );
 }
 
-export function RequestCacheCell({ request }: { request: Request }) {
+export function RequestCacheCell({ request }: { request: Pick<Request, 'usageLogs'> }) {
   const { t } = useTranslation();
   const usage = request.usageLogs?.edges?.[0]?.node;
   if (!usage) return <span className='text-muted-foreground'>—</span>;
@@ -172,7 +195,11 @@ export function RequestCacheCell({ request }: { request: Request }) {
   );
 }
 
-export function RequestDurationCell({ request }: { request: Request }) {
+export function RequestDurationCell({
+  request,
+}: {
+  request: Pick<Request, 'stream' | 'metricsLatencyMs' | 'metricsFirstTokenLatencyMs' | 'outputTokensPerSecond'>;
+}) {
   const { t } = useTranslation();
   const latency = request.metricsLatencyMs;
   const first = request.metricsFirstTokenLatencyMs;

@@ -15,6 +15,7 @@ type SelfUsageMeta {
   apiKeyName: String!
   apiKeyType: String!        # "user" | "personal"
   currencyCode: String!
+  currencyDisplayDecimals: Int
   timezone: String!
   maxRangeDays: Int!         # 90
 }
@@ -51,6 +52,19 @@ type SelfUsageStats {
 enum SelfUsageRequestStatus { SUCCESS FAILED PROCESSING }
 
 type SelfUsageRequest {
+  callerKeyName: String!
+  callerGroupName: String
+  executedModels: [String!]!
+  reasoningEffort: String
+  format: String!
+  outboundFormat: String
+  passThroughApplied: Boolean!
+  clientStatusCode: Int
+  retryCount: Int!
+  cacheWriteTokens5m: Int!
+  cacheWriteTokens1h: Int!
+  outputTokensPerSecond: Float
+
   apiKeyName: String!
   id: Int!                         # 数字请求 ID，仅作列表 key
   createdAt: Time!

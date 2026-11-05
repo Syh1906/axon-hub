@@ -150,6 +150,15 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 	t.Cleanup(keyService.Stop)
 	authService := biz.NewAuthService(biz.AuthServiceParams{APIKeyService: keyService, Ent: client})
 	systemService := biz.NewSystemService(biz.SystemServiceParams{CacheConfig: cache, Ent: client})
+	decimals := 4
+	require.NoError(t, systemService.SetGeneralSettings(seedCtx, biz.SystemGeneralSettings{
+		CurrencyCode: "USD", Timezone: "UTC", CurrencyDisplayDecimals: &decimals,
+	}))
+	key := client.APIKey.Query().Where(apikey.KeyEQ(validKey)).OnlyX(seedCtx)
+	client.Request.Create().SetAPIKeyID(key.ID).SetProjectID(proj.ID).SetSource("api").
+		SetStatus("completed").SetModelID("visible-model").SetReasoningEffort("high").
+		SetClientStatusCode(200).SetRequestBody([]byte(`{"private":"not exposed"}`)).
+		SetCreatedAt(time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)).SaveX(seedCtx)
 	service := biz.NewSelfUsageService(client, systemService)
 	limiter := middleware.NewSelfServiceRateLimiter(nil)
 	router := gin.New()
@@ -172,7 +181,7 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 		{"IP whitelist mismatch", restrictedKey, http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(`{"query":"{ selfUsageMeta { apiKeyName apiKeyType maxRangeDays } }"}`))
+			req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(`{"query":"{ selfUsageMeta { apiKeyName apiKeyType maxRangeDays currencyDisplayDecimals } selfUsageRequests(start:\"2026-11-05\",end:\"2026-11-05\") { items { callerKeyName callerGroupName executedModels reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond } } }"}`))
 			req.Header.Set("Authorization", "Bearer "+tc.key)
 			req.Header.Set("Content-Type", "application/json")
 			req.RemoteAddr = "198.51.100.77:12345"
@@ -183,6 +192,14 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 			}
 			if tc.want == http.StatusOK && !strings.Contains(response.Body.String(), `"apiKeyName":"allowed · Self Usage"`) {
 				t.Fatalf("unexpected meta response: %s", response.Body.String())
+			}
+			if tc.want == http.StatusOK {
+				require.NotContains(t, response.Body.String(), `"errors"`)
+				require.Contains(t, response.Body.String(), `"currencyDisplayDecimals":4`)
+				require.Contains(t, response.Body.String(), `"reasoningEffort":"high"`)
+				require.Contains(t, response.Body.String(), `"executedModels":[]`)
+				require.Contains(t, response.Body.String(), `"callerKeyName":"allowed"`)
+				require.NotContains(t, response.Body.String(), "not exposed")
 			}
 		})
 	}

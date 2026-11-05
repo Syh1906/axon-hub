@@ -45,6 +45,7 @@ function ProfileLoader({ id, onLoaded }: { id: string; onLoaded: () => void }) {
   return query.error ? <p role='alert'>{query.error.message}</p> : null;
 }
 function GroupPage() {
+  const project = useSelectedProjectId();
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { apiKeyPermissions } = usePermissions();
@@ -425,7 +426,13 @@ function GroupPage() {
                           <div className='flex items-center justify-end gap-1'>
                             <GroupToggle group={g} disabled={!writable} />
                             <Button size='sm' variant='outline' asChild>
-                              <Link to='/project/key-groups/$groupRef/usage' params={{ groupRef: String(g.id) }} title={t('kg.usageHint')}>
+                              <Link
+                                to='/self-usage'
+                                search={{ groupRef: g.id, projectId: project! }}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                title={t('kg.usageHint')}
+                              >
                                 <BarChart3 className='size-4' />
                                 {t('kg.usage')}
                               </Link>
@@ -491,7 +498,7 @@ function GroupPage() {
                   </TableCell>
                   <TableCell className='text-right'>
                     <Button size='sm' variant='outline' className='mr-1' asChild>
-                      <Link to='/project/key-groups/$groupRef/usage' params={{ groupRef: '0' }}>
+                      <Link to='/self-usage' search={{ groupRef: 0, projectId: project! }} target='_blank' rel='noopener noreferrer'>
                         <BarChart3 className='size-4' />
                         {t('kg.usage')}
                       </Link>

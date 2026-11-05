@@ -33,8 +33,9 @@ export type BudgetView = {
 };
 export type BudgetTarget = { kind: 'key' | 'group'; ownerID: number; name: string; groupID?: number };
 export const budgetFields = `ownerKind ownerID revision timezone expiresAt accountingStartedAt serverTime hasLimits expired windows { period mode minute limit settled reserved available windowStart windowEnd nextReleaseAt resetAt canResetCycle effectiveSchedule timezone pendingRule { period mode minute limit } pendingAt }`;
-export function useBudget(target: BudgetTarget, enabled = true) {
-  const project = useSelectedProjectId();
+export function useBudget(target: BudgetTarget, enabled = true, projectId?: string) {
+  const selectedProject = useSelectedProjectId();
+  const project = projectId ?? selectedProject;
   const { user } = usePermissions();
   return useQuery({
     queryKey: ['keyBudgets', user?.id, project, target.kind, target.ownerID],

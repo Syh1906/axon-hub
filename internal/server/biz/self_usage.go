@@ -31,12 +31,13 @@ func NewSelfUsageService(client *ent.Client, system *SystemService) *SelfUsageSe
 }
 
 type SelfUsageMeta struct {
-	APIKeyName   string
-	APIKeyType   string
-	GroupName    *string
-	CurrencyCode string
-	Timezone     string
-	MaxRangeDays int
+	APIKeyName              string
+	APIKeyType              string
+	GroupName               *string
+	CurrencyCode            string
+	CurrencyDisplayDecimals *int
+	Timezone                string
+	MaxRangeDays            int
 }
 
 type SelfUsageSummary struct {
@@ -75,27 +76,39 @@ type SelfUsageStats struct {
 }
 
 type SelfUsageRequest struct {
-	APIKeyName          string
-	ID                  int
-	CreatedAt           time.Time
-	Model               string
-	Status              string
-	RequestStatus       string
-	Stream              bool
-	LatencyMs           *int
-	FirstTokenLatencyMs *int
-	InputTokens         int
-	OutputTokens        int
-	CacheReadTokens     int
-	CacheWriteTokens    int
-	ReasoningTokens     int
-	TotalTokens         int
-	Cost                *float64
-	CostItems           []SelfUsageCostItem
-	CostMultiplier      *float64
-	CostMultiplierMixed bool
-	UsageRecords        int
-	UnpricedRecords     int
+	CallerKeyName         string
+	CallerGroupName       *string
+	ExecutedModels        []string
+	ReasoningEffort       *string
+	Format                string
+	OutboundFormat        *string
+	PassThroughApplied    bool
+	ClientStatusCode      *int
+	RetryCount            int
+	CacheWriteTokens5m    int
+	CacheWriteTokens1h    int
+	OutputTokensPerSecond *float64
+	APIKeyName            string
+	ID                    int
+	CreatedAt             time.Time
+	Model                 string
+	Status                string
+	RequestStatus         string
+	Stream                bool
+	LatencyMs             *int
+	FirstTokenLatencyMs   *int
+	InputTokens           int
+	OutputTokens          int
+	CacheReadTokens       int
+	CacheWriteTokens      int
+	ReasoningTokens       int
+	TotalTokens           int
+	Cost                  *float64
+	CostItems             []SelfUsageCostItem
+	CostMultiplier        *float64
+	CostMultiplierMixed   bool
+	UsageRecords          int
+	UnpricedRecords       int
 }
 
 type SelfUsageRequestPage struct {
@@ -160,7 +173,7 @@ func (s *SelfUsageService) Meta(ctx context.Context) (*SelfUsageMeta, error) {
 		}
 		return &SelfUsageMeta{GroupName: groupName,
 			APIKeyName: labels[current.ID], APIKeyType: string(key.Type),
-			CurrencyCode: settings.CurrencyCode, Timezone: s.system.TimeLocation(ctx).String(),
+			CurrencyCode: settings.CurrencyCode, CurrencyDisplayDecimals: settings.CurrencyDisplayDecimals, Timezone: s.system.TimeLocation(ctx).String(),
 			MaxRangeDays: selfUsageMaxRangeDays,
 		}, nil
 	})
@@ -270,18 +283,20 @@ type selfUsageCounts struct {
 }
 
 type selfUsageAmounts struct {
-	Model      string   `json:"model"`
-	Bucket     int64    `json:"bucket"`
-	RequestID  int      `json:"request_id"`
-	Input      int      `json:"input_tokens"`
-	Output     int      `json:"output_tokens"`
-	CacheRead  int      `json:"cache_read_tokens"`
-	CacheWrite int      `json:"cache_write_tokens"`
-	Reasoning  int      `json:"reasoning_tokens"`
-	Total      int      `json:"total_tokens"`
-	Cost       *float64 `json:"cost"`
-	Records    int      `json:"usage_records"`
-	Unpriced   int      `json:"unpriced_records"`
+	CacheWrite5m int      `json:"cache_write_tokens_5m"`
+	CacheWrite1h int      `json:"cache_write_tokens_1h"`
+	Model        string   `json:"model"`
+	Bucket       int64    `json:"bucket"`
+	RequestID    int      `json:"request_id"`
+	Input        int      `json:"input_tokens"`
+	Output       int      `json:"output_tokens"`
+	CacheRead    int      `json:"cache_read_tokens"`
+	CacheWrite   int      `json:"cache_write_tokens"`
+	Reasoning    int      `json:"reasoning_tokens"`
+	Total        int      `json:"total_tokens"`
+	Cost         *float64 `json:"cost"`
+	Records      int      `json:"usage_records"`
+	Unpriced     int      `json:"unpriced_records"`
 }
 
 func selfUsageAmountColumns(s *sql.Selector) []string {
@@ -458,6 +473,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		requests, err := query().Select(
 			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
 			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs,
+			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
 		).Order(request.ByCreatedAt(sql.OrderDesc()), request.ByID(sql.OrderDesc())).
 			Limit(pageSize).Offset((page - 1) * pageSize).All(ctx)
 		if err != nil {
@@ -478,30 +494,45 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		var amounts []selfUsageAmounts
 		err = s.client.UsageLog.Query().Where(usagelog.RequestIDIn(ids...)).Modify(func(q *sql.Selector) {
 			scope.join(q)
-			q.Select(append([]string{sql.As(q.C(usagelog.FieldRequestID), "request_id")}, selfUsageAmountColumns(q)...)...).
+			columns := append([]string{sql.As(q.C(usagelog.FieldRequestID), "request_id")}, selfUsageAmountColumns(q)...)
+			for field, alias := range map[string]string{usagelog.FieldPromptWriteCachedTokens5m: "cache_write_tokens_5m", usagelog.FieldPromptWriteCachedTokens1h: "cache_write_tokens_1h"} {
+				columns = append(columns, sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", q.C(field)), alias))
+			}
+			q.Select(columns...).
 				GroupBy(q.C(usagelog.FieldRequestID))
 		}).Scan(ctx, &amounts)
 		if err != nil {
 			return nil, fmt.Errorf("query self usage page amounts: %w", err)
 		}
 		byID := make(map[int]SelfUsageSummary, len(amounts))
+		cacheWrites := make(map[int]selfUsageAmounts, len(amounts))
 		for _, row := range amounts {
 			usage := SelfUsageSummary{}
 			usage.addAmount(row)
 			usage.finishCost()
 			byID[row.RequestID] = usage
+			cacheWrites[row.RequestID] = row
 		}
 		keyIDs := make([]int, 0, len(requests))
 		for _, req := range requests {
 			keyIDs = append(keyIDs, req.APIKeyID)
 		}
-		keys, err := s.client.APIKey.Query().Where(apikey.IDIn(keyIDs...), apikey.ProjectIDEQ(scope.projectID)).All(schematype.SkipSoftDelete(ctx))
+		keys, err := s.client.APIKey.Query().Where(apikey.IDIn(keyIDs...), apikey.ProjectIDEQ(scope.projectID)).
+			Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(schematype.SkipSoftDelete(ctx))
 		if err != nil {
 			return nil, err
 		}
 		labels, err := APIKeyLabels(ctx, s.client, keys)
 		if err != nil {
 			return nil, err
+		}
+		displays, err := s.requestDisplayFields(ctx, requests)
+		if err != nil {
+			return nil, err
+		}
+		callers := make(map[int]*ent.APIKey, len(keys))
+		for _, key := range keys {
+			callers[key.ID] = key
 		}
 		for _, req := range requests {
 			usage, ok := byID[req.ID]
@@ -514,6 +545,16 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 				CacheReadTokens: usage.CacheReadTokens, CacheWriteTokens: usage.CacheWriteTokens,
 				ReasoningTokens: usage.ReasoningTokens, TotalTokens: usage.TotalTokens,
 				Cost: usage.Cost, UsageRecords: usage.UsageRecords, UnpricedRecords: usage.UnpricedRecords,
+			}
+			display := displays[req.ID]
+			row.ExecutedModels, row.ReasoningEffort = display.ExecutedModels, display.ReasoningEffort
+			row.Format, row.OutboundFormat = display.Format, display.OutboundFormat
+			row.PassThroughApplied, row.ClientStatusCode = display.PassThroughApplied, display.ClientStatusCode
+			row.RetryCount, row.OutputTokensPerSecond = display.RetryCount, display.OutputTokensPerSecond
+			row.CacheWriteTokens5m, row.CacheWriteTokens1h = cacheWrites[req.ID].CacheWrite5m, cacheWrites[req.ID].CacheWrite1h
+			if key := callers[req.APIKeyID]; key != nil {
+				row.CallerKeyName = key.Name
+				row.CallerGroupName = scope.groupName
 			}
 			row.RequestStatus = string(req.Status)
 			row.CostItems = costs[req.ID].items

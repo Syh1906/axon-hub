@@ -20,7 +20,7 @@ func (r *queryResolver) SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, erro
 	}
 	return &SelfUsageMeta{
 		APIKeyName: meta.APIKeyName, APIKeyType: meta.APIKeyType,
-		CurrencyCode: meta.CurrencyCode, Timezone: meta.Timezone,
+		CurrencyCode: meta.CurrencyCode, CurrencyDisplayDecimals: meta.CurrencyDisplayDecimals, Timezone: meta.Timezone,
 		MaxRangeDays: meta.MaxRangeDays, GroupName: meta.GroupName,
 	}, nil
 }

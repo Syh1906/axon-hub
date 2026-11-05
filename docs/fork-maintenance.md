@@ -712,6 +712,11 @@ fork 改动，由用户决定。
 
 ### API Key 自助用量页
 
+- 2026-11-05 增量：Key/分组统一独立 `/self-usage` 入口；分组入口携带明确项目与分组编号并继续走管理权限，原子页仅重定向。默认近 7 天；Token 使用 K/M/B 并保留精确悬浮值；模型行增加缓存命中率，成本精度由元数据返回系统设置。
+- 请求日志复用管理端模型、状态、缓存、耗时组件；自助接口仅增加已授权请求的执行模型、推理强度、协议、HTTP 状态、缓存变体及共享测速结果，不返回渠道、服务商、正文或凭据。模型悬浮支持多执行模型；查询按当前页批量读取精简字段，无数据库迁移。
+- 回归：`TestSelfUsageRequestDisplayMetadata`、`TestSelfUsageMetaUsesSystemCurrencyDecimals`、既有自助用量/管理分组权限用例及自助 GraphQL 认证链覆盖字段映射和权限边界。
+
+
 - 当前工作区入口增量：API 密钥列的“用量”在新标签页打开 `/self-usage`，原列表保留；只对已启用 user/personal Key 提供入口。目标页使用独立会话存储和查询缓存，不改父页会话，跳转前断开 opener；被拦截时明确提示。无 URL 凭据、权限或数据库迁移变化。实现：`frontend/src/features/apikeys/components/apikeys-columns.tsx`、`frontend/src/features/self-usage/session.ts`；`session.test.mjs` 覆盖多页隔离、弹窗和会话存储失败。
 
 - 状态：已实现。相关提交：`58f73057`、`1c5509ae`。
@@ -831,6 +836,8 @@ fork 改动，由用户决定。
 
 - 2026-11-03 状态筛选计数修复（已随 `.syh.14` 发布）：状态菜单展开时通过 `requestLogStatusCounts` 一次分组统计当前时间、项目、渠道、模型、来源、Key 等条件下的全部匹配请求，忽略本菜单已选状态与分页；空状态显示 `0`，加载和统计失败分别提示，不再使用已加载列表的局部数量。展开期间跟随页面自动刷新设置更新，关闭后停止自动统计，翻页与滚动不重复查询；重新获得焦点或网络恢复不额外触发统计。列表与统计共用日志筛选及权限策略，不新增数据库迁移。接口／权限／SQL 定向测试、前端参数测试、本地浏览器组件联调和十万条 SQLite 内存数据性能采样见[验证记录](../.agent/summary/request-status-counts-20261103.md)；生产规模磁盘与并发性能未验证。
 
+- 2026-11-02 分组用量日志修复（未发布）：主 GraphQL 补齐 `SelfUsageImageOutput` 的 `requestedWidth`、`requestedHeight`、`inspectionError` 及 `SelfUsageCostItem.unpricedReason`，与自助接口和共享前端查询保持一致，修复分组用量请求日志返回 422。`internal/server/gql/usage_cost_test.go` 的查询契约用例扩展为完整请求日志字段，覆盖图片规格、未定价原因和分页／筛选参数。不新增数据库迁移。
+
 - 2026-11-02 列表回顶与行悬浮修复（未发布）：请求／渠道回顶保留已有首批，后台从最新游标刷新，避免清空数据后整表显示占位色块；超过八批缓存后的历史首批不会被误当作最新首批。程序回顶产生的滚动不再重复取消／触发刷新。所有共享表格行及单元格即时切换底色，保留原高亮颜色、键盘焦点与选中提示，避免跨行退色残留；提示浮层不变，无接口或数据库迁移变化。真实页面诊断、定向回归及本地组件验证见[回顶修复验收](../.agent/summary/list-return-top-20261102.md)；此前仅请求行动画修复见[首轮记录](../.agent/summary/request-row-hover-20261102.md)。
 
 - 列表与正文加载（未发布）：计算字段声明必要 SQL 依赖，摘要不读取正文、错误全文和完整候选诊断；Trace／Thread 首条提问不连带加载响应及分片。完整详情／侧栏按标签读取正文，执行记录和音频延后到对应标签，关闭取消并回收。请求／渠道滚动页最多保留 8 批且支持向前恢复；渠道显式选择独立保留，切换显示列不清选择，真正切换筛选才清空。实现涉及 `request.go`、`trace.go`、`use-cursor-list.ts` 和相关详情／表格组件；无新增 migration，SQL、缓存及浏览器证据见[本阶段汇总](../.agent/summary/request-stage-review-20261101.md)。
@@ -844,7 +851,7 @@ fork 改动，由用户决定。
 - 每次执行保存选路与密钥快照、错误来源、脱敏错误响应和实际重试／停止动作。原始错误响应遵循响应体存储策略，最多 64 KiB；旧记录显示“未记录”。返回客户端的状态与上游状态分开，选路快照受 `read_channels` 保护。流中只有转换后的结构化错误时不伪称拿到了原始上游响应。
 - 独立复审修正：请求报表时区通过 `read_requests` 权限单独查询，项目查询携带项目标识；每次尝试清理前次 Key，避免跨凭据类型重试残留；已返回客户端的流断开或取消时记录停止原因，预读失败仍沿原重试流程处理。三项问题已由独立审查复核关闭。
 - 渠道官网独立于 API 地址，选填且只接受无账号密码的 HTTP(S) URL；未填时名称不跳外链。保存、复制渠道和备份恢复保留官网字段。
-- 分组行新增用量入口，管理账号直接查询当前项目的当前成员 Key 历史，停用 Key 与空组均可查看，不借用有效 Key 登录自助端。分组、单 Key 及自助用量页统一默认“今天”；复用自助页的统计组件，管理查询缓存按账号、项目、分组隔离；自助端认证和按调用 Key 限定范围的机制不变。
+- 分组行新增用量入口，管理账号直接查询当前项目的当前成员 Key 历史，停用 Key 与空组均可查看，不借用有效 Key 登录自助端。分组、单 Key 及自助用量页现默认“近 7 天”（2026-11-05 调整）；复用自助页的统计组件，管理查询缓存按账号、项目、分组隔离；自助端认证和按调用 Key 限定范围的机制不变。
 - 代码：`internal/objects/request_diagnostics.go`、`internal/server/biz/request_log_filters.go`、`managed_group_usage.go`、`internal/server/orchestrator/request_diagnostics.go`、`diagnostic_redaction.go`、对应 GraphQL schema，以及 `frontend/src/features/requests/`、`frontend/src/features/key-groups/usage.tsx` 和渠道表单。
 - 升级：新增可空 `channels.website_url`、`requests.client_status_code`、`request_executions.selection/failure/retry_decision`，由 Ent 托管；无独立 data migration、无名称索引变化，不改已发布迁移。历史快照不回填。SQLite 已完成旧表升级、重复升级和旧值保留验证，MySQL／PostgreSQL 实例尚未验证。
 - 验证：主模块新增筛选组合／夏令时边界、分组权限／停用 Key、选路快照／换 Key、错误脱敏和官网 URL 用例；`llm/` 的 `go test ./pipeline` 覆盖实际停止重试原因；前端 Node 用例验证流速缺失值。真实页面使用隔离 SQLite 示例数据验收，不访问真实供应商。截图与本轮记录在 `output/implementation/axon-request-filters-20261030/`。

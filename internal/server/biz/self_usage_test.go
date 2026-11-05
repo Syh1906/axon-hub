@@ -272,6 +272,66 @@ func TestSelfUsageRequestPageSelectsOnlyVisibleColumns(t *testing.T) {
 	}
 }
 
+func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(f.ctx)
+	at := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	group := f.client.APIKeyGroup.Create().SetName("design").SetProjectID(f.project.ID).SaveX(ctx)
+	f.client.APIKey.UpdateOne(f.key).SetGroupRef(group.ID).SaveX(ctx)
+	req := f.client.Request.Create().SetProjectID(f.project.ID).SetAPIKeyID(f.key.ID).
+		SetSource(request.SourceAPI).SetStatus(request.StatusCompleted).SetModelID("public-model").
+		SetFormat("openai/chat_completions").SetReasoningEffort("low").SetClientStatusCode(200).
+		SetRequestBody([]byte(`{}`)).SetCreatedAt(at).SaveX(ctx)
+	ch := f.client.Channel.Create().SetType(channel.TypeOpenai).SetName("display").
+		SetCredentials(objects.ChannelCredentials{APIKey: "test"}).SetSupportedModels([]string{"executed-model"}).
+		SetDefaultTestModel("executed-model").SaveX(ctx)
+	f.client.Request.UpdateOne(req).SetChannelID(ch.ID).SaveX(ctx)
+	for i, model := range []string{"fallback-model", "executed-model"} {
+		f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(ch.ID).
+			SetModelID(model).SetFormat("anthropic/messages").SetReasoningEffort("8192").SetResponseStatusCode(201).
+			SetStream(true).SetMetricsLatencyMs(3000).SetMetricsFirstByteLatencyMs(1000).SetStatus("completed").SetPassThroughApplied(true).SetRequestBody([]byte(`{"private":"must not be returned"}`)).
+			SetCreatedAt(at.Add(time.Duration(i) * time.Second)).SaveX(ctx)
+	}
+	f.client.UsageLog.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetProjectID(f.project.ID).SetModelID("executed-model").
+		SetPromptTokens(1000).SetCompletionTokens(200).SetPromptCachedTokens(800).
+		SetPromptWriteCachedTokens(100).SetPromptWriteCachedTokens5m(40).SetPromptWriteCachedTokens1h(60).SaveX(ctx)
+	page, err := f.service.Requests(f.ctx, "2026-11-05", "2026-11-05", nil, "", 1, 20)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	row := page.Items[0]
+	require.Equal(t, []string{"executed-model", "fallback-model"}, row.ExecutedModels)
+	require.Equal(t, "8192", *row.ReasoningEffort)
+	require.Equal(t, "openai/chat_completions", row.Format)
+	require.Equal(t, "anthropic/messages", *row.OutboundFormat)
+	require.Equal(t, 200, *row.ClientStatusCode, "the client status takes precedence over upstream status")
+	require.Equal(t, 1, row.RetryCount)
+	require.NotNil(t, row.OutputTokensPerSecond)
+	require.Equal(t, 100.0, *row.OutputTokensPerSecond)
+	require.True(t, row.PassThroughApplied)
+	require.Equal(t, 40, row.CacheWriteTokens5m)
+	require.Equal(t, 60, row.CacheWriteTokens1h)
+	require.Equal(t, f.key.Name, row.CallerKeyName)
+	require.Equal(t, "design", *row.CallerGroupName)
+	stats, err := f.service.Stats(f.ctx, "2026-10-30", "2026-11-05")
+	require.NoError(t, err)
+	require.Len(t, stats.Daily, 7)
+	require.Equal(t, "2026-10-30", stats.Daily[0].Date)
+	require.Equal(t, 0, stats.Daily[0].Usage.SuccessRequests)
+	require.Equal(t, 1, stats.Daily[6].Usage.SuccessRequests)
+}
+
+func TestSelfUsageMetaUsesSystemCurrencyDecimals(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	for _, decimals := range []*int{nil, lo.ToPtr(0), lo.ToPtr(4), lo.ToPtr(8)} {
+		require.NoError(t, f.service.system.SetGeneralSettings(authz.WithTestBypass(f.ctx), SystemGeneralSettings{
+			CurrencyCode: "USD", Timezone: "UTC", CurrencyDisplayDecimals: decimals,
+		}))
+		meta, err := f.service.Meta(f.ctx)
+		require.NoError(t, err)
+		require.Equal(t, decimals, meta.CurrencyDisplayDecimals)
+	}
+}
+
 func TestSelfUsageCalendarDSTAndValidation(t *testing.T) {
 	f := newSelfUsageFixture(t, "America/Los_Angeles")
 	loc, err := time.LoadLocation("America/Los_Angeles")

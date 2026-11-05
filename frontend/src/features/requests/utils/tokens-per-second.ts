@@ -13,7 +13,7 @@ const VALID_DISPLAY_MODES: DisplayMode[] = ['latency', 'tokensPerSecond'];
  * @param request - The request object containing usage logs and metrics
  * @returns The numeric rate or null if calculation is not possible
  */
-export function getTokensPerSecondValue(request: Request): number | null {
+export function getTokensPerSecondValue(request: Pick<Request, 'outputTokensPerSecond'>): number | null {
   // The server shares sample selection and timing with the leaderboard.
   const speed = request.outputTokensPerSecond;
   return speed != null && Number.isFinite(speed) && speed > 0 ? speed : null;
