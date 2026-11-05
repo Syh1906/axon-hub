@@ -6,7 +6,7 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-05）：`.syh.18` 已完成本地实现和发布准备，待同提交分支检查、正式发布及双机更新；当前最新正式版和云悠、泉哥仍为 `.syh.17`，源码 `5b47dd71`。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
+发布状态总览（2026-11-05）：最新正式版为 `.syh.18`，源码 `99b0d232`，云悠、泉哥均已更新并通过部署验收。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
 
 本仓库继承 ChouUn 的维护版本；下列既有功能保留原提交归属。直接上游与原始上游
 分别记录在 `release.config.json`，自己的 `.syh.N` 发版规则见[独立发版与部署](zh/development/release.md)。
@@ -345,7 +345,7 @@ fork 改动，由用户决定。
 
 ### 密钥渠道优先级与渠道请求设置
 
-- 内置生图权限（2026-11-05，未发布）：请求设置新增独立 `allowImageGenerationTool` 开关，缺省／空值按允许处理。带 `image_generation` 工具的请求在项目和 Key 权限过滤后、负载均衡前排除显式关闭的渠道，不删除工具、不扩大权限；全部候选关闭时返回 HTTP 503／`image_generation_tool_not_allowed` 并记录选路失败。独立图片接口和无此工具的请求不受影响。复用 settings JSON，无数据库迁移。实现见 `candidates_image_tool.go`；回归覆盖默认值、备用渠道、权限范围、工具保留、无上游尝试及保存回读。维护时同步 GraphQL 输入／输出、所有渠道设置查询及前端设置合并函数。
+- 内置生图权限（2026-11-05，已随 `.syh.18` 发布）：请求设置新增独立 `allowImageGenerationTool` 开关，缺省／空值按允许处理。带 `image_generation` 工具的请求在项目和 Key 权限过滤后、负载均衡前排除显式关闭的渠道，不删除工具、不扩大权限；全部候选关闭时返回 HTTP 503／`image_generation_tool_not_allowed` 并记录选路失败。独立图片接口和无此工具的请求不受影响。复用 settings JSON，无数据库迁移。实现见 `candidates_image_tool.go`；回归覆盖默认值、备用渠道、权限范围、工具保留、无上游尝试及保存回读。维护时同步 GraphQL 输入／输出、所有渠道设置查询及前端设置合并函数。
 
 - 行为：`APIKeyProfile.channelPriorities` 只覆盖已经过项目和密钥渠道／标签过滤的候选；数值越小越优先，
   无覆盖时先继承请求标签默认值，再继承模型关联优先级。同渠道同有效优先级合并并去重实际模型，同时保留每个模型的协议，
@@ -644,7 +644,7 @@ fork 改动，由用户决定。
 
 ### 模型权威定价与全量阶梯
 
-- 文字／图片输入分项（2026-11-05，未发布、未部署）：新增文字输入、图片输入及对应缓存价格项，保持通用价目原语义；拒绝同组总价与分项并存，成对配置并支持显式零价。统一计算、历史价格快照、预算与现有明细共用分项；预估输入使用候选最大金额，避免重复预留。旧单价摘要不能表达分项时返回空值，模型信息接口补充完整 `pricing.items`。
+- 文字／图片输入分项（2026-11-05，已随 `.syh.18` 发布并部署）：新增文字输入、图片输入及对应缓存价格项，保持通用价目原语义；拒绝同组总价与分项并存，成对配置并支持显式零价。统一计算、历史价格快照、预算与现有明细共用分项；预估输入使用候选最大金额，避免重复预留。旧单价摘要不能表达分项时返回空值，模型信息接口补充完整 `pricing.items`。
 - OpenAI Images 转换保留文字／图片数量及可选缓存细分；缺失或不一致的必要数量保留未定价原因。`usage_logs` 新增四个可空分项列，由 Ent 管理结构升级；历史行保持 NULL，不推算或改账，无新增 data migration、不修改已发布迁移。已对照直接上游 `v1.0.0-beta10-fork.7` 的用量表定义；同步上游时核对新列和用量字段语义。用量归档继续保留汇总金额和总 Token，不增加归档分项重算能力。
 - 主要实现与回归：`internal/objects/token_pricing.go`、`internal/server/biz/token_pricing.go`、同名测试、`llm/transformer/openai/image_outbound_test.go`、GraphQL 模型价格保存回读及现有前端价格测试。详细行为与真实调用边界见[分项计费](zh/guides/cost-tracking.md#文字与图片输入分项计费)。
 - 本轮验证：转换器、价格校验、计算／预算、SQLite 保存回读与旧表升级、GraphQL 创建查询及模型信息接口定向回归通过；前端价格与明细 27 项通过。内置浏览器完成隔离库创建、编辑保存、重新打开和列表显示验收。受影响 TypeScript 文件对照 HEAD 均为同样 5 条既有渠道校验诊断。只读参考 CCH `0c508eaa` 的图片 token 定价，并通过同数字对照测试；未运行真实 Image 2.6、PG/MySQL 升级、lint/build，未部署。完整命令与限制见[实施记录](../.agent/summary/image-token-pricing-20261105.md)。 独立 `gpt-6.1-sol / max` 复审后补齐部分缓存核验、递减阶梯预估、加速模式编辑入口及费用明细／概览；定向回归和组件补验通过，最终复核无剩余阻塞项。
@@ -714,7 +714,7 @@ fork 改动，由用户决定。
 
 ### API Key 自助用量页
 
-- 2026-11-05 增量：Key/分组统一独立 `/self-usage` 入口；分组入口携带明确项目与分组编号并继续走管理权限，原子页仅重定向。默认近 7 天；Token 使用 K/M/B 并保留精确悬浮值；模型行增加缓存命中率，成本精度由元数据返回系统设置。
+- 2026-11-05 增量（已随 `.syh.18` 发布）：Key/分组统一独立 `/self-usage` 入口；分组入口携带明确项目与分组编号并继续走管理权限，原子页仅重定向。默认近 7 天；Token 使用 K/M/B 并保留精确悬浮值；模型行增加缓存命中率，成本精度由元数据返回系统设置。
 - 请求日志复用管理端模型、状态、缓存、耗时组件；自助接口仅增加已授权请求的执行模型、推理强度、协议、HTTP 状态、缓存变体及共享测速结果，不返回渠道、服务商、正文或凭据。模型悬浮支持多执行模型；查询按当前页批量读取精简字段，无数据库迁移。
 - 回归：`TestSelfUsageRequestDisplayMetadata`、`TestSelfUsageMetaUsesSystemCurrencyDecimals`、既有自助用量/管理分组权限用例及自助 GraphQL 认证链覆盖字段映射和权限边界。
 
@@ -838,7 +838,7 @@ fork 改动，由用户决定。
 
 - 2026-11-03 状态筛选计数修复（已随 `.syh.14` 发布）：状态菜单展开时通过 `requestLogStatusCounts` 一次分组统计当前时间、项目、渠道、模型、来源、Key 等条件下的全部匹配请求，忽略本菜单已选状态与分页；空状态显示 `0`，加载和统计失败分别提示，不再使用已加载列表的局部数量。展开期间跟随页面自动刷新设置更新，关闭后停止自动统计，翻页与滚动不重复查询；重新获得焦点或网络恢复不额外触发统计。列表与统计共用日志筛选及权限策略，不新增数据库迁移。接口／权限／SQL 定向测试、前端参数测试、本地浏览器组件联调和十万条 SQLite 内存数据性能采样见[验证记录](../.agent/summary/request-status-counts-20261103.md)；生产规模磁盘与并发性能未验证。
 
-- 2026-11-02 分组用量日志修复（未发布）：主 GraphQL 补齐 `SelfUsageImageOutput` 的 `requestedWidth`、`requestedHeight`、`inspectionError` 及 `SelfUsageCostItem.unpricedReason`，与自助接口和共享前端查询保持一致，修复分组用量请求日志返回 422。`internal/server/gql/usage_cost_test.go` 的查询契约用例扩展为完整请求日志字段，覆盖图片规格、未定价原因和分页／筛选参数。不新增数据库迁移。
+- 2026-11-02 分组用量日志修复（已随 `.syh.18` 发布）：主 GraphQL 补齐 `SelfUsageImageOutput` 的 `requestedWidth`、`requestedHeight`、`inspectionError` 及 `SelfUsageCostItem.unpricedReason`，与自助接口和共享前端查询保持一致，修复分组用量请求日志返回 422。`internal/server/gql/usage_cost_test.go` 的查询契约用例扩展为完整请求日志字段，覆盖图片规格、未定价原因和分页／筛选参数。不新增数据库迁移。
 
 - 2026-11-02 列表回顶与行悬浮修复（未发布）：请求／渠道回顶保留已有首批，后台从最新游标刷新，避免清空数据后整表显示占位色块；超过八批缓存后的历史首批不会被误当作最新首批。程序回顶产生的滚动不再重复取消／触发刷新。所有共享表格行及单元格即时切换底色，保留原高亮颜色、键盘焦点与选中提示，避免跨行退色残留；提示浮层不变，无接口或数据库迁移变化。真实页面诊断、定向回归及本地组件验证见[回顶修复验收](../.agent/summary/list-return-top-20261102.md)；此前仅请求行动画修复见[首轮记录](../.agent/summary/request-row-hover-20261102.md)。
 
@@ -1059,7 +1059,11 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 第十八版准备（2026-11-05）：版本 `v1.0.0-beta10-fork.7.syh.18`，纳入文字／图片输入分项计费、Key／分组用量统一入口、分组日志 GraphQL 422 修复及渠道内置生图权限。`usage_logs` 自动新增四个可空分项字段，历史行不回填，无新增 data migration。两层上游不变，`publishBinaries=false`、`prerelease=false`；等待同提交分支 Test 后推送标签，再按云悠、泉哥顺序更新固定镜像摘要。各阶段本地定向测试与独立复审已完成，生产结果待更新；旧程序不理解新价格和工具权限，不直接承诺业务兼容回退。
+- 第十八版发布（2026-11-05）：版本 `v1.0.0-beta10-fork.7.syh.18`，源码 `99b0d23273a97db8a0f8badacd1fd9882a03d09b`。纳入文字／图片输入分项计费、Key／分组用量统一入口、分组日志 GraphQL 422 修复及渠道内置生图权限。两层上游不变，`publishBinaries=false`、`prerelease=false`。
+  同提交 [Test 41982063432](https://github.com/Syh1906/axon-hub/actions/runs/41982063432)、[Build 41982063266](https://github.com/Syh1906/axon-hub/actions/runs/41982063266)、[Lint 41982063301](https://github.com/Syh1906/axon-hub/actions/runs/41982063301) 全部成功。[发布任务 41982715472](https://github.com/Syh1906/axon-hub/actions/runs/41982715472) 复用 Test，双架构构建、合成和临时 PostgreSQL 启动检查通过；新加坡时间 14:52:44 正式发布并设为最新版本。唯一附件 [release.json](../output/implementation/release-syh18-20261105/release.json) 为 707 字节，SHA-256 `0fc164441005ffc16383b2d887f28dcf663d1dcdba7136e7f2d7cebf41c1ee7f` 与 GitHub 一致。
+  固定镜像 `ghcr.io/syh1906/axon-hub@sha256:81c40c9468cf59e49969da0bb1356e4845f10dd927d27c8ddcafedd81a1c2d11`。云悠 14:57:41、泉哥 15:00:28（新加坡时间）依次通过部署验收：内外网健康／版本／源码、首页 JS/CSS、初始化及匿名鉴权正确；数据库与其他应用容器未重建，应用资源／环境／挂载和代理摘要不变。重建及等待健康分别为 36.34 秒、29.333 秒，不等同逐请求中断时长。
+  两台 `usage_logs` 均自动新增四个可空 bigint 分项字段，无默认值；各抽查五条旧记录的金额、Token 与费用项不变，分项仍为 NULL。无新增 data migration。没有数据库备份；本轮七份配置／部署记录副本分别 13448、13467 字节，已校验归属和摘要后删除。最近旧版 `.syh.17` 镜像暂留。旧版不理解新价格及工具权限，不能保证业务兼容回退。
+  启动错误仅为本轮匿名验收触发的预期 401。OPTIONS 返回 200，但没有 Allow-Origin，跨域未确认；未进行收费推理、真实供应商账单或登录后的全量业务验收，MySQL 升级仍未测。
 
 - 第十七版发布（2026-11-04）：版本 `v1.0.0-beta10-fork.7.syh.17`，正式源码 `5b47dd71706a91c8fb492d94621daddf9c0cbdfb`。包含 Ultra 目录继承与最终限制核对、手动目录随关联生效、跨聊天工具输出身份和续聊类型保留、实际派发渠道会话标记及思考档位配色。相对 `.syh.16` 无 schema/data migration；工作区分组用量 GraphQL 修改未纳入。
   同提交 [Test 41784330449](https://github.com/Syh1906/axon-hub/actions/runs/41784330449)、[Build 41784330442](https://github.com/Syh1906/axon-hub/actions/runs/41784330442)、[Lint 41784330625](https://github.com/Syh1906/axon-hub/actions/runs/41784330625) 均通过。[发布任务 41784902432](https://github.com/Syh1906/axon-hub/actions/runs/41784902432) 复用该 Test，双架构镜像、合成及临时 PostgreSQL 启动检查通过；`publishBinaries=false`，二进制包步骤跳过。新加坡时间 `14:27:42` [正式发布](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.17)并设为最新版本。唯一附件 [release.json](../output/implementation/release-syh17-20261104/release.json) 为707字节，SHA-256 `c5ff99f4757271464c5c62efadb0c501443c23a4ef374159a2a17e7f66cd3850` 与GitHub一致，两层上游和源码均核对通过。
