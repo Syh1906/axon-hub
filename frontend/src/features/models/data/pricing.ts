@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js-light';
-import { modelPriceInputSchema, type ImagePricing, type ModelPrice, type ModelPriceItem, type Pricing } from '@/features/channels/data/schema';
+import { isModalityPriceItem, modelPriceInputSchema, type ImagePricing, type ModelPrice, type ModelPriceItem, type Pricing } from '@/features/channels/data/schema';
 import type { ProviderModel } from './providers.schema';
 
 const costFields = [
@@ -150,7 +150,16 @@ export function createPriceValidationSchema(t: (key: string) => string) {
       const validateItems = (items: ModelPriceItem[], path: Array<string | number>) => {
         if (!items.length) issue(path, 'price.validation.itemsRequired');
         const seen = new Set<string>();
+        for (const [aggregate, text, image] of [
+          ['prompt_tokens', 'prompt_text_tokens', 'prompt_image_tokens'],
+          ['prompt_cached_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens'],
+        ]) {
+          const has = (code: string) => items.some((item) => item.itemCode === code);
+          if (has(aggregate) && (has(text) || has(image))) issue(path, 'price.validation.modalityOverlap');
+          if (has(text) !== has(image)) issue(path, 'price.validation.modalityPair');
+        }
         items.forEach((item, i) => {
+          if (isModalityPriceItem(item.itemCode) && ['flat_fee', 'image_fixed'].includes(item.pricing.mode)) issue([...path, i, 'pricing', 'mode'], 'price.validation.modalityTokenMode');
           if (seen.has(item.itemCode)) issue([...path, i, 'itemCode'], 'price.duplicateItemCode');
           seen.add(item.itemCode);
           validatePricing(item.pricing, [...path, i, 'pricing']);

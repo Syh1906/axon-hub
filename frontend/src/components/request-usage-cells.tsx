@@ -174,6 +174,11 @@ export function CostCell({
         return t('requests.columns.readCache');
       case 'prompt_write_cached_tokens':
         return t('requests.columns.writeCache');
+      case 'prompt_text_tokens':
+      case 'prompt_image_tokens':
+      case 'prompt_text_cached_tokens':
+      case 'prompt_image_cached_tokens':
+        return t(`price.itemCodes.${code}`);
       default:
         return code;
     }
@@ -232,6 +237,9 @@ export function CostCell({
                     item.image.tierSource !== item.image.source &&
                     ` · ${t(`price.image.source.${item.image.tierSource}`)}`}
                 </div>
+              )}
+              {!item.image && item.unpricedReason && (
+                <p className='text-background/75'>{t(`price.image.reason.${item.unpricedReason}`)}</p>
               )}
               {item.unitPrice !== null && !item.pricingEvidence?.itemMethod && (
                 <div className='text-background/75'>

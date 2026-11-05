@@ -1454,6 +1454,10 @@ type CreateUsageLogInput struct {
 	PromptTokens                       *int64
 	CompletionTokens                   *int64
 	TotalTokens                        *int64
+	PromptTextTokens                   *int64
+	PromptImageTokens                  *int64
+	PromptTextCachedTokens             *int64
+	PromptImageCachedTokens            *int64
 	PromptAudioTokens                  *int64
 	PromptCachedTokens                 *int64
 	PromptWriteCachedTokens            *int64
@@ -1487,6 +1491,18 @@ func (i *CreateUsageLogInput) Mutate(m *UsageLogMutation) {
 	}
 	if v := i.TotalTokens; v != nil {
 		m.SetTotalTokens(*v)
+	}
+	if v := i.PromptTextTokens; v != nil {
+		m.SetPromptTextTokens(*v)
+	}
+	if v := i.PromptImageTokens; v != nil {
+		m.SetPromptImageTokens(*v)
+	}
+	if v := i.PromptTextCachedTokens; v != nil {
+		m.SetPromptTextCachedTokens(*v)
+	}
+	if v := i.PromptImageCachedTokens; v != nil {
+		m.SetPromptImageCachedTokens(*v)
 	}
 	if v := i.PromptAudioTokens; v != nil {
 		m.SetPromptAudioTokens(*v)
@@ -1548,6 +1564,14 @@ type UpdateUsageLogInput struct {
 	PromptTokens                            *int64
 	CompletionTokens                        *int64
 	TotalTokens                             *int64
+	ClearPromptTextTokens                   bool
+	PromptTextTokens                        *int64
+	ClearPromptImageTokens                  bool
+	PromptImageTokens                       *int64
+	ClearPromptTextCachedTokens             bool
+	PromptTextCachedTokens                  *int64
+	ClearPromptImageCachedTokens            bool
+	PromptImageCachedTokens                 *int64
 	ClearPromptAudioTokens                  bool
 	PromptAudioTokens                       *int64
 	ClearPromptCachedTokens                 bool
@@ -1585,6 +1609,30 @@ func (i *UpdateUsageLogInput) Mutate(m *UsageLogMutation) {
 	}
 	if v := i.TotalTokens; v != nil {
 		m.SetTotalTokens(*v)
+	}
+	if i.ClearPromptTextTokens {
+		m.ClearPromptTextTokens()
+	}
+	if v := i.PromptTextTokens; v != nil {
+		m.SetPromptTextTokens(*v)
+	}
+	if i.ClearPromptImageTokens {
+		m.ClearPromptImageTokens()
+	}
+	if v := i.PromptImageTokens; v != nil {
+		m.SetPromptImageTokens(*v)
+	}
+	if i.ClearPromptTextCachedTokens {
+		m.ClearPromptTextCachedTokens()
+	}
+	if v := i.PromptTextCachedTokens; v != nil {
+		m.SetPromptTextCachedTokens(*v)
+	}
+	if i.ClearPromptImageCachedTokens {
+		m.ClearPromptImageCachedTokens()
+	}
+	if v := i.PromptImageCachedTokens; v != nil {
+		m.SetPromptImageCachedTokens(*v)
 	}
 	if i.ClearPromptAudioTokens {
 		m.ClearPromptAudioTokens()

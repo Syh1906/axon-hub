@@ -25,9 +25,9 @@ export const modelModalitiesSchema = z.object({
 export type ModelModalities = z.infer<typeof modelModalitiesSchema>;
 
 export const modelCostSchema = z.object({
-  input: z.number(),
+  input: z.number().nullable(),
   output: z.number(),
-  cacheRead: z.number().optional(),
+  cacheRead: z.number().nullish(),
   cacheWrite: z.number().optional(),
 });
 export type ModelCost = z.infer<typeof modelCostSchema>;

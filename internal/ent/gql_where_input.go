@@ -10231,6 +10231,54 @@ type UsageLogWhereInput struct {
 	TotalTokensLT    *int64  `json:"totalTokensLT,omitempty"`
 	TotalTokensLTE   *int64  `json:"totalTokensLTE,omitempty"`
 
+	// "prompt_text_tokens" field predicates.
+	PromptTextTokens       *int64  `json:"promptTextTokens,omitempty"`
+	PromptTextTokensNEQ    *int64  `json:"promptTextTokensNEQ,omitempty"`
+	PromptTextTokensIn     []int64 `json:"promptTextTokensIn,omitempty"`
+	PromptTextTokensNotIn  []int64 `json:"promptTextTokensNotIn,omitempty"`
+	PromptTextTokensGT     *int64  `json:"promptTextTokensGT,omitempty"`
+	PromptTextTokensGTE    *int64  `json:"promptTextTokensGTE,omitempty"`
+	PromptTextTokensLT     *int64  `json:"promptTextTokensLT,omitempty"`
+	PromptTextTokensLTE    *int64  `json:"promptTextTokensLTE,omitempty"`
+	PromptTextTokensIsNil  bool    `json:"promptTextTokensIsNil,omitempty"`
+	PromptTextTokensNotNil bool    `json:"promptTextTokensNotNil,omitempty"`
+
+	// "prompt_image_tokens" field predicates.
+	PromptImageTokens       *int64  `json:"promptImageTokens,omitempty"`
+	PromptImageTokensNEQ    *int64  `json:"promptImageTokensNEQ,omitempty"`
+	PromptImageTokensIn     []int64 `json:"promptImageTokensIn,omitempty"`
+	PromptImageTokensNotIn  []int64 `json:"promptImageTokensNotIn,omitempty"`
+	PromptImageTokensGT     *int64  `json:"promptImageTokensGT,omitempty"`
+	PromptImageTokensGTE    *int64  `json:"promptImageTokensGTE,omitempty"`
+	PromptImageTokensLT     *int64  `json:"promptImageTokensLT,omitempty"`
+	PromptImageTokensLTE    *int64  `json:"promptImageTokensLTE,omitempty"`
+	PromptImageTokensIsNil  bool    `json:"promptImageTokensIsNil,omitempty"`
+	PromptImageTokensNotNil bool    `json:"promptImageTokensNotNil,omitempty"`
+
+	// "prompt_text_cached_tokens" field predicates.
+	PromptTextCachedTokens       *int64  `json:"promptTextCachedTokens,omitempty"`
+	PromptTextCachedTokensNEQ    *int64  `json:"promptTextCachedTokensNEQ,omitempty"`
+	PromptTextCachedTokensIn     []int64 `json:"promptTextCachedTokensIn,omitempty"`
+	PromptTextCachedTokensNotIn  []int64 `json:"promptTextCachedTokensNotIn,omitempty"`
+	PromptTextCachedTokensGT     *int64  `json:"promptTextCachedTokensGT,omitempty"`
+	PromptTextCachedTokensGTE    *int64  `json:"promptTextCachedTokensGTE,omitempty"`
+	PromptTextCachedTokensLT     *int64  `json:"promptTextCachedTokensLT,omitempty"`
+	PromptTextCachedTokensLTE    *int64  `json:"promptTextCachedTokensLTE,omitempty"`
+	PromptTextCachedTokensIsNil  bool    `json:"promptTextCachedTokensIsNil,omitempty"`
+	PromptTextCachedTokensNotNil bool    `json:"promptTextCachedTokensNotNil,omitempty"`
+
+	// "prompt_image_cached_tokens" field predicates.
+	PromptImageCachedTokens       *int64  `json:"promptImageCachedTokens,omitempty"`
+	PromptImageCachedTokensNEQ    *int64  `json:"promptImageCachedTokensNEQ,omitempty"`
+	PromptImageCachedTokensIn     []int64 `json:"promptImageCachedTokensIn,omitempty"`
+	PromptImageCachedTokensNotIn  []int64 `json:"promptImageCachedTokensNotIn,omitempty"`
+	PromptImageCachedTokensGT     *int64  `json:"promptImageCachedTokensGT,omitempty"`
+	PromptImageCachedTokensGTE    *int64  `json:"promptImageCachedTokensGTE,omitempty"`
+	PromptImageCachedTokensLT     *int64  `json:"promptImageCachedTokensLT,omitempty"`
+	PromptImageCachedTokensLTE    *int64  `json:"promptImageCachedTokensLTE,omitempty"`
+	PromptImageCachedTokensIsNil  bool    `json:"promptImageCachedTokensIsNil,omitempty"`
+	PromptImageCachedTokensNotNil bool    `json:"promptImageCachedTokensNotNil,omitempty"`
+
 	// "prompt_audio_tokens" field predicates.
 	PromptAudioTokens       *int64  `json:"promptAudioTokens,omitempty"`
 	PromptAudioTokensNEQ    *int64  `json:"promptAudioTokensNEQ,omitempty"`
@@ -10727,6 +10775,126 @@ func (i *UsageLogWhereInput) P() (predicate.UsageLog, error) {
 	}
 	if i.TotalTokensLTE != nil {
 		predicates = append(predicates, usagelog.TotalTokensLTE(*i.TotalTokensLTE))
+	}
+	if i.PromptTextTokens != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensEQ(*i.PromptTextTokens))
+	}
+	if i.PromptTextTokensNEQ != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensNEQ(*i.PromptTextTokensNEQ))
+	}
+	if len(i.PromptTextTokensIn) > 0 {
+		predicates = append(predicates, usagelog.PromptTextTokensIn(i.PromptTextTokensIn...))
+	}
+	if len(i.PromptTextTokensNotIn) > 0 {
+		predicates = append(predicates, usagelog.PromptTextTokensNotIn(i.PromptTextTokensNotIn...))
+	}
+	if i.PromptTextTokensGT != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensGT(*i.PromptTextTokensGT))
+	}
+	if i.PromptTextTokensGTE != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensGTE(*i.PromptTextTokensGTE))
+	}
+	if i.PromptTextTokensLT != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensLT(*i.PromptTextTokensLT))
+	}
+	if i.PromptTextTokensLTE != nil {
+		predicates = append(predicates, usagelog.PromptTextTokensLTE(*i.PromptTextTokensLTE))
+	}
+	if i.PromptTextTokensIsNil {
+		predicates = append(predicates, usagelog.PromptTextTokensIsNil())
+	}
+	if i.PromptTextTokensNotNil {
+		predicates = append(predicates, usagelog.PromptTextTokensNotNil())
+	}
+	if i.PromptImageTokens != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensEQ(*i.PromptImageTokens))
+	}
+	if i.PromptImageTokensNEQ != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensNEQ(*i.PromptImageTokensNEQ))
+	}
+	if len(i.PromptImageTokensIn) > 0 {
+		predicates = append(predicates, usagelog.PromptImageTokensIn(i.PromptImageTokensIn...))
+	}
+	if len(i.PromptImageTokensNotIn) > 0 {
+		predicates = append(predicates, usagelog.PromptImageTokensNotIn(i.PromptImageTokensNotIn...))
+	}
+	if i.PromptImageTokensGT != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensGT(*i.PromptImageTokensGT))
+	}
+	if i.PromptImageTokensGTE != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensGTE(*i.PromptImageTokensGTE))
+	}
+	if i.PromptImageTokensLT != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensLT(*i.PromptImageTokensLT))
+	}
+	if i.PromptImageTokensLTE != nil {
+		predicates = append(predicates, usagelog.PromptImageTokensLTE(*i.PromptImageTokensLTE))
+	}
+	if i.PromptImageTokensIsNil {
+		predicates = append(predicates, usagelog.PromptImageTokensIsNil())
+	}
+	if i.PromptImageTokensNotNil {
+		predicates = append(predicates, usagelog.PromptImageTokensNotNil())
+	}
+	if i.PromptTextCachedTokens != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensEQ(*i.PromptTextCachedTokens))
+	}
+	if i.PromptTextCachedTokensNEQ != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensNEQ(*i.PromptTextCachedTokensNEQ))
+	}
+	if len(i.PromptTextCachedTokensIn) > 0 {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensIn(i.PromptTextCachedTokensIn...))
+	}
+	if len(i.PromptTextCachedTokensNotIn) > 0 {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensNotIn(i.PromptTextCachedTokensNotIn...))
+	}
+	if i.PromptTextCachedTokensGT != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensGT(*i.PromptTextCachedTokensGT))
+	}
+	if i.PromptTextCachedTokensGTE != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensGTE(*i.PromptTextCachedTokensGTE))
+	}
+	if i.PromptTextCachedTokensLT != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensLT(*i.PromptTextCachedTokensLT))
+	}
+	if i.PromptTextCachedTokensLTE != nil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensLTE(*i.PromptTextCachedTokensLTE))
+	}
+	if i.PromptTextCachedTokensIsNil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensIsNil())
+	}
+	if i.PromptTextCachedTokensNotNil {
+		predicates = append(predicates, usagelog.PromptTextCachedTokensNotNil())
+	}
+	if i.PromptImageCachedTokens != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensEQ(*i.PromptImageCachedTokens))
+	}
+	if i.PromptImageCachedTokensNEQ != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensNEQ(*i.PromptImageCachedTokensNEQ))
+	}
+	if len(i.PromptImageCachedTokensIn) > 0 {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensIn(i.PromptImageCachedTokensIn...))
+	}
+	if len(i.PromptImageCachedTokensNotIn) > 0 {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensNotIn(i.PromptImageCachedTokensNotIn...))
+	}
+	if i.PromptImageCachedTokensGT != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensGT(*i.PromptImageCachedTokensGT))
+	}
+	if i.PromptImageCachedTokensGTE != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensGTE(*i.PromptImageCachedTokensGTE))
+	}
+	if i.PromptImageCachedTokensLT != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensLT(*i.PromptImageCachedTokensLT))
+	}
+	if i.PromptImageCachedTokensLTE != nil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensLTE(*i.PromptImageCachedTokensLTE))
+	}
+	if i.PromptImageCachedTokensIsNil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensIsNil())
+	}
+	if i.PromptImageCachedTokensNotNil {
+		predicates = append(predicates, usagelog.PromptImageCachedTokensNotNil())
 	}
 	if i.PromptAudioTokens != nil {
 		predicates = append(predicates, usagelog.PromptAudioTokensEQ(*i.PromptAudioTokens))

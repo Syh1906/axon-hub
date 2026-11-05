@@ -168,6 +168,21 @@ func (s *UsageLogService) saveUsageLog(ctx context.Context, params CreateUsageLo
 
 	// Set prompt tokens details if available
 	if params.Usage.PromptTokensDetails != nil {
+		details := params.Usage.PromptTokensDetails
+		if details.TextTokens != nil {
+			mut.SetPromptTextTokens(*details.TextTokens)
+		}
+		if details.ImageTokens != nil {
+			mut.SetPromptImageTokens(*details.ImageTokens)
+		}
+		if cached := details.CachedTokensDetails; cached != nil {
+			if cached.TextTokens != nil {
+				mut.SetPromptTextCachedTokens(*cached.TextTokens)
+			}
+			if cached.ImageTokens != nil {
+				mut.SetPromptImageCachedTokens(*cached.ImageTokens)
+			}
+		}
 		mut.SetPromptAudioTokens(params.Usage.PromptTokensDetails.AudioTokens)
 		mut.SetPromptCachedTokens(params.Usage.PromptTokensDetails.CachedTokens)
 		mut.SetPromptWriteCachedTokens(params.Usage.PromptTokensDetails.WriteCachedTokens)

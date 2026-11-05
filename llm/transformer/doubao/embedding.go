@@ -99,8 +99,8 @@ type multimodalEmbeddingUsage struct {
 }
 
 type multimodalEmbeddingPromptTokensDetails struct {
-	TextTokens  int64 `json:"text_tokens"`
-	ImageTokens int64 `json:"image_tokens"`
+	TextTokens  *int64 `json:"text_tokens,omitempty"`
+	ImageTokens *int64 `json:"image_tokens,omitempty"`
 }
 
 // transformEmbeddingResponse transforms Doubao multimodal embedding HTTP response to unified llm.Response.

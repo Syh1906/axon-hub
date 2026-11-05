@@ -16,6 +16,10 @@ export const tierItemKeys = [
   { itemCode: 'prompt_write_cached_tokens', variantCode: '' },
   { itemCode: 'prompt_write_cached_tokens', variantCode: 'five_min' },
   { itemCode: 'prompt_write_cached_tokens', variantCode: 'one_hour' },
+  { itemCode: 'prompt_text_tokens', variantCode: '' },
+  { itemCode: 'prompt_image_tokens', variantCode: '' },
+  { itemCode: 'prompt_text_cached_tokens', variantCode: '' },
+  { itemCode: 'prompt_image_cached_tokens', variantCode: '' },
 ] as const;
 
 export function officialTierPrice(row: OfficialTierPrice, mode: TierMode, application = 'ratio', scope = row.contexts[0]): TierPrice {

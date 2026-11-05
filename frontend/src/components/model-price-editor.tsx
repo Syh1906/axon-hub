@@ -9,10 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ImagePriceEditor } from '@/components/image-price-editor';
-import type { ImagePricing } from '@/features/channels/data/schema';
+import { priceItemCodes, canAddPriceItem, isModalityPriceItem, type ImagePricing } from '@/features/channels/data/schema';
 import { effectivePrice } from '@/features/models/data/pricing';
 
-const priceItemCodes = ['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens'] as const;
 const promptWriteCacheVariantCodes = ['five_min', 'one_hour'] as const;
 type PricingMode = 'flat_fee' | 'image_fixed' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
 
@@ -123,7 +122,7 @@ export const ModelPriceEditor = memo(function ChannelModelPriceEditor({
     name: asFieldArrayPath(`${itemsPath}`),
   });
   const items = usePriceEditorWatch<PriceItem[] | undefined>(control, itemsPath) ?? [];
-  const allItemsAdded = priceItemCodes.every((code) => items.some((item) => item.itemCode === code));
+  const allItemsAdded = !priceItemCodes.some((code) => canAddPriceItem(code, items));
   const { getValues, setValue } = useFormContext<PriceEditorFormValues>();
   const updateItems = (update: (items: PriceItem[]) => PriceItem[]) => {
     const items = (getValues(asFieldPath(itemsPath)) as PriceItem[] | undefined) ?? [];
@@ -133,7 +132,7 @@ export const ModelPriceEditor = memo(function ChannelModelPriceEditor({
     addItem ??
     (() =>
       updateItems((items) => {
-        const itemCode = priceItemCodes.find((code) => !items.some((item) => item.itemCode === code));
+        const itemCode = priceItemCodes.find((code) => canAddPriceItem(code, items));
         return itemCode ? [...items, { itemCode, pricing: { mode: 'usage_per_unit', usagePerUnit: '' } }] : items;
       }));
   const onRemoveItem = removeItem ?? ((_: number, index: number) => updateItems((items) => items.filter((_, i) => i !== index)));
@@ -268,8 +267,7 @@ const PriceItemRow = memo(function PriceItemRow({
   const availableItemCodes = priceItemCodes.filter((code) => {
     if (code === itemCode) return true;
     const currentItems = items || [];
-    const isUsedByOther = currentItems.some((item, i) => i !== itemIndex && item.itemCode === code);
-    return !isUsedByOther;
+    return canAddPriceItem(code, currentItems.filter((_, i) => i !== itemIndex));
   });
 
   const currencyPrefix = useMemo(() => {
@@ -320,8 +318,8 @@ const PriceItemRow = memo(function PriceItemRow({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>
-                    <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>
+                    {!isModalityPriceItem(itemCode) && <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>}
+                    {!isModalityPriceItem(itemCode) && <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>}
                     <SelectItem value='usage_per_unit'>{t('price.mode_usage_per_unit')}</SelectItem>
                     <SelectItem value='usage_tiered'>{t('price.mode_usage_tiered')}</SelectItem>
                     <SelectItem value='usage_volume'>{t('price.mode_usage_volume')}</SelectItem>

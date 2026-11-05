@@ -474,6 +474,7 @@ When using `?include=all` or selective fields, the response includes extended me
   - `cache_write` - Cache write price per 1M tokens
   - `unit` - Always "per_1m_tokens"
   - `currency` - Always "USD"
+  - `items` - Complete `itemCode` and `pricing` entries when text/image modality rates are configured. `input` or `cache_read` is `null` when no single aggregate rate applies; this does not mean free usage. See [modality pricing](../guides/cost-tracking.md#separate-text-and-image-input-pricing).
 - `icon` - URL to model icon image
 - `type` - Model category (chat, embedding, image, rerank, moderation, tts, stt)
 

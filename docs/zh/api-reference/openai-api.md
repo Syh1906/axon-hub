@@ -474,6 +474,7 @@ AxonHub 提供增强的 `/v1/models` 端点，可列出可用模型并选择性�
   - `cache_write` - 每 100 万令牌的缓存写入价格
   - `unit` - 始终为 "per_1m_tokens"
   - `currency` - 始终为 "USD"
+  - `items` - 使用文字／图片分项价时提供完整价格条目，包含 `itemCode` 和 `pricing`。无法表达单一输入价或缓存价时，`input`／`cache_read` 为 `null`，不是零价。详见[分项计费](../guides/cost-tracking.md#文字与图片输入分项计费)。
 - `icon` - 模型图标图像的 URL
 - `type` - 模型类别（chat, embedding, image, rerank, moderation, tts, stt）
 

@@ -42,6 +42,14 @@ type UsageLog struct {
 	CompletionTokens int64 `json:"completion_tokens,omitempty"`
 	// Total number of tokens used
 	TotalTokens int64 `json:"total_tokens,omitempty"`
+	// PromptTextTokens holds the value of the "prompt_text_tokens" field.
+	PromptTextTokens *int64 `json:"prompt_text_tokens,omitempty"`
+	// PromptImageTokens holds the value of the "prompt_image_tokens" field.
+	PromptImageTokens *int64 `json:"prompt_image_tokens,omitempty"`
+	// PromptTextCachedTokens holds the value of the "prompt_text_cached_tokens" field.
+	PromptTextCachedTokens *int64 `json:"prompt_text_cached_tokens,omitempty"`
+	// PromptImageCachedTokens holds the value of the "prompt_image_cached_tokens" field.
+	PromptImageCachedTokens *int64 `json:"prompt_image_cached_tokens,omitempty"`
 	// Number of audio tokens in the prompt
 	PromptAudioTokens int64 `json:"prompt_audio_tokens,omitempty"`
 	// Number of cached tokens in the prompt
@@ -135,7 +143,7 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case usagelog.FieldTotalCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens:
+		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens:
 			values[i] = new(sql.NullInt64)
 		case usagelog.FieldModelID, usagelog.FieldSource, usagelog.FieldFormat, usagelog.FieldCostPriceReferenceID:
 			values[i] = new(sql.NullString)
@@ -221,6 +229,34 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field total_tokens", values[i])
 			} else if value.Valid {
 				_m.TotalTokens = value.Int64
+			}
+		case usagelog.FieldPromptTextTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field prompt_text_tokens", values[i])
+			} else if value.Valid {
+				_m.PromptTextTokens = new(int64)
+				*_m.PromptTextTokens = value.Int64
+			}
+		case usagelog.FieldPromptImageTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field prompt_image_tokens", values[i])
+			} else if value.Valid {
+				_m.PromptImageTokens = new(int64)
+				*_m.PromptImageTokens = value.Int64
+			}
+		case usagelog.FieldPromptTextCachedTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field prompt_text_cached_tokens", values[i])
+			} else if value.Valid {
+				_m.PromptTextCachedTokens = new(int64)
+				*_m.PromptTextCachedTokens = value.Int64
+			}
+		case usagelog.FieldPromptImageCachedTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field prompt_image_cached_tokens", values[i])
+			} else if value.Valid {
+				_m.PromptImageCachedTokens = new(int64)
+				*_m.PromptImageCachedTokens = value.Int64
 			}
 		case usagelog.FieldPromptAudioTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -397,6 +433,26 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("total_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalTokens))
+	builder.WriteString(", ")
+	if v := _m.PromptTextTokens; v != nil {
+		builder.WriteString("prompt_text_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PromptImageTokens; v != nil {
+		builder.WriteString("prompt_image_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PromptTextCachedTokens; v != nil {
+		builder.WriteString("prompt_text_cached_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PromptImageCachedTokens; v != nil {
+		builder.WriteString("prompt_image_cached_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("prompt_audio_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PromptAudioTokens))

@@ -24,9 +24,9 @@ type ModelCardModalities {
 }
 
 type ModelCardCost {
-  input: Float!
+  input: Float
   output: Float!
-  cacheRead: Float!
+  cacheRead: Float
   cacheWrite: Float!
 }
 

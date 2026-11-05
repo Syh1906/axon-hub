@@ -1,4 +1,8 @@
 {
+  "serviceTier.items.prompt_text_tokens": "文字输入 Token（未缓存）",
+  "serviceTier.items.prompt_image_tokens": "图片输入 Token（未缓存）",
+  "serviceTier.items.prompt_text_cached_tokens": "文字缓存输入 Token",
+  "serviceTier.items.prompt_image_cached_tokens": "图片缓存输入 Token",
   "serviceTier.prices.title": "加速模式计费",
   "serviceTier.prices.baseHint": "基础价格应为标准模式价格；模式倍率仅作用于 Token 计费项。",
   "serviceTier.prices.officialModel": "官方参考模型",

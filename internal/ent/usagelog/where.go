@@ -105,6 +105,26 @@ func TotalTokens(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldTotalTokens, v))
 }
 
+// PromptTextTokens applies equality check predicate on the "prompt_text_tokens" field. It's identical to PromptTextTokensEQ.
+func PromptTextTokens(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptTextTokens, v))
+}
+
+// PromptImageTokens applies equality check predicate on the "prompt_image_tokens" field. It's identical to PromptImageTokensEQ.
+func PromptImageTokens(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptImageTokens, v))
+}
+
+// PromptTextCachedTokens applies equality check predicate on the "prompt_text_cached_tokens" field. It's identical to PromptTextCachedTokensEQ.
+func PromptTextCachedTokens(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptTextCachedTokens, v))
+}
+
+// PromptImageCachedTokens applies equality check predicate on the "prompt_image_cached_tokens" field. It's identical to PromptImageCachedTokensEQ.
+func PromptImageCachedTokens(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptImageCachedTokens, v))
+}
+
 // PromptAudioTokens applies equality check predicate on the "prompt_audio_tokens" field. It's identical to PromptAudioTokensEQ.
 func PromptAudioTokens(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldPromptAudioTokens, v))
@@ -548,6 +568,206 @@ func TotalTokensLT(v int64) predicate.UsageLog {
 // TotalTokensLTE applies the LTE predicate on the "total_tokens" field.
 func TotalTokensLTE(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldTotalTokens, v))
+}
+
+// PromptTextTokensEQ applies the EQ predicate on the "prompt_text_tokens" field.
+func PromptTextTokensEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensNEQ applies the NEQ predicate on the "prompt_text_tokens" field.
+func PromptTextTokensNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensIn applies the In predicate on the "prompt_text_tokens" field.
+func PromptTextTokensIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldPromptTextTokens, vs...))
+}
+
+// PromptTextTokensNotIn applies the NotIn predicate on the "prompt_text_tokens" field.
+func PromptTextTokensNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldPromptTextTokens, vs...))
+}
+
+// PromptTextTokensGT applies the GT predicate on the "prompt_text_tokens" field.
+func PromptTextTokensGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensGTE applies the GTE predicate on the "prompt_text_tokens" field.
+func PromptTextTokensGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensLT applies the LT predicate on the "prompt_text_tokens" field.
+func PromptTextTokensLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensLTE applies the LTE predicate on the "prompt_text_tokens" field.
+func PromptTextTokensLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldPromptTextTokens, v))
+}
+
+// PromptTextTokensIsNil applies the IsNil predicate on the "prompt_text_tokens" field.
+func PromptTextTokensIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldPromptTextTokens))
+}
+
+// PromptTextTokensNotNil applies the NotNil predicate on the "prompt_text_tokens" field.
+func PromptTextTokensNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldPromptTextTokens))
+}
+
+// PromptImageTokensEQ applies the EQ predicate on the "prompt_image_tokens" field.
+func PromptImageTokensEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensNEQ applies the NEQ predicate on the "prompt_image_tokens" field.
+func PromptImageTokensNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensIn applies the In predicate on the "prompt_image_tokens" field.
+func PromptImageTokensIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldPromptImageTokens, vs...))
+}
+
+// PromptImageTokensNotIn applies the NotIn predicate on the "prompt_image_tokens" field.
+func PromptImageTokensNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldPromptImageTokens, vs...))
+}
+
+// PromptImageTokensGT applies the GT predicate on the "prompt_image_tokens" field.
+func PromptImageTokensGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensGTE applies the GTE predicate on the "prompt_image_tokens" field.
+func PromptImageTokensGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensLT applies the LT predicate on the "prompt_image_tokens" field.
+func PromptImageTokensLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensLTE applies the LTE predicate on the "prompt_image_tokens" field.
+func PromptImageTokensLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldPromptImageTokens, v))
+}
+
+// PromptImageTokensIsNil applies the IsNil predicate on the "prompt_image_tokens" field.
+func PromptImageTokensIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldPromptImageTokens))
+}
+
+// PromptImageTokensNotNil applies the NotNil predicate on the "prompt_image_tokens" field.
+func PromptImageTokensNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldPromptImageTokens))
+}
+
+// PromptTextCachedTokensEQ applies the EQ predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensNEQ applies the NEQ predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensIn applies the In predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldPromptTextCachedTokens, vs...))
+}
+
+// PromptTextCachedTokensNotIn applies the NotIn predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldPromptTextCachedTokens, vs...))
+}
+
+// PromptTextCachedTokensGT applies the GT predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensGTE applies the GTE predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensLT applies the LT predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensLTE applies the LTE predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldPromptTextCachedTokens, v))
+}
+
+// PromptTextCachedTokensIsNil applies the IsNil predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldPromptTextCachedTokens))
+}
+
+// PromptTextCachedTokensNotNil applies the NotNil predicate on the "prompt_text_cached_tokens" field.
+func PromptTextCachedTokensNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldPromptTextCachedTokens))
+}
+
+// PromptImageCachedTokensEQ applies the EQ predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensNEQ applies the NEQ predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensIn applies the In predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldPromptImageCachedTokens, vs...))
+}
+
+// PromptImageCachedTokensNotIn applies the NotIn predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldPromptImageCachedTokens, vs...))
+}
+
+// PromptImageCachedTokensGT applies the GT predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensGTE applies the GTE predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensLT applies the LT predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensLTE applies the LTE predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldPromptImageCachedTokens, v))
+}
+
+// PromptImageCachedTokensIsNil applies the IsNil predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldPromptImageCachedTokens))
+}
+
+// PromptImageCachedTokensNotNil applies the NotNil predicate on the "prompt_image_cached_tokens" field.
+func PromptImageCachedTokensNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldPromptImageCachedTokens))
 }
 
 // PromptAudioTokensEQ applies the EQ predicate on the "prompt_audio_tokens" field.

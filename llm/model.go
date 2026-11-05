@@ -889,10 +889,18 @@ type PromptTokensDetails struct {
 	WriteCached1HourTokens int64 `json:"write_cached_1hour_tokens,omitempty"`
 
 	// ImageTokens is the number of image tokens in the input (for image generation).
-	ImageTokens int64 `json:"image_tokens,omitempty"`
+	ImageTokens *int64 `json:"image_tokens,omitempty"`
 
 	// TextTokens is the number of text tokens in the input (for image generation).
-	TextTokens int64 `json:"text_tokens,omitempty"`
+	TextTokens *int64 `json:"text_tokens,omitempty"`
+
+	// Nil details mean the provider did not report the cached modality breakdown.
+	CachedTokensDetails *CachedTokensDetails `json:"cached_tokens_details,omitempty"`
+}
+
+type CachedTokensDetails struct {
+	TextTokens  *int64 `json:"text_tokens,omitempty"`
+	ImageTokens *int64 `json:"image_tokens,omitempty"`
 }
 
 // ResponseError represents an error response.

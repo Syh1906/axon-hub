@@ -837,6 +837,10 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagelog.FieldPromptTokens:                       {Type: field.TypeInt64, Column: usagelog.FieldPromptTokens},
 			usagelog.FieldCompletionTokens:                   {Type: field.TypeInt64, Column: usagelog.FieldCompletionTokens},
 			usagelog.FieldTotalTokens:                        {Type: field.TypeInt64, Column: usagelog.FieldTotalTokens},
+			usagelog.FieldPromptTextTokens:                   {Type: field.TypeInt64, Column: usagelog.FieldPromptTextTokens},
+			usagelog.FieldPromptImageTokens:                  {Type: field.TypeInt64, Column: usagelog.FieldPromptImageTokens},
+			usagelog.FieldPromptTextCachedTokens:             {Type: field.TypeInt64, Column: usagelog.FieldPromptTextCachedTokens},
+			usagelog.FieldPromptImageCachedTokens:            {Type: field.TypeInt64, Column: usagelog.FieldPromptImageCachedTokens},
 			usagelog.FieldPromptAudioTokens:                  {Type: field.TypeInt64, Column: usagelog.FieldPromptAudioTokens},
 			usagelog.FieldPromptCachedTokens:                 {Type: field.TypeInt64, Column: usagelog.FieldPromptCachedTokens},
 			usagelog.FieldPromptWriteCachedTokens:            {Type: field.TypeInt64, Column: usagelog.FieldPromptWriteCachedTokens},
@@ -5644,6 +5648,26 @@ func (f *UsageLogFilter) WhereCompletionTokens(p entql.Int64P) {
 // WhereTotalTokens applies the entql int64 predicate on the total_tokens field.
 func (f *UsageLogFilter) WhereTotalTokens(p entql.Int64P) {
 	f.Where(p.Field(usagelog.FieldTotalTokens))
+}
+
+// WherePromptTextTokens applies the entql int64 predicate on the prompt_text_tokens field.
+func (f *UsageLogFilter) WherePromptTextTokens(p entql.Int64P) {
+	f.Where(p.Field(usagelog.FieldPromptTextTokens))
+}
+
+// WherePromptImageTokens applies the entql int64 predicate on the prompt_image_tokens field.
+func (f *UsageLogFilter) WherePromptImageTokens(p entql.Int64P) {
+	f.Where(p.Field(usagelog.FieldPromptImageTokens))
+}
+
+// WherePromptTextCachedTokens applies the entql int64 predicate on the prompt_text_cached_tokens field.
+func (f *UsageLogFilter) WherePromptTextCachedTokens(p entql.Int64P) {
+	f.Where(p.Field(usagelog.FieldPromptTextCachedTokens))
+}
+
+// WherePromptImageCachedTokens applies the entql int64 predicate on the prompt_image_cached_tokens field.
+func (f *UsageLogFilter) WherePromptImageCachedTokens(p entql.Int64P) {
+	f.Where(p.Field(usagelog.FieldPromptImageCachedTokens))
 }
 
 // WherePromptAudioTokens applies the entql int64 predicate on the prompt_audio_tokens field.

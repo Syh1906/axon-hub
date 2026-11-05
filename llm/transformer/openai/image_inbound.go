@@ -151,9 +151,10 @@ func (t *ImageInboundTransformer) TransformResponse(ctx context.Context, llmResp
 		}
 		if llmResp.Usage.PromptTokensDetails != nil {
 			oaiResp.Usage.InputTokensDetails = &ImagesResponseUsageInputTokensDetails{
-				ImageTokens:  llmResp.Usage.PromptTokensDetails.ImageTokens,
-				TextTokens:   llmResp.Usage.PromptTokensDetails.TextTokens,
-				CachedTokens: llmResp.Usage.PromptTokensDetails.CachedTokens,
+				ImageTokens:         llmResp.Usage.PromptTokensDetails.ImageTokens,
+				TextTokens:          llmResp.Usage.PromptTokensDetails.TextTokens,
+				CachedTokens:        llmResp.Usage.PromptTokensDetails.CachedTokens,
+				CachedTokensDetails: llmResp.Usage.PromptTokensDetails.CachedTokensDetails,
 			}
 		}
 

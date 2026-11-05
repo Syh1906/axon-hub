@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiKeyLabel } from '@/components/api-key-identity';
 import { CostCell } from '@/components/request-usage-cells';
+import { inputCostSubtotal } from '@/components/request-usage-cost-breakdown';
 import { SystemTime } from '@/components/system-time';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { type Request, useRequest, useRequestExecutions } from '../data';
@@ -542,9 +543,9 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const writeCacheRate = hasWriteCache ? ((writeCachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const cost = usage.totalCost ?? 0;
 
-          const promptCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'prompt_tokens')?.subtotal;
+          const promptCost = inputCostSubtotal(usage.costItems);
           const completionCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'completion_tokens')?.subtotal;
-          const cacheReadCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_cached_tokens')?.subtotal;
+          const cacheReadCost = inputCostSubtotal(usage.costItems, true);
           const cacheWriteCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_write_cached_tokens')?.subtotal;
 
           const formatCurrency = (val: number) =>

@@ -53,6 +53,18 @@ Available budget subtracts both settled costs and temporary request reservations
 
 Older records without ownership metadata are not reclaimed indiscriminately during upgrades. A historical hold still marked as processing requires evidence that its original execution ended before targeted recovery. Age-based startup cleanup leaves held requests to budget recovery. Backup restore preserves ownership, revocation, and reservation-release evidence so a released unknown cost does not become a new hold.
 
+### Separate text and image input pricing
+
+Use **Text input tokens (uncached)** and **Image input tokens (uncached)** in the existing price editor. Add **Cached text input tokens** and **Cached image input tokens** when separate cache rates are needed. Configure both modalities in each group, entering an explicit `0` for a free modality. Aggregate and modality prices cannot coexist in the same group. Modality items require token-based pricing. Channel prices, model standard prices, volume tiers and time overrides share these rules.
+
+Usage `text_tokens` and `image_tokens` include their respective cached inputs. Each modality subtracts its own cached count and bills uncached and cached tokens once at their corresponding rates. The OpenAI Images-compatible adapter preserves these counts and optional `cached_tokens_details`; accepting that optional field is not a claim that official Image 2.6 responses provide it. Missing required details, unconfigured rates for used input/cache buckets, aggregate-only cache counts, or inconsistent totals leave the total unpriced with a reason. Unknown counts are not zero, and cache totals are not proportionally allocated. When cache hits are not reported, calculation can only use reported usage and cannot confirm undisclosed provider discounts.
+
+Example rates in USD per million tokens: text input `5`, image input `8`, cached text `1.25`, cached image `2`, image output `30`. A request with 1,000 text input tokens, 2,000 image input tokens, 1,000 image output tokens and no cache costs `0.005 + 0.016 + 0.03 = 0.051` USD. This is synthetic local test data, not a captured invocation. Verify provider rates and usage semantics before production configuration.
+
+Nullable columns retain modality counts. Missing historical counts remain unknown; upgrades do not infer them or rewrite bills. When only estimated total input is known before dispatch, budget reservation uses the largest candidate input estimate across text, image and cache rates (for per-item tiers, the highest reachable unit rate avoids underestimating decreasing tiers before quantities are split), plus output, rather than reserving the same input repeatedly. Final settlement uses response details. Reservations are not upper bounds on actual provider usage.
+
+When legacy model-price summaries cannot express distinct modality rates, `input` or `cache_read` is `null`; complete rates are available in `pricing.items`. Admin GraphQL uses `modelCard.price`. This implementation covers direct Images API usage, not reconstruction of undisclosed Responses image-tool cache discounts. No live Image 2.6 invocation has been verified.
+
 ### Image specification fees
 
 Select **Image specification fee** in the existing price row in a channel's model prices or a model's pricing editor. Automatic identification is on by default: enter per-image prices for 1K, 2K and 4K. Zero is valid; empty prices cannot be saved. Time overrides share the editor. Channel rules apply only to that channel and model. Importing a standard price copies its complete rules for independent editing.

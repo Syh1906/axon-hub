@@ -626,7 +626,24 @@ export type TestChannelAPIKeysPayload = z.infer<typeof testChannelAPIKeysPayload
 export const pricingModeSchema = z.enum(['flat_fee', 'image_fixed', 'usage_per_unit', 'usage_tiered', 'usage_volume']);
 export type PricingMode = z.infer<typeof pricingModeSchema>;
 
-export const priceItemCodeSchema = z.enum(['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens']);
+export const priceItemCodes = ['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens', 'prompt_text_tokens', 'prompt_image_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens'] as const;
+export const priceItemCodeSchema = z.enum(priceItemCodes);
+
+export function isModalityPriceItem(code: string | undefined): boolean {
+  return ['prompt_text_tokens', 'prompt_image_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens'].includes(code ?? '');
+}
+
+export function canAddPriceItem(code: string, items: readonly { itemCode: string }[]): boolean {
+  if (items.some((item) => item.itemCode === code)) return false;
+  for (const [aggregate, text, image] of [
+    ['prompt_tokens', 'prompt_text_tokens', 'prompt_image_tokens'],
+    ['prompt_cached_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens'],
+  ]) {
+    if (code === aggregate && items.some((item) => item.itemCode === text || item.itemCode === image)) return false;
+    if ((code === text || code === image) && items.some((item) => item.itemCode === aggregate)) return false;
+  }
+  return true;
+}
 export type PriceItemCode = z.infer<typeof priceItemCodeSchema>;
 
 export const priceTierSchema = z.object({

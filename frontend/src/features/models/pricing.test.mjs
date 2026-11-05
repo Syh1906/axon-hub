@@ -242,3 +242,41 @@ test('item pricing keeps zero, independent overrides, explicit unpriced and offi
   assert.equal(tierRules.officialTierPrice(row, 'fast', 'unit_price').items[0].value, '5');
   assert.equal(priceSchema.safeParse({ items: [item('prompt_tokens', '0')], serviceTiers: { fast: { source: 'custom', items: [{itemCode:'prompt_tokens',method:'unit_price',value:'5'}] } } }).success, true);
 });
+
+
+test('modality prices preserve all rates across edit serialization and reject overlapping totals', async () => {
+  const { canAddPriceItem } = await import(schemaURL);
+  const items = [item('prompt_text_tokens', '5'), item('prompt_image_tokens', '8'), item('prompt_text_cached_tokens', '1.25'), item('prompt_image_cached_tokens', '2'), item('completion_tokens', '30')];
+  const price = priceSchema.parse({ items });
+  assert.deepEqual(priceSchema.parse(JSON.parse(JSON.stringify(price))), price);
+  assert.equal(canAddPriceItem('prompt_tokens', items), false);
+  assert.equal(canAddPriceItem('prompt_image_tokens', [items[0]]), true);
+  assert.equal(canAddPriceItem('prompt_text_tokens', [item('prompt_tokens', '5')]), false);
+  for (const conflict of ['prompt_tokens', 'prompt_cached_tokens']) {
+    assert.equal(priceSchema.safeParse({ items: [...items, item(conflict, '1')] }).success, false);
+  }
+  assert.equal(priceSchema.safeParse({ items: [items[0], items[4]] }).success, false);
+  assert.equal(priceSchema.safeParse({ items: [items[2], items[4]] }).success, false);
+  const tiered = { items, volumeTiers: [{ above: 1000, items }], schedule: { timezone: 'UTC', overrides: [{ name: 'night', priority: 1, when: { weekdays: [1] }, items }] } };
+  assert.equal(priceSchema.safeParse(tiered).success, true);
+  const conflict = [...items, item('prompt_tokens', '5')];
+  assert.equal(priceSchema.safeParse({ ...tiered, schedule: { timezone: 'UTC', overrides: [{ name: 'night', priority: 1, when: { weekdays: [1] }, items: conflict }] } }).success, false);
+  assert.equal(priceSchema.safeParse({ items: items.map((entry, i) => i ? entry : { ...entry, pricing: { mode: 'flat_fee', flatFee: '1' } }) }).success, false);
+  const scaled = multiplyPriceItems(items, '2');
+  assert.deepEqual(scaled.map((entry) => entry.pricing.usagePerUnit), ['10', '16', '2.5', '4', '60']);
+});
+
+
+test('modality mode rules support editable per-item rates and preserve unknown official quotes', () => {
+  const codes = ['prompt_text_tokens', 'prompt_image_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens'];
+  const items = codes.map((code) => item(code, '5'));
+  assert.deepEqual(tierRules.tierItemKeys.filter((key) => items.some((entry) => entry.itemCode === key.itemCode)).map((key) => key.itemCode), codes);
+  const rate = { source: 'custom', items: codes.map((itemCode, i) => ({ itemCode, method: 'unit_price', value: String(i + 1) })) };
+  const saved = priceSchema.parse({ items, serviceTiers: { fast: rate } });
+  for (const [i, code] of codes.entries()) {
+    assert.equal(tierRules.tierUnitPrice(items[i].pricing, tierRules.resolveTierItem(saved.serviceTiers.fast, null, code)), String(i + 1));
+  }
+  const row = { model: 'test', version: 'test', sourceURL: '', verifiedAt: '', currency: 'USD', unit: 'million_tokens', contexts: [{ above: null, upTo: null, standard: [], fast: [{ itemCode:'completion_tokens',variantCode:'',unitPrice:'1' }], ultrafast: [] }] };
+  const official = tierRules.officialTierPrice(row, 'fast');
+  for (const code of codes) assert.equal(tierRules.resolveTierItem(official, null, code).method, 'unpriced');
+});

@@ -54,6 +54,11 @@ func (UsageLog) Fields() []ent.Field {
 		field.Int64("total_tokens").Default(0).Comment("Total number of tokens used"),
 
 		// Prompt tokens details from llm.PromptTokensDetails
+		// Nullable counts distinguish historical/missing details from reported zero.
+		field.Int64("prompt_text_tokens").Optional().Nillable(),
+		field.Int64("prompt_image_tokens").Optional().Nillable(),
+		field.Int64("prompt_text_cached_tokens").Optional().Nillable(),
+		field.Int64("prompt_image_cached_tokens").Optional().Nillable(),
 		field.Int64("prompt_audio_tokens").Default(0).Optional().Comment("Number of audio tokens in the prompt"),
 		field.Int64("prompt_cached_tokens").Default(0).Optional().Comment("Number of cached tokens in the prompt"),
 		field.Int64("prompt_write_cached_tokens").Default(0).Optional().Comment("Number of total write cache tokens, if 5m or 1h ttl variant is present, the field is the sum of 5m and 1h"),

@@ -115,8 +115,7 @@ func usageStandardCost(row *ent.UsageLog, versions map[string]objects.ModelPrice
 		}
 	}
 	usage := &llm.Usage{PromptTokens: row.PromptTokens, CompletionTokens: row.CompletionTokens, TotalTokens: row.TotalTokens,
-		PromptTokensDetails: &llm.PromptTokensDetails{CachedTokens: row.PromptCachedTokens, WriteCachedTokens: row.PromptWriteCachedTokens,
-			WriteCached5MinTokens: row.PromptWriteCachedTokens5m, WriteCached1HourTokens: row.PromptWriteCachedTokens1h}}
+		PromptTokensDetails: promptTokenDetailsFromLog(row)}
 	var items []objects.CostItem
 	var total decimal.Decimal
 	if row.CostSnapshot != nil {

@@ -191,6 +191,9 @@ func (p *ModelPrice) Validate() error {
 	if p == nil {
 		return fmt.Errorf("modelPrice is nil")
 	}
+	if err := ValidateTokenPriceItems(p.Items); err != nil {
+		return err
+	}
 
 	if err := p.ServiceTiers.Validate(); err != nil {
 		return err
@@ -274,6 +277,9 @@ func (p *ModelPrice) validateVolumeTiers() error {
 }
 
 func validateVolumePriceItems(items []ModelPriceItem) error {
+	if err := ValidateTokenPriceItems(items); err != nil {
+		return err
+	}
 	if len(items) == 0 {
 		return fmt.Errorf("items is required for volume pricing")
 	}
@@ -377,6 +383,11 @@ const (
 	// PriceItemCodeWriteCachedTokens is the price item code for the cached token write.
 	//nolint:gosec // not token.
 	PriceItemCodeWriteCachedTokens PriceItemCode = "prompt_write_cached_tokens"
+
+	PriceItemCodePromptText        PriceItemCode = "prompt_text_tokens"
+	PriceItemCodePromptImage       PriceItemCode = "prompt_image_tokens"
+	PriceItemCodePromptTextCached  PriceItemCode = "prompt_text_cached_tokens"
+	PriceItemCodePromptImageCached PriceItemCode = "prompt_image_cached_tokens"
 )
 
 type PromptWriteCacheVariantCode string
@@ -663,6 +674,9 @@ func (o *PriceOverride) Equals(other *PriceOverride) bool {
 func (o *PriceOverride) Validate() error {
 	if o == nil {
 		return nil
+	}
+	if err := ValidateTokenPriceItems(o.Items); err != nil {
+		return err
 	}
 
 	if err := o.ServiceTiers.Validate(); err != nil {

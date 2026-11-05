@@ -47,8 +47,8 @@ type ImageGenerationUsage struct {
 }
 
 type ImagePromptTokensDetails struct {
-	ImageTokens  int64 `json:"image_tokens,omitempty"`
-	CachedTokens int64 `json:"cached_tokens,omitempty"`
+	ImageTokens  *int64 `json:"image_tokens,omitempty"`
+	CachedTokens int64  `json:"cached_tokens,omitempty"`
 }
 
 type ImageCompletionTokensDetails struct {

@@ -204,6 +204,13 @@ func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPrice
 		var quantity int64
 
 		switch it.ItemCode {
+		case objects.PriceItemCodePromptText, objects.PriceItemCodePromptImage, objects.PriceItemCodePromptTextCached, objects.PriceItemCodePromptImageCached:
+			var reason string
+			quantity, reason = modalityTokenQuantity(usage, it.ItemCode)
+			if reason != "" {
+				items = append(items, objects.CostItem{ItemCode: it.ItemCode, Unpriced: true, UnpricedReason: reason})
+				continue
+			}
 		case objects.PriceItemCodeUsage:
 			// Exclude cached tokens from input token cost calculation
 			// PromptTokens includes all tokens, so we subtract:
@@ -265,6 +272,32 @@ func computeUsageCostWithItems(usage *llm.Usage, priceItems []objects.ModelPrice
 		item.ItemCode = it.ItemCode
 		items = append(items, item)
 		total = total.Add(sub)
+	}
+
+	if usage != nil && slices.ContainsFunc(priceItems, func(item objects.ModelPriceItem) bool { return item.ItemCode.IsModalityToken() }) {
+		// Only require an omitted input/cache rate when its bucket is used (or
+		// unknown). An explicit zero rate remains different from a missing rate.
+		for _, group := range [][3]objects.PriceItemCode{
+			{objects.PriceItemCodeUsage, objects.PriceItemCodePromptText, objects.PriceItemCodePromptImage},
+			{objects.PriceItemCodePromptCachedToken, objects.PriceItemCodePromptTextCached, objects.PriceItemCodePromptImageCached},
+		} {
+			if slices.ContainsFunc(priceItems, func(item objects.ModelPriceItem) bool { return item.ItemCode == group[0] }) {
+				continue
+			}
+			for _, code := range group[1:] {
+				if slices.ContainsFunc(priceItems, func(item objects.ModelPriceItem) bool { return item.ItemCode == code }) {
+					continue
+				}
+				quantity, reason := modalityTokenQuantity(usage, code)
+				if quantity == 0 && reason == "" {
+					continue
+				}
+				if reason == "" {
+					reason = "input_modality_price_missing"
+				}
+				items = append(items, objects.CostItem{ItemCode: code, Quantity: quantity, Unpriced: true, UnpricedReason: reason})
+			}
+		}
 	}
 
 	return items, total

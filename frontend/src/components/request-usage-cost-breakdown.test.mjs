@@ -1,9 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildCostBreakdown } from './request-usage-cost-breakdown.ts';
+import { buildCostBreakdown, inputCostSubtotal } from './request-usage-cost-breakdown.ts';
 
 const item = (itemCode, quantity, subtotal, variant = null, tiers = []) => ({ itemCode, variant, quantity, subtotal, tiers });
 const breakdown = (items, multiplier = 1) => ({ items, multiplier });
+
+test('input overview sums modality costs and keeps missing prices unknown', () => {
+  const items = [item('prompt_text_tokens', 600, 0.003), item('prompt_image_tokens', 1200, 0.0096),
+    item('prompt_text_cached_tokens', 400, 0.0005), item('prompt_image_cached_tokens', 800, 0.0016)];
+  assert.ok(Math.abs(inputCostSubtotal(items) - 0.0126) < 1e-12);
+  assert.ok(Math.abs(inputCostSubtotal(items, true) - 0.0021) < 1e-12);
+  assert.equal(inputCostSubtotal([item('prompt_tokens', 1000, 0.005)]), 0.005);
+  assert.equal(inputCostSubtotal([item('prompt_cached_tokens', 1000, 0.001)], true), 0.001);
+  assert.equal(inputCostSubtotal([{ ...items[0], unpriced: true }, items[1]]), null);
+  assert.equal(inputCostSubtotal([{ ...items[0], image: { width: 1024 } }]), null);
+  assert.equal(inputCostSubtotal([]), null);
+});
 
 test('image unit fees stay per image and unknown images stay unpriced', () => {
   const image = { width: 2048, height: 2048, tier: '2K', source: 'file' };
@@ -112,4 +124,16 @@ test('itemized evidence uses frozen mode subtotals and never labels an absolute 
   assert.equal(rows.evidence.serviceTier.mode, 'fast');
   assert.equal(rows.items[1].unitPrice, 0.3);
   assert.equal(rows.modeTotal, 1.714008);
+});
+
+
+test('text and image inputs show independent token quantities and prices', () => {
+  const result = buildCostBreakdown(0.051, breakdown([
+    item('completion_tokens', 1000, 0.03),
+    item('prompt_image_tokens', 2000, 0.016),
+    item('prompt_text_tokens', 1000, 0.005),
+    { ...item('prompt_image_cached_tokens', 0, 0), unpriced: true, unpricedReason: 'input_cache_modality_missing' },
+  ]));
+  assert.deepEqual(result.items.map(({ itemCode }) => itemCode), ['prompt_text_tokens', 'prompt_image_tokens', 'completion_tokens', 'prompt_image_cached_tokens']);
+  assert.deepEqual(result.items.map(({ unitPrice }) => unitPrice), [5, 8, 30, null]);
 });

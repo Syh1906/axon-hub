@@ -150,6 +150,62 @@ func (_c *UsageLogCreate) SetNillableTotalTokens(v *int64) *UsageLogCreate {
 	return _c
 }
 
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (_c *UsageLogCreate) SetPromptTextTokens(v int64) *UsageLogCreate {
+	_c.mutation.SetPromptTextTokens(v)
+	return _c
+}
+
+// SetNillablePromptTextTokens sets the "prompt_text_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillablePromptTextTokens(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetPromptTextTokens(*v)
+	}
+	return _c
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (_c *UsageLogCreate) SetPromptImageTokens(v int64) *UsageLogCreate {
+	_c.mutation.SetPromptImageTokens(v)
+	return _c
+}
+
+// SetNillablePromptImageTokens sets the "prompt_image_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillablePromptImageTokens(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetPromptImageTokens(*v)
+	}
+	return _c
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (_c *UsageLogCreate) SetPromptTextCachedTokens(v int64) *UsageLogCreate {
+	_c.mutation.SetPromptTextCachedTokens(v)
+	return _c
+}
+
+// SetNillablePromptTextCachedTokens sets the "prompt_text_cached_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillablePromptTextCachedTokens(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetPromptTextCachedTokens(*v)
+	}
+	return _c
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (_c *UsageLogCreate) SetPromptImageCachedTokens(v int64) *UsageLogCreate {
+	_c.mutation.SetPromptImageCachedTokens(v)
+	return _c
+}
+
+// SetNillablePromptImageCachedTokens sets the "prompt_image_cached_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillablePromptImageCachedTokens(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetPromptImageCachedTokens(*v)
+	}
+	return _c
+}
+
 // SetPromptAudioTokens sets the "prompt_audio_tokens" field.
 func (_c *UsageLogCreate) SetPromptAudioTokens(v int64) *UsageLogCreate {
 	_c.mutation.SetPromptAudioTokens(v)
@@ -569,6 +625,22 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldTotalTokens, field.TypeInt64, value)
 		_node.TotalTokens = value
 	}
+	if value, ok := _c.mutation.PromptTextTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextTokens, field.TypeInt64, value)
+		_node.PromptTextTokens = &value
+	}
+	if value, ok := _c.mutation.PromptImageTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageTokens, field.TypeInt64, value)
+		_node.PromptImageTokens = &value
+	}
+	if value, ok := _c.mutation.PromptTextCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64, value)
+		_node.PromptTextCachedTokens = &value
+	}
+	if value, ok := _c.mutation.PromptImageCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64, value)
+		_node.PromptImageCachedTokens = &value
+	}
 	if value, ok := _c.mutation.PromptAudioTokens(); ok {
 		_spec.SetField(usagelog.FieldPromptAudioTokens, field.TypeInt64, value)
 		_node.PromptAudioTokens = value
@@ -795,6 +867,102 @@ func (u *UsageLogUpsert) UpdateTotalTokens() *UsageLogUpsert {
 // AddTotalTokens adds v to the "total_tokens" field.
 func (u *UsageLogUpsert) AddTotalTokens(v int64) *UsageLogUpsert {
 	u.Add(usagelog.FieldTotalTokens, v)
+	return u
+}
+
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (u *UsageLogUpsert) SetPromptTextTokens(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldPromptTextTokens, v)
+	return u
+}
+
+// UpdatePromptTextTokens sets the "prompt_text_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdatePromptTextTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldPromptTextTokens)
+	return u
+}
+
+// AddPromptTextTokens adds v to the "prompt_text_tokens" field.
+func (u *UsageLogUpsert) AddPromptTextTokens(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldPromptTextTokens, v)
+	return u
+}
+
+// ClearPromptTextTokens clears the value of the "prompt_text_tokens" field.
+func (u *UsageLogUpsert) ClearPromptTextTokens() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldPromptTextTokens)
+	return u
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (u *UsageLogUpsert) SetPromptImageTokens(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldPromptImageTokens, v)
+	return u
+}
+
+// UpdatePromptImageTokens sets the "prompt_image_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdatePromptImageTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldPromptImageTokens)
+	return u
+}
+
+// AddPromptImageTokens adds v to the "prompt_image_tokens" field.
+func (u *UsageLogUpsert) AddPromptImageTokens(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldPromptImageTokens, v)
+	return u
+}
+
+// ClearPromptImageTokens clears the value of the "prompt_image_tokens" field.
+func (u *UsageLogUpsert) ClearPromptImageTokens() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldPromptImageTokens)
+	return u
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsert) SetPromptTextCachedTokens(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldPromptTextCachedTokens, v)
+	return u
+}
+
+// UpdatePromptTextCachedTokens sets the "prompt_text_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdatePromptTextCachedTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldPromptTextCachedTokens)
+	return u
+}
+
+// AddPromptTextCachedTokens adds v to the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsert) AddPromptTextCachedTokens(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldPromptTextCachedTokens, v)
+	return u
+}
+
+// ClearPromptTextCachedTokens clears the value of the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsert) ClearPromptTextCachedTokens() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldPromptTextCachedTokens)
+	return u
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsert) SetPromptImageCachedTokens(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldPromptImageCachedTokens, v)
+	return u
+}
+
+// UpdatePromptImageCachedTokens sets the "prompt_image_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdatePromptImageCachedTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldPromptImageCachedTokens)
+	return u
+}
+
+// AddPromptImageCachedTokens adds v to the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsert) AddPromptImageCachedTokens(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldPromptImageCachedTokens, v)
+	return u
+}
+
+// ClearPromptImageCachedTokens clears the value of the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsert) ClearPromptImageCachedTokens() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldPromptImageCachedTokens)
 	return u
 }
 
@@ -1232,6 +1400,118 @@ func (u *UsageLogUpsertOne) AddTotalTokens(v int64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateTotalTokens() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateTotalTokens()
+	})
+}
+
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (u *UsageLogUpsertOne) SetPromptTextTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptTextTokens(v)
+	})
+}
+
+// AddPromptTextTokens adds v to the "prompt_text_tokens" field.
+func (u *UsageLogUpsertOne) AddPromptTextTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptTextTokens(v)
+	})
+}
+
+// UpdatePromptTextTokens sets the "prompt_text_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdatePromptTextTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptTextTokens()
+	})
+}
+
+// ClearPromptTextTokens clears the value of the "prompt_text_tokens" field.
+func (u *UsageLogUpsertOne) ClearPromptTextTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptTextTokens()
+	})
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (u *UsageLogUpsertOne) SetPromptImageTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptImageTokens(v)
+	})
+}
+
+// AddPromptImageTokens adds v to the "prompt_image_tokens" field.
+func (u *UsageLogUpsertOne) AddPromptImageTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptImageTokens(v)
+	})
+}
+
+// UpdatePromptImageTokens sets the "prompt_image_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdatePromptImageTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptImageTokens()
+	})
+}
+
+// ClearPromptImageTokens clears the value of the "prompt_image_tokens" field.
+func (u *UsageLogUpsertOne) ClearPromptImageTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptImageTokens()
+	})
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertOne) SetPromptTextCachedTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptTextCachedTokens(v)
+	})
+}
+
+// AddPromptTextCachedTokens adds v to the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertOne) AddPromptTextCachedTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptTextCachedTokens(v)
+	})
+}
+
+// UpdatePromptTextCachedTokens sets the "prompt_text_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdatePromptTextCachedTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptTextCachedTokens()
+	})
+}
+
+// ClearPromptTextCachedTokens clears the value of the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertOne) ClearPromptTextCachedTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptTextCachedTokens()
+	})
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertOne) SetPromptImageCachedTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptImageCachedTokens(v)
+	})
+}
+
+// AddPromptImageCachedTokens adds v to the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertOne) AddPromptImageCachedTokens(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptImageCachedTokens(v)
+	})
+}
+
+// UpdatePromptImageCachedTokens sets the "prompt_image_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdatePromptImageCachedTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptImageCachedTokens()
+	})
+}
+
+// ClearPromptImageCachedTokens clears the value of the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertOne) ClearPromptImageCachedTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptImageCachedTokens()
 	})
 }
 
@@ -1884,6 +2164,118 @@ func (u *UsageLogUpsertBulk) AddTotalTokens(v int64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateTotalTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateTotalTokens()
+	})
+}
+
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (u *UsageLogUpsertBulk) SetPromptTextTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptTextTokens(v)
+	})
+}
+
+// AddPromptTextTokens adds v to the "prompt_text_tokens" field.
+func (u *UsageLogUpsertBulk) AddPromptTextTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptTextTokens(v)
+	})
+}
+
+// UpdatePromptTextTokens sets the "prompt_text_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdatePromptTextTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptTextTokens()
+	})
+}
+
+// ClearPromptTextTokens clears the value of the "prompt_text_tokens" field.
+func (u *UsageLogUpsertBulk) ClearPromptTextTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptTextTokens()
+	})
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (u *UsageLogUpsertBulk) SetPromptImageTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptImageTokens(v)
+	})
+}
+
+// AddPromptImageTokens adds v to the "prompt_image_tokens" field.
+func (u *UsageLogUpsertBulk) AddPromptImageTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptImageTokens(v)
+	})
+}
+
+// UpdatePromptImageTokens sets the "prompt_image_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdatePromptImageTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptImageTokens()
+	})
+}
+
+// ClearPromptImageTokens clears the value of the "prompt_image_tokens" field.
+func (u *UsageLogUpsertBulk) ClearPromptImageTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptImageTokens()
+	})
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertBulk) SetPromptTextCachedTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptTextCachedTokens(v)
+	})
+}
+
+// AddPromptTextCachedTokens adds v to the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertBulk) AddPromptTextCachedTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptTextCachedTokens(v)
+	})
+}
+
+// UpdatePromptTextCachedTokens sets the "prompt_text_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdatePromptTextCachedTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptTextCachedTokens()
+	})
+}
+
+// ClearPromptTextCachedTokens clears the value of the "prompt_text_cached_tokens" field.
+func (u *UsageLogUpsertBulk) ClearPromptTextCachedTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptTextCachedTokens()
+	})
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertBulk) SetPromptImageCachedTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetPromptImageCachedTokens(v)
+	})
+}
+
+// AddPromptImageCachedTokens adds v to the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertBulk) AddPromptImageCachedTokens(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddPromptImageCachedTokens(v)
+	})
+}
+
+// UpdatePromptImageCachedTokens sets the "prompt_image_cached_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdatePromptImageCachedTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdatePromptImageCachedTokens()
+	})
+}
+
+// ClearPromptImageCachedTokens clears the value of the "prompt_image_cached_tokens" field.
+func (u *UsageLogUpsertBulk) ClearPromptImageCachedTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearPromptImageCachedTokens()
 	})
 }
 

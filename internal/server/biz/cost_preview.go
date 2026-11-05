@@ -69,10 +69,7 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 		}
 		usage = &llm.Usage{
 			PromptTokens: row.PromptTokens, CompletionTokens: row.CompletionTokens, TotalTokens: row.TotalTokens,
-			PromptTokensDetails: &llm.PromptTokensDetails{
-				CachedTokens: row.PromptCachedTokens, WriteCachedTokens: row.PromptWriteCachedTokens,
-				WriteCached5MinTokens: row.PromptWriteCachedTokens5m, WriteCached1HourTokens: row.PromptWriteCachedTokens1h,
-			},
+			PromptTokensDetails: promptTokenDetailsFromLog(row),
 		}
 		for _, item := range row.CostItems {
 			// Zero token columns also represent absent provider usage. Preserve

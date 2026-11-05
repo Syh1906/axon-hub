@@ -1301,47 +1301,47 @@ func init() {
 	// usagelog.DefaultTotalTokens holds the default value on creation for the total_tokens field.
 	usagelog.DefaultTotalTokens = usagelogDescTotalTokens.Default.(int64)
 	// usagelogDescPromptAudioTokens is the schema descriptor for prompt_audio_tokens field.
-	usagelogDescPromptAudioTokens := usagelogFields[8].Descriptor()
+	usagelogDescPromptAudioTokens := usagelogFields[12].Descriptor()
 	// usagelog.DefaultPromptAudioTokens holds the default value on creation for the prompt_audio_tokens field.
 	usagelog.DefaultPromptAudioTokens = usagelogDescPromptAudioTokens.Default.(int64)
 	// usagelogDescPromptCachedTokens is the schema descriptor for prompt_cached_tokens field.
-	usagelogDescPromptCachedTokens := usagelogFields[9].Descriptor()
+	usagelogDescPromptCachedTokens := usagelogFields[13].Descriptor()
 	// usagelog.DefaultPromptCachedTokens holds the default value on creation for the prompt_cached_tokens field.
 	usagelog.DefaultPromptCachedTokens = usagelogDescPromptCachedTokens.Default.(int64)
 	// usagelogDescPromptWriteCachedTokens is the schema descriptor for prompt_write_cached_tokens field.
-	usagelogDescPromptWriteCachedTokens := usagelogFields[10].Descriptor()
+	usagelogDescPromptWriteCachedTokens := usagelogFields[14].Descriptor()
 	// usagelog.DefaultPromptWriteCachedTokens holds the default value on creation for the prompt_write_cached_tokens field.
 	usagelog.DefaultPromptWriteCachedTokens = usagelogDescPromptWriteCachedTokens.Default.(int64)
 	// usagelogDescPromptWriteCachedTokens5m is the schema descriptor for prompt_write_cached_tokens_5m field.
-	usagelogDescPromptWriteCachedTokens5m := usagelogFields[11].Descriptor()
+	usagelogDescPromptWriteCachedTokens5m := usagelogFields[15].Descriptor()
 	// usagelog.DefaultPromptWriteCachedTokens5m holds the default value on creation for the prompt_write_cached_tokens_5m field.
 	usagelog.DefaultPromptWriteCachedTokens5m = usagelogDescPromptWriteCachedTokens5m.Default.(int64)
 	// usagelogDescPromptWriteCachedTokens1h is the schema descriptor for prompt_write_cached_tokens_1h field.
-	usagelogDescPromptWriteCachedTokens1h := usagelogFields[12].Descriptor()
+	usagelogDescPromptWriteCachedTokens1h := usagelogFields[16].Descriptor()
 	// usagelog.DefaultPromptWriteCachedTokens1h holds the default value on creation for the prompt_write_cached_tokens_1h field.
 	usagelog.DefaultPromptWriteCachedTokens1h = usagelogDescPromptWriteCachedTokens1h.Default.(int64)
 	// usagelogDescCompletionAudioTokens is the schema descriptor for completion_audio_tokens field.
-	usagelogDescCompletionAudioTokens := usagelogFields[13].Descriptor()
+	usagelogDescCompletionAudioTokens := usagelogFields[17].Descriptor()
 	// usagelog.DefaultCompletionAudioTokens holds the default value on creation for the completion_audio_tokens field.
 	usagelog.DefaultCompletionAudioTokens = usagelogDescCompletionAudioTokens.Default.(int64)
 	// usagelogDescCompletionReasoningTokens is the schema descriptor for completion_reasoning_tokens field.
-	usagelogDescCompletionReasoningTokens := usagelogFields[14].Descriptor()
+	usagelogDescCompletionReasoningTokens := usagelogFields[18].Descriptor()
 	// usagelog.DefaultCompletionReasoningTokens holds the default value on creation for the completion_reasoning_tokens field.
 	usagelog.DefaultCompletionReasoningTokens = usagelogDescCompletionReasoningTokens.Default.(int64)
 	// usagelogDescCompletionAcceptedPredictionTokens is the schema descriptor for completion_accepted_prediction_tokens field.
-	usagelogDescCompletionAcceptedPredictionTokens := usagelogFields[15].Descriptor()
+	usagelogDescCompletionAcceptedPredictionTokens := usagelogFields[19].Descriptor()
 	// usagelog.DefaultCompletionAcceptedPredictionTokens holds the default value on creation for the completion_accepted_prediction_tokens field.
 	usagelog.DefaultCompletionAcceptedPredictionTokens = usagelogDescCompletionAcceptedPredictionTokens.Default.(int64)
 	// usagelogDescCompletionRejectedPredictionTokens is the schema descriptor for completion_rejected_prediction_tokens field.
-	usagelogDescCompletionRejectedPredictionTokens := usagelogFields[16].Descriptor()
+	usagelogDescCompletionRejectedPredictionTokens := usagelogFields[20].Descriptor()
 	// usagelog.DefaultCompletionRejectedPredictionTokens holds the default value on creation for the completion_rejected_prediction_tokens field.
 	usagelog.DefaultCompletionRejectedPredictionTokens = usagelogDescCompletionRejectedPredictionTokens.Default.(int64)
 	// usagelogDescFormat is the schema descriptor for format field.
-	usagelogDescFormat := usagelogFields[18].Descriptor()
+	usagelogDescFormat := usagelogFields[22].Descriptor()
 	// usagelog.DefaultFormat holds the default value on creation for the format field.
 	usagelog.DefaultFormat = usagelogDescFormat.Default.(string)
 	// usagelogDescCostItems is the schema descriptor for cost_items field.
-	usagelogDescCostItems := usagelogFields[21].Descriptor()
+	usagelogDescCostItems := usagelogFields[25].Descriptor()
 	// usagelog.DefaultCostItems holds the default value on creation for the cost_items field.
 	usagelog.DefaultCostItems = usagelogDescCostItems.Default.([]objects.CostItem)
 	userMixin := schema.User{}.Mixin()

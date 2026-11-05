@@ -21,7 +21,23 @@ export type CostBreakdown = {
 type TierRow = CostBreakdownItem['tiers'][number] & { unitPrice: number | null };
 type ItemRow = Omit<CostBreakdownItem, 'tiers'> & { unitPrice: number | null; tiers: TierRow[] };
 
+export function inputCostSubtotal(
+  items: Array<{ itemCode: string; subtotal: number; unpriced?: boolean; image?: unknown }> | null | undefined,
+  cached = false
+): number | null {
+  const codes = cached
+    ? ['prompt_cached_tokens', 'prompt_text_cached_tokens', 'prompt_image_cached_tokens']
+    : ['prompt_tokens', 'prompt_text_tokens', 'prompt_image_tokens'];
+  const selected = items?.filter((item) => !item.image && codes.includes(item.itemCode)) ?? [];
+  if (!selected.length || selected.some((item) => item.unpriced)) return null;
+  return selected.reduce((sum, item) => sum + item.subtotal, 0);
+}
+
 const itemOrder: Record<string, number> = {
+  prompt_text_tokens: 0,
+  prompt_image_tokens: 0.5,
+  prompt_text_cached_tokens: 2,
+  prompt_image_cached_tokens: 2.5,
   prompt_tokens: 0,
   completion_tokens: 1,
   prompt_cached_tokens: 2,

@@ -19,10 +19,10 @@ type ModelCardModalities struct {
 }
 
 type ModelCardCost struct {
-	Input      float64 `json:"input"`
-	Output     float64 `json:"output"`
-	CacheRead  float64 `json:"cacheRead"`
-	CacheWrite float64 `json:"cacheWrite"`
+	Input      *float64 `json:"input"`
+	Output     float64  `json:"output"`
+	CacheRead  *float64 `json:"cacheRead"`
+	CacheWrite float64  `json:"cacheWrite"`
 }
 
 type ModelCardLimit struct {
@@ -101,7 +101,7 @@ func (c ModelCard) MarshalJSON() ([]byte, error) {
 // PriceSummary describes base token rates only; volume tiers and schedules
 // remain available in Price. Flat request fees have no per-token summary.
 func (c *ModelCard) PriceSummary() ModelCardCost {
-	var summary ModelCardCost
+	summary := ModelCardCost{Input: lo.ToPtr(0.0), CacheRead: lo.ToPtr(0.0)}
 	if c == nil || c.Price == nil {
 		return summary
 	}
@@ -124,13 +124,17 @@ func (c *ModelCard) PriceSummary() ModelCardCost {
 		value := rate.InexactFloat64()
 		switch item.ItemCode {
 		case PriceItemCodeUsage:
-			summary.Input = value
+			summary.Input = lo.ToPtr(value)
 		case PriceItemCodeCompletion:
 			summary.Output = value
 		case PriceItemCodePromptCachedToken:
-			summary.CacheRead = value
+			summary.CacheRead = lo.ToPtr(value)
 		case PriceItemCodeWriteCachedTokens:
 			summary.CacheWrite = value
+		case PriceItemCodePromptText, PriceItemCodePromptImage:
+			summary.Input = nil
+		case PriceItemCodePromptTextCached, PriceItemCodePromptImageCached:
+			summary.CacheRead = nil
 		}
 	}
 	return summary

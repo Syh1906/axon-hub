@@ -98,7 +98,8 @@ func channelUsageBatchQuery(db string, id int, start, end, afterTime time.Time, 
 	for _, field := range []string{usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldProjectID, usagelog.FieldCreatedAt,
 		usagelog.FieldTotalCost, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldPromptTokens,
 		usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens,
-		usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h} {
+		usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h,
+		usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens} {
 		q.AppendSelect(u.C(field))
 	}
 	return q.OrderBy(q.C("created_at"), q.C("id"), u.C("id"))

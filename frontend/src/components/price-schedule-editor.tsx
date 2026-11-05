@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { ImagePriceEditor } from '@/components/image-price-editor';
+import { priceItemCodes, canAddPriceItem, isModalityPriceItem } from '@/features/channels/data/schema';
 import { GMTTimeZoneOptions } from '@/features/system/data/timezones';
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -24,7 +25,6 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 type PricingMode = 'flat_fee' | 'image_fixed' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
-const priceItemCodes = ['prompt_tokens', 'completion_tokens', 'prompt_cached_tokens', 'prompt_write_cached_tokens'] as const;
 
 type DateRangeValue = { start: string; end: string };
 
@@ -774,8 +774,7 @@ const OverrideItemsEditor = memo(function OverrideItemsEditor({
 
   const handleAddItem = useCallback(() => {
     const currentItems = items || [];
-    const existingCodes = new Set(currentItems.map((item) => item.itemCode));
-    const nextCode = priceItemCodes.find((code) => !existingCodes.has(code));
+    const nextCode = priceItemCodes.find((code) => canAddPriceItem(code, currentItems));
     if (!nextCode) return;
 
     const path = `${pricePath}.schedule.overrides.${overrideIndex}.items` as string;
@@ -853,7 +852,7 @@ const OverrideItemRow = memo(function OverrideItemRow({
   const currentCode = currentItems?.[itemIndex]?.itemCode;
   const availableItemCodes = priceItemCodes.filter((code) => {
     if (code === currentCode) return true;
-    return !currentItems?.some((item, i) => i !== itemIndex && item.itemCode === code);
+    return canAddPriceItem(code, (currentItems ?? []).filter((_, i) => i !== itemIndex));
   });
 
   // Tier management via useFieldArray
@@ -934,8 +933,8 @@ const OverrideItemRow = memo(function OverrideItemRow({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>
-                  <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>
+                  {!isModalityPriceItem(currentCode) && <SelectItem value='flat_fee'>{t('price.mode_flat_fee')}</SelectItem>}
+                  {!isModalityPriceItem(currentCode) && <SelectItem value='image_fixed'>{t('price.mode_image_fixed')}</SelectItem>}
                   <SelectItem value='usage_per_unit'>{t('price.mode_usage_per_unit')}</SelectItem>
                   <SelectItem value='usage_tiered'>{t('price.mode_usage_tiered')}</SelectItem>
                   <SelectItem value='usage_volume'>{t('price.mode_usage_volume')}</SelectItem>

@@ -100,6 +100,114 @@ func (_u *UsageLogUpdate) AddTotalTokens(v int64) *UsageLogUpdate {
 	return _u
 }
 
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (_u *UsageLogUpdate) SetPromptTextTokens(v int64) *UsageLogUpdate {
+	_u.mutation.ResetPromptTextTokens()
+	_u.mutation.SetPromptTextTokens(v)
+	return _u
+}
+
+// SetNillablePromptTextTokens sets the "prompt_text_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillablePromptTextTokens(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetPromptTextTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptTextTokens adds value to the "prompt_text_tokens" field.
+func (_u *UsageLogUpdate) AddPromptTextTokens(v int64) *UsageLogUpdate {
+	_u.mutation.AddPromptTextTokens(v)
+	return _u
+}
+
+// ClearPromptTextTokens clears the value of the "prompt_text_tokens" field.
+func (_u *UsageLogUpdate) ClearPromptTextTokens() *UsageLogUpdate {
+	_u.mutation.ClearPromptTextTokens()
+	return _u
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (_u *UsageLogUpdate) SetPromptImageTokens(v int64) *UsageLogUpdate {
+	_u.mutation.ResetPromptImageTokens()
+	_u.mutation.SetPromptImageTokens(v)
+	return _u
+}
+
+// SetNillablePromptImageTokens sets the "prompt_image_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillablePromptImageTokens(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetPromptImageTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptImageTokens adds value to the "prompt_image_tokens" field.
+func (_u *UsageLogUpdate) AddPromptImageTokens(v int64) *UsageLogUpdate {
+	_u.mutation.AddPromptImageTokens(v)
+	return _u
+}
+
+// ClearPromptImageTokens clears the value of the "prompt_image_tokens" field.
+func (_u *UsageLogUpdate) ClearPromptImageTokens() *UsageLogUpdate {
+	_u.mutation.ClearPromptImageTokens()
+	return _u
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdate) SetPromptTextCachedTokens(v int64) *UsageLogUpdate {
+	_u.mutation.ResetPromptTextCachedTokens()
+	_u.mutation.SetPromptTextCachedTokens(v)
+	return _u
+}
+
+// SetNillablePromptTextCachedTokens sets the "prompt_text_cached_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillablePromptTextCachedTokens(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetPromptTextCachedTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptTextCachedTokens adds value to the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdate) AddPromptTextCachedTokens(v int64) *UsageLogUpdate {
+	_u.mutation.AddPromptTextCachedTokens(v)
+	return _u
+}
+
+// ClearPromptTextCachedTokens clears the value of the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdate) ClearPromptTextCachedTokens() *UsageLogUpdate {
+	_u.mutation.ClearPromptTextCachedTokens()
+	return _u
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdate) SetPromptImageCachedTokens(v int64) *UsageLogUpdate {
+	_u.mutation.ResetPromptImageCachedTokens()
+	_u.mutation.SetPromptImageCachedTokens(v)
+	return _u
+}
+
+// SetNillablePromptImageCachedTokens sets the "prompt_image_cached_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillablePromptImageCachedTokens(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetPromptImageCachedTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptImageCachedTokens adds value to the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdate) AddPromptImageCachedTokens(v int64) *UsageLogUpdate {
+	_u.mutation.AddPromptImageCachedTokens(v)
+	return _u
+}
+
+// ClearPromptImageCachedTokens clears the value of the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdate) ClearPromptImageCachedTokens() *UsageLogUpdate {
+	_u.mutation.ClearPromptImageCachedTokens()
+	return _u
+}
+
 // SetPromptAudioTokens sets the "prompt_audio_tokens" field.
 func (_u *UsageLogUpdate) SetPromptAudioTokens(v int64) *UsageLogUpdate {
 	_u.mutation.ResetPromptAudioTokens()
@@ -520,6 +628,42 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedTotalTokens(); ok {
 		_spec.AddField(usagelog.FieldTotalTokens, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.PromptTextTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptTextTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptTextTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptTextTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptTextTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptImageTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptImageTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptImageTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptImageTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptImageTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptTextCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptTextCachedTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptTextCachedTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptImageCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptImageCachedTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptImageCachedTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.PromptAudioTokens(); ok {
 		_spec.SetField(usagelog.FieldPromptAudioTokens, field.TypeInt64, value)
 	}
@@ -721,6 +865,114 @@ func (_u *UsageLogUpdateOne) SetNillableTotalTokens(v *int64) *UsageLogUpdateOne
 // AddTotalTokens adds value to the "total_tokens" field.
 func (_u *UsageLogUpdateOne) AddTotalTokens(v int64) *UsageLogUpdateOne {
 	_u.mutation.AddTotalTokens(v)
+	return _u
+}
+
+// SetPromptTextTokens sets the "prompt_text_tokens" field.
+func (_u *UsageLogUpdateOne) SetPromptTextTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetPromptTextTokens()
+	_u.mutation.SetPromptTextTokens(v)
+	return _u
+}
+
+// SetNillablePromptTextTokens sets the "prompt_text_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillablePromptTextTokens(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetPromptTextTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptTextTokens adds value to the "prompt_text_tokens" field.
+func (_u *UsageLogUpdateOne) AddPromptTextTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddPromptTextTokens(v)
+	return _u
+}
+
+// ClearPromptTextTokens clears the value of the "prompt_text_tokens" field.
+func (_u *UsageLogUpdateOne) ClearPromptTextTokens() *UsageLogUpdateOne {
+	_u.mutation.ClearPromptTextTokens()
+	return _u
+}
+
+// SetPromptImageTokens sets the "prompt_image_tokens" field.
+func (_u *UsageLogUpdateOne) SetPromptImageTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetPromptImageTokens()
+	_u.mutation.SetPromptImageTokens(v)
+	return _u
+}
+
+// SetNillablePromptImageTokens sets the "prompt_image_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillablePromptImageTokens(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetPromptImageTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptImageTokens adds value to the "prompt_image_tokens" field.
+func (_u *UsageLogUpdateOne) AddPromptImageTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddPromptImageTokens(v)
+	return _u
+}
+
+// ClearPromptImageTokens clears the value of the "prompt_image_tokens" field.
+func (_u *UsageLogUpdateOne) ClearPromptImageTokens() *UsageLogUpdateOne {
+	_u.mutation.ClearPromptImageTokens()
+	return _u
+}
+
+// SetPromptTextCachedTokens sets the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdateOne) SetPromptTextCachedTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetPromptTextCachedTokens()
+	_u.mutation.SetPromptTextCachedTokens(v)
+	return _u
+}
+
+// SetNillablePromptTextCachedTokens sets the "prompt_text_cached_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillablePromptTextCachedTokens(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetPromptTextCachedTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptTextCachedTokens adds value to the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdateOne) AddPromptTextCachedTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddPromptTextCachedTokens(v)
+	return _u
+}
+
+// ClearPromptTextCachedTokens clears the value of the "prompt_text_cached_tokens" field.
+func (_u *UsageLogUpdateOne) ClearPromptTextCachedTokens() *UsageLogUpdateOne {
+	_u.mutation.ClearPromptTextCachedTokens()
+	return _u
+}
+
+// SetPromptImageCachedTokens sets the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdateOne) SetPromptImageCachedTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetPromptImageCachedTokens()
+	_u.mutation.SetPromptImageCachedTokens(v)
+	return _u
+}
+
+// SetNillablePromptImageCachedTokens sets the "prompt_image_cached_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillablePromptImageCachedTokens(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetPromptImageCachedTokens(*v)
+	}
+	return _u
+}
+
+// AddPromptImageCachedTokens adds value to the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdateOne) AddPromptImageCachedTokens(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddPromptImageCachedTokens(v)
+	return _u
+}
+
+// ClearPromptImageCachedTokens clears the value of the "prompt_image_cached_tokens" field.
+func (_u *UsageLogUpdateOne) ClearPromptImageCachedTokens() *UsageLogUpdateOne {
+	_u.mutation.ClearPromptImageCachedTokens()
 	return _u
 }
 
@@ -1173,6 +1425,42 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedTotalTokens(); ok {
 		_spec.AddField(usagelog.FieldTotalTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PromptTextTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptTextTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptTextTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptTextTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptTextTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptImageTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptImageTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptImageTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptImageTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptImageTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptTextCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptTextCachedTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptTextCachedTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptTextCachedTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.PromptImageCachedTokens(); ok {
+		_spec.SetField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPromptImageCachedTokens(); ok {
+		_spec.AddField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.PromptImageCachedTokensCleared() {
+		_spec.ClearField(usagelog.FieldPromptImageCachedTokens, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.PromptAudioTokens(); ok {
 		_spec.SetField(usagelog.FieldPromptAudioTokens, field.TypeInt64, value)

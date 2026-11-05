@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/samber/lo"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,11 +70,11 @@ func TestModelCardJSONLegacyPriceCompatibility(t *testing.T) {
 }
 
 func TestModelCardMarshalIgnoresLegacyCostWrites(t *testing.T) {
-	card := ModelCard{Cost: ModelCardCost{Input: 99}}
+	card := ModelCard{Cost: ModelCardCost{Input: lo.ToPtr(99.0)}}
 	encoded, err := json.Marshal(card)
 	require.NoError(t, err)
 	var restored ModelCard
 	require.NoError(t, json.Unmarshal(encoded, &restored))
 	require.Nil(t, restored.Price)
-	require.Zero(t, restored.Cost.Input)
+	require.Zero(t, *restored.Cost.Input)
 }

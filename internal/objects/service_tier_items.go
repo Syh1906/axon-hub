@@ -28,7 +28,7 @@ type ServiceTierItemRule struct {
 }
 
 func (r ServiceTierItemRule) Validate() error {
-	if !slices.Contains([]PriceItemCode{PriceItemCodeUsage, PriceItemCodeCompletion, PriceItemCodePromptCachedToken, PriceItemCodeWriteCachedTokens}, r.ItemCode) {
+	if !slices.Contains([]PriceItemCode{PriceItemCodeUsage, PriceItemCodeCompletion, PriceItemCodePromptCachedToken, PriceItemCodeWriteCachedTokens}, r.ItemCode) && !r.ItemCode.IsModalityToken() {
 		return fmt.Errorf("invalid service tier item code")
 	}
 	if r.VariantCode != "" && (r.ItemCode != PriceItemCodeWriteCachedTokens || !slices.Contains([]PromptWriteCacheVariantCode{PromptWriteCacheVariantCode5Min, PromptWriteCacheVariantCode1Hour}, r.VariantCode)) {

@@ -642,6 +642,11 @@ fork 改动，由用户决定。
 
 ### 模型权威定价与全量阶梯
 
+- 文字／图片输入分项（2026-11-05，未发布、未部署）：新增文字输入、图片输入及对应缓存价格项，保持通用价目原语义；拒绝同组总价与分项并存，成对配置并支持显式零价。统一计算、历史价格快照、预算与现有明细共用分项；预估输入使用候选最大金额，避免重复预留。旧单价摘要不能表达分项时返回空值，模型信息接口补充完整 `pricing.items`。
+- OpenAI Images 转换保留文字／图片数量及可选缓存细分；缺失或不一致的必要数量保留未定价原因。`usage_logs` 新增四个可空分项列，由 Ent 管理结构升级；历史行保持 NULL，不推算或改账，无新增 data migration、不修改已发布迁移。已对照直接上游 `v1.0.0-beta10-fork.7` 的用量表定义；同步上游时核对新列和用量字段语义。用量归档继续保留汇总金额和总 Token，不增加归档分项重算能力。
+- 主要实现与回归：`internal/objects/token_pricing.go`、`internal/server/biz/token_pricing.go`、同名测试、`llm/transformer/openai/image_outbound_test.go`、GraphQL 模型价格保存回读及现有前端价格测试。详细行为与真实调用边界见[分项计费](zh/guides/cost-tracking.md#文字与图片输入分项计费)。
+- 本轮验证：转换器、价格校验、计算／预算、SQLite 保存回读与旧表升级、GraphQL 创建查询及模型信息接口定向回归通过；前端价格与明细 27 项通过。内置浏览器完成隔离库创建、编辑保存、重新打开和列表显示验收。受影响 TypeScript 文件对照 HEAD 均为同样 5 条既有渠道校验诊断。只读参考 CCH `0c508eaa` 的图片 token 定价，并通过同数字对照测试；未运行真实 Image 2.6、PG/MySQL 升级、lint/build，未部署。完整命令与限制见[实施记录](../.agent/summary/image-token-pricing-20261105.md)。 独立 `gpt-6.1-sol / max` 复审后补齐部分缓存核验、递减阶梯预估、加速模式编辑入口及费用明细／概览；定向回归和组件补验通过，最终复核无剩余阻塞项。
+
 - 2026-10-31 价格继承修正（未发布）：删除创建、编辑、批量创建／导入、复制补缺和模型同步中的自动价格复制。未配置渠道价时继续使用请求命中的模型标准价（支持正则及上游别名），只在主动同步／引用并保存后形成独立价格。已存在的渠道价格、显式零价和历史请求计费快照保留。原一键填充明确为手动同步，选择模型不再自动覆盖价格；同步按渠道具体 ID 匹配，别名需手动引用。无 schema／迁移变化，验证见[价格继承验收](../.agent/summary/channel-price-inheritance-20261031.md)。本条替代下述历史自动补缺行为。
 
 - 行为：模型新建、编辑及目录批量导入统一保存完整标准价格，列表和详情展示基础价格、
@@ -668,7 +673,7 @@ fork 改动，由用户决定。
   该规则补足上游目录仅提供 5 分钟写缓存价的缺口，倍数依据 [Anthropic 官方定价](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing)。
 - 编辑交互：新增计费项和缓存写入变体的价格留空，明确填写的零价保留；新增阶梯阈值
   留空且填写有效阈值前不能保存，已有阶梯照常回显。添加按钮显示「添加计费项」，
-  四项齐全时禁用并显示「已添加全部计费项」，删除一项后恢复可用。
+  当前可兼容的项目齐全时禁用并显示「已添加全部计费项」，删除一项后恢复可用。
 - 目录选模：切换模型时同步重置价格及阶梯表单数组，无阶梯时清空数组，价格行与阶梯开关
   按已导入数据正确回显，不残留旧模型档位。
 - 兼容：旧模型卡价格在 JSON 读取时转换为完整价格，旧成本字段仅作只读摘要；明确
@@ -683,7 +688,7 @@ fork 改动，由用户决定。
   `internal/objects/model.go`、`internal/objects/price.go`、`internal/server/biz/model.go`、
   `internal/server/biz/cost_calc.go`、`frontend/src/features/models/components/models-batch-create-dialog.tsx`；
   定价说明见 `docs/{zh,en}/guides/cost-tracking.md`。
-- 迁移：无新增表字段或迁移；兼容既有数据库及缓存中的模型卡 JSON。已重新生成接口代码。
+- 迁移：权威价格与阶梯使用既有模型卡 JSON；文字／图片分项用量增加上述可空列。模型卡旧数值摘要可正常读取，无法汇总的新增分项摘要为空。已重新生成 Ent 和 GraphQL 代码。
 - 测试与 fixture：`internal/objects/model_test.go`、`internal/objects/price_test.go`、
   `internal/server/biz/model_validation_test.go`、`frontend/src/features/models/pricing.test.mjs`，
   覆盖旧价格兼容、全量阶梯校验、价格保存与清除、整档填充、零价与未填写价格的区分，以及

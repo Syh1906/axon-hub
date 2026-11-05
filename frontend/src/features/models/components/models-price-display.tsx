@@ -10,7 +10,7 @@ export function ModelsPriceDisplay({ price, compact = false }: { price?: ModelPr
   if (compact)
     return (
       <div className='min-w-52 space-y-1 text-xs'>
-        <PriceItems items={price.items.filter((item) => item.itemCode === 'prompt_tokens' || item.itemCode === 'completion_tokens')} />
+        <PriceItems items={price.items.filter((item) => ['prompt_tokens', 'prompt_text_tokens', 'prompt_image_tokens', 'completion_tokens'].includes(item.itemCode))} />
         {tiers.length > 0 && <Badge variant='outline'>{t('price.volume.tierCount', { count: tiers.length })}</Badge>}
         {price.schedule && <Badge variant='outline'>{t('price.schedule.title')}</Badge>}
       </div>

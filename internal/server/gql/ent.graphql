@@ -1981,6 +1981,10 @@ input CreateUsageLogInput {
   Total number of tokens used
   """
   totalTokens: Int
+  promptTextTokens: Int
+  promptImageTokens: Int
+  promptTextCachedTokens: Int
+  promptImageCachedTokens: Int
   """
   Number of audio tokens in the prompt
   """
@@ -6599,6 +6603,14 @@ input UpdateUsageLogInput {
   Total number of tokens used
   """
   totalTokens: Int
+  promptTextTokens: Int
+  clearPromptTextTokens: Boolean
+  promptImageTokens: Int
+  clearPromptImageTokens: Boolean
+  promptTextCachedTokens: Int
+  clearPromptTextCachedTokens: Boolean
+  promptImageCachedTokens: Int
+  clearPromptImageCachedTokens: Boolean
   """
   Number of audio tokens in the prompt
   """
@@ -6727,6 +6739,10 @@ type UsageLog implements Node {
   Total number of tokens used
   """
   totalTokens: Int!
+  promptTextTokens: Int
+  promptImageTokens: Int
+  promptTextCachedTokens: Int
+  promptImageCachedTokens: Int
   """
   Number of audio tokens in the prompt
   """
@@ -6971,6 +6987,58 @@ input UsageLogWhereInput {
   totalTokensGTE: Int
   totalTokensLT: Int
   totalTokensLTE: Int
+  """
+  prompt_text_tokens field predicates
+  """
+  promptTextTokens: Int
+  promptTextTokensNEQ: Int
+  promptTextTokensIn: [Int!]
+  promptTextTokensNotIn: [Int!]
+  promptTextTokensGT: Int
+  promptTextTokensGTE: Int
+  promptTextTokensLT: Int
+  promptTextTokensLTE: Int
+  promptTextTokensIsNil: Boolean
+  promptTextTokensNotNil: Boolean
+  """
+  prompt_image_tokens field predicates
+  """
+  promptImageTokens: Int
+  promptImageTokensNEQ: Int
+  promptImageTokensIn: [Int!]
+  promptImageTokensNotIn: [Int!]
+  promptImageTokensGT: Int
+  promptImageTokensGTE: Int
+  promptImageTokensLT: Int
+  promptImageTokensLTE: Int
+  promptImageTokensIsNil: Boolean
+  promptImageTokensNotNil: Boolean
+  """
+  prompt_text_cached_tokens field predicates
+  """
+  promptTextCachedTokens: Int
+  promptTextCachedTokensNEQ: Int
+  promptTextCachedTokensIn: [Int!]
+  promptTextCachedTokensNotIn: [Int!]
+  promptTextCachedTokensGT: Int
+  promptTextCachedTokensGTE: Int
+  promptTextCachedTokensLT: Int
+  promptTextCachedTokensLTE: Int
+  promptTextCachedTokensIsNil: Boolean
+  promptTextCachedTokensNotNil: Boolean
+  """
+  prompt_image_cached_tokens field predicates
+  """
+  promptImageCachedTokens: Int
+  promptImageCachedTokensNEQ: Int
+  promptImageCachedTokensIn: [Int!]
+  promptImageCachedTokensNotIn: [Int!]
+  promptImageCachedTokensGT: Int
+  promptImageCachedTokensGTE: Int
+  promptImageCachedTokensLT: Int
+  promptImageCachedTokensLTE: Int
+  promptImageCachedTokensIsNil: Boolean
+  promptImageCachedTokensNotNil: Boolean
   """
   prompt_audio_tokens field predicates
   """

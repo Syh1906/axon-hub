@@ -5206,6 +5206,26 @@ func (_q *UsageLogQuery) collectField(ctx context.Context, oneNode bool, opCtx *
 				selectedFields = append(selectedFields, usagelog.FieldTotalTokens)
 				fieldSeen[usagelog.FieldTotalTokens] = struct{}{}
 			}
+		case "promptTextTokens":
+			if _, ok := fieldSeen[usagelog.FieldPromptTextTokens]; !ok {
+				selectedFields = append(selectedFields, usagelog.FieldPromptTextTokens)
+				fieldSeen[usagelog.FieldPromptTextTokens] = struct{}{}
+			}
+		case "promptImageTokens":
+			if _, ok := fieldSeen[usagelog.FieldPromptImageTokens]; !ok {
+				selectedFields = append(selectedFields, usagelog.FieldPromptImageTokens)
+				fieldSeen[usagelog.FieldPromptImageTokens] = struct{}{}
+			}
+		case "promptTextCachedTokens":
+			if _, ok := fieldSeen[usagelog.FieldPromptTextCachedTokens]; !ok {
+				selectedFields = append(selectedFields, usagelog.FieldPromptTextCachedTokens)
+				fieldSeen[usagelog.FieldPromptTextCachedTokens] = struct{}{}
+			}
+		case "promptImageCachedTokens":
+			if _, ok := fieldSeen[usagelog.FieldPromptImageCachedTokens]; !ok {
+				selectedFields = append(selectedFields, usagelog.FieldPromptImageCachedTokens)
+				fieldSeen[usagelog.FieldPromptImageCachedTokens] = struct{}{}
+			}
 		case "promptAudioTokens":
 			if _, ok := fieldSeen[usagelog.FieldPromptAudioTokens]; !ok {
 				selectedFields = append(selectedFields, usagelog.FieldPromptAudioTokens)

@@ -1,4 +1,8 @@
 {
+  "serviceTier.items.prompt_text_tokens": "Text input tokens (uncached)",
+  "serviceTier.items.prompt_image_tokens": "Image input tokens (uncached)",
+  "serviceTier.items.prompt_text_cached_tokens": "Cached text input tokens",
+  "serviceTier.items.prompt_image_cached_tokens": "Cached image input tokens",
   "serviceTier.prices.title": "Accelerated mode pricing",
   "serviceTier.prices.baseHint": "Base prices must use standard processing rates. Tier multipliers apply only to token items.",
   "serviceTier.prices.officialModel": "Official reference model",

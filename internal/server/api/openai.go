@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	entprivacy "github.com/looplj/axonhub/internal/ent/privacy"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm"
@@ -562,12 +563,13 @@ type Capabilities struct {
 }
 
 type Pricing struct {
-	Input      float64 `json:"input"`
-	Output     float64 `json:"output"`
-	CacheRead  float64 `json:"cache_read"`
-	CacheWrite float64 `json:"cache_write"`
-	Unit       string  `json:"unit"`
-	Currency   string  `json:"currency"`
+	Items      []objects.ModelPriceItem `json:"items,omitempty"`
+	Input      *float64                 `json:"input"`
+	Output     float64                  `json:"output"`
+	CacheRead  *float64                 `json:"cache_read"`
+	CacheWrite float64                  `json:"cache_write"`
+	Unit       string                   `json:"unit"`
+	Currency   string                   `json:"currency"`
 }
 
 type OpenAIModel struct {
@@ -715,6 +717,9 @@ func convertModelToOpenAIExtended(m *ent.Model, include map[string]bool) OpenAIM
 				CacheWrite: cost.CacheWrite,
 				Unit:       "per_1m_tokens",
 				Currency:   "USD",
+			}
+			if cost.Input == nil || cost.CacheRead == nil {
+				pricing.Items = m.ModelCard.Price.Items
 			}
 			result.Pricing = &pricing
 		}

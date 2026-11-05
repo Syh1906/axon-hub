@@ -39,6 +39,14 @@ const (
 	FieldCompletionTokens = "completion_tokens"
 	// FieldTotalTokens holds the string denoting the total_tokens field in the database.
 	FieldTotalTokens = "total_tokens"
+	// FieldPromptTextTokens holds the string denoting the prompt_text_tokens field in the database.
+	FieldPromptTextTokens = "prompt_text_tokens"
+	// FieldPromptImageTokens holds the string denoting the prompt_image_tokens field in the database.
+	FieldPromptImageTokens = "prompt_image_tokens"
+	// FieldPromptTextCachedTokens holds the string denoting the prompt_text_cached_tokens field in the database.
+	FieldPromptTextCachedTokens = "prompt_text_cached_tokens"
+	// FieldPromptImageCachedTokens holds the string denoting the prompt_image_cached_tokens field in the database.
+	FieldPromptImageCachedTokens = "prompt_image_cached_tokens"
 	// FieldPromptAudioTokens holds the string denoting the prompt_audio_tokens field in the database.
 	FieldPromptAudioTokens = "prompt_audio_tokens"
 	// FieldPromptCachedTokens holds the string denoting the prompt_cached_tokens field in the database.
@@ -113,6 +121,10 @@ var Columns = []string{
 	FieldPromptTokens,
 	FieldCompletionTokens,
 	FieldTotalTokens,
+	FieldPromptTextTokens,
+	FieldPromptImageTokens,
+	FieldPromptTextCachedTokens,
+	FieldPromptImageCachedTokens,
 	FieldPromptAudioTokens,
 	FieldPromptCachedTokens,
 	FieldPromptWriteCachedTokens,
@@ -269,6 +281,26 @@ func ByCompletionTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByTotalTokens orders the results by the total_tokens field.
 func ByTotalTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalTokens, opts...).ToFunc()
+}
+
+// ByPromptTextTokens orders the results by the prompt_text_tokens field.
+func ByPromptTextTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPromptTextTokens, opts...).ToFunc()
+}
+
+// ByPromptImageTokens orders the results by the prompt_image_tokens field.
+func ByPromptImageTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPromptImageTokens, opts...).ToFunc()
+}
+
+// ByPromptTextCachedTokens orders the results by the prompt_text_cached_tokens field.
+func ByPromptTextCachedTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPromptTextCachedTokens, opts...).ToFunc()
+}
+
+// ByPromptImageCachedTokens orders the results by the prompt_image_cached_tokens field.
+func ByPromptImageCachedTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPromptImageCachedTokens, opts...).ToFunc()
 }
 
 // ByPromptAudioTokens orders the results by the prompt_audio_tokens field.

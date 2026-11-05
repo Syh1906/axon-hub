@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -12,6 +13,27 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestConvertModelToOpenAIExtended_ModalityPrices(t *testing.T) {
+	price := &objects.ModelPrice{}
+	for _, entry := range []struct {
+		code objects.PriceItemCode
+		rate int64
+	}{
+		{objects.PriceItemCodePromptText, 5}, {objects.PriceItemCodePromptImage, 8}, {objects.PriceItemCodeCompletion, 30},
+	} {
+		price.Items = append(price.Items, objects.ModelPriceItem{ItemCode: entry.code, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(entry.rate))}})
+	}
+	result := convertModelToOpenAIExtended(&ent.Model{ModelID: "image-test", ModelCard: &objects.ModelCard{Price: price}}, nil)
+	assert.Nil(t, result.Pricing.Input)
+	assert.Equal(t, price.Items, result.Pricing.Items)
+	assert.Equal(t, 30.0, result.Pricing.Output)
+	raw, err := json.Marshal(result)
+	assert.NoError(t, err)
+	var restored OpenAIModel
+	assert.NoError(t, json.Unmarshal(raw, &restored))
+	assert.Equal(t, result.Pricing, restored.Pricing)
+}
 
 func TestConvertModelToOpenAIExtended_NilModelCard(t *testing.T) {
 	remark := "Test description"
@@ -67,9 +89,9 @@ func TestConvertModelToOpenAIExtended_CompleteData(t *testing.T) {
 	assert.Equal(t, 8192, result.ContextLength)
 	assert.Equal(t, 4096, result.MaxOutputTokens)
 	assert.NotNil(t, result.Pricing)
-	assert.Equal(t, 0.03, result.Pricing.Input)
+	assert.Equal(t, 0.03, *result.Pricing.Input)
 	assert.Equal(t, 0.06, result.Pricing.Output)
-	assert.Equal(t, 0.015, result.Pricing.CacheRead)
+	assert.Equal(t, 0.015, *result.Pricing.CacheRead)
 	assert.Equal(t, 0.03, result.Pricing.CacheWrite)
 	assert.Equal(t, "per_1m_tokens", result.Pricing.Unit)
 	assert.Equal(t, "USD", result.Pricing.Currency)
@@ -99,12 +121,12 @@ func TestConvertModelToOpenAIExtended_PriceAuthority(t *testing.T) {
 			ItemCode: objects.PriceItemCodeUsage,
 			Pricing:  objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.Zero)},
 		}}},
-		Cost: objects.ModelCardCost{Input: 99},
+		Cost: objects.ModelCardCost{Input: lo.ToPtr(99.0)},
 	}
 	m := &ent.Model{ModelID: "free", ModelCard: card}
 	result := convertModelToOpenAIExtended(m, nil)
 	if assert.NotNil(t, result.Pricing) {
-		assert.Zero(t, result.Pricing.Input)
+		assert.Zero(t, *result.Pricing.Input)
 	}
 	card.Price = nil
 	assert.Nil(t, convertModelToOpenAIExtended(m, nil).Pricing)

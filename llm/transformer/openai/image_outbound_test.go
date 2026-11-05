@@ -583,8 +583,40 @@ func TestTransformImageGenerationResponse_WithUsage(t *testing.T) {
 	assert.Equal(t, int64(256), resp.Usage.CompletionTokens)
 	assert.Equal(t, int64(266), resp.Usage.TotalTokens)
 	require.NotNil(t, resp.Usage.PromptTokensDetails)
-	assert.Equal(t, int64(0), resp.Usage.PromptTokensDetails.ImageTokens)
-	assert.Equal(t, int64(10), resp.Usage.PromptTokensDetails.TextTokens)
+	assert.Equal(t, int64(0), *resp.Usage.PromptTokensDetails.ImageTokens)
+	assert.Equal(t, int64(10), *resp.Usage.PromptTokensDetails.TextTokens)
+}
+
+func TestImageUsageModalityPresenceAndCacheRoundTrip(t *testing.T) {
+	// These are synthetic protocol fixtures, not captured Image 2.6 responses.
+	for _, tc := range []struct {
+		name    string
+		details string
+		image   *int64
+		cached  bool
+	}{
+		{"missing image count", `{"text_tokens":1000}`, nil, false},
+		{"explicit zero", `{"text_tokens":1000,"image_tokens":0}`, lo.ToPtr(int64(0)), false},
+		{"optional cache detail", `{"text_tokens":1000,"image_tokens":2000,"cached_tokens":1200,"cached_tokens_details":{"text_tokens":400,"image_tokens":800}}`, lo.ToPtr(int64(2000)), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := []byte(`{"created":1,"data":[],"usage":{"input_tokens":3000,"output_tokens":1000,"total_tokens":4000,"input_tokens_details":` + tc.details + `}}`)
+			resp, err := transformImageGenerationResponse(&httpclient.Response{StatusCode: http.StatusOK, Body: body})
+			require.NoError(t, err)
+			require.Equal(t, tc.image, resp.Usage.PromptTokensDetails.ImageTokens)
+			if tc.cached {
+				require.Equal(t, lo.ToPtr(int64(400)), resp.Usage.PromptTokensDetails.CachedTokensDetails.TextTokens)
+				require.Equal(t, lo.ToPtr(int64(800)), resp.Usage.PromptTokensDetails.CachedTokensDetails.ImageTokens)
+			} else {
+				require.Nil(t, resp.Usage.PromptTokensDetails.CachedTokensDetails)
+			}
+			encoded, err := NewImageGenerationInboundTransformer().TransformResponse(context.Background(), resp)
+			require.NoError(t, err)
+			roundTrip, err := transformImageGenerationResponse(encoded)
+			require.NoError(t, err)
+			require.Equal(t, resp.Usage, roundTrip.Usage)
+		})
+	}
 }
 
 func TestTransformImageGenerationResponse_WithCachedTokens(t *testing.T) {
@@ -621,8 +653,8 @@ func TestTransformImageGenerationResponse_WithCachedTokens(t *testing.T) {
 	assert.Equal(t, int64(256), resp.Usage.CompletionTokens)
 	assert.Equal(t, int64(356), resp.Usage.TotalTokens)
 	require.NotNil(t, resp.Usage.PromptTokensDetails)
-	assert.Equal(t, int64(80), resp.Usage.PromptTokensDetails.ImageTokens)
-	assert.Equal(t, int64(10), resp.Usage.PromptTokensDetails.TextTokens)
+	assert.Equal(t, int64(80), *resp.Usage.PromptTokensDetails.ImageTokens)
+	assert.Equal(t, int64(10), *resp.Usage.PromptTokensDetails.TextTokens)
 	assert.Equal(t, int64(10), resp.Usage.PromptTokensDetails.CachedTokens)
 }
 
@@ -662,8 +694,8 @@ func TestTransformImageGenerationResponse_WithOutputTokensDetails(t *testing.T) 
 	assert.Equal(t, int64(256), resp.Usage.CompletionTokens)
 	assert.Equal(t, int64(356), resp.Usage.TotalTokens)
 	require.NotNil(t, resp.Usage.PromptTokensDetails)
-	assert.Equal(t, int64(80), resp.Usage.PromptTokensDetails.ImageTokens)
-	assert.Equal(t, int64(20), resp.Usage.PromptTokensDetails.TextTokens)
+	assert.Equal(t, int64(80), *resp.Usage.PromptTokensDetails.ImageTokens)
+	assert.Equal(t, int64(20), *resp.Usage.PromptTokensDetails.TextTokens)
 	require.NotNil(t, resp.Usage.CompletionTokensDetails)
 	assert.Equal(t, int64(50), resp.Usage.CompletionTokensDetails.ReasoningTokens)
 }

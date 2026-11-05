@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
@@ -117,6 +118,8 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	estimatedUsage.CompletionTokens = output
 	estimatedUsage.TotalTokens = promptTokens + output
 	total := decimal.Zero
+	splitInput := slices.ContainsFunc(effective, func(item objects.ModelPriceItem) bool { return item.ItemCode.IsModalityToken() })
+	inputEstimate := decimal.Zero
 	for _, item := range effective {
 		multiplier := snap.Applied.Value
 		if item.Pricing.Mode == objects.PricingModeFlatFee || item.Pricing.Mode == objects.PricingModeImageFixed {
@@ -153,22 +156,52 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 		if !priced && quantity > 0 {
 			return 0, fmt.Errorf("the requested service tier item has no configured price")
 		}
-		_, subtotal := computeItemSubtotal(quantity, resolved)
+		estimateItem := func(pricing objects.Pricing) decimal.Decimal {
+			if splitInput && item.ItemCode != objects.PriceItemCodeCompletion &&
+				(pricing.Mode == objects.PricingModeTiered || pricing.Mode == objects.PricingModeVolume) && pricing.UsageTiered != nil {
+				// Until modalities are known, each subset can hit a different
+				// (including cheaper or dearer) tier. Reserve once at the largest
+				// reachable unit rate instead of applying the total to each tier.
+				maximum := decimal.Zero
+				var previous int64
+				for _, tier := range pricing.UsageTiered.Tiers {
+					if quantity <= previous {
+						break
+					}
+					maximum = decimal.Max(maximum, tier.PricePerUnit)
+					if tier.UpTo == nil {
+						break
+					}
+					previous = *tier.UpTo
+				}
+				return maximum.Mul(unitsInMillionTokens(quantity))
+			}
+			_, subtotal := computeItemSubtotal(quantity, pricing)
+			return subtotal
+		}
+		subtotal := estimateItem(resolved)
 		if item.ItemCode == objects.PriceItemCodeWriteCachedTokens {
 			for _, variant := range []objects.PromptWriteCacheVariantCode{objects.PromptWriteCacheVariantCode5Min, objects.PromptWriteCacheVariantCode1Hour} {
 				variantPrice, priced := resolve(item, variant)
 				if !priced && quantity > 0 {
 					return 0, fmt.Errorf("the requested cache variant has no configured price")
 				}
-				_, value := computeItemSubtotal(quantity, variantPrice)
+				value := estimateItem(variantPrice)
 				if value.GreaterThan(subtotal) {
 					subtotal = value
 				}
 			}
 		}
-		total = total.Add(subtotal.Mul(multiplier))
+		subtotal = subtotal.Mul(multiplier)
+		if splitInput && item.ItemCode != objects.PriceItemCodeCompletion && item.Pricing.Mode != objects.PricingModeFlatFee {
+			// Only the total input estimate is known before dispatch. Its modality
+			// and cache alternatives are exclusive, so reserve the largest cost.
+			inputEstimate = decimal.Max(inputEstimate, subtotal)
+		} else {
+			total = total.Add(subtotal)
+		}
 	}
-	return budget.ReserveAmount(total)
+	return budget.ReserveAmount(total.Add(inputEstimate))
 }
 
 func (s *UsageLogService) actualBudgetCost(ctx context.Context, usage *llm.Usage, snapshot *objects.RequestCostSnapshot) (*budget.Amount, error) {

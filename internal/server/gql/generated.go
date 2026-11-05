@@ -2929,6 +2929,10 @@ type ComplexityRoot struct {
 		ProjectID                          func(childComplexity int) int
 		PromptAudioTokens                  func(childComplexity int) int
 		PromptCachedTokens                 func(childComplexity int) int
+		PromptImageCachedTokens            func(childComplexity int) int
+		PromptImageTokens                  func(childComplexity int) int
+		PromptTextCachedTokens             func(childComplexity int) int
+		PromptTextTokens                   func(childComplexity int) int
 		PromptTokens                       func(childComplexity int) int
 		PromptWriteCachedTokens            func(childComplexity int) int
 		PromptWriteCachedTokens1h          func(childComplexity int) int
@@ -16267,6 +16271,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.UsageLog.PromptCachedTokens(childComplexity), true
+	case "UsageLog.promptImageCachedTokens":
+		if e.complexity.UsageLog.PromptImageCachedTokens == nil {
+			break
+		}
+
+		return e.complexity.UsageLog.PromptImageCachedTokens(childComplexity), true
+	case "UsageLog.promptImageTokens":
+		if e.complexity.UsageLog.PromptImageTokens == nil {
+			break
+		}
+
+		return e.complexity.UsageLog.PromptImageTokens(childComplexity), true
+	case "UsageLog.promptTextCachedTokens":
+		if e.complexity.UsageLog.PromptTextCachedTokens == nil {
+			break
+		}
+
+		return e.complexity.UsageLog.PromptTextCachedTokens(childComplexity), true
+	case "UsageLog.promptTextTokens":
+		if e.complexity.UsageLog.PromptTextTokens == nil {
+			break
+		}
+
+		return e.complexity.UsageLog.PromptTextTokens(childComplexity), true
 	case "UsageLog.promptTokens":
 		if e.complexity.UsageLog.PromptTokens == nil {
 			break
@@ -47392,9 +47420,9 @@ func (ec *executionContext) _ModelCardCost_input(ctx context.Context, field grap
 			return obj.Input, nil
 		},
 		nil,
-		ec.marshalNFloat2float64,
+		ec.marshalOFloat2ᚖfloat64,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -47450,9 +47478,9 @@ func (ec *executionContext) _ModelCardCost_cacheRead(ctx context.Context, field 
 			return obj.CacheRead, nil
 		},
 		nil,
-		ec.marshalNFloat2float64,
+		ec.marshalOFloat2ᚖfloat64,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -86761,6 +86789,122 @@ func (ec *executionContext) fieldContext_UsageLog_totalTokens(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _UsageLog_promptTextTokens(ctx context.Context, field graphql.CollectedField, obj *ent.UsageLog) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageLog_promptTextTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptTextTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageLog_promptTextTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageLog_promptImageTokens(ctx context.Context, field graphql.CollectedField, obj *ent.UsageLog) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageLog_promptImageTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptImageTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageLog_promptImageTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageLog_promptTextCachedTokens(ctx context.Context, field graphql.CollectedField, obj *ent.UsageLog) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageLog_promptTextCachedTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptTextCachedTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageLog_promptTextCachedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageLog_promptImageCachedTokens(ctx context.Context, field graphql.CollectedField, obj *ent.UsageLog) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageLog_promptImageCachedTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptImageCachedTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageLog_promptImageCachedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _UsageLog_promptAudioTokens(ctx context.Context, field graphql.CollectedField, obj *ent.UsageLog) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -87683,6 +87827,14 @@ func (ec *executionContext) fieldContext_UsageLogEdge_node(_ context.Context, fi
 				return ec.fieldContext_UsageLog_completionTokens(ctx, field)
 			case "totalTokens":
 				return ec.fieldContext_UsageLog_totalTokens(ctx, field)
+			case "promptTextTokens":
+				return ec.fieldContext_UsageLog_promptTextTokens(ctx, field)
+			case "promptImageTokens":
+				return ec.fieldContext_UsageLog_promptImageTokens(ctx, field)
+			case "promptTextCachedTokens":
+				return ec.fieldContext_UsageLog_promptTextCachedTokens(ctx, field)
+			case "promptImageCachedTokens":
+				return ec.fieldContext_UsageLog_promptImageCachedTokens(ctx, field)
 			case "promptAudioTokens":
 				return ec.fieldContext_UsageLog_promptAudioTokens(ctx, field)
 			case "promptCachedTokens":
@@ -100755,7 +100907,7 @@ func (ec *executionContext) unmarshalInputCreateUsageLogInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"apiKeyID", "modelID", "promptTokens", "completionTokens", "totalTokens", "promptAudioTokens", "promptCachedTokens", "promptWriteCachedTokens", "promptWriteCachedTokens5m", "promptWriteCachedTokens1h", "completionAudioTokens", "completionReasoningTokens", "completionAcceptedPredictionTokens", "completionRejectedPredictionTokens", "source", "format", "totalCost", "costItems", "costPriceReferenceID", "requestID", "projectID", "channelID"}
+	fieldsInOrder := [...]string{"apiKeyID", "modelID", "promptTokens", "completionTokens", "totalTokens", "promptTextTokens", "promptImageTokens", "promptTextCachedTokens", "promptImageCachedTokens", "promptAudioTokens", "promptCachedTokens", "promptWriteCachedTokens", "promptWriteCachedTokens5m", "promptWriteCachedTokens1h", "completionAudioTokens", "completionReasoningTokens", "completionAcceptedPredictionTokens", "completionRejectedPredictionTokens", "source", "format", "totalCost", "costItems", "costPriceReferenceID", "requestID", "projectID", "channelID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -100797,6 +100949,34 @@ func (ec *executionContext) unmarshalInputCreateUsageLogInput(ctx context.Contex
 				return it, err
 			}
 			it.TotalTokens = data
+		case "promptTextTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokens = data
+		case "promptImageTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokens = data
+		case "promptTextCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokens = data
+		case "promptImageCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokens = data
 		case "promptAudioTokens":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptAudioTokens"))
 			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
@@ -117675,7 +117855,7 @@ func (ec *executionContext) unmarshalInputUpdateUsageLogInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"promptTokens", "completionTokens", "totalTokens", "promptAudioTokens", "clearPromptAudioTokens", "promptCachedTokens", "clearPromptCachedTokens", "promptWriteCachedTokens", "clearPromptWriteCachedTokens", "promptWriteCachedTokens5m", "clearPromptWriteCachedTokens5m", "promptWriteCachedTokens1h", "clearPromptWriteCachedTokens1h", "completionAudioTokens", "clearCompletionAudioTokens", "completionReasoningTokens", "clearCompletionReasoningTokens", "completionAcceptedPredictionTokens", "clearCompletionAcceptedPredictionTokens", "completionRejectedPredictionTokens", "clearCompletionRejectedPredictionTokens", "totalCost", "clearTotalCost", "costItems", "appendCostItems", "clearCostItems", "costPriceReferenceID", "clearCostPriceReferenceID"}
+	fieldsInOrder := [...]string{"promptTokens", "completionTokens", "totalTokens", "promptTextTokens", "clearPromptTextTokens", "promptImageTokens", "clearPromptImageTokens", "promptTextCachedTokens", "clearPromptTextCachedTokens", "promptImageCachedTokens", "clearPromptImageCachedTokens", "promptAudioTokens", "clearPromptAudioTokens", "promptCachedTokens", "clearPromptCachedTokens", "promptWriteCachedTokens", "clearPromptWriteCachedTokens", "promptWriteCachedTokens5m", "clearPromptWriteCachedTokens5m", "promptWriteCachedTokens1h", "clearPromptWriteCachedTokens1h", "completionAudioTokens", "clearCompletionAudioTokens", "completionReasoningTokens", "clearCompletionReasoningTokens", "completionAcceptedPredictionTokens", "clearCompletionAcceptedPredictionTokens", "completionRejectedPredictionTokens", "clearCompletionRejectedPredictionTokens", "totalCost", "clearTotalCost", "costItems", "appendCostItems", "clearCostItems", "costPriceReferenceID", "clearCostPriceReferenceID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -117703,6 +117883,62 @@ func (ec *executionContext) unmarshalInputUpdateUsageLogInput(ctx context.Contex
 				return it, err
 			}
 			it.TotalTokens = data
+		case "promptTextTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokens = data
+		case "clearPromptTextTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearPromptTextTokens"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearPromptTextTokens = data
+		case "promptImageTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokens = data
+		case "clearPromptImageTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearPromptImageTokens"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearPromptImageTokens = data
+		case "promptTextCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokens = data
+		case "clearPromptTextCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearPromptTextCachedTokens"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearPromptTextCachedTokens = data
+		case "promptImageCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokens = data
+		case "clearPromptImageCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearPromptImageCachedTokens"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearPromptImageCachedTokens = data
 		case "promptAudioTokens":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptAudioTokens"))
 			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
@@ -118200,7 +118436,7 @@ func (ec *executionContext) unmarshalInputUsageLogWhereInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "requestID", "requestIDNEQ", "requestIDIn", "requestIDNotIn", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDGT", "apiKeyIDGTE", "apiKeyIDLT", "apiKeyIDLTE", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "promptTokens", "promptTokensNEQ", "promptTokensIn", "promptTokensNotIn", "promptTokensGT", "promptTokensGTE", "promptTokensLT", "promptTokensLTE", "completionTokens", "completionTokensNEQ", "completionTokensIn", "completionTokensNotIn", "completionTokensGT", "completionTokensGTE", "completionTokensLT", "completionTokensLTE", "totalTokens", "totalTokensNEQ", "totalTokensIn", "totalTokensNotIn", "totalTokensGT", "totalTokensGTE", "totalTokensLT", "totalTokensLTE", "promptAudioTokens", "promptAudioTokensNEQ", "promptAudioTokensIn", "promptAudioTokensNotIn", "promptAudioTokensGT", "promptAudioTokensGTE", "promptAudioTokensLT", "promptAudioTokensLTE", "promptAudioTokensIsNil", "promptAudioTokensNotNil", "promptCachedTokens", "promptCachedTokensNEQ", "promptCachedTokensIn", "promptCachedTokensNotIn", "promptCachedTokensGT", "promptCachedTokensGTE", "promptCachedTokensLT", "promptCachedTokensLTE", "promptCachedTokensIsNil", "promptCachedTokensNotNil", "promptWriteCachedTokens", "promptWriteCachedTokensNEQ", "promptWriteCachedTokensIn", "promptWriteCachedTokensNotIn", "promptWriteCachedTokensGT", "promptWriteCachedTokensGTE", "promptWriteCachedTokensLT", "promptWriteCachedTokensLTE", "promptWriteCachedTokensIsNil", "promptWriteCachedTokensNotNil", "promptWriteCachedTokens5m", "promptWriteCachedTokens5mNEQ", "promptWriteCachedTokens5mIn", "promptWriteCachedTokens5mNotIn", "promptWriteCachedTokens5mGT", "promptWriteCachedTokens5mGTE", "promptWriteCachedTokens5mLT", "promptWriteCachedTokens5mLTE", "promptWriteCachedTokens5mIsNil", "promptWriteCachedTokens5mNotNil", "promptWriteCachedTokens1h", "promptWriteCachedTokens1hNEQ", "promptWriteCachedTokens1hIn", "promptWriteCachedTokens1hNotIn", "promptWriteCachedTokens1hGT", "promptWriteCachedTokens1hGTE", "promptWriteCachedTokens1hLT", "promptWriteCachedTokens1hLTE", "promptWriteCachedTokens1hIsNil", "promptWriteCachedTokens1hNotNil", "completionAudioTokens", "completionAudioTokensNEQ", "completionAudioTokensIn", "completionAudioTokensNotIn", "completionAudioTokensGT", "completionAudioTokensGTE", "completionAudioTokensLT", "completionAudioTokensLTE", "completionAudioTokensIsNil", "completionAudioTokensNotNil", "completionReasoningTokens", "completionReasoningTokensNEQ", "completionReasoningTokensIn", "completionReasoningTokensNotIn", "completionReasoningTokensGT", "completionReasoningTokensGTE", "completionReasoningTokensLT", "completionReasoningTokensLTE", "completionReasoningTokensIsNil", "completionReasoningTokensNotNil", "completionAcceptedPredictionTokens", "completionAcceptedPredictionTokensNEQ", "completionAcceptedPredictionTokensIn", "completionAcceptedPredictionTokensNotIn", "completionAcceptedPredictionTokensGT", "completionAcceptedPredictionTokensGTE", "completionAcceptedPredictionTokensLT", "completionAcceptedPredictionTokensLTE", "completionAcceptedPredictionTokensIsNil", "completionAcceptedPredictionTokensNotNil", "completionRejectedPredictionTokens", "completionRejectedPredictionTokensNEQ", "completionRejectedPredictionTokensIn", "completionRejectedPredictionTokensNotIn", "completionRejectedPredictionTokensGT", "completionRejectedPredictionTokensGTE", "completionRejectedPredictionTokensLT", "completionRejectedPredictionTokensLTE", "completionRejectedPredictionTokensIsNil", "completionRejectedPredictionTokensNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "totalCost", "totalCostNEQ", "totalCostIn", "totalCostNotIn", "totalCostGT", "totalCostGTE", "totalCostLT", "totalCostLTE", "totalCostIsNil", "totalCostNotNil", "costPriceReferenceID", "costPriceReferenceIDNEQ", "costPriceReferenceIDIn", "costPriceReferenceIDNotIn", "costPriceReferenceIDGT", "costPriceReferenceIDGTE", "costPriceReferenceIDLT", "costPriceReferenceIDLTE", "costPriceReferenceIDContains", "costPriceReferenceIDHasPrefix", "costPriceReferenceIDHasSuffix", "costPriceReferenceIDIsNil", "costPriceReferenceIDNotNil", "costPriceReferenceIDEqualFold", "costPriceReferenceIDContainsFold", "hasRequest", "hasRequestWith", "hasProject", "hasProjectWith", "hasChannel", "hasChannelWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "requestID", "requestIDNEQ", "requestIDIn", "requestIDNotIn", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDGT", "apiKeyIDGTE", "apiKeyIDLT", "apiKeyIDLTE", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "promptTokens", "promptTokensNEQ", "promptTokensIn", "promptTokensNotIn", "promptTokensGT", "promptTokensGTE", "promptTokensLT", "promptTokensLTE", "completionTokens", "completionTokensNEQ", "completionTokensIn", "completionTokensNotIn", "completionTokensGT", "completionTokensGTE", "completionTokensLT", "completionTokensLTE", "totalTokens", "totalTokensNEQ", "totalTokensIn", "totalTokensNotIn", "totalTokensGT", "totalTokensGTE", "totalTokensLT", "totalTokensLTE", "promptTextTokens", "promptTextTokensNEQ", "promptTextTokensIn", "promptTextTokensNotIn", "promptTextTokensGT", "promptTextTokensGTE", "promptTextTokensLT", "promptTextTokensLTE", "promptTextTokensIsNil", "promptTextTokensNotNil", "promptImageTokens", "promptImageTokensNEQ", "promptImageTokensIn", "promptImageTokensNotIn", "promptImageTokensGT", "promptImageTokensGTE", "promptImageTokensLT", "promptImageTokensLTE", "promptImageTokensIsNil", "promptImageTokensNotNil", "promptTextCachedTokens", "promptTextCachedTokensNEQ", "promptTextCachedTokensIn", "promptTextCachedTokensNotIn", "promptTextCachedTokensGT", "promptTextCachedTokensGTE", "promptTextCachedTokensLT", "promptTextCachedTokensLTE", "promptTextCachedTokensIsNil", "promptTextCachedTokensNotNil", "promptImageCachedTokens", "promptImageCachedTokensNEQ", "promptImageCachedTokensIn", "promptImageCachedTokensNotIn", "promptImageCachedTokensGT", "promptImageCachedTokensGTE", "promptImageCachedTokensLT", "promptImageCachedTokensLTE", "promptImageCachedTokensIsNil", "promptImageCachedTokensNotNil", "promptAudioTokens", "promptAudioTokensNEQ", "promptAudioTokensIn", "promptAudioTokensNotIn", "promptAudioTokensGT", "promptAudioTokensGTE", "promptAudioTokensLT", "promptAudioTokensLTE", "promptAudioTokensIsNil", "promptAudioTokensNotNil", "promptCachedTokens", "promptCachedTokensNEQ", "promptCachedTokensIn", "promptCachedTokensNotIn", "promptCachedTokensGT", "promptCachedTokensGTE", "promptCachedTokensLT", "promptCachedTokensLTE", "promptCachedTokensIsNil", "promptCachedTokensNotNil", "promptWriteCachedTokens", "promptWriteCachedTokensNEQ", "promptWriteCachedTokensIn", "promptWriteCachedTokensNotIn", "promptWriteCachedTokensGT", "promptWriteCachedTokensGTE", "promptWriteCachedTokensLT", "promptWriteCachedTokensLTE", "promptWriteCachedTokensIsNil", "promptWriteCachedTokensNotNil", "promptWriteCachedTokens5m", "promptWriteCachedTokens5mNEQ", "promptWriteCachedTokens5mIn", "promptWriteCachedTokens5mNotIn", "promptWriteCachedTokens5mGT", "promptWriteCachedTokens5mGTE", "promptWriteCachedTokens5mLT", "promptWriteCachedTokens5mLTE", "promptWriteCachedTokens5mIsNil", "promptWriteCachedTokens5mNotNil", "promptWriteCachedTokens1h", "promptWriteCachedTokens1hNEQ", "promptWriteCachedTokens1hIn", "promptWriteCachedTokens1hNotIn", "promptWriteCachedTokens1hGT", "promptWriteCachedTokens1hGTE", "promptWriteCachedTokens1hLT", "promptWriteCachedTokens1hLTE", "promptWriteCachedTokens1hIsNil", "promptWriteCachedTokens1hNotNil", "completionAudioTokens", "completionAudioTokensNEQ", "completionAudioTokensIn", "completionAudioTokensNotIn", "completionAudioTokensGT", "completionAudioTokensGTE", "completionAudioTokensLT", "completionAudioTokensLTE", "completionAudioTokensIsNil", "completionAudioTokensNotNil", "completionReasoningTokens", "completionReasoningTokensNEQ", "completionReasoningTokensIn", "completionReasoningTokensNotIn", "completionReasoningTokensGT", "completionReasoningTokensGTE", "completionReasoningTokensLT", "completionReasoningTokensLTE", "completionReasoningTokensIsNil", "completionReasoningTokensNotNil", "completionAcceptedPredictionTokens", "completionAcceptedPredictionTokensNEQ", "completionAcceptedPredictionTokensIn", "completionAcceptedPredictionTokensNotIn", "completionAcceptedPredictionTokensGT", "completionAcceptedPredictionTokensGTE", "completionAcceptedPredictionTokensLT", "completionAcceptedPredictionTokensLTE", "completionAcceptedPredictionTokensIsNil", "completionAcceptedPredictionTokensNotNil", "completionRejectedPredictionTokens", "completionRejectedPredictionTokensNEQ", "completionRejectedPredictionTokensIn", "completionRejectedPredictionTokensNotIn", "completionRejectedPredictionTokensGT", "completionRejectedPredictionTokensGTE", "completionRejectedPredictionTokensLT", "completionRejectedPredictionTokensLTE", "completionRejectedPredictionTokensIsNil", "completionRejectedPredictionTokensNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "totalCost", "totalCostNEQ", "totalCostIn", "totalCostNotIn", "totalCostGT", "totalCostGTE", "totalCostLT", "totalCostLTE", "totalCostIsNil", "totalCostNotNil", "costPriceReferenceID", "costPriceReferenceIDNEQ", "costPriceReferenceIDIn", "costPriceReferenceIDNotIn", "costPriceReferenceIDGT", "costPriceReferenceIDGTE", "costPriceReferenceIDLT", "costPriceReferenceIDLTE", "costPriceReferenceIDContains", "costPriceReferenceIDHasPrefix", "costPriceReferenceIDHasSuffix", "costPriceReferenceIDIsNil", "costPriceReferenceIDNotNil", "costPriceReferenceIDEqualFold", "costPriceReferenceIDContainsFold", "hasRequest", "hasRequestWith", "hasProject", "hasProjectWith", "hasChannel", "hasChannelWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -118903,6 +119139,286 @@ func (ec *executionContext) unmarshalInputUsageLogWhereInput(ctx context.Context
 				return it, err
 			}
 			it.TotalTokensLTE = data
+		case "promptTextTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokens = data
+		case "promptTextTokensNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensNEQ = data
+		case "promptTextTokensIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensIn = data
+		case "promptTextTokensNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensNotIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensNotIn = data
+		case "promptTextTokensGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensGT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensGT = data
+		case "promptTextTokensGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensGTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensGTE = data
+		case "promptTextTokensLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensLT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensLT = data
+		case "promptTextTokensLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensLTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensLTE = data
+		case "promptTextTokensIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensIsNil = data
+		case "promptTextTokensNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextTokensNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextTokensNotNil = data
+		case "promptImageTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokens = data
+		case "promptImageTokensNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensNEQ = data
+		case "promptImageTokensIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensIn = data
+		case "promptImageTokensNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensNotIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensNotIn = data
+		case "promptImageTokensGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensGT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensGT = data
+		case "promptImageTokensGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensGTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensGTE = data
+		case "promptImageTokensLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensLT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensLT = data
+		case "promptImageTokensLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensLTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensLTE = data
+		case "promptImageTokensIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensIsNil = data
+		case "promptImageTokensNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageTokensNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageTokensNotNil = data
+		case "promptTextCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokens = data
+		case "promptTextCachedTokensNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensNEQ = data
+		case "promptTextCachedTokensIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensIn = data
+		case "promptTextCachedTokensNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensNotIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensNotIn = data
+		case "promptTextCachedTokensGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensGT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensGT = data
+		case "promptTextCachedTokensGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensGTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensGTE = data
+		case "promptTextCachedTokensLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensLT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensLT = data
+		case "promptTextCachedTokensLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensLTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensLTE = data
+		case "promptTextCachedTokensIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensIsNil = data
+		case "promptTextCachedTokensNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptTextCachedTokensNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptTextCachedTokensNotNil = data
+		case "promptImageCachedTokens":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokens"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokens = data
+		case "promptImageCachedTokensNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensNEQ"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensNEQ = data
+		case "promptImageCachedTokensIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensIn = data
+		case "promptImageCachedTokensNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensNotIn"))
+			data, err := ec.unmarshalOInt2ᚕint64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensNotIn = data
+		case "promptImageCachedTokensGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensGT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensGT = data
+		case "promptImageCachedTokensGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensGTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensGTE = data
+		case "promptImageCachedTokensLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensLT"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensLT = data
+		case "promptImageCachedTokensLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensLTE"))
+			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensLTE = data
+		case "promptImageCachedTokensIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensIsNil = data
+		case "promptImageCachedTokensNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptImageCachedTokensNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PromptImageCachedTokensNotNil = data
 		case "promptAudioTokens":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("promptAudioTokens"))
 			data, err := ec.unmarshalOInt2ᚖint64(ctx, v)
@@ -131798,9 +132314,6 @@ func (ec *executionContext) _ModelCardCost(ctx context.Context, sel ast.Selectio
 			out.Values[i] = graphql.MarshalString("ModelCardCost")
 		case "input":
 			out.Values[i] = ec._ModelCardCost_input(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "output":
 			out.Values[i] = ec._ModelCardCost_output(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -131808,9 +132321,6 @@ func (ec *executionContext) _ModelCardCost(ctx context.Context, sel ast.Selectio
 			}
 		case "cacheRead":
 			out.Values[i] = ec._ModelCardCost_cacheRead(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "cacheWrite":
 			out.Values[i] = ec._ModelCardCost_cacheWrite(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -146882,6 +147392,14 @@ func (ec *executionContext) _UsageLog(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "promptTextTokens":
+			out.Values[i] = ec._UsageLog_promptTextTokens(ctx, field, obj)
+		case "promptImageTokens":
+			out.Values[i] = ec._UsageLog_promptImageTokens(ctx, field, obj)
+		case "promptTextCachedTokens":
+			out.Values[i] = ec._UsageLog_promptTextCachedTokens(ctx, field, obj)
+		case "promptImageCachedTokens":
+			out.Values[i] = ec._UsageLog_promptImageCachedTokens(ctx, field, obj)
 		case "promptAudioTokens":
 			out.Values[i] = ec._UsageLog_promptAudioTokens(ctx, field, obj)
 		case "promptCachedTokens":

@@ -608,9 +608,10 @@ func transformImageGenerationResponse(httpResp *httpclient.Response) (*llm.Respo
 		}
 		if imgResp.Usage.InputTokensDetails != nil {
 			resp.Usage.PromptTokensDetails = &llm.PromptTokensDetails{
-				ImageTokens:  imgResp.Usage.InputTokensDetails.ImageTokens,
-				TextTokens:   imgResp.Usage.InputTokensDetails.TextTokens,
-				CachedTokens: imgResp.Usage.InputTokensDetails.CachedTokens,
+				ImageTokens:         imgResp.Usage.InputTokensDetails.ImageTokens,
+				TextTokens:          imgResp.Usage.InputTokensDetails.TextTokens,
+				CachedTokens:        imgResp.Usage.InputTokensDetails.CachedTokens,
+				CachedTokensDetails: imgResp.Usage.InputTokensDetails.CachedTokensDetails,
 			}
 		}
 
@@ -665,9 +666,10 @@ type ImagesResponseUsage struct {
 
 // ImagesResponseUsageInputTokensDetails represents detailed input token information.
 type ImagesResponseUsageInputTokensDetails struct {
-	ImageTokens  int64 `json:"image_tokens"`
-	TextTokens   int64 `json:"text_tokens"`
-	CachedTokens int64 `json:"cached_tokens,omitempty"`
+	ImageTokens         *int64                   `json:"image_tokens,omitempty"`
+	TextTokens          *int64                   `json:"text_tokens,omitempty"`
+	CachedTokens        int64                    `json:"cached_tokens,omitempty"`
+	CachedTokensDetails *llm.CachedTokensDetails `json:"cached_tokens_details,omitempty"`
 }
 
 // ImagesResponseUsageOutputTokensDetails represents detailed output token information.
