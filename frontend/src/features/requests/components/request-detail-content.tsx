@@ -546,7 +546,10 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const promptCost = inputCostSubtotal(usage.costItems);
           const completionCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'completion_tokens')?.subtotal;
           const cacheReadCost = inputCostSubtotal(usage.costItems, true);
-          const cacheWriteCost = usage.costItems?.find((i: any) => i.itemCode === 'prompt_write_cached_tokens')?.subtotal;
+          const cacheWriteItems = usage.costItems?.filter((item) => item.itemCode === 'prompt_write_cached_tokens');
+          const cacheWriteCost = cacheWriteItems?.length && !cacheWriteItems.some((item) => item.unpriced)
+            ? cacheWriteItems.reduce((sum, item) => sum + item.subtotal, 0)
+            : undefined;
 
           const formatCurrency = (val: number) =>
             t('currencies.format', {
@@ -674,6 +677,8 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                         total={usage.totalCost ?? null}
                         currencyCode={settings?.currencyCode ?? 'USD'}
                         breakdown={{
+                          cacheWriteTokens5m: usage.promptWriteCachedTokens5m,
+                          cacheWriteTokens1h: usage.promptWriteCachedTokens1h,
                           items: (usage.costItems ?? []).map((item) => ({
                             ...item,
                             variant: item.promptWriteCacheVariantCode ?? null,

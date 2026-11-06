@@ -46,6 +46,10 @@ func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, m
 
 		return nil, nil, ""
 	}
+	if ch.Settings != nil && ch.Settings.CacheWriteBilling != nil {
+		snapshot := captureRequestCostSnapshot(ctx, s.entFromContext(ctx), ch, modelID, nil)
+		return s.computeSnapshotUsageCost(ctx, usage, snapshot)
+	}
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "checking cached model price",

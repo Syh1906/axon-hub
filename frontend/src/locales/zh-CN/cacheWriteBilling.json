@@ -1,0 +1,16 @@
+{
+  "cacheWriteBilling": {
+    "title": "缓存价格转换",
+    "description": "开启后互换 5 分钟与 1 小时写入的计费价格；关闭时按实际时长正常计价。实际缓存时长和用量不变，保存后对新请求生效。",
+    "basePriceHint": "各时长价格优先取专用定价，未配置时取基础价；开启缓存价格转换后互换取价。",
+    "badge": "实际缓存写入时长 {{duration}}",
+    "badgeAdjusted": "实际缓存写入时长 {{duration}}，已启用缓存价格转换，查看费用明细",
+    "detail": "实际写入 {{actual}}，按 {{pricing}}价计费",
+    "historical": "实际写入 {{actual}}，历史记录未保存计价时长依据",
+    "missingCostItem": "实际写入 {{actual}}；此记录未保存该时长的缓存费用分项，无法确认计价依据。",
+    "rule": "本次请求已启用缓存价格转换",
+    "effectiveRule": "转换后按 {{duration}}价计费",
+    "effectiveTiered": "实际费用按 {{duration}}价格规则计算",
+    "duration": { "five_min": "5 分钟", "one_hour": "1 小时" }
+  }
+}

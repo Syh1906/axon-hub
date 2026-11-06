@@ -154,14 +154,15 @@ export function CostCell({
 }) {
   const { t, i18n } = useTranslation();
   const [costOpen, setCostOpen] = useState(false);
-  if (total == null && !breakdown?.items.some((item) => item.unpriced)) return <span className='font-mono text-xs'>{emptyLabel}</span>;
+  const rows = breakdown ? buildCostBreakdown(total ?? 0, breakdown) : null;
+  const missingCost = total == null && !breakdown?.items.some((item) => item.unpriced);
+  if (missingCost && !rows?.cacheWriteLabel) return <span className='font-mono text-xs'>{emptyLabel}</span>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const money = (val: number, minimumFractionDigits: number, maximumFractionDigits = minimumFractionDigits) =>
     t('currencies.format', { val, currency: currencyCode, locale, ...currencyFractionDigits(currencyDisplayDecimals, minimumFractionDigits, maximumFractionDigits) });
   // Without an explicit display preference, preserve the existing precision for unit prices.
-  const amount = total == null ? t('serviceTier.cost.unpriced') : money(total, 6);
-  if (!breakdown) return <span className='font-mono text-xs font-medium'>{amount}</span>;
-  const rows = buildCostBreakdown(total ?? 0, breakdown);
+  const amount = missingCost ? emptyLabel : total == null ? t('serviceTier.cost.unpriced') : money(total, 6);
+  if (!breakdown || !rows) return <span className='font-mono text-xs font-medium'>{amount}</span>;
   const evidence = rows.evidence;
   const mode = evidence && evidence !== 'mixed' ? evidence.serviceTier.mode : null;
   const itemLabel = (code: string) => {
@@ -186,25 +187,47 @@ export function CostCell({
   return (
     <Tooltip open={costOpen} onOpenChange={setCostOpen}>
       <TooltipTrigger asChild>
-        <button type='button' onClick={(event) => { event.preventDefault(); setCostOpen((open) => !open); }} className='inline-flex cursor-help items-center gap-1 whitespace-nowrap font-mono text-xs font-medium'>
+        <button type='button' onClick={(event) => { event.preventDefault(); setCostOpen((open) => !open); }} className='inline-flex cursor-help flex-col items-start gap-1 whitespace-nowrap text-left font-mono text-xs font-medium'>
           <span className='underline decoration-dotted underline-offset-2'>{amount}</span>
-          {(mode === 'fast' || mode === 'ultrafast') && (
-            <Badge variant='outline' className='border-orange-200 bg-orange-50 px-1 text-[10px] leading-tight text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'>
-              {t(`serviceTier.mode.${mode}`)}
-            </Badge>
+          {(mode === 'fast' || mode === 'ultrafast' || evidence === 'mixed' || (evidence && evidence.context.longContext) || rows.cacheWriteLabel) && (
+            <span className='inline-flex items-center gap-1'>
+              {(mode === 'fast' || mode === 'ultrafast') && (
+                <Badge variant='outline' className='border-orange-200 bg-orange-50 px-1 text-[10px] leading-tight text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'>
+                  {t(`serviceTier.mode.${mode}`)}
+                </Badge>
+              )}
+              {evidence && evidence !== 'mixed' && evidence.context.longContext && (
+                <Badge variant='outline' className='border-purple-200 bg-purple-50 px-1 text-[10px] leading-tight text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300'>
+                  1M
+                </Badge>
+              )}
+              {evidence === 'mixed' && <Badge variant='outline' className='px-1 text-[10px] leading-tight'>{t('serviceTier.cost.mixed')}</Badge>}
+              {rows.cacheWriteLabel && (
+                <Badge
+                  variant='outline'
+                  className={`px-1 text-[10px] leading-tight ${rows.cacheWriteAdjusted
+                    ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300'
+                    : rows.cacheWriteLabel === '1h'
+                      ? 'border-violet-200 text-violet-700 dark:border-violet-800 dark:text-violet-300'
+                      : 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300'}`}
+                  aria-label={t(rows.cacheWriteAdjusted ? 'cacheWriteBilling.badgeAdjusted' : 'cacheWriteBilling.badge', {
+                    duration: rows.cacheWriteLabel,
+                  })}
+                >
+                  {rows.cacheWriteLabel}
+                </Badge>
+              )}
+            </span>
           )}
-          {evidence && evidence !== 'mixed' && evidence.context.longContext && (
-            <Badge variant='outline' className='border-purple-200 bg-purple-50 px-1 text-[10px] leading-tight text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300'>
-              1M
-            </Badge>
-          )}
-          {evidence === 'mixed' && <Badge variant='outline' className='px-1 text-[10px] leading-tight'>{t('serviceTier.cost.mixed')}</Badge>}
         </button>
       </TooltipTrigger>
       <TooltipContent className='max-h-[70vh] max-w-[min(90vw,400px)] overflow-y-auto p-3' side='top'>
         <div className='min-w-[220px] space-y-2 text-xs'>
           <div className='font-semibold'>{t('requests.costBreakdown.title')}</div>
           <CostPricingDetails evidence={evidence} />
+          {rows.cacheWriteWithoutCost && (
+            <p>{t('cacheWriteBilling.missingCostItem', { actual: t(`cacheWriteBilling.duration.${rows.cacheWriteWithoutCost}`) })}</p>
+          )}
           {rows.items.map((item, index) => (
             <div key={`${item.itemCode}:${item.variant ?? ''}:${index}`}>
               <div className='flex justify-between gap-4'>
@@ -220,6 +243,19 @@ export function CostCell({
                 <span className='font-mono'>{item.unpriced ? t('serviceTier.cost.unpriced') : money(item.pricingEvidence?.modeSubtotal ?? item.pricingEvidence?.baseSubtotal ?? item.subtotal, 6)}</span>
               </div>
               {evidence === 'mixed' && <CostPricingDetails evidence={item.pricingEvidence ?? null} />}
+              {item.itemCode === 'prompt_write_cached_tokens' && item.variant && (
+                <p className='text-background/75'>
+                  {t(item.pricingEvidence?.cacheWritePricingVariant ? 'cacheWriteBilling.detail' : 'cacheWriteBilling.historical', {
+                    actual: t(`cacheWriteBilling.duration.${item.variant}`),
+                    pricing: item.pricingEvidence?.cacheWritePricingVariant
+                      ? t(`cacheWriteBilling.duration.${item.pricingEvidence.cacheWritePricingVariant}`)
+                      : '',
+                  })}
+                  {item.pricingEvidence?.cacheWritePricingVariant &&
+                    item.pricingEvidence.cacheWritePricingVariant !== item.variant &&
+                    ` · ${t('cacheWriteBilling.rule')}`}
+                </p>
+              )}
               {item.pricingEvidence?.itemMethod && <p className='text-background/75'>
                 {item.pricingEvidence.itemMethod === 'unit_price' ? t('serviceTier.items.unit_price') : item.pricingEvidence.itemMethod === 'unpriced' ? t('serviceTier.items.unpriced') : `${item.pricingEvidence.baseUnitPrice == null ? '' : money(item.pricingEvidence.baseUnitPrice, 2, 6)} ×${item.pricingEvidence.modeMultiplier}`}
                 {item.pricingEvidence.finalUnitPrice != null && ` → ${money(item.pricingEvidence.finalUnitPrice, 2, 6)} / 1M`}

@@ -252,7 +252,7 @@ func TestChannelService_DuplicateChannelCopiesModelPrices(t *testing.T) {
 	tierSettings := &objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisClient}
 	sourcePrices, err := svc.SaveChannelModelPrices(ctx, source.ID, []SaveChannelModelPriceInput{
 		{ModelID: "gpt-4", Price: price},
-	}, loToDecimalPtr("0.15"), tierSettings)
+	}, loToDecimalPtr("0.15"), ChannelPricingSettings{ServiceTierBilling: tierSettings, CacheWriteBilling: lo.ToPtr(objects.CacheWriteBillingSwap)})
 	require.NoError(t, err)
 	require.Len(t, sourcePrices, 1)
 
@@ -267,6 +267,7 @@ func TestChannelService_DuplicateChannelCopiesModelPrices(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0.15", duplicated.Settings.ModelPriceMultiplier.String())
 	require.Equal(t, tierSettings, duplicated.Settings.ServiceTierBilling)
+	require.Equal(t, objects.CacheWriteBillingSwap, *duplicated.Settings.CacheWriteBilling)
 
 	copiedPrices, err := client.ChannelModelPrice.Query().
 		Where(channelmodelprice.ChannelID(duplicated.ID)).

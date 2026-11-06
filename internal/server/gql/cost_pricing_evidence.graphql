@@ -1,3 +1,8 @@
+enum PromptWriteCacheVariantCode {
+  five_min
+  one_hour
+}
+
 enum ServiceTierPriceSource {
   official
   custom
@@ -25,6 +30,7 @@ type ContextPricing {
   name: String!
 }
 type CostPricingEvidence {
+  cacheWritePricingVariant: PromptWriteCacheVariantCode
  itemMethod: ServiceTierItemMethod
  ruleSource: String!
  baseUnitPrice: Decimal

@@ -326,6 +326,8 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
               breakdown={
                 log
                   ? {
+                      cacheWriteTokens5m: log.promptWriteCachedTokens5m,
+                      cacheWriteTokens1h: log.promptWriteCachedTokens1h,
                       items: (log.costItems ?? []).map((item) => ({
                         pricingEvidence: item.pricingEvidence,
                         image: item.image,

@@ -174,6 +174,20 @@ The model catalog provides only the 5-minute cache write price. When you import 
 
 With [Force 1-Hour Prompt Cache](channel-management.md#force-1-hour-prompt-cache) enabled on a channel, cache writes mostly land in the 1-hour tier, so make sure the price includes a `one_hour` variant.
 
+#### Channel Cache Price Swap
+
+In **Channels → row actions → Model prices**, enable **Swap cache write prices** when appropriate. It is off by default and normally bills the actual reported duration. When enabled, actual 1-hour writes use the 5-minute rate and actual 5-minute writes use the 1-hour rate. The selected billing duration uses its specific rate in the current pricing tier, falling back to the base cache write rate, then applies service-tier rules and the corresponding multiplier. Existing channel-price and model-price precedence applies.
+
+This setting participates in request costs, statistics, budget reservation and settlement, and enabled `usage.cost` injection. Each new execution freezes its rule after saving, and recorded costs retain their historical evidence. Actual cache durations and 5m/1h quantities remain represented by the original usage fields.
+
+The cost amount occupies the first line; Fast, 1M and other billing badges share the second line. Exactly one cache badge shows the actual write duration: `1h` takes precedence when any 1-hour writes exist, otherwise `5m` is shown for 5-minute writes. Normal `5m` uses a blue outline and `1h` a violet outline. Writes with a recorded price swap use an amber background in either direction, while the label still shows the actual duration. Hover, click or keyboard-focus the amount and badges to inspect actual and billing durations, quantities, rates and costs. Historical records without billing-duration evidence are identified in the details and never inferred to have a swap.
+
+Budget reservation estimates possible rates before dispatch; swapping both directions does not necessarily reduce the reservation. Each pricing mode uses its corresponding multiplier before candidate costs are compared. Final settlement uses actual write quantities and the frozen rule.
+
+Duration badges prioritize the original 5m/1h write counts. A known duration remains visible even without a cache cost item. Unknown costs remain unknown, and details explain the missing billing evidence without inferring a price swap.
+
+Price export version 4 includes this rule. Importing an older format retains the current form's cache billing selection until saving. Cancel discards the draft.
+
 ### Cost Calculation Logic
 
 1. **Input Token Calculation**: `PromptTokens - CachedTokens - WriteCachedTokens`

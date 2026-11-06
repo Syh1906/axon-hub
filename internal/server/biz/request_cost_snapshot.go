@@ -20,6 +20,9 @@ func captureRequestCostSnapshot(ctx context.Context, db *ent.Client, ch *Channel
 	now := time.Now().UTC()
 	manual := channelManualMultiplier(ch.Channel)
 	snapshot := &objects.RequestCostSnapshot{PricedAt: now, ManualMultiplier: manual}
+	if ch.Settings != nil && ch.Settings.CacheWriteBilling != nil {
+		snapshot.CacheWriteBilling = *ch.Settings.CacheWriteBilling
+	}
 	if modelCard != nil {
 		snapshot.ModelOutputLimit = int64(modelCard.Limit.Output)
 	}

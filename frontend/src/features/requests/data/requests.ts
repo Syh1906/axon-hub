@@ -252,6 +252,8 @@ function buildRequestDetailQuery(
                   totalTokens
                   promptCachedTokens
                   promptWriteCachedTokens
+                  promptWriteCachedTokens5m
+                  promptWriteCachedTokens1h
                   totalCost
                   costPriceMultiplier
                   costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }

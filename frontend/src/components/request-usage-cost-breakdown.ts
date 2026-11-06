@@ -14,6 +14,8 @@ export type CostBreakdownItem = {
 
 export type CostBreakdown = {
   items: CostBreakdownItem[];
+  cacheWriteTokens5m?: number | null;
+  cacheWriteTokens1h?: number | null;
   multiplier: number | 'mixed';
   unpricedRecords?: number;
 };
@@ -60,11 +62,25 @@ export function buildCostBreakdown(total: number, breakdown: CostBreakdown) {
     }))
     .sort((a, b) => (itemOrder[a.itemCode] ?? 4) - (itemOrder[b.itemCode] ?? 4));
   const { multiplier } = breakdown;
+  const cacheWrites = items.filter((item) => item.itemCode === 'prompt_write_cached_tokens' && item.quantity > 0);
+  const hasHourWrite = (breakdown.cacheWriteTokens1h ?? (cacheWrites.some((item) => item.variant === 'one_hour') ? 1 : 0)) > 0;
+  const hasFiveMinuteWrite = (breakdown.cacheWriteTokens5m ?? (cacheWrites.some((item) => item.variant === 'five_min') ? 1 : 0)) > 0;
+  const cacheWriteLabel = hasHourWrite
+    ? '1h'
+    : hasFiveMinuteWrite ? '5m' : '';
+  const cacheWriteVariant = hasHourWrite ? 'one_hour' : hasFiveMinuteWrite ? 'five_min' : null;
+  const cacheWriteAdjusted = cacheWrites.some(
+    (item) => ((item.variant === 'five_min' && hasFiveMinuteWrite) || (item.variant === 'one_hour' && hasHourWrite)) &&
+      item.pricingEvidence?.cacheWritePricingVariant != null && item.pricingEvidence.cacheWritePricingVariant !== item.variant
+  );
   const evidence = commonPricingEvidence(items);
   const hasEvidence = items.length > 0 && items.every((item) => item.pricingEvidence);
   const modes = new Set(items.map((item) => item.pricingEvidence?.modeMultiplier));
   const costs = new Set(items.map((item) => item.pricingEvidence?.costMultiplier));
   return {
+    cacheWriteLabel,
+    cacheWriteAdjusted,
+    cacheWriteWithoutCost: cacheWriteVariant && !cacheWrites.some((item) => item.variant === cacheWriteVariant) ? cacheWriteVariant : null,
     evidence,
     itemized: hasEvidence && items.some((item) => item.pricingEvidence?.itemMethod === 'unit_price' || item.pricingEvidence?.itemMethod === 'unpriced') || modes.size > 1,
     hasModeSubtotals: hasEvidence && items.every((item) => item.unpriced || item.pricingEvidence?.modeSubtotal != null),

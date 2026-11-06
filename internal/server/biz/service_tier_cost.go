@@ -45,22 +45,40 @@ func selectedContextPricing(usage *llm.Usage, price objects.ModelPrice, now time
 
 func computeCostFromSnapshot(usage *llm.Usage, price objects.ModelPrice, snapshot *objects.RequestCostSnapshot) ([]objects.CostItem, decimal.Decimal) {
 	effective, overrides, context := selectedModelPricing(usage, price, snapshot.PricedAt)
-	items, _ := computeUsageCostWithItems(usage, effective, snapshot.Images)
+	billingItems := effective
+	if snapshot.CacheWriteBilling == objects.CacheWriteBillingSwap {
+		billingItems = slices.Clone(effective)
+		for i := range billingItems {
+			entry := &billingItems[i]
+			if entry.ItemCode != objects.PriceItemCodeWriteCachedTokens {
+				continue
+			}
+			fiveMin := entry.FindPromptWriteCacheVariantPricing(objects.PromptWriteCacheVariantCode5Min)
+			oneHour := entry.FindPromptWriteCacheVariantPricing(objects.PromptWriteCacheVariantCode1Hour)
+			entry.PromptWriteCacheVariants = []objects.PromptWriteCacheVariant{
+				{VariantCode: objects.PromptWriteCacheVariantCode5Min, Pricing: oneHour},
+				{VariantCode: objects.PromptWriteCacheVariantCode1Hour, Pricing: fiveMin},
+			}
+		}
+	}
+	// Select the billing price before fixed-fee pricing can replace token quantity with 1.
+	items, _ := computeUsageCostWithItems(usage, billingItems, snapshot.Images)
 	decision := snapshot.ServiceTier.Decision()
 	total := decimal.Zero
 	for i := range items {
 		item := &items[i]
+		pricingVariant := snapshot.CacheWriteBilling.PricingVariant(item.PromptWriteCacheVariantCode)
 		var base objects.Pricing
 		for _, entry := range effective {
 			if entry.ItemCode == item.ItemCode {
 				base = entry.Pricing
 				if item.PromptWriteCacheVariantCode != "" {
-					base = entry.FindPromptWriteCacheVariantPricing(item.PromptWriteCacheVariantCode)
+					base = entry.FindPromptWriteCacheVariantPricing(pricingVariant)
 				}
 				break
 			}
 		}
-		rule := objects.ResolveServiceTierItem(decision.Mode, context.InputTokens, price.ServiceTiers, overrides, item.ItemCode, item.PromptWriteCacheVariantCode)
+		rule := objects.ResolveServiceTierItem(decision.Mode, context.InputTokens, price.ServiceTiers, overrides, item.ItemCode, pricingVariant)
 		costMultiplier := snapshot.Applied.Value
 		fixed := base.Mode == objects.PricingModeFlatFee || base.Mode == objects.PricingModeImageFixed
 		if fixed {
@@ -68,6 +86,9 @@ func computeCostFromSnapshot(usage *llm.Usage, price objects.ModelPrice, snapsho
 			rule = objects.ResolvedServiceTierItem{Method: objects.ServiceTierItemMultiplier, Value: lo.ToPtr(decimal.NewFromInt(1)), RuleSource: "non_token"}
 		}
 		evidence := &objects.CostPricingEvidence{ServiceTier: decision, Context: context, BaseSubtotal: item.Subtotal, CostMultiplier: costMultiplier, ItemMethod: lo.ToPtr(rule.Method), RuleSource: rule.RuleSource, BaseUnitPrice: base.UsagePerUnit, Reference: rule.Price}
+		if item.ItemCode == objects.PriceItemCodeWriteCachedTokens && pricingVariant != "" {
+			evidence.CacheWritePricingVariant = lo.ToPtr(pricingVariant)
+		}
 		if rule.Price != nil {
 			reference := *rule.Price
 			reference.Items = slices.Clone(rule.Price.Items)

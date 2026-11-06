@@ -185,17 +185,18 @@ type AppliedCostMultiplier struct {
 
 // RequestCostSnapshot 保留请求时的计价依据：渠道价格引用不可变版本，模型默认价直接保存副本。
 type RequestCostSnapshot struct {
-	ServiceTier      *ServiceTierEvidence  `json:"serviceTier,omitempty"`
-	Images           []ImageOutput         `json:"images,omitempty"`
-	PriceReferenceID string                `json:"priceReferenceId"`
-	PricedAt         time.Time             `json:"pricedAt"`
-	KeyRef           string                `json:"keyRef,omitempty"`
-	KeyLabel         string                `json:"keyLabel,omitempty"`
-	Applied          AppliedCostMultiplier `json:"applied"`
-	ManualMultiplier decimal.Decimal       `json:"manualMultiplier"`
-	Price            *ModelPrice           `json:"-"`
-	ModelPrice       *ModelPrice           `json:"modelPrice,omitempty"`
-	ModelOutputLimit int64                 `json:"modelOutputLimit,omitempty"`
+	CacheWriteBilling CacheWriteBilling     `json:"cacheWriteBilling,omitempty"`
+	ServiceTier       *ServiceTierEvidence  `json:"serviceTier,omitempty"`
+	Images            []ImageOutput         `json:"images,omitempty"`
+	PriceReferenceID  string                `json:"priceReferenceId"`
+	PricedAt          time.Time             `json:"pricedAt"`
+	KeyRef            string                `json:"keyRef,omitempty"`
+	KeyLabel          string                `json:"keyLabel,omitempty"`
+	Applied           AppliedCostMultiplier `json:"applied"`
+	ManualMultiplier  decimal.Decimal       `json:"manualMultiplier"`
+	Price             *ModelPrice           `json:"-"`
+	ModelPrice        *ModelPrice           `json:"modelPrice,omitempty"`
+	ModelOutputLimit  int64                 `json:"modelOutputLimit,omitempty"`
 }
 
 // CurrentPrice 返回本次执行已加载的价格，或持久化的模型默认价格。

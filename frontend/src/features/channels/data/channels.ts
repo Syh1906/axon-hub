@@ -19,7 +19,7 @@ import {
   CHANNEL_QUERY_LOAD_SELECTION,
   CHANNEL_QUERY_QUOTA_SELECTION,
 } from './channel-query-fields';
-import type { ServiceTierSettings } from './schema';
+import { cacheWriteBillingSchema, type CacheWriteBilling, type ServiceTierSettings } from './schema';
 import {
   Channel,
   ChannelConnection,
@@ -816,7 +816,7 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
     node(id: $id) {
     ... on Channel {
       id
-      settings { modelPriceMultiplier healthGateFailureThreshold serviceTierBilling { enabled basis } }
+      settings { modelPriceMultiplier healthGateFailureThreshold cacheWriteBilling serviceTierBilling { enabled basis } }
       channelModelPrices {
         id
         modelID
@@ -831,8 +831,8 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
 `;
 
 const SAVE_CHANNEL_MODEL_PRICES_MUTATION = `
-  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal, $serviceTierBilling: ServiceTierSettingsInput) {
-    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier, serviceTierBilling: $serviceTierBilling) {
+  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal, $serviceTierBilling: ServiceTierSettingsInput, $cacheWriteBilling: CacheWriteBilling) {
+    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier, serviceTierBilling: $serviceTierBilling, cacheWriteBilling: $cacheWriteBilling) {
       id
       modelID
       price {
@@ -1051,7 +1051,11 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
       try {
         const data = await graphqlRequest<{
           node: {
-            settings?: { serviceTierBilling?: ServiceTierSettings | null; modelPriceMultiplier?: string | number | null } | null;
+            settings?: {
+              cacheWriteBilling?: CacheWriteBilling | null;
+              serviceTierBilling?: ServiceTierSettings | null;
+              modelPriceMultiplier?: string | number | null;
+            } | null;
             channelModelPrices: ChannelModelPrice[];
           };
         }>(GET_CHANNEL_MODEL_PRICES_QUERY, { id: channelId });
@@ -1059,6 +1063,7 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
           prices: (data.node?.channelModelPrices || []).map((p) => channelModelPriceSchema.parse(p)),
           multiplier: String(data.node?.settings?.modelPriceMultiplier ?? '1'),
           serviceTierBilling: data.node?.settings?.serviceTierBilling ?? { enabled: false, basis: 'upstream' as const },
+          cacheWriteBilling: cacheWriteBillingSchema.parse(data.node?.settings?.cacheWriteBilling ?? 'reported'),
         };
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -1080,11 +1085,13 @@ export function useSaveChannelModelPrices() {
       input,
       multiplier,
       serviceTierBilling,
+      cacheWriteBilling,
     }: {
       channelId: string;
       input: SaveChannelModelPriceInput[];
       multiplier?: string;
       serviceTierBilling?: ServiceTierSettings;
+      cacheWriteBilling?: CacheWriteBilling;
     }) => {
       try {
         const data = await graphqlRequest<{ saveChannelModelPrices: ChannelModelPrice[] }>(SAVE_CHANNEL_MODEL_PRICES_MUTATION, {
@@ -1092,6 +1099,7 @@ export function useSaveChannelModelPrices() {
           input: input.map((price) => saveChannelModelPriceInputSchema.parse(price)),
           multiplier,
           serviceTierBilling,
+          cacheWriteBilling,
         });
         return data.saveChannelModelPrices.map((p) => channelModelPriceSchema.parse(p));
       } catch (error) {

@@ -168,6 +168,7 @@ func (m ModelProtocol) IsEnabled() bool {
 }
 
 type ChannelSettings struct {
+	CacheWriteBilling  *CacheWriteBilling    `json:"cacheWriteBilling,omitempty"`
 	ModelContexts      []ChannelModelContext `json:"modelContexts,omitempty"`
 	ServiceTierBilling *ServiceTierSettings  `json:"serviceTierBilling,omitempty"`
 	// Managed by routing mutations; ordinary channel edits preserve these values.

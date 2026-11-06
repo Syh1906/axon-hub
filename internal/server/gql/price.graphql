@@ -18,11 +18,6 @@ enum PriceItemCode {
   prompt_image_cached_tokens
 }
 
-enum PromptWriteCacheVariantCode {
-  five_min
-  one_hour
-}
-
 # ModelPrice represents pricing configuration for a model
 type ModelPrice {
   serviceTiers: ServiceTierPrices
@@ -176,7 +171,12 @@ input SaveChannelModelPriceInput {
 }
 
 extend type Mutation {
-  saveChannelModelPrices(channelId: ID!, input: [SaveChannelModelPriceInput!]!, multiplier: Decimal, serviceTierBilling: ServiceTierSettingsInput): [ChannelModelPrice!]!
+  saveChannelModelPrices(channelId: ID!, input: [SaveChannelModelPriceInput!]!, multiplier: Decimal, serviceTierBilling: ServiceTierSettingsInput, cacheWriteBilling: CacheWriteBilling): [ChannelModelPrice!]!
+}
+
+enum CacheWriteBilling {
+  reported
+  swap_5m_1h
 }
 
 type ImagePricing {

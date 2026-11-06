@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const costPricingEvidenceSchema = z.object({
+  cacheWritePricingVariant: z.enum(['five_min', 'one_hour']).nullable().optional(),
   itemMethod: z.enum(['multiplier', 'unit_price', 'unpriced']).nullable().optional(),
   ruleSource: z.string().optional(),
   baseUnitPrice: z.number().nullable().optional(),
@@ -34,6 +35,7 @@ export const costPricingEvidenceSchema = z.object({
 });
 export type CostPricingEvidence = z.infer<typeof costPricingEvidenceSchema>;
 export const COST_PRICING_EVIDENCE_FIELDS = `pricingEvidence {
+  cacheWritePricingVariant
   serviceTier { mode basis client outbound upstream confirmed reason source referenceModel version }
   context { kind inputTokens threshold longContext name }
   baseSubtotal baseTierSubtotals modeMultiplier costMultiplier itemMethod ruleSource baseUnitPrice finalUnitPrice modeSubtotal modeTierSubtotals reference { source referenceModel version sourceURL verifiedAt application currency unit }

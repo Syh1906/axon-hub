@@ -262,17 +262,18 @@ type ContextPricing struct {
 	Name        string `json:"name"`
 }
 type CostPricingEvidence struct {
-	ItemMethod        *ServiceTierItemMethod `json:"itemMethod,omitempty"`
-	RuleSource        string                 `json:"ruleSource,omitempty"`
-	BaseUnitPrice     *decimal.Decimal       `json:"baseUnitPrice,omitempty"`
-	FinalUnitPrice    *decimal.Decimal       `json:"finalUnitPrice,omitempty"`
-	ModeSubtotal      *decimal.Decimal       `json:"modeSubtotal,omitempty"`
-	ModeTierSubtotals []decimal.Decimal      `json:"modeTierSubtotals,omitempty"`
-	Reference         *ServiceTierPrice      `json:"reference,omitempty"`
-	ServiceTier       ServiceTierDecision    `json:"serviceTier"`
-	Context           ContextPricing         `json:"context"`
-	BaseSubtotal      decimal.Decimal        `json:"baseSubtotal"`
-	BaseTierSubtotals []decimal.Decimal      `json:"baseTierSubtotals,omitempty"`
-	ModeMultiplier    *decimal.Decimal       `json:"modeMultiplier,omitempty"`
-	CostMultiplier    decimal.Decimal        `json:"costMultiplier"`
+	CacheWritePricingVariant *PromptWriteCacheVariantCode `json:"cacheWritePricingVariant,omitempty"`
+	ItemMethod               *ServiceTierItemMethod       `json:"itemMethod,omitempty"`
+	RuleSource               string                       `json:"ruleSource,omitempty"`
+	BaseUnitPrice            *decimal.Decimal             `json:"baseUnitPrice,omitempty"`
+	FinalUnitPrice           *decimal.Decimal             `json:"finalUnitPrice,omitempty"`
+	ModeSubtotal             *decimal.Decimal             `json:"modeSubtotal,omitempty"`
+	ModeTierSubtotals        []decimal.Decimal            `json:"modeTierSubtotals,omitempty"`
+	Reference                *ServiceTierPrice            `json:"reference,omitempty"`
+	ServiceTier              ServiceTierDecision          `json:"serviceTier"`
+	Context                  ContextPricing               `json:"context"`
+	BaseSubtotal             decimal.Decimal              `json:"baseSubtotal"`
+	BaseTierSubtotals        []decimal.Decimal            `json:"baseTierSubtotals,omitempty"`
+	ModeMultiplier           *decimal.Decimal             `json:"modeMultiplier,omitempty"`
+	CostMultiplier           decimal.Decimal              `json:"costMultiplier"`
 }

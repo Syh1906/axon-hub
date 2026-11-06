@@ -110,6 +110,8 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
                     total={item.cost}
                     currencyCode={meta.currencyCode}
                     breakdown={{
+                      cacheWriteTokens5m: item.cacheWriteTokens5m,
+                      cacheWriteTokens1h: item.cacheWriteTokens1h,
                       items: item.costItems.map((costItem) => ({
                         pricingEvidence: costItem.pricingEvidence,
                         image: costItem.image,

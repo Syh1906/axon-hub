@@ -34,6 +34,8 @@ function buildUsageLogsQuery(permissions: { canViewChannels: boolean }) {
             promptAudioTokens
             promptCachedTokens
             promptWriteCachedTokens
+            promptWriteCachedTokens5m
+            promptWriteCachedTokens1h
             completionAudioTokens
             completionReasoningTokens
             completionAcceptedPredictionTokens
@@ -43,8 +45,10 @@ function buildUsageLogsQuery(permissions: { canViewChannels: boolean }) {
             totalCost
             costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason
               itemCode
+              promptWriteCacheVariantCode
               quantity
               subtotal
+              tierBreakdown { upTo units subtotal }
             }
           }
           cursor
@@ -86,6 +90,8 @@ function buildUsageLogDetailQuery(permissions: { canViewChannels: boolean }) {
           promptAudioTokens
           promptCachedTokens
           promptWriteCachedTokens
+          promptWriteCachedTokens5m
+          promptWriteCachedTokens1h
           completionAudioTokens
           completionReasoningTokens
           completionAcceptedPredictionTokens
@@ -95,8 +101,10 @@ function buildUsageLogDetailQuery(permissions: { canViewChannels: boolean }) {
           totalCost
           costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason
             itemCode
+            promptWriteCacheVariantCode
             quantity
             subtotal
+            tierBreakdown { upTo units subtotal }
           }
         }
       }

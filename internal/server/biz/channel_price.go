@@ -167,14 +167,19 @@ func calculatePriceChanges(prices []*ent.ChannelModelPrice, inputs []SaveChannel
 	return actions
 }
 
+type ChannelPricingSettings struct {
+	ServiceTierBilling *objects.ServiceTierSettings
+	CacheWriteBilling  *objects.CacheWriteBilling
+}
+
 func (svc *ChannelService) SaveChannelModelPrices(
 	ctx context.Context,
 	channelID int,
 	inputs []SaveChannelModelPriceInput,
 	multiplier *decimal.Decimal,
-	tierSettings ...*objects.ServiceTierSettings,
+	pricingSettings ...ChannelPricingSettings,
 ) ([]*ent.ChannelModelPrice, error) {
-	return svc.saveChannelModelPrices(ctx, channelID, inputs, multiplier, true, tierSettings...)
+	return svc.saveChannelModelPrices(ctx, channelID, inputs, multiplier, true, pricingSettings...)
 }
 
 // UpdateChannelCostMultiplier versions every existing price without replacing
@@ -209,10 +214,17 @@ func (svc *ChannelService) saveChannelModelPrices(
 	inputs []SaveChannelModelPriceInput,
 	multiplier *decimal.Decimal,
 	replacePrices bool,
-	tierSettings ...*objects.ServiceTierSettings,
+	pricingSettings ...ChannelPricingSettings,
 ) ([]*ent.ChannelModelPrice, error) {
-	if len(tierSettings) > 0 {
-		if err := tierSettings[0].Validate(); err != nil {
+	var pricing ChannelPricingSettings
+	if len(pricingSettings) > 0 {
+		pricing = pricingSettings[0]
+	}
+	if err := pricing.ServiceTierBilling.Validate(); err != nil {
+		return nil, err
+	}
+	if pricing.CacheWriteBilling != nil {
+		if err := pricing.CacheWriteBilling.Validate(); err != nil {
 			return nil, err
 		}
 	}
@@ -250,9 +262,12 @@ func (svc *ChannelService) saveChannelModelPrices(
 		if ch.Settings != nil {
 			settings = *ch.Settings
 		}
-		if len(tierSettings) > 0 && tierSettings[0] != nil {
-			copy := *tierSettings[0]
+		if pricing.ServiceTierBilling != nil {
+			copy := *pricing.ServiceTierBilling
 			settings.ServiceTierBilling = &copy
+		}
+		if pricing.CacheWriteBilling != nil {
+			settings.CacheWriteBilling = lo.ToPtr(*pricing.CacheWriteBilling)
 		}
 		if multiplier != nil {
 			settings.ModelPriceMultiplier = lo.ToPtr(*multiplier)

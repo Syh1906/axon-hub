@@ -91,6 +91,8 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  CacheWriteBilling:
+    model: github.com/looplj/axonhub/internal/objects.CacheWriteBilling
   CostRecalculationPreview:
     model: github.com/looplj/axonhub/internal/server/biz.CostRecalculationPreview
   ModelStandardPriceMatch:

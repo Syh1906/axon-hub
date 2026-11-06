@@ -1113,6 +1113,7 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			settings := *input.Settings
 			settings.ModelPriceMultiplier = nil
 			settings.ServiceTierBilling = nil
+			settings.CacheWriteBilling = nil
 			settings.TagPriorities = nil
 			settings.GlobalPriority = nil
 			settings.Upstream = nil
@@ -1121,6 +1122,7 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			if existingSettings.Settings != nil {
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
 				settings.ServiceTierBilling = existingSettings.Settings.ServiceTierBilling
+				settings.CacheWriteBilling = existingSettings.Settings.CacheWriteBilling
 				settings.TagPriorities = existingSettings.Settings.TagPriorities
 				settings.GlobalPriority = existingSettings.Settings.GlobalPriority
 				settings.Upstream = existingSettings.Settings.Upstream

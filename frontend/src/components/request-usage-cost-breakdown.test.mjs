@@ -5,6 +5,55 @@ import { buildCostBreakdown, inputCostSubtotal } from './request-usage-cost-brea
 const item = (itemCode, quantity, subtotal, variant = null, tiers = []) => ({ itemCode, variant, quantity, subtotal, tiers });
 const breakdown = (items, multiplier = 1) => ({ items, multiplier });
 
+test('cache badges describe actual writes and highlight stored billing adjustments', () => {
+  const write = (actual, pricing, quantity = 100, subtotal = 0) => ({
+    ...item('prompt_write_cached_tokens', quantity, subtotal, actual),
+    pricingEvidence: { ...evidence('standard', 1, subtotal), cacheWritePricingVariant: pricing },
+  });
+  const adjusted = buildCostBreakdown(0, breakdown([write('one_hour', 'five_min')]));
+  assert.equal(adjusted.cacheWriteLabel, '1h');
+  assert.equal(adjusted.cacheWriteAdjusted, true);
+  const normal = buildCostBreakdown(0, breakdown([write('one_hour', 'one_hour')]));
+  assert.equal(normal.cacheWriteLabel, '1h');
+  assert.equal(normal.cacheWriteAdjusted, false);
+  const mixed = buildCostBreakdown(0, breakdown([write('one_hour', 'five_min'), write('five_min', 'five_min')]));
+  assert.equal(mixed.cacheWriteLabel, '1h');
+  assert.equal(mixed.cacheWriteAdjusted, true);
+  const historical = buildCostBreakdown(0, breakdown([item('prompt_write_cached_tokens', 100, 0, 'one_hour')]));
+  assert.equal(historical.cacheWriteLabel, '1h');
+  assert.equal(historical.cacheWriteAdjusted, false);
+  const empty = buildCostBreakdown(0, breakdown([write('one_hour', 'five_min', 0)]));
+  assert.equal(empty.cacheWriteLabel, '');
+  assert.equal(empty.cacheWriteAdjusted, false);
+  const reverse = buildCostBreakdown(0, breakdown([write('five_min', 'one_hour')]));
+  assert.equal(reverse.cacheWriteLabel, '5m');
+  assert.equal(reverse.cacheWriteAdjusted, true);
+  const normalFive = buildCostBreakdown(0, breakdown([write('five_min', 'five_min')]));
+  assert.equal(normalFive.cacheWriteLabel, '5m');
+  assert.equal(normalFive.cacheWriteAdjusted, false);
+  const normalMixed = buildCostBreakdown(0, breakdown([write('five_min', 'five_min'), write('one_hour', 'one_hour')]));
+  assert.equal(normalMixed.cacheWriteLabel, '1h');
+  assert.equal(normalMixed.cacheWriteAdjusted, false);
+  const unknown = buildCostBreakdown(0, breakdown([write(null, null)]));
+  assert.equal(unknown.cacheWriteLabel, '');
+  assert.equal(unknown.cacheWriteAdjusted, false);
+});
+
+test('known cache duration remains visible without a cache cost item', () => {
+  const raw = (five, hour, items = []) => ({ ...breakdown(items), cacheWriteTokens5m: five, cacheWriteTokens1h: hour });
+  const outputOnly = [item('completion_tokens', 10, 0.01)];
+  const hour = buildCostBreakdown(0.01, raw(0, 100, outputOnly));
+  assert.equal(hour.cacheWriteLabel, '1h');
+  assert.equal(hour.cacheWriteAdjusted, false);
+  assert.equal(hour.cacheWriteWithoutCost, 'one_hour');
+  assert.equal(buildCostBreakdown(0, raw(100, 0)).cacheWriteLabel, '5m');
+  assert.equal(buildCostBreakdown(0, raw(100, 100)).cacheWriteLabel, '1h');
+  const fixedFeeWithoutWrites = [item('prompt_write_cached_tokens', 1, 8, 'one_hour')];
+  assert.equal(buildCostBreakdown(8, raw(0, 0, fixedFeeWithoutWrites)).cacheWriteLabel, '');
+  assert.equal(buildCostBreakdown(0, raw(undefined, undefined)).cacheWriteLabel, '');
+});
+
+
 test('input overview sums modality costs and keeps missing prices unknown', () => {
   const items = [item('prompt_text_tokens', 600, 0.003), item('prompt_image_tokens', 1200, 0.0096),
     item('prompt_text_cached_tokens', 400, 0.0005), item('prompt_image_cached_tokens', 800, 0.0016)];

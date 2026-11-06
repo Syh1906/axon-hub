@@ -741,6 +741,7 @@ type ComplexityRoot struct {
 		AllowImageGenerationTool        func(childComplexity int) int
 		AutoTrimedModelPrefixes         func(childComplexity int) int
 		BodyOverrideOperations          func(childComplexity int) int
+		CacheWriteBilling               func(childComplexity int) int
 		DisableSessionReuse             func(childComplexity int) int
 		ExtraModelPrefix                func(childComplexity int) int
 		ForceOneHourPromptCache         func(childComplexity int) int
@@ -1004,19 +1005,20 @@ type ComplexityRoot struct {
 	}
 
 	CostPricingEvidence struct {
-		BaseSubtotal      func(childComplexity int) int
-		BaseTierSubtotals func(childComplexity int) int
-		BaseUnitPrice     func(childComplexity int) int
-		Context           func(childComplexity int) int
-		CostMultiplier    func(childComplexity int) int
-		FinalUnitPrice    func(childComplexity int) int
-		ItemMethod        func(childComplexity int) int
-		ModeMultiplier    func(childComplexity int) int
-		ModeSubtotal      func(childComplexity int) int
-		ModeTierSubtotals func(childComplexity int) int
-		Reference         func(childComplexity int) int
-		RuleSource        func(childComplexity int) int
-		ServiceTier       func(childComplexity int) int
+		BaseSubtotal             func(childComplexity int) int
+		BaseTierSubtotals        func(childComplexity int) int
+		BaseUnitPrice            func(childComplexity int) int
+		CacheWritePricingVariant func(childComplexity int) int
+		Context                  func(childComplexity int) int
+		CostMultiplier           func(childComplexity int) int
+		FinalUnitPrice           func(childComplexity int) int
+		ItemMethod               func(childComplexity int) int
+		ModeMultiplier           func(childComplexity int) int
+		ModeSubtotal             func(childComplexity int) int
+		ModeTierSubtotals        func(childComplexity int) int
+		Reference                func(childComplexity int) int
+		RuleSource               func(childComplexity int) int
+		ServiceTier              func(childComplexity int) int
 	}
 
 	CostRecalculationPreview struct {
@@ -1571,7 +1573,7 @@ type ComplexityRoot struct {
 		SaveAPIKeyBudget                      func(childComplexity int, kind string, ownerID int, input biz.BudgetSettingsInput) int
 		SaveAPIKeyGroup                       func(childComplexity int, id *int, name string) int
 		SaveChannelEndpoints                  func(childComplexity int, input biz.SaveChannelEndpointsInput) int
-		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings) int
+		SaveChannelModelPrices                func(childComplexity int, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) int
 		SaveChannelUpstreamAccount            func(childComplexity int, channelID objects.GUID, input objects.SaveChannelUpstreamAccountInput) int
 		SaveProxyPreset                       func(childComplexity int, input biz.ProxyPreset) int
 		SetChannelKeySessionReuse             func(childComplexity int, channelID objects.GUID, enabled bool) int
@@ -3330,7 +3332,7 @@ type MutationResolver interface {
 	BulkEnablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	BulkDisablePromptProtectionRules(ctx context.Context, ids []*objects.GUID) (bool, error)
 	PreviewPromptProtectionRule(ctx context.Context, input PromptProtectionRulePreviewInput) (*PromptProtectionRulePreviewResult, error)
-	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings) ([]*ent.ChannelModelPrice, error)
+	SaveChannelModelPrices(ctx context.Context, channelID objects.GUID, input []*biz.SaveChannelModelPriceInput, multiplier *decimal.Decimal, serviceTierBilling *objects.ServiceTierSettings, cacheWriteBilling *objects.CacheWriteBilling) ([]*ent.ChannelModelPrice, error)
 	DeleteAPIKeys(ctx context.Context, ids []*objects.GUID) (bool, error)
 	SaveAPIKeyGroup(ctx context.Context, id *int, name string) (*APIKeyGroupOption, error)
 	DeleteAPIKeyGroup(ctx context.Context, id int) (bool, error)
@@ -6101,6 +6103,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.BodyOverrideOperations(childComplexity), true
+	case "ChannelSettings.cacheWriteBilling":
+		if e.complexity.ChannelSettings.CacheWriteBilling == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.CacheWriteBilling(childComplexity), true
 	case "ChannelSettings.disableSessionReuse":
 		if e.complexity.ChannelSettings.DisableSessionReuse == nil {
 			break
@@ -7238,6 +7246,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CostPricingEvidence.BaseUnitPrice(childComplexity), true
+	case "CostPricingEvidence.cacheWritePricingVariant":
+		if e.complexity.CostPricingEvidence.CacheWritePricingVariant == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.CacheWritePricingVariant(childComplexity), true
 	case "CostPricingEvidence.context":
 		if e.complexity.CostPricingEvidence.Context == nil {
 			break
@@ -9908,7 +9922,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SaveChannelModelPrices(childComplexity, args["channelId"].(objects.GUID), args["input"].([]*biz.SaveChannelModelPriceInput), args["multiplier"].(*decimal.Decimal), args["serviceTierBilling"].(*objects.ServiceTierSettings)), true
+		return e.complexity.Mutation.SaveChannelModelPrices(childComplexity, args["channelId"].(objects.GUID), args["input"].([]*biz.SaveChannelModelPriceInput), args["multiplier"].(*decimal.Decimal), args["serviceTierBilling"].(*objects.ServiceTierSettings), args["cacheWriteBilling"].(*objects.CacheWriteBilling)), true
 	case "Mutation.saveChannelUpstreamAccount":
 		if e.complexity.Mutation.SaveChannelUpstreamAccount == nil {
 			break
@@ -18743,6 +18757,11 @@ func (ec *executionContext) field_Mutation_saveChannelModelPrices_args(ctx conte
 		return nil, err
 	}
 	args["serviceTierBilling"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "cacheWriteBilling", ec.unmarshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling)
+	if err != nil {
+		return nil, err
+	}
+	args["cacheWriteBilling"] = arg4
 	return args, nil
 }
 
@@ -29237,6 +29256,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cacheWriteBilling":
+				return ec.fieldContext_ChannelSettings_cacheWriteBilling(ctx, field)
 			case "modelContexts":
 				return ec.fieldContext_ChannelSettings_modelContexts(ctx, field)
 			case "serviceTierBilling":
@@ -34639,6 +34660,35 @@ func (ec *executionContext) fieldContext_ChannelRequestAssociation_channelId(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_cacheWriteBilling(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_cacheWriteBilling,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheWriteBilling, nil
+		},
+		nil,
+		ec.marshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_cacheWriteBilling(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CacheWriteBilling does not have child fields")
 		},
 	}
 	return fc, nil
@@ -40276,6 +40326,8 @@ func (ec *executionContext) fieldContext_CostItem_pricingEvidence(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cacheWritePricingVariant":
+				return ec.fieldContext_CostPricingEvidence_cacheWritePricingVariant(ctx, field)
 			case "itemMethod":
 				return ec.fieldContext_CostPricingEvidence_itemMethod(ctx, field)
 			case "ruleSource":
@@ -40591,6 +40643,35 @@ func (ec *executionContext) fieldContext_CostItem_subtotal(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Decimal does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostPricingEvidence_cacheWritePricingVariant(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_cacheWritePricingVariant,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheWritePricingVariant, nil
+		},
+		nil,
+		ec.marshalOPromptWriteCacheVariantCode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPromptWriteCacheVariantCode,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_cacheWritePricingVariant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type PromptWriteCacheVariantCode does not have child fields")
 		},
 	}
 	return fc, nil
@@ -57095,7 +57176,7 @@ func (ec *executionContext) _Mutation_saveChannelModelPrices(ctx context.Context
 		ec.fieldContext_Mutation_saveChannelModelPrices,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SaveChannelModelPrices(ctx, fc.Args["channelId"].(objects.GUID), fc.Args["input"].([]*biz.SaveChannelModelPriceInput), fc.Args["multiplier"].(*decimal.Decimal), fc.Args["serviceTierBilling"].(*objects.ServiceTierSettings))
+			return ec.resolvers.Mutation().SaveChannelModelPrices(ctx, fc.Args["channelId"].(objects.GUID), fc.Args["input"].([]*biz.SaveChannelModelPriceInput), fc.Args["multiplier"].(*decimal.Decimal), fc.Args["serviceTierBilling"].(*objects.ServiceTierSettings), fc.Args["cacheWriteBilling"].(*objects.CacheWriteBilling))
 		},
 		nil,
 		ec.marshalNChannelModelPrice2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannelModelPriceᚄ,
@@ -76176,6 +76257,8 @@ func (ec *executionContext) fieldContext_SelfUsageCostItem_pricingEvidence(_ con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cacheWritePricingVariant":
+				return ec.fieldContext_CostPricingEvidence_cacheWritePricingVariant(ctx, field)
 			case "itemMethod":
 				return ec.fieldContext_CostPricingEvidence_itemMethod(ctx, field)
 			case "ruleSource":
@@ -98487,13 +98570,20 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
+	fieldsInOrder := [...]string{"cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "cacheWriteBilling":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheWriteBilling"))
+			data, err := ec.unmarshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CacheWriteBilling = data
 		case "modelContexts":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modelContexts"))
 			data, err := ec.unmarshalOChannelModelContextInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelModelContextᚄ(ctx, v)
@@ -128527,6 +128617,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelSettings")
+		case "cacheWriteBilling":
+			out.Values[i] = ec._ChannelSettings_cacheWriteBilling(ctx, field, obj)
 		case "modelContexts":
 			out.Values[i] = ec._ChannelSettings_modelContexts(ctx, field, obj)
 		case "serviceTierBilling":
@@ -130337,6 +130429,8 @@ func (ec *executionContext) _CostPricingEvidence(ctx context.Context, sel ast.Se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("CostPricingEvidence")
+		case "cacheWritePricingVariant":
+			out.Values[i] = ec._CostPricingEvidence_cacheWritePricingVariant(ctx, field, obj)
 		case "itemMethod":
 			out.Values[i] = ec._CostPricingEvidence_itemMethod(ctx, field, obj)
 		case "ruleSource":
@@ -160371,6 +160465,25 @@ func (ec *executionContext) unmarshalOBudgetRuleInput2ᚕᚖgithubᚗcomᚋloopl
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) unmarshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling(ctx context.Context, v any) (*objects.CacheWriteBilling, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := objects.CacheWriteBilling(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling(ctx context.Context, sel ast.SelectionSet, v *objects.CacheWriteBilling) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 func (ec *executionContext) unmarshalOCapabilityPolicy2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCapabilityPolicy(ctx context.Context, v any) (objects.CapabilityPolicy, error) {

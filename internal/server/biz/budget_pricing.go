@@ -77,6 +77,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	}
 	decision := estimateEvidence.Decision()
 	resolve := func(item objects.ModelPriceItem, variant objects.PromptWriteCacheVariantCode) (objects.Pricing, bool) {
+		variant = snap.CacheWriteBilling.PricingVariant(variant)
 		base := item.Pricing
 		if variant != "" {
 			base = item.FindPromptWriteCacheVariantPricing(variant)
@@ -121,11 +122,6 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	splitInput := slices.ContainsFunc(effective, func(item objects.ModelPriceItem) bool { return item.ItemCode.IsModalityToken() })
 	inputEstimate := decimal.Zero
 	for _, item := range effective {
-		multiplier := snap.Applied.Value
-		if item.Pricing.Mode == objects.PricingModeFlatFee || item.Pricing.Mode == objects.PricingModeImageFixed {
-			multiplier = snap.ManualMultiplier
-		}
-
 		if req.Video != nil && item.Pricing.Mode != objects.PricingModeFlatFee {
 			return 0, fmt.Errorf("video pricing cannot be estimated")
 		}
@@ -143,7 +139,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 					highest = rule.Fee
 				}
 			}
-			total = total.Add(highest.Mul(decimal.NewFromInt(n)).Mul(multiplier))
+			total = total.Add(highest.Mul(decimal.NewFromInt(n)).Mul(snap.ManualMultiplier))
 			continue
 		}
 		quantity := promptTokens
@@ -157,6 +153,10 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			return 0, fmt.Errorf("the requested service tier item has no configured price")
 		}
 		estimateItem := func(pricing objects.Pricing) decimal.Decimal {
+			multiplier := snap.Applied.Value
+			if pricing.Mode == objects.PricingModeFlatFee {
+				multiplier = snap.ManualMultiplier
+			}
 			if splitInput && item.ItemCode != objects.PriceItemCodeCompletion &&
 				(pricing.Mode == objects.PricingModeTiered || pricing.Mode == objects.PricingModeVolume) && pricing.UsageTiered != nil {
 				// Until modalities are known, each subset can hit a different
@@ -174,10 +174,10 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 					}
 					previous = *tier.UpTo
 				}
-				return maximum.Mul(unitsInMillionTokens(quantity))
+				return maximum.Mul(unitsInMillionTokens(quantity)).Mul(multiplier)
 			}
 			_, subtotal := computeItemSubtotal(quantity, pricing)
-			return subtotal
+			return subtotal.Mul(multiplier)
 		}
 		subtotal := estimateItem(resolved)
 		if item.ItemCode == objects.PriceItemCodeWriteCachedTokens {
@@ -192,7 +192,6 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 				}
 			}
 		}
-		subtotal = subtotal.Mul(multiplier)
 		if splitInput && item.ItemCode != objects.PriceItemCodeCompletion && item.Pricing.Mode != objects.PricingModeFlatFee {
 			// Only the total input estimate is known before dispatch. Its modality
 			// and cache alternatives are exclusive, so reserve the largest cost.

@@ -1,0 +1,16 @@
+{
+  "cacheWriteBilling": {
+    "title": "Swap cache write prices",
+    "description": "When enabled, swap the 5-minute and 1-hour write prices. When disabled, bill the actual duration normally. Actual durations and usage stay unchanged. Applies to new requests after saving.",
+    "basePriceHint": "Each duration uses its specific price, falling back to the base price. The cache price switch swaps these rates.",
+    "badge": "Actual cache write duration {{duration}}",
+    "badgeAdjusted": "Actual cache write duration {{duration}}, cache price swap enabled; view cost details",
+    "detail": "Actual write {{actual}}, billed at the {{pricing}} rate",
+    "historical": "Actual write {{actual}}; historical billing duration evidence was not recorded",
+    "missingCostItem": "Actual write {{actual}}; this record has no cache cost item for that duration, so its billing basis is unknown.",
+    "rule": "Cache price swap was enabled for this request",
+    "effectiveRule": "Billed at the {{duration}} rate after swapping",
+    "effectiveTiered": "Actual cost uses the {{duration}} pricing rule",
+    "duration": { "five_min": "5 minutes", "one_hour": "1 hour" }
+  }
+}

@@ -16,6 +16,7 @@ const promptWriteCacheVariantCodes = ['five_min', 'one_hour'] as const;
 type PricingMode = 'flat_fee' | 'image_fixed' | 'usage_per_unit' | 'usage_tiered' | 'usage_volume';
 
 type PriceEditorFormValues = {
+  cacheWriteBilling?: 'reported' | 'swap_5m_1h';
   prices: Array<{
     modelId: string;
     price: {
@@ -485,6 +486,7 @@ const PriceItemRow = memo(function PriceItemRow({
         )}
       </div>
 
+      {itemCode === 'prompt_write_cached_tokens' && <p className='text-muted-foreground text-xs'>{t('cacheWriteBilling.basePriceHint')}</p>}
       {itemCode === 'prompt_write_cached_tokens' && (
         <div className='ml-4 min-w-0 space-y-2 overflow-hidden rounded-md border border-dashed p-3'>
           <div className='text-muted-foreground flex items-center justify-between text-xs'>
@@ -556,6 +558,12 @@ const PriceVariantRow = memo(function PriceVariantRow({
     control,
     `${itemsPath}.${itemIndex}.promptWriteCacheVariants`
   );
+  const cacheWriteBilling = useWatch({ control, name: 'cacheWriteBilling' });
+  const basePricing = usePriceEditorWatch<PriceItem['pricing'] | undefined>(control, `${itemsPath}.${itemIndex}.pricing`);
+  const adjusted = cacheWriteBilling === 'swap_5m_1h';
+  const pricingVariant = variantCode === 'one_hour' ? 'five_min' : 'one_hour';
+  const appliedPricing = watchedVariants?.find((variant) => variant.variantCode === pricingVariant)?.pricing ?? basePricing;
+  const displayedMultiplier = adjusted ? undefined : multiplier;
   const {
     fields: tierFields,
     append: appendTier,
@@ -675,7 +683,7 @@ const PriceVariantRow = memo(function PriceVariantRow({
                     />
                   </div>
                 </FormControl>
-                <EffectivePrice value={field.value} multiplier={multiplier} currencyPrefix={currencyPrefix} />
+                <EffectivePrice value={field.value} multiplier={displayedMultiplier} currencyPrefix={currencyPrefix} />
                 <FormMessage className='col-span-full text-[10px]' />
               </FormItem>
             )}
@@ -703,7 +711,7 @@ const PriceVariantRow = memo(function PriceVariantRow({
                     />
                   </div>
                 </FormControl>
-                <EffectivePrice value={field.value} multiplier={multiplier} currencyPrefix={currencyPrefix} />
+                <EffectivePrice value={field.value} multiplier={displayedMultiplier} currencyPrefix={currencyPrefix} />
                 <FormMessage className='col-span-full text-[10px]' />
               </FormItem>
             )}
@@ -789,7 +797,7 @@ const PriceVariantRow = memo(function PriceVariantRow({
                         />
                       </div>
                     </FormControl>
-                    <EffectivePrice value={field.value} multiplier={multiplier} currencyPrefix={currencyPrefix} />
+                    <EffectivePrice value={field.value} multiplier={displayedMultiplier} currencyPrefix={currencyPrefix} />
                     <FormMessage className='col-span-full text-[10px]' />
                   </FormItem>
                 )}
@@ -800,6 +808,20 @@ const PriceVariantRow = memo(function PriceVariantRow({
               </Button>
             </div>
           ))}
+        </div>
+      )}
+      {adjusted && multiplier !== undefined && (
+        <div className='text-muted-foreground flex flex-wrap items-center justify-end gap-2 text-xs'>
+          <span>{t('cacheWriteBilling.effectiveRule', { duration: t(`cacheWriteBilling.duration.${pricingVariant}`) })}</span>
+          {appliedPricing?.mode === 'usage_per_unit' || appliedPricing?.mode === 'flat_fee' ? (
+            <EffectivePrice
+              value={appliedPricing.mode === 'flat_fee' ? appliedPricing.flatFee : appliedPricing.usagePerUnit}
+              multiplier={multiplier}
+              currencyPrefix={currencyPrefix}
+            />
+          ) : (
+            <span>{t('cacheWriteBilling.effectiveTiered', { duration: t(`cacheWriteBilling.duration.${pricingVariant}`) })}</span>
+          )}
         </div>
       )}
     </div>

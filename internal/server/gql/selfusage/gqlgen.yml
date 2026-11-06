@@ -22,6 +22,8 @@ autobind:
   - github.com/99designs/gqlgen/graphql/introspection
 
 models:
+  PromptWriteCacheVariantCode:
+    model: github.com/looplj/axonhub/internal/objects.PromptWriteCacheVariantCode
   SelfUsageImageOutput:
     model: github.com/looplj/axonhub/internal/objects.ImageOutput
   Time:

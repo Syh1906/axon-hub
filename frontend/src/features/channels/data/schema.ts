@@ -728,6 +728,8 @@ export const overrideWhenSchema = z.object({
 export type OverrideWhen = z.infer<typeof overrideWhenSchema>;
 
 export const serviceTierSettingsSchema = z.object({ enabled: z.boolean(), basis: z.enum(['upstream', 'client']) });
+export const cacheWriteBillingSchema = z.enum(['reported', 'swap_5m_1h']);
+export type CacheWriteBilling = z.infer<typeof cacheWriteBillingSchema>;
 export type ServiceTierSettings = z.infer<typeof serviceTierSettingsSchema>;
 export const serviceTierItemRuleSchema = z.object({
   referenceBasePrice: z.union([z.string(), z.number()]).nullable().optional(),

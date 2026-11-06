@@ -21,7 +21,7 @@ import { createPriceValidationSchema, isValidPriceMultiplier } from '@/features/
 import { appliedModelPrice } from '@/features/models/data/service-tier';
 import { useChannels } from '../context/channels-context';
 import { useChannelModelPrices, useSaveChannelModelPrices } from '../data/channels';
-import { serviceTierSettingsSchema, type ServiceTierSettings } from '../data/schema';
+import { cacheWriteBillingSchema, serviceTierSettingsSchema, type CacheWriteBilling, type ServiceTierSettings } from '../data/schema';
 import {
   modelPriceInputSchema,
   saveChannelModelPriceInputSchema,
@@ -32,6 +32,13 @@ import {
 
 const multiplierSchema = z.string().trim().refine(isValidPriceMultiplier);
 const importSchema = z.union([
+  z.object({
+    version: z.literal(4),
+    multiplier: multiplierSchema,
+    serviceTierBilling: serviceTierSettingsSchema,
+    cacheWriteBilling: cacheWriteBillingSchema,
+    prices: z.array(saveChannelModelPriceInputSchema),
+  }),
   z.object({
     version: z.literal(3),
     multiplier: multiplierSchema,
@@ -46,6 +53,7 @@ function createFormSchema(t: (key: string) => string) {
   const priceSchema = createPriceValidationSchema(t);
   return z
     .object({
+      cacheWriteBilling: cacheWriteBillingSchema,
       serviceTierBilling: serviceTierSettingsSchema,
       multiplier: z.string().trim().refine(isValidPriceMultiplier, t('price.validation.multiplier')),
       prices: z.array(
@@ -68,7 +76,12 @@ function createFormSchema(t: (key: string) => string) {
       });
     });
 }
-type PriceFormData = { serviceTierBilling: ServiceTierSettings; multiplier: string; prices: SaveChannelModelPriceInput[] };
+type PriceFormData = {
+  cacheWriteBilling: CacheWriteBilling;
+  serviceTierBilling: ServiceTierSettings;
+  multiplier: string;
+  prices: SaveChannelModelPriceInput[];
+};
 
 const PriceCard = memo(function PriceCard({
   control,
@@ -177,7 +190,12 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   const form = useForm<PriceFormData>({
     resolver: zodResolver(schema),
     mode: 'onChange',
-    defaultValues: { serviceTierBilling: { enabled: false, basis: 'upstream' }, multiplier: '1', prices: [] },
+    defaultValues: {
+      cacheWriteBilling: 'reported',
+      serviceTierBilling: { enabled: false, basis: 'upstream' },
+      multiplier: '1',
+      prices: [],
+    },
   });
   const { control, getValues, reset } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: 'prices' });
@@ -218,6 +236,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   useEffect(() => {
     if (!initialized && currentPricing.isSuccess && currentPricing.data && !currentPricing.isFetching) {
       reset({
+        cacheWriteBilling: currentPricing.data.cacheWriteBilling,
         multiplier: currentPricing.data.multiplier,
         serviceTierBilling: currentPricing.data.serviceTierBilling,
         prices: currentPricing.data.prices.map((price) => ({ modelId: price.modelID, price: modelPriceInputSchema.parse(price.price) })),
@@ -297,7 +316,13 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   const handleExport = async () => {
     if (!(await form.trigger()) || !activeRef.current) return;
     const values = schema.parse(getValues());
-    const payload = { version: 3, serviceTierBilling: values.serviceTierBilling, multiplier: values.multiplier, prices: values.prices };
+    const payload = {
+      version: 4,
+      cacheWriteBilling: values.cacheWriteBilling,
+      serviceTierBilling: values.serviceTierBilling,
+      multiplier: values.multiplier,
+      prices: values.prices,
+    };
     const url = URL.createObjectURL(new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' }));
     const anchor = document.createElement('a');
     const safeName =
@@ -340,10 +365,13 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
         return;
       }
       reset({
+        cacheWriteBilling: !Array.isArray(imported) && imported.version === 4 ? imported.cacheWriteBilling : getValues('cacheWriteBilling'),
         multiplier: importedMultiplier,
         prices: filtered,
         serviceTierBilling:
-          !Array.isArray(imported) && imported.version === 3 ? imported.serviceTierBilling : { enabled: false, basis: 'upstream' },
+          !Array.isArray(imported) && (imported.version === 3 || imported.version === 4)
+            ? imported.serviceTierBilling
+            : { enabled: false, basis: 'upstream' },
       });
       priceListRef.current?.scrollTo({ top: 0 });
       const skipped = prices.length - filtered.length;
@@ -355,6 +383,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
   const onSubmit = async (data: PriceFormData) => {
     try {
       await savePrices.mutateAsync({
+        cacheWriteBilling: data.cacheWriteBilling,
         channelId: channel.id,
         input: data.prices,
         multiplier: data.multiplier,
@@ -500,6 +529,25 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
                         <SelectItem value='client'>{t('serviceTier.settings.client')}</SelectItem>
                       </SelectContent>
                     </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={control}
+                name='cacheWriteBilling'
+                render={({ field }) => (
+                  <FormItem className='min-w-0 flex-1 basis-72'>
+                    <div className='flex items-center gap-2'>
+                      <FormControl>
+                        <Switch
+                          checked={field.value === 'swap_5m_1h'}
+                          onCheckedChange={(checked) => field.onChange(checked ? 'swap_5m_1h' : 'reported')}
+                          aria-label={t('cacheWriteBilling.title')}
+                        />
+                      </FormControl>
+                      <FormLabel>{t('cacheWriteBilling.title')}</FormLabel>
+                    </div>
+                    <p className='text-muted-foreground text-xs'>{t('cacheWriteBilling.description')}</p>
                   </FormItem>
                 )}
               />

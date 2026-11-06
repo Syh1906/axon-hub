@@ -98,19 +98,20 @@ type ComplexityRoot struct {
 	}
 
 	CostPricingEvidence struct {
-		BaseSubtotal      func(childComplexity int) int
-		BaseTierSubtotals func(childComplexity int) int
-		BaseUnitPrice     func(childComplexity int) int
-		Context           func(childComplexity int) int
-		CostMultiplier    func(childComplexity int) int
-		FinalUnitPrice    func(childComplexity int) int
-		ItemMethod        func(childComplexity int) int
-		ModeMultiplier    func(childComplexity int) int
-		ModeSubtotal      func(childComplexity int) int
-		ModeTierSubtotals func(childComplexity int) int
-		Reference         func(childComplexity int) int
-		RuleSource        func(childComplexity int) int
-		ServiceTier       func(childComplexity int) int
+		BaseSubtotal             func(childComplexity int) int
+		BaseTierSubtotals        func(childComplexity int) int
+		BaseUnitPrice            func(childComplexity int) int
+		CacheWritePricingVariant func(childComplexity int) int
+		Context                  func(childComplexity int) int
+		CostMultiplier           func(childComplexity int) int
+		FinalUnitPrice           func(childComplexity int) int
+		ItemMethod               func(childComplexity int) int
+		ModeMultiplier           func(childComplexity int) int
+		ModeSubtotal             func(childComplexity int) int
+		ModeTierSubtotals        func(childComplexity int) int
+		Reference                func(childComplexity int) int
+		RuleSource               func(childComplexity int) int
+		ServiceTier              func(childComplexity int) int
 	}
 
 	Query struct {
@@ -524,6 +525,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CostPricingEvidence.BaseUnitPrice(childComplexity), true
+	case "CostPricingEvidence.cacheWritePricingVariant":
+		if e.complexity.CostPricingEvidence.CacheWritePricingVariant == nil {
+			break
+		}
+
+		return e.complexity.CostPricingEvidence.CacheWritePricingVariant(childComplexity), true
 	case "CostPricingEvidence.context":
 		if e.complexity.CostPricingEvidence.Context == nil {
 			break
@@ -1391,7 +1398,12 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "selfusage.graphql", Input: sourceData("selfusage.graphql"), BuiltIn: false},
-	{Name: "../cost_pricing_evidence.graphql", Input: `enum ServiceTierPriceSource {
+	{Name: "../cost_pricing_evidence.graphql", Input: `enum PromptWriteCacheVariantCode {
+  five_min
+  one_hour
+}
+
+enum ServiceTierPriceSource {
   official
   custom
   model
@@ -1418,6 +1430,7 @@ type ContextPricing {
   name: String!
 }
 type CostPricingEvidence {
+  cacheWritePricingVariant: PromptWriteCacheVariantCode
  itemMethod: ServiceTierItemMethod
  ruleSource: String!
  baseUnitPrice: Decimal
@@ -2640,6 +2653,35 @@ func (ec *executionContext) fieldContext_ContextPricing_name(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _CostPricingEvidence_cacheWritePricingVariant(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostPricingEvidence_cacheWritePricingVariant,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheWritePricingVariant, nil
+		},
+		nil,
+		ec.marshalOPromptWriteCacheVariantCode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPromptWriteCacheVariantCode,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostPricingEvidence_cacheWritePricingVariant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostPricingEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type PromptWriteCacheVariantCode does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CostPricingEvidence_itemMethod(ctx context.Context, field graphql.CollectedField, obj *objects.CostPricingEvidence) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3413,6 +3455,8 @@ func (ec *executionContext) fieldContext_SelfUsageCostItem_pricingEvidence(_ con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cacheWritePricingVariant":
+				return ec.fieldContext_CostPricingEvidence_cacheWritePricingVariant(ctx, field)
 			case "itemMethod":
 				return ec.fieldContext_CostPricingEvidence_itemMethod(ctx, field)
 			case "ruleSource":
@@ -8689,6 +8733,8 @@ func (ec *executionContext) _CostPricingEvidence(ctx context.Context, sel ast.Se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("CostPricingEvidence")
+		case "cacheWritePricingVariant":
+			out.Values[i] = ec._CostPricingEvidence_cacheWritePricingVariant(ctx, field, obj)
 		case "itemMethod":
 			out.Values[i] = ec._CostPricingEvidence_itemMethod(ctx, field, obj)
 		case "ruleSource":
@@ -11246,6 +11292,25 @@ func (ec *executionContext) marshalOInt2ᚖint64(ctx context.Context, sel ast.Se
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalInt64(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOPromptWriteCacheVariantCode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPromptWriteCacheVariantCode(ctx context.Context, v any) (*objects.PromptWriteCacheVariantCode, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := objects.PromptWriteCacheVariantCode(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPromptWriteCacheVariantCode2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐPromptWriteCacheVariantCode(ctx context.Context, sel ast.SelectionSet, v *objects.PromptWriteCacheVariantCode) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
 	return res
 }
 
