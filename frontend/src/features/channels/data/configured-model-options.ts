@@ -33,7 +33,7 @@ export function useConfiguredModelOptions(enabled: boolean) {
   return useQuery({
     queryKey: ['models', 'channel-options'],
     enabled,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const models: ConfiguredModel[] = [];
       let after: string | undefined;
       do {
@@ -46,7 +46,7 @@ export function useConfiguredModelOptions(enabled: boolean) {
             }
           }
         `,
-          { after }
+          { after }, undefined, { signal }
         );
         const page = z.object({ edges: z.array(z.object({ node: configuredModelSchema })), pageInfo: pageInfoSchema }).parse(data.models);
         models.push(...page.edges.map(({ node }) => node));

@@ -67,10 +67,10 @@ const FASTEST_MODELS_QUERY = `
 export function useFastestChannels(timeWindow: string = 'day', limit: number = 5) {
   return useQuery({
     queryKey: ['fastestChannels', timeWindow, limit],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ fastestChannels: FastestChannel[] }>(
         FASTEST_CHANNELS_QUERY,
-        { input: { timeWindow, limit } }
+        { input: { timeWindow, limit } }, undefined, { signal }
       );
       return data.fastestChannels.map((item) => fastestChannelSchema.parse(item));
     },
@@ -82,10 +82,10 @@ export function useFastestChannels(timeWindow: string = 'day', limit: number = 5
 export function useFastestModels(timeWindow: string = 'day', limit: number = 5) {
   return useQuery({
     queryKey: ['fastestModels', timeWindow, limit],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ fastestModels: FastestModel[] }>(
         FASTEST_MODELS_QUERY,
-        { input: { timeWindow, limit } }
+        { input: { timeWindow, limit } }, undefined, { signal }
       );
       return data.fastestModels.map((item) => fastestModelSchema.parse(item));
     },

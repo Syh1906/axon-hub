@@ -162,9 +162,9 @@ export function useQueryPrompts(args: QueryPromptsArgs) {
 
   return useQuery({
     queryKey: ['prompts', args, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-      const data = await graphqlRequest<{ prompts: PromptConnection }>(PROMPTS_QUERY, args, headers);
+      const data = await graphqlRequest<{ prompts: PromptConnection }>(PROMPTS_QUERY, args, headers, { signal });
       return promptConnectionSchema.parse(data.prompts);
     },
     enabled: !!selectedProjectId,

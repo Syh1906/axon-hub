@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { isAuthError } from '@/gql/graphql';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMe } from '@/features/auth/data/auth';
 
@@ -10,11 +12,12 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { accessToken } = useAuthStore((state) => state.auth);
 
   // Automatically fetch user info when token is available
-  const { isLoading: isMeLoading, error: meError } = useMe();
+  const { isLoading: isMeLoading, error: meError, data: me, refetch } = useMe();
 
   useEffect(() => {
     // If no token, redirect to sign-in
@@ -77,5 +80,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
+  if (meError && !me) {
+    return (
+      <div className='flex h-screen flex-col items-center justify-center gap-4' role='alert'>
+        <p>{t('common.loadError')}</p>
+        <Button onClick={() => void refetch()}>{t('common.buttons.retry')}</Button>
+      </div>
+    );
+  }
   return <>{children}</>;
 }

@@ -77,9 +77,44 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 }
 
 func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
+	return joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+}
+
+func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time) *sql.Selector {
 	u := usageForConsumption(projectID, s.Dialect(), start, end)
 	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(s.C("id"), u.C("request_id")), sql.ColumnsEQ(s.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(s.C("project_id"), u.C("project_id"))))
-	return u, joinLatestConsumptionExecution(s)
+	return u
+}
+
+// PostgreSQL can select each request's final execution and its metrics together.
+// Keep bounded detail/archive reads on the indexed per-request lookup instead.
+func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
+	// Search and group filters can select very few requests. Keep their indexed
+	// lookup instead of sorting executions from the entire time range.
+	if s.Dialect() != dialect.Postgres || input.GroupRef != nil || (input.Search != nil && *input.Search != "") {
+		return joinConsumption(s, projectID, start, end)
+	}
+	u := joinConsumptionUsage(s, projectID, start, end)
+	r := sql.Table(request.Table).As("execution_request")
+	bounded := sql.Dialect(s.Dialect()).Select(r.C("id")).From(r).Where(sql.LT(r.C("created_at"), end))
+	if start != nil {
+		bounded.Where(sql.GTE(r.C("created_at"), *start))
+	}
+	if projectID > 0 {
+		bounded.Where(sql.EQ(r.C("project_id"), projectID))
+	}
+	e := sql.Table(requestexecution.Table).As("candidate_execution")
+	keys := []string{e.C("request_id"), e.C("project_id"), e.C("channel_id")}
+	columns := e.Columns("id", "request_id", "project_id", "channel_id", "model_id", "status", "error_message",
+		"response_status_code", "metrics_latency_ms", "metrics_first_byte_latency_ms", "metrics_first_byte_recorded",
+		"metrics_first_token_latency_ms", "stream", "format")
+	final := sql.Dialect(s.Dialect()).SelectExpr(sql.ExprFunc(func(b *sql.Builder) {
+		b.WriteString("DISTINCT ON ").Wrap(func(b *sql.Builder) { b.IdentComma(keys...) }).Pad().IdentComma(columns...)
+	})).From(e).Where(sql.In(e.C("request_id"), bounded)).
+		OrderBy(append(keys, sql.Desc(e.C("id")))...).As("execution")
+	s.LeftJoin(final).OnP(sql.And(sql.ColumnsEQ(s.C("id"), final.C("request_id")),
+		sql.ColumnsEQ(s.C("project_id"), final.C("project_id")), sql.ColumnsEQ(s.C("channel_id"), final.C("channel_id"))))
+	return u, sql.Table(requestexecution.Table).As("execution")
 }
 
 func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
@@ -118,7 +153,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
 		excludeArchivedRequests(q)
-		u, execution := joinConsumption(q, projectID, start, end)
+		u, execution := joinConsumptionGroups(q, projectID, input, start, end)
 		model := "COALESCE(NULLIF(TRIM(" + execution.C("model_id") + "), ''), " + q.C("model_id") + ")"
 		selectConsumptionEntity(q, input, model)
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"

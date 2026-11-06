@@ -570,7 +570,7 @@ export function useApiKeys(
 
   return useQuery({
     queryKey: ['apiKeys', variables, permissions, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildApiKeysQuery(permissions);
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
@@ -581,7 +581,7 @@ export function useApiKeys(
             typeNotIn: [NOAUTH_API_KEY_TYPE],
           },
         };
-        const data = await graphqlRequest<{ apiKeys: ApiKeyConnection }>(query, mergedVariables, headers);
+        const data = await graphqlRequest<{ apiKeys: ApiKeyConnection }>(query, mergedVariables, headers, { signal });
         return apiKeyConnectionSchema.parse(data?.apiKeys);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -600,11 +600,11 @@ export function useApiKey(id: string) {
 
   return useQuery({
     queryKey: ['apiKey', id, permissions, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildApiKeyQuery(permissions);
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ node: ApiKey }>(query, { id }, headers);
+        const data = await graphqlRequest<{ node: ApiKey }>(query, { id }, headers, { signal });
         return apiKeySchema.parse(data.node);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -628,13 +628,13 @@ export function useApiKeyQuotaUsages(
 
   return useQuery({
     queryKey: ['apiKeyQuotaUsages', apiKeyId, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
         const data = await graphqlRequest<{ apiKeyQuotaUsages: ApiKeyProfileQuotaUsage[] }>(
           APIKEY_QUOTA_USAGES_QUERY,
           { apiKeyId },
-          headers
+          headers, { signal }
         );
         return apiKeyProfileQuotaUsageSchema.array().parse(data.apiKeyQuotaUsages);
       } catch (error) {
@@ -663,13 +663,13 @@ export function useApiKeyTokenUsageStats(
 
   return useQuery({
     queryKey: ['apiKeyTokenUsageStats', variables, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
         const data = await graphqlRequest<{ apiKeyTokenUsageStats: ApiKeyTokenUsageStats[] }>(
           APIKEY_TOKEN_USAGE_STATS_QUERY,
           { input: variables && Object.keys(variables).length > 0 ? variables : undefined },
-          headers
+          headers, { signal }
         );
         return apiKeyTokenUsageStatsSchema.array().parse(data.apiKeyTokenUsageStats);
       } catch (error) {
@@ -945,14 +945,14 @@ export function useApiKeyProfileTemplates(projectID: string | null) {
 
   return useQuery({
     queryKey: ['apiKeyProfileTemplates', projectID, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const requestProjectId = projectID ?? selectedProjectId;
         const headers = requestProjectId ? { 'X-Project-ID': requestProjectId } : undefined;
         const data = await graphqlRequest<{ apiKeyProfileTemplates: { edges: { node: ApiKeyProfileTemplate }[]; totalCount: number } }>(
           APIKEY_PROFILE_TEMPLATES_QUERY,
           {},
-          headers
+          headers, { signal }
         );
         const templates = (data?.apiKeyProfileTemplates?.edges ?? []).map((e) => e.node);
         return apiKeyProfileTemplateSchema.array().parse(templates);

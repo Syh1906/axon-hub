@@ -132,7 +132,6 @@ const TEMPLATE_FRAGMENT = `
 
 // GraphQL Queries
 const QUERY_CHANNEL_OVERRIDE_TEMPLATES = `
-  ${TEMPLATE_FRAGMENT}
   query ChannelOverrideTemplates(
     $after: Cursor
     $first: Int
@@ -162,6 +161,7 @@ const QUERY_CHANNEL_OVERRIDE_TEMPLATES = `
       totalCount
     }
   }
+  ${TEMPLATE_FRAGMENT}
 `;
 
 // GraphQL Mutations
@@ -231,7 +231,7 @@ export function useChannelOverrideTemplates(
   return useQuery({
     enabled: options?.enabled !== false,
     queryKey: ['channelOverrideTemplates', variables?.search, variables?.after],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const where: Record<string, unknown> = {};
         if (variables?.search) {
@@ -243,7 +243,7 @@ export function useChannelOverrideTemplates(
             first: variables?.first,
             after: variables?.after,
             where: Object.keys(where).length > 0 ? where : undefined,
-          }
+          }, undefined, { signal }
         );
         return channelOverrideTemplateConnectionSchema.parse(data?.channelOverrideTemplates);
       } catch (error) {

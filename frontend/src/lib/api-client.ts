@@ -1,4 +1,6 @@
 import { AuthUser, getTokenFromStorage } from '@/stores/authStore';
+import { withReadDeadline } from './read-deadline';
+import i18n from './i18n';
 
 // Same domain, no need to add baseURL.
 export const API_BASE_URL = '';
@@ -29,6 +31,8 @@ const isErrorResponseBody = (value: unknown): value is ErrorResponseBody => {
 };
 
 interface ApiRequestOptions {
+  timeoutMs?: number;
+  signal?: AbortSignal;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
   body?: any;
@@ -47,6 +51,16 @@ class ApiError extends Error {
 }
 
 export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
+  if (options.method && options.method !== 'GET') return performApiRequest(endpoint, options);
+  try {
+    return await withReadDeadline((signal) => performApiRequest<T>(endpoint, { ...options, signal }), options.signal, options.timeoutMs);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new ApiError(i18n.t('common.errors.readTimeout'), 408);
+    throw error;
+  }
+}
+
+async function performApiRequest<T>(endpoint: string, options: ApiRequestOptions): Promise<T> {
   const { method = 'GET', headers = {}, body, requireAuth = false } = options;
 
   const url = `${API_BASE_URL}${endpoint}`;
@@ -65,6 +79,7 @@ export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions
   }
 
   const requestOptions: RequestInit = {
+    signal: options.signal,
     method,
     headers: requestHeaders,
   };
@@ -115,7 +130,7 @@ export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions
 
 // System API endpoints
 export const systemApi = {
-  getStatus: (): Promise<{ isInitialized: boolean }> => apiRequest('/admin/system/status'),
+  getStatus: (signal?: AbortSignal): Promise<{ isInitialized: boolean }> => apiRequest('/admin/system/status', { signal, timeoutMs: 10_000 }),
 
   initialize: (data: {
     ownerEmail: string;

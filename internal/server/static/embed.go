@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gin-contrib/static"
@@ -16,6 +17,8 @@ import (
 var dist embed.FS
 
 var staticFS static.ServeFileSystem
+
+var versionedAsset = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|svg|webp)$`)
 
 var apiPrefixes = []string{
 	"/admin",
@@ -48,6 +51,9 @@ func Handler() gin.HandlerFunc {
 		}
 
 		if isStaticAssetPath(path) {
+			if versionedAsset.MatchString(path) && staticFS.Exists("/", path) {
+				c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			}
 			static.Serve("/", staticFS)(c)
 			return
 		}

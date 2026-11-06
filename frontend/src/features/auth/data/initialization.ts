@@ -25,11 +25,10 @@ export interface InitializeSystemPayload {
 export function useSystemStatus() {
   return useQuery({
     queryKey: ['systemStatus'],
-    queryFn: async (): Promise<SystemStatus> => {
-      return await systemApi.getStatus();
+    queryFn: async ({ signal }): Promise<SystemStatus> => {
+      return await systemApi.getStatus(signal);
     },
-    retry: 1, // Allow one retry to handle network hiccups on first load
-    retryDelay: 500, // Wait 500ms before retry
+    retry: false, // 入口失败交给显式重试，避免整页连续等待。
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });

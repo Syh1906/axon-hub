@@ -85,9 +85,9 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
       return (input.dimension === 'MODEL' ? modelResultSchema : resultSchema).parse(data[field]);
     },
     enabled: enabled && (view === 'leaderboard' || !!projectID),
-    refetchInterval: 60_000,
+    refetchInterval: input.period === 'YESTERDAY' || input.period === 'CUSTOM' ? 5 * 60_000 : 60_000,
     staleTime: 30_000,
-    gcTime: 60_000,
+    gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
 }

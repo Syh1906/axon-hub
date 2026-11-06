@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
+import { formatCurrencyValue } from '@/utils/currency-formatter';
 
 function mergeTranslations(...translations: Array<Record<string, unknown>>) {
   return Object.assign({}, ...translations);
@@ -48,13 +49,13 @@ i18n
       escapeValue: false, // React 已经默认转义了
       format: (value, format, lng, options) => {
         if (format === 'currency') {
-          return new Intl.NumberFormat(options?.locale || lng, {
+          return formatCurrencyValue(value, options?.locale || lng, {
             style: 'currency',
             currency: options?.currency || 'USD',
             currencyDisplay: 'narrowSymbol',
             minimumFractionDigits: options?.minimumFractionDigits,
             maximumFractionDigits: options?.maximumFractionDigits,
-          }).format(value);
+          });
         }
         return value;
       },

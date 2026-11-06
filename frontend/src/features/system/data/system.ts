@@ -503,9 +503,9 @@ export function useBrandSettings(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['brandSettings'],
     enabled: options?.enabled !== false && hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ brandSettings: BrandSettings }>(BRAND_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ brandSettings: BrandSettings }>(BRAND_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.brandSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -522,9 +522,9 @@ export function useStoragePolicy() {
   return useQuery({
     queryKey: ['storagePolicy'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ storagePolicy: StoragePolicy }>(STORAGE_POLICY_QUERY);
+        const data = await graphqlRequest<{ storagePolicy: StoragePolicy }>(STORAGE_POLICY_QUERY, undefined, undefined, { signal });
         return data.storagePolicy;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -606,9 +606,9 @@ export function useRetryPolicy() {
 
   return useQuery({
     queryKey: ['retryPolicy'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ retryPolicy: RetryPolicy }>(RETRY_POLICY_QUERY);
+        const data = await graphqlRequest<{ retryPolicy: RetryPolicy }>(RETRY_POLICY_QUERY, undefined, undefined, { signal });
         return data.retryPolicy;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -641,9 +641,9 @@ export function useWebhookNotifierConfig() {
 
   return useQuery({
     queryKey: ['webhookNotifierConfig'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ webhookNotifierConfig: WebhookNotifierConfig }>(WEBHOOK_NOTIFIER_CONFIG_QUERY);
+        const data = await graphqlRequest<{ webhookNotifierConfig: WebhookNotifierConfig }>(WEBHOOK_NOTIFIER_CONFIG_QUERY, undefined, undefined, { signal });
         return data.webhookNotifierConfig;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -678,9 +678,9 @@ export function useDefaultDataStorageID() {
   return useQuery({
     queryKey: ['defaultDataStorageID'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ defaultDataStorageID: string | null }>(DEFAULT_DATA_STORAGE_QUERY);
+        const data = await graphqlRequest<{ defaultDataStorageID: string | null }>(DEFAULT_DATA_STORAGE_QUERY, undefined, undefined, { signal });
         return data.defaultDataStorageID;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -711,9 +711,9 @@ export function useUpdateDefaultDataStorage() {
 export function useOnboardingInfo() {
   return useQuery({
     queryKey: ['onboardingInfo'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ onboardingInfo: OnboardingInfo | null }>(ONBOARDING_INFO_QUERY);
+        const data = await graphqlRequest<{ onboardingInfo: OnboardingInfo | null }>(ONBOARDING_INFO_QUERY, undefined, undefined, { signal });
         return data.onboardingInfo;
       } catch (_error) {
         return {
@@ -785,8 +785,8 @@ export function useCompleteAutoDisableChannelOnboarding() {
 export function useSystemVersion() {
   return useQuery({
     queryKey: ['systemVersion'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ systemVersion: SystemVersion }>(SYSTEM_VERSION_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ systemVersion: SystemVersion }>(SYSTEM_VERSION_QUERY, undefined, undefined, { signal });
       return data.systemVersion;
     },
   });
@@ -795,8 +795,8 @@ export function useSystemVersion() {
 export function useCheckForUpdate(includeBeta = false) {
   return useQuery({
     queryKey: ['checkForUpdate', includeBeta],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ checkForUpdate: VersionCheck }>(CHECK_FOR_UPDATE_QUERY, { includeBeta });
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ checkForUpdate: VersionCheck }>(CHECK_FOR_UPDATE_QUERY, { includeBeta }, undefined, { signal });
       return data.checkForUpdate;
     },
     retry: false,
@@ -1033,9 +1033,9 @@ export function useModelSettings() {
   return useQuery({
     queryKey: ['modelSettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ systemModelSettings: ModelSettings }>(MODEL_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ systemModelSettings: ModelSettings }>(MODEL_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.systemModelSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1107,9 +1107,9 @@ export function useChannelSetting(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['channelSetting'],
     enabled: options?.enabled !== false && hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ systemChannelSettings: ChannelSetting }>(CHANNEL_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ systemChannelSettings: ChannelSetting }>(CHANNEL_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.systemChannelSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1145,9 +1145,9 @@ export function useGeneralSettings() {
   return useQuery({
     queryKey: ['generalSettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ systemGeneralSettings: SystemGeneralSettings }>(SYSTEM_GENERAL_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ systemGeneralSettings: SystemGeneralSettings }>(SYSTEM_GENERAL_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.systemGeneralSettings;
       } catch (error) {
         // Only suppress permission errors (403) — surface 500, network, etc. as toasts
@@ -1190,9 +1190,9 @@ export function useVideoStorageSettings() {
 
   return useQuery({
     queryKey: ['videoStorageSettings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ videoStorageSettings: VideoStorageSettings }>(VIDEO_STORAGE_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ videoStorageSettings: VideoStorageSettings }>(VIDEO_STORAGE_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.videoStorageSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1227,9 +1227,9 @@ export function useSecuritySettings() {
   return useQuery({
     queryKey: ['securitySettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ securitySettings: SecuritySettings }>(SECURITY_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ securitySettings: SecuritySettings }>(SECURITY_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.securitySettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1459,9 +1459,9 @@ export function useAutoBackupSettings() {
 
   return useQuery({
     queryKey: ['autoBackupSettings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ autoBackupSettings: AutoBackupSettings }>(AUTO_BACKUP_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ autoBackupSettings: AutoBackupSettings }>(AUTO_BACKUP_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.autoBackupSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1549,16 +1549,16 @@ export interface SaveProxyPresetInput {
   password?: string;
 }
 
-export function useProxyPresets() {
+export function useProxyPresets(enabled = true) {
   const { handleError } = useErrorHandler();
   const { hasSystemScope } = usePermissions();
 
   return useQuery({
     queryKey: ['proxyPresets'],
-    enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    enabled: enabled && hasSystemScope('read_settings'),
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ proxyPresets: ProxyPreset[] }>(PROXY_PRESETS_QUERY);
+        const data = await graphqlRequest<{ proxyPresets: ProxyPreset[] }>(PROXY_PRESETS_QUERY, undefined, undefined, { signal });
         return data.proxyPresets;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1631,10 +1631,10 @@ export function useUserAgentPassThroughSettings() {
 
   return useQuery({
     queryKey: ['userAgentPassThroughSettings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await graphqlRequest<{ userAgentPassThroughSettings: UserAgentPassThroughSettings }>(
-          USER_AGENT_PASS_THROUGH_SETTINGS_QUERY
+          USER_AGENT_PASS_THROUGH_SETTINGS_QUERY, undefined, undefined, { signal }
         );
         return data.userAgentPassThroughSettings;
       } catch (error) {
@@ -1693,9 +1693,9 @@ export function usePassThroughSettings() {
 
   return useQuery({
     queryKey: ['passThroughSettings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ passThroughSettings: PassThroughSettings }>(PASS_THROUGH_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ passThroughSettings: PassThroughSettings }>(PASS_THROUGH_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.passThroughSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1750,9 +1750,9 @@ export function useUsageCostInjectionSettings() {
 
   return useQuery({
     queryKey: ['usageCostInjectionSettings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ usageCostInjectionSettings: UsageCostInjectionSettings }>(USAGE_COST_INJECTION_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ usageCostInjectionSettings: UsageCostInjectionSettings }>(USAGE_COST_INJECTION_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.usageCostInjectionSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1819,9 +1819,9 @@ export function useQuotaEnforcementSettings() {
   return useQuery({
     queryKey: ['quotaEnforcementSettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ quotaEnforcementSettings: QuotaEnforcementSettings }>(QUOTA_ENFORCEMENT_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ quotaEnforcementSettings: QuotaEnforcementSettings }>(QUOTA_ENFORCEMENT_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.quotaEnforcementSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));
@@ -1889,10 +1889,10 @@ export function useProviderQuotaCollectionSettings() {
   return useQuery({
     queryKey: ['providerQuotaCollectionSettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await graphqlRequest<{ providerQuotaCollectionSettings: ProviderQuotaCollectionSettings }>(
-          PROVIDER_QUOTA_COLLECTION_SETTINGS_QUERY
+          PROVIDER_QUOTA_COLLECTION_SETTINGS_QUERY, undefined, undefined, { signal }
         );
         return data.providerQuotaCollectionSettings;
       } catch (error) {
@@ -1957,9 +1957,9 @@ export function useCatalogSettings() {
   return useQuery({
     queryKey: ['catalogSettings'],
     enabled: hasSystemScope('read_settings'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ catalogSettings: CatalogSettings }>(CATALOG_SETTINGS_QUERY);
+        const data = await graphqlRequest<{ catalogSettings: CatalogSettings }>(CATALOG_SETTINGS_QUERY, undefined, undefined, { signal });
         return data.catalogSettings;
       } catch (error) {
         handleError(error, i18n.t('common.errors.internalServerError'));

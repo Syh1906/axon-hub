@@ -91,9 +91,9 @@ export function useRoles(
 
   return useQuery({
     queryKey: ['roles', queryVariables],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ roles: RoleConnection }>(ROLES_QUERY, queryVariables);
+        const data = await graphqlRequest<{ roles: RoleConnection }>(ROLES_QUERY, queryVariables, undefined, { signal });
         return roleConnectionSchema.parse(data?.roles);
       } catch (error) {
         handleError(error, { context: 'Load Roles' });
@@ -109,9 +109,9 @@ export function useRole(id: string) {
 
   return useQuery({
     queryKey: ['role', id],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ roles: RoleConnection }>(ROLES_QUERY, { where: { id } });
+        const data = await graphqlRequest<{ roles: RoleConnection }>(ROLES_QUERY, { where: { id } }, undefined, { signal });
         const role = data.roles.edges[0]?.node;
         if (!role) {
           throw new Error('Role not found');

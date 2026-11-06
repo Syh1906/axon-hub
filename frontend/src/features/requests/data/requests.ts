@@ -25,11 +25,11 @@ export function useRequestLogTimezone() {
   return useQuery({
     queryKey: ['request-log-timezone', projectId],
     enabled: hasScope('read_requests'),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ requestLogTimezone: string }>(
         `query { requestLogTimezone }`,
         {},
-        projectId ? { 'X-Project-ID': projectId } : undefined
+        projectId ? { 'X-Project-ID': projectId } : undefined, { signal }
       );
       return data.requestLogTimezone;
     },

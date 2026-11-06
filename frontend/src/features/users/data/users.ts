@@ -28,9 +28,9 @@ export function useUsers(
 
   return useQuery({
     queryKey: ['users', queryVariables],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, queryVariables);
+        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, queryVariables, undefined, { signal });
         return userConnectionSchema.parse(data?.users);
       } catch (error) {
         handleError(error, t('common.errors.loadFailed'));
@@ -47,9 +47,9 @@ export function useUser(id: string) {
 
   return useQuery({
     queryKey: ['user', id],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } });
+        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } }, undefined, { signal });
         const user = data.users.edges[0]?.node;
         if (!user) {
           throw new Error(t('users.messages.userNotFound'));

@@ -31,7 +31,8 @@ const queryClient = new QueryClient({
           error instanceof Response ? error.status : error && typeof error === 'object' && 'status' in error ? (error as any).status : 0;
 
         // Don't retry auth errors or server errors (500 hammers a failing backend)
-        return ![401, 403, 422, 500].includes(status);
+        if (error && typeof error === 'object' && 'extensions' in error && error.extensions) return false;
+        return ![400, 401, 403, 408, 422, 429, 500].includes(status);
       },
       refetchOnWindowFocus: import.meta.env.PROD,
       staleTime: 10 * 1000, // 10s

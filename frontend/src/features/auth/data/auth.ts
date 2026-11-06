@@ -23,8 +23,8 @@ export function useMe(enabled = true) {
 
   const query = useQuery({
     queryKey: ['me'],
-    queryFn: async () => {
-      const data = await graphqlRequest<MeResponse>(ME_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<MeResponse>(ME_QUERY, undefined, undefined, { signal, timeoutMs: 10_000 });
       return data.me;
     },
     enabled: enabled && !!useAuthStore.getState().auth.accessToken,

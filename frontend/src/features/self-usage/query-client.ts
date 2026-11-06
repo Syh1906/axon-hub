@@ -7,7 +7,7 @@ export const selfUsageQueryClient = new QueryClient({
       retry: (count, error) => {
         if (
           error instanceof SelfUsageError &&
-          (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 429 || error.code === 'BAD_USER_INPUT')
+          (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 408 || error.status === 429 || error.code === 'BAD_USER_INPUT')
         )
           return false;
         return count < 2;

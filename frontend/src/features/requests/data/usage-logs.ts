@@ -135,11 +135,11 @@ export function useUsageLogs(variables?: {
 
   return useQuery({
     queryKey: ['usageLogs', variables, permissions, projectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildUsageLogsQuery(permissions);
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;
-        const data = await graphqlRequest<{ usageLogs: UsageLogConnection }>(query, variables, headers);
+        const data = await graphqlRequest<{ usageLogs: UsageLogConnection }>(query, variables, headers, { signal });
         return usageLogConnectionSchema.parse(data?.usageLogs);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -158,11 +158,11 @@ export function useUsageLog(id: string) {
 
   return useQuery({
     queryKey: ['usageLog', id, permissions, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildUsageLogDetailQuery(permissions);
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ node: UsageLog }>(query, { id }, headers);
+        const data = await graphqlRequest<{ node: UsageLog }>(query, { id }, headers, { signal });
         if (!data.node) {
           throw new Error('Usage log not found');
         }

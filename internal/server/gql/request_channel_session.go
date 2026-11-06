@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 
+	entdialect "entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/99designs/gqlgen/graphql"
@@ -211,16 +212,25 @@ func requestChannelSessions(ctx context.Context, client *ent.Client, ids []int) 
 		q.Where(sql.And(sessionRequestFinished(current),
 			sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(dialect, current, requestexecution.FieldID)),
 		))
-		sessionTraces := dialect.Select(priorTrace.C(trace.FieldID)).From(priorTrace).Where(sql.Or(
+		sameSession := sql.Or(
 			sql.ColumnsEQ(priorTrace.C(trace.FieldID), current.C(request.FieldTraceID)),
 			sql.And(sql.GT(currentTrace.C(trace.FieldThreadID), 0), sql.ColumnsEQ(priorTrace.C(trace.FieldThreadID), currentTrace.C(trace.FieldThreadID))),
-		))
+		)
 		finalPriorChannel := finalSessionAttempt(dialect, prior, requestexecution.FieldChannelID)
-		history := dialect.Select().From(prior).Where(sql.And(
+		boundedHistory := dialect.Select(prior.C(request.FieldID), prior.C(request.FieldChannelID)).From(prior).
+			Join(priorTrace).On(prior.C(request.FieldTraceID), priorTrace.C(trace.FieldID)).Where(sql.And(
 			sql.ColumnsEQ(prior.C(request.FieldProjectID), current.C(request.FieldProjectID)),
 			sql.ColumnsLT(prior.C(request.FieldID), current.C(request.FieldID)),
-			sql.In(prior.C(request.FieldTraceID), sessionTraces), sessionRequestFinished(prior),
+			sameSession, sessionRequestFinished(prior),
 		))
+		history := boundedHistory
+		if q.Dialect() == entdialect.Postgres {
+			// 先筛出同一会话的历史，阻止 PostgreSQL 将昂贵的最终执行
+			// 子查询提前到全项目历史上执行；OFFSET 0 不截断任何记录。
+			history = dialect.Select().From(boundedHistory.Offset(0).As("prior_request"))
+		} else {
+			history.Select()
+		}
 		previous := history.Clone().AppendSelectExpr(sql.ExprFunc(func(b *sql.Builder) {
 			b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) })
 		})).Where(sql.P(func(b *sql.Builder) {

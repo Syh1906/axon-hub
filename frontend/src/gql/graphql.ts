@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { getTokenFromStorage, removeTokenFromStorage } from '@/stores/authStore';
 import i18n from '@/lib/i18n';
+import { withReadDeadline } from '@/lib/read-deadline';
 
 export class GraphQLRequestError extends Error {
   status?: number;
@@ -50,7 +51,25 @@ export async function graphqlRequest<T>(
   query: string,
   variables?: Record<string, any>,
   customHeaders?: Record<string, string>,
-  init?: { signal?: AbortSignal }
+  init?: { signal?: AbortSignal; timeoutMs?: number }
+): Promise<T> {
+  // 只限制明确的读取；写操作、订阅和 fragment 前缀不猜测为读取。
+  if (!/^\s*(?:#[^\r\n]*[\r\n]\s*)*(?:query\b|\{)/.test(query)) return performGraphQLRequest(query, variables, customHeaders, init);
+  try {
+    return await withReadDeadline((signal) => performGraphQLRequest<T>(query, variables, customHeaders, { signal }), init?.signal, init?.timeoutMs);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new GraphQLRequestError(i18n.t('common.errors.readTimeout'), { status: 408 });
+    }
+    throw error;
+  }
+}
+
+async function performGraphQLRequest<T>(
+  query: string,
+  variables?: Record<string, any>,
+  customHeaders?: Record<string, string>,
+  init?: { signal?: AbortSignal; timeoutMs?: number }
 ): Promise<T> {
   // Get token from localStorage
   const token = getTokenFromStorage();
@@ -145,7 +164,7 @@ export async function graphqlRequest<T>(
 
     throw new GraphQLRequestError(firstError?.message || 'GraphQL Error', {
       status: isForbiddenGraphQLError(firstError) ? 403 : undefined,
-      extensions: firstError?.extensions,
+      extensions: firstError?.extensions ?? {},
     });
   }
 

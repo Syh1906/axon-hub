@@ -27,6 +27,7 @@ export function useErrorHandler() {
 
   const handleError = useCallback(
     (error: unknown, options?: string | ErrorHandlerOptions) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return { type: 'canceled', message: '' };
       // Normalize options
       const opts: ErrorHandlerOptions = typeof options === 'string' 
         ? { context: options } 

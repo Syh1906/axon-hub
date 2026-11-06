@@ -507,8 +507,8 @@ export function useQueryModels(args: QueryModelsArgs, options?: { enabled?: bool
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: ['models', args],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ models: ModelConnection }>(MODELS_QUERY, args);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ models: ModelConnection }>(MODELS_QUERY, args, undefined, { signal });
       return modelConnectionSchema.parse(data.models);
     },
   });
@@ -579,7 +579,7 @@ export function useQueryAllModels(args: QueryAllModelsArgs) {
   return useQuery({
     queryKey: ['models', 'all', args],
     staleTime: 30_000,
-    gcTime: 0,
+    gcTime: 5 * 60_000,
     queryFn: async ({ signal }) => {
       let result: ModelConnection | undefined;
       let after: string | undefined;
@@ -836,8 +836,8 @@ export interface ModelChannelConnection {
 export function useQueryUnassociatedChannels() {
   return useQuery({
     queryKey: ['unassociatedChannels'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ queryUnassociatedChannels: UnassociatedChannel[] }>(QUERY_UNASSOCIATED_CHANNELS);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ queryUnassociatedChannels: UnassociatedChannel[] }>(QUERY_UNASSOCIATED_CHANNELS, undefined, undefined, { signal });
       return data.queryUnassociatedChannels;
     },
     enabled: false,

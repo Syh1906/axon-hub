@@ -36,7 +36,7 @@ export type ProvidersCatalogInfo = {
   filtered: boolean;
 };
 
-async function loadProvidersCatalog(filtered: boolean): Promise<ProvidersCatalogInfo> {
+async function loadProvidersCatalog(filtered: boolean, signal?: AbortSignal): Promise<ProvidersCatalogInfo> {
   try {
     const result = await graphqlRequest<{
       providersCatalog: {
@@ -45,7 +45,7 @@ async function loadProvidersCatalog(filtered: boolean): Promise<ProvidersCatalog
         source: string;
         filtered: boolean;
       };
-    }>(PROVIDERS_CATALOG_QUERY, { filtered });
+    }>(PROVIDERS_CATALOG_QUERY, { filtered }, undefined, { signal });
 
     return {
       data: providersDataSchema.parse(result.providersCatalog.data),
@@ -54,6 +54,7 @@ async function loadProvidersCatalog(filtered: boolean): Promise<ProvidersCatalog
       filtered: result.providersCatalog.filtered,
     };
   } catch (error) {
+    if (signal?.aborted) throw error;
     console.error('Failed to load providers catalog, falling back to bundled data:', error);
     return {
       data: fallbackProvidersData,
@@ -67,7 +68,7 @@ async function loadProvidersCatalog(filtered: boolean): Promise<ProvidersCatalog
 export function useProvidersCatalog(filtered: boolean) {
   return useQuery({
     queryKey: ['providers-catalog', filtered],
-    queryFn: () => loadProvidersCatalog(filtered),
+    queryFn: ({ signal }) => loadProvidersCatalog(filtered, signal),
     staleTime: 5 * 60 * 1000,
     placeholderData: {
       data: fallbackProvidersData,

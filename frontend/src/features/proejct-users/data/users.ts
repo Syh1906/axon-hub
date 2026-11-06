@@ -129,7 +129,7 @@ export function useUsers(
 
   return useQuery({
     queryKey: ['project-users', selectedProjectId, variables, permissions],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         if (!selectedProjectId) {
           throw new Error('No project selected');
@@ -143,7 +143,7 @@ export function useUsers(
             name: string;
             projectUsers: ProjectUser[];
           };
-        }>(query, { projectId: selectedProjectId }, headers);
+        }>(query, { projectId: selectedProjectId }, headers, { signal });
 
         // Transform projectUsers to User format for display
         const projectUsers = data.node.projectUsers || [];
@@ -194,10 +194,10 @@ export function useUser(id: string) {
 
   return useQuery({
     queryKey: ['user', id, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } }, headers);
+        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } }, headers, { signal });
         const user = data.users.edges[0]?.node;
         if (!user) {
           throw new Error(t('users.messages.userNotFound'));
@@ -440,9 +440,9 @@ export function useAllUsers(variables?: { first?: number; after?: string; where?
 
   return useQuery({
     queryKey: ['all-users', variables],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ users: UserConnection }>(ALL_USERS_QUERY, variables);
+        const data = await graphqlRequest<{ users: UserConnection }>(ALL_USERS_QUERY, variables, undefined, { signal });
         return data.users;
       } catch (error) {
         handleError(error, t('common.errors.loadFailed'));

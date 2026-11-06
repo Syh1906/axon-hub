@@ -139,7 +139,7 @@ export function useThreads(variables?: { first?: number; after?: string; orderBy
 
   return useQuery<ThreadConnection>({
     queryKey: ['threads', variables, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildThreadsQuery();
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
@@ -153,7 +153,7 @@ export function useThreads(variables?: { first?: number; after?: string; orderBy
           },
         };
 
-        const data = await graphqlRequest<{ threads: ThreadConnection }>(query, finalVariables, headers);
+        const data = await graphqlRequest<{ threads: ThreadConnection }>(query, finalVariables, headers, { signal });
         return threadConnectionSchema.parse(data?.threads);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -186,7 +186,7 @@ export function useThreadDetail({
 
   return useQuery<ThreadDetail>({
     queryKey: ['thread-detail', id, tracesFirst, tracesAfter, traceOrderBy, selectedProjectId, showArchivedTraces],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildThreadDetailQuery();
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
@@ -199,7 +199,7 @@ export function useThreadDetail({
           traceWhere: showArchivedTraces ? {} : { statusNEQ: 'archived' },
         };
 
-        const data = await graphqlRequest<{ node?: ThreadDetail | null }>(query, variables, headers);
+        const data = await graphqlRequest<{ node?: ThreadDetail | null }>(query, variables, headers, { signal });
         if (!data?.node) {
           throw new Error(t('threads.errors.notFound'));
         }

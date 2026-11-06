@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -19,6 +21,35 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )
+
+func TestConsumptionExecutionLookupScope(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		dialect string
+		filter  ConsumptionFilter
+		batch   bool
+	}{
+		{name: "postgres leaderboard", dialect: dialect.Postgres, batch: true},
+		{name: "empty search", dialect: dialect.Postgres, filter: ConsumptionFilter{Search: lo.ToPtr("")}, batch: true},
+		{name: "narrow search", dialect: dialect.Postgres, filter: ConsumptionFilter{Search: lo.ToPtr("one channel")}},
+		{name: "selected group", dialect: dialect.Postgres, filter: ConsumptionFilter{GroupRef: lo.ToPtr(1)}},
+		{name: "sqlite", dialect: dialect.SQLite},
+		{name: "mysql", dialect: dialect.MySQL},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			q := sql.Dialect(tc.dialect).Select().From(sql.Table(request.Table))
+			joinConsumptionGroups(q, 1, tc.filter, nil, time.Now())
+			query, _ := q.Query()
+			if tc.batch {
+				require.Contains(t, query, "DISTINCT ON")
+			} else {
+				// Narrow filters must not sort executions for the whole time range.
+				require.NotContains(t, query, "DISTINCT ON")
+				require.Contains(t, query, "MAX(")
+			}
+		})
+	}
+}
 
 type consumptionFixture struct {
 	client  *ent.Client

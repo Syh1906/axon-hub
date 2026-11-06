@@ -1,4 +1,3 @@
-import { SystemTime } from '@/components/system-time';
 import { useCallback, useState } from 'react';
 import { ColumnDef, Row, Table } from '@tanstack/react-table';
 import { IconCheck, IconX, IconLink, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
@@ -11,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
+import { SystemTime } from '@/components/system-time';
 import { useModels } from '../context/models-context';
 import { Model } from '../data/schema';
 import { DataTableRowActions } from './data-table-row-actions';
@@ -48,7 +48,12 @@ function StatusSwitchCell({ row }: { row: Row<Model> }) {
 // Developer Cell Component to show translated developer name
 function DeveloperCell({ row }: { row: Row<Model> }) {
   const getDeveloperLabel = useDeveloperLabel();
-  return <Badge variant='outline'>{getDeveloperLabel(row.getValue('developer'))}</Badge>;
+  const label = getDeveloperLabel(row.getValue('developer'));
+  return (
+    <div className='truncate' title={label}>
+      <Badge variant='outline'>{label}</Badge>
+    </div>
+  );
 }
 
 // Association Rules Cell Component to handle permission check
@@ -153,7 +158,9 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
         const model = row.original;
         return (
           <div className='flex max-w-56 items-center gap-2'>
-            <div className='truncate font-medium'>{model.name}</div>
+            <div className='truncate font-medium' title={model.name}>
+              {model.name}
+            </div>
           </div>
         );
       },
@@ -168,11 +175,13 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
       header: ({ column }) => <DataTableColumnHeader column={column} title={t('models.columns.modelId')} />,
       cell: ({ row }) => {
         return (
-          <div className='flex items-center gap-2'>
+          <div className='flex min-w-0 items-center gap-2'>
             <Badge variant='outline' className='shrink-0'>
               {t(`models.match.types.${row.original.matchType}`)}
             </Badge>
-            <span className='text-sm font-medium'>{row.getValue('modelID')}</span>
+            <span className='min-w-0 truncate text-sm font-medium' title={row.original.modelID}>
+              {row.getValue('modelID')}
+            </span>
           </div>
         );
       },
@@ -338,9 +347,9 @@ export const createColumns = (t: ReturnType<typeof useTranslation>['t'], canWrit
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className='text-muted-foreground cursor-help text-sm'>{<SystemTime value={date} pattern="yyyy-MM-dd" />}</div>
+              <div className='text-muted-foreground cursor-help text-sm'>{<SystemTime value={date} pattern='yyyy-MM-dd' />}</div>
             </TooltipTrigger>
-            <TooltipContent>{<SystemTime value={date} pattern="yyyy-MM-dd HH:mm:ss" />}</TooltipContent>
+            <TooltipContent>{<SystemTime value={date} pattern='yyyy-MM-dd HH:mm:ss' />}</TooltipContent>
           </Tooltip>
         );
       },

@@ -20,6 +20,9 @@ func useTestStaticFS(t *testing.T) {
 
 	tempDir := t.TempDir()
 	require.NoError(t, os.WriteFile(tempDir+"/index.html", []byte("<html><body>test</body></html>"), 0o644))
+	require.NoError(t, os.Mkdir(tempDir+"/assets", 0o755))
+	require.NoError(t, os.WriteFile(tempDir+"/assets/index-1234abcd.js", []byte("export default 42"), 0o644))
+	require.NoError(t, os.WriteFile(tempDir+"/assets/runtime.js", []byte("export default 1"), 0o644))
 
 	originalStaticFS := staticFS
 	staticFS = ginstatic.LocalFile(tempDir, false)
@@ -27,6 +30,23 @@ func useTestStaticFS(t *testing.T) {
 	t.Cleanup(func() {
 		staticFS = originalStaticFS
 	})
+}
+
+func TestHandler_CachesOnlyExistingVersionedAssets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	useTestStaticFS(t)
+	router := gin.New()
+	router.NoRoute(Handler())
+	for _, path := range []string{"/assets/index-1234abcd.js", "/assets/missing-1234abcd.js", "/assets/runtime.js"} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if path == "/assets/index-1234abcd.js" {
+			require.Equal(t, http.StatusOK, recorder.Code)
+			require.Equal(t, "public, max-age=31536000, immutable", recorder.Header().Get("Cache-Control"))
+		} else {
+			require.Empty(t, recorder.Header().Get("Cache-Control"))
+		}
+	}
 }
 
 func TestHandler_ReturnsJSON404ForUnknownAPIPaths(t *testing.T) {

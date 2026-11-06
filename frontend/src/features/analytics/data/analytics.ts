@@ -318,6 +318,8 @@ export function useAnalyticsOverview(filter: AnalyticsFilter | null) {
       return analyticsOverviewSchema.parse(data.analyticsOverview);
     },
     refetchInterval: 60000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -336,6 +338,8 @@ export function useAnalyticsDailyStats(filter: AnalyticsFilter | null) {
       return data.analyticsDailyStats.map((item) => analyticsDailyStatSchema.parse(item));
     },
     refetchInterval: 60000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -357,6 +361,8 @@ export function useAnalyticsDimensionStats(filter: AnalyticsFilter | null, dimen
     },
     enabled: !!dimension,
     refetchInterval: 60000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -416,6 +422,8 @@ export function useAnalyticsAPIKeyStats(filter: AnalyticsFilter | null) {
       );
     },
     refetchInterval: 60000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -466,6 +474,8 @@ export function useAnalyticsModelStats(filter: AnalyticsModelFilter | null) {
       );
     },
     refetchInterval: 60000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
   });
 }

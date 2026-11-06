@@ -3,20 +3,20 @@ import { SortingState } from '@tanstack/react-table';
 import { IconPlus, IconSettings, IconAlertCircle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useDebounce } from '@/hooks/use-debounce';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useHorizontalScroll } from '@/hooks/use-horizontal-scroll';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
 import { PermissionGuard } from '@/components/permission-guard';
 import { useOnboardingInfo } from '@/features/system/data/system';
+import { ModelsCatalogStatus } from './components/models-catalog-status';
 import { createColumns } from './components/models-columns';
 import { ModelsDialogs } from './components/models-dialogs';
 import { ModelsOnboardingFlow } from './components/models-onboarding-flow';
 import { ModelsTable } from './components/models-table';
 import ModelsProvider, { useModels } from './context/models-context';
 import { useQueryAllModels } from './data/models';
-import { ModelsCatalogStatus } from './components/models-catalog-status';
 import { useDevelopersData } from './data/providers';
 
 function ModelsContent() {
@@ -54,6 +54,7 @@ function ModelsContent() {
   const { data, isLoading } = useQueryAllModels({
     where: whereClause,
   });
+  const models = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data]);
 
   const handleNameFilterChange = useCallback(
     (filter: string) => {
@@ -67,7 +68,7 @@ function ModelsContent() {
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
       <ModelsTable
-        data={data?.edges?.map((edge) => edge.node) || []}
+        data={models}
         columns={columns}
         loading={isLoading}
         totalCount={data?.totalCount}

@@ -27,7 +27,7 @@ Ent persists timestamps in UTC. Calendar boundaries are calculated in the system
 
 All time includes retained request history, so log retention affects the available data. Dimension changes preserve the selected period. Column sorting preserves expansion by entity identity; model rows move with their parent. Wide tables scroll within their own container. Expanded rows use continuous muted backgrounds. Hover and keyboard focus apply a shared theme background to every cell without scaling or changing row height. Candidate lists, menus and ghost buttons share the feedback, including dark mode and reduced motion.
 
-The table mounts only the visible rows and a small buffer, including expanded models, so large key lists do not create all cells at once. Measured row heights use normal table flow and stable column widths. The frontend refreshes every minute and releases inactive queries after 60 seconds. The backend retains its one-minute result cache and loads only ID, name, user, project and group fields for key display labels.
+The table mounts only the visible rows and a small buffer, including expanded models, so large key lists do not create all cells at once. Measured row heights use normal table flow and stable column widths. See "Page reads and browser caching" below for frontend refresh intervals and memory-cache lifetime. The backend retains its one-minute result cache and loads only ID, name, user, project and group fields for key display labels.
 
 Name search matches users' displayed full names, name fragments and email addresses case-insensitively. Key, channel and model searches use their names. Numeric cells are centered by column. Sort/expansion icons and model counts do not shift the text alignment.
 
@@ -114,3 +114,13 @@ Live local frontend/backend integration with an isolated SQLite database passed 
 ## API key groups
 
 Key and group dimensions can filter a specific group. Options come from groups with usage in the selected reporting scope. Ungrouped and deleted keys are excluded from group rankings. Identically named groups in different projects remain separate IDs. Global labels append the project name; a single-project scope keeps the original group name. Historical usage follows current membership; renames and reassignment change cache revisions immediately. Existing page permissions remain in force. See [API Key self usage](../guides/self-usage.md#managing-key-groups) for management, default filters and public group reporting.
+
+## Page reads and browser caching
+
+Ordinary admin data reads have a 35-second client deadline, including response-body consumption. Initialization and current-user checks have a 10-second deadline and offer explicit retry on failure. Mutations, channel tests and model streams retain their separate contracts. Queries wired to cancellation stop obsolete reads when filters change or pages unmount; timed-out reads are not repeatedly retried automatically.
+
+Yesterday and custom-date consumption views refresh every five minutes; other ranges retain their one-minute interval. Manual refresh remains available. Inactive statistics and model lists remain in browser memory for up to five minutes, with freshness-based revalidation on return. Historical costs are not treated as immutable, and business data is not persisted for offline use. A bounded currency formatter cache preserves the existing numeric and precision semantics.
+
+On PostgreSQL, rankings without search or a selected API key group select each request's final execution and metrics together, matching its project and channel. Search and selected-group queries retain indexed per-request lookups to avoid scanning the entire time range for a narrow result. Other dialects, archives and bounded detail reads retain their existing paths. Metric definitions and permissions are unchanged.
+
+The model table renders visible rows with a small overscan. Sorting, developer grouping and select-all still use the complete loaded list; scrolling does not clear explicit selections or expanded rows. The API still loads the complete model list before display, so this rendering optimization is not server-side pagination.

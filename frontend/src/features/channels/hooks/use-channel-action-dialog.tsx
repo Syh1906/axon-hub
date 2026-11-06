@@ -100,8 +100,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const fetchModels = useFetchModels();
   const syncChannelModels = useSyncChannelModels();
   const { data: allChannelNames = [], isSuccess: allChannelNamesLoaded } = useAllChannelNames({ enabled: open && isDuplicate });
-  const { data: allTags = [], isLoading: isLoadingTags } = useAllChannelTags();
-  const { data: proxyPresets = [] } = useProxyPresets();
+  const { data: allTags = [], isLoading: isLoadingTags } = useAllChannelTags(undefined, open);
+  const { data: proxyPresets = [] } = useProxyPresets(open);
   const saveProxyPreset = useSaveProxyPreset();
   const { hasSystemScope, modelPermissions } = usePermissions();
   const [supportedModels, setSupportedModels] = useState<string[]>(() => initialRow?.supportedModels || []);

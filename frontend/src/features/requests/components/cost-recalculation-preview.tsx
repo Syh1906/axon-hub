@@ -30,11 +30,11 @@ export function CostRecalculationPreview({
     queryKey: ['request-cost-preview', requestId, projectId],
     enabled: open,
     staleTime: 0,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       graphqlRequest<{ node: { costRecalculationPreview: Preview } }>(
         query,
         { id: requestId },
-        projectId ? { 'X-Project-ID': projectId } : undefined
+        projectId ? { 'X-Project-ID': projectId } : undefined, { signal }
       ),
   });
   const preview = data?.node?.costRecalculationPreview;

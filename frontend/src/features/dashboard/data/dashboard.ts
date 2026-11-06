@@ -349,12 +349,12 @@ export function useUsageStatsByUser(timeWindow?: string) {
 
   return useQuery({
     queryKey: ['usageStatsByUser', timeWindow, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
       const data = await graphqlRequest<{ usageStatsByUser: UsageStatsByUser[] }>(
         USAGE_STATS_BY_USER_QUERY,
         { timeWindow },
-        headers
+        headers, { signal }
       );
       return data.usageStatsByUser.map((item) => usageStatsByUserSchema.parse(item));
     },
@@ -416,8 +416,8 @@ const TOKEN_STATS_AGGR_QUERY = `
 export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboardStats'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ dashboardOverview: DashboardStats }>(DASHBOARD_STATS_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ dashboardOverview: DashboardStats }>(DASHBOARD_STATS_QUERY, undefined, undefined, { signal });
       return dashboardStatsSchema.parse(data.dashboardOverview);
     },
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -427,10 +427,10 @@ export function useDashboardStats() {
 export function useRequestsByChannel(timeWindow?: string) {
   return useQuery({
     queryKey: ['requestStatsByChannel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ requestStatsByChannel: RequestsByChannel[] }>(
         REQUESTS_BY_CHANNEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.requestStatsByChannel.map((item) => requestsByChannelSchema.parse(item));
     },
@@ -442,10 +442,10 @@ export function useRequestsByChannel(timeWindow?: string) {
 export function useRequestsByModel(timeWindow?: string) {
   return useQuery({
     queryKey: ['requestStatsByModel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ requestStatsByModel: RequestsByModel[] }>(
         REQUESTS_BY_MODEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.requestStatsByModel.map((item) => requestsByModelSchema.parse(item));
     },
@@ -457,10 +457,10 @@ export function useRequestsByModel(timeWindow?: string) {
 export function useRequestsByAPIKey(timeWindow?: string) {
   return useQuery({
     queryKey: ['requestStatsByAPIKey', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ requestStatsByAPIKey: RequestsByAPIKey[] }>(
         REQUESTS_BY_API_KEY_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.requestStatsByAPIKey.map((item) => requestsByAPIKeySchema.parse(item));
     },
@@ -472,10 +472,10 @@ export function useRequestsByAPIKey(timeWindow?: string) {
 export function useTokensByAPIKey(timeWindow?: string) {
   return useQuery({
     queryKey: ['tokenStatsByAPIKey', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ tokenStatsByAPIKey: TokensByAPIKey[] }>(
         TOKENS_BY_API_KEY_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.tokenStatsByAPIKey.map((item) => tokensByAPIKeySchema.parse(item));
     },
@@ -487,10 +487,10 @@ export function useTokensByAPIKey(timeWindow?: string) {
 export function useTokensByChannel(timeWindow?: string) {
   return useQuery({
     queryKey: ['tokenStatsByChannel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ tokenStatsByChannel: TokensByChannel[] }>(
         TOKENS_BY_CHANNEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.tokenStatsByChannel.map((item) => tokensByChannelSchema.parse(item));
     },
@@ -502,10 +502,10 @@ export function useTokensByChannel(timeWindow?: string) {
 export function useTokensByModel(timeWindow?: string) {
   return useQuery({
     queryKey: ['tokenStatsByModel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ tokenStatsByModel: TokensByModel[] }>(
         TOKENS_BY_MODEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.tokenStatsByModel.map((item) => tokensByModelSchema.parse(item));
     },
@@ -517,10 +517,10 @@ export function useTokensByModel(timeWindow?: string) {
 export function useCostByChannel(timeWindow?: string) {
   return useQuery({
     queryKey: ['costStatsByChannel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ costStatsByChannel: CostByChannel[] }>(
         COST_BY_CHANNEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.costStatsByChannel.map((item) => costByChannelSchema.parse(item));
     },
@@ -532,10 +532,10 @@ export function useCostByChannel(timeWindow?: string) {
 export function useCostByModel(timeWindow?: string) {
   return useQuery({
     queryKey: ['costStatsByModel', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ costStatsByModel: CostByModel[] }>(
         COST_BY_MODEL_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.costStatsByModel.map((item) => costByModelSchema.parse(item));
     },
@@ -547,10 +547,10 @@ export function useCostByModel(timeWindow?: string) {
 export function useCostByAPIKey(timeWindow?: string) {
   return useQuery({
     queryKey: ['costStatsByAPIKey', timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ costStatsByAPIKey: CostByAPIKey[] }>(
         COST_BY_API_KEY_QUERY,
-        { timeWindow }
+        { timeWindow }, undefined, { signal }
       );
       return data.costStatsByAPIKey.map((item) => costByAPIKeySchema.parse(item));
     },
@@ -562,8 +562,8 @@ export function useCostByAPIKey(timeWindow?: string) {
 export function useDailyRequestStats() {
   return useQuery({
     queryKey: ['dailyRequestStats'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ dailyRequestStats: DailyRequestStats[] }>(DAILY_REQUEST_STATS_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ dailyRequestStats: DailyRequestStats[] }>(DAILY_REQUEST_STATS_QUERY, undefined, undefined, { signal });
       return data.dailyRequestStats.map((item) => dailyRequestStatsSchema.parse(item));
     },
     refetchInterval: 300000, // Refetch every 5 minutes
@@ -573,8 +573,8 @@ export function useDailyRequestStats() {
 export function useHourlyRequestStats(date?: string) {
   return useQuery({
     queryKey: ['hourlyRequestStats', date],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ hourlyRequestStats: HourlyRequestStats[] }>(HOURLY_REQUEST_STATS_QUERY, { date });
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ hourlyRequestStats: HourlyRequestStats[] }>(HOURLY_REQUEST_STATS_QUERY, { date }, undefined, { signal });
       return data.hourlyRequestStats.map((item) => hourlyRequestStatsSchema.parse(item));
     },
     refetchInterval: 300000,
@@ -584,8 +584,8 @@ export function useHourlyRequestStats(date?: string) {
 export function useTopProjects() {
   return useQuery({
     queryKey: ['topRequestsProjects'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ topRequestsProjects: TopProjects[] }>(TOP_PROJECTS_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ topRequestsProjects: TopProjects[] }>(TOP_PROJECTS_QUERY, undefined, undefined, { signal });
       return data.topRequestsProjects.map((item) => topProjectsSchema.parse(item));
     },
     refetchInterval: 300000,
@@ -595,8 +595,8 @@ export function useTopProjects() {
 export function useTokenStats() {
   return useQuery({
     queryKey: ['tokenStats'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ tokenStats: TokenStats }>(TOKEN_STATS_AGGR_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ tokenStats: TokenStats }>(TOKEN_STATS_AGGR_QUERY, undefined, undefined, { signal });
       return tokenStatsSchema.parse(data.tokenStats);
     },
     refetchInterval: 300000, // Refetch every 5 minutes
@@ -606,10 +606,10 @@ export function useTokenStats() {
 export function useChannelSuccessRates(limit?: number, timeWindow?: string) {
   return useQuery({
     queryKey: ['channelSuccessRates', limit, timeWindow],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ channelSuccessRates: ChannelSuccessRate[] }>(
         CHANNEL_SUCCESS_RATES_QUERY,
-        { ...(timeWindow != null && { timeWindow }), ...(limit != null && { limit }) }
+        { ...(timeWindow != null && { timeWindow }), ...(limit != null && { limit }) }, undefined, { signal }
       );
       return data.channelSuccessRates.map((item) => channelSuccessRateSchema.parse(item));
     },
@@ -621,8 +621,8 @@ export function useChannelSuccessRates(limit?: number, timeWindow?: string) {
 export function useModelPerformanceStats() {
   return useQuery({
     queryKey: ['modelPerformanceStats'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ modelPerformanceStats: ModelPerformanceStat[] }>(MODEL_PERFORMANCE_STATS_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ modelPerformanceStats: ModelPerformanceStat[] }>(MODEL_PERFORMANCE_STATS_QUERY, undefined, undefined, { signal });
       return data.modelPerformanceStats.map((item) => modelPerformanceStatSchema.parse(item));
     },
     refetchInterval: 300000, // Refetch every 5 minutes
@@ -632,8 +632,8 @@ export function useModelPerformanceStats() {
 export function useChannelPerformanceStats() {
   return useQuery({
     queryKey: ['channelPerformanceStats'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ channelPerformanceStats: ChannelPerformanceStat[] }>(CHANNEL_PERFORMANCE_STATS_QUERY);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ channelPerformanceStats: ChannelPerformanceStat[] }>(CHANNEL_PERFORMANCE_STATS_QUERY, undefined, undefined, { signal });
       return data.channelPerformanceStats.map((item) => channelPerformanceStatSchema.parse(item));
     },
     refetchInterval: 300000, // Refetch every 5 minutes
@@ -653,7 +653,7 @@ const dashboardCostStatsSchema = z.object({
 export function useDashboardCostStats() {
   return useQuery({
     queryKey: ['dashboardCostStats'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ dashboardCostStats: z.infer<typeof dashboardCostStatsSchema> }>(`
         query DashboardCostStats {
           dashboardCostStats {
@@ -665,7 +665,7 @@ export function useDashboardCostStats() {
             currencyCode
           }
         }
-      `);
+      `, undefined, undefined, { signal });
       return dashboardCostStatsSchema.parse(data.dashboardCostStats);
     },
     refetchInterval: 300000,

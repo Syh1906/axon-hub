@@ -136,7 +136,7 @@ export function useTraces(variables?: {
 
   return useQuery({
     queryKey: ['traces', variables, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildTracesQuery();
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
@@ -152,7 +152,7 @@ export function useTraces(variables?: {
           },
         };
 
-        const data = await graphqlRequest<{ traces: TraceConnection }>(query, finalVariables, headers);
+        const data = await graphqlRequest<{ traces: TraceConnection }>(query, finalVariables, headers, { signal });
         return traceConnectionSchema.parse(data?.traces);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -170,11 +170,11 @@ export function useTrace(id: string) {
 
   return useQuery({
     queryKey: ['trace', id, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildTraceDetailQuery();
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ node: Trace }>(query, { id }, headers);
+        const data = await graphqlRequest<{ node: Trace }>(query, { id }, headers, { signal });
         if (!data.node) {
           throw new Error('Trace not found');
         }
@@ -195,11 +195,11 @@ export function useTraceWithSegments(id: string) {
 
   return useQuery({
     queryKey: ['trace-with-segments', id, selectedProjectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const query = buildTraceWithRequestTracesQuery();
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ node: TraceDetail }>(query, { id }, headers);
+        const data = await graphqlRequest<{ node: TraceDetail }>(query, { id }, headers, { signal });
         if (!data.node) {
           throw new Error('Trace not found');
         }

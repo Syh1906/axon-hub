@@ -179,6 +179,7 @@
   "common.projectGuard.goToProjects": "Go to Projects",
   "common.projectGuard.createOrJoinProject": "Create or Join Project",
   "common.errors.sessionExpired": "Session expired!",
+  "common.errors.readTimeout": "Loading timed out. Retry or narrow the date range.",
   "common.errors.sessionExpiredSignIn": "Session expired. Please sign in again.",
   "common.errors.contentNotModified": "Content not modified!",
   "common.errors.internalServerError": "Internal Server Error!",

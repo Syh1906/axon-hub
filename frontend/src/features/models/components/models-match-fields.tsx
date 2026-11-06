@@ -59,12 +59,12 @@ export function ModelMatchTest({
   const debounced = useDebounce(parameters, 350);
   const test = useQuery({
     queryKey: ['model-match-test', debounced],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const result = await graphqlRequest<{ testModelMatch: { matched: boolean; error?: string | null } }>(
         `query TestModelMatch($matchType: ModelMatchType!, $pattern: String!, $modelID: String!) {
           testModelMatch(matchType: $matchType, pattern: $pattern, modelID: $modelID) { matched error }
         }`,
-        debounced
+        debounced, undefined, { signal }
       );
       return result.testModelMatch;
     },

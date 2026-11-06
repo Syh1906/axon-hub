@@ -1,5 +1,7 @@
 import { COST_PRICING_EVIDENCE_FIELDS, type CostPricingEvidence } from '@/components/cost-pricing-evidence';
 import { budgetFields, type BudgetView } from '@/features/budgets/data';
+import { withReadDeadline } from '@/lib/read-deadline';
+import i18n from '@/lib/i18n';
 
 export type SelfUsageMeta = {
   apiKeyName: string;
@@ -110,6 +112,15 @@ export const requestsQuery = `query SelfUsageRequests($start: String!, $end: Str
 }`;
 
 async function execute<T>(key: string, query: string, variables?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+  try {
+    return await withReadDeadline((boundedSignal) => executeRead<T>(key, query, variables, boundedSignal), signal);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new SelfUsageError(i18n.t('common.errors.readTimeout'), 408);
+    throw error;
+  }
+}
+
+async function executeRead<T>(key: string, query: string, variables?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const response = await fetch('/self-service/v1/graphql', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

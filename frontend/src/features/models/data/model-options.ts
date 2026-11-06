@@ -21,7 +21,7 @@ export function useModelGatewayOptions(enabled: boolean) {
     queryKey: ['models', 'gateway-options'],
     enabled,
     staleTime: 30_000,
-    gcTime: 0,
+    gcTime: 5 * 60_000,
     queryFn: async ({ signal }) => {
       const edges: z.infer<typeof pageSchema>['edges'] = [];
       let after: string | null = null;

@@ -52,7 +52,7 @@ export function useChannelRoutingSummaries(enabled: boolean) {
   return useQuery({
     queryKey: ['channels', 'routing-summaries'],
     enabled,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const data = await graphqlRequest<{ allChannelSummarys: unknown }>(`
         query ChannelRoutingSummaries {
           allChannelSummarys {
@@ -60,7 +60,7 @@ export function useChannelRoutingSummaries(enabled: boolean) {
             settings { globalPriority tagPriorities { tag priority } }
           }
         }
-      `);
+      `, undefined, undefined, { signal });
       return z.array(channelRoutingSummarySchema).parse(data.allChannelSummarys);
     },
   });

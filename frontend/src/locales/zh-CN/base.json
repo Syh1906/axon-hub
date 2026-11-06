@@ -333,6 +333,7 @@
   "common.projectGuard.goToProjects": "前往项目",
   "common.projectGuard.createOrJoinProject": "创建或加入项目",
   "common.errors.sessionExpired": "会话已过期！",
+  "common.errors.readTimeout": "读取超时，请重试或缩小查询范围。",
   "common.errors.sessionExpiredSignIn": "会话已过期，请重新登录。",
   "common.errors.contentNotModified": "内容未修改！",
   "common.errors.internalServerError": "内部服务器错误！",

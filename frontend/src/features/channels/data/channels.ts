@@ -782,8 +782,8 @@ const channelHealthGateDetailSchema = z.object({
 export function useChannelHealthGate(channelID?: string, enabled = true) {
   return useQuery({
     queryKey: ['channelHealthGate', channelID],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ node: unknown }>(GET_CHANNEL_HEALTH_GATE_QUERY, { id: channelID });
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ node: unknown }>(GET_CHANNEL_HEALTH_GATE_QUERY, { id: channelID }, undefined, { signal });
       return channelHealthGateDetailSchema.parse(data.node);
     },
     enabled: enabled && Boolean(channelID),
@@ -1047,7 +1047,7 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
 
   return useQuery({
     queryKey: ['channelModelPrices', channelId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await graphqlRequest<{
           node: {
@@ -1058,7 +1058,7 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
             } | null;
             channelModelPrices: ChannelModelPrice[];
           };
-        }>(GET_CHANNEL_MODEL_PRICES_QUERY, { id: channelId });
+        }>(GET_CHANNEL_MODEL_PRICES_QUERY, { id: channelId }, undefined, { signal });
         return {
           prices: (data.node?.channelModelPrices || []).map((p) => channelModelPriceSchema.parse(p)),
           multiplier: String(data.node?.settings?.modelPriceMultiplier ?? '1'),
@@ -1167,8 +1167,8 @@ export function useQueryChannels(
       variables?.before,
       columnVisibilityKey,
     ],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(query, { input: queryInput });
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(query, { input: queryInput }, undefined, { signal });
       return channelConnectionSchema.parse(data?.queryChannels);
     },
     // Poll so the live limiter snapshot (in-flight / queue) stays roughly fresh.
@@ -1205,7 +1205,7 @@ export function useAllChannelNames(options?: { enabled?: boolean }) {
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: ['channels', 'names'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const names: string[] = [];
         let after: string | undefined;
@@ -1219,7 +1219,7 @@ export function useAllChannelNames(options?: { enabled?: boolean }) {
                 statusIn: ['enabled', 'disabled', 'archived'],
               },
             },
-          });
+          }, undefined, { signal });
 
           const parsed = channelNamesConnectionSchema.parse(data?.queryChannels);
           names.push(...parsed.edges.map((e) => e.node.name));
@@ -1782,13 +1782,13 @@ export function useAllChannelSummarys(projectId?: string | null, options?: { ena
 
   return useQuery({
     queryKey: ['channels', 'summaries', projectId, options?.includeArchived],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;
         const data = await graphqlRequest<{ allChannelSummarys: ChannelSummaryConnection['edges'][number]['node'][] }>(
           ALL_CHANNEL_SUMMARYS_QUERY,
           { includeArchived: options?.includeArchived },
-          headers
+          headers, { signal }
         );
         return channelSummaryConnectionSchema.parse({
           edges: (data?.allChannelSummarys || []).map((node) => ({ node })),
@@ -1915,13 +1915,13 @@ export function useChannelTypes(statusIn?: string[]) {
 
   return useQuery({
     queryKey: ['channelTypes', statusIn],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const input: { statusIn?: string[] } = {};
         if (statusIn && statusIn.length > 0) {
           input.statusIn = statusIn;
         }
-        const data = await graphqlRequest<{ countChannelsByType: ChannelTypeCount[] }>(CHANNEL_TYPES_QUERY, { input });
+        const data = await graphqlRequest<{ countChannelsByType: ChannelTypeCount[] }>(CHANNEL_TYPES_QUERY, { input }, undefined, { signal });
         return data.countChannelsByType || [];
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -1949,9 +1949,9 @@ export function useErrorChannelsCount() {
 
   return useQuery({
     queryKey: ['errorChannelsCount'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ channels: { totalCount: number } }>(ERROR_CHANNELS_COUNT_QUERY);
+        const data = await graphqlRequest<{ channels: { totalCount: number } }>(ERROR_CHANNELS_COUNT_QUERY, undefined, undefined, { signal });
         return data.channels.totalCount;
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -1962,16 +1962,17 @@ export function useErrorChannelsCount() {
   });
 }
 
-export function useAllChannelTags(projectId?: string | null) {
+export function useAllChannelTags(projectId?: string | null, enabled = true) {
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
 
   return useQuery({
     queryKey: ['channels', 'tags', projectId],
-    queryFn: async () => {
+    enabled,
+    queryFn: async ({ signal }) => {
       try {
         const headers = projectId ? { 'X-Project-ID': projectId } : undefined;
-        const data = await graphqlRequest<{ allChannelTags: string[] }>(ALL_CHANNEL_TAGS_QUERY, undefined, headers);
+        const data = await graphqlRequest<{ allChannelTags: string[] }>(ALL_CHANNEL_TAGS_QUERY, undefined, headers, { signal });
         return data.allChannelTags || [];
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -2004,11 +2005,11 @@ export function useChannelProbeData(channelIDs: string[], options?: { enabled?: 
   return useQuery({
     queryKey: ['channelProbeData', channelIDs],
     gcTime: 0,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await graphqlRequest<{ channelProbeData: any[] }>(CHANNEL_PROBE_DATA_QUERY, {
           input: { channelIDs },
-        });
+        }, undefined, { signal });
         return data.channelProbeData || [];
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));
@@ -2027,7 +2028,7 @@ export function useChannelDisabledAPIKeys(channelId: string, options?: { enabled
 
   return useQuery({
     queryKey: ['channelDisabledAPIKeys', channelId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const data = await graphqlRequest<{
           node: {
@@ -2040,7 +2041,7 @@ export function useChannelDisabledAPIKeys(channelId: string, options?: { enabled
               expiresAt?: string | null;
             }>;
           };
-        }>(GET_CHANNEL_DISABLED_API_KEYS_QUERY, { id: channelId });
+        }>(GET_CHANNEL_DISABLED_API_KEYS_QUERY, { id: channelId }, undefined, { signal });
         return data.node?.disabledAPIKeys || [];
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));

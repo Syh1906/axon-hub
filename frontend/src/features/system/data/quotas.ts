@@ -907,13 +907,13 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
 export function useProviderQuotaStatuses() {
   const query = useQuery({
     queryKey: ['provider-quotas'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const input = {
         where: {
           statusIn: ['enabled'],
         },
       };
-      return graphqlRequest<QueryChannelsResponse>(PROVIDER_QUOTA_STATUSES_QUERY, { input });
+      return graphqlRequest<QueryChannelsResponse>(PROVIDER_QUOTA_STATUSES_QUERY, { input }, undefined, { signal });
     },
     refetchInterval: 60000,
     refetchIntervalInBackground: true,

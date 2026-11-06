@@ -145,8 +145,8 @@ interface QueryRulesArgs {
 export function useQueryPromptProtectionRules(args: QueryRulesArgs) {
   return useQuery({
     queryKey: ['prompt-protection-rules', args],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ promptProtectionRules: PromptProtectionRuleConnection }>(RULES_QUERY, args);
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ promptProtectionRules: PromptProtectionRuleConnection }>(RULES_QUERY, args, undefined, { signal });
       return promptProtectionRuleConnectionSchema.parse(data.promptProtectionRules);
     },
   });

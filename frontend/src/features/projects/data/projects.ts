@@ -119,9 +119,9 @@ export function useProjects(
 
   return useQuery({
     queryKey: ['projects', queryVariables],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ projects: ProjectConnection }>(PROJECTS_QUERY, queryVariables);
+        const data = await graphqlRequest<{ projects: ProjectConnection }>(PROJECTS_QUERY, queryVariables, undefined, { signal });
         return projectConnectionSchema.parse(data?.projects);
       } catch (error) {
         handleError(error, t('projects.errors.loadProjectsFailed'));
@@ -137,9 +137,9 @@ export function useProject(id: string) {
 
   return useQuery({
     queryKey: ['project', id],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ projects: ProjectConnection }>(PROJECTS_QUERY, { where: { id } });
+        const data = await graphqlRequest<{ projects: ProjectConnection }>(PROJECTS_QUERY, { where: { id } }, undefined, { signal });
         const project = data.projects.edges[0]?.node;
         if (!project) {
           throw new Error('Project not found');
@@ -160,9 +160,9 @@ export function useMyProjects() {
 
   return useQuery({
     queryKey: ['myProjects'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ myProjects: Project[] }>(MY_PROJECTS_QUERY);
+        const data = await graphqlRequest<{ myProjects: Project[] }>(MY_PROJECTS_QUERY, undefined, undefined, { signal });
 
         if (!data || !data.myProjects) {
           return [];

@@ -135,9 +135,9 @@ export function useDataStorages(variables?: Record<string, any>) {
 
   return useQuery({
     queryKey: ['dataStorages', variables],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ dataStorages: DataStoragesConnection }>(DATA_STORAGES_QUERY, variables);
+        const data = await graphqlRequest<{ dataStorages: DataStoragesConnection }>(DATA_STORAGES_QUERY, variables, undefined, { signal });
         return dataStoragesConnectionSchema.parse(data.dataStorages);
       } catch (error) {
         handleError(error, t('common.errors.internalServerError'));

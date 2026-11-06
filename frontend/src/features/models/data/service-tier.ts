@@ -8,8 +8,8 @@ export function useOfficialTierPrices() {
   return useQuery({
     queryKey: ['official-service-tier-item-prices'],
     staleTime: 60 * 60 * 1000,
-    queryFn: async () => (await graphqlRequest<{ officialServiceTierPrices: OfficialTierPrice[] }>(
-      `query OfficialServiceTierPrices { officialServiceTierPrices { model version sourceURL verifiedAt currency unit fast ultrafast contexts { above upTo standard { itemCode variantCode unitPrice } fast { itemCode variantCode unitPrice } ultrafast { itemCode variantCode unitPrice } } } }`
+    queryFn: async ({ signal }) => (await graphqlRequest<{ officialServiceTierPrices: OfficialTierPrice[] }>(
+      `query OfficialServiceTierPrices { officialServiceTierPrices { model version sourceURL verifiedAt currency unit fast ultrafast contexts { above upTo standard { itemCode variantCode unitPrice } fast { itemCode variantCode unitPrice } ultrafast { itemCode variantCode unitPrice } } } }`, undefined, undefined, { signal }
     )).officialServiceTierPrices,
   });
 }
