@@ -2,6 +2,12 @@
 # AxonHub Configuration Example
 # Copy this file to config.yml and modify as needed
 
+# Official Codex release metadata; no OpenAI credentials required.
+codex_catalog:
+  disabled: false # Disable official metadata fallback (AXONHUB_CODEX_CATALOG_DISABLED)
+  offline: false  # Use bundled and archived snapshots only (AXONHUB_CODEX_CATALOG_OFFLINE)
+  version: ""    # Pin an official snapshot for rollback, e.g. 0.166.0 (AXONHUB_CODEX_CATALOG_VERSION)
+
 # Server configuration
 server:
   host: "0.0.0.0"               # Server host (env: AXONHUB_SERVER_HOST)

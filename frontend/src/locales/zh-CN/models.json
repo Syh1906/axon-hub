@@ -350,12 +350,12 @@
   "models.bulk.checking": "正在检查匹配",
   "models.bulk.previewFailed": "预览失败，请检查表达式或重新打开",
   "models.codex.title": "Codex 手动覆盖（可选）",
-  "models.codex.description": "保存后，Codex 目录使用此模型定义。没有单独覆盖的渠道关联会继承该定义，新增渠道无需重新导入。导入版本只记录来源；清除覆盖后恢复自动同步。",
+  "models.codex.description": "保存完整定义可固定当前配置；使用 mode: inherit 可跟随来源更新并仅保存 overrides 差异。无渠道资料时按对外模型 ID 查找官方发布快照；第三方模型仍可使用独立定义。清除覆盖后恢复自动同步。",
   "models.codex.version": "导入来源的 Codex 版本，例如 0.166.0",
-  "models.codex.import": "从关联渠道导入",
+  "models.codex.import": "预览可用目录资料",
   "models.codex.confirm": "我已核对模型定义、来源差异和需要保留的渠道覆盖。",
   "models.codex.apply": "应用已确认的定义",
   "models.codex.clear": "清除覆盖，恢复自动同步",
-  "models.codex.invalid": "请输入完整的模型定义 JSON 对象。",
-  "models.codex.importFailed": "导入失败，请检查渠道目录来源。"
+  "models.codex.invalid": "请输入完整定义或继承覆盖的 JSON 对象。",
+  "models.codex.importFailed": "预览失败，请检查渠道资料或官方发布快照。"
 }

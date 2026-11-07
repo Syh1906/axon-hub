@@ -10,6 +10,10 @@ import (
 )
 
 type codexDefinition struct {
+	Mode              string                       `json:"mode,omitempty"`
+	SourceKind        string                       `json:"sourceKind,omitempty"`
+	SnapshotVersion   string                       `json:"snapshotVersion,omitempty"`
+	Overrides         map[string]any               `json:"overrides,omitempty"`
 	ClientVersion     string                       `json:"clientVersion"`
 	SourceChannelID   int                          `json:"sourceChannelId"`
 	SourceModelID     string                       `json:"sourceModelId"`
@@ -52,6 +56,21 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	if len(raw) > codexCatalogMaxBytes || json.Unmarshal(raw, &d) != nil {
 		return nil, fmt.Errorf("invalid Codex model definition")
 	}
+	if d.Mode == "inherit" {
+		if d.Model != nil || len(d.Models) > 0 || len(d.Routes) > 0 || d.SourceKind != "" || d.SourceChannelID != 0 {
+			return nil, fmt.Errorf("inherited Codex definitions use sourceModelId, snapshotVersion and overrides, not fixed profiles or routes")
+		}
+		if d.SnapshotVersion != "" && !validCodexSnapshotVersion(d.SnapshotVersion) {
+			return nil, fmt.Errorf("invalid Codex snapshotVersion")
+		}
+		if _, exists := d.Overrides["slug"]; exists {
+			return nil, fmt.Errorf("use sourceModelId to select a Codex profile; slug is assigned by the gateway")
+		}
+		return &d, nil
+	}
+	if d.Mode != "" || d.Overrides != nil {
+		return nil, fmt.Errorf("invalid Codex definition mode")
+	}
 	if len(d.ClientVersion) > 32 || !definitionVersion.MatchString(d.ClientVersion) {
 		return nil, fmt.Errorf("Codex definition requires a valid clientVersion")
 	}
@@ -64,7 +83,8 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 		d.Model = metadata
 	}
 	for id, profile := range d.Models {
-		if id == "" || profile.SourceChannelID <= 0 || profile.SourceModelID == "" {
+		official := profile.SourceKind == "official_snapshot" && validCodexSnapshotVersion(profile.SnapshotVersion) && profile.SourceChannelID == 0
+		if id == "" || (!official && profile.SourceChannelID <= 0) || profile.SourceModelID == "" {
 			return nil, fmt.Errorf("Codex model profiles require a public ID and source")
 		}
 		body, _ := json.Marshal(map[string]any{"models": []any{profile.Model}})
@@ -267,19 +287,26 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 	for _, ch := range svc.channelService.GetEnabledChannels() {
 		channels[ch.ID] = ch
 	}
-	sources := service.fetchCatalogSources(ctx, connections, channels, version)
+	sources, snapshots := service.fetchCatalogInputs(ctx, connections, channels, version, map[string]bool{"": true})
+	snapshot := snapshots[""]
 	d := codexDefinition{ClientVersion: version, Models: make(map[string]codexModelProfile)}
 	for _, publicID := range PublicModelIDs(m) {
-		profile, differences := previewCodexModelProfile(publicID, byPublicID[publicID], sources)
+		profile, _ := previewCodexModelProfile(publicID, byPublicID[publicID], sources)
+		if official := snapshotCodexProfile(snapshot, publicID); official != nil &&
+			(profile == nil || profile.SourceModelID != publicID || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
+			profile = official
+		}
 		if profile == nil {
 			continue
 		}
 		d.Models[publicID] = *profile
-		d.SourceDifferences = append(d.SourceDifferences, differences...)
+		d.SourceDifferences = append(d.SourceDifferences, codexProfileSourceDifferences(publicID, profile, byPublicID[publicID], sources)...)
 		if d.Model == nil {
 			d.Model = profile.Model
 			d.SourceChannelID = profile.SourceChannelID
 			d.SourceModelID = profile.SourceModelID
+			d.SourceKind = profile.SourceKind
+			d.SnapshotVersion = profile.SnapshotVersion
 		}
 	}
 	for _, c := range connections {

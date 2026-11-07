@@ -35,6 +35,7 @@ func setupListEnabledModelsTest(t *testing.T) (context.Context, *ent.Client, *Mo
 		channelService:  channelSvc,
 		systemService:   systemSvc,
 	}
+	modelSvc.codexSnapshots, _ = NewCodexSnapshotService(CodexCatalogConfig{Disabled: true}, client)
 
 	return ctx, client, modelSvc, channelSvc, systemSvc
 }

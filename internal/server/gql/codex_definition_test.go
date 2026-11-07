@@ -34,7 +34,9 @@ func TestCodexDefinitionGraphQLSaveReadAndPermission(t *testing.T) {
 	built, err := channels.GetChannel(ctx, ch.ID)
 	require.NoError(t, err)
 	channels.SetEnabledChannelsForTest([]*biz.Channel{built})
-	service := biz.NewModelService(biz.ModelServiceParams{Ent: client, ChannelService: channels, SystemService: system})
+	snapshots, err := biz.NewCodexSnapshotService(biz.CodexCatalogConfig{Disabled: true}, client)
+	require.NoError(t, err)
+	service := biz.NewModelService(biz.ModelServiceParams{Ent: client, ChannelService: channels, SystemService: system, CodexSnapshots: snapshots})
 	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: client, modelService: service}}))
 	query := func(document string, variables map[string]any) map[string]any {
 		t.Helper()
@@ -58,6 +60,9 @@ func TestCodexDefinitionGraphQLSaveReadAndPermission(t *testing.T) {
 	require.Equal(t, preview, result["updateModel"].(map[string]any)["settings"].(map[string]any)["codexCatalog"])
 	saved := client.Model.GetX(ctx, m.ID)
 	require.NotEmpty(t, saved.Settings.CodexCatalog)
+	inherited := map[string]any{"mode": "inherit", "sourceModelId": "test-model", "overrides": map[string]any{"description": "custom"}}
+	result = query(`mutation($id:ID!,$input:UpdateModelInput!){updateModel(id:$id,input:$input){settings{codexCatalog}}}`, map[string]any{"id": idText, "input": map[string]any{"settings": map[string]any{"associations": associations, "codexCatalog": inherited}}})
+	require.Equal(t, inherited, result["updateModel"].(map[string]any)["settings"].(map[string]any)["codexCatalog"])
 	_, err = (&queryResolver{&Resolver{modelService: service}}).PreviewModelCodexCatalog(context.Background(), id, "0.162.1")
 	require.Error(t, err)
 	query(`mutation($id:ID!,$input:UpdateModelInput!){updateModel(id:$id,input:$input){settings{codexCatalog}}}`, map[string]any{"id": idText, "input": map[string]any{"settings": map[string]any{"associations": associations, "codexCatalog": nil}}})

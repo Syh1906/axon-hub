@@ -39,6 +39,7 @@ type Config struct {
 	RequestPayload   biz.RequestPayloadConfig `conf:"request_payload" yaml:"request_payload" json:"request_payload"`
 	ProviderQuota    providerQuotaConfig      `conf:"provider_quota" yaml:"provider_quota" json:"provider_quota"`
 	OIDC             biz.OIDCConfig           `conf:"oidc" yaml:"oidc" json:"oidc"`
+	CodexCatalog     biz.CodexCatalogConfig   `conf:"codex_catalog" yaml:"codex_catalog" json:"codex_catalog"`
 	DisableSSLVerify bool                     `name:"disable_ssl_verify" yaml:"-" json:"-"`
 	AllowNoAuth      bool                     `name:"allow_no_auth" yaml:"-" json:"-"`
 	APIKeyPrefix     string                   `name:"api_key_prefix" yaml:"-" json:"-"`
@@ -215,6 +216,9 @@ func customizedDecodeHook(srcType reflect.Type, dstType reflect.Type, data any) 
 
 // setDefaults sets default configuration values.
 func setDefaults(v *viper.Viper) {
+	v.SetDefault("codex_catalog.disabled", false)
+	v.SetDefault("codex_catalog.offline", false)
+	v.SetDefault("codex_catalog.version", "")
 	// Server defaults
 	v.SetDefault("server.host", "0.0.0.0")
 	v.SetDefault("server.port", 8090)

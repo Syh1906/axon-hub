@@ -250,7 +250,7 @@ func TestCodexCatalogReasoningProfilePreservesAliasCapabilities(t *testing.T) {
 	m := ModelFacade{ID: "target", TargetID: "target", ConfiguredModel: &ent.Model{}, Connections: connections[1:]}
 	result, err := automaticCodexModel(t.Context(), m, connections,
 		map[int]map[string]map[string]any{1: {"target": profile, "upstream-alias": alias}},
-		map[int]*Channel{1: {Channel: source}, 2: {Channel: chat}}, "0.166.0")
+		map[int]*Channel{1: {Channel: source}, 2: {Channel: chat}}, "0.166.0", nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, float64(16000), result["context_window"], "tool-incompatible client metadata still describes the actual model's context limit")
 	require.Equal(t, profile["supported_reasoning_levels"], result["supported_reasoning_levels"])

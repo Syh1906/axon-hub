@@ -165,7 +165,7 @@ Configure **Endpoints and Paths → Responses** on each channel:
 
 - **Custom Codex catalog JSON** supplies complete metadata and takes precedence over the remote URL. Each `slug` identifies the actual upstream model. Include model instructions, tool capabilities, and reasoning levels, not just model names.
 - **Codex model catalog URL** supplies the complete trusted upstream URL. AxonHub sends channel credentials and `client_version`; redirects are rejected.
-- With both fields empty, official OpenAI API and Codex channels automatically use `https://chatgpt.com/backend-api/codex/models`. No extra gateway catalog setting is needed. Third-party Codex channels use their `/models` endpoint; other Responses channels try their same-origin `/v1/models`, respecting existing `/v1` and `#` URL rules. If a third party only serves an ordinary OpenAI model list, its routes can share complete metadata from associated routes for the same actual model. A trusted catalog URL or definition is needed when all such sources are missing. Third-party credentials are sent only to the configured catalog service.
+- With both fields empty, official OpenAI API and Codex channels automatically use `https://chatgpt.com/backend-api/codex/models`. No extra gateway catalog setting is needed. Third-party Codex channels use their `/models` endpoint; other Responses channels try their same-origin `/v1/models`, respecting existing `/v1` and `#` URL rules. If a third party only serves an ordinary OpenAI model list, its routes can share complete metadata from associated routes for the same actual model. A trusted catalog URL or definition is needed when neither channel sources nor an official release snapshot describes the exact model. Third-party credentials are sent only to the configured catalog service.
 
 The catalog applies current project/key channel restrictions, allowed models, and aliases. Public slugs match callable model IDs. Reasoning choices follow the model-profile rules below. Other capabilities and context bounds use the common scope of visible compatible routes. Instructions and client tool policies use the selected source. Missing metadata is counted in `X-AxonHub-Catalog-Omitted`. If all visible models lack metadata, the endpoint returns `503 codex_catalog_unavailable`; no visible models returns an empty list. Catalog failures do not block inference.
 
@@ -183,7 +183,51 @@ Earlier local simulated requests with Codex `0.166.0-alpha.6` verified that Ultr
 
 Profiles declaring `freeform` patch tools or `code_mode_only` use visible Responses routes, including per-model protocol overrides. Inference requests containing Responses custom tools or their call history also exclude incompatible endpoints, avoiding silent tool removal. Ordinary requests retain existing protocol selection.
 
-Automatic results are not stored in `settings.codexCatalog`. New associations, key permissions and client versions do not require reimport. A valid manual override takes precedence; clear it to restore automatic discovery. In automatic mode, a public model is omitted if none of its associated channels supplies a complete source profile. If every model is unavailable the endpoint returns 503. Automatic discovery requires an available source after its cache expires.
+Automatic results are not stored in `settings.codexCatalog`. New associations, key permissions and client versions do not require reimport. A valid manual override takes precedence; clear it to restore automatic discovery. In automatic mode, a model is omitted only when neither its associated channels nor official release snapshots provide a usable complete profile. If every model is unavailable the endpoint returns 503. Third-party models can continue using channel metadata, inherited overrides or fixed complete definitions.
+
+### Official release snapshots and rollback
+
+AxonHub bundles the complete `models.json` from OpenAI Codex release tags 0.166.0 and 0.167.0. Original bytes, source URLs and SHA-256 digests are in `internal/server/biz/codexdata/`. No OpenAI credential or metadata-bearing inference channel is required. These are release snapshots, not the authenticated service's live catalog or a grant of model access.
+
+Lookup uses the model page's exact **public model ID**, after resolving key aliases. An inherited definition can explicitly select a `sourceModelId`. No model names are guessed from prefixes, regexes or similarity, and no inference routes are added. Existing equally complete same-model channel metadata retains precedence. Official metadata fills missing profiles, different-model alias profiles, or a smaller set of non-`none` reasoning choices. Client tool protocols must still be compatible with a caller-visible route.
+
+On the first request for a new client version, fetch `https://raw.githubusercontent.com/openai/codex/rust-v<version>/codex-rs/models-manager/models.json`, never `main`. Official and channel fetches run independently within the three-second catalog deadline. Public downloads have a 1.5-second timeout and a 1 MiB limit, send no channel credentials or caller authentication headers, and reject redirects. Validate the complete catalog before archiving immutable original bytes and their digest by version in the existing systems table. Archives are revalidated after restart. Failed updates never replace valid versions and are not retried for one hour.
+
+If the exact release is unavailable, use the newest valid archive or bundled release no newer than the client. The `axonhub_catalog` entry records the official snapshot and requested client versions. If none applies, channel metadata can still be used; missing metadata only omits affected models and never blocks inference. Test each supported client's parsing: version ordering alone is not a compatibility guarantee.
+
+Set these options in the server configuration and restart after changes:
+
+```yaml
+codex_catalog:
+  disabled: false
+  offline: false
+  version: ""
+```
+
+`offline: true` uses bundled and archived snapshots without public downloads. `disabled: true` disables official snapshots. `version: "0.166.0"` pins the official source; an unavailable or too-new pin does not float to another official version, while channel metadata can still be used. Environment equivalents are `AXONHUB_CODEX_CATALOG_DISABLED`, `AXONHUB_CODEX_CATALOG_OFFLINE` and `AXONHUB_CODEX_CATALOG_VERSION`. Updates are request-triggered, with no separate scheduled process. An unchanged client version does not select a newer release snapshot.
+
+### Keep custom changes while following source updates
+
+Use the existing **Codex manual override** JSON editor to save:
+
+```json
+{
+  "mode": "inherit",
+  "sourceModelId": "gpt-6.1-terra",
+  "overrides": {
+    "description": "My Terra configuration",
+    "default_reasoning_level": "high"
+  }
+}
+```
+
+`sourceModelId` defaults to the public target ID. `overrides` follows JSON Merge Patch: objects merge recursively, arrays replace, and null removes fields. Other fields follow the source. `slug` cannot be overridden; the gateway assigns the callable name. It also sets `display_name` to that name, clears `upgrade`, and removes `prefer_websockets` so the client controls transport; patches to those fields do not change the final output. Dedicated model/channel context settings apply last. Tool compatibility uses the patched declarations. The final profile must pass catalog parsing and tool compatibility checks; a bad override affects only its model and cannot mutate the base snapshot. For modern instructions, patch `model_messages.instructions_template`, not only legacy `base_instructions`.
+
+Add `"snapshotVersion": "0.166.0"` to pin this model to an official release for rollback. Its base model must exist in that version; failure does not silently select another model or a channel definition. Remove the pin to follow the client version again. Existing complete `clientVersion/model/models/routes` definitions remain fixed and are never automatically converted. **Preview available catalog metadata** returns a complete definition with official provenance and version when applicable.
+
+Models absent from the official catalog, such as DeepSeek, continue using channel metadata or administrator-confirmed complete definitions. They can also use `mode: inherit` with an explicit third-party `sourceModelId` and custom differences. Official GPT instructions are never fabricated for unknown third-party models.
+
+Official references: [Release snapshots and client schema](https://learn.chatgpt.com/docs/enterprise/roll-out-a-gateway#match-the-clients-schema), [Model catalog reference](https://learn.chatgpt.com/docs/enterprise/roll-out-a-gateway#model-catalog-reference).
 
 The following workflow is optional.
 
@@ -201,7 +245,7 @@ Published values do not increase the provider's actual capacity. Unconfigured fi
 
 ### Manual multi-channel model definitions
 
-To pin or customize metadata, open **Models → Edit → Codex manual override (optional)**, enter the actual client request version used for import, and import from associated channels. Import selects a complete client profile for each concrete public ID, keeping its instructions and tool settings separate from other IDs published by the same regex. It does not persist data.
+To pin or customize metadata, open **Models → Edit → Codex manual override (optional)**, enter the actual client request version used for import, and preview available catalog metadata. Import selects a complete client profile for each concrete public ID, keeping its instructions and tool settings separate from other IDs published by the same regex. It does not save model or channel configuration; newly fetched official snapshots are still archived as described above.
 
 Review the profiles in `models`, the differences in `sourceDifferences`, and any route overrides you want to keep. Different source instructions, patch tools, web-search types, tool modes or multi-agent modes do not prevent previewing. Confirm, apply, then save. The catalog does not change channel capabilities: for example, `freeform` generates Responses custom tools, and the inference path still checks which routes can carry them.
 

@@ -30,6 +30,7 @@ type ModelServiceParams struct {
 	ChannelService *ChannelService
 	SystemService  *SystemService
 	Ent            *ent.Client
+	CodexSnapshots *CodexSnapshotService
 }
 
 func NewModelService(params ModelServiceParams) *ModelService {
@@ -39,6 +40,7 @@ func NewModelService(params ModelServiceParams) *ModelService {
 		},
 		channelService: params.ChannelService,
 		systemService:  params.SystemService,
+		codexSnapshots: params.CodexSnapshots,
 	}
 }
 
@@ -47,6 +49,7 @@ type ModelService struct {
 
 	channelService *ChannelService
 	systemService  *SystemService
+	codexSnapshots *CodexSnapshotService
 }
 
 // validateModelSettings validates regex patterns in model settings.

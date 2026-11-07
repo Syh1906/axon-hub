@@ -109,7 +109,7 @@ func TestCodexCatalogAutomaticSourcePriorityAndToolRoutes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, visible, 1)
 	_, err = automaticCodexModel(ctx, visible[0], visible[0].Connections,
-		map[int]map[string]map[string]any{ids[2]: {"test-model": metadata}}, map[int]*Channel{}, "0.166.0")
+		map[int]map[string]map[string]any{ids[2]: {"test-model": metadata}}, map[int]*Channel{}, "0.166.0", nil, nil)
 	require.ErrorContains(t, err, "no visible route", "a channel disabled during the read must not panic or remain advertised")
 	// A Responses endpoint on the channel does not override a model-specific
 	// Chat Completions restriction. Match the actual request's protocol choice.
@@ -159,7 +159,7 @@ func TestCodexCatalogUsesCompleteAssociatedCatalog(t *testing.T) {
 	}
 	result, err := automaticCodexModel(t.Context(), m, connections,
 		map[int]map[string]map[string]any{1: {"test-model": old, "new-model": current}},
-		map[int]*Channel{1: {Channel: source}, 2: {Channel: listOnly}}, "0.166.0")
+		map[int]*Channel{1: {Channel: source}, 2: {Channel: listOnly}}, "0.166.0", nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, "client-alias", result["slug"])
 	require.Equal(t, "new-model instructions", result["base_instructions"])

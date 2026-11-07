@@ -350,12 +350,12 @@
   "models.bulk.checking": "Checking matches",
   "models.bulk.previewFailed": "Preview failed. Check the pattern or reopen the dialog.",
   "models.codex.title": "Codex manual override (optional)",
-  "models.codex.description": "Once saved, the Codex catalog uses this model definition. Channel associations without an override inherit it, so adding a channel does not require reimporting. The import version records the source. Clear the override to restore automatic discovery.",
+  "models.codex.description": "Save a complete definition to pin its contents, or use mode: inherit with overrides to follow source updates. Official release snapshots fill metadata gaps by public model ID. Third-party models can keep independent definitions. Clear the override to restore automatic discovery.",
   "models.codex.version": "Source Codex version for import, e.g. 0.166.0",
-  "models.codex.import": "Import from associated channels",
+  "models.codex.import": "Preview available catalog metadata",
   "models.codex.confirm": "I reviewed the model definition, source differences, and any channel overrides I want to keep.",
   "models.codex.apply": "Apply confirmed definition",
   "models.codex.clear": "Clear override and restore automatic discovery",
-  "models.codex.invalid": "Enter a complete model definition JSON object.",
-  "models.codex.importFailed": "Import failed. Check channel catalog sources."
+  "models.codex.invalid": "Enter a complete definition or inherited override JSON object.",
+  "models.codex.importFailed": "Preview failed. Check channel metadata or official release snapshots."
 }

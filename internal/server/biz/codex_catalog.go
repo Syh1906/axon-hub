@@ -69,23 +69,40 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 	// scoped to the caller and is used separately for capability intersection.
 	var connections []*ModelChannelConnection
 	sourceConnections := make(map[string][]*ModelChannelConnection)
+	definitions := make(map[string]*codexDefinition)
+	definitionErrors := make(map[string]error)
 	systemSettings := s.models.modelSettingsOrDefault(ctx)
 	for _, m := range visible {
-		if m.ConfiguredModel.Type == model.TypeChat && (m.ConfiguredModel.Settings == nil || len(m.ConfiguredModel.Settings.CodexCatalog) == 0 || string(m.ConfiguredModel.Settings.CodexCatalog) == "null") {
+		if settings := m.ConfiguredModel.Settings; settings != nil && len(settings.CodexCatalog) > 0 && string(settings.CodexCatalog) != "null" {
+			definitions[m.ID], definitionErrors[m.ID] = decodeCodexDefinition(settings.CodexCatalog)
+		}
+		definition := definitions[m.ID]
+		if m.ConfiguredModel.Type == model.TypeChat && definitionErrors[m.ID] == nil && (definition == nil || definition.Mode == "inherit") {
 			matched := MatchConnectionsForModel(EffectiveModelAssociationsForRequest(systemSettings, m.ConfiguredModel, m.TargetID), allChannels, m.TargetID)
 			sourceConnections[m.ID] = matched
 			connections = append(connections, matched...)
 		}
 	}
-	sources := s.fetchCatalogSources(ctx, connections, channels, version)
+	pins := make(map[string]bool)
+	for _, m := range visible {
+		if _, automatic := sourceConnections[m.ID]; !automatic {
+			continue
+		}
+		pin := ""
+		if d := definitions[m.ID]; d != nil {
+			pin = d.SnapshotVersion
+		}
+		pins[pin] = true
+	}
+	sources, snapshots := s.fetchCatalogInputs(ctx, connections, channels, version, pins)
 	result := make([]map[string]any, 0, len(visible))
 	omitted := 0
 	for _, m := range visible {
 		if m.ConfiguredModel.Type != model.TypeChat {
 			continue
 		}
-		if settings := m.ConfiguredModel.Settings; settings != nil && len(settings.CodexCatalog) > 0 && string(settings.CodexCatalog) != "null" {
-			definition, definitionErr := decodeCodexDefinition(settings.CodexCatalog)
+		definition, definitionErr := definitions[m.ID], definitionErrors[m.ID]
+		if definitionErr != nil || (definition != nil && definition.Mode != "inherit") {
 			var merged map[string]any
 			if definitionErr == nil {
 				merged, definitionErr = definition.catalogModel(m, true)
@@ -98,7 +115,16 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 			result = append(result, merged)
 			continue
 		}
-		merged, err := automaticCodexModel(ctx, m, sourceConnections[m.ID], sources, channels, version)
+		pin := ""
+		if definition != nil {
+			pin = definition.SnapshotVersion
+		}
+		if pin != "" && snapshots[pin] == nil {
+			omitted++
+			log.Warn(ctx, "Codex pinned snapshot unavailable", log.String("model", m.ID), log.String("version", pin))
+			continue
+		}
+		merged, err := automaticCodexModel(ctx, m, sourceConnections[m.ID], sources, channels, version, snapshots[pin], definition)
 		if err != nil {
 			if errors.Is(err, errCodexMetadataUnavailable) {
 				log.Debug(ctx, "Codex model has no configured metadata", log.String("model", m.ID))
@@ -118,6 +144,30 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		return nil, omitted, fmt.Errorf("filtered Codex catalog exceeds 1 MiB; narrow the API key model list")
 	}
 	return body, omitted, err
+}
+
+// Public snapshot discovery and authenticated provider catalogs share a deadline
+// but run independently, so an unavailable GitHub release cannot consume the
+// provider's refresh budget or hide unrelated third-party models.
+func (s *CodexCatalogService) fetchCatalogInputs(ctx context.Context, connections []*ModelChannelConnection, channels map[int]*Channel, version string, pins map[string]bool) (map[int]map[string]map[string]any, map[string]*codexSnapshot) {
+	ctx, cancel := context.WithTimeout(ctx, codexCatalogRefreshTimeout)
+	defer cancel()
+	snapshots := make(map[string]*codexSnapshot)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				log.Error(ctx, "Codex snapshot refresh panicked", log.Any("panic", recovered))
+			}
+		}()
+		for pin := range pins {
+			snapshots[pin] = s.models.codexSnapshots.Load(ctx, version, pin)
+		}
+	}()
+	sources := s.fetchCatalogSources(ctx, connections, channels, version)
+	<-done
+	return sources, snapshots
 }
 
 func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, version string) (map[string]map[string]any, error) {

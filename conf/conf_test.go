@@ -104,3 +104,22 @@ func writeTestConfig(t *testing.T, contents string) string {
 	}
 	return configFile
 }
+
+func TestCodexCatalogConfig(t *testing.T) {
+	file := writeTestConfig(t, "codex_catalog:\n  offline: true\n  version: 0.166.0\n")
+	cfg, _, err := loadConfig(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CodexCatalog.Offline || cfg.CodexCatalog.Disabled || cfg.CodexCatalog.Version != "0.166.0" {
+		t.Fatalf("unexpected catalog configuration: %+v", cfg.CodexCatalog)
+	}
+	t.Setenv("AXONHUB_CODEX_CATALOG_VERSION", "0.167.0")
+	cfg, _, err = loadConfig(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.CodexCatalog.Version != "0.167.0" {
+		t.Fatalf("environment override missing: %+v", cfg.CodexCatalog)
+	}
+}

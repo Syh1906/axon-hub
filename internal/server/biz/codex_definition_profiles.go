@@ -15,6 +15,8 @@ import (
 // differ. Client profiles remain explicit; actual routing must still support
 // their selected tool protocols.
 type codexModelProfile struct {
+	SourceKind      string         `json:"sourceKind,omitempty"`
+	SnapshotVersion string         `json:"snapshotVersion,omitempty"`
 	SourceChannelID int            `json:"sourceChannelId"`
 	SourceModelID   string         `json:"sourceModelId"`
 	Model           map[string]any `json:"model"`
@@ -49,9 +51,13 @@ func previewCodexModelProfile(publicID string, connections []*ModelChannelConnec
 	if selected == nil {
 		return nil, nil
 	}
+	return selected, codexProfileSourceDifferences(publicID, selected, connections, sources)
+}
+
+func codexProfileSourceDifferences(publicID string, selected *codexModelProfile, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any) []codexSourceDifference {
 	var differences []codexSourceDifference
 	seen := make(map[ChannelModelKey]bool)
-	for _, connection := range connections {
+	for _, connection := range orderedCodexConnections(connections) {
 		for _, entry := range connection.Models {
 			key := ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}
 			metadata := sources[key.ChannelID][key.ModelID]
@@ -70,7 +76,7 @@ func previewCodexModelProfile(publicID string, connections []*ModelChannelConnec
 			}
 		}
 	}
-	return selected, differences
+	return differences
 }
 
 // Prefer a complete reasoning profile over a proxy's default-only declaration
@@ -109,7 +115,15 @@ func orderedCodexConnections(connections []*ModelChannelConnection) []*ModelChan
 	return ordered
 }
 
-func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, version string) (map[string]any, error) {
+func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, version string, snapshot *codexSnapshot, inherited *codexDefinition) (map[string]any, error) {
+	target := m.TargetID
+	var overrides map[string]any
+	if inherited != nil {
+		overrides = inherited.Overrides
+	}
+	if inherited != nil && inherited.SourceModelID != "" {
+		target = inherited.SourceModelID
+	}
 	// A richer profile must remain usable by the caller. Metadata can be shared
 	// from an inaccessible channel, but its tool protocol cannot grant a route.
 	canUseResponses := false
@@ -129,7 +143,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	// A source can describe an actual model even when that particular channel
 	// is not configured to route it. Metadata discovery must use the complete
 	// source catalog, while inference admission continues to use m.Connections.
-	needed := map[string]bool{m.TargetID: true}
+	needed := map[string]bool{target: true}
 	for _, connection := range connections {
 		for _, entry := range connection.Models {
 			needed[entry.ActualModel] = true
@@ -149,7 +163,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 			}
 			hasMetadata = true
 			candidate.Models = append(candidate.Models, ChannelModelEntry{ActualModel: actualModel})
-			if codexProfileRequiresResponses(metadata) && !canUseResponses {
+			if codexProfileRequiresResponses(metadata, overrides) && !canUseResponses {
 				continue
 			}
 			profileCandidate.Models = append(profileCandidate.Models, ChannelModelEntry{ActualModel: actualModel})
@@ -158,12 +172,35 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		profileConnections = append(profileConnections, &profileCandidate)
 	}
 	connections = metadataConnections
-	profile, _ := previewCodexModelProfile(m.TargetID, profileConnections, sources)
+	profile, _ := previewCodexModelProfile(target, profileConnections, sources)
+	if inherited != nil && inherited.SourceModelID != "" && profile != nil && profile.SourceModelID != target {
+		profile = nil
+	}
+	if official := snapshotCodexProfile(snapshot, target); official != nil {
+		hasMetadata = true
+		pinned := inherited != nil && inherited.SnapshotVersion != ""
+		if (!codexProfileRequiresResponses(official.Model, overrides) || canUseResponses) &&
+			(pinned || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
+			profile = official
+		}
+	}
+	if inherited != nil && inherited.SnapshotVersion != "" && (profile == nil || profile.SourceKind != "official_snapshot") {
+		return nil, fmt.Errorf("pinned official Codex profile unavailable for %s", target)
+	}
 	if profile == nil {
 		if hasMetadata {
 			return nil, fmt.Errorf("no visible route")
 		}
 		return nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
+	}
+	if inherited != nil {
+		patched, err := applyCodexProfileOverrides(profile.Model, inherited.Overrides)
+		if err != nil {
+			return nil, err
+		}
+		copyProfile := *profile
+		copyProfile.Model = patched
+		profile = &copyProfile
 	}
 	// Use all source metadata for actual-model capabilities, even when its client
 	// tools cannot serve this caller. Profile filtering must not erase an alias's
@@ -188,19 +225,35 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		copyConnection := *connection
 		copyConnection.Models = nil
 		for _, entry := range connection.Models {
-			if codexProfileRequiresResponses(profile.Model) && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+			if codexProfileRequiresResponses(profile.Model, nil) && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
 				continue
 			}
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
 			if metadata == nil {
 				metadata = byActualModel[entry.ActualModel]
 			}
+			if metadata == nil && snapshot != nil {
+				metadata = snapshot.Models[entry.ActualModel]
+			}
 			if metadata == nil {
 				metadata = profile.Model
 			}
+			capabilities := codexRouteCapabilities(metadata)
+			if inherited != nil {
+				for _, field := range codexCapabilityFields {
+					if _, overridden := inherited.Overrides[field]; !overridden {
+						continue
+					}
+					if value, exists := profile.Model[field]; exists {
+						capabilities[field] = value
+					} else {
+						delete(capabilities, field)
+					}
+				}
+			}
 			d.Routes = append(d.Routes, codexDefinitionRoute{
 				ChannelID: connection.Channel.ID, ModelID: entry.ActualModel,
-				Capabilities: codexRouteCapabilities(metadata),
+				Capabilities: capabilities,
 			})
 			copyConnection.Models = append(copyConnection.Models, entry)
 		}
@@ -209,11 +262,22 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		}
 	}
 	m.Connections = eligible
-	return d.catalogModel(m, false)
+	result, err := d.catalogModel(m, false)
+	if err == nil && profile.SourceKind == "official_snapshot" {
+		result["axonhub_catalog"] = map[string]any{"source": profile.SourceKind, "version": profile.SnapshotVersion, "client_version": version}
+	}
+	return result, err
 }
 
-func codexProfileRequiresResponses(profile map[string]any) bool {
-	return profile["apply_patch_tool_type"] == "freeform" || profile["tool_mode"] == "code_mode_only"
+func codexProfileRequiresResponses(profile, overrides map[string]any) bool {
+	patchTool, toolMode := profile["apply_patch_tool_type"], profile["tool_mode"]
+	if value, exists := overrides["apply_patch_tool_type"]; exists {
+		patchTool = value
+	}
+	if value, exists := overrides["tool_mode"]; exists {
+		toolMode = value
+	}
+	return patchTool == "freeform" || toolMode == "code_mode_only"
 }
 
 func codexRouteSupportsResponses(ctx context.Context, ch *Channel, entry ChannelModelEntry, target string) bool {
