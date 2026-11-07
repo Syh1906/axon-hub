@@ -13,12 +13,12 @@ type OpenAIResponsesProviderExtensions struct {
 }
 
 type OpenAIResponsesRequestExtensions struct {
-	ReasoningContext string                       `json:"-"`
-	RawFields        map[string]json.RawMessage   `json:"-"`
-	RawTools         []OpenAIResponsesRawFragment `json:"-"`
-	ToolSignatures   []string                     `json:"-"`
-	RawToolChoice    json.RawMessage              `json:"-"`
-	RawInputItems    []OpenAIResponsesRawFragment `json:"-"`
+	ReasoningContext        string                       `json:"-"`
+	RawFields               map[string]json.RawMessage   `json:"-"`
+	RawTools                []OpenAIResponsesRawFragment `json:"-"`
+	ToolSignatures          []string                     `json:"-"`
+	RawToolChoice           json.RawMessage              `json:"-"`
+	RawInputItems           []OpenAIResponsesRawFragment `json:"-"`
 }
 
 type OpenAIResponsesRawFragment struct {

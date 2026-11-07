@@ -22,13 +22,7 @@ import { appliedModelPrice } from '@/features/models/data/service-tier';
 import { useChannels } from '../context/channels-context';
 import { useChannelModelPrices, useSaveChannelModelPrices } from '../data/channels';
 import { cacheWriteBillingSchema, serviceTierSettingsSchema, type CacheWriteBilling, type ServiceTierSettings } from '../data/schema';
-import {
-  modelPriceInputSchema,
-  saveChannelModelPriceInputSchema,
-  type Channel,
-  type ModelPrice,
-  type SaveChannelModelPriceInput,
-} from '../data/schema';
+import { modelPriceInputSchema, saveChannelModelPriceInputSchema, type Channel, type ModelPrice, type SaveChannelModelPriceInput } from '../data/schema';
 
 const multiplierSchema = z.string().trim().refine(isValidPriceMultiplier);
 const importSchema = z.union([
@@ -61,7 +55,7 @@ function createFormSchema(t: (key: string) => string) {
           modelId: z.string().min(1, t('price.validation.modelRequired')),
           price: modelPriceInputSchema.superRefine((price, ctx) => {
             const result = priceSchema.safeParse(price);
-            if (!result.success) result.error.issues.forEach((issue) => ctx.addIssue(issue));
+            if (!result.success) result.error.issues.forEach((issue) => ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path }));
             else if (!result.data) ctx.addIssue({ code: 'custom', message: t('price.validation.itemsRequired'), path: ['items'] });
           }),
         })
@@ -417,6 +411,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     >
       <DialogContent
         ref={setDialogContent}
+        data-testid='channel-price-dialog'
         className='flex h-[95dvh] max-h-[95dvh] w-[96vw] flex-col gap-3 overflow-hidden p-4 sm:max-w-6xl'
       >
         <DialogHeader className='shrink-0'>
@@ -553,7 +548,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
               />
               <p className='text-muted-foreground w-full text-xs'>{t('serviceTier.settings.fallback')}</p>
             </fieldset>
-            <div ref={priceListRef} className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2'>
+            <div data-testid='price-list' ref={priceListRef} className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2'>
               {!initialized && (
                 <p role='status' className='text-muted-foreground py-8 text-center'>
                   {t(currentPricing.isError ? 'price.apply.loadFailed' : 'common.loading')}
@@ -595,7 +590,7 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
             </div>
             <DialogFooter className='shrink-0 gap-2 border-t pt-3 sm:justify-between'>
               <div className='flex flex-wrap gap-2'>
-                <Button type='button' variant='outline' size='sm' disabled={busy} onClick={addPrice}>
+                <Button type='button' variant='outline' size='sm' disabled={busy} data-testid='price-add-button' onClick={addPrice}>
                   <IconPlus size={14} />
                   {t('price.addPrice')}
                 </Button>

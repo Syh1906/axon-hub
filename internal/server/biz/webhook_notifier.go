@@ -3,7 +3,9 @@ package biz
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"text/template"
@@ -14,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz/provider_quota"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
@@ -22,7 +25,17 @@ const EventChannelAutoDisabled = "channel.auto_disabled"
 const (
 	EventChannelHealthGateOpened    = "channel.health_gate_opened"
 	EventChannelHealthGateRecovered = "channel.health_gate_recovered"
+	EventProviderQuotaWarning   = "provider.quota.warning"
+	EventProviderQuotaExhausted = "provider.quota.exhausted"
+	EventProviderQuotaRecovered = "provider.quota.recovered"
 )
+
+// QuotaEventSeverity maps quota status-change events to their webhook severity.
+var QuotaEventSeverity = map[string]string{
+	EventProviderQuotaWarning:   "warning",
+	EventProviderQuotaExhausted: "critical",
+	EventProviderQuotaRecovered: "info",
+}
 
 const (
 	defaultWebhookMethod    = http.MethodPost
@@ -42,9 +55,26 @@ type ChannelAutoDisabledEvent struct {
 	OccurredAt      time.Time
 }
 
+type QuotaStatusChangedEvent struct {
+	ChannelID       int
+	ChannelName     string
+	ChannelProvider string // ch.Type.String()
+	ChannelBaseURL  string
+	ChannelStatus   string  // ch.Status.String()
+	PreviousStatus  string  // raw previous state before the save ("available"|"warning"|"exhausted"|"unknown"); transition logic used the last known non-unknown status
+	NewStatus       string  // "warning"|"exhausted"|"available"
+	UsageRatio      float64 // overall usage ratio; -1 when not derivable
+	NextResetAt     string  // RFC3339, "" when nil
+	Limits          []string
+	OccurredAt      time.Time
+}
+
 type WebhookRenderContext struct {
-	Event      string `json:"event"`
-	Severity   string `json:"severity"`
+	Event    string `json:"event"`
+	Severity string `json:"severity"`
+
+	// OccurredAt is RFC3339 in the configured system timezone, so it carries that
+	// zone's offset rather than a trailing Z. It is set by notify.
 	OccurredAt string `json:"occurred_at"`
 
 	Channel struct {
@@ -67,6 +97,16 @@ type WebhookRenderContext struct {
 		Reason      string `json:"reason"`
 		OpenUntil   string `json:"open_until"`
 	} `json:"trigger"`
+
+	Quota struct {
+		PreviousStatus        string   `json:"previous_status"`
+		NewStatus             string   `json:"new_status"`
+		UsageRatio            float64  `json:"usage_ratio"`
+		UsagePercent          int      `json:"usage_percent"`
+		NextResetAt           string   `json:"next_reset_at"`
+		Limits                []string `json:"limits"`
+		WarningThresholdRatio float64  `json:"warning_threshold_ratio"`
+	} `json:"quota"`
 }
 
 type WebhookNotifier struct {
@@ -85,9 +125,8 @@ func (n *WebhookNotifier) NotifyChannelAutoDisabled(ctx context.Context, event C
 	log.Info(ctx, "notify channel auto disabled", log.Any("event", event))
 
 	renderCtx := WebhookRenderContext{
-		Event:      EventChannelAutoDisabled,
-		Severity:   "warning",
-		OccurredAt: event.OccurredAt.UTC().Format(time.RFC3339),
+		Event:    EventChannelAutoDisabled,
+		Severity: "warning",
 	}
 	renderCtx.Channel.ID = event.ChannelID
 	renderCtx.Channel.Name = event.ChannelName
@@ -100,7 +139,7 @@ func (n *WebhookNotifier) NotifyChannelAutoDisabled(ctx context.Context, event C
 	renderCtx.Trigger.ActualCount = event.ActualCount
 	renderCtx.Trigger.Reason = event.Reason
 
-	n.notify(ctx, EventChannelAutoDisabled, renderCtx)
+	n.notify(ctx, EventChannelAutoDisabled, renderCtx, event.OccurredAt)
 }
 
 // ChannelHealthGateEvent joins a gate transition with current channel metadata.
@@ -144,11 +183,68 @@ func (n *WebhookNotifier) notifyChannelHealthGate(ctx context.Context, eventName
 		renderCtx.Trigger.Threshold = transition.ProbeSuccessThreshold
 		renderCtx.Trigger.ActualCount = transition.ProbeSuccesses
 	}
-	n.notify(ctx, eventName, renderCtx)
+	n.notify(ctx, eventName, renderCtx, transition.At)
 }
 
-func (n *WebhookNotifier) notify(ctx context.Context, eventName string, renderCtx WebhookRenderContext) {
+func (n *WebhookNotifier) NotifyProviderQuotaWarning(ctx context.Context, event QuotaStatusChangedEvent) {
+	n.notifyProviderQuotaEvent(ctx, EventProviderQuotaWarning, event)
+}
+
+func (n *WebhookNotifier) NotifyProviderQuotaExhausted(ctx context.Context, event QuotaStatusChangedEvent) {
+	n.notifyProviderQuotaEvent(ctx, EventProviderQuotaExhausted, event)
+}
+
+func (n *WebhookNotifier) NotifyProviderQuotaRecovered(ctx context.Context, event QuotaStatusChangedEvent) {
+	n.notifyProviderQuotaEvent(ctx, EventProviderQuotaRecovered, event)
+}
+
+func (n *WebhookNotifier) notifyProviderQuotaEvent(ctx context.Context, eventName string, event QuotaStatusChangedEvent) {
+	log.Info(ctx, "notify provider quota status change",
+		log.Int("channel_id", event.ChannelID),
+		log.String("event", eventName),
+		log.String("previous_status", event.PreviousStatus),
+		log.String("new_status", event.NewStatus),
+	)
+
+	usagePercent := 0
+	if event.UsageRatio >= 0 {
+		usagePercent = int(math.Round(event.UsageRatio * 100))
+	}
+
+	renderCtx := WebhookRenderContext{
+		Event:    eventName,
+		Severity: QuotaEventSeverity[eventName],
+	}
+	renderCtx.Channel.ID = event.ChannelID
+	renderCtx.Channel.Name = event.ChannelName
+	renderCtx.Channel.Provider = event.ChannelProvider
+	renderCtx.Channel.BaseURL = event.ChannelBaseURL
+	renderCtx.Channel.Status = event.ChannelStatus
+	renderCtx.Quota.PreviousStatus = event.PreviousStatus
+	renderCtx.Quota.NewStatus = event.NewStatus
+	renderCtx.Quota.UsageRatio = event.UsageRatio
+	renderCtx.Quota.UsagePercent = usagePercent
+	renderCtx.Quota.NextResetAt = event.NextResetAt
+	renderCtx.Quota.Limits = event.Limits
+	renderCtx.Quota.WarningThresholdRatio = provider_quota.WarningThresholdRatio
+
+	n.notify(ctx, eventName, renderCtx, event.OccurredAt)
+}
+
+// notify renders and delivers one event to every subscribed target.
+//
+// occurredAt is formatted here rather than by the caller because resolving the
+// configured timezone reads system settings, which the ent privacy policy denies
+// on a context without a user. The system bypass below is what makes that read
+// succeed, so the formatting has to happen after it.
+func (n *WebhookNotifier) notify(
+	ctx context.Context,
+	eventName string,
+	renderCtx WebhookRenderContext,
+	occurredAt time.Time,
+) {
 	ctx = authz.WithSystemBypass(context.WithoutCancel(ctx), "webhook-notifier")
+	renderCtx.OccurredAt = occurredAt.In(n.SystemService.TimeLocation(ctx)).Format(time.RFC3339)
 	cfg := *n.SystemService.WebhookNotifierConfigOrDefault(ctx)
 	targets := n.selectTargets(cfg, eventName)
 
@@ -274,12 +370,24 @@ func renderWebhookHeaders(headers []objects.HeaderEntry, renderCtx WebhookRender
 	return result, nil
 }
 
+// webhookTemplateFuncs makes values render as compact JSON so the default
+// body template stays valid JSON (e.g. "limits": {{.Quota.Limits | json}}).
+var webhookTemplateFuncs = template.FuncMap{
+	"json": func(v any) string {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return "null"
+		}
+		return string(b)
+	},
+}
+
 func renderWebhookTemplate(value string, renderCtx WebhookRenderContext) (string, error) {
 	if !strings.Contains(value, "{{") || !strings.Contains(value, "}}") {
 		return value, nil
 	}
 
-	tmpl, err := template.New("webhook").Funcs(template.FuncMap{}).Parse(value)
+	tmpl, err := template.New("webhook").Funcs(webhookTemplateFuncs).Parse(value)
 	if err != nil {
 		return "", err
 	}

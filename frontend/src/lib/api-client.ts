@@ -1,4 +1,5 @@
-import { AuthUser, getTokenFromStorage } from '@/stores/authStore';
+import { ensureFreshAccessToken } from '@/lib/auth-session';
+import type { AuthUser } from '@/stores/authStore';
 import { withReadDeadline } from './read-deadline';
 import i18n from './i18n';
 
@@ -72,7 +73,7 @@ async function performApiRequest<T>(endpoint: string, options: ApiRequestOptions
 
   // Add Authorization header if auth is required
   if (requireAuth) {
-    const token = getTokenFromStorage();
+    const token = await ensureFreshAccessToken();
     if (token) {
       requestHeaders['Authorization'] = `Bearer ${token}`;
     }

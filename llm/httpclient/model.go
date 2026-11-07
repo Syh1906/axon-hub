@@ -35,6 +35,7 @@ type Request struct {
 	// Request tracking
 	RequestID string `json:"request_id"`
 	ClientIP  string `json:"client_ip"`
+	UserAgent string `json:"user_agent"`
 
 	// RequestType is the type of the request, ref to llm.RequestType.
 	// For example, "chat", "image", "embedding", etc.
@@ -64,7 +65,14 @@ type Request struct {
 	OnTransportSelected func(transport, fallbackReason string) `json:"-"`
 	// OnReplayUnsafe is called before delivery can become ambiguous. It also
 	// prevents retries when a timeout or decoder replaces the transport error.
-	OnReplayUnsafe func() `json:"-"`
+	OnReplayUnsafe    func()                             `json:"-"`
+	OnResponseHeaders func(context.Context, http.Header) `json:"-"`
+}
+
+func (r *Request) ObserveResponseHeaders(ctx context.Context, headers http.Header) {
+	if r != nil && r.OnResponseHeaders != nil {
+		r.OnResponseHeaders(ctx, headers.Clone())
+	}
 }
 
 // AuthConfig represents authentication configuration.
@@ -113,13 +121,17 @@ type Response struct {
 }
 
 type StreamEvent struct {
-	LastEventID string `json:"last_event_id,omitempty"`
-	Type        string `json:"type"`
-	Data        []byte `json:"data"`
+	LastEventID                string `json:"last_event_id,omitempty"`
+	Type                       string `json:"type"`
+	Data                       []byte `json:"data"`
+	CleanEOFCompletionEvidence bool   `json:"-"`
 	// Size optionally carries the byte size of a binary chunk that was elided
 	// from Data for persistence (e.g. raw TTS audio chunks). It lets stream
 	// aggregators report total bytes without retaining the audio payload.
 	Size int `json:"size,omitempty"`
+	// Headers is populated only on the first event by HTTP stream executors.
+	// It carries transport metadata such as Codex turn-state headers.
+	Headers http.Header `json:"-"`
 }
 
 // IsBinaryAudioChunk reports whether the event carries a raw binary audio payload

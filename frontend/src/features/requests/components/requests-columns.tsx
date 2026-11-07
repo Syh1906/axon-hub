@@ -16,15 +16,7 @@ import { useGeneralSettings, useSecuritySettings, useUpdateSecuritySettings } fr
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { useRequestLogTimezone } from '../data/requests';
 import { Request } from '../data/schema';
-import {
-  RequestLogStatusCell,
-  RequestChannelCell,
-  RequestCacheCell,
-  RequestDurationCell,
-  finalRequestChannel,
-  requestProvider,
-  type RequestDiagnosticTab,
-} from './request-log-cells';
+import { RequestLogStatusCell, RequestChannelCell, RequestCacheCell, RequestDurationCell, finalRequestChannel, requestProvider, type RequestDiagnosticTab } from './request-log-cells';
 import { RequestModelCell } from './request-model-cell';
 
 interface UseRequestsColumnsOptions {
@@ -33,7 +25,7 @@ interface UseRequestsColumnsOptions {
   onViewDetail?: (requestId: string) => void;
 }
 
-export const DEFAULT_HIDDEN_COLUMN_IDS = ['status', 'source', 'channelTag', 'apiKeyGroup', 'apiFormat', 'clientIP'];
+export const DEFAULT_HIDDEN_COLUMN_IDS = ['status', 'source', 'channelTag', 'apiKeyGroup', 'apiFormat', 'clientIP', 'userAgent', 'channelAPIKeyIndex'];
 
 export const DEFAULT_MOBILE_HIDDEN_COLUMN_IDS = [
   ...DEFAULT_HIDDEN_COLUMN_IDS,
@@ -397,6 +389,42 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         },
         filterFn: (row, _id, value) => value.length === 0 || value.includes(row.original.apiKey?.id ?? ''),
       },
+    {
+      id: 'userAgent',
+      accessorKey: 'userAgent',
+      header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.userAgent')} />,
+      enableSorting: false,
+      enableHiding: true,
+      cell: ({ row }) => {
+        const userAgent = row.original.userAgent?.trim() ?? '';
+        if (!userAgent) return <span className='text-muted-foreground text-xs'>-</span>;
+
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className='block max-w-[240px] cursor-help truncate font-mono text-xs'>{userAgent}</span>
+            </TooltipTrigger>
+            <TooltipContent className='max-w-[420px] break-all'>{userAgent}</TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+      ...(permissions.canViewChannels ? [
+          {
+            id: 'channelAPIKeyIndex',
+            accessorFn: (row) => row.executions?.edges?.[0]?.node?.channelAPIKeyIndex ?? '',
+            header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.channelAPIKeyIndex')} />,
+            enableSorting: false,
+            enableHiding: true,
+            cell: ({ row }) => {
+              const index = row.original.executions?.edges?.[0]?.node?.channelAPIKeyIndex;
+
+              if (index == null) return <span className='text-muted-foreground font-mono text-xs'>-</span>;
+
+              return <span className='font-mono text-xs'>key{index}</span>;
+            },
+          },
+      ] as ColumnDef<Request>[] : []),
       {
         accessorKey: 'createdAt',
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.createdAt')} />,

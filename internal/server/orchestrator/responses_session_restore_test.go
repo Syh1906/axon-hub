@@ -43,7 +43,7 @@ func TestResponsesSessionRestoresIncrementalHistoryAboveCacheLimit(t *testing.T)
 	require.Equal(t, "c2", gjson.GetBytes(prepared, "input.3.call_id").String())
 	require.Equal(t, "c2", gjson.GetBytes(prepared, "input.4.call_id").String())
 	require.Equal(t, []string{"r2", "r1"}, loaded)
-	require.Nil(t, store.lookup(ctx, "r2"), "oversized history is usable without being cached")
+	require.False(t, store.lookup(ctx, "r2").complete, "oversized history retains metadata without a cached payload")
 }
 
 func TestResponsesSessionNeverExpandsPartialOrCyclicHistory(t *testing.T) {
@@ -69,7 +69,7 @@ func TestResponsesSessionDoesNotCacheUnexpandedNativeContinuation(t *testing.T) 
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(context.Background()), "api-key:1")
 	store := newResponsesSessionStore()
 	store.record(ctx, []byte(`{"previous_response_id":"native","input":"delta"}`), []byte(`{"id":"new","status":"completed","output":[]}`))
-	require.Nil(t, store.lookup(ctx, "new"))
+	require.False(t, store.lookup(ctx, "new").complete)
 }
 
 func TestResponsesSessionRestoreFailureKeepsNativeRequestAndCancelStops(t *testing.T) {
@@ -111,5 +111,5 @@ func TestResponsesSessionCachedAncestorAndExpiredLargeOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"r2", "r1"}, calls)
 	require.Equal(t, int64(4), gjson.GetBytes(prepared, "input.#").Int())
-	require.Nil(t, store.lookup(ctx, "r2"))
+	require.False(t, store.lookup(ctx, "r2").complete)
 }

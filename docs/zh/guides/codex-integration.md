@@ -255,3 +255,11 @@ Responses 同协议转换保留工具输出原始 `type`、`id`、`namespace`、
 - [追踪指南](tracing.md)
 - [OpenAI API 文档](../api-reference/openai-api.md)
 - README 中的 [使用指南](../../../README.md#使用指南--usage-guide)
+
+
+## beta12 兼容入口
+
+在系统设置中启用 Codex 兼容入口后，可使用 `/codex/responses`、`/codex/models` 和
+`/codex/api/codex/accounts/check`。原有 `/v1/responses` 与模型目录配置继续可用。
+兼容入口的模型列表复用本项目的多来源聚合目录，并按调用 Key 的模型权限过滤；配置的目录来源不授予推理权限。
+图片请求分别使用 `/codex/images/generations` 和 `/codex/images/edits`，实际选择的渠道必须提供相应的原生图片端点。

@@ -95,6 +95,7 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 
 		return &llm.ResponseError{
 			StatusCode: respErr.StatusCode,
+			Cause:      err,
 			Detail: llm.ErrorDetail{
 				Message:   message,
 				Type:      firstNonEmpty(respErr.Detail.Type, "upstream_error"),
@@ -108,6 +109,7 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 	if errors.As(err, &httpErr) {
 		return &llm.ResponseError{
 			StatusCode: httpErr.StatusCode,
+			Cause:      err,
 			Detail: llm.ErrorDetail{
 				Message:   message,
 				Type:      upstreamErrorTypeFromHTTP(httpErr),
@@ -119,6 +121,7 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 
 	return &llm.ResponseError{
 		StatusCode: http.StatusBadGateway,
+		Cause:      err,
 		Detail: llm.ErrorDetail{
 			Message: message,
 			Type:    "upstream_error",
@@ -161,10 +164,17 @@ func (s *upstreamErrorStream) Current() *httpclient.StreamEvent {
 	return s.stream.Current()
 }
 
+func (s *upstreamErrorStream) ExpectedStreamChoices() int {
+	return streamExpectedChoices(s.stream)
+}
+
 func (s *upstreamErrorStream) Err() error {
 	err := s.stream.Err()
 	if err == nil {
 		return nil
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
 	}
 
 	// Classify transport-level interruptions before the policy runs so the stable

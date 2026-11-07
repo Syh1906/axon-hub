@@ -1,5 +1,11 @@
 // Utility functions for merging channel override configurations
 // Mirrors backend merge logic in internal/server/biz/channel_merge.go
+// Utility functions for merging channel override configurations
+// Mirrors backend merge logic in internal/server/biz/channel_merge.go
+// Utility functions for merging channel override configurations
+// Mirrors backend merge logic in internal/server/biz/channel_merge.go
+// Utility functions for merging channel override configurations
+// Mirrors backend merge logic in internal/server/biz/channel_merge.go
 import type { ChannelSettings, OverrideOperation } from '../data/schema';
 
 /**
@@ -60,9 +66,9 @@ export function mergeOverrideOperations(existing: OverrideOperation[], template:
   const templateOpsByPath = new Map<string, OverrideOperation[]>();
   for (const op of template) {
     if (isReplacingBodyOverrideOperation(op)) {
-      const replacements = templateOpsByPath.get(op.path) || [];
+      const replacements = templateOpsByPath.get(op.path ?? '') || [];
       replacements.push(op);
-      templateOpsByPath.set(op.path, replacements);
+      templateOpsByPath.set(op.path ?? '', replacements);
     }
   }
 
@@ -71,11 +77,11 @@ export function mergeOverrideOperations(existing: OverrideOperation[], template:
 
   for (const existingOp of existing) {
     if (isReplacingBodyOverrideOperation(existingOp)) {
-      const replacements = templateOpsByPath.get(existingOp.path);
+      const replacements = templateOpsByPath.get(existingOp.path ?? '');
       if (replacements) {
-        if (!emittedTemplatePaths.has(existingOp.path)) {
+        if (!emittedTemplatePaths.has(existingOp.path ?? '')) {
           result.push(...replacements);
-          emittedTemplatePaths.add(existingOp.path);
+          emittedTemplatePaths.add(existingOp.path ?? '');
         }
         continue;
       }
@@ -84,7 +90,7 @@ export function mergeOverrideOperations(existing: OverrideOperation[], template:
   }
 
   for (const templateOp of template) {
-    if (isReplacingBodyOverrideOperation(templateOp) && emittedTemplatePaths.has(templateOp.path)) {
+    if (isReplacingBodyOverrideOperation(templateOp) && emittedTemplatePaths.has(templateOp.path ?? '')) {
       continue;
     }
     result.push(templateOp);
@@ -133,11 +139,16 @@ export function mergeChannelSettingsForUpdate(
     rateLimit: pick('rateLimit', existing?.rateLimit ?? null),
     retryableStatusCodes: pick('retryableStatusCodes', existing?.retryableStatusCodes ?? []),
     retryableErrorPatterns: pick('retryableErrorPatterns', existing?.retryableErrorPatterns ?? []),
+    maxSingleChannelRetries: pick('maxSingleChannelRetries', existing?.maxSingleChannelRetries ?? null),
+
     modelProtocols: pick('modelProtocols', existing?.modelProtocols ?? []),
+apiKeyStrategy: pick('apiKeyStrategy', existing?.apiKeyStrategy ?? null),
+    apiKeyRoundRobinSwitchAfter: pick('apiKeyRoundRobinSwitchAfter', existing?.apiKeyRoundRobinSwitchAfter ?? null),
     providerQuota: pick('providerQuota', existing?.providerQuota ?? null),
     primaryApiFormat: pick('primaryApiFormat', existing?.primaryApiFormat ?? ''),
     upstreamAddresses: pick('upstreamAddresses', existing?.upstreamAddresses ?? []),
     addressFailover: pick('addressFailover', existing?.addressFailover ?? true),
+    quotaRoutingMode: pick('quotaRoutingMode', existing?.quotaRoutingMode ?? undefined),
   };
 }
 

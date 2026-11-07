@@ -50,30 +50,5 @@ func TestAggregateStreamChunks_CodexImage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &upstream))
 	require.Equal(t, "1254x1254", *upstream.Output[0].Size)
 
-	resp, err := BuildImageResponse(&upstream, map[string]any{})
-	require.NoError(t, err)
-	require.NotNil(t, resp.Image)
-	require.Len(t, resp.Image.Data, 1)
-	require.Equal(t, "iVBORw0KGgo=", resp.Image.Data[0].B64JSON)
-}
-
-// TestItemActionUnmarshalJSON verifies the polymorphic action field accepts both
-// the image_generation_call string form and the web_search_call object form.
-func TestItemActionUnmarshalJSON(t *testing.T) {
-	var strAction ItemAction
-	require.NoError(t, json.Unmarshal([]byte(`"generate"`), &strAction))
-	require.Equal(t, "generate", strAction.ImageGenerationAction)
-	require.Nil(t, strAction.WebSearch)
-
-	var objAction ItemAction
-	require.NoError(t, json.Unmarshal([]byte(`{"type":"search","query":"cats"}`), &objAction))
-	require.NotNil(t, objAction.WebSearch)
-	require.Equal(t, "search", objAction.WebSearch.Type)
-	require.Equal(t, "cats", objAction.WebSearch.Query)
-	require.Equal(t, "", objAction.ImageGenerationAction)
-
-	var nullAction ItemAction
-	require.NoError(t, json.Unmarshal([]byte(`null`), &nullAction))
-	require.Equal(t, "", nullAction.ImageGenerationAction)
-	require.Nil(t, nullAction.WebSearch)
+	require.Equal(t, "iVBORw0KGgo=", *upstream.Output[0].Result)
 }

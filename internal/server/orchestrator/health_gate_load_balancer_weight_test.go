@@ -35,7 +35,6 @@ func healthGateWeightStrategies(metrics ChannelMetricsProvider) []LoadBalanceStr
 		NewWeightRoundRobinStrategy(metrics),
 		NewLatencyAwareStrategy(metrics),
 		NewRateLimitAwareStrategy(NewChannelRequestTracker(), nil),
-		NewQuotaAwareStrategy(nil, &mockQuotaEnforcementSettingsProvider{}),
 	}
 }
 
@@ -176,7 +175,7 @@ func TestHealthGateSelector_AssociationPriorityPrecedesWeightTiers(t *testing.T)
 
 func TestHealthGateLoadBalancer_WeightTiersRespectHardLimitsAndQuota(t *testing.T) {
 	for _, debug := range []bool{false, true} {
-		for _, scenario := range []string{"rpm_exhausted", "cooldown", "quota_exhausted", "quota_warning_higher_weight", "quota_warning_equal_weight"} {
+		for _, scenario := range []string{"rpm_exhausted", "cooldown", "quota_exhausted"} {
 			t.Run(map[bool]string{false: "production", true: "debug"}[debug]+"/"+scenario, func(t *testing.T) {
 				low := healthGateSelectorCandidate(10, 0, "gpt-4")
 				high := healthGateSelectorCandidate(15, 0, "gpt-4")
@@ -184,9 +183,7 @@ func TestHealthGateLoadBalancer_WeightTiersRespectHardLimitsAndQuota(t *testing.
 				high.Channel.OrderingWeight = 15
 				tracker := NewChannelRequestTracker()
 				quota := &mockQuotaStatusProvider{statuses: map[int]*biz.QuotaChannelStatus{}}
-				settings := &mockQuotaEnforcementSettingsProvider{settings: &biz.QuotaEnforcementSettings{
-					Enabled: true, Mode: biz.QuotaEnforcementModeDePrioritize,
-				}}
+
 				expectedID := low.Channel.ID
 				hard := true
 				switch scenario {
@@ -198,32 +195,28 @@ func TestHealthGateLoadBalancer_WeightTiersRespectHardLimitsAndQuota(t *testing.
 					tracker.SetCooldown(high.Channel.ID, time.Now().Add(time.Hour))
 				case "quota_exhausted":
 					quota.statuses[high.Channel.ID] = &biz.QuotaChannelStatus{Status: providerquotastatus.StatusExhausted}
-				case "quota_warning_higher_weight", "quota_warning_equal_weight":
-					hard = false
-					quota.statuses[high.Channel.ID] = &biz.QuotaChannelStatus{Status: providerquotastatus.StatusWarning, Ready: true}
-					if scenario == "quota_warning_higher_weight" {
-						expectedID = high.Channel.ID
-					} else {
-						high.Channel.OrderingWeight = low.Channel.OrderingWeight
-					}
 				}
 				metrics := &mockMetricsProvider{}
 				strategies := []LoadBalanceStrategy{
 					NewWeightRoundRobinStrategy(metrics), NewLatencyAwareStrategy(metrics),
-					NewRateLimitAwareStrategy(tracker, nil), NewQuotaAwareStrategy(quota, settings),
+					NewRateLimitAwareStrategy(tracker, nil),
 				}
 				ctx := context.Background()
 				highScore := healthGateWeightTotalScore(t, ctx, strategies, high.Channel)
 				lowScore := healthGateWeightTotalScore(t, ctx, strategies, low.Channel)
-				require.Equal(t, hard, isHardUnavailableScore(highScore))
+				require.Equal(t, hard && scenario != "quota_exhausted", isHardUnavailableScore(highScore))
 				require.False(t, isHardUnavailableScore(lowScore))
-				require.Greater(t, lowScore, highScore)
+				if scenario != "quota_exhausted" { require.Greater(t, lowScore, highScore) }
 				for _, retries := range []int{0, 1} {
 					policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: retries}}
 					lb := NewLoadBalancer(policy, nil, strategies...).WithHealthGate(biz.NewHealthGate(nil))
 					lb.debug = debug
-					result := lb.Sort(ctx, []*ChannelModelsCandidate{high, low}, "alias", false)
-					require.Len(t, result, 1+retries)
+					gate := NewQuotaRoutingGate(quota, biz.QuotaRoutingSettings{DefaultMode: objects.QuotaRoutingModeRemoveOnExhausted})
+filtered := gate.Filter(ctx, []*ChannelModelsCandidate{high, low}, &llm.Request{}, 0)
+result := lb.Sort(ctx, filtered, "alias", false)
+expectedCount := 1+retries
+if scenario == "quota_exhausted" { expectedCount = 1 }
+require.Len(t, result, expectedCount)
 					require.Equal(t, expectedID, result[0].Channel.ID)
 				}
 			})
@@ -244,20 +237,19 @@ func TestHealthGateLoadBalancer_AllStrategiesRespectWeightTiers(t *testing.T) {
 				metrics := &mockMetricsProvider{metrics: map[int]*biz.AggregatedMetrics{old.Channel.ID: oldMetrics}}
 				policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 1, LoadBalancerStrategy: strategy}}
 				rateLimit := NewRateLimitAwareStrategy(NewChannelRequestTracker(), nil)
-				quota := NewQuotaAwareStrategy(nil, &mockQuotaEnforcementSettingsProvider{})
 				var lb *LoadBalancer
 				expectedID := added.Channel.ID
 				switch strategy {
 				case biz.LoadBalancerStrategyAdaptive:
-					lb = NewLoadBalancer(policy, nil, NewErrorAwareStrategy(metrics), NewWeightRoundRobinStrategy(metrics), NewLatencyAwareStrategy(metrics), rateLimit, quota)
+					lb = NewLoadBalancer(policy, nil, NewErrorAwareStrategy(metrics), NewWeightRoundRobinStrategy(metrics), NewLatencyAwareStrategy(metrics), rateLimit)
 				case biz.LoadBalancerStrategyFailover:
-					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewRandomStrategy(), rateLimit, quota)
+					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewRandomStrategy(), rateLimit)
 				case biz.LoadBalancerStrategyCircuitBreaker:
-					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(biz.NewModelCircuitBreaker()), rateLimit, quota)
+					lb = NewLoadBalancer(policy, nil, NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(biz.NewModelCircuitBreaker()), rateLimit)
 				case biz.LoadBalancerStrategyRoundRobin:
 					// Round robin applies within a weight tier, like the other strategies.
 					oldMetrics.RequestCount = 0
-					lb = NewLoadBalancer(policy, nil, NewRoundRobinStrategy(metrics), rateLimit, quota).
+					lb = NewLoadBalancer(policy, nil, NewRoundRobinStrategy(metrics), rateLimit).
 						WithStableTieOrder().WithRoundRobinHealthFilter(NewRoundRobinHealthStrategy(metrics))
 				}
 				lb.debug = debug

@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
+	bytesreader "bytes"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
@@ -20,7 +21,7 @@ func TestBackupUpstreamConfigurationAndCostSnapshot(t *testing.T) {
 	data, err := svc.Backup(ctx, BackupOptions{IncludeChannels: true})
 	require.NoError(t, err)
 	ch.Update().ClearUpstreamCredentials().SaveX(ctx)
-	require.NoError(t, svc.Restore(ctx, data, RestoreOptions{IncludeChannels: true, ChannelConflictStrategy: ConflictStrategyOverwrite}))
+	require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{IncludeChannels: true, ChannelConflictStrategy: ConflictStrategyOverwrite}))
 	stored := db.Channel.GetX(ctx, ch.ID)
 	require.Equal(t, 17, stored.UpstreamCredentials.Accounts[0].AccountID)
 	require.Equal(t, "fixture-account", stored.UpstreamCredentials.Accounts[0].AccountToken)

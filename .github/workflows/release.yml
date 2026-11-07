@@ -3,7 +3,7 @@ name: 发布自维护版本
 on:
   push:
     tags:
-      - 'v*-fork.*.syh.*'
+      - 'v*-fork.*'
 
 concurrency:
   group: release-${{ github.ref }}

@@ -23,6 +23,7 @@ var versionedAsset = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8,}\.(js|c
 var apiPrefixes = []string{
 	"/admin",
 	"/anthropic",
+	"/codex",
 	"/doubao",
 	"/gemini",
 	"/jina",

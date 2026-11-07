@@ -6,14 +6,9 @@ import { BarChart3, Wallet, ChartNoAxesCombined, RotateCcw, Trash2 } from 'lucid
 import { useTranslation } from 'react-i18next';
 import { extractNumberID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { ApiKey } from '../data/schema';
@@ -28,10 +23,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { openDialog } = useApiKeysContext();
   const { apiKeyPermissions, hasProjectScope } = usePermissions();
   const canResetBudget = apiKeyPermissions.canWrite && hasProjectScope('write_users') && hasProjectScope('write_roles');
+  const currentUser = useAuthStore((state) => state.auth.user);
   const apiKey = row.original;
   const [open, setOpen] = React.useState(false);
   const [chartOpen, setChartOpen] = React.useState(false);
   const [budgetMode, setBudgetMode] = React.useState<'settings' | 'usage' | 'reset' | null>(null);
+
+  // Personal API keys can only be modified by their creator or a system
+  // owner; hide mutating actions on other users' personal keys for anyone
+  // else instead of letting them fail.
+  const isOthersPersonalKey =
+    apiKey.type === 'personal' && !currentUser?.isOwner && apiKey.user?.id != null && apiKey.user.id !== currentUser?.id;
+  const canMutate = apiKeyPermissions.canWrite && !isOthersPersonalKey;
 
   // Don't show menu if user has no permissions
   if (!apiKeyPermissions.canRead && !apiKeyPermissions.canWrite) {
@@ -107,7 +110,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <BarChart3 className='mr-2 h-4 w-4' />
             {t('apikeys.actions.viewTokenChart')}
           </DropdownMenuItem>
-          {apiKeyPermissions.canWrite && (
+          {canMutate && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleEdit(apiKey)}>

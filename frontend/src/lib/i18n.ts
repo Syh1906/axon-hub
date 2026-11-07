@@ -47,18 +47,7 @@ i18n
 
     interpolation: {
       escapeValue: false, // React 已经默认转义了
-      format: (value, format, lng, options) => {
-        if (format === 'currency') {
-          return formatCurrencyValue(value, options?.locale || lng, {
-            style: 'currency',
-            currency: options?.currency || 'USD',
-            currencyDisplay: 'narrowSymbol',
-            minimumFractionDigits: options?.minimumFractionDigits,
-            maximumFractionDigits: options?.maximumFractionDigits,
-          });
-        }
-        return value;
-      },
+
     },
 
     detection: {
@@ -72,6 +61,13 @@ i18n
         return lng;
       },
     },
+  }).then(() => {
+    i18n.services.formatter?.add('currency', (value, lng, options) =>
+      formatCurrencyValue(value, options?.locale || lng, {
+        style: 'currency', currency: options?.currency || 'USD', currencyDisplay: 'narrowSymbol',
+        minimumFractionDigits: options?.minimumFractionDigits, maximumFractionDigits: options?.maximumFractionDigits,
+      })
+    );
   });
 
 export default i18n;

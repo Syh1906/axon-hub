@@ -18,7 +18,6 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
-	"github.com/looplj/axonhub/internal/server/biz/provider_quota"
 	"github.com/looplj/axonhub/llm"
 )
 
@@ -43,6 +42,10 @@ type ChannelModelsCandidate struct {
 	continuationKeyRef      string // stable credential reference recovered from successful history
 	continuationKeyHint     string // legacy, masked credential identity
 	continuationUpstreamRef string // endpoint/account identity of the actual history
+	// DefaultMaxTokens is the AxonHub model card output limit, used as the
+	// Anthropic max_tokens fallback when the client omitted an output cap.
+	// Zero means the catalog model has no usable limit.
+	DefaultMaxTokens int64
 }
 
 // ModelRoutingPolicy contains model-level overrides carried from model
@@ -186,9 +189,11 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 		LoadBalancerStrategy: strategy,
 		TraceStickyMode:      traceStickyMode,
 	}
+	defaultMaxTokens := modelCardOutputLimit(model)
 	for _, candidate := range candidates {
 		candidate.ModelRoutingPolicy = modelRoutingPolicy
 		candidate.ModelCard = model.ModelCard
+		candidate.DefaultMaxTokens = defaultMaxTokens
 	}
 
 	if log.DebugEnabled(ctx) {
@@ -571,6 +576,14 @@ func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCa
 	return candidates
 }
 
+func modelCardOutputLimit(m *ent.Model) int64 {
+	if m == nil || m.ModelCard == nil || m.ModelCard.Limit.Output <= 0 {
+		return 0
+	}
+
+	return int64(m.ModelCard.Limit.Output)
+}
+
 // getLatestChannelUpdateTime returns the latest update time among all channels.
 func (s *DefaultSelector) getLatestChannelUpdateTime(channels []*biz.Channel) time.Time {
 	if len(channels) == 0 {
@@ -636,6 +649,7 @@ type LoadBalancedSelector struct {
 	previousChannelProvider PreviousChannelProvider
 	apiKey                  *ent.APIKey
 	effectiveRoutingPolicy  *EffectiveRoutingPolicy
+	quotaGate               *QuotaRoutingGate
 }
 
 // WithLoadBalancedSelector creates a selector that applies load balancing to sort candidates.
@@ -674,6 +688,7 @@ func WithRoutingPolicyLoadBalancedSelector(
 	previousChannelProvider PreviousChannelProvider,
 	apiKey *ent.APIKey,
 	effectiveRoutingPolicy *EffectiveRoutingPolicy,
+	quotaGate *QuotaRoutingGate,
 ) *LoadBalancedSelector {
 	return &LoadBalancedSelector{
 		wrapped:                 wrapped,
@@ -682,6 +697,7 @@ func WithRoutingPolicyLoadBalancedSelector(
 		previousChannelProvider: previousChannelProvider,
 		apiKey:                  apiKey,
 		effectiveRoutingPolicy:  effectiveRoutingPolicy,
+		quotaGate:               quotaGate,
 	}
 }
 
@@ -714,6 +730,13 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		*s.effectiveRoutingPolicy = resolvedPolicy
 		traceStickyMode = resolvedPolicy.TraceStickyMode
 	}
+	if s.quotaGate != nil {
+ stickyID := 0
+ if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
+  if selected, _, _ := s.selectTraceStickyCandidate(ctx, candidates); selected != nil { stickyID = selected.Channel.ID }
+ }
+ candidates = s.quotaGate.Filter(ctx, candidates, req, stickyID)
+ }
 	if selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider); handled || err != nil {
 		if err != nil || loadBalancer == nil {
 			return selected, err
@@ -820,8 +843,8 @@ func (s *LoadBalancedSelector) selectTraceStickyCandidate(ctx context.Context, c
 
 // extractStickyCandidate returns the highest-priority candidate for channelID
 // and removes every candidate for that channel from the fallback set. This
-// prevents a failed sticky channel from being retried through another
-// association entry.
+// prevents a sticky channel from receiving another retry budget through a
+// duplicate association entry after its same-channel retries are exhausted.
 func extractStickyCandidate(
 	candidates []*ChannelModelsCandidate,
 	channelID int,
@@ -865,6 +888,9 @@ func (s *LoadBalancedSelector) sortCandidates(
 	}
 
 	if len(candidates) <= 1 {
+		if trackSelection && loadBalancer != nil && len(candidates) == 1 {
+			loadBalancer.TrackSelection(candidates[0])
+		}
 		return candidates
 	}
 
@@ -889,12 +915,9 @@ func (s *LoadBalancedSelector) sortCandidates(
 
 		// Apply load balancing to sort candidates within this priority group.
 		useStream := req.Stream != nil && *req.Stream
-		ctx = contextWithQuotaLimitType(ctx, string(provider_quota.RequestModality(req.Image != nil)))
 		var sortedCandidates []*ChannelModelsCandidate
 		if loadBalancer == nil {
 			sortedCandidates = group
-		} else if trackSelection {
-			sortedCandidates = loadBalancer.Sort(ctx, group, req.Model, useStream)
 		} else {
 			sortedCandidates = loadBalancer.SortWithoutTracking(ctx, group, req.Model, useStream)
 		}
@@ -911,6 +934,13 @@ func (s *LoadBalancedSelector) sortCandidates(
 			result = append(result, sortedCandidates[:remaining]...)
 			break
 		}
+	}
+
+	// Priority groups are sorted independently, but only the first candidate in
+	// the final result is selected for the initial attempt. Track it once after
+	// assembling the result so fallback groups are not counted prematurely.
+	if trackSelection && loadBalancer != nil && len(result) > 0 {
+		loadBalancer.TrackSelection(result[0])
 	}
 
 	if log.DebugEnabled(ctx) {
@@ -990,17 +1020,23 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 		return nil, fmt.Errorf("failed to get channel for test: %w", err)
 	}
 
-	entries := channel.GetDirectModelEntries()
+	entries := channel.GetModelEntries()
 
 	entry, ok := entries[req.Model]
+	if !ok {
+		entry, ok = channel.GetDirectModelEntries()[req.Model]
+	}
 	if !ok {
 		return nil, fmt.Errorf("model %s not supported in channel %s", req.Model, channel.Name)
 	}
 
-	endpoints := biz.ApplyForcedAPIFormats(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, channel.ResolveEndpoints())
+	endpoints := applyForcedAPIFormatsForRequest(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, channel.ResolveEndpoints())
 	apiFormat := SelectAPIFormat(endpoints, req)
 	if apiFormat == "" && requiresResponsesToolProtocol(req) {
 		return nil, fmt.Errorf("channel %s has no compatible endpoint for Responses custom tools", channel.Name)
+	}
+	if requiresExplicitEndpoint(req.RequestType) && apiFormat == "" {
+		return []*ChannelModelsCandidate{}, nil
 	}
 
 	candidate := &ChannelModelsCandidate{

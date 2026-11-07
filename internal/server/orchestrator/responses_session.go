@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
@@ -22,7 +23,7 @@ const (
 	responsesSessionTTL         = 2 * time.Hour
 	responsesSessionMaxRecords  = 2048
 	responsesSessionMaxBytes    = 64 << 20
-	responsesSessionMaxResponse = 1 << 20
+	responsesSessionMaxResponse = 16 << 20
 )
 
 type responsesSessionStore struct {
@@ -31,6 +32,7 @@ type responsesSessionStore struct {
 	totalBytes int
 	load       responsesSessionLoadFunc
 	save       func(context.Context, []byte, []byte)
+	known      func(context.Context, string) (bool, error)
 }
 
 type responsesSessionLoadFunc func(ctx context.Context, responseID string) (requestBody, responseBody []byte, found bool, err error)
@@ -46,6 +48,8 @@ type responsesSessionRecord struct {
 	sessionID string
 	updatedAt time.Time
 	size      int
+	complete  bool
+	origin    shared.ResponsesOrigin
 }
 
 func newResponsesSessionStore(loaders ...responsesSessionLoadFunc) *responsesSessionStore {
@@ -81,7 +85,7 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 	if err != nil {
 		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), err
 	}
-	if record == nil {
+	if record == nil || !record.complete {
 		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
 	}
 	if record.sessionID != "" {
@@ -121,7 +125,8 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 	type turn struct {
 		record *responsesSessionRecord
 	}
-	var turns []turn
+	metadata := s.lookup(ctx, responseID)
+var turns []turn
 	visited := make(map[string]bool)
 	var base []json.RawMessage
 	sessionID, _ := shared.GetSessionID(ctx)
@@ -133,7 +138,7 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 			return nil, nil
 		}
 		visited[id] = true
-		if cached := s.lookup(ctx, id); cached != nil {
+		if cached := s.lookup(ctx, id); cached != nil && cached.complete {
 			if len(turns) == 0 {
 				return cached, nil
 			}
@@ -144,14 +149,14 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 			break
 		}
 		if s.load == nil {
-			return nil, nil
+			return metadata, nil
 		}
 		requestBody, responseBody, found, err := s.load(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("restore Responses history: %w", err)
 		}
 		if !found {
-			return nil, nil
+			return metadata, nil
 		}
 		recordID, previous, record := decodeResponseSessionRecord(requestBody, responseBody)
 		if record == nil || recordID != id {
@@ -168,6 +173,8 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 		}
 	}
 	record := turns[0].record
+	record.complete = true
+if metadata != nil { record.origin = metadata.origin; if metadata.sessionID != "" { sessionID = metadata.sessionID } }
 	record.input = base
 	record.sessionID = sessionID
 	record.size = rawResponseSessionValuesSize(record.input) + rawResponseSessionValuesSize(record.output)
@@ -217,18 +224,19 @@ func decodeResponseSessionRecord(requestBody, responseBody []byte) (string, stri
 }
 
 func (s *responsesSessionStore) record(ctx context.Context, requestBody, responseBody []byte) {
-	if s.save != nil {
-		s.save(ctx, requestBody, responseBody)
-	}
-	if len(responseBody) > responsesSessionMaxResponse {
-		return
-	}
-	id, previous, record := decodeResponseSessionRecord(requestBody, responseBody)
-	if record == nil || previous != "" {
-		return
-	}
-	record.sessionID, _ = shared.GetSessionID(ctx)
-	s.cacheRecord(ctx, id, record)
+ if s.save != nil { s.save(ctx, requestBody, responseBody) }
+ if !json.Valid(requestBody) || !json.Valid(responseBody) { return }
+ id := gjson.GetBytes(responseBody,"id").String()
+ status := gjson.GetBytes(responseBody,"status").String()
+ if id == "" || status == "failed" || status == "cancelled" || status == "canceled" { return }
+ record := &responsesSessionRecord{}
+ if len(responseBody) <= responsesSessionMaxResponse && len(gjson.GetBytes(requestBody,"input").Raw) <= responsesSessionMaxResponse+2 {
+  _, previous, decoded := decodeResponseSessionRecord(requestBody,responseBody)
+  if decoded != nil && previous == "" { record = decoded; record.complete = true }
+ }
+ if attempt := shared.GetResponsesAttempt(ctx); attempt != nil { record.origin = attempt.Origin() }
+ record.sessionID, _ = shared.GetSessionID(ctx)
+ s.cacheRecord(ctx,id,record)
 }
 
 // 取消生成后仍须保存客户端已收到的完整输出项，取消信号不应取消这次短暂的历史写入。
@@ -241,9 +249,6 @@ func (s *responsesSessionStore) continuationRecorder(ctx context.Context, reques
 }
 
 func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, record *responsesSessionRecord) {
-	if record.size > responsesSessionMaxResponse {
-		return
-	}
 	scope, ok := shared.GetSessionScope(ctx)
 	if !ok || strings.TrimSpace(scope) == "" {
 		return
@@ -257,12 +262,22 @@ func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, reco
 		s.totalBytes -= previous.size
 	}
 	copy := *record
-	copy.input = cloneResponseSessionValues(record.input)
-	copy.output = cloneResponseSessionValues(record.output)
+if copy.size > responsesSessionMaxResponse { copy.input, copy.output, copy.size, copy.complete = nil,nil,0,false }
+	copy.input = cloneResponseSessionValues(copy.input)
+	copy.output = cloneResponseSessionValues(copy.output)
 	copy.updatedAt = now
 	s.byResponse[key] = &copy
-	s.totalBytes += record.size
-	for len(s.byResponse) > responsesSessionMaxRecords || s.totalBytes > responsesSessionMaxBytes {
+	s.totalBytes += copy.size
+	for s.totalBytes > responsesSessionMaxBytes {
+ var oldest *responsesSessionRecord
+ for _, item := range s.byResponse {
+  if item.size > 0 && (oldest == nil || item.updatedAt.Before(oldest.updatedAt)) { oldest = item }
+ }
+ if oldest == nil { break }
+ s.totalBytes -= oldest.size
+ oldest.input, oldest.output, oldest.size, oldest.complete = nil,nil,0,false
+}
+for len(s.byResponse) > responsesSessionMaxRecords {
 		if !s.evictOldestLocked() {
 			s.totalBytes = 0
 			break
@@ -292,6 +307,8 @@ func (s *responsesSessionStore) lookup(ctx context.Context, responseID string) *
 		sessionID: record.sessionID,
 		updatedAt: record.updatedAt,
 		size:      record.size,
+		complete:  record.complete,
+		origin:    record.origin,
 	}
 }
 
@@ -337,13 +354,14 @@ func (s *responsesSessionStore) wrapStream(
 	requestBody []byte,
 	stream streams.Stream[*httpclient.StreamEvent],
 ) streams.Stream[*httpclient.StreamEvent] {
+	responseHeaders := httpclient.GetResponseHeaders(stream)
 	wrapped := new(responsesSessionStream)
 	wrapped.ctx = ctx
 	wrapped.store = s
 	wrapped.requestBody = append([]byte(nil), requestBody...)
 	wrapped.inner = stream
 
-	return wrapped
+	return httpclient.WithResponseHeaders(wrapped, responseHeaders)
 }
 
 type responsesSessionStream struct {
@@ -357,6 +375,43 @@ type responsesSessionStream struct {
 	terminal    bool
 	recorded    bool
 	overflow    bool
+}
+
+func (s *responsesSessionStream) AcknowledgeDelivery() {
+	if observer, ok := s.inner.(streams.DeliveryAcknowledger); ok {
+		observer.AcknowledgeDelivery()
+	}
+}
+
+func (s *responsesSessionStream) DeliveryAcknowledged() bool {
+	observer, ok := s.inner.(streams.DeliveryAcknowledger)
+	return ok && observer.DeliveryAcknowledged()
+}
+
+func (s *responsesSessionStream) WaitForFinalization() {
+	if waiter, ok := s.inner.(streams.FinalizationWaiter); ok {
+		waiter.WaitForFinalization()
+	}
+}
+
+func (s *responsesSessionStream) Deliver(ctx context.Context, write func() (bool, error)) error {
+	boundary, ok := s.inner.(streams.DeliveryBoundary)
+	if ok {
+		return boundary.Deliver(ctx, write)
+	}
+	terminal, err := write()
+	if err == nil && terminal {
+		s.AcknowledgeDelivery()
+	}
+	return err
+}
+
+func (s *responsesSessionStream) ExpectedStreamChoices() int {
+	choices, ok := s.inner.(interface{ ExpectedStreamChoices() int })
+	if !ok {
+		return 0
+	}
+	return choices.ExpectedStreamChoices()
 }
 
 func (s *responsesSessionStream) Next() bool {
@@ -522,6 +577,10 @@ func normalizeResponseSessionItems(items []json.RawMessage) ([]json.RawMessage, 
 			continue
 		}
 		if _, ok := object["status"]; !ok {
+			normalized = append(normalized, cloneResponseSessionValue(item))
+			continue
+		}
+		if responseSessionString(object["type"]) == "web_search_call" {
 			normalized = append(normalized, cloneResponseSessionValue(item))
 			continue
 		}

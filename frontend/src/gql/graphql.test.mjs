@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import test from 'node:test';
+import ts from 'typescript';
 
 const sourcePath = join(import.meta.dirname, 'graphql.ts');
 const source = readFileSync(sourcePath, 'utf8');
@@ -13,6 +13,7 @@ const transpiled = ts.transpileModule(source, {
     target: ts.ScriptTarget.ES2023,
   },
 }).outputText
+  .replaceAll("import { ensureFreshAccessToken } from '@/lib/auth-session';", 'const ensureFreshAccessToken = async () => "";')
   .replaceAll("import { toast } from 'sonner';", 'const toast = { error() {} };')
   .replaceAll("import { getTokenFromStorage, removeTokenFromStorage } from '@/stores/authStore';", 'const getTokenFromStorage = () => ""; const removeTokenFromStorage = () => {};')
   .replaceAll("import i18n from '@/lib/i18n';", 'const i18n = { t: (key) => key };')

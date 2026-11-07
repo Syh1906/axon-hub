@@ -104,7 +104,7 @@ func (w *Worker) processBodyBatch(ctx context.Context, stage *CleanupStage, size
 		}
 		matches, err := w.Ent.Request.Query().Select(request.FieldID, request.FieldProjectID, request.FieldDataStorageID).
 			Where(request.IDIn(ids...)).Where(safeRequests()...).Modify(func(s *sql.Selector) {
-			applyBodyPayloadPredicate(s, kind, primaryID, request.FieldRequestBody, request.FieldRequestHeaders, request.FieldResponseBody, request.FieldResponseChunks, request.FieldDataStorageID)
+			applyBodyPayloadPredicate(s, kind, primaryID, request.FieldRequestBody, request.FieldRequestHeaders, request.FieldResponseBody, request.FieldResponseHeaders, request.FieldResponseChunks, request.FieldDataStorageID)
 		}).All(ctx)
 		if err != nil {
 			return 0, 0, false, err
@@ -138,7 +138,7 @@ func (w *Worker) processBodyBatch(ctx context.Context, stage *CleanupStage, size
 	}
 	matches, err := w.Ent.RequestExecution.Query().Select(requestexecution.FieldID, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldDataStorageID).
 		Where(requestexecution.IDIn(ids...)).Where(safeExecutions()...).Modify(func(s *sql.Selector) {
-		applyBodyPayloadPredicate(s, kind, primaryID, requestexecution.FieldRequestBody, requestexecution.FieldRequestHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldDataStorageID)
+		applyBodyPayloadPredicate(s, kind, primaryID, requestexecution.FieldRequestBody, requestexecution.FieldRequestHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseHeaders, requestexecution.FieldResponseChunks, requestexecution.FieldDataStorageID)
 	}).All(ctx)
 	if err != nil {
 		return 0, 0, false, err

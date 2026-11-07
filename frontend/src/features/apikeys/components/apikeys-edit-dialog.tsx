@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScopesSelect } from '@/components/scopes-select';
 import { BudgetButton } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
+import { buildAllowedIpsUpdate } from '../data/allowed-ips-payload';
 import { useUpdateApiKey } from '../data/apikeys';
 import { UpdateApiKeyInput, updateApiKeyInputSchemaFactory } from '../data/schema';
 import { KeyGroupField } from './key-group-field';
@@ -54,16 +55,9 @@ export function ApiKeysEditDialog() {
 
     setIsSubmitting(true);
     try {
-      const allowedIps = ipRestrictionEnabled
-        ? ipInput
-            .split(',')
-            .map((s) => s.trim())
-            .filter((s) => s !== '')
-        : [];
-
       const input: UpdateApiKeyInput = {
         name: data.name,
-        allowedIps,
+        ...buildAllowedIpsUpdate(ipRestrictionEnabled, ipInput),
       };
 
       if ((data.groupRef ?? null) !== (selectedApiKey.groupRef ?? null)) {

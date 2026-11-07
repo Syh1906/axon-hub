@@ -4,6 +4,8 @@ import { isAuthError } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
+import { useSelectedProjectId } from '@/stores/projectStore';
+import { isProjectSelectionValid } from '@/lib/project-membership';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMe } from '@/features/auth/data/auth';
 
@@ -15,9 +17,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { accessToken } = useAuthStore((state) => state.auth);
+  const selectedProjectId = useSelectedProjectId();
 
   // Automatically fetch user info when token is available
   const { isLoading: isMeLoading, error: meError, data: me, refetch } = useMe();
+  const projectReady = isProjectSelectionValid(me, selectedProjectId);
 
   useEffect(() => {
     // If no token, redirect to sign-in
@@ -68,8 +72,17 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Show loading while fetching user info
-  if (accessToken && isMeLoading) {
+  if (meError && !me) {
+    return (
+      <div className='flex h-screen flex-col items-center justify-center gap-4' role='alert'>
+        <p>{t('common.loadError')}</p>
+        <Button onClick={() => void refetch()}>{t('common.buttons.retry')}</Button>
+      </div>
+    );
+  }
+
+  // Show loading while fetching user info or validating the persisted project
+  if (accessToken && (isMeLoading || !projectReady)) {
     return (
       <div className='flex h-screen items-center justify-center'>
         <div className='space-y-4'>
@@ -80,13 +93,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (meError && !me) {
-    return (
-      <div className='flex h-screen flex-col items-center justify-center gap-4' role='alert'>
-        <p>{t('common.loadError')}</p>
-        <Button onClick={() => void refetch()}>{t('common.buttons.retry')}</Button>
-      </div>
-    );
-  }
   return <>{children}</>;
 }

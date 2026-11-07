@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/samber/lo"
@@ -9,6 +10,7 @@ import (
 )
 
 var rawCreateRequestFields = []string{
+	"client_metadata",
 	"context_management",
 	"conversation",
 	"moderation",
@@ -38,12 +40,12 @@ func attachOpenAIResponsesRequestExtensions(chatReq *llm.Request, req *Request, 
 		return err
 	}
 	requestExt := &llm.OpenAIResponsesRequestExtensions{
-		ReasoningContext: reasoningContext,
-		RawFields:        selectRawRequestFields(raw.Fields, rawCreateRequestFields),
-		RawTools:         buildRawOnlyToolFragments(req.Tools, raw.Tools),
-		ToolSignatures:   buildRepresentedToolSignatures(req.Tools),
-		RawToolChoice:    rawUnsupportedToolChoice(req.ToolChoice, raw.ToolChoice),
-		RawInputItems:    inputItems,
+		ReasoningContext:        reasoningContext,
+		RawFields:               selectRawRequestFields(raw.Fields, rawCreateRequestFields),
+		RawTools:                buildRawOnlyToolFragments(req.Tools, raw.Tools),
+		ToolSignatures:          buildRepresentedToolSignatures(req.Tools),
+		RawToolChoice:           rawUnsupportedToolChoice(req.ToolChoice, raw.ToolChoice),
+		RawInputItems:           inputItems,
 	}
 
 	if requestExt.ReasoningContext == "" && len(requestExt.RawFields) == 0 && len(requestExt.RawTools) == 0 && len(requestExt.RawToolChoice) == 0 && len(requestExt.RawInputItems) == 0 {
@@ -151,13 +153,14 @@ func buildRepresentedToolSignatures(tools []Tool) []string {
 	signatures := make([]string, 0, len(tools))
 	for _, tool := range tools {
 		if tool.Type == "namespace" {
+			represented := Tool{Type: "namespace", Name: tool.Name}
 			for _, subTool := range tool.Tools {
 				if subTool.Type == "function" {
-					signatures = append(signatures, responseToolSignature(Tool{
-						Type: "function",
-						Name: namespaceFunctionName(tool.Name, subTool.Name),
-					}))
+					represented.Tools = append(represented.Tools, subTool)
 				}
+			}
+			if len(represented.Tools) > 0 {
+				signatures = append(signatures, responseToolSignature(represented))
 			}
 			continue
 		}
@@ -198,14 +201,14 @@ func representedNamespaceToolCount(tool Tool) int {
 		return 0
 	}
 
-	count := 0
+	// A namespace is now represented by one grouped Responses tool.
 	for _, subTool := range tool.Tools {
 		if subTool.Type == "function" {
-			count++
+			return 1
 		}
 	}
 
-	return count
+	return 0
 }
 
 func isStructurallyRepresentedToolType(toolType string) bool {
@@ -219,6 +222,13 @@ func isStructurallyRepresentedToolType(toolType string) bool {
 
 func responseToolSignature(tool Tool) string {
 	switch tool.Type {
+	case "namespace":
+		names := []string{tool.Name}
+		for _, subTool := range tool.Tools {
+			names = append(names, subTool.Type, subTool.Name)
+		}
+		encoded, _ := json.Marshal(names)
+		return "namespace:" + string(encoded)
 	case "function", "custom":
 		return tool.Type + ":" + tool.Name
 	default:
@@ -274,6 +284,11 @@ func buildRawOnlyInputFragments(input Input, rawItems []json.RawMessage) ([]llm.
 	return fragments, nil
 }
 
+
+
+// isStructurallyRepresentedInputItem reports whether an input item type is
+// rebuilt from the unified request. Types that are not rebuilt are replayed
+// verbatim from the raw body; see buildRawOnlyInputFragments.
 func isStructurallyRepresentedInputItem(itemType string) bool {
 	switch itemType {
 	case "", "message", "input_text", "input_image", "function_call", "function_call_output",
@@ -293,15 +308,23 @@ func openAIResponsesRequestExtensions(llmReq *llm.Request) *llm.OpenAIResponsesR
 	return requestExt
 }
 
+// marshalRequestPayload marshals the unified request and replays the raw fields,
+// tools and input items the caller sent so they survive the round trip.
 func marshalRequestPayload(payload Request, llmReq *llm.Request) ([]byte, error) {
+	requestExt := openAIResponsesRequestExtensions(llmReq)
+	if requestExt == nil {
+		if len(payload.Tools) == 0 {
+			// Providers reject tool_choice when no tools are sent; omitting it
+			// is equivalent to the default "auto".
+			payload.ToolChoice = nil
+		}
+
+		return json.Marshal(payload)
+	}
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
-	}
-
-	requestExt := openAIResponsesRequestExtensions(llmReq)
-	if requestExt == nil {
-		return NormalizeAgentMessageHistory(body)
 	}
 
 	var obj map[string]json.RawMessage
@@ -318,7 +341,14 @@ func marshalRequestPayload(payload Request, llmReq *llm.Request) ([]byte, error)
 		obj["tools"] = toolsRaw
 	}
 
-	if len(requestExt.RawToolChoice) > 0 && rawToolChoiceMatchesCurrentTools(requestExt.RawToolChoice, payload.ToolChoice) {
+	if !hasNonEmptyTools(obj["tools"]) {
+		// Providers reject tool_choice when no tools are sent (Responses Lite
+		// requests carry their tools inside the input instead). Omitting it is
+		// equivalent to the default "auto", so drop it. This runs after raw
+		// tools are restored, so requests that keep tools keep their choice.
+		delete(obj, "tool_choice")
+	} else if len(requestExt.RawToolChoice) > 0 &&
+		rawToolChoiceMatchesCurrentTools(requestExt.RawToolChoice, payload.ToolChoice) {
 		obj["tool_choice"] = cloneRaw(requestExt.RawToolChoice)
 	}
 
@@ -380,6 +410,9 @@ func marshalCompactRequestPayload(payload CompactAPIRequest, llmReq *llm.Request
 	return NormalizeAgentMessageHistory(body)
 }
 
+// mergeRawOnlyInputItems rebuilds the outgoing `input` array from the merged
+// request: items rebuilt from messages and raw items that had no representation
+// are interleaved back into the positions they were sent in.
 func mergeRawOnlyInputItems(structuredRaw json.RawMessage, requestExt *llm.OpenAIResponsesRequestExtensions) ([]json.RawMessage, bool) {
 	if requestExt == nil || len(requestExt.RawInputItems) == 0 {
 		return nil, false
@@ -500,14 +533,43 @@ func structuredToolSignaturesMatch(structuredTools []json.RawMessage, expected [
 	return true
 }
 
-func rawToolChoiceMatchesCurrentTools(raw json.RawMessage, current *ToolChoice) bool {
-	if current == nil {
-		return true
+// hasNonEmptyTools reports whether the marshaled request carries at least one
+// tool. tool_choice must not be sent when the request has no tools.
+func hasNonEmptyTools(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
 	}
 
+	var tools []json.RawMessage
+	if json.Unmarshal(raw, &tools) != nil {
+		return false
+	}
+
+	return len(tools) > 0
+}
+
+func rawToolChoiceMatchesCurrentTools(raw json.RawMessage, current *ToolChoice) bool {
 	var rawChoice ToolChoice
 	if err := json.Unmarshal(raw, &rawChoice); err != nil {
 		return false
+	}
+
+	if (rawChoice.Type != nil && *rawChoice.Type == "allowed_tools") ||
+		(current != nil && current.Type != nil && *current.Type == "allowed_tools") {
+		if current == nil {
+			return false
+		}
+		// Matching only mode would restore a stale allowlist after a caller
+		// changed its members or replaced it with an unrestricted string mode.
+		expected, err := json.Marshal(&rawChoice)
+		if err != nil {
+			return false
+		}
+		actual, err := json.Marshal(current)
+		return err == nil && bytes.Equal(expected, actual)
+	}
+	if current == nil {
+		return true
 	}
 
 	currentSignature := toolChoiceSignature(current)

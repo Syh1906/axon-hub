@@ -32,6 +32,7 @@ type ModelCardLimit struct {
 
 type ModelCard struct {
 	Reasoning   ModelCardReasoning  `json:"reasoning"`
+	ReasoningEfforts []string `json:"reasoningEfforts"`
 	ToolCall    bool                `json:"toolCall"`
 	Temperature bool                `json:"temperature"`
 	Modalities  ModelCardModalities `json:"modalities"`
@@ -154,6 +155,7 @@ const (
 	ModelAssociationConditionFieldPromptTokens        = "prompt_tokens"
 	ModelAssociationConditionFieldStream              = "stream"
 	ModelAssociationConditionFieldRequestFormat       = "request_format"
+	ModelAssociationConditionFieldReasoningEffort     = "reasoning_effort"
 	ModelAssociationConditionFieldDailyTime           = "daily_time"
 	ModelAssociationConditionFieldHasImage            = "has_image"
 	ModelAssociationConditionFieldHasVideo            = "has_video"

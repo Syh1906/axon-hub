@@ -42,29 +42,27 @@ release.config.json 保存仓库、发布分支、直接上游 tag/提交、原�
 publishBinaries 为 false 时跳过 GoReleaser 及其前端依赖安装、各平台下载包、校验和与配置 schema 附件，仅保留镜像和 release.json；true 时仍走原完整下载包流程。选择在打新 tag 前写入配置，不能通过重跑修改已公开的版本。
 镜像发布仍执行测试、双架构构建与临时 PostgreSQL 启动检查。构建和推送都在 GitHub 云端进行，不在本地打包，也不导出镜像 tar；Docker 构建上下文排除设计图、验收目录和本地演示数据。
 仅镜像版本不支持原生二进制下载升级，安装脚本不会获得对应包；此类用户应保留原版或等待明确启用下载包的新版本。GitHub 自动生成源码归档不属于重复构建产物。
-当前直接基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；
-原始基线是 looplj 的 v1.0.0-beta10，对应 939b2bc0。
+当前原始基线是 looplj 的 v1.0.0-beta12，对应 2b1a0f93；
+历史继承 fork 基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；beta10 原始基线为 939b2bc0。
 
-自己的版本采用 <直接上游 tag>.syh.N：
+beta12 之后自己的版本采用 <原始上游 tag>-fork.N：
 
 | 场景 | 版本示例 |
 | --- | --- |
-| 当前代码首次独立发布 | v1.0.0-beta10-fork.7.syh.1 |
-| 同一直接基线继续二开 | v1.0.0-beta10-fork.7.syh.2 |
-| 合入 ChouUn 的 fork.8 后首次发布 | v1.0.0-beta10-fork.8.syh.1 |
-| 直接上游以后基于 beta11 发布 fork.1 | v1.0.0-beta11-fork.1.syh.1 |
+| 当前代码首次独立发布 | v1.0.0-beta12-fork.1 |
+| 同一直接基线继续二开 | v1.0.0-beta12-fork.2 |
+| 合入 ChouUn 的 fork.8 后首次发布 | v1.0.0-beta12-fork.3 |
+| 直接上游以后基于 beta11 发布 fork.1 | v1.0.0-beta12-fork.4 |
 
-后两行是规则示例，不表示这些上游版本已经存在。不自行递增 ChouUn 的 fork.N，
-也不把自己的版本命名成他的版本。换直接基线后从 syh.1 开始；同一基线内严格递增，
-不得覆盖或移动已发布 tag。发布工作流只接收带 .syh.N 的 tag。
+历史 `.syh.N` 仍可读取和追溯，但不再新增。原始上游变更后从 fork.1 开始递增，
+同一原始基线内严格递增，不得覆盖或移动已发布 tag。发布工作流只接收带 `-fork.N` 的 tag。
 
 xversion.Parse 供升级检查和数据迁移共同使用，保证下列顺序：
 
-    beta10-fork.7 < beta10-fork.7.syh.9 < beta10-fork.7.syh.10
-    < beta10-fork.8 < beta10-fork.8.syh.1 < beta11-fork.1.syh.1
+    beta12 < beta12-fork.1 < beta12-fork.2 < beta13 < beta13-fork.1
 
 以上省略共同的 v1.0.0- 前缀。不要改成会越过未来上游迁移的独立大版本。
-新增自己的数据迁移使用其首次发布的完整 syh 版本；保持所有已发布迁移不可变，
+新增自己的数据迁移使用其首次发布的完整 `-fork.N` 版本；保持所有已发布迁移不可变，
 同时核对直接上游和原始上游新增迁移。程序当前用整体系统版本判断数据迁移执行，
 因此新迁移必须晚于已部署版本，不能在旧版本号下补迁移。
 
@@ -114,8 +112,8 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 
 先更新本次发布说明并推送维护分支，等待该提交的 Test 成功，再创建 tag。发布流程按完整提交号、维护分支和 push 事件读取最新测试记录；缺失、未完成或失败时停止发布，不自动重跑。以下是首次发布示例，不是自动执行指令：
 
-    git tag -a v1.0.0-beta10-fork.7.syh.1 -m "release: v1.0.0-beta10-fork.7.syh.1"
-    git push origin v1.0.0-beta10-fork.7.syh.1
+    git tag -a v1.0.0-beta12-fork.1 -m "release: v1.0.0-beta12-fork.1"
+    git push origin v1.0.0-beta12-fork.1
 
 工作流顺序：
 
@@ -160,7 +158,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 
 少量改动需要提前部署时，在维护分支的 Actions 中手动运行“按需构建快照镜像”
 （`.github/workflows/snapshot.yml`）。输入完整 40 位源码提交号 `commit` 和已公开的
-正式基线 `base_version`，例如 `v1.0.0-beta10-fork.7.syh.10`。
+正式基线 `base_version`，例如 `v1.0.0-beta12-fork.10`。
 不创建 Git tag、Release 或新的 `.syh.N` 编号，也不自动部署生产机。
 手动入口要求工作流存在于 GitHub 默认分支；本仓库默认分支为 `release/v1.0.x`。
 

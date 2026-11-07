@@ -261,7 +261,7 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 		return httpResp, nil
 	}
 
-	err := state.RequestService.UpdateRequestCompleted(persistCtx, state.Request.ID, llmResp.ID, respBody, metrics)
+	err := state.RequestService.UpdateRequestFinalized(persistCtx, state.Request.ID, request.StatusCompleted, llmResp.ID, respBody, metrics)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to update request status to completed", log.Cause(err))
 	}

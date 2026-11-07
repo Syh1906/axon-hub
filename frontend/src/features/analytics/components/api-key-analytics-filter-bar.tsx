@@ -3,11 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { AnalyticsFacetedFilter } from './analytics-faceted-filter';
-import { DateRangePicker, formatDate } from './analytics-filter-bar';
-import {
-  getAnalyticsQuickDateRange,
-  type AnalyticsQuickRange,
-} from '../utils/date-range';
+import { DateRangePicker, formatDate } from './analytics-calendar-range';
+import { getAnalyticsQuickDateRange, type AnalyticsQuickRange } from '../utils/date-range';
 import type { AnalyticsAPIKeyTemplate } from '../data/analytics';
 
 export interface AnalyticsDetailFilterOption {

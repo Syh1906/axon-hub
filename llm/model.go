@@ -23,6 +23,10 @@ var (
 	// terminal event. Pipelines may retry it only before meaningful output is
 	// committed to the caller.
 	ErrStreamIncomplete = errors.New("stream ended without terminal event")
+
+	// ErrEmptyResponse means a streaming response completed without meaningful
+	// content. Pipelines may retry it before content is committed.
+	ErrEmptyResponse = errors.New("empty response detected")
 )
 
 // Request is the unified llm request model for AxonHub, to keep compatibility with major app and framework.
@@ -242,6 +246,9 @@ type Request struct {
 	// Rerank is the rerank request, will be set if the request is rerank request.
 	Rerank *RerankRequest `json:"rerank,omitempty"`
 
+	// SystemOne is the System One request, will be set if the request is System One request.
+	SystemOne *SystemOneRequest `json:"systemone,omitempty"`
+
 	// Image is the image request, will be set if the request is image request.
 	Image *ImageRequest `json:"image,omitempty"`
 
@@ -268,6 +275,9 @@ type Request struct {
 
 	// AlphaSearch is the raw Codex/CPA /v1/alpha/search request payload.
 	AlphaSearch *AlphaSearchRequest `json:"alpha_search_request,omitempty"`
+
+	// Decisions is the raw OpenAI /v1/decisions request payload.
+	Decisions *DecisionsRequest `json:"decisions_request,omitempty"`
 
 	// RawRequest is the raw request from the client.
 	RawRequest *httpclient.Request `json:"raw_request,omitempty"`
@@ -676,6 +686,13 @@ type ResponseFormat struct {
 //   - Video: VideoResponse for video generation responses
 //   - Compact: CompactResponse for compact responses
 //   - Completion: CompletionResponse for legacy completion responses
+type StreamCompletionEvidence string
+
+const (
+	StreamCompletionEvidenceNone          StreamCompletionEvidence = ""
+	StreamCompletionEvidenceOpenAIChatEOF StreamCompletionEvidence = "openai_chat_clean_eof"
+)
+
 type Response struct {
 	ID string `json:"id"`
 
@@ -720,6 +737,9 @@ type Response struct {
 	// Rerank is the rerank response, will present if the request is rerank request.
 	Rerank *RerankResponse `json:"rerank,omitempty"`
 
+	// SystemOne is the System One response, will present if the request is System One request.
+	SystemOne *SystemOneResponse `json:"systemone,omitempty"`
+
 	// Image is the image response, will present if the request is image request.
 	Image *ImageResponse `json:"image,omitempty"`
 
@@ -754,6 +774,9 @@ type Response struct {
 	// AlphaSearch is the raw Codex/CPA /v1/alpha/search response payload.
 	AlphaSearch *AlphaSearchResponse `json:"alpha_search_response,omitempty"`
 
+	// Decisions is the raw OpenAI /v1/decisions response payload.
+	Decisions *DecisionsResponse `json:"decisions_response,omitempty"`
+
 	// RequestType is the outbound request type from the llm service.
 	// e.g. the request from the chat/completions endpoint is in the chat type.
 	// if it is embedding request, it will be embedding.
@@ -766,7 +789,8 @@ type Response struct {
 
 	// TransformerMetadata stores metadata from transformers that process the response.
 	// This field is ignored when serializing to JSON and is only used internally by transformers.
-	TransformerMetadata map[string]any `json:"transformer_metadata,omitempty"`
+	TransformerMetadata      map[string]any           `json:"transformer_metadata,omitempty"`
+	StreamCompletionEvidence StreamCompletionEvidence `json:"-"`
 }
 
 // Choice represents a choice in the response.
@@ -812,11 +836,42 @@ type TopLogprob struct {
 	Bytes   []int   `json:"bytes,omitempty"`
 }
 
+type AccountingEvidence string
+
+const (
+	AccountingEvidenceUnavailable       AccountingEvidence = "unavailable"
+	AccountingEvidenceExplicitFinal     AccountingEvidence = "explicit-final"
+	AccountingEvidenceCleanEndCandidate AccountingEvidence = "clean-end-candidate"
+)
+
+type SourceEndReason string
+
+const (
+	SourceEndUnknown  SourceEndReason = "unknown"
+	SourceEndCleanEOF SourceEndReason = "clean-eof"
+	SourceEndSemantic SourceEndReason = "semantic"
+	SourceEndError    SourceEndReason = "error"
+	SourceEndCanceled SourceEndReason = "canceled"
+	SourceEndBudget   SourceEndReason = "budget"
+)
+
+func (m ResponseMeta) AccountingFinal(sourceEnd SourceEndReason) bool {
+	switch m.AccountingEvidence {
+	case AccountingEvidenceExplicitFinal:
+		return true
+	case AccountingEvidenceCleanEndCandidate:
+		return sourceEnd == SourceEndCleanEOF || sourceEnd == SourceEndSemantic
+	default:
+		return false
+	}
+}
+
 type ResponseMeta struct {
-	ID        string `json:"id"`
-	Usage     *Usage `json:"usage"`
-	Completed bool   `json:"completed,omitempty"`
-	Status    string `json:"status,omitempty"`
+	ID                 string             `json:"id"`
+	Usage              *Usage             `json:"usage"`
+	Completed          bool               `json:"completed,omitempty"`
+	AccountingEvidence AccountingEvidence `json:"-"`
+	Status             string             `json:"status,omitempty"`
 }
 
 // Usage Represents the total token usage per request to OpenAI.
@@ -865,6 +920,28 @@ func (u *Usage) GetPromptTokens() *int64 {
 	return &u.PromptTokens
 }
 
+// HasRealCounts reports whether the usage object carries actual token counts
+// rather than being an all-zero placeholder.
+//
+// Some OpenAI-compatible providers stream a zeroed usage object on every chunk
+// and report the real counts only in the trailing usage-only chunk. Others put
+// the real counts on the finish_reason chunk and never send a usage-only chunk.
+// Callers that decide "the stream is complete" from a usage object can use this
+// to tell the two apart without keying on the shape of `choices`.
+//
+// The question answered here is "did upstream report anything?", not "are all
+// fields final?". A response that was filtered or produced no output
+// legitimately reports a zero completion total, so requiring a positive count
+// on both fields would delay the terminal event until the stream drains — the
+// very symptom this guard exists to prevent.
+func (u *Usage) HasRealCounts() bool {
+	if u == nil {
+		return false
+	}
+
+	return u.PromptTokens > 0 || u.CompletionTokens > 0
+}
+
 // CompletionTokensDetails Breakdown of tokens used in a completion.
 type CompletionTokensDetails struct {
 	AudioTokens              int64 `json:"audio_tokens"`
@@ -905,8 +982,9 @@ type CachedTokensDetails struct {
 
 // ResponseError represents an error response.
 type ResponseError struct {
-	StatusCode int         `json:"-"`
-	Detail     ErrorDetail `json:"error"`
+	StatusCode         int         `json:"-"`
+	Detail             ErrorDetail `json:"error"`
+	SuppressStatusText bool        `json:"-"`
 
 	// Cause keeps the underlying error (for example a transport failure) so callers
 	// can still match it with errors.Is / errors.As after classification.
@@ -919,13 +997,16 @@ type ResponseError struct {
 }
 
 // Unwrap exposes the underlying cause, if any.
-func (e ResponseError) Unwrap() error {
+func (e *ResponseError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.Cause
 }
 
 func (e ResponseError) Error() string {
 	sb := strings.Builder{}
-	if e.StatusCode != 0 {
+	if e.StatusCode != 0 && !e.SuppressStatusText {
 		fmt.Fprintf(&sb, "Request failed: %s, ", http.StatusText(e.StatusCode))
 	}
 

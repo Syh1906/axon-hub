@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -31,7 +32,9 @@ func (t *OutboundTransformer) TransformStream(
 	req *httpclient.Request,
 	stream streams.Stream[*httpclient.StreamEvent],
 ) (streams.Stream[*llm.Response], error) {
-	return streams.NoNil(newResponsesOutboundStream(stream)), nil
+	return streams.MapErr(streams.NoNil(newResponsesOutboundStream(stream)), func(resp *llm.Response) (*llm.Response, error) {
+		return mapResponseFunctionNames(resp, true), nil
+	}), nil
 }
 
 // responsesOutboundStream wraps a stream and maintains state during processing.
@@ -48,6 +51,7 @@ type responsesOutboundStream struct {
 	// provider `[DONE]` marker is valid only after this becomes true.
 	responseCompleted bool
 	doneEmitted       bool
+	contentCommitted  bool
 }
 
 // outboundStreamState holds the state for a streaming session.
@@ -73,6 +77,7 @@ type outboundStreamState struct {
 	// Transformer metadata tracking
 	transformerMetadata        map[string]any
 	transformerMetadataEmitted bool
+	responseHeaders            http.Header
 }
 
 func newResponsesOutboundStream(stream streams.Stream[*httpclient.StreamEvent]) *responsesOutboundStream {
@@ -89,7 +94,37 @@ func newResponsesOutboundStream(stream streams.Stream[*httpclient.StreamEvent]) 
 }
 
 func (s *responsesOutboundStream) enqueue(resp *llm.Response) {
+	if responseHasMeaningfulContent(resp) {
+		s.contentCommitted = true
+	}
 	s.eventQueue = append(s.eventQueue, resp)
+}
+
+func responseHasMeaningfulContent(resp *llm.Response) bool {
+	if resp == nil {
+		return false
+	}
+
+	for _, choice := range resp.Choices {
+		if choice.Delta == nil {
+			continue
+		}
+
+		message := choice.Delta
+		if message.Content.Content != nil && *message.Content.Content != "" {
+			return true
+		}
+		if len(message.Content.MultipleContent) > 0 || len(message.ToolCalls) > 0 || message.Refusal != "" {
+			return true
+		}
+		if (message.ReasoningContent != nil && *message.ReasoningContent != "") ||
+			(message.Reasoning != nil && *message.Reasoning != "") ||
+			(message.ReasoningSignature != nil && *message.ReasoningSignature != "") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *responsesOutboundStream) Next() bool {
@@ -102,16 +137,24 @@ func (s *responsesOutboundStream) Next() bool {
 	s.eventQueue = nil
 	s.queueIndex = 0
 
+	// The terminal event contains the final outcome and any usage. Once its
+	// queued chunks are drained, finish without reading a later transport error.
+	if s.responseCompleted {
+		if !s.doneEmitted {
+			s.doneEmitted = true
+			s.enqueue(llm.DoneResponse)
+			return true
+		}
+		return false
+	}
+	if s.err != nil {
+		return false
+	}
+
 	// Try to get the next chunk from source
 	if !s.stream.Next() {
 		if s.err == nil && s.stream.Err() == nil {
-			if !s.responseCompleted {
-				s.err = ErrStreamIncomplete
-			} else if !s.doneEmitted {
-				s.doneEmitted = true
-				s.enqueue(llm.DoneResponse)
-				return true
-			}
+			s.err = ErrStreamIncomplete
 		}
 		return false
 	}
@@ -121,7 +164,7 @@ func (s *responsesOutboundStream) Next() bool {
 	err := s.transformStreamChunk(event)
 	if err != nil {
 		s.err = err
-		return false
+		return s.Next()
 	}
 
 	// Continue to the next event if no events were enqueued
@@ -133,7 +176,13 @@ func (s *responsesOutboundStream) Next() bool {
 //
 //nolint:maintidx,gocognit // It is complex and hard to split.
 func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamEvent) error {
-	if event == nil || len(event.Data) == 0 {
+	if event == nil {
+		return nil
+	}
+	if len(event.Headers) > 0 {
+		s.state.responseHeaders = event.Headers.Clone()
+	}
+	if len(event.Data) == 0 {
 		return nil
 	}
 
@@ -152,6 +201,9 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal responses api stream event: %w", err)
 	}
+	if streamEvent.Type == "" && event.Type == string(StreamEventTypeResponseMetadata) {
+		streamEvent.Type = StreamEventTypeResponseMetadata
+	}
 
 	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 		slog.DebugContext(context.Background(), "received response stream event", slog.Any("event", streamEvent))
@@ -164,6 +216,41 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		Model:              s.state.responseModel,
 		Created:            s.state.created,
 		PreviousResponseID: s.state.previousResponseID,
+	}
+	if len(s.state.responseHeaders) > 0 {
+		resp.TransformerMetadata = map[string]any{
+			responseHeadersTransformerMetadataKey: s.state.responseHeaders.Clone(),
+		}
+	}
+
+	if streamEvent.Type == StreamEventTypeResponseMetadata {
+		if resp.TransformerMetadata == nil {
+			resp.TransformerMetadata = make(map[string]any)
+		}
+		resp.TransformerMetadata[responseMetadataTransformerMetadataKey] = json.RawMessage(append([]byte(nil), event.Data...))
+		s.enqueue(resp)
+		return nil
+	}
+
+	// A terminal snapshot may be the first place final sources appear, even
+	// when the answer is truncated, cancelled, or fails after emitting content.
+	switch streamEvent.Type {
+	case StreamEventTypeResponseCompleted, StreamEventTypeResponseIncomplete,
+		StreamEventTypeResponseFailed, StreamEventTypeResponseCancelled:
+		if !s.responseCompleted {
+			if streamEvent.Response != nil {
+				for _, item := range streamEvent.Response.Output {
+					if item.Type == "web_search_call" {
+						appendResponseWebSearchCallMetadata(s.state.transformerMetadata, item)
+						s.state.transformerMetadataEmitted = false
+					}
+				}
+			}
+			if len(s.state.transformerMetadata) > 0 && !s.state.transformerMetadataEmitted {
+				resp.TransformerMetadata = s.state.transformerMetadata
+				s.state.transformerMetadataEmitted = true
+			}
+		}
 	}
 
 	if (streamEvent.Type == StreamEventTypeResponseCompleted || streamEvent.Type == "response.done" || streamEvent.Type == StreamEventTypeResponseFailed || streamEvent.Type == StreamEventTypeResponseIncomplete || streamEvent.Type == StreamEventTypeResponseCancelled) && streamEvent.Response != nil && streamEvent.Response.ServiceTier != nil {
@@ -232,6 +319,10 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			// final blob replaces the provisional one instead of being concatenated.
 			s.state.pendingReasoningEncryptedContent[item.ID] = shared.EncodeOpenAIEncryptedContent(item.EncryptedContent)
 			return nil
+
+		case "web_search_call":
+			appendResponseWebSearchCallMetadata(s.state.transformerMetadata, *item)
+			resp.TransformerMetadata = map[string]any{responsesWebSearchCallsTransformerMetadataKey: s.state.transformerMetadata[responsesWebSearchCallsTransformerMetadataKey]}
 
 		case "function_call":
 			// Initialize tool call tracking
@@ -356,15 +447,15 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			return nil // Intentionally skip an unknown tool call.
 		}
 
-		identityChanged := false
-		if streamEvent.Name != "" && streamEvent.Name != tc.Function.Name {
+		nameChanged := streamEvent.Name != "" && streamEvent.Name != tc.Function.Name
+		if nameChanged {
 			tc.Function.Name = streamEvent.Name
-			identityChanged = true
 		}
-		if streamEvent.Namespace != "" && streamEvent.Namespace != tc.Function.Namespace {
+		namespaceChanged := streamEvent.Namespace != "" && streamEvent.Namespace != tc.Function.Namespace
+		if namespaceChanged {
 			tc.Function.Namespace = streamEvent.Namespace
-			identityChanged = true
 		}
+		identityChanged := nameChanged || namespaceChanged
 
 		delta, err := s.finalToolInputDelta(callID, streamEvent.Arguments)
 		if err != nil {
@@ -372,6 +463,13 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		}
 		if delta.Function.Arguments == "" && !identityChanged {
 			return nil
+		}
+		delta.ID, delta.Type = "", ""
+		if !nameChanged {
+			delta.Function.Name = ""
+		}
+		if !identityChanged {
+			delta.Function.Namespace = ""
 		}
 		resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
 
@@ -409,24 +507,22 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		}
 
 	case StreamEventTypeCustomToolCallInputDone:
-		if streamEvent.ItemID != nil {
-			callID, ok := s.state.itemToCallID[*streamEvent.ItemID]
-			if !ok {
-				callID = *streamEvent.ItemID
-			}
-
-			delta, err := s.finalToolInputDelta(callID, streamEvent.Input)
-			if err != nil {
-				return err
-			}
-			if delta == nil || delta.ResponseCustomToolCall == nil || delta.ResponseCustomToolCall.Input == "" {
-				return nil
-			}
-			resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
-			break
+		if streamEvent.ItemID == nil {
+			return nil // Intentionally skip an unassociated final input.
 		}
 
-		return nil // Intentionally skip this event
+		callID, ok := s.state.itemToCallID[*streamEvent.ItemID]
+		if !ok {
+			callID = *streamEvent.ItemID
+		}
+
+		emitted, err := s.reconcileCustomToolCallInput(resp, callID, streamEvent.Input)
+		if err != nil {
+			return err
+		}
+		if !emitted {
+			return nil
+		}
 
 	case StreamEventTypeContentPartAdded:
 		// Content part added - skip, no meaningful content to emit
@@ -553,7 +649,8 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		}
 		if streamEvent.Item.Type == "web_search_call" {
 			appendResponseWebSearchCallMetadata(s.state.transformerMetadata, *streamEvent.Item)
-			return nil // Intentionally skip this event
+			resp.TransformerMetadata = map[string]any{responsesWebSearchCallsTransformerMetadataKey: s.state.transformerMetadata[responsesWebSearchCallsTransformerMetadataKey]}
+			break
 		}
 		if streamEvent.Item.Type == "reasoning" {
 			if streamEvent.Item.ID == "" {
@@ -617,15 +714,17 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		if s.responseCompleted {
 			return nil
 		}
+		if streamEvent.Type == StreamEventTypeResponseFailed && !s.contentCommitted && streamEvent.Response != nil && streamEvent.Response.Error != nil && streamEvent.Response.Error.Code != "" {
+			if streamEvent.Response.Usage != nil {
+				s.enqueue(&llm.Response{Object: "chat.completion.chunk", ID: s.state.responseID, Model: s.state.responseModel, Created: s.state.created, Choices: []llm.Choice{}, Usage: streamEvent.Response.Usage.ToUsage()})
+			}
+			return responseFailedError(streamEvent)
+		}
 		// Response completed - emit two events: one with finish_reason, one with usage
 		s.responseCompleted = true
 		if streamEvent.Response != nil {
 			s.state.previousResponseID = streamEvent.Response.PreviousResponseID
 			resp.PreviousResponseID = s.state.previousResponseID
-		}
-		if len(s.state.transformerMetadata) > 0 && !s.state.transformerMetadataEmitted {
-			resp.TransformerMetadata = s.state.transformerMetadata
-			s.state.transformerMetadataEmitted = true
 		}
 
 		// Providers can send a dedicated terminal event or attach the outcome to
@@ -672,25 +771,6 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			},
 		}
 
-		// Second event: usage (if available)
-		if streamEvent.Response != nil && streamEvent.Response.Usage != nil {
-			s.state.usage = streamEvent.Response.Usage.ToUsage()
-			usageResp := &llm.Response{
-				Object:             "chat.completion.chunk",
-				ID:                 s.state.responseID,
-				Model:              s.state.responseModel,
-				Created:            s.state.created,
-				PreviousResponseID: s.state.previousResponseID,
-				Choices:            []llm.Choice{},
-				Usage:              s.state.usage,
-				ServiceTier:        resp.ServiceTier,
-			}
-
-			s.enqueue(resp)
-			s.enqueue(usageResp)
-
-			return nil
-		}
 
 	case StreamEventTypeError:
 		detail := llm.ErrorDetail{
@@ -756,9 +836,74 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 		return nil // Intentionally skip this event
 	}
 
+	if s.responseCompleted && streamEvent.Response != nil &&
+		(streamEvent.Response.Error != nil || streamEvent.Response.IncompleteDetails != nil) {
+		if resp.TransformerMetadata == nil {
+			resp.TransformerMetadata = make(map[string]any)
+		}
+		resp.TransformerMetadata[responsesTerminalDetailsTransformerMetadataKey] = responsesTerminalDetails{
+			Error:             streamEvent.Response.Error,
+			IncompleteDetails: streamEvent.Response.IncompleteDetails,
+		}
+	}
+
 	s.enqueue(resp)
 
+	// Preserve usage on every terminal outcome, after its finish_reason chunk.
+	if s.responseCompleted && streamEvent.Response != nil && streamEvent.Response.Usage != nil {
+		s.state.usage = streamEvent.Response.Usage.ToUsage()
+		s.enqueue(&llm.Response{
+			Object:             "chat.completion.chunk",
+			ID:                 s.state.responseID,
+			Model:              s.state.responseModel,
+			Created:            s.state.created,
+			PreviousResponseID: s.state.previousResponseID,
+			Choices:            []llm.Choice{},
+			Usage:              s.state.usage,
+ServiceTier: resp.ServiceTier,
+		})
+	}
+
 	return nil
+}
+
+func responseFailedError(streamEvent StreamEvent) *llm.ResponseError {
+	detail := llm.ErrorDetail{}
+	if streamEvent.Response != nil && streamEvent.Response.Error != nil {
+		detail = llm.ErrorDetail{
+			Code:    streamEvent.Response.Error.Code,
+			Message: streamEvent.Response.Error.Message,
+			Type:    streamEvent.Response.Error.Type,
+			Param:   streamEvent.Response.Error.Param,
+		}
+	}
+
+	return &llm.ResponseError{
+		StatusCode:         failedResponseStatus(streamEvent.Status),
+		Detail:             detail,
+		SuppressStatusText: true,
+		Cause:              llm.ErrEmptyResponse,
+	}
+}
+
+func failedResponseStatus(status int) int {
+	if status >= http.StatusBadRequest && status < 600 {
+		return status
+	}
+
+	return http.StatusBadGateway
+}
+
+func (s *responsesOutboundStream) reconcileCustomToolCallInput(resp *llm.Response, callID, finalInput string) (bool, error) {
+	delta, err := s.finalToolInputDelta(callID, finalInput)
+	if err != nil {
+		return false, err
+	}
+	if delta == nil || delta.ResponseCustomToolCall == nil || delta.ResponseCustomToolCall.Input == "" {
+		return false, nil
+	}
+	resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
+	return true, nil
 }
 
 func equalJSONValues(left, right string) bool {
@@ -852,6 +997,10 @@ func (s *responsesOutboundStream) Current() *llm.Response {
 func (s *responsesOutboundStream) Err() error {
 	if s.err != nil {
 		return s.err
+	}
+
+	if s.responseCompleted {
+		return nil
 	}
 
 	return s.stream.Err()

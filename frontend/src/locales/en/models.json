@@ -357,5 +357,9 @@
   "models.codex.apply": "Apply confirmed definition",
   "models.codex.clear": "Clear override and restore automatic discovery",
   "models.codex.invalid": "Enter a complete definition or inherited override JSON object.",
-  "models.codex.importFailed": "Preview failed. Check channel metadata or official release snapshots."
+  "models.codex.importFailed": "Preview failed. Check channel metadata or official release snapshots.",
+  "models.dialogs.association.conditions.fields.reasoning_effort": "Reasoning effort",
+  "models.dialogs.association.conditions.placeholders.reasoning_effort": "e.g. high, xhigh, max",
+  "models.dialogs.association.conditions.formatOptions.openai/decisions": "OpenAI (Decisions)",
+  "models.modelCard.reasoningEfforts": "Thinking Levels"
 }

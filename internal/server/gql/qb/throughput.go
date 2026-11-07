@@ -31,6 +31,15 @@ const (
 
 	// ThroughputModeMaxID uses MAX(id) subquery approach for older SQLite compatibility.
 	ThroughputModeMaxID
+
+	// ThroughputModeDistinctOn uses PostgreSQL's DISTINCT ON (request_id) clause
+	// to select one latest successful execution per request, ordered exactly by
+	// request_id, created_at DESC, id DESC.
+	//
+	// PostgreSQL-only: when this mode is requested with a non-PostgreSQL dialect
+	// (question-mark placeholders in BuildThroughputQuery; mysql/sqlite dialects
+	// in the daily builders), the builder falls back to the ROW_NUMBER behavior.
+	ThroughputModeDistinctOn
 )
 
 // QueryFragmentConfig holds the SQL fragments for a specific query type.
@@ -50,8 +59,8 @@ var AllowedQueryConfigs = map[ThroughputQueryType]QueryFragmentConfig{
 		GroupBy:       "se.channel_id, c.name, c.type",
 	},
 	ThroughputQueryByModel: {
-		SelectColumns: "r.model_id,\n    m.name as model_name,",
-		JoinClause:    "JOIN requests r ON se.request_id = r.id\nJOIN models m ON r.model_id = m.model_id",
+		SelectColumns: "r.model_id,\n    COALESCE(m.name, r.model_id) as model_name,",
+		JoinClause:    "JOIN requests r ON se.request_id = r.id\nLEFT JOIN models m ON r.model_id = m.model_id",
 		GroupBy:       "r.model_id, m.name",
 	},
 }
@@ -73,7 +82,9 @@ var AllowedQueryConfigs = map[ThroughputQueryType]QueryFragmentConfig{
 //   - useDollarPlaceholders: if true, uses $1, $2, etc. for PostgreSQL; otherwise uses ?
 //   - queryType: determines which SQL pattern (by channel or by model)
 //   - limit: maximum number of results to return
-//   - mode: which SQL pattern to use (ROW_NUMBER or MAX_ID)
+//   - mode: which SQL pattern to use (ROW_NUMBER, MAX_ID, or DISTINCT ON);
+//     ThroughputModeDistinctOn is PostgreSQL-only and falls back to ROW_NUMBER
+//     when useDollarPlaceholders is false
 //
 // Returns: SQL query string with placeholders for the since timestamp
 func BuildThroughputQuery(useDollarPlaceholders bool, queryType ThroughputQueryType, limit int, mode ThroughputQueryMode) string {
@@ -99,6 +110,12 @@ func BuildThroughputQuery(useDollarPlaceholders bool, queryType ThroughputQueryT
 		return buildMaxIDQuery(placeholder, config, limit)
 	}
 
+	// DISTINCT ON is PostgreSQL-only; dollar placeholders are the marker for
+	// PostgreSQL. Fall back to ROW_NUMBER for other dialects.
+	if mode == ThroughputModeDistinctOn && useDollarPlaceholders {
+		return buildDistinctOnQuery(placeholder, config, limit)
+	}
+
 	return buildRowNumberQuery(placeholder, config, limit)
 }
 
@@ -112,8 +129,9 @@ WITH successful_execs AS (
         channel_id,
         metrics_latency_ms,
         metrics_first_byte_latency_ms,
+        metrics_first_token_latency_ms,
         stream, format, status,
-        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY id DESC) as rn
+        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC, id DESC) as rn
     FROM request_executions
     WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
 )
@@ -160,6 +178,44 @@ WHERE se.status IN ('completed', 'failed', 'canceled')
             AND re2.metrics_latency_ms > 0
             AND re2.created_at >= ` + placeholder + `
     )
+GROUP BY ` + config.GroupBy + `
+HAVING COUNT(` + outputSpeedSQL("se", placeholder) + `) > 0
+ORDER BY throughput DESC
+LIMIT ` + fmt.Sprintf("%d", limit)
+}
+
+// buildDistinctOnQuery constructs a PostgreSQL query using DISTINCT ON
+// (request_id) to select one latest successful execution per request, with
+// exact ordering request_id, created_at DESC, id DESC. PostgreSQL requires the
+// DISTINCT ON expression to lead the ORDER BY of the select it appears in, so
+// the deduplication happens inside the CTE; the outer aggregation, grouping,
+// ordering, and limit are identical to the ROW_NUMBER mode. This deterministic
+// ordering (created_at DESC, id DESC) matches the ROW_NUMBER ordering so the
+// two modes select the same latest execution per request, while avoiding a
+// window function.
+func buildDistinctOnQuery(placeholder string, config QueryFragmentConfig, limit int) string {
+	return `
+WITH successful_execs AS (
+    SELECT DISTINCT ON (request_id)
+        id, request_id,
+        channel_id,
+        metrics_latency_ms,
+        metrics_first_byte_latency_ms,
+        metrics_first_token_latency_ms,
+        stream, format, status
+    FROM request_executions
+    WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
+    ORDER BY request_id, created_at DESC, id DESC
+)
+SELECT
+    ` + config.SelectColumns + `
+    SUM(ul.completion_tokens) as tokens_count,
+    SUM(se.metrics_latency_ms) as latency_ms,
+    COUNT(` + outputSpeedSQL("se", placeholder) + `) as request_count,
+    ` + throughputCalculationSQL("se", placeholder) + ` as throughput
+FROM successful_execs se
+` + throughputUsageJoin + `
+` + config.JoinClause + `
 GROUP BY ` + config.GroupBy + `
 HAVING COUNT(` + outputSpeedSQL("se", placeholder) + `) > 0
 ORDER BY throughput DESC

@@ -1,3 +1,8 @@
+import { AutoComplete } from '@/components/auto-complete';
+import { isSuggestedModel } from '../../models/data/model-suggestions';
+import { ApiKeyStrategyFields } from './channel-api-key-strategy';
+import type { ChannelQuotaRoutingMode } from '../data/schema';
+import { formatMaxSingleChannelRetries, recallQuotaRoutingMode } from '../utils/channel-dialog';
 'use client';
 
 import { memo, useEffect, useState } from 'react';
@@ -19,22 +24,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AutoCompleteSelect } from '@/components/auto-complete-select';
+
 import { SelectDropdown } from '@/components/select-dropdown';
 import { getDefaultBaseURL, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, ANTHROPIC_MESSAGES, GEMINI_CONTENTS } from '../data/config_channels';
 import { getProviderFromChannelType } from '../data/config_providers';
 import { useChannelActionDialog } from '../hooks/use-channel-action-dialog';
-import {
-  ApiFormatOption,
-  MAX_MODELS_DISPLAY,
-  Props,
-  alwaysOAuthProviderKeys,
-  formatRetryableErrorPatterns,
-  formatRetryableStatusCodes,
-  getInitialApiFormatForRow,
-  getResponsesTransportFromChannel,
-  getResponsesWebSocketBaseURL,
-} from '../utils/channel-dialog';
+import { ApiFormatOption, MAX_MODELS_DISPLAY, Props, alwaysOAuthProviderKeys, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getResponsesTransportFromChannel } from '../utils/channel-dialog';
 import { isValidModelPattern } from '../utils/pattern';
 import { ChannelAddressesEditor } from './channel-addresses-editor';
 import { ChannelEndpointEditor } from './channel-endpoint-editor';
@@ -116,6 +111,23 @@ SupportedModelItem.displayName = 'SupportedModelItem';
 
 export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpenChange, showModelsPanel = false }: Props) {
   const {
+    quotaRoutingSettings,
+    quotaRoutingMode,
+    setQuotaRoutingMode,
+    maxSingleChannelRetriesText,
+    setMaxSingleChannelRetriesText,
+    apiKeyStrategy,
+    setApiKeyStrategy,
+    apiKeyRoundRobinSwitchAfter,
+    setApiKeyRoundRobinSwitchAfter,
+    vertexApiKeyFields,
+    isGeminiVertex,
+    isOllamaType,
+    showOllamaAuthCookie,
+    setShowOllamaAuthCookie,
+    userAgentInheritLabel,
+    passThroughInheritLabel,
+    codexThirdPartyBaseURLRef,
     addModel,
     addSelectedDefaultModels,
     addSelectedFetchedModels,
@@ -349,8 +361,13 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             setProxyPassword(initialRow?.settings?.proxy?.password || '');
             setPassThroughUserAgent(initialRow?.settings?.passThroughUserAgent ?? null);
             setPassThroughBody(initialRow?.settings?.passThroughBody ?? null);
+            setQuotaRoutingMode(recallQuotaRoutingMode(initialRow?.settings));
             setRetryableStatusCodesText(formatRetryableStatusCodes(initialRow?.settings?.retryableStatusCodes));
             setRetryableErrorPatternsText(formatRetryableErrorPatterns(initialRow?.settings?.retryableErrorPatterns));
+            setMaxSingleChannelRetriesText(formatMaxSingleChannelRetries(initialRow?.settings?.maxSingleChannelRetries));
+            setApiKeyStrategy(initialRow?.settings?.apiKeyStrategy ?? 'sticky');
+            setApiKeyRoundRobinSwitchAfter(initialRow?.settings?.apiKeyRoundRobinSwitchAfter ?? 1);
+
             // Reset provider and API format state
             if (initialRow) {
               setSelectedProvider(getProviderFromChannelType(initialRow.type) || 'openai');
@@ -446,7 +463,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
                     {/* Right Side - Form Fields */}
                     <div className='relative flex-1 space-y-6 overflow-y-auto md:pr-4'>
-                      {selectedProvider !== 'jina' && selectedProvider !== 'codex' && selectedProvider !== 'claudecode' && (
+                      {selectedProvider !== 'jina' && selectedProvider !== 'codex' && selectedProvider !== 'claudecode' && selectedProvider !== 'typesafe' && (
                         <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
                           <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
                             {t('channels.dialogs.fields.apiFormat.label')}
@@ -739,16 +756,19 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 value={authMode}
                                 onValueChange={(value) => {
                                   const mode = value as 'official' | 'auth-json' | 'third-party';
+                                  // Codex official and auth.json always use the canonical HTTPS Base URL;
+                                  // returning to third-party restores the URL entered there.
+                                  if (isCodexType && authMode === 'third-party') {
+                                    codexThirdPartyBaseURLRef.current = form.getValues('baseURL') ?? '';
+                                  }
                                   setAuthMode(mode);
                                   if (mode !== 'third-party') {
-                                    const currentType = selectedType || derivedChannelType;
-                                    const defaultURL =
-                                      isCodexType && responsesTransport === 'websocket'
-                                        ? getResponsesWebSocketBaseURL('codex')
-                                        : getDefaultBaseURL(currentType);
+                                    const defaultURL = getDefaultBaseURL(selectedType || derivedChannelType);
                                     if (defaultURL) {
                                       form.setValue('baseURL', defaultURL);
                                     }
+                                  } else if (isCodexType && codexThirdPartyBaseURLRef.current) {
+                                    form.setValue('baseURL', codexThirdPartyBaseURLRef.current);
                                   }
                                 }}
                               >
@@ -768,8 +788,9 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                       onChange={(e) => setCodexAuthJSONText(e.target.value)}
                                       placeholder={t('channels.dialogs.codexAuthJson.placeholder')}
                                       className='min-h-[160px] resize-y font-mono text-xs'
+                                      data-testid='codex-auth-json-input'
                                     />
-                                    <Button type='button' variant='secondary' onClick={applyCodexAuthJSON}>
+                                    <Button type='button' variant='secondary' onClick={applyCodexAuthJSON} data-testid='codex-auth-json-apply'>
                                       {t('channels.dialogs.codexAuthJson.applyButton')}
                                     </Button>
                                     <p className='text-muted-foreground text-xs'>{t('channels.dialogs.codexAuthJson.description')}</p>
@@ -930,7 +951,110 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         </div>
                       </details>
 
-                      {(!(isCodexType || isClaudeCodeType || isCopilotType || isXAISubscriptionType) || authMode === 'third-party') &&
+                      {isGeminiVertex && (
+                        <FormField
+                          control={form.control}
+                          name='credentials.vertexApiKeys'
+                          render={({ field }) => {
+                            const credentials = field.value || [];
+                            return (
+                              <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
+                                <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
+                                  {t('channels.dialogs.fields.vertexApiKey.label')}
+                                </FormLabel>
+                                <div className='space-y-3 md:col-span-6'>
+                                  {credentials.map((_, index) => (
+                                    <div className='grid gap-3 rounded-md border p-3' key={vertexApiKeyFields.fields[index]?.id ?? index}>
+                                      <div className='grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-end'>
+                                        <FormField
+                                          control={form.control}
+                                          name={`credentials.vertexApiKeys.${index}.projectID`}
+                                          render={({ field: rowField }) => (
+                                            <FormItem className='grid gap-1.5'>
+                                              <FormLabel className='text-muted-foreground text-xs font-medium'>
+                                                {t('channels.dialogs.fields.vertexApiKey.projectIDLabel')}
+                                              </FormLabel>
+                                              <FormControl>
+                                                <Input
+                                                  value={rowField.value}
+                                                  onChange={(event) => rowField.onChange(event.target.value)}
+                                                  placeholder={t('channels.dialogs.fields.vertexApiKey.projectIDPlaceholder')}
+                                                />
+                                              </FormControl>
+                                              <FormMessage />
+                                            </FormItem>
+                                          )}
+                                        />
+                                        <FormField
+                                          control={form.control}
+                                          name={`credentials.vertexApiKeys.${index}.region`}
+                                          render={({ field: rowField }) => (
+                                            <FormItem className='grid gap-1.5'>
+                                              <FormLabel className='text-muted-foreground text-xs font-medium'>
+                                                {t('channels.dialogs.fields.vertexApiKey.regionLabel')}
+                                              </FormLabel>
+                                              <FormControl>
+                                                <Input
+                                                  value={rowField.value}
+                                                  onChange={(event) => rowField.onChange(event.target.value)}
+                                                  placeholder='global'
+                                                />
+                                              </FormControl>
+                                              <FormMessage />
+                                            </FormItem>
+                                          )}
+                                        />
+                                        <Button
+                                          type='button'
+                                          variant='ghost'
+                                          size='icon'
+                                          onClick={() => vertexApiKeyFields.remove(index)}
+                                          disabled={credentials.length <= 1}
+                                          aria-label={t('channels.dialogs.fields.vertexApiKey.remove')}
+                                        >
+                                          <Trash2 className='h-4 w-4' />
+                                        </Button>
+                                      </div>
+                                      <FormField
+                                        control={form.control}
+                                        name={`credentials.vertexApiKeys.${index}.apiKey`}
+                                        render={({ field: rowField }) => (
+                                          <FormItem className='grid gap-1.5'>
+                                            <FormLabel className='text-muted-foreground text-xs font-medium'>
+                                              {t('channels.dialogs.fields.vertexApiKey.apiKeyLabel')}
+                                            </FormLabel>
+                                            <FormControl>
+                                              <Input
+                                                type='password'
+                                                value={rowField.value}
+                                                onChange={(event) => rowField.onChange(event.target.value)}
+                                                placeholder={t('channels.dialogs.fields.vertexApiKey.apiKeyPlaceholder')}
+                                              />
+                                            </FormControl>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
+                                  ))}
+                                  <Button
+                                    type='button'
+                                    variant='secondary'
+                                    onClick={() => vertexApiKeyFields.append({ projectID: '', apiKey: '', region: 'global' })}
+                                  >
+                                    <Plus className='mr-2 h-4 w-4' />
+                                    {t('channels.dialogs.fields.vertexApiKey.add')}
+                                  </Button>
+                                  <FormDescription>{t('channels.dialogs.fields.vertexApiKey.description')}</FormDescription>
+                                  <FormMessage />
+                                </div>
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      )}
+
+                      {(!isGeminiVertex && (!(isCodexType || isClaudeCodeType || isCopilotType || isXAISubscriptionType) || authMode === 'third-party')) &&
                         selectedProvider !== 'antigravity' &&
                         selectedType !== 'anthropic_gcp' && (
                           <FormField
@@ -1053,6 +1177,13 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           />
                         )}
 
+<ApiKeyStrategyFields
+                        value={apiKeyStrategy}
+                        switchAfter={apiKeyRoundRobinSwitchAfter}
+                        onChange={(value) => setApiKeyStrategy(value)}
+                        onSwitchAfterChange={(value) => setApiKeyRoundRobinSwitchAfter(value)}
+                      />
+
                       {isZenmuxType && (
                         <FormField
                           control={form.control}
@@ -1123,6 +1254,81 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         />
                       )}
 
+                      {isOllamaType && (
+                        <FormField
+                          control={form.control}
+                          name='settings.providerQuota.ollama.authCookie'
+                          render={({ field, fieldState }) => (
+                            <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
+                              <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
+                                {t('channels.dialogs.fields.ollamaQuota.authCookie.label')}
+                              </FormLabel>
+                              <div className='space-y-1 md:col-span-6'>
+                                <div className='relative'>
+                                  <Input
+                                    type={showOllamaAuthCookie ? 'text' : 'password'}
+                                    value={field.value ?? ''}
+                                    onChange={field.onChange}
+                                    onBlur={field.onBlur}
+                                    placeholder={t('channels.dialogs.fields.ollamaQuota.authCookie.placeholder')}
+                                    autoComplete='new-password'
+                                    data-form-type='other'
+                                    spellCheck={false}
+                                    aria-invalid={!!fieldState.error}
+                                    data-testid='channel-ollama-auth-cookie-input'
+                                    className='pr-10 font-mono text-xs'
+                                  />
+                                  <Button
+                                    type='button'
+                                    variant='ghost'
+                                    size='sm'
+                                    className='absolute top-0 right-0 h-full px-3'
+                                    onClick={() => setShowOllamaAuthCookie((visible) => !visible)}
+                                  >
+                                    {showOllamaAuthCookie ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+                                  </Button>
+                                </div>
+                                <FormDescription className='text-xs'>
+                                  {t('channels.dialogs.fields.ollamaQuota.authCookie.description')}
+                                </FormDescription>
+                                <FormMessage />
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
+                        <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
+                          {t('channels.dialogs.fields.quotaRoutingMode.label')}
+                        </FormLabel>
+                        <div className='space-y-1 md:col-span-6'>
+                          <Select
+                            value={quotaRoutingMode}
+                            onValueChange={(value) => setQuotaRoutingMode(value as ChannelQuotaRoutingMode)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t('channels.dialogs.fields.quotaRoutingMode.options.INHERIT')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                               <SelectItem value='INHERIT'>
+                                 {quotaRoutingSettings?.defaultMode
+                                   ? t('channels.dialogs.fields.quotaRoutingMode.options.INHERIT_WITH_MODE', {
+                                       mode: t(`channels.dialogs.fields.quotaRoutingMode.options.${quotaRoutingSettings.defaultMode}`),
+                                     })
+                                   : t('channels.dialogs.fields.quotaRoutingMode.options.INHERIT')}
+                               </SelectItem>
+                              <SelectItem value='IGNORE_QUOTA'>{t('channels.dialogs.fields.quotaRoutingMode.options.IGNORE_QUOTA')}</SelectItem>
+                              <SelectItem value='REMOVE_ON_EXHAUSTED'>{t('channels.dialogs.fields.quotaRoutingMode.options.REMOVE_ON_EXHAUSTED')}</SelectItem>
+                              <SelectItem value='BACKPRESSURE'>{t('channels.dialogs.fields.quotaRoutingMode.options.BACKPRESSURE')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription className='text-xs'>
+                            {t(`channels.dialogs.fields.quotaRoutingMode.descriptions.${quotaRoutingMode}`)}
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+
                       <FormField
                         control={form.control}
                         name='policies.stream'
@@ -1157,10 +1363,13 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         <div className='space-y-2 md:col-span-6'>
                           <div className='flex gap-2'>
                             {useFetchedModels && fetchedModels.length > 20 ? (
-                              <AutoCompleteSelect
-                                items={fetchedModels.map((model) => ({ value: model, label: model }))}
+                              <AutoComplete
+                                items={fetchedModels.filter(isSuggestedModel).map((model) => ({ value: model, label: model }))}
                                 selectedValue={newModel}
                                 onSelectedValueChange={setNewModel}
+                                searchValue={newModel}
+                                onSearchValueChange={setNewModel}
+                                onKeyDown={handleKeyDown}
                                 placeholder={t('channels.dialogs.fields.supportedModels.description')}
                               />
                             ) : (
@@ -1425,7 +1634,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                               <SelectValue placeholder={t('channels.dialogs.userAgentPassThrough.inherit')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value='inherit'>{t('channels.dialogs.userAgentPassThrough.inherit')}</SelectItem>
+                              <SelectItem value='inherit'>{userAgentInheritLabel}</SelectItem>
                               <SelectItem value='enabled'>{t('channels.dialogs.userAgentPassThrough.enabled')}</SelectItem>
                               <SelectItem value='disabled'>{t('channels.dialogs.userAgentPassThrough.disabled')}</SelectItem>
                             </SelectContent>
@@ -1446,7 +1655,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                               <SelectValue placeholder={t('channels.dialogs.bodyPassThrough.inherit')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value='inherit'>{t('channels.dialogs.bodyPassThrough.inherit')}</SelectItem>
+                              <SelectItem value='inherit'>{passThroughInheritLabel}</SelectItem>
                               <SelectItem value='enabled'>{t('channels.dialogs.bodyPassThrough.enabled')}</SelectItem>
                               <SelectItem value='disabled'>{t('channels.dialogs.bodyPassThrough.disabled')}</SelectItem>
                             </SelectContent>
@@ -1504,6 +1713,36 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
 
                       <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
                         <div className='flex items-center gap-1.5 pt-2 md:col-span-2 md:justify-start'>
+                          <FormLabel className='font-medium whitespace-nowrap'>
+                            {t('channels.dialogs.maxSingleChannelRetries.label')}
+                          </FormLabel>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type='button'
+                                className='text-muted-foreground hover:text-foreground inline-flex items-center'
+                                aria-label={t('channels.dialogs.maxSingleChannelRetries.tooltip')}
+                              >
+                                <Info className='h-3.5 w-3.5' />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className='max-w-sm'>
+                              <p>{t('channels.dialogs.maxSingleChannelRetries.tooltip')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className='md:col-span-6'>
+                          <Input
+                            value={maxSingleChannelRetriesText}
+                            onChange={(event) => setMaxSingleChannelRetriesText(event.target.value)}
+                            placeholder={t('channels.dialogs.maxSingleChannelRetries.placeholder')}
+                            className='font-mono text-sm'
+                          />
+                        </div>
+                      </FormItem>
+
+                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
+                        <div className='flex items-center gap-1.5 pt-2 md:col-span-2 md:justify-start'>
                           <FormLabel className='font-medium'>{t('channels.dialogs.retryableStatusCodes.label')}</FormLabel>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1557,6 +1796,8 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           />
                         </div>
                       </FormItem>
+
+
 
                       <FormField
                         control={form.control}

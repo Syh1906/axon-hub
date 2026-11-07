@@ -150,6 +150,9 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesGeminiGroundingAn
 		chunks = append(chunks, result.ChatCompletionStream.Current())
 	}
 	require.NoError(t, result.ChatCompletionStream.Err())
+	if acknowledger, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+		acknowledger.AcknowledgeDelivery()
+	}
 	require.NoError(t, result.ChatCompletionStream.Close())
 	assert.NotEmpty(t, chunks)
 
@@ -215,6 +218,9 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesGeminiGroundingAn
 	for _, rawChunk := range persistedChunks {
 		err := json.Unmarshal(rawChunk, &persistedChunk)
 		require.NoError(t, err)
+		if string(persistedChunk.Data) == "[DONE]" {
+			continue
+		}
 
 		var streamResp openai.Response
 		err = json.Unmarshal(persistedChunk.Data, &streamResp)
@@ -319,6 +325,9 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesAnthropicCitation
 		chunks = append(chunks, result.ChatCompletionStream.Current())
 	}
 	require.NoError(t, result.ChatCompletionStream.Err())
+	if acknowledger, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+		acknowledger.AcknowledgeDelivery()
+	}
 	require.NoError(t, result.ChatCompletionStream.Close())
 
 	require.NotEmpty(t, chunks)
@@ -376,6 +385,9 @@ func TestChatCompletionOrchestrator_Process_Streaming_PreservesAnthropicCitation
 	for _, rawChunk := range persistedChunks {
 		err := json.Unmarshal(rawChunk, &persistedChunk)
 		require.NoError(t, err)
+		if string(persistedChunk.Data) == "[DONE]" {
+			continue
+		}
 
 		var streamResp openai.Response
 		err = json.Unmarshal(persistedChunk.Data, &streamResp)
@@ -679,6 +691,9 @@ func TestChatCompletionOrchestrator_Process_StreamingSuccess_NotMarkedAsError(t 
 	}
 
 	require.NoError(t, result.ChatCompletionStream.Err())
+	if acknowledger, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+		acknowledger.AcknowledgeDelivery()
+	}
 
 	err = result.ChatCompletionStream.Close()
 	require.NoError(t, err)

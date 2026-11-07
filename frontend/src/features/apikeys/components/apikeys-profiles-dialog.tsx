@@ -25,13 +25,7 @@ import { AutoComplete } from '@/components/auto-complete';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { useApiKeyQuotaUsages } from '../data/apikeys';
-import {
-  normalizeApiKeyProfileRoutingPolicy,
-  updateApiKeyProfilesInputSchemaFactory,
-  type ApiKeyProfile,
-  type ApiKeyProfileQuotaUsage,
-  type UpdateApiKeyProfilesInput,
-} from '../data/schema';
+import { normalizeApiKeyProfileRoutingPolicy, updateApiKeyProfilesInputSchemaFactory, type ApiKeyProfile, type ApiKeyProfileQuotaUsage, type UpdateApiKeyProfilesInput } from '../data/schema';
 import { ApiKeyLoadTemplatePopover } from './apikeys-load-template-popover';
 import { ApiKeySaveTemplateDialog } from './apikeys-save-template-dialog';
 
@@ -128,7 +122,7 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
     []
   );
 
-  const form = useForm<UpdateApiKeyProfilesInput>({
+  const form = useForm<any>({
     resolver: zodResolver(updateApiKeyProfilesInputSchemaFactory(t)),
     defaultValues,
   });
@@ -152,20 +146,21 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
   const normalizedSerialized = useMemo(() => JSON.stringify(normalizedInitialData), [normalizedInitialData]);
 
   const {
-    fields: profileFields,
+    fields: profileFieldsRaw,
     append: appendProfile,
     remove: removeProfile,
-  } = useFieldArray({
+  } = useFieldArray<any>({
     control: form.control,
     name: 'profiles',
   });
+  const profileFields: any[] = profileFieldsRaw as any[];
 
   // Watch profile names to update activeProfile dropdown options
-  const watchedProfiles = form.watch('profiles') || [];
-  const profileNames = watchedProfiles.map((profile) => profile.name || '');
+  const watchedProfiles: any[] = form.watch('profiles') || [];
+  const profileNames = watchedProfiles.map((profile: any) => profile.name || '');
 
   useEffect(() => {
-    const nonEmptyProfiles = watchedProfiles.filter((profile) => profile?.name?.trim());
+    const nonEmptyProfiles = watchedProfiles.filter((profile: any) => profile?.name?.trim());
     const currentActiveProfile = form.getValues('activeProfile') || '';
 
     if (nonEmptyProfiles.length === 0) {
@@ -315,6 +310,7 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
                     <ApiKeyLoadTemplatePopover
                       apiKeyID={apiKeyId}
                       projectID={selectedProjectId}
+                      portalContainer={dialogContent}
                       onLoadComplete={(loadedProfiles) => {
                         const resetData = {
                           activeProfile: loadedProfiles.activeProfile || loadedProfiles.profiles[0]?.name || '',
@@ -452,7 +448,7 @@ export function ApiKeyProfilesDialog({ open, onOpenChange, onSubmit, loading = f
 
 interface ProfileCardProps {
   profileIndex: number;
-  form: ReturnType<typeof useForm<UpdateApiKeyProfilesInput>>;
+  form: any;
   onRemove: () => void;
   canRemove: boolean;
   availableModels: string[];
@@ -1057,7 +1053,7 @@ function ProfileCard({
                 <FormItem>
                   <FormControl>
                     <TagsAutocompleteInput
-                      value={(field.value || []).map((id) => {
+                      value={(field.value || []).map((id: number) => {
                         const channel = channelsData?.edges?.find((edge) => parseInt(extractNumberID(edge.node.id), 10) === id);
                         return channel?.node.name || id.toString();
                       })}
@@ -1149,7 +1145,7 @@ function ProfileCard({
 interface MappingRowProps {
   profileIndex: number;
   mappingIndex: number;
-  form: ReturnType<typeof useForm<UpdateApiKeyProfilesInput>>;
+  form: any;
   onRemove: () => void;
   availableModels: string[];
   t: (key: string) => string;

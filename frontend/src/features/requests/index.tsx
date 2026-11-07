@@ -1,22 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import {
-  DEFAULT_END_TIME,
-  DEFAULT_START_TIME,
-  isSameTime,
-  normalizeDateTimeRangeValue,
-  type DateTimeRangeValue,
-  type TimeValue,
-} from '@/utils/date-range';
+import { DEFAULT_END_TIME, DEFAULT_START_TIME, isSameTime, normalizeDateTimeRangeValue, type DateTimeRangeValue, type TimeValue } from '@/utils/date-range';
 import { useAutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { useRequestPermissions } from '@/hooks/useRequestPermissions';
 import useInterval from '@/hooks/useInterval';
-import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
 import type { ConsumptionPeriod } from '@/features/consumption/data/consumption';
+import { PageHeader } from '@/components/layout/page-header';
 import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
@@ -465,14 +458,7 @@ export default function RequestsManagement() {
 
   return (
     <RequestsProvider>
-      <Header fixed>
-        <div className='flex flex-1 items-center justify-between'>
-          <div>
-            <h2 className='text-xl font-bold tracking-tight'>{t('requests.title')}</h2>
-            <p className='text-muted-foreground hidden text-sm sm:block'>{t('requests.description')}</p>
-          </div>
-        </div>
-      </Header>
+      <PageHeader title={t('requests.title')} description={t('requests.description')} />
 
       <Main fixed className='py-2 sm:py-6'>
         <RequestsContent />

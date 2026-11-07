@@ -274,7 +274,13 @@ func (s *VideoService) pollBudgetTask(ctx context.Context, task *objects.BudgetA
 	if err != nil {
 		return nil, err
 	}
-	outbound, ok := ch.Outbounds[task.Format].(transformer.VideoTaskOutbound)
+	out := ch.Outbounds[task.Format]
+// Published ZenMux tasks retain their submission protocol even after endpoint defaults change.
+if out == nil && task.Format == llm.APIFormatZenmuxVideo.String() && isZenmuxChannelType(ch.Type) {
+ out, err = s.ChannelService.buildNonDefaultEndpointOutbound(ch.Channel, ch, objects.ChannelEndpoint{APIFormat: task.Format})
+ if err != nil { return nil, err }
+}
+outbound, ok := out.(transformer.VideoTaskOutbound)
 	if !ok {
 		return nil, fmt.Errorf("channel cannot query saved video task format")
 	}

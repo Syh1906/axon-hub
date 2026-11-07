@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/samber/lo"
@@ -11,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/llm"
@@ -84,11 +86,13 @@ func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, m
 		return items, lo.ToPtr(totalCost), modelPrice.ReferenceID
 	}
 
+
 	return nil, nil, ""
 }
 
 // InjectUsageCost writes AxonHub-calculated cost onto usage when a matching
-// channel model price is cached. usage is left unchanged when it is nil.
+// channel model price is cached, falling back to the model library price when
+// the channel has no explicit price. usage is left unchanged when it is nil.
 // When no matching price is available, usage.Cost is set to nil.
 func (s *UsageLogService) InjectUsageCost(ctx context.Context, channelID int, modelID string, usage *llm.Usage, snapshots ...*objects.RequestCostSnapshot) {
 	if usage == nil {
@@ -264,6 +268,7 @@ func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request
 		return nil, nil
 	}
 
+	s.recordChatTokens(ctx, requestExec, usage)
 	params := CreateUsageLogParams{
 		CostSnapshot:  requestExec.CostSnapshot,
 		RequestID:     request.ID,
@@ -302,4 +307,29 @@ func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request
 		s.OnUsageLogCreated()
 	}
 	return result, nil
+}
+
+// recordChatTokens reports the token usage of a chat request to the metrics
+// registry. Channel name resolution is best-effort: it must never block usage
+// log creation.
+func (s *UsageLogService) recordChatTokens(ctx context.Context, requestExec *ent.RequestExecution, usage *llm.Usage) {
+	if !metrics.Enabled() || requestExec == nil || usage == nil || usage.TotalTokens <= 0 {
+		return
+	}
+
+	channelID := ""
+	channelName := ""
+
+	if requestExec.ChannelID != 0 {
+		channelID = strconv.Itoa(requestExec.ChannelID)
+
+		// The enabled-channel cache covers the common case without a database
+		// round trip; a missing entry (e.g. disabled or deleted channel) only
+		// degrades the label.
+		if channel := s.ChannelService.GetEnabledChannel(requestExec.ChannelID); channel != nil {
+			channelName = channel.Name
+		}
+	}
+
+	metrics.Metrics.RecordChatTokens(ctx, channelID, channelName, usage.TotalTokens)
 }

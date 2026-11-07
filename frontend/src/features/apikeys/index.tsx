@@ -7,8 +7,8 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Header } from '@/components/layout/header';
 import { Main } from '@/components/layout/main';
+import { PageHeader } from '@/components/layout/page-header';
 import { createColumns } from './components/apikeys-columns';
 import { ApiKeysDialogs } from './components/apikeys-dialogs';
 import { ApiKeysPrimaryButtons } from './components/apikeys-primary-buttons';
@@ -277,17 +277,9 @@ export default function ApiKeysManagement() {
 
   return (
     <ApiKeysProvider key={`${user?.id}:${project}`}>
-      <Header className='h-auto min-h-16 shrink-0'>
-        <div className='flex min-w-0 flex-1 flex-col items-start justify-between gap-3 sm:flex-row sm:items-center'>
-          <div>
-            <h2 className='text-xl font-bold tracking-tight'>{t('apikeys.title')}</h2>
-            <p className='text-muted-foreground text-sm'>{t('apikeys.description')}</p>
-          </div>
-          <ApiKeysPrimaryButtons />
-        </div>
-      </Header>
+      <PageHeader title={t('apikeys.title')} description={t('apikeys.description')} actions={<ApiKeysPrimaryButtons />} />
 
-      <Main fixed>
+      <Main fixed className='[--page-body-min-height:22rem]'>
         <ApiKeysContent />
       </Main>
       <ApiKeysDialogs />

@@ -112,15 +112,19 @@ type AnalyticsDimensionStat struct {
 	OutputTokens      int     `json:"outputTokens"`
 	TotalTokens       int     `json:"totalTokens"`
 	Cost              float64 `json:"cost"`
+	// Output token throughput in tokens per second, null when no valid latency metrics exist
+	TokensPerSecond *float64 `json:"tokensPerSecond,omitempty"`
+	// Average time to first token in milliseconds, null when no streaming request recorded a first token
+	TtftMs *float64 `json:"ttftMs,omitempty"`
 }
 
 // Filter input for analytics queries. All fields are optional and support multi-select.
 // When multiple dimensions are specified, they are combined with AND logic.
 type AnalyticsFilter struct {
-	// Start date (inclusive, YYYY-MM-DD, parsed in system timezone)
-	StartTime *string `json:"startTime,omitempty"`
-	// End date (inclusive, YYYY-MM-DD, parsed in system timezone)
-	EndTime *string `json:"endTime,omitempty"`
+	// Start of the range (inclusive), as an RFC3339 timestamp
+	StartTime *time.Time `json:"startTime,omitempty"`
+	// End of the range (inclusive), as an RFC3339 timestamp
+	EndTime *time.Time `json:"endTime,omitempty"`
 	// Filter by project IDs
 	ProjectIDs []*objects.GUID `json:"projectIDs,omitempty"`
 	// Filter by channel IDs
@@ -137,8 +141,8 @@ type AnalyticsFilter struct {
 
 // Metadata for the analytics page (independent of filters)
 type AnalyticsMetadata struct {
-	// Earliest usage log date (YYYY-MM-DD), null if no data
-	EarliestDate *string `json:"earliestDate,omitempty"`
+	// Timestamp of the earliest usage log, null if no data
+	EarliestTime *time.Time `json:"earliestTime,omitempty"`
 }
 
 // Channel attempt statistics within one model
@@ -242,6 +246,12 @@ type BulkImportChannelsInput struct {
 	Channels []*biz.BulkImportChannelItem `json:"channels"`
 }
 
+type BulkUpdateChannelAutoDisablePayload struct {
+	Success  bool           `json:"success"`
+	Updated  int            `json:"updated"`
+	Channels []*ent.Channel `json:"channels"`
+}
+
 type BulkUpdateChannelOrderingInput struct {
 	Channels []*biz.ChannelOrderingItem `json:"channels"`
 }
@@ -338,6 +348,19 @@ type ClearChannelOverrideTemplatesPayload struct {
 	Success  bool           `json:"success"`
 	Updated  int            `json:"updated"`
 	Channels []*ent.Channel `json:"channels"`
+}
+
+type CodexCatalogChannel struct {
+	ID     int            `json:"id"`
+	Name   string         `json:"name"`
+	Status channel.Status `json:"status"`
+}
+
+type CodexCatalogTestResult struct {
+	Success        bool    `json:"success"`
+	ModelCount     int     `json:"modelCount"`
+	UpstreamStatus *int    `json:"upstreamStatus,omitempty"`
+	Error          *string `json:"error,omitempty"`
 }
 
 type CompleteAutoDisableChannelOnboardingInput struct {
@@ -603,6 +626,7 @@ type SignInPayload struct {
 type SyncChannelModelsPayload struct {
 	ChannelID       objects.GUID `json:"channelID"`
 	SupportedModels []string     `json:"supportedModels"`
+	ManualModels    []string     `json:"manualModels"`
 }
 
 type SystemModelSettingOnboarding struct {
@@ -765,10 +789,8 @@ type UpdateProviderQuotaCollectionSettingsInput struct {
 	Providers []*ProviderQuotaCollectionProviderInput `json:"providers,omitempty"`
 }
 
-type UpdateQuotaEnforcementSettingsInput struct {
-	Enabled           *bool                     `json:"enabled,omitempty"`
-	Mode              *biz.QuotaEnforcementMode `json:"mode,omitempty"`
-	AllowedChannelIDs []*objects.GUID           `json:"allowedChannelIDs,omitempty"`
+type UpdateQuotaRoutingSettingsInput struct {
+	DefaultMode *objects.QuotaRoutingMode `json:"defaultMode,omitempty"`
 }
 
 type UpdateSecuritySettingsInput struct {

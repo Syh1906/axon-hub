@@ -1,19 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  ColumnDef,
-  ColumnFiltersState,
-  ExpandedState,
-  RowData,
-  RowSelectionState,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import { IconArchive, IconBan, IconCheck, IconFlask, IconTrash, IconTemplate, IconX, IconEraser } from '@tabler/icons-react';
+import { ColumnDef, ColumnFiltersState, ExpandedState, RowData, RowSelectionState, SortingState, flexRender, getCoreRowModel, getExpandedRowModel, getFilteredRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
+import { IconArchive, IconBan, IconCheck, IconFlask, IconTag, IconTrash, IconTemplate, IconX, IconEraser, IconShieldOff } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { Button } from '@/components/ui/button';
@@ -273,7 +260,7 @@ export function ChannelsTable({
   }, [selectionScopeKey]);
 
   return (
-    <div className='flex flex-1 flex-col overflow-hidden'>
+    <div className='flex min-w-0 flex-1 flex-col overflow-hidden'>
       <DataTableToolbar
         table={table}
         isFiltered={isFiltered}
@@ -362,11 +349,30 @@ export function ChannelsTable({
             <Button
               variant='ghost'
               size='icon'
+              className='h-8 w-8 text-violet-600 hover:bg-violet-100 hover:text-violet-700'
+              onClick={() => setOpen('bulkManageTags')}
+              title={t('channels.actions.bulkManageTags')}
+              aria-label={t('channels.actions.bulkManageTags')}
+            >
+              <IconTag className='h-4 w-4' />
+            </Button>
+            <Button
+              variant='ghost'
+              size='icon'
               className='h-8 w-8 text-blue-600 hover:bg-blue-100 hover:text-blue-700'
               onClick={() => setOpen('bulkApplyTemplate')}
               title={t('channels.templates.bulk.applyButton')}
             >
               <IconTemplate className='h-4 w-4' />
+            </Button>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-8 w-8 text-violet-600 hover:bg-violet-100 hover:text-violet-700'
+              onClick={() => setOpen('bulkAutoDisable')}
+              title={t('channels.bulkAutoDisable.button')}
+            >
+              <IconShieldOff className='h-4 w-4' />
             </Button>
             <Button
               variant='ghost'

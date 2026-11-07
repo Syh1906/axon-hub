@@ -108,6 +108,9 @@ func (e *Executor) transformRequest(request *httpclient.Request) (*httpclient.Re
 		Auth:                nil, // Remove auth as it's handled by the HTTP client
 		RequestID:           request.RequestID,
 		OnFirstResponseByte: request.OnFirstResponseByte,
+		OnResponseHeaders:   request.OnResponseHeaders,
+		OnTransportSelected: request.OnTransportSelected,
+		OnReplayUnsafe:      request.OnReplayUnsafe,
 	}
 
 	// Process request body for Vertex AI compatibility

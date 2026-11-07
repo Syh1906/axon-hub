@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	bytesreader "bytes"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -45,7 +46,7 @@ func TestDeletedAPIKeyBackupKeepsHistoryAndDeletion(t *testing.T) {
 
 	target, restore, targetCtx := setupBackupTest(t)
 	t.Cleanup(func() { require.NoError(t, target.Close()) })
-	require.NoError(t, restore.Restore(targetCtx, payload, RestoreOptions{IncludeProjects: true, IncludeAPIKeys: true, IncludeRequestLogs: true, IncludeUsageStats: true}))
+	require.NoError(t, restore.Restore(targetCtx, bytesreader.NewReader(payload), RestoreOptions{IncludeProjects: true, IncludeAPIKeys: true, IncludeRequestLogs: true, IncludeUsageStats: true}))
 	require.Zero(t, target.APIKey.Query().CountX(targetCtx))
 	deleted := target.APIKey.Query().Where(apikey.KeyEQ(key.Key)).OnlyX(schematype.SkipSoftDelete(targetCtx))
 	require.Equal(t, 1, deleted.DeletedAt)

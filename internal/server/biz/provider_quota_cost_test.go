@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -125,6 +126,40 @@ func TestProviderQuotaService_FillPeriodQuotas_SkipsZenmux(t *testing.T) {
 	require.Nil(t, quotaData.Limits[0].PeriodQuota)
 }
 
+func TestProviderQuotaService_FillPeriodQuotas_KeepsSyntheticCredits(t *testing.T) {
+	now := time.Now()
+	periodCost := 0.03
+	periodQuota := 10.50
+	quotaData := provider_quota.QuotaData{
+		ProviderType: "synthetic",
+		Limits: []provider_quota.QuotaLimitStatus{
+			{
+				Type:        provider_quota.QuotaLimitTypeToken,
+				Window:      provider_quota.QuotaWindowWeekly,
+				UsageRatio:  0.00265,
+				PeriodCost:  &periodCost,
+				PeriodQuota: &periodQuota,
+			},
+			{
+				Type:        provider_quota.QuotaLimitTypeSearch,
+				Window:      "search_hourly",
+				UsageRatio:  0.2,
+				NextResetAt: &now,
+			},
+		},
+	}
+
+	svc := &ProviderQuotaService{}
+	svc.fillPeriodQuotas(context.Background(), 0, &quotaData, now)
+
+	require.NotNil(t, quotaData.Limits[0].PeriodCost)
+	require.InDelta(t, 0.03, *quotaData.Limits[0].PeriodCost, 1e-9)
+	require.NotNil(t, quotaData.Limits[0].PeriodQuota)
+	require.InDelta(t, 10.50, *quotaData.Limits[0].PeriodQuota, 1e-9)
+	require.Nil(t, quotaData.Limits[1].PeriodCost)
+	require.Nil(t, quotaData.Limits[1].PeriodQuota)
+}
+
 func TestProviderQuotaService_FillPeriodQuotas_OnlyCountsOwnChannel(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
 	defer client.Close()
@@ -219,8 +254,58 @@ func TestProviderQuotaService_FillPeriodQuotas_NoEstimateWithoutCost(t *testing.
 
 	svc.fillPeriodQuotas(ctx, ch.ID, &quotaData, now)
 
+	require.Nil(t, quotaData.Limits[0].PeriodCost)
+	require.Nil(t, quotaData.Limits[0].PeriodQuota)
+}
+
+func TestProviderQuotaService_FillsCodexPeriodQuotaOnlyWithUsableCostAndRatio(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file=ent?mode=memory&_fk=0")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	ch, err := client.Channel.Create().
+		SetName(fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())).
+		SetType(channel.TypeCodex).
+		SetStatus(channel.StatusEnabled).
+		SetCredentials(objects.ChannelCredentials{APIKey: "test-key"}).
+		SetSupportedModels([]string{"test-model"}).
+		SetDefaultTestModel("test-model").
+		Save(ctx)
+	require.NoError(t, err)
+
+	now := time.Now()
+	start := now.Add(-time.Hour)
+	createPeriodQuotaUsageLog(t, ctx, client, ch.ID, now.Add(-time.Minute), lo.ToPtr(12.0))
+
+	svc := &ProviderQuotaService{AbstractService: &AbstractService{db: client}}
+	quotaData := provider_quota.QuotaData{
+		ProviderType: "codex",
+		Limits: []provider_quota.QuotaLimitStatus{{
+			Type:        provider_quota.QuotaLimitTypeToken,
+			Window:      provider_quota.QuotaWindow5h,
+			UsageRatio:  0.01,
+			PeriodStart: &start,
+		}},
+	}
+
+	svc.fillPeriodQuotas(ctx, ch.ID, &quotaData, now)
+
 	require.NotNil(t, quotaData.Limits[0].PeriodCost)
-	require.Zero(t, *quotaData.Limits[0].PeriodCost)
+	require.InDelta(t, 12.0, *quotaData.Limits[0].PeriodCost, 1e-9)
+	require.NotNil(t, quotaData.Limits[0].PeriodQuota)
+	require.InDelta(t, 1200.0, *quotaData.Limits[0].PeriodQuota, 1e-9)
+
+	noDataStart := now.Add(-30 * time.Second)
+	quotaData.Limits[0].PeriodStart = &noDataStart
+	quotaData.Limits[0].UsageRatio = 0.5
+	svc.fillPeriodQuotas(ctx, ch.ID, &quotaData, now)
+	require.Nil(t, quotaData.Limits[0].PeriodCost)
+	require.Nil(t, quotaData.Limits[0].PeriodQuota)
+
+	quotaData.Limits[0].PeriodStart = &start
+	quotaData.Limits[0].UsageRatio = 0
+	svc.fillPeriodQuotas(ctx, ch.ID, &quotaData, now)
+	require.Nil(t, quotaData.Limits[0].PeriodCost)
 	require.Nil(t, quotaData.Limits[0].PeriodQuota)
 }
 
@@ -252,8 +337,7 @@ func TestProviderQuotaService_FillPeriodQuotas_ClearsStaleEstimate(t *testing.T)
 
 	svc.fillPeriodQuotas(ctx, ch.ID, &quotaData, now)
 
-	require.NotNil(t, quotaData.Limits[0].PeriodCost)
-	require.InDelta(t, 10.0, *quotaData.Limits[0].PeriodCost, 1e-9)
+	require.Nil(t, quotaData.Limits[0].PeriodCost)
 	require.Nil(t, quotaData.Limits[0].PeriodQuota)
 }
 
@@ -272,7 +356,7 @@ func TestProviderQuotaService_PeriodQuotaSurvivesPersistence(t *testing.T) {
 		AbstractService: &AbstractService{db: client},
 		checkInterval:   5 * time.Minute,
 	}
-	svc.saveQuotaStatus(ctx, ch.ID, "claudecode", "", provider_quota.QuotaData{
+	svc.saveQuotaStatus(ctx, ch, "claudecode", "", provider_quota.QuotaData{
 		ProviderType: "claudecode",
 		Status:       string(providerquotastatus.StatusAvailable),
 		Ready:        true,
@@ -290,7 +374,7 @@ func TestProviderQuotaService_PeriodQuotaSurvivesPersistence(t *testing.T) {
 				PeriodQuota: lo.ToPtr(90.0),
 			},
 		},
-	}, now)
+	}, now, false)
 
 	persisted, err := client.ProviderQuotaStatus.Query().
 		Where(providerquotastatus.ChannelIDEQ(ch.ID)).

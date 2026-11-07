@@ -49,7 +49,7 @@ release.config.json records the publishing repository and branch, direct upstrea
 tag/commit, original upstream tag/commit, and an explicit prerelease boolean. The current direct baseline is
 v1.0.0-beta10-fork.7 at b205ae8e; its original baseline is v1.0.0-beta10 at 939b2bc0.
 
-Your tags use <direct-upstream-tag>.syh.N:
+After beta12, your tags use <original-upstream-tag>-fork.N:
 
 | Situation | Example |
 | --- | --- |
@@ -59,14 +59,12 @@ Your tags use <direct-upstream-tag>.syh.N:
 | After a direct-upstream release based on beta11 | v1.0.0-beta11-fork.1.syh.1 |
 
 The last two rows are examples, not assertions that those releases exist.
-Never consume ChouUn's fork.N sequence. Increment syh.N within one baseline;
-restart at syh.1 after adopting a newer direct baseline. Published tags are immutable.
-Only .syh.N tags trigger this fork's publishing workflow.
+Never consume ChouUn's fork.N sequence. Increment fork.N within one original-upstream baseline; restart at fork.1 after adopting a newer baseline. Published tags are immutable.
+Only -fork.N tags trigger this fork's publishing workflow; historical .syh.N tags remain readable.
 
 Update checks and data migrations share xversion.Parse. Numeric ordering preserves:
 
-    beta10-fork.7 < beta10-fork.7.syh.9 < beta10-fork.7.syh.10
-    < beta10-fork.8 < beta10-fork.8.syh.1 < beta11-fork.1.syh.1
+    beta12 < beta12-fork.1 < beta12-fork.2 < beta13 < beta13-fork.1
 
 The common v1.0.0- prefix is omitted. Do not invent a higher independent major
 version that causes future upstream migrations to be skipped. New local migrations

@@ -57,7 +57,7 @@ func NewCodexCatalogService(models *ModelService, channels *ChannelService) *Cod
 func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byte, int, error) {
 	visible, err := s.models.ListEnabledModels(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot read models permitted by this API key")
+		return nil, 0, fmt.Errorf("cannot read models permitted by this API key: %w", err)
 	}
 	channels := make(map[int]*Channel)
 	allChannels := s.channels.GetEnabledChannels()

@@ -23,15 +23,24 @@ import (
 var _ transformer.Inbound = (*InboundTransformer)(nil)
 
 // InboundTransformer implements transformer.Inbound for OpenAI Responses API format.
-type InboundTransformer struct{}
+type InboundTransformer struct {
+	webSocket bool
+}
 
 // NewInboundTransformer creates a new OpenAI Responses InboundTransformer.
 func NewInboundTransformer() *InboundTransformer {
 	return &InboundTransformer{}
 }
 
+func NewWebSocketInboundTransformer() *InboundTransformer {
+	return &InboundTransformer{webSocket: true}
+}
+
 // APIFormat returns the API format of the transformer.
 func (t *InboundTransformer) APIFormat() llm.APIFormat {
+	if t.webSocket {
+		return llm.APIFormatOpenAIResponseWebSocket
+	}
 	return llm.APIFormatOpenAIResponse
 }
 
@@ -43,6 +52,15 @@ func (t *InboundTransformer) TransformRequest(ctx context.Context, httpReq *http
 
 	if len(httpReq.Body) == 0 {
 		return nil, fmt.Errorf("%w: request body is empty", transformer.ErrInvalidRequest)
+	}
+	if t.webSocket {
+		body, err := AdaptRequestBody(httpReq.Body, t.APIFormat(), llm.APIFormatOpenAIResponse)
+		if err != nil {
+			return nil, err
+		}
+		cloned := *httpReq
+		cloned.Body = body
+		httpReq = &cloned
 	}
 	if gjson.GetBytes(httpReq.Body, "stream_id").Exists() {
 		return nil, &llm.ResponseError{
@@ -71,7 +89,12 @@ func (t *InboundTransformer) TransformRequest(ctx context.Context, httpReq *http
 		return nil, fmt.Errorf("%w: model is required", transformer.ErrInvalidRequest)
 	}
 
-	return convertToLLMRequest(&req, httpReq.Body)
+	converted, err := convertToLLMRequest(&req, httpReq.Body)
+	if err != nil {
+		return nil, err
+	}
+	converted.APIFormat = t.APIFormat()
+	return converted, nil
 }
 
 // TransformResponse transforms llm.Response to OpenAI Responses API HTTP response.
@@ -81,7 +104,7 @@ func (t *InboundTransformer) TransformResponse(ctx context.Context, chatResp *ll
 	}
 
 	// Convert to Responses API format
-	resp := convertToResponsesAPIResponse(chatResp)
+	resp := convertToResponsesAPIResponse(mapResponseFunctionNames(chatResp, false))
 
 	body, err := json.Marshal(resp)
 	if err != nil {
@@ -243,17 +266,20 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 		}
 	}
 
-	// Convert tool choice
-	if req.ToolChoice != nil {
-		chatReq.ToolChoice = convertToolChoiceToLLM(req.ToolChoice)
-	}
-
 	// Convert stream options
 	if req.StreamOptions != nil {
 		chatReq.StreamOptions = &llm.StreamOptions{}
 		if req.StreamOptions.IncludeObfuscation != nil {
 			chatReq.TransformerMetadata["include_obfuscation"] = req.StreamOptions.IncludeObfuscation
 		}
+	}
+
+	if len(req.Tools) > 0 {
+		tools, err := convertToolsToLLM(req.Tools)
+		if err != nil {
+			return nil, err
+		}
+		chatReq.Tools = tools
 	}
 
 	// Convert instructions to system message
@@ -267,7 +293,7 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 		})
 	}
 
-	// Convert input to messages
+	// Decode native tool identities before normalizing their names below.
 	if req.Input.Items != nil {
 		chatReq.TransformOptions.ArrayInputs = lo.ToPtr(true)
 	}
@@ -281,14 +307,8 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 
 	chatReq.Messages = messages
 
-	if len(req.Tools) > 0 {
-		tools, err := convertToolsToLLM(req.Tools)
-		if err != nil {
-			return nil, err
-		}
-
-		chatReq.Tools = tools
-	}
+	// Preserve tool selection independently of namespace declaration normalization.
+	chatReq.ToolChoice = convertToolChoiceToLLM(req.ToolChoice)
 
 	// Convert text format to response format
 	if req.Text != nil && req.Text.Format != nil && req.Text.Format.Type != "" {
@@ -321,33 +341,36 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 		}
 	}
 
-	return chatReq, nil
+	result, err := flattenRequestFunctionNames(chatReq)
+	if err != nil {
+		return nil, err
+	}
+	result.TransformerMetadata = namespaceMetadata(result)
+	return result, nil
 }
 
-// convertToolChoiceToLLM converts Responses API ToolChoice to llm.ToolChoice.
+// convertToolChoiceToLLM preserves Responses tool selection without imposing
+// Chat Completions naming or selection restrictions on other outbounds.
 func convertToolChoiceToLLM(src *ToolChoice) *llm.ToolChoice {
 	if src == nil {
 		return nil
 	}
-
-	result := &llm.ToolChoice{}
-
-	if src.Mode != nil {
-		result.ToolChoice = src.Mode
-	} else if src.Type != nil {
+	result := &llm.ToolChoice{ToolChoice: src.Mode}
+	if src.Type != nil {
 		result.NamedToolChoice = &llm.NamedToolChoice{
-			Type: *src.Type,
-		}
-		if src.Name != nil {
-			result.NamedToolChoice.Function.Name = *src.Name
+			Type:     *src.Type,
+			Function: llm.ToolFunction{Name: lo.FromPtr(src.Name)},
 		}
 	}
-
+	for _, opt := range src.Tools {
+		result.Tools = append(result.Tools, llm.ToolOption{Type: opt.Type, Name: opt.Name})
+	}
 	return result
 }
 
 // convertInputToMessages converts Responses API input to llm.Message slice.
-// It handles merging consecutive tool calls that belong to the same assistant turn.
+// It merges consecutive tool calls while preserving native local function names.
+// Request and response boundaries encode names when entering the unified model.
 func convertInputToMessages(input *Input) ([]llm.Message, error) {
 	if input == nil {
 		return nil, nil
@@ -367,9 +390,17 @@ func convertInputToMessages(input *Input) ([]llm.Message, error) {
 
 	// If input is an array of items
 	messages := make([]llm.Message, 0, len(input.Items))
+	// Items already turned into a message. A tool output hoisted next to its
+	// assistant message must not be appended again when the scan reaches it.
+	emitted := make([]bool, len(input.Items))
 	i := 0
 
 	for i < len(input.Items) {
+		if emitted[i] {
+			i++
+			continue
+		}
+
 		item := &input.Items[i]
 
 		// Handle reasoning item - merge with subsequent function_call or text items
@@ -379,8 +410,18 @@ func convertInputToMessages(input *Input) ([]llm.Message, error) {
 				return nil, err
 			}
 
+			for j := i; j < i+consumed; j++ {
+				emitted[j] = true
+			}
+
 			if msg != nil {
 				messages = append(messages, *msg)
+
+				outputs, err := collectToolCallOutputs(input.Items, emitted, i+consumed, msg.ToolCalls)
+				if err != nil {
+					return nil, err
+				}
+				messages = append(messages, outputs...)
 			}
 
 			i += consumed
@@ -404,10 +445,17 @@ func convertInputToMessages(input *Input) ([]llm.Message, error) {
 				if callMsg != nil {
 					msg.ToolCalls = append(msg.ToolCalls, callMsg.ToolCalls...)
 				}
+				emitted[i] = true
 				i++
 			}
 
 			messages = append(messages, msg)
+
+			outputs, err := collectToolCallOutputs(input.Items, emitted, i, msg.ToolCalls)
+			if err != nil {
+				return nil, err
+			}
+			messages = append(messages, outputs...)
 
 			continue
 		}
@@ -422,10 +470,54 @@ func convertInputToMessages(input *Input) ([]llm.Message, error) {
 			messages = append(messages, *msg)
 		}
 
+		emitted[i] = true
 		i++
 	}
 
 	return messages, nil
+}
+
+// collectToolCallOutputs returns the tool results belonging to toolCalls, in input
+// order, and marks them emitted. Chat-compatible upstreams reject a tool message
+// that is not adjacent to the assistant message carrying its tool_calls, while the
+// Responses API lets a client place a message item between a call and its output.
+// Outputs belonging to a different assistant message are left where they are.
+func collectToolCallOutputs(items []Item, emitted []bool, from int, toolCalls []llm.ToolCall) ([]llm.Message, error) {
+	pending := lo.KeyBy(
+		lo.Filter(toolCalls, func(toolCall llm.ToolCall, _ int) bool { return toolCall.ID != "" }),
+		func(toolCall llm.ToolCall) string { return toolCall.ID },
+	)
+	if len(pending) == 0 {
+		return nil, nil
+	}
+
+	var outputs []llm.Message
+	for j := from; j < len(items) && len(pending) > 0; j++ {
+		if emitted[j] {
+			continue
+		}
+
+		item := &items[j]
+		if item.Type != "function_call_output" && item.Type != "custom_tool_call_output" {
+			continue
+		}
+		if _, ok := pending[item.CallID]; !ok {
+			continue
+		}
+
+		msg, err := convertItemToMessage(item)
+		if err != nil {
+			return nil, err
+		}
+		if msg != nil {
+			outputs = append(outputs, *msg)
+		}
+
+		emitted[j] = true
+		delete(pending, item.CallID)
+	}
+
+	return outputs, nil
 }
 
 // convertReasoningWithFollowing converts a reasoning item and merges it with subsequent
@@ -625,6 +717,7 @@ func convertItemToMessage(item *Item) (*llm.Message, error) {
 			return nil, fmt.Errorf("%w: %s item must have non-nil Output", transformer.ErrInvalidRequest, item.Type)
 		}
 		msg := &llm.Message{
+			ID:         item.ID,
 			Role:       "tool",
 			ToolCallID: lo.ToPtr(item.CallID),
 			Content:    convertToMessageContent(*item.Output),
@@ -883,7 +976,8 @@ func convertToolsToLLM(tools []Tool) ([]llm.Tool, error) {
 				result = append(result, llm.Tool{
 					Type: "function",
 					Function: llm.Function{
-						Name:        namespaceFunctionName(tool.Name, subTool.Name),
+						Name:        subTool.Name,
+						Namespace:   tool.Name,
 						Description: subTool.Description,
 						Parameters:  params,
 						Strict:      subTool.Strict,
@@ -898,10 +992,6 @@ func convertToolsToLLM(tools []Tool) ([]llm.Tool, error) {
 	}
 
 	return result, nil
-}
-
-func namespaceFunctionName(namespaceName, functionName string) string {
-	return namespaceName + "__" + functionName
 }
 
 func getResponseWebSearchCallsFromMetadata(metadata map[string]any) []Item {

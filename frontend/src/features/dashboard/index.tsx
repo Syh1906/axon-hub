@@ -1,13 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from '@tanstack/react-router';
-import { BarChart3, Brain, Key, Users, Zap, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart3, Brain, Key, Users, Zap, ChevronDown, ChevronRight, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { formatNumber } from '@/utils/format-number';
+import { useRoutePermissions } from '@/hooks/useRoutePermissions';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { cn } from '@/lib/utils';
-import { formatNumber } from '@/utils/format-number';
+
 import { TimePeriodSelector, type TimePeriod } from '@/components/time-period-selector';
+import { ChannelPerformanceStats } from './components/channel-performance-stats';
 import { ChannelSuccessRate } from './components/channel-success-rate';
 import { DailyRequestStats } from './components/daily-requests-stats';
 import { RequestsByChannelChart } from './components/requests-by-channel-chart';
@@ -25,8 +28,9 @@ import { TotalRequestsCard } from './components/total-requests-card';
 import { FastestChannelsCard } from './components/fastest-channels-card';
 import { FastestModelsCard } from './components/fastest-models-card';
 import { ModelPerformanceStats } from './components/model-performance-stats';
-import { ChannelPerformanceStats } from './components/channel-performance-stats';
-import { useRoutePermissions } from '@/hooks/useRoutePermissions';
+
+
+
 
 interface CollapsibleSectionProps {
   title: string;
@@ -45,6 +49,11 @@ function CollapsibleSection({ title, icon, children, storageKey, defaultOpen = f
       return defaultOpen;
     }
   });
+  // Pre-expanded sections below the fold used to mount every widget (and fire
+  // every aggregate query) during the initial page load. Defer mounting until
+  // the section approaches the viewport; once visible it stays mounted.
+  const [hasBeenVisible, setHasBeenVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -54,28 +63,48 @@ function CollapsibleSection({ title, icon, children, storageKey, defaultOpen = f
     }
   }, [isOpen, storageKey]);
 
+  useEffect(() => {
+    if (hasBeenVisible) return;
+
+    const node = containerRef.current;
+    if (!node) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setHasBeenVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setHasBeenVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '240px 0px' }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasBeenVisible]);
+
   return (
-    <div className='space-y-4'>
+    <div ref={containerRef} className='space-y-4'>
       <button
-        type="button"
+        type='button'
         onClick={() => setIsOpen(!isOpen)}
-        className='flex w-full items-center justify-between rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50'
+        className='bg-card hover:bg-accent/50 flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors'
       >
         <div className='flex items-center gap-3'>
-          <div className='flex h-8 w-8 items-center justify-center rounded-md bg-primary/10'>
-            {icon}
-          </div>
+          <div className='bg-primary/10 flex h-8 w-8 items-center justify-center rounded-md'>{icon}</div>
           <span className='text-lg font-semibold'>{title}</span>
         </div>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-        >
-          <ChevronDown className='h-5 w-5 text-muted-foreground' />
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2, ease: 'easeInOut' }}>
+          <ChevronDown className='text-muted-foreground h-5 w-5' />
         </motion.div>
       </button>
       <AnimatePresence initial={false}>
-        {isOpen && (
+        {isOpen && hasBeenVisible && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -140,7 +169,7 @@ export default function DashboardPage() {
               <CardTitle>{t('dashboard.charts.channelSuccessRate')}</CardTitle>
               <CardDescription>{t('dashboard.charts.channelSuccessRateDescription')}</CardDescription>
               <CardAction>
-                <Link to='/dashboard/channel-success-rates' className='text-sm text-primary hover:underline'>
+                <Link to='/dashboard/channel-success-rates' className='text-primary text-sm hover:underline'>
                   {t('dashboard.viewAll')}
                 </Link>
               </CardAction>
@@ -155,18 +184,18 @@ export default function DashboardPage() {
       {/* 使用详情分析 - 导航卡片 */}
       <Link
         to='/analytics'
-        className='flex w-full items-center justify-between rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50'
+        className='bg-card hover:bg-accent/50 flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors'
       >
         <div className='flex items-center gap-3'>
-          <div className='flex h-8 w-8 items-center justify-center rounded-md bg-primary/10'>
-            <TrendingUp className='h-4 w-4 text-primary' />
+          <div className='bg-primary/10 flex h-8 w-8 items-center justify-center rounded-md'>
+            <TrendingUp className='text-primary h-4 w-4' />
           </div>
           <div>
             <span className='text-lg font-semibold'>{t('dashboard.sections.analytics')}</span>
-            <p className='text-sm text-muted-foreground'>{t('dashboard.sections.analyticsDescription')}</p>
+            <p className='text-muted-foreground text-sm'>{t('dashboard.sections.analyticsDescription')}</p>
           </div>
         </div>
-        <ChevronRight className='h-5 w-5 text-muted-foreground' />
+        <ChevronRight className='text-muted-foreground h-5 w-5' />
       </Link>
 
       <Link
@@ -222,7 +251,7 @@ export default function DashboardPage() {
       {/* 渠道分析 - 可折叠 */}
       <CollapsibleSection
         title={t('dashboard.sections.channels')}
-        icon={<BarChart3 className='h-4 w-4 text-primary' />}
+        icon={<BarChart3 className='text-primary h-4 w-4' />}
         storageKey='channels'
       >
         <div className='grid gap-4 md:grid-cols-2'>
@@ -254,11 +283,7 @@ export default function DashboardPage() {
       </CollapsibleSection>
 
       {/* 模型分析 - 可折叠 */}
-      <CollapsibleSection
-        title={t('dashboard.sections.models')}
-        icon={<Brain className='h-4 w-4 text-primary' />}
-        storageKey='models'
-      >
+      <CollapsibleSection title={t('dashboard.sections.models')} icon={<Brain className='text-primary h-4 w-4' />} storageKey='models'>
         <div className='grid gap-4 md:grid-cols-2'>
           <Card className='hover-card'>
             <CardHeader>
@@ -288,11 +313,7 @@ export default function DashboardPage() {
       </CollapsibleSection>
 
       {/* API密钥分析 - 可折叠 */}
-      <CollapsibleSection
-        title={t('dashboard.sections.apiKeys')}
-        icon={<Key className='h-4 w-4 text-primary' />}
-        storageKey='apiKeys'
-      >
+      <CollapsibleSection title={t('dashboard.sections.apiKeys')} icon={<Key className='text-primary h-4 w-4' />} storageKey='apiKeys'>
         <div className='grid gap-4 md:grid-cols-2'>
           <Card className='hover-card'>
             <CardHeader>
@@ -323,11 +344,7 @@ export default function DashboardPage() {
 
       {/* 用户分析 - 可折叠 */}
       {isProjectOwner && (
-        <CollapsibleSection
-          title={t('dashboard.sections.users')}
-          icon={<Users className='h-4 w-4 text-primary' />}
-          storageKey='users'
-        >
+        <CollapsibleSection title={t('dashboard.sections.users')} icon={<Users className='text-primary h-4 w-4' />} storageKey='users'>
           <div className='grid gap-4 md:grid-cols-1 lg:grid-cols-7'>
             <Card className='hover-card col-span-1 lg:col-span-4'>
               <CardHeader>
@@ -348,7 +365,7 @@ export default function DashboardPage() {
       {/* 性能分析 - 可折叠 */}
       <CollapsibleSection
         title={t('dashboard.sections.performance')}
-        icon={<Zap className='h-4 w-4 text-primary' />}
+        icon={<Zap className='text-primary h-4 w-4' />}
         storageKey='performance'
       >
         <div className='grid gap-4 md:grid-cols-1 lg:grid-cols-7'>

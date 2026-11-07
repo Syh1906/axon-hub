@@ -50,6 +50,9 @@ jobs:
         with:
           go-version: stable
 
+      - name: Generate GraphQL and Ent code
+        run: make generate
+
       - name: Test
         run: make test-backend-all
 
@@ -66,7 +69,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 10
+          package_json_file: frontend/package.json
           run_install: false
 
       # The *.test.mjs suites import .ts modules directly, which needs native

@@ -61,8 +61,14 @@ export const requestExecutionSchema = z.object({
   // requestID: z.string(),
   // channelID: z.number(),
   channel: channelSchema.partial().nullable().optional(),
+  // 1-based position of the API key used within the channel's credential list.
+  // Null for single-key/OAuth channels and for executions recorded before the
+  // field existed.
+  channelAPIKeyIndex: z.number().nullable().optional(),
   modelID: z.string(),
+  upstreamModelID: z.string().nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
+  responseHeaders: z.any().nullable().optional(),
   requestBody: z.any(), // JSONRawMessage
   responseBody: z.any().nullable(), // JSONRawMessage
   responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
@@ -78,6 +84,7 @@ export const requestExecutionSchema = z.object({
   status: requestExecutionStatusSchema,
   format: z.string().optional(),
   reasoningEffort: z.string().nullable().optional(),
+  channelAPIKeySuffix: z.string().nullable().optional(),
   metricsLatencyMs: z.number().nullable().optional(),
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
   metricsReasoningDurationMs: z.number().nullable().optional(),
@@ -126,6 +133,7 @@ export const requestSchema = z.object({
   contentSaved: z.boolean().optional(),
   contentStorageKey: z.string().nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
+  responseHeaders: z.any().nullable().optional(),
   requestBody: z.any().nullable().optional(), // JSONRawMessage
   responseBody: z.any().nullable().optional(), // JSONRawMessage
   responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
@@ -135,6 +143,7 @@ export const requestSchema = z.object({
   failure: z.object({ stage: z.string(), code: z.string(), type: z.string(), message: z.string() }).nullable().optional(),
   format: z.string().optional(),
   clientIP: z.string().nullable().optional(),
+  userAgent: z.string().nullable().optional(),
   stream: z.boolean().nullable(),
   metricsLatencyMs: z.number().nullable().optional(),
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
@@ -148,8 +157,9 @@ export const requestSchema = z.object({
           cursor: z.string(),
         })
       ),
-      pageInfo: pageInfoSchema,
-      totalCount: z.number(),
+      // The request list only needs execution summary rows; nested pagination metadata is not requested.
+      pageInfo: pageInfoSchema.optional(),
+      totalCount: z.number().optional(),
     })
     .optional(),
   oneHourPromptCacheUsageLogs: z.object({ totalCount: z.number() }).optional(),
@@ -180,7 +190,7 @@ export const requestConnectionSchema = z.object({
     })
   ),
   pageInfo: pageInfoSchema,
-  totalCount: z.number(),
+  totalCount: z.number().optional(),
 });
 export type RequestConnection = z.infer<typeof requestConnectionSchema>;
 

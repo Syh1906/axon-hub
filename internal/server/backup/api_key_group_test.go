@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	bytesreader "bytes"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
@@ -29,7 +30,7 @@ func TestAPIKeyGroupBackupRestore(t *testing.T) {
 	backup.APIKeys[0].Key = "fixture-restored-key"
 	data, err = json.Marshal(backup)
 	require.NoError(t, err)
-	require.NoError(t, service.Restore(ctx, data, RestoreOptions{IncludeAPIKeys: true}))
+	require.NoError(t, service.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true}))
 	restored := db.APIKey.Query().Where(apikey.KeyEQ("fixture-restored-key")).OnlyX(ctx)
 	require.NotNil(t, restored.GroupRef)
 	require.NotEqual(t, group.ID, *restored.GroupRef)
@@ -37,7 +38,7 @@ func TestAPIKeyGroupBackupRestore(t *testing.T) {
 	backup.APIKeys[0].GroupName = ""
 	data, err = json.Marshal(backup)
 	require.NoError(t, err)
-	require.NoError(t, service.Restore(ctx, data, RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyOverwrite}))
+	require.NoError(t, service.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyOverwrite}))
 	require.Nil(t, db.APIKey.GetX(ctx, restored.ID).GroupRef)
 }
 
@@ -57,7 +58,7 @@ func TestAPIKeyGroupStateBackupRestore(t *testing.T) {
 	target, restore, targetCtx := setupBackupTest(t)
 	t.Cleanup(func() { require.NoError(t, target.Close()) })
 	target.Project.Create().SetName(p.Name).SaveX(targetCtx)
-	require.NoError(t, restore.Restore(targetCtx, data, RestoreOptions{IncludeAPIKeys: true}))
+	require.NoError(t, restore.Restore(targetCtx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true}))
 	restored := target.APIKeyGroup.Query().Where(apikeygroup.NameEQ(group.Name)).OnlyX(targetCtx)
 	require.False(t, restored.Enabled)
 	require.Equal(t, group.Note, restored.Note)
@@ -74,10 +75,10 @@ func TestAPIKeyGroupStateBackupRestore(t *testing.T) {
 	}
 	data, err = json.Marshal(snapshot)
 	require.NoError(t, err)
-	require.NoError(t, restore.Restore(targetCtx, data, RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategySkip}))
+	require.NoError(t, restore.Restore(targetCtx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategySkip}))
 	require.False(t, target.APIKeyGroup.GetX(targetCtx, restored.ID).Enabled)
-	require.Error(t, restore.Restore(targetCtx, data, RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyError}))
-	require.NoError(t, restore.Restore(targetCtx, data, RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyOverwrite}))
+	require.Error(t, restore.Restore(targetCtx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyError}))
+	require.NoError(t, restore.Restore(targetCtx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true, APIKeyConflictStrategy: ConflictStrategyOverwrite}))
 	require.True(t, target.APIKeyGroup.GetX(targetCtx, restored.ID).Enabled)
 	require.Equal(t, "更新备注", target.APIKeyGroup.GetX(targetCtx, restored.ID).Note)
 	// 正式旧格式没有分组状态，沿用原有按组名恢复的含义。
@@ -87,6 +88,6 @@ func TestAPIKeyGroupStateBackupRestore(t *testing.T) {
 	snapshot.APIKeys[0].Key = "fixture-legacy-group-key"
 	data, err = json.Marshal(snapshot)
 	require.NoError(t, err)
-	require.NoError(t, restore.Restore(targetCtx, data, RestoreOptions{IncludeAPIKeys: true}))
+	require.NoError(t, restore.Restore(targetCtx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true}))
 	require.True(t, target.APIKeyGroup.Query().Where(apikeygroup.NameEQ("legacy")).OnlyX(targetCtx).Enabled)
 }

@@ -4,17 +4,18 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export function validateTag(tag, config) {
-  const prefix = `${config.upstreamTag}.syh.`;
+  const primary = `${config.upstreamTag}-fork.`;
+  const legacy = `${config.upstreamTag}.syh.`;
+  const prefix = tag.startsWith(primary) ? primary : legacy;
   const suffix = tag.startsWith(prefix) ? tag.slice(prefix.length) : '';
   if (!/^[1-9]\d*$/.test(suffix) || !Number.isSafeInteger(Number(suffix))) {
-    throw new Error(`版本必须采用 ${prefix}N，N 为正整数`);
+    throw new Error(`版本必须采用 ${primary}N；历史 syh 版本仅用于兼容读取`);
   }
   if (Number(suffix) < config.minimumReleaseNumber) {
-    throw new Error(`发布编号必须不小于 ${config.minimumReleaseNumber}，必须使用独立的 syh 发布编号`);
+    throw new Error(`发布编号必须不小于 ${config.minimumReleaseNumber}`);
   }
   return Number(suffix);
 }
-
 export function prepareRelease(root, repository, tag) {
   const config = JSON.parse(readFileSync(resolve(root, 'release.config.json'), 'utf8'));
   if (repository !== config.repository) throw new Error('发布仓库与 release.config.json 不一致');
@@ -26,11 +27,16 @@ export function prepareRelease(root, repository, tag) {
   if (git('rev-parse', `${tag}^{commit}`) !== commit) throw new Error('当前提交与发布 tag 不一致');
   git('merge-base', '--is-ancestor', commit, `origin/${config.branch}`);
   git('merge-base', '--is-ancestor', config.upstreamCommit, commit);
-  git('merge-base', '--is-ancestor', config.originalUpstream.commit, config.upstreamCommit);
-  const tags = git('tag', '--list', `${config.upstreamTag}.syh.*`).split('\n').filter(Boolean);
+  git('merge-base', '--is-ancestor', config.originalUpstream.commit, commit);
+  if (config.inheritedFork) git('merge-base', '--is-ancestor', config.inheritedFork.commit, commit);
+  const tags = [
+    ...git('tag', '--list', `${config.upstreamTag}-fork.*`).split('\n').filter(Boolean),
+    ...git('tag', '--list', `${config.upstreamTag}.syh.*`).split('\n').filter(Boolean),
+  ];
   for (const previous of tags) {
     if (previous === tag) continue;
-    const suffix = previous.slice(`${config.upstreamTag}.syh.`.length);
+    const prefix = previous.startsWith(`${config.upstreamTag}-fork.`) ? `${config.upstreamTag}-fork.` : `${config.upstreamTag}.syh.`;
+    const suffix = previous.slice(prefix.length);
     if (/^[1-9]\d*$/.test(suffix) && Number(suffix) >= number) {
       throw new Error(`已有 ${previous}；新发布编号必须继续递增`);
     }
@@ -49,6 +55,7 @@ export function createManifest(prepared, digest, runURL) {
       tag: prepared.config.upstreamTag, commit: prepared.config.upstreamCommit },
     image: `${prepared.image}@${digest}`,
     originalUpstream: prepared.config.originalUpstream,
+    inheritedFork: prepared.config.inheritedFork,
     platforms: ['linux/amd64', 'linux/arm64'], runURL,
   };
 }

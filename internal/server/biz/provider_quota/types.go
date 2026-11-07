@@ -3,6 +3,7 @@ package provider_quota
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -53,6 +54,12 @@ const (
 	QuotaLimitTypeImage             QuotaLimitType = "image"
 	QuotaLimitTypeToken             QuotaLimitType = "token"
 	QuotaLimitTypeSubscriptionCycle QuotaLimitType = "subscription_cycle"
+	// QuotaLimitTypeSearch marks counters for capabilities AxonHub does not
+	// route (Synthetic's hourly search requests). No request modality maps to
+	// it, so EvaluateQuotaRouting/EffectiveStatus already ignore it, and
+	// normalization.go keeps it out of the channel status and channel reset:
+	// it is listed for the operator, never enforced.
+	QuotaLimitTypeSearch QuotaLimitType = "search"
 )
 
 // ApertisDefaultBaseURL is the default base URL for the Apertis API.
@@ -68,10 +75,19 @@ type QuotaLimitStatus struct {
 	Ready       bool           `json:"ready"`
 	NextResetAt *time.Time     `json:"next_reset_at"`
 
+	// AvailabilityGroup identifies alternative capacity sources that should be
+	// aggregated with OR semantics for routing decisions.
+	AvailabilityGroup string `json:"availability_group,omitempty"`
+
 	// Window identifies the limit window this status describes ("5h", "7d",
 	// "weekly", ...). Providers report several limits of the same
 	// QuotaLimitType, so this is what tells them apart in the UI.
 	Window string `json:"window,omitempty"`
+
+	// Account identifies the credential a limit belongs to when one channel
+	// draws from several accounts (one API key per account). It is a display
+	// label and never holds a credential.
+	Account string `json:"account,omitempty"`
 
 	// PeriodStart is the beginning of the window UsageRatio covers. Checkers
 	// fill it whenever the window length is known (either reported by the
@@ -79,13 +95,15 @@ type QuotaLimitStatus struct {
 	// aggregation below possible.
 	PeriodStart *time.Time `json:"period_start,omitempty"`
 
-	// PeriodCost is the cost accumulated in [PeriodStart, now) on this channel
-	// according to AxonHub usage logs. Filled by the quota service, not by the
-	// checkers.
+	// PeriodCost is the money spent in the period on this channel: either the
+	// cost accumulated in [PeriodStart, now) according to AxonHub usage logs
+	// (filled by the quota service) or the provider's own figure for the
+	// period (Synthetic's weekly credits), set by the checker.
 	PeriodCost *float64 `json:"period_cost,omitempty"`
 
-	// PeriodQuota is the estimated total money quota of the period, derived
-	// from PeriodCost and UsageRatio. See EstimatePeriodQuota.
+	// PeriodQuota is the total money quota of the period: either derived from
+	// PeriodCost and UsageRatio (see EstimatePeriodQuota) or reported directly
+	// by providers that bill in money (Synthetic's maxCredits).
 	PeriodQuota *float64 `json:"period_quota,omitempty"`
 }
 
@@ -106,32 +124,35 @@ const WarningThresholdRatio = 0.8
 // Well-known limit window identifiers. Providers name their windows
 // differently; these are the normalized labels the UI renders.
 const (
-	QuotaWindow5h      = "5h"
-	QuotaWindow7d      = "7d"
-	QuotaWindow30d     = "30d"
-	QuotaWindowDaily   = "daily"
-	QuotaWindowWeekly  = "weekly"
-	QuotaWindowMonthly = "monthly"
-	QuotaWindowPrimary = "primary"
-	QuotaWindowCycle   = "cycle"
+	QuotaWindow5h         = "5h"
+	QuotaWindow7d         = "7d"
+	QuotaWindow30d        = "30d"
+	QuotaWindowDaily      = "daily"
+	QuotaWindowWeekly     = "weekly"
+	QuotaWindowMonthly    = "monthly"
+	QuotaWindowPrimary    = "primary"
+	QuotaWindowSecondary  = "secondary"
+	QuotaWindowPayAsYouGo = "pay_as_you_go"
+	QuotaWindowCredits    = "credits"
+	QuotaWindowCycle      = "cycle"
 )
-
-// MinPeriodQuotaUsageRatio is the smallest usage ratio that yields a period
-// quota estimate. Dividing the period cost by a tiny ratio amplifies both the
-// pricing error and any usage that did not go through AxonHub into an absurd
-// number, so below this threshold no estimate is reported at all.
-const MinPeriodQuotaUsageRatio = 0.05
 
 // EstimatePeriodQuota derives the total money quota of a limit period from the
 // cost already spent in it: a period that cost `periodCost` while the provider
 // reports `usageRatio` of the quota consumed is worth periodCost/usageRatio in
 // total. It reports false when the inputs cannot support an estimate.
 func EstimatePeriodQuota(periodCost float64, usageRatio float64) (float64, bool) {
-	if periodCost <= 0 || usageRatio < MinPeriodQuotaUsageRatio {
+	if periodCost <= 0 || math.IsNaN(periodCost) || math.IsInf(periodCost, 0) ||
+		usageRatio <= 0 || math.IsNaN(usageRatio) || math.IsInf(usageRatio, 0) {
 		return 0, false
 	}
 
-	return periodCost / usageRatio, true
+	total := periodCost / usageRatio
+	if math.IsNaN(total) || math.IsInf(total, 0) {
+		return 0, false
+	}
+
+	return total, true
 }
 
 // FillPeriodQuota recomputes PeriodQuota from PeriodCost and UsageRatio,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -22,6 +23,9 @@ func (t *InboundTransformer) TransformStream(
 	ctx context.Context,
 	stream streams.Stream[*llm.Response],
 ) (streams.Stream[*httpclient.StreamEvent], error) {
+	stream = streams.MapErr(stream, func(resp *llm.Response) (*llm.Response, error) {
+		return mapResponseFunctionNames(resp, false), nil
+	})
 	return &responsesInboundStream{
 		source:              stream,
 		ctx:                 ctx,
@@ -78,6 +82,8 @@ type responsesInboundStream struct {
 	usage               *llm.Usage
 	aggregator          *streamAggregator
 	transformerMetadata map[string]any
+	responseHeaders     http.Header
+	responseHeadersSent bool
 
 	// Event queue
 	eventQueue []*httpclient.StreamEvent
@@ -102,6 +108,7 @@ func (s *responsesInboundStream) enqueueEvent(ev *StreamEvent) error {
 		Type: string(ev.Type),
 		Data: eventData,
 	}
+	s.attachResponseHeaders(streamEvent)
 
 	s.eventQueue = append(s.eventQueue, streamEvent)
 
@@ -122,6 +129,12 @@ func (s *responsesInboundStream) Next() bool {
 		return true
 	}
 
+	// Once a terminal outcome is emitted, do not convert a later source error
+	// into a second terminal event.
+	if s.responseCompleted {
+		return false
+	}
+
 	// Clear the queue and reset index for new events
 	s.eventQueue = nil
 	s.queueIndex = 0
@@ -130,25 +143,8 @@ func (s *responsesInboundStream) Next() bool {
 	if !s.source.Next() {
 		knownAbnormalEnd := s.hasFinished && s.aggregator.status != "" && s.aggregator.status != "in_progress" && s.aggregator.status != "completed"
 		if s.err == nil && !s.errorEventEmitted && (s.source.Err() == nil || knownAbnormalEnd) && s.hasFinished && !s.responseCompleted {
-			s.responseCompleted = true
-			// Only fall back to completed when no terminal status was mapped
-			// from a finish_reason (incomplete/failed/cancelled).
-			if s.aggregator.status == "" || s.aggregator.status == "in_progress" {
-				s.aggregator.status = "completed"
-			}
-			response := s.aggregator.buildResponse()
-			if s.usage != nil {
-				response.Usage = ConvertLLMUsageToResponsesUsage(s.usage)
-			}
-			if calls := getResponseWebSearchCallsFromMetadata(s.transformerMetadata); len(calls) > 0 {
-				response.Output = append(append([]Item(nil), calls...), response.Output...)
-			}
-
-			if err := s.enqueueEvent(&StreamEvent{
-				Type:     responseTerminalEventType(response.Status),
-				Response: response,
-			}); err != nil {
-				s.err = fmt.Errorf("failed to enqueue response.completed event: %w", err)
+			if err := s.enqueueTerminalResponse(); err != nil {
+				s.err = err
 				return false
 			}
 			if s.aggregator.status != "completed" {
@@ -190,6 +186,19 @@ func (s *responsesInboundStream) Next() bool {
 	// Handle [DONE] marker
 	if chunk.Object == "[DONE]" {
 		return s.Next() // Try next chunk
+	}
+
+	if headers, ok := responseTransportHeaders(chunk.TransformerMetadata); ok {
+		s.responseHeaders = headers
+	}
+	if raw, ok := rawResponseMetadataEvent(chunk.TransformerMetadata); ok {
+		event := &httpclient.StreamEvent{
+			Type: string(StreamEventTypeResponseMetadata),
+			Data: raw,
+		}
+		s.attachResponseHeaders(event)
+		s.eventQueue = append(s.eventQueue, event)
+		return s.Next()
 	}
 
 	// Initialize response metadata from first chunk
@@ -308,9 +317,7 @@ func (s *responsesInboundStream) Next() bool {
 		if choice.FinishReason != nil && !s.hasFinished {
 			s.hasFinished = true
 
-			// Map the Chat Completions finish_reason onto the Responses status so
-			// the final response.completed event reports abnormal termination
-			// (truncation, content rejection, failure) instead of always claiming success.
+			// Map the finish_reason to the final Responses status and event type.
 			switch *choice.FinishReason {
 			case "length":
 				s.aggregator.status = "incomplete"
@@ -346,30 +353,11 @@ func (s *responsesInboundStream) Next() bool {
 	if chunk.ServiceTier != "" && s.aggregator != nil {
 		s.aggregator.serviceTier = lo.ToPtr(chunk.ServiceTier)
 	}
-
-	// Handle final usage chunk and complete response
-	if chunk.Usage != nil && s.hasFinished && !s.responseCompleted {
-		s.responseCompleted = true
-		s.usage = chunk.Usage
-
-		// Build final response using aggregator
-		// A mapped terminal status (incomplete/failed/cancelled) must win over
-		// the default; only fall back to completed when still in_progress.
-		if s.aggregator.status == "" || s.aggregator.status == "in_progress" {
-			s.aggregator.status = "completed"
-		}
-		response := s.aggregator.buildResponse()
-		response.Usage = ConvertLLMUsageToResponsesUsage(s.usage)
-		if calls := getResponseWebSearchCallsFromMetadata(s.transformerMetadata); len(calls) > 0 {
-			response.Output = append(append([]Item(nil), calls...), response.Output...)
-		}
-
-		err := s.enqueueEvent(&StreamEvent{
-			Type:     responseTerminalEventType(response.Status),
-			Response: response,
-		})
-		if err != nil {
-			s.err = fmt.Errorf("failed to enqueue response.completed event: %w", err)
+	// Emit after finish only when usage carries real counts. Zero placeholders
+ // must not hide a later authoritative usage chunk.
+ if chunk.Usage.HasRealCounts() && s.hasFinished && !s.responseCompleted {
+		if err := s.enqueueTerminalResponse(); err != nil {
+			s.err = err
 			return false
 		}
 		if s.aggregator.status != "completed" {
@@ -381,16 +369,97 @@ func (s *responsesInboundStream) Next() bool {
 	return s.Next()
 }
 
+// enqueueTerminalResponse serves both the final usage chunk and clean stream end.
+func (s *responsesInboundStream) enqueueTerminalResponse() error {
+	if s.aggregator.status == "" || s.aggregator.status == "in_progress" {
+		s.aggregator.status = "completed"
+	}
+	response := s.aggregator.buildResponse()
+	if s.usage != nil {
+		response.Usage = ConvertLLMUsageToResponsesUsage(s.usage)
+	}
+	if calls := getResponseWebSearchCallsFromMetadata(s.transformerMetadata); len(calls) > 0 {
+		response.Output = append(append([]Item(nil), calls...), response.Output...)
+	}
+
+	if raw, ok := s.transformerMetadata[responsesTerminalDetailsTransformerMetadataKey]; ok {
+		// Metadata may have crossed a JSON serialization boundary.
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return fmt.Errorf("failed to encode terminal details: %w", err)
+		}
+		var details responsesTerminalDetails
+		if err := json.Unmarshal(data, &details); err != nil {
+			return fmt.Errorf("failed to decode terminal details: %w", err)
+		}
+		if details.Error != nil {
+			response.Error = details.Error
+		}
+		if details.IncompleteDetails != nil {
+			response.IncompleteDetails = details.IncompleteDetails
+		}
+	}
+
+	eventType := responseTerminalEventType(response.Status)
+	if err := s.enqueueEvent(&StreamEvent{Type: eventType, Response: response}); err != nil {
+		return fmt.Errorf("failed to enqueue terminal response: %w", err)
+	}
+	s.responseCompleted = true
+	return nil
+}
+
 func (s *responsesInboundStream) mergeTransformerMetadata(metadata map[string]any) {
 	if len(metadata) == 0 {
 		return
 	}
 
-	if calls := getResponseWebSearchCallsFromMetadata(metadata); len(calls) > 0 {
-		existingCalls := getResponseWebSearchCallsFromMetadata(s.transformerMetadata)
-		mergedCalls := append(existingCalls, calls...)
-		s.transformerMetadata[responsesWebSearchCallsTransformerMetadataKey] = mergedCalls
+	if details, ok := metadata[responsesTerminalDetailsTransformerMetadataKey]; ok {
+		s.transformerMetadata[responsesTerminalDetailsTransformerMetadataKey] = details
 	}
+
+	if calls := getResponseWebSearchCallsFromMetadata(metadata); len(calls) > 0 {
+		for _, call := range calls {
+			appendResponseWebSearchCallMetadata(s.transformerMetadata, call)
+		}
+	}
+}
+
+func rawResponseMetadataEvent(metadata map[string]any) ([]byte, bool) {
+	if len(metadata) == 0 {
+		return nil, false
+	}
+
+	value := metadata[responseMetadataTransformerMetadataKey]
+	switch raw := value.(type) {
+	case json.RawMessage:
+		return append([]byte(nil), raw...), len(raw) > 0
+	case []byte:
+		return append([]byte(nil), raw...), len(raw) > 0
+	default:
+		return nil, false
+	}
+}
+
+func responseTransportHeaders(metadata map[string]any) (http.Header, bool) {
+	if len(metadata) == 0 {
+		return nil, false
+	}
+
+	headers, ok := metadata[responseHeadersTransformerMetadataKey].(http.Header)
+	if !ok || len(headers) == 0 {
+		return nil, false
+	}
+
+	return headers.Clone(), true
+}
+
+func (s *responsesInboundStream) attachResponseHeaders(event *httpclient.StreamEvent) {
+	if event == nil || s.responseHeadersSent || len(s.responseHeaders) == 0 {
+		return
+	}
+
+	event.Headers = s.responseHeaders.Clone()
+	s.responseHeadersSent = true
 }
 
 func getResponsesReasoningItemMetadata(metadata map[string]any) (responsesReasoningItemMetadata, bool) {
@@ -1276,7 +1345,7 @@ func classifyStreamError(err error) (code, message string) {
 	code = "stream_error"
 	message = err.Error()
 
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
 		code = "upstream_eof"
 		message = "upstream connection closed unexpectedly"
 		return code, message
@@ -1367,6 +1436,11 @@ func (s *responsesInboundStream) Err() error {
 
 	if s.err != nil {
 		return s.err
+	}
+
+	// A source error after a terminal response must not become a second outcome.
+	if s.responseCompleted {
+		return nil
 	}
 
 	return s.source.Err()

@@ -1,17 +1,10 @@
 import * as React from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { useBrandSettings } from '@/features/system/data/system';
+import { BrandLogo } from './brand-logo';
 
 export function TeamSwitcher({
   teams,
@@ -40,27 +33,8 @@ export function TeamSwitcher({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton size='lg' className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'>
-                <div className='bg-sidebar-primary flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
-                  {brandSettings?.brandLogo ? (
-                    <img
-                      src={brandSettings.brandLogo}
-                      alt='Brand Logo'
-                      className='size-8 object-cover'
-                      onError={(e) => {
-                        // Fallback to default logo on error
-                        e.currentTarget.src = '/logo.jpg';
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src='/logo.jpg'
-                      alt='Default Logo'
-                      className='size-8 object-cover'
-                      onError={() => {
-                        // If default logo fails, we'll show a fallback in the next render
-                      }}
-                    />
-                  )}
+                <div className='flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
+                  <BrandLogo brandLogo={brandSettings?.brandLogo} />
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
                   <span className='truncate font-semibold'>{displayName}</span>
@@ -90,27 +64,8 @@ export function TeamSwitcher({
           </DropdownMenu>
         ) : (
           <SidebarMenuButton size='lg' className='cursor-default'>
-            <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
-              {brandSettings?.brandLogo ? (
-                <img
-                  src={brandSettings.brandLogo}
-                  alt='Brand Logo'
-                  className='size-8 object-cover'
-                  onError={(e) => {
-                    // Fallback to default logo on error
-                    e.currentTarget.src = '/logo.jpg';
-                  }}
-                />
-              ) : (
-                <img
-                  src='/logo.jpg'
-                  alt='Default Logo'
-                  className='size-8 object-cover'
-                  onError={() => {
-                    // If default logo fails, we'll show a fallback in the next render
-                  }}
-                />
-              )}
+            <div className='flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg'>
+              <BrandLogo brandLogo={brandSettings?.brandLogo} />
             </div>
             <div className='grid flex-1 text-left text-sm leading-tight'>
               <span className='truncate font-semibold'>{displayName}</span>

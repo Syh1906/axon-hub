@@ -16,10 +16,12 @@ export function useUsers(
   },
   options?: {
     disableAutoFetch?: boolean;
+    projectId?: string;
   }
 ) {
   const { t } = useTranslation();
   const { handleError } = useErrorHandler();
+  const selectedProjectId = options?.projectId;
 
   const queryVariables = {
     ...variables,
@@ -27,10 +29,11 @@ export function useUsers(
   };
 
   return useQuery({
-    queryKey: ['users', queryVariables],
+    queryKey: ['users', queryVariables, selectedProjectId],
     queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, queryVariables, undefined, { signal });
+        const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
+        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, queryVariables, headers, { signal });
         return userConnectionSchema.parse(data?.users);
       } catch (error) {
         handleError(error, t('common.errors.loadFailed'));
@@ -41,15 +44,17 @@ export function useUsers(
   });
 }
 
-export function useUser(id: string) {
+export function useUser(id: string, options?: { projectId?: string }) {
   const { t } = useTranslation();
   const { handleError } = useErrorHandler();
+  const selectedProjectId = options?.projectId;
 
   return useQuery({
-    queryKey: ['user', id],
+    queryKey: ['user', id, selectedProjectId],
     queryFn: async ({ signal }) => {
       try {
-        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } }, undefined, { signal });
+        const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
+        const data = await graphqlRequest<{ users: UserConnection }>(USERS_QUERY, { where: { id } }, headers, { signal });
         const user = data.users.edges[0]?.node;
         if (!user) {
           throw new Error(t('users.messages.userNotFound'));

@@ -51,6 +51,7 @@ export const usageLogSchema = z.object({
   totalCost: z.number().nullable().optional(),
   costItems: z.array(costItemSchema).nullable().optional(),
   costPriceMultiplier: z.number().nullable().optional(),
+  costPriceReferenceID: z.string().nullable().optional(),
 });
 export type UsageLog = z.infer<typeof usageLogSchema>;
 

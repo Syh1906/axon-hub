@@ -1,4 +1,5 @@
-import { IconArrowsExchange, IconClockHour1, IconRoute } from '@tabler/icons-react';
+import { getRequestModelAuditTooltip, getUpstreamModelAudit } from '../utils/upstream-model-audit';
+import { IconArrowsExchange, IconClockHour1, IconRoute, IconAlertTriangle, IconCheck, IconQuestionMark } from '@tabler/icons-react';
 import { Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -8,12 +9,13 @@ import { RequestReasoningBadge } from './request-reasoning-badge';
 
 export type RequestModelDisplay = {
   modelID: string;
+  status?: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   reasoningEffort?: string | null;
   format?: string;
   executions?: {
-    edges: { node?: { modelID?: string; reasoningEffort?: string | null; format?: string; passThroughApplied?: boolean } | null }[];
-  };
-  oneHourPromptCacheUsageLogs?: { totalCount: number };
+    edges: { node?: { modelID?: string; upstreamModelID?: string | null; status?: RequestModelDisplay['status']; reasoningEffort?: string | null; format?: string; passThroughApplied?: boolean | null } | null }[];
+  } | null;
+  oneHourPromptCacheUsageLogs?: { totalCount?: number };
 };
 
 export function RequestModelCell({ request }: { request: RequestModelDisplay }) {
@@ -21,6 +23,21 @@ export function RequestModelCell({ request }: { request: RequestModelDisplay }) 
   const originalModelId = request.modelID || t('requests.columns.unknown');
   const executions = request.executions?.edges?.flatMap((edge) => (edge.node ? [edge.node] : [])) ?? [];
   const executionModelIds = Array.from(new Set(executions.map((exe) => exe.modelID || ''))).filter((id) => id && id !== originalModelId);
+        const modelAudit = getUpstreamModelAudit(executions);
+        const upstreamModelMatches = modelAudit.status === 'matched';
+        const requestIsProcessing = request.status === 'pending' || request.status === 'processing';
+        const requestFailed = request.status === 'failed' || request.status === 'canceled';
+        const upstreamModelAuditIconClass = requestIsProcessing
+          ? 'text-sky-600 dark:text-sky-400 motion-safe:animate-pulse'
+          : requestFailed
+            ? 'text-red-600 dark:text-red-400'
+            : modelAudit.status === 'unknown'
+              ? 'text-amber-600 dark:text-amber-400'
+              : upstreamModelMatches
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : 'text-red-700 dark:text-red-400';
+        const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
+
   const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
   const inboundFormat = request.format;
   const outboundFormat = executions[0]?.format;
@@ -83,6 +100,29 @@ export function RequestModelCell({ request }: { request: RequestModelDisplay }) 
     <div className='flex min-w-[160px] flex-col gap-1'>
       {modelLabel}
       <div className='flex items-center gap-1.5'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`inline-flex h-5 w-5 items-center justify-center ${upstreamModelAuditIconClass}`}
+                    tabIndex={0}
+                    role='img'
+                    aria-label={upstreamModelAuditTooltip}
+                  >
+                    {requestIsProcessing ? (
+                      <IconQuestionMark className='h-3.5 w-3.5' />
+                    ) : requestFailed ? (
+                      <IconAlertTriangle className='h-3.5 w-3.5' />
+                    ) : modelAudit.status === 'unknown' ? (
+                      <IconQuestionMark className='h-3.5 w-3.5' />
+                    ) : upstreamModelMatches ? (
+                      <IconCheck className='h-3.5 w-3.5' />
+                    ) : (
+                      <IconAlertTriangle className='h-3.5 w-3.5' />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{upstreamModelAuditTooltip}</TooltipContent>
+              </Tooltip>
         {reasoningEffort && <RequestReasoningBadge effort={reasoningEffort} />}
         <Tooltip>
           <TooltipTrigger asChild>

@@ -9,14 +9,7 @@ import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { shareRequestList } from './request-list-cache';
 import { requestLogVariables } from './request-log-variables';
-import {
-  Request,
-  RequestConnection,
-  RequestExecutionConnection,
-  requestConnectionSchema,
-  requestExecutionConnectionSchema,
-  requestSchema,
-} from './schema';
+import { Request, RequestConnection, RequestExecutionConnection, requestConnectionSchema, requestExecutionConnectionSchema, requestSchema } from './schema';
 
 // Requests expose their reporting timezone without granting system settings access.
 export function useRequestLogTimezone() {
@@ -73,7 +66,8 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                     name
                   type
                   tags
-                  }`
+                  }
+                  channelAPIKeyIndex`
     : '';
 
   return `
@@ -102,6 +96,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
             clientStatusCode
             failure { stage code type message }
             outputTokensPerSecond
+            userAgent
             metricsLatencyMs
             metricsFirstTokenLatencyMs
             metricsReasoningDurationMs
@@ -117,6 +112,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   id
                   createdAt
                   modelID
+                  upstreamModelID
                   format
                   status
                   reasoningEffort
@@ -130,13 +126,6 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                 }
                 cursor
               }
-              pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-              }
-              totalCount
             }
             oneHourPromptCacheUsageLogs: usageLogs(first: 1, where: { promptWriteCachedTokens1hGT: 0 }) {
               totalCount
@@ -156,6 +145,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                   totalCost
                   costPriceMultiplier
                   costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costPriceReferenceID
                 }
               }
             }
@@ -168,7 +158,6 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
           startCursor
           endCursor
         }
-        totalCount
       }
     }
   `;
@@ -236,7 +225,7 @@ function buildRequestDetailQuery(
           contentSaved
           contentStorageKey
           ${payload !== 'response' ? 'requestHeaders requestBody' : ''}
-          ${payload !== 'request' ? 'responseBody responseChunks' : ''}
+          ${payload !== 'request' ? 'responseHeaders responseBody responseChunks' : ''}
           status
           format
           ${REQUEST_ROUTING_DECISION_SELECTION}
@@ -257,6 +246,7 @@ function buildRequestDetailQuery(
                   totalCost
                   costPriceMultiplier
                   costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+                  costPriceReferenceID
                 }
             }
           }
@@ -313,6 +303,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           dataStorageID
           contentSaved
           contentStorageKey
+          responseHeaders
           status
           format
           ${REQUEST_ROUTING_DECISION_SELECTION}
@@ -334,7 +325,9 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }, 
                   baseURL
                   websiteURL
                   tags
-              }`
+              }
+              channelAPIKeySuffix
+              channelAPIKeyIndex`
     : '';
 
   return `
@@ -355,9 +348,10 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }, 
                 updatedAt
                 requestID${channelFields}
                 modelID
+                upstreamModelID
                 projectID
                 dataStorageID
-                ${includePayload ? 'requestHeaders requestBody responseBody responseChunks' : ''}
+                ${includePayload ? 'requestHeaders responseHeaders requestBody responseBody responseChunks' : ''}
                 errorMessage
                 responseStatusCode
                 failure { source code type body bodyTruncated }

@@ -303,3 +303,12 @@ Only historical input and output are restored. The current model, `service_tier`
 - [Tracing Guide](tracing.md)
 - [OpenAI API](../api-reference/openai-api.md)
 - README sections on [Usage Guide](../../../README.en-US.md#usage-guide)
+
+
+## beta12 compatibility endpoints
+
+When Codex compatibility is enabled in system settings, use `/codex/responses`, `/codex/models`,
+and `/codex/api/codex/accounts/check`. Existing `/v1/responses` and model catalog configurations remain available.
+The compatibility model list uses this fork's aggregated catalog and the caller's model permissions.
+Catalog metadata never grants inference access. Image generation and editing use `/codex/images/generations`
+and `/codex/images/edits`; the selected inference channel must support the corresponding native image endpoint.

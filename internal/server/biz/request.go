@@ -7,8 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
@@ -21,6 +25,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
@@ -40,7 +45,12 @@ type RequestService struct {
 	PayloadService       *RequestPayloadService
 	previousChannelCache xcache.Cache[int]
 	sessionOwnerCache    xcache.Cache[SessionOwner]
+	metricClaims         *requestMetricClaims
 }
+
+// recordedMetricRequestsTTL bounds how long a claimed request ID is kept in
+// the chat metrics deduplication.
+const recordedMetricRequestsTTL = time.Hour
 
 // NewRequestService creates a new RequestService.
 func NewRequestService(
@@ -63,6 +73,7 @@ func NewRequestService(
 		PayloadService:       payloadService,
 		previousChannelCache: xcache.NewFromConfig[int](cacheConfig),
 		sessionOwnerCache:    newSessionOwnerCache(cacheConfig),
+		metricClaims:         newRequestMetricClaims(),
 	}
 }
 
@@ -76,6 +87,41 @@ func (s *RequestService) shouldUseExternalStorage(_ context.Context, ds *ent.Dat
 	return !ds.Primary
 }
 
+// jsonNulEscape is the JSON escape of U+0000. PostgreSQL jsonb rejects it
+// (SQLSTATE 22P05), which would otherwise lose the whole payload.
+var jsonNulEscape = []byte(`\u0000`)
+
+// stripJSONNul removes U+0000 escapes from a JSON document so it can be stored
+// in a jsonb column. An escaped backslash followed by "u0000" is plain text and
+// is kept. Documents without the escape are returned as is.
+func stripJSONNul(body objects.JSONRawMessage) objects.JSONRawMessage {
+	if !bytes.Contains(body, jsonNulEscape) {
+		return body
+	}
+
+	out := make(objects.JSONRawMessage, 0, len(body))
+
+	for i := 0; i < len(body); {
+		if body[i] == '\\' && i+1 < len(body) {
+			if bytes.HasPrefix(body[i:], jsonNulEscape) {
+				i += len(jsonNulEscape)
+				continue
+			}
+
+			// Copy the escape pair as a unit so `\\u0000` is not mistaken for a NUL.
+			out = append(out, body[i], body[i+1])
+			i += 2
+
+			continue
+		}
+
+		out = append(out, body[i])
+		i++
+	}
+
+	return out
+}
+
 // External payload markers live in the DB when the real JSON is in object storage.
 // They must not match the GC strip placeholders (`{}` / `[]`).
 var (
@@ -84,11 +130,16 @@ var (
 )
 
 func isExternalResponseBodyMarker(body objects.JSONRawMessage) bool {
-	return bytes.Equal(bytes.TrimSpace(body), ExternalResponseBodyMarker)
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, body); err != nil {
+		return false
+	}
+
+	return bytes.Equal(compact.Bytes(), ExternalResponseBodyMarker)
 }
 
 func isExternalResponseChunksMarker(chunks []objects.JSONRawMessage) bool {
-	return len(chunks) == 1 && bytes.Equal(bytes.TrimSpace(chunks[0]), []byte(`{"_ext":1}`))
+	return len(chunks) == 1 && isExternalResponseBodyMarker(chunks[0])
 }
 
 func sanitizeLoadedResponseBody(body objects.JSONRawMessage) objects.JSONRawMessage {
@@ -230,6 +281,7 @@ func (s *RequestService) CreateRequest(
 
 	if httpRequest != nil {
 		mut = mut.SetClientIP(httpRequest.ClientIP)
+		mut = mut.SetUserAgent(httpRequest.UserAgent)
 	}
 
 	if llmRequest.ReasoningEffort != "" {
@@ -255,11 +307,21 @@ func (s *RequestService) CreateRequest(
 		mut = mut.SetTraceID(trace.ID)
 	}
 
+	if contexts.GetSourceOrDefault(ctx, request.SourceAPI) == request.SourcePlayground {
+		if user, ok := contexts.GetUser(ctx); ok && user != nil {
+			mut = mut.SetUserID(user.ID)
+		}
+	}
+
 	// Create request
 	req, err := mut.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	// Let the downstream response-header middleware associate the eventual
+	// HTTP response with this persisted request row.
+	contexts.NotifyRequestRecord(ctx, req.ID)
 
 	return req, nil
 }
@@ -350,6 +412,27 @@ func (s *RequestService) CreateRequestExecution(
 		mut = mut.SetReasoningEffort(*reasoningEffort)
 	}
 
+	// Record which channel credential served this execution. Both facts are read
+	// from the key actually sent upstream, which is known here while the
+	// credentials are still at hand.
+	if apiKey, ok := contexts.GetChannelAPIKey(ctx); ok {
+		runes := []rune(apiKey)
+		if len(runes) > 4 {
+			mut = mut.SetChannelAPIKeySuffix(string(runes[len(runes)-4:]))
+		}
+
+		// The 1-based position is derived here rather than resolved from the
+		// stored suffix later: a lookup would drift as soon as keys are
+		// reordered or removed, and it cannot tell two keys with the same last-4
+		// characters apart. Single-key and OAuth channels have nothing to
+		// disambiguate, so they stay null.
+		if allKeys := channel.Credentials.GetAllAPIKeys(); len(allKeys) > 1 {
+			if idx := slices.Index(allKeys, apiKey); idx >= 0 {
+				mut = mut.SetChannelAPIKeyIndex(idx + 1)
+			}
+		}
+	}
+
 	if channelRequest.URL != "" {
 		mut = mut.SetRequestURL(diagnosticRequestURL(channelRequest.URL))
 	}
@@ -375,7 +458,7 @@ func extractOutboundReasoningEffort(channelRequest httpclient.Request, format ll
 	switch format {
 	case llm.APIFormatOpenAIChatCompletion:
 		path = "reasoning_effort"
-	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseCompact:
+	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatOpenAIResponseCompact:
 		path = "reasoning.effort"
 	case llm.APIFormatAnthropicMessage:
 		path = "output_config.effort"
@@ -401,20 +484,51 @@ type LatencyMetrics struct {
 	ReasoningDurationMs *int64
 }
 
-// UpdateRequestCompleted updates request status to completed with response body.
-func (s *RequestService) UpdateRequestCompleted(
+func (s *RequestService) UpdateRequestResponseHeaders(ctx context.Context, requestID int, headers http.Header) error {
+	data, err := s.responseHeadersForStorage(ctx, headers)
+	if err != nil || data == nil {
+		return err
+	}
+	_, err = s.entFromContext(ctx).Request.UpdateOneID(requestID).SetResponseHeaders(data).Save(ctx)
+	return err
+}
+
+func (s *RequestService) UpdateRequestExecutionResponseHeaders(ctx context.Context, executionID int, headers http.Header) error {
+	data, err := s.responseHeadersForStorage(ctx, headers)
+	if err != nil || data == nil {
+		return err
+	}
+	_, err = s.entFromContext(ctx).RequestExecution.UpdateOneID(executionID).SetResponseHeaders(data).Save(ctx)
+	return err
+}
+
+func (s *RequestService) responseHeadersForStorage(ctx context.Context, headers http.Header) (objects.JSONRawMessage, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	policy, err := s.SystemService.StoragePolicy(authz.WithSystemBypass(ctx, "response-header-storage-policy"))
+	if err == nil && !policy.StoreResponseBody {
+		return nil, nil
+	}
+	return xjson.Marshal(httpclient.MaskSensitiveHeaders(headers))
+}
+
+// UpdateRequestFinalized persists a terminal response and its final request status.
+func (s *RequestService) UpdateRequestFinalized(
 	ctx context.Context,
 	requestID int,
+	status request.Status,
 	externalId string,
 	responseBody any,
 	metrics *LatencyMetrics,
 ) error {
 	client := s.entFromContext(ctx)
+	req := s.requestMetricSnapshot(ctx, client, requestID)
 
 	// A downstream delivery failure may be recorded while the upstream stream
 	// is still draining. Late success must not replace that terminal outcome.
 	upd := client.Request.Update().Where(request.IDEQ(requestID), request.FailureIsNil()).
-		SetStatus(request.StatusCompleted).
+		SetStatus(status).
 		SetExternalID(externalId)
 
 	// Set latency metrics if provided
@@ -434,13 +548,112 @@ func (s *RequestService) UpdateRequestCompleted(
 
 	upd.SetResponseBody(s.debugResponsePayload(ctx, responseBody))
 
-	err := upd.Exec(ctx)
+	updated, err := upd.Save(ctx)
 	if err != nil {
 		log.Error(ctx, "Failed to update request status to completed", log.Cause(err))
 		return err
 	}
 
+	if updated > 0 { s.recordChatRequestMetrics(ctx, req, status, metrics) }
+
 	return nil
+}
+
+// recordChatRequestMetrics reports the transition of a request into a
+// terminal state to the metrics registry. It is a no-op when metrics are
+// disabled, the target status is not terminal, or the request was already
+// terminal before the update: status refreshes that re-save an already
+// terminal outcome (e.g. repeated video task polls) and marks that follow an
+// earlier terminal outcome must not be counted again. req must reflect the
+// pre-update status. Recording is best-effort: channel name resolution and
+// metric recording must never affect request finalization.
+func (s *RequestService) recordChatRequestMetrics(ctx context.Context, req *ent.Request, status request.Status, latency *LatencyMetrics) {
+	if req == nil || !metrics.Enabled() || !isTerminalRequestStatus(status) || isTerminalRequestStatus(req.Status) {
+		return
+	}
+
+	// Concurrent terminal setters can both observe the pre-update status;
+	// the claim ensures only one of them records.
+	if !s.metricClaims.claim(req.ID) {
+		return
+	}
+
+	channelID := ""
+	channelName := ""
+
+	if req.ChannelID != 0 {
+		channelID = strconv.Itoa(req.ChannelID)
+
+		// Best-effort lookup: a deleted channel must not break finalization.
+		if channel, err := req.QueryChannel().Only(ctx); err == nil {
+			channelName = channel.Name
+		}
+	}
+
+	duration := 0.0
+	if latency != nil && latency.LatencyMs != nil {
+		duration = float64(*latency.LatencyMs) / 1000
+	} else if !req.CreatedAt.IsZero() {
+		duration = time.Since(req.CreatedAt).Seconds()
+	}
+
+	metrics.Metrics.RecordChatRequest(ctx, channelID, channelName, duration, status == request.StatusCompleted)
+}
+
+// requestMetricClaims atomically deduplicates chat metric recording per
+// request: exactly one of several concurrent or sequential terminal setters
+// wins the claim for a request ID. Claims expire so the map stays bounded
+// without a background goroutine.
+type requestMetricClaims struct {
+	mu        sync.Mutex
+	claimed   map[int]time.Time
+	lastPrune time.Time
+}
+
+func newRequestMetricClaims() *requestMetricClaims {
+	return &requestMetricClaims{
+		claimed: map[int]time.Time{},
+	}
+}
+
+// claim reports whether the caller won the exclusive right to record the
+// request, recording the claim when it does.
+func (c *requestMetricClaims) claim(requestID int) bool {
+	now := time.Now()
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Prune expired claims at most once per TTL so the common path stays
+	// O(1) while the map is bounded to roughly one TTL of requests.
+	if now.Sub(c.lastPrune) > recordedMetricRequestsTTL {
+		for id, at := range c.claimed {
+			if now.Sub(at) > recordedMetricRequestsTTL {
+				delete(c.claimed, id)
+			}
+		}
+
+		c.lastPrune = now
+	}
+
+	if _, ok := c.claimed[requestID]; ok {
+		return false
+	}
+
+	c.claimed[requestID] = now
+
+	return true
+}
+
+// isTerminalRequestStatus reports whether the status is a terminal request
+// outcome that should be counted in chat metrics.
+func isTerminalRequestStatus(status request.Status) bool {
+	switch status {
+	case request.StatusCompleted, request.StatusFailed, request.StatusCanceled:
+		return true
+	default:
+		return false
+	}
 }
 
 // UpdateRequestCompletedWithAudio marks a request completed and persists a binary audio
@@ -515,6 +728,8 @@ func (s *RequestService) UpdateRequestCompletedWithAudio(
 		return err
 	}
 
+	s.recordChatRequestMetrics(ctx, req, request.StatusCompleted, metrics)
+
 	return nil
 }
 
@@ -529,6 +744,7 @@ func (s *RequestService) UpdateRequestStatusExternalIDAndResponseBody(
 	metrics *LatencyMetrics,
 ) error {
 	client := s.entFromContext(ctx)
+	req := s.requestMetricSnapshot(ctx, client, requestID)
 
 	upd := client.Request.UpdateOneID(requestID).
 		Select(request.FieldID).
@@ -558,24 +774,36 @@ func (s *RequestService) UpdateRequestStatusExternalIDAndResponseBody(
 		return err
 	}
 
+	s.recordChatRequestMetrics(ctx, req, status, metrics)
+
 	return nil
 }
 
-// UpdateRequestExecutionCompleted updates request execution status to completed with response body.
-func (s *RequestService) UpdateRequestExecutionCompleted(
+// UpdateRequestExecutionFinalized persists a terminal response and its final execution status.
+func (s *RequestService) UpdateRequestExecutionFinalized(
 	ctx context.Context,
 	executionID int,
+	status requestexecution.Status,
+	errorMessage string,
 	externalId string,
 	responseBody any,
 	metrics *LatencyMetrics,
+	upstreamModelID string,
 ) error {
 	client := s.entFromContext(ctx)
 
 	upd := client.RequestExecution.UpdateOneID(executionID).
-		SetStatus(requestexecution.StatusCompleted).
+		SetStatus(status).
 		SetExternalID(externalId)
 	if metrics != nil {
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
+	}
+
+	if upstreamModelID != "" {
+		upd = upd.SetUpstreamModelID(upstreamModelID)
+	}
+	if errorMessage != "" {
+		upd = upd.SetErrorMessage(errorMessage)
 	}
 
 	// Set latency metrics if provided
@@ -597,7 +825,7 @@ func (s *RequestService) UpdateRequestExecutionCompleted(
 
 	_, err := upd.Save(ctx)
 	if err != nil {
-		log.Error(ctx, "Failed to update request execution status to completed", log.Cause(err))
+		log.Error(ctx, "Failed to update finalized request execution", log.Cause(err), log.Any("status", status))
 		return err
 	}
 
@@ -639,12 +867,12 @@ func (s *RequestService) UpdateRequestExecutionStatus(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 ) error {
-	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil)
+	return s.UpdateRequestExecutionStatusWithMetrics(ctx, executionID, status, errorMsg, errorInfo, nil, "")
 }
 
 // UpdateRequestExecutionStatusWithMetrics is UpdateRequestExecutionStatus plus the latency
-// metrics collected before the execution ended, so a failed execution keeps its
-// time-to-first-token and total latency instead of losing them with the error.
+// metrics and upstream models collected before the execution ended, so a failed
+// execution keeps its metadata even when its response cannot be aggregated.
 func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 	ctx context.Context,
 	executionID int,
@@ -652,6 +880,7 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 	errorMsg string,
 	errorInfo *ExecutionErrorInfo,
 	metrics *LatencyMetrics,
+	upstreamModelID string,
 ) error {
 	client := s.entFromContext(ctx)
 
@@ -659,6 +888,10 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 		SetStatus(status)
 	if metrics != nil {
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
+	}
+	// A later status-only update must not clear metadata captured at finalization.
+	if upstreamModelID != "" {
+		upd = upd.SetUpstreamModelID(upstreamModelID)
 	}
 	if errorMsg != "" {
 		upd = upd.SetErrorMessage(errorMsg)
@@ -825,11 +1058,25 @@ func (s *RequestService) MarkRequestFailed(ctx context.Context, requestID int) e
 func (s *RequestService) UpdateRequestStatus(ctx context.Context, requestID int, status request.Status) error {
 	client := s.entFromContext(ctx)
 
+	// Load the pre-update request for metric recording when the update
+	// targets a terminal state; the load is skipped entirely when metrics
+	// are disabled.
+	var metricReq *ent.Request
+	if metrics.Enabled() && isTerminalRequestStatus(status) {
+		if req, err := client.Request.Get(ctx, requestID); err == nil {
+			metricReq = req
+		}
+	}
+
 	_, err := client.Request.UpdateOneID(requestID).
 		SetStatus(status).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update request status: %w", err)
+	}
+
+	if metricReq != nil {
+		s.recordChatRequestMetrics(ctx, metricReq, status, nil)
 	}
 
 	return nil
@@ -1014,6 +1261,10 @@ func (s *RequestService) LoadCompletedResponsesSession(
 	if responseID == "" || !ok || apiKey == nil {
 		return nil, nil, false, nil
 	}
+	projectID, hasProject := contexts.GetProjectID(ctx)
+	if !hasProject {
+		return nil, nil, false, nil
+	}
 
 	if input, output, found := s.loadResponsesContext(ctx, responseID); found {
 		return input, output, true, nil
@@ -1028,9 +1279,7 @@ func (s *RequestService) LoadCompletedResponsesSession(
 		),
 		request.StatusEQ(request.StatusCompleted),
 	)
-	if projectID, ok := contexts.GetProjectID(ctx); ok {
-		query = query.Where(request.ProjectIDEQ(projectID))
-	}
+	query = query.Where(request.ProjectIDEQ(projectID))
 
 	req, err := query.Order(ent.Desc(request.FieldCreatedAt)).First(ctx)
 	if err != nil {
@@ -1058,6 +1307,9 @@ func (s *RequestService) LoadCompletedResponsesSession(
 		bytes.Equal(storedResponse, xjson.EmptyJSONRawMessage) ||
 		!json.Valid(storedRequest) ||
 		!json.Valid(storedResponse) {
+		return nil, nil, false, nil
+	}
+	if !certifiedResponsesSnapshot(storedRequest, storedResponse, responseID) {
 		return nil, nil, false, nil
 	}
 
@@ -1407,4 +1659,12 @@ func buildPreviousTraceChannelCacheKey(traceID int) string {
 
 func buildPreviousThreadChannelCacheKey(threadID int) string {
 	return fmt.Sprintf("axonhub:routing:previous-channel:v1:thread:%d", threadID)
+}
+
+// Metrics are best-effort and must observe the status before the terminal write.
+func (s *RequestService) requestMetricSnapshot(ctx context.Context, client *ent.Client, id int) *ent.Request {
+ if !metrics.Enabled() { return nil }
+ req, err := client.Request.Query().Where(request.IDEQ(id)).Select(request.FieldID, request.FieldStatus, request.FieldChannelID, request.FieldCreatedAt).Only(ctx)
+ if err != nil { return nil }
+ return req
 }

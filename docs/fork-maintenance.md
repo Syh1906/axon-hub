@@ -31,6 +31,34 @@ fork 改动，由用户决定。
 - [ ] 涉及保留、调整或删除 fork 改动时，先取得用户决定。
 - [ ] 按最终实现更新 topic 中的事实、路径和相关提交。
 
+## v1.0.0-beta12（原始上游合并，目标 beta12-fork.1）
+
+- 状态：本地合并已完成，目标基线为 `v1.0.0-beta12-fork.1`；当前仅保留本地提交，未推送、未发布、未部署。
+- 来源：原始上游 `looplj/axonhub` 的 `v1.0.0-beta12`（`2b1a0f9321a4f783a4cceb2b4eb3a8303074487e`）。继承来源单独记录为 `ChouUn/axon-hub` 的 `v1.0.0-beta10-fork.7`（`b205ae8eb0db9fed6078e3a5c624bda61b36de31`）；beta10 原始基线为 `939b2bc07cc05bdf7750d7ec872290d67784d13d`。
+- 合并原则：当前 fork 的计价快照、预算、模型准入、权限范围、渠道优先级、健康门控、请求正文留存和多来源 Codex 目录为权威行为；上游新增协议、供应商、认证、队列、归档统计、管理字段和安全边界在不改变上述行为的前提下接入。
+- 来源台账：完整提交／文件／冲突清单见 `.agent/summary/beta12-change-inventory-20261107.jsonl`；实施过程见 `.agent/summary/beta12-fork1-progress-20261107.md`。下次同步先以本节逐项核对，再按上游路径和测试入口处理。
+
+| 主题 | beta12 变化 | 本 fork 的最终取舍与下次核对点 |
+| --- | --- | --- |
+| Codex 目录与 PAT 入口 | OAuth／第三方目录、目录缓存和兼容入口 | 复用当前多来源聚合、Key／项目权限、官方快照和别名；单渠道设置只保留为可选诊断来源。核对 `codex_catalog*.go`、`codex_compatibility.go` 和 `/codex/models` 路由唯一性。 |
+| Responses／流式 | HTTP／WebSocket 终态、交付确认、来源与续聊恢复 | 保留供应商终态、客户端交付、用量证据分离；HTTP 保留完整历史恢复，原生 WS 保留同一连接和上游 ID；未知执行禁止重放。核对 `responses_session.go`、`responses_attempt.go`、`inbound.go`、`outbound.go`。 |
+| 计价／预算 | 新供应商和异步任务结算 | 当前执行快照、阶梯／分时／图片分项、Key 倍率和预算锁优先；异步任务只在有供应商终态证据时结算或释放。核对 `usage_cost*`、`budget_*`、`video.go`。 |
+| 渠道端点／超时 | Responses 双协议、渠道重试和嵌套超时配置 | 平铺超时字段保持公开契约：nil 继承、0 关闭；端点按实际传输协议归一化，WS 仅适用于 Responses。核对 `channel_endpoint*.go`、`channel_llm.go`、GraphQL 输入回读。 |
+| 透传／队列 | 上游原始事件队列和交付边界 | 保留当前 4096 事件／64 MiB 预读边界，后续队列释放需保持预算、取消和顺序。核对 `pass_through.go`、`raw_stream_queue.go`。 |
+| 权限／请求可见性 | Playground／项目读取范围调整 | 当前项目读取者查看项目全部请求的契约继续有效；仅保留跨项目隔离及服务账号授权上限。核对 scopes、请求列表 GraphQL 和测试。 |
+| API Key／模型／路由 | 分组唯一性、优先级、配额和健康门控增强 | 保留项目＋分组唯一性、预算锁、模型优先级上限 10、权重分层、health gate、多地址和会话来源。核对 `api_key_names.go`、`candidates*.go`、`health_gate*.go`。 |
+| 统计／归档 | 归档用量、Key 标签、性能查询和更细时间范围 | live＋archive 一致快照、已删除 Key 和 first-byte／最终执行口径优先；不能用上游旧 TTFT 查询替代当前速度口径。核对 `dashboard*`、`analytics_helpers.go`、`gql/qb`。 |
+| Schema／迁移 | 新字段、归档表、后台转换任务 | 以 Ent 生成和现有历史迁移为准；已发布迁移不可变，fork 新迁移采用 `beta12-fork.N` 版本并验证排序。核对 `internal/ent/schema`、`migrations`、`datamigrate`。 |
+| 发布与来源 | 上游直接基线改变 | `release.config.json` 的 `upstream` 指向 looplj beta12，`inheritedFork` 单独指向 ChouUn；新 tag 使用 `v1.0.0-beta12-fork.N`，旧 `.syh.N` 只兼容读取。核对 `scripts/release/release.mjs`、两个发布 workflow 和 release manifest。 |
+
+### beta12 合并验收入口
+
+- 生成：修改 Ent／GraphQL 后在对应目录运行 `go generate`，检查生成文件与 schema 一致。
+- 后端：根模块按受影响包运行 `go test -p 1`；`llm/` 独立运行 `go test -p 1 ./...`。
+- 前端：使用 `corepack pnpm`，运行现有单元测试与 `tsc --noEmit -p tsconfig.app.json`；类型诊断需与 beta10 基线比较，不以清零全库历史错误为目标。
+- 数据库：升级路径需覆盖 schema migration、data migration、归档／预算／缓存读取；不能只看 Git 冲突数量。
+- 发布：先验证 `release.mjs` 的 `beta12-fork.N` 版本和双来源祖先关系，再由维护分支 Test 成功后发布；本地合并不自动推送或部署。
+
 ## 上游同步记录
 
 ### v1.0.0-beta10（2026-09-09）

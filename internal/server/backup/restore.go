@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -24,9 +25,12 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
-func (svc *BackupService) Restore(ctx context.Context, data []byte, opts RestoreOptions) error {
+// Restore decodes the backup from data. It reads the whole payload into memory
+// as it decodes, so callers should not buffer it first.
+func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts RestoreOptions) error {
 	user, ok := contexts.GetUser(ctx)
 	if !ok || user == nil {
 		return fmt.Errorf("user not found in context")
@@ -37,8 +41,16 @@ func (svc *BackupService) Restore(ctx context.Context, data []byte, opts Restore
 	}
 
 	var backupData BackupData
-	if err := json.Unmarshal(data, &backupData); err != nil {
+
+	dec := json.NewDecoder(data)
+	if err := dec.Decode(&backupData); err != nil {
 		return err
+	}
+
+	// json.Unmarshal used to reject trailing content; keep that contract now that
+	// the payload arrives as a stream.
+	if _, err := dec.Token(); err != io.EOF {
+		return fmt.Errorf("unexpected trailing data after backup")
 	}
 
 	if !lo.Contains([]string{BackupVersion, BackupVersionV6, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
@@ -97,6 +109,11 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 	channelIDMap, err := svc.buildChannelIDMap(ctx, db, backupData.Channels)
 	if err != nil {
 		return err
+	}
+	if opts.IncludeSystemConfigs {
+		if err := svc.restoreLegacyQuotaRouting(ctx, db, backupData.SystemConfigs, channelIDMap, opts.IncludeChannels); err != nil {
+			return err
+		}
 	}
 
 	if opts.IncludeModelPrices {
@@ -165,6 +182,98 @@ func (svc *BackupService) restoreSystemConfigs(ctx context.Context, db *ent.Clie
 	}
 
 	return nil
+}
+
+func (svc *BackupService) restoreLegacyQuotaRouting(ctx context.Context, db *ent.Client, configs []*BackupSystemConfig, channelIDMap map[int]int, includeChannels bool) error {
+	legacySettings, ok := decodeLegacyQuotaEnforcementSettings(configs)
+	if !ok {
+		return nil
+	}
+
+	if includeChannels && !hasSystemConfig(configs, biz.SystemKeyQuotaRoutingSettings) {
+		for _, oldID := range legacySettings.AllowedChannelIDs {
+			newID, ok := channelIDMap[oldID]
+			if !ok {
+				log.Warn(ctx, "restored legacy quota enforcement skipped missing channel",
+					log.Int("channel_id", oldID))
+				continue
+			}
+			ch, err := db.Channel.Query().Where(channel.IDEQ(newID)).Only(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to load restored channel %d: %w", newID, err)
+			}
+			settings := objects.ChannelSettings{}
+			if ch.Settings != nil {
+				settings = *ch.Settings
+			}
+			settings.QuotaRoutingMode = objects.QuotaRoutingModeIgnoreQuota
+			if _, err := db.Channel.UpdateOneID(newID).SetSettings(&settings).Save(ctx); err != nil {
+				return fmt.Errorf("failed to restore quota routing for channel %d: %w", newID, err)
+			}
+		}
+	}
+
+	if !hasSystemConfig(configs, biz.SystemKeyQuotaRoutingSettings) {
+		mode := biz.QuotaRoutingModeFromLegacy(
+			legacySettings.Enabled,
+			legacySettings.ExhaustedOnly,
+			legacySettings.DePrioritize,
+			legacySettings.Mode,
+		)
+		value, err := json.Marshal(biz.QuotaRoutingSettings{DefaultMode: mode})
+		if err != nil {
+			return fmt.Errorf("failed to encode restored quota routing settings: %w", err)
+		}
+		if err := db.System.Create().
+			SetKey(biz.SystemKeyQuotaRoutingSettings).
+			SetValue(string(value)).
+			OnConflict(sql.ConflictColumns(system.FieldKey)).
+			UpdateNewValues().
+			Exec(ctx); err != nil {
+			return fmt.Errorf("failed to restore quota routing settings: %w", err)
+		}
+	}
+
+	if err := db.System.Create().
+		SetKey(biz.SystemKeyQuotaRoutingMigrationDone).
+		SetValue("true").
+		OnConflict(sql.ConflictColumns(system.FieldKey)).
+		UpdateNewValues().
+		Exec(ctx); err != nil {
+		return fmt.Errorf("failed to mark quota routing migration complete: %w", err)
+	}
+	return nil
+}
+
+func hasSystemConfig(configs []*BackupSystemConfig, key string) bool {
+	for _, config := range configs {
+		if config != nil && config.Key == key {
+			return true
+		}
+	}
+	return false
+}
+
+type legacyQuotaEnforcementSettings struct {
+	Enabled           bool   `json:"enabled"`
+	ExhaustedOnly     bool   `json:"exhaustedOnly"`
+	DePrioritize      bool   `json:"dePrioritize"`
+	Mode              string `json:"mode"`
+	AllowedChannelIDs []int  `json:"allowedChannelIDs"`
+}
+
+func decodeLegacyQuotaEnforcementSettings(configs []*BackupSystemConfig) (legacyQuotaEnforcementSettings, bool) {
+	for _, config := range configs {
+		if config == nil || config.Key != biz.SystemKeyQuotaEnforcementSettings {
+			continue
+		}
+		var settings legacyQuotaEnforcementSettings
+		if err := json.Unmarshal([]byte(config.Value), &settings); err != nil {
+			return legacyQuotaEnforcementSettings{}, false
+		}
+		return settings, true
+	}
+	return legacyQuotaEnforcementSettings{}, false
 }
 
 func (svc *BackupService) buildChannelIDMap(ctx context.Context, db *ent.Client, channels []*BackupChannel) (map[int]int, error) {
@@ -1003,6 +1112,7 @@ func (svc *BackupService) restoreUsageRequests(
 			SetNillableChannelID(nilIfZero(channelID)).
 			SetNillableReasoningEffort(nilIfEmpty(reqData.ReasoningEffort)).
 			SetRequestHeaders(reqData.RequestHeaders).
+			SetResponseHeaders(reqData.ResponseHeaders).
 			SetResponseBody(reqData.ResponseBody).
 			SetResponseChunks(reqData.ResponseChunks).
 			SetNillableExternalID(nilIfEmpty(reqData.ExternalID)).

@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
+	bytesreader "bytes"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
@@ -78,7 +79,7 @@ func TestBudgetBackupRestoresBalancesAndDetachedHistory(t *testing.T) {
 			}
 			bytes, err = json.Marshal(snapshot)
 			require.NoError(t, err)
-			require.NoError(t, svc.Restore(ctx, bytes, RestoreOptions{IncludeAPIKeys: true}))
+			require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(bytes), RestoreOptions{IncludeAPIKeys: true}))
 			restored := db.BudgetAccount.Query().Where(budgetaccount.IDNEQ(account.ID), budgetaccount.OwnerKindEQ(budgetaccount.OwnerKindKey)).OnlyX(ctx)
 			require.Equal(t, int64(300000000), restored.Reserved)
 			require.Equal(t, budget.Amount(200000000), restored.State.Counters[budget.Total].Amount)
@@ -100,13 +101,13 @@ func TestBudgetBackupRestoresBalancesAndDetachedHistory(t *testing.T) {
 			require.Equal(t, 4, db.BudgetCharge.Query().CountX(ctx))
 			if !detached {
 				count := db.BudgetAccount.Query().CountX(ctx)
-				require.ErrorContains(t, svc.Restore(ctx, bytes, RestoreOptions{IncludeAPIKeys: true}), "budget history already exists")
+				require.ErrorContains(t, svc.Restore(ctx, bytesreader.NewReader(bytes), RestoreOptions{IncludeAPIKeys: true}), "budget history already exists")
 				require.Equal(t, count, db.BudgetAccount.Query().CountX(ctx))
 			}
 			snapshot.BudgetAccounts[0].Reserved++
 			bytes, err = json.Marshal(snapshot)
 			require.NoError(t, err)
-			require.ErrorContains(t, svc.Restore(ctx, bytes, RestoreOptions{IncludeAPIKeys: true}), "inconsistent")
+			require.ErrorContains(t, svc.Restore(ctx, bytesreader.NewReader(bytes), RestoreOptions{IncludeAPIKeys: true}), "inconsistent")
 		})
 	}
 }
@@ -155,7 +156,7 @@ func TestBudgetBackupPendingVideoRecoversWithoutRequestLogs(t *testing.T) {
 	backup.BudgetAccounts[0].ProjectName = target.Name
 	data, err = json.Marshal(backup)
 	require.NoError(t, err)
-	require.NoError(t, svc.Restore(ctx, data, RestoreOptions{IncludeAPIKeys: true}))
+	require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{IncludeAPIKeys: true}))
 	charge := db.BudgetCharge.Query().Where(budgetcharge.ExecutionIDLT(0)).OnlyX(ctx)
 	require.NotNil(t, charge.AsyncTask)
 	require.NotNil(t, charge.CostSnapshot)
@@ -200,7 +201,7 @@ func TestBudgetSettledVideoRestoreDoesNotRequireChannel(t *testing.T) {
 	}
 	bytes, err := json.Marshal(data)
 	require.NoError(t, err)
-	require.NoError(t, svc.Restore(ctx, bytes, RestoreOptions{IncludeAPIKeys: true}))
+	require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(bytes), RestoreOptions{IncludeAPIKeys: true}))
 	restored := db.BudgetAccount.Query().OnlyX(ctx)
 	require.Zero(t, restored.Reserved)
 	require.Equal(t, budget.Amount(actual), restored.State.Counters[budget.Total].Amount)
@@ -235,7 +236,7 @@ func TestBudgetRestorePreservesOwnerAndReleasedUnknownHold(t *testing.T) {
 			require.NoError(t, validateBudgetBackup(data))
 			body, err := json.Marshal(data)
 			require.NoError(t, err)
-			require.NoError(t, svc.Restore(ctx, body, RestoreOptions{IncludeAPIKeys: true}))
+			require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(body), RestoreOptions{IncludeAPIKeys: true}))
 			restored := db.BudgetCharge.Query().OnlyX(ctx)
 			require.Equal(t, charge.OwnerToken, restored.OwnerToken)
 			require.Equal(t, charge.ReservationReleasedAt, restored.ReservationReleasedAt)
@@ -250,3 +251,4 @@ func TestBudgetRestorePreservesOwnerAndReleasedUnknownHold(t *testing.T) {
 		})
 	}
 }
+

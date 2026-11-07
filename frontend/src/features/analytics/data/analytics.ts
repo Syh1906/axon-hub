@@ -6,8 +6,8 @@ import { useSelectedProjectId } from '@/stores/projectStore';
 // --- Zod Schemas ---
 
 export const analyticsFilterSchema = z.object({
-  startTime: z.string().nullable().optional(), // 'YYYY-MM-DD' 或 ISO timestamp
-  endTime: z.string().nullable().optional(),
+  startTime: z.string().nullable().optional(), // RFC3339 timestamp (inclusive)
+  endTime: z.string().nullable().optional(), // RFC3339 timestamp (inclusive)
   projectIDs: z.array(z.string()).optional(),
   channelIDs: z.array(z.string()).optional(),
   modelIDs: z.array(z.string()).optional(),
@@ -63,6 +63,8 @@ export const analyticsDimensionStatSchema = z.object({
   outputTokens: z.number(),
   totalTokens: z.number(),
   cost: z.number(),
+  tokensPerSecond: z.number().nullable(),
+  ttftMs: z.number().nullable(),
 });
 
 export type AnalyticsDimensionStat = z.infer<typeof analyticsDimensionStatSchema>;
@@ -131,7 +133,7 @@ export const analyticsModelStatSchema = z.object({
 export type AnalyticsModelStat = z.infer<typeof analyticsModelStatSchema>;
 
 export const analyticsMetadataSchema = z.object({
-  earliestDate: z.string().nullable().optional(),
+  earliestTime: z.string().nullable().optional(),
 });
 
 export type AnalyticsMetadata = z.infer<typeof analyticsMetadataSchema>;
@@ -141,7 +143,7 @@ export type AnalyticsMetadata = z.infer<typeof analyticsMetadataSchema>;
 const ANALYTICS_METADATA_QUERY = `
   query GetAnalyticsMetadata {
     analyticsMetadata {
-      earliestDate
+      earliestTime
     }
   }
 `;
@@ -186,6 +188,8 @@ const ANALYTICS_DIMENSION_STATS_QUERY = `
       outputTokens
       totalTokens
       cost
+      tokensPerSecond
+      ttftMs
     }
   }
 `;
@@ -257,10 +261,8 @@ const ANALYTICS_MODEL_STATS_QUERY = `
 
 // --- Helper: convert filter to GraphQL input ---
 
-// 直接发 YYYY-MM-DD 字符串，后端用系统时区解析（同仪表盘模式）
-export function toGraphQLFilter(
-  filter: AnalyticsFilter | AnalyticsModelFilter | null
-): Record<string, unknown> | null {
+// 过滤字段按对应 GraphQL 输入的时间契约原样传递。
+export function toGraphQLFilter(filter: AnalyticsFilter | AnalyticsModelFilter | null): Record<string, unknown> | null {
   if (!filter) return null;
 
   const result: Record<string, unknown> = {};

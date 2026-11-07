@@ -27,7 +27,7 @@ export function RequestLogStatusCell({
   onOpen,
 }: {
   request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'stream'> & {
-    executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount: number };
+    executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount?: number };
   };
   onOpen?: (tab: RequestDiagnosticTab) => void;
 }) {

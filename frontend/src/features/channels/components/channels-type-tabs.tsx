@@ -48,7 +48,7 @@ export const ChannelsTypeTabs = memo(function ChannelsTypeTabs({ groups, selecte
   };
 
   return (
-    <div className={cn('mb-6 w-full overflow-hidden', className)}>
+    <div className={cn('mb-3 sm:mb-6 w-full overflow-hidden', className)}>
       <div
         ref={scrollRef}
         className='hide-scroll flex flex-nowrap items-center gap-2 overflow-x-auto scroll-smooth'

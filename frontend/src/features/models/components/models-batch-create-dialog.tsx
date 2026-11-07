@@ -14,8 +14,10 @@ import { DEVELOPER_IDS, DEVELOPER_ICONS } from '../data/constants';
 import { useBulkCreateModels } from '../data/models';
 import { priceFromCatalog } from '../data/pricing';
 import { useDevelopersData } from '../data/providers';
+import { isSuggestedModel, withMiniMaxFlash } from '../data/model-suggestions';
 import { type Provider, type ProviderModel, resolveVision } from '../data/providers.schema';
-import { CreateModelInput, ModelCard, ModelType, modelTypeSchema } from '../data/schema';
+import { deriveReasoningEfforts } from '../data/reasoning-efforts';
+import { ModelCard, ModelType, modelTypeSchema } from '../data/schema';
 
 interface ModelRow {
   id: string;
@@ -65,7 +67,7 @@ export function ModelsBatchCreateDialog() {
       .map(([key, provider]: [string, Provider]) => ({
         id: key,
         name: provider.display_name || provider.name,
-        models: provider.models || [],
+        models: withMiniMaxFlash(provider.models || [], key),
       }));
   }, [developersData]);
 
@@ -153,6 +155,7 @@ export function ModelsBatchCreateDialog() {
                 supported: selectedModel.reasoning?.supported || false,
                 default: selectedModel.reasoning?.default || false,
               },
+              reasoningEfforts: deriveReasoningEfforts(selectedModel.reasoning_options),
               toolCall: selectedModel.tool_call || false,
               temperature: selectedModel.temperature || false,
               modalities: {
@@ -263,7 +266,7 @@ export function ModelsBatchCreateDialog() {
       return;
     }
 
-    const inputs: CreateModelInput[] = validRows.map((row) => ({
+    const inputs = validRows.map((row) => ({
       developer: row.developer,
       modelID: row.modelId,
       type: row.type,
@@ -279,6 +282,8 @@ export function ModelsBatchCreateDialog() {
         limit: { context: 0, output: 0 },
       },
       settings: {
+        disableDeveloperSettingsInheritance: false,
+        modelProtocols: [],
         loadBalancerStrategy: 'default',
         traceStickyMode: 'default',
         associations: [
@@ -294,7 +299,7 @@ export function ModelsBatchCreateDialog() {
     }));
 
     try {
-      await bulkCreateModels.mutateAsync(inputs);
+      await bulkCreateModels.mutateAsync(inputs as any);
       handleClose();
     } catch (_error) {
       // Error is handled by mutation
@@ -311,10 +316,12 @@ export function ModelsBatchCreateDialog() {
     (developer: string) => {
       const provider = providers.find((p) => p.id === developer);
       if (!provider) return [];
-      return provider.models.map((m: ProviderModel) => ({
-        value: m.id,
-        label: m.id,
-      }));
+      return provider.models
+        .filter((model) => isSuggestedModel(model.id))
+        .map((m: ProviderModel) => ({
+          value: m.id,
+          label: m.id,
+        }));
     },
     [providers]
   );

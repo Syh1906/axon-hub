@@ -4,16 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { IconFileDownload, IconLoader2, IconTemplate, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useApiKeyProfileTemplates, useLoadApiKeyProfileTemplate, useDeleteApiKeyProfileTemplate } from '../data/apikeys';
@@ -22,6 +13,8 @@ import type { ApiKeyProfileTemplate, ApiKeyProfile } from '../data/schema';
 interface ApiKeyLoadTemplatePopoverProps {
   apiKeyID: string;
   projectID: string | null;
+  /** Popover Portal 容器元素，解决 Dialog 内无法滚动的问题 */
+  portalContainer?: HTMLElement | null;
   onLoadComplete?: (loadedProfiles: { activeProfile: string; profiles: ApiKeyProfile[] }) => void;
 }
 
@@ -79,6 +72,7 @@ function TemplateItem({
 export function ApiKeyLoadTemplatePopover({
   apiKeyID,
   projectID,
+  portalContainer,
   onLoadComplete,
 }: ApiKeyLoadTemplatePopoverProps) {
   const { t } = useTranslation();
@@ -142,7 +136,7 @@ export function ApiKeyLoadTemplatePopover({
             {t('apikeys.templates.loadButton')}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className='w-80 p-0' align='start'>
+        <PopoverContent className='w-80 p-0' align='start' container={portalContainer}>
           <div className='px-4 py-3 border-b'>
             <h4 className='text-sm font-medium'>{t('apikeys.templates.loadTitle')}</h4>
           </div>

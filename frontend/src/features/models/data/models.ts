@@ -38,6 +38,7 @@ const MODELS_QUERY = `
               supported
               default
             }
+            reasoningEfforts
             toolCall
             temperature
             modalities {
@@ -167,6 +168,7 @@ const CREATE_MODEL_MUTATION = `
           supported
           default
         }
+        reasoningEfforts
         toolCall
         temperature
         modalities {
@@ -271,6 +273,7 @@ const BULK_CREATE_MODELS_MUTATION = `
           supported
           default
         }
+        reasoningEfforts
         toolCall
         temperature
         modalities {
@@ -375,6 +378,7 @@ const UPDATE_MODEL_MUTATION = `
           supported
           default
         }
+        reasoningEfforts
         toolCall
         temperature
         modalities {
@@ -575,8 +579,9 @@ interface QueryAllModelsArgs {
   where?: Record<string, any>;
 }
 
-export function useQueryAllModels(args: QueryAllModelsArgs) {
+export function useQueryAllModels(args: QueryAllModelsArgs, options?: { enabled?: boolean }) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ['models', 'all', args],
     staleTime: 30_000,
     gcTime: 5 * 60_000,

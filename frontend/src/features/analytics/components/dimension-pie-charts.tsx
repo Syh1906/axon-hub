@@ -206,11 +206,6 @@ function PieChartCard({ title, data, valueKey, valueFormatter, otherLabel }: Pie
                   iconSize={8}
                   itemSorter={null}
                   portal={legendPortal}
-                  payload={chartData.map((item, index) => ({
-                    value: item.name,
-                    type: 'circle' as const,
-                    color: COLORS[index % COLORS.length],
-                  }))}
                   formatter={(value: string) => {
                     const item = chartData.find((d) => d.name === value);
                     const pct = item ? item.percentage.toFixed(1) : '0';
@@ -259,11 +254,6 @@ function PieChartCard({ title, data, valueKey, valueFormatter, otherLabel }: Pie
                   iconSize={8}
                   itemSorter={null}
                   portal={legendPortal}
-                  payload={chartData.map((item, index) => ({
-                    value: item.name,
-                    type: 'circle' as const,
-                    color: COLORS[index % COLORS.length],
-                  }))}
                   formatter={(value: string) => {
                     const item = chartData.find((d) => d.name === value);
                     const pct = item ? item.percentage.toFixed(1) : '0';

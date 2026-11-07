@@ -90,6 +90,7 @@ func persistRequestExecutionFailure(
 	rawErr error,
 	metrics *biz.LatencyMetrics,
 	response *httpclient.Response,
+	upstreamModels ...string,
 ) error {
 	status := requestexecution.StatusFailed
 	if errors.Is(rawErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
@@ -104,6 +105,9 @@ func persistRequestExecutionFailure(
 		info.ExternalID = gjson.GetBytes(response.Body, "id").String()
 	}
 
+	upstreamModelID := ""
+	if len(upstreamModels) > 0 { upstreamModelID = upstreamModels[0] }
+	if upstreamModelID == "" && response != nil { upstreamModelID = gjson.GetBytes(response.Body, "model").String() }
 	return requestService.UpdateRequestExecutionStatusWithMetrics(
 		ctx,
 		executionID,
@@ -111,5 +115,6 @@ func persistRequestExecutionFailure(
 		sanitizeDiagnosticText(ExtractErrorMessage(failure), key),
 		info,
 		metrics,
+		upstreamModelID,
 	)
 }

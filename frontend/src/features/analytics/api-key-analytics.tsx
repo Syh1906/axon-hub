@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { calendarRangeToTimestamps, analyticsCalendarDate } from './utils/date-range';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -30,11 +31,10 @@ export default function APIKeyAnalyticsPage() {
   } = useAnalyticsAPIKeyTemplates();
   const filter = useMemo<AnalyticsFilter>(
     () => ({
-      startTime,
-      endTime,
+      ...calendarRangeToTimestamps(startTime, endTime, generalSettings?.timezone || 'UTC'),
       templateIDs: templateIDs.length > 0 ? templateIDs : undefined,
     }),
-    [endTime, startTime, templateIDs]
+    [endTime, startTime, templateIDs, generalSettings?.timezone]
   );
   const {
     data: stats = [],
@@ -69,7 +69,7 @@ export default function APIKeyAnalyticsPage() {
       </p>
 
       <APIKeyAnalyticsFilterBar
-        earliestDate={metadata?.earliestDate}
+        earliestDate={analyticsCalendarDate(metadata?.earliestTime, generalSettings?.timezone || 'UTC')}
         timezone={generalSettings?.timezone || 'UTC'}
         startTime={startTime}
         endTime={endTime}

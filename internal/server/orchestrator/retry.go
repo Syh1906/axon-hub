@@ -2,8 +2,7 @@ package orchestrator
 
 import (
 	"errors"
-	"io"
-	"net"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -45,29 +44,19 @@ func isRetryableErrorForChannel(err error, ch *biz.Channel) bool {
 		matchesRetryableErrorPattern(err, ch.Settings.RetryableErrorPatterns)
 }
 
-// isRetryableTransportError identifies failures where the upstream connection
-// ended before a usable response was received. The streaming pipeline only
-// invokes retry selection before response content is committed, so retrying
-// these transport failures cannot duplicate already-delivered output.
-func isRetryableTransportError(err error) bool {
-	if err == nil {
+// channelRetriesOn429 reports whether the channel explicitly opts 429 into
+// same-channel retries by listing it in ChannelSettings.RetryableStatusCodes.
+//
+// 429 normally forces a channel switch: the retry loop reads it as "this channel
+// is being rate-limited", so retrying it would only burn an attempt. A channel
+// that lists 429 is saying the code means "the upstream endpoint is busy"
+// instead, where a same-channel retry can win the race.
+func channelRetriesOn429(ch *biz.Channel) bool {
+	if ch == nil || ch.Channel == nil || ch.Settings == nil {
 		return false
 	}
-	var responseErr *llm.ResponseError
-	if errors.As(err, &responseErr) && responseErr.StatusCode == 0 &&
-		ExtractStatusCodeFromError(err) == 0 && responseErr.Detail.Code == "upstream_stream_read_error" {
-		return true
-	}
 
-	if errors.Is(err, io.EOF) ||
-		errors.Is(err, io.ErrUnexpectedEOF) ||
-		errors.Is(err, llm.ErrStreamIncomplete) {
-		return true
-	}
-
-	var netErr net.Error
-
-	return errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary())
+	return slices.Contains(ch.Settings.RetryableStatusCodes, http.StatusTooManyRequests)
 }
 
 func matchesRetryableErrorPattern(err error, patterns []objects.RetryableErrorPattern) bool {
@@ -170,4 +159,11 @@ func deriveRoutingPolicy(
 
 func deriveLoadBalancerStrategy(retryPolicy *biz.RetryPolicy, apiKey *ent.APIKey) string {
 	return deriveRoutingPolicy(retryPolicy, apiKey, nil).LoadBalancerStrategy
+}
+
+// Structured provider disconnects keep their status-less retry contract.
+func isRetryableTransportError(err error) bool {
+ var responseErr *llm.ResponseError
+ if errors.As(err, &responseErr) && responseErr.StatusCode == 0 && ExtractStatusCodeFromError(err) == 0 && responseErr.Detail.Code == "upstream_stream_read_error" { return true }
+ return IsUpstreamTransportError(err)
 }

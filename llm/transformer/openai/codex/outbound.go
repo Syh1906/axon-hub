@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -56,6 +57,11 @@ type OutboundTransformer struct {
 	webSocketExecutors map[pipeline.Executor]*responses.WebSocketExecutor
 }
 
+// SupportsCodexResponseHeaders identifies the official Codex response-header contract.
+func (*OutboundTransformer) SupportsCodexResponseHeaders() bool {
+	return true
+}
+
 var (
 	_ transformer.Outbound                  = (*OutboundTransformer)(nil)
 	_ transformer.PassThroughBodyPolicy     = (*OutboundTransformer)(nil)
@@ -74,13 +80,32 @@ type Params struct {
 	BaseURL         string
 	Transport       string
 	AlphaSearchPath string
+	EndpointPath    string
 }
 
 // isOfficialCodexBaseURL reports whether baseURL points at the official Codex
 // backend. Everything else is treated as a compatible relay that may return a
-// completed JSON response instead of SSE.
+// completed JSON response instead of SSE, and that must not receive the private
+// Responses Lite constructs.
+//
+// The host is compared as a whole: a relay reached through a path or hostname
+// that merely mentions the official domain is still a relay.
 func isOfficialCodexBaseURL(baseURL string) bool {
-	return strings.Contains(strings.ToLower(baseURL), "chatgpt.com")
+	host := ""
+	if parsed, err := url.Parse(baseURL); err == nil && parsed.Host != "" {
+		host = parsed.Hostname()
+	} else {
+		// Tolerate a base URL written without a scheme, e.g. "chatgpt.com/v1".
+		remainder := strings.TrimPrefix(strings.TrimPrefix(baseURL, "//"), "/")
+		host = strings.SplitN(remainder, "/", 2)[0]
+		if idx := strings.Index(host, ":"); idx >= 0 {
+			host = host[:idx]
+		}
+	}
+
+	host = strings.ToLower(host)
+
+	return host == "chatgpt.com" || strings.HasSuffix(host, ".chatgpt.com")
 }
 
 // isOfficialCodex reports whether the transformer targets the official Codex backend.
@@ -102,6 +127,7 @@ func NewOutboundTransformer(params Params) (*OutboundTransformer, error) {
 	if alphaSearchPath == "" {
 		alphaSearchPath = "/alpha/search"
 	}
+	official := isOfficialCodexBaseURL(baseURL)
 
 	// The underlying responses outbound requires baseURL/apiKey. We only need its request body logic.
 	// Use a dummy config and then override URL/auth.
@@ -109,6 +135,7 @@ func NewOutboundTransformer(params Params) (*OutboundTransformer, error) {
 		BaseURL:        baseURL,
 		APIKeyProvider: auth.NewStaticKeyProvider("dummy"),
 		Transport:      params.Transport,
+		EndpointPath:   params.EndpointPath,
 	})
 	if err != nil {
 		return nil, err
@@ -119,12 +146,15 @@ func NewOutboundTransformer(params Params) (*OutboundTransformer, error) {
 		transport:         params.Transport,
 		baseURL:           strings.TrimSuffix(baseURL, "##"),
 		alphaSearchPath:   alphaSearchPath,
-		official:          isOfficialCodexBaseURL(baseURL),
+		official:          official,
 		responsesOutbound: ro,
 	}, nil
 }
 
 func (t *OutboundTransformer) APIFormat() llm.APIFormat {
+	if t != nil && t.transport == responses.TransportWebSocket {
+		return llm.APIFormatOpenAIResponseWebSocket
+	}
 	return llm.APIFormatOpenAIResponse
 }
 
@@ -137,7 +167,7 @@ func (t *OutboundTransformer) TokenProvider() oauth.TokenGetter {
 }
 
 func (t *OutboundTransformer) AllowPassThroughBody(_ context.Context, llmReq *llm.Request, _ *httpclient.Request) bool {
-	if llmReq == nil || llmReq.APIFormat != llm.APIFormatOpenAIResponse || llmReq.RawRequest == nil {
+	if llmReq == nil || (llmReq.APIFormat != llm.APIFormatOpenAIResponse && llmReq.APIFormat != llm.APIFormatOpenAIResponseWebSocket && llmReq.APIFormat != llm.APIFormatOpenAIResponseCompact) || llmReq.RawRequest == nil {
 		return true
 	}
 
@@ -161,10 +191,12 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	if llmReq.RequestType == llm.RequestTypeAlphaSearch {
 		return t.transformAlphaSearchRequest(ctx, llmReq)
 	}
+	if llmReq.RequestType == llm.RequestTypeImage {
+		return nil, fmt.Errorf("%w: Images requests require a native Images endpoint configuration", transformer.ErrInvalidRequest)
+	}
 
 	rawSessionID := ""
 	rawOriginator := ""
-	rawUserAgent := ""
 	rawTurnMetadata := ""
 
 	var rawHeaders http.Header
@@ -177,8 +209,11 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		}
 		// Remove underscore variant to prevent it from leaking upstream via MergeInboundRequest.
 		llmReq.RawRequest.Headers.Del(SessionHeader)
+		// The ChatGPT Codex backend does not consume client attribution headers,
+		// so drop them before MergeInboundRequest can forward the client's
+		// fingerprint to chatgpt.com.
+		ScrubClientFingerprintHeaders(llmReq.RawRequest.Headers)
 		rawOriginator = llmReq.RawRequest.Headers.Get("Originator")
-		rawUserAgent = llmReq.RawRequest.Headers.Get("User-Agent")
 		rawTurnMetadata = llmReq.RawRequest.Headers.Get(TurnMetadataHeader)
 
 		// Responses Lite selects a private Codex protocol mode. It is not
@@ -200,9 +235,6 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 
 	// Clone request so we do not mutate upstream pipeline state.
 	reqCopy := *llmReq
-	originalRequestType := reqCopy.RequestType
-	originalAPIFormat := reqCopy.APIFormat
-	isImageRequest := originalRequestType == llm.RequestTypeImage
 
 	// Codex expects Responses API payload with some strict rules.
 	// Always enable stream except for compact requests and disable store.
@@ -223,22 +255,14 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		reqCopy.TransformerMetadata = map[string]any{}
 	}
 
-	if isImageRequest {
-		reqCopy.Model = defaultImageMainModel
-		reqCopy.TransformerMetadata[responses.ImageGenerationToolModelMetadataKey] = llmReq.Model
+	// Ask for encrypted reasoning content so the downstream can surface reasoning blocks.
+	if _, ok := reqCopy.TransformerMetadata["include"]; !ok {
+		reqCopy.TransformerMetadata["include"] = []string{"reasoning.encrypted_content"}
 	}
 
-	// Ask for encrypted reasoning content so the downstream can surface reasoning blocks.
-	if !isImageRequest {
-		if _, ok := reqCopy.TransformerMetadata["include"]; !ok {
-			reqCopy.TransformerMetadata["include"] = []string{"reasoning.encrypted_content"}
-		}
-
-		if reqCopy.ReasoningSummary == nil || *reqCopy.ReasoningSummary == "" {
-			// Enable reasoning summary for Codex CLI requests.
-			reqCopy.ReasoningSummary = lo.ToPtr("auto")
-		}
-
+	if reqCopy.ReasoningSummary == nil || *reqCopy.ReasoningSummary == "" {
+		// Enable reasoning summary for Codex CLI requests.
+		reqCopy.ReasoningSummary = lo.ToPtr("auto")
 	}
 
 	// Codex Responses rejects token limit fields, so strip them out.
@@ -259,11 +283,6 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		return nil, err
 	}
 
-	if isImageRequest {
-		hreq.RequestType = originalRequestType.String()
-		hreq.APIFormat = originalAPIFormat.String()
-	}
-
 	// Overwrite auth.
 	hreq.Auth = &httpclient.AuthConfig{Type: httpclient.AuthTypeBearer, APIKey: creds.AccessToken}
 	// Compact requests expect JSON response, others expect SSE stream.
@@ -273,16 +292,19 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		hreq.Headers.Set("Accept", "text/event-stream")
 	}
 
+	// The transformer owns the outbound User-Agent. The inbound client UA must
+	// not be copied here: client-UA forwarding is owned solely by the
+	// orchestrator's user-agent pass-through middleware, which runs after this
+	// transformer and overwrites this default when the switch is enabled. When
+	// the switch is off the upstream sees this Codex-client-like fingerprint
+	// instead of the client's private identity.
 	hreq.Headers.Del("User-Agent")
+	hreq.Headers.Set("User-Agent", codexDefaultUserAgent)
 
 	if rawOriginator != "" {
 		hreq.Headers.Set("Originator", rawOriginator)
 	} else {
 		hreq.Headers.Set("Originator", AxonHubOriginator)
-	}
-
-	if rawUserAgent != "" {
-		hreq.Headers.Set("User-Agent", rawUserAgent)
 	}
 
 	for _, header := range PassthroughHeaders {
@@ -364,23 +386,6 @@ func (t *OutboundTransformer) TransformResponse(ctx context.Context, httpResp *h
 	if httpResp != nil && httpResp.Request != nil && httpResp.Request.RequestType == llm.RequestTypeAlphaSearch.String() {
 		return t.transformAlphaSearchResponse(ctx, httpResp)
 	}
-	if httpResp != nil && httpResp.Request != nil && httpResp.Request.RequestType == llm.RequestTypeImage.String() {
-		if httpResp.StatusCode >= 400 {
-			return nil, fmt.Errorf("codex image HTTP error %d: %s", httpResp.StatusCode, httpResp.Body)
-		}
-
-		var upstream responses.Response
-		if err := json.Unmarshal(httpResp.Body, &upstream); err != nil {
-			return nil, err
-		}
-
-		metadata := map[string]any{}
-		if httpResp.Request != nil && httpResp.Request.TransformerMetadata != nil {
-			metadata = httpResp.Request.TransformerMetadata
-		}
-
-		return responses.BuildImageResponse(&upstream, metadata)
-	}
 
 	return t.responsesOutbound.TransformResponse(ctx, httpResp)
 }
@@ -453,6 +458,9 @@ type codexExecutor struct {
 }
 
 func (e *codexExecutor) Do(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
+	if request.RequestType == llm.RequestTypeImage.String() {
+		return nil, fmt.Errorf("%w: Images requests require a native Images endpoint configuration", transformer.ErrInvalidRequest)
+	}
 	request = e.requestForTransport(request)
 	// Compact and alpha search are non-streaming endpoints; proxy them
 	// through the real HTTP client instead of the SSE stream path.
@@ -514,9 +522,9 @@ func (e *codexExecutor) doStreamAndAggregate(ctx context.Context, request *httpc
 
 	return &httpclient.Response{
 		StatusCode: http.StatusOK,
-		Headers: http.Header{
+		Headers: httpclient.MergeForwardResponseHeaders(http.Header{
 			"Content-Type": []string{"application/json"},
-		},
+		}, httpclient.GetResponseHeaders(stream)),
 		Body:    body,
 		Request: request,
 	}, nil

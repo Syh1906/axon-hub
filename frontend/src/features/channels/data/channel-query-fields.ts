@@ -9,11 +9,13 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           status
           policies {
             stream
+            apiKeyAutoDisableMode
             apiKeyAutoDisableRules { statusCodes keywordPatterns times action disableDurationMinutes disableUntilCron disableUntilTimezone }
           }
           credentials {
             apiKey
             apiKeys
+            vertexApiKeys { projectID apiKey region }
             gcp {
               region
               projectID
@@ -27,6 +29,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
           tags
           defaultTestModel
           settings {
+            quotaRoutingMode
             globalPriority
             tagPriorities { tag priority }
             modelPriceMultiplier
@@ -104,12 +107,17 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
               regex
             }
             primaryApiFormat
+            maxSingleChannelRetries
+            apiKeyStrategy
+            apiKeyRoundRobinSwitchAfter
+            quotaRoutingMode
             modelProtocols {
               model
               apiFormats
               enabled
             }
             providerQuota {
+              ollama { authCookie }
               commandCode {
                 authCookie
               }
@@ -157,6 +165,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             ready
             quotaData
             providerType
+            accountKey
           }
 `;
 
@@ -186,6 +195,10 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
             addressFailover
             forceOneHourPromptCache
             primaryApiFormat
+            maxSingleChannelRetries
+            apiKeyStrategy
+            apiKeyRoundRobinSwitchAfter
+            quotaRoutingMode
           }
           disabledAPIKeys {
             key
@@ -207,6 +220,7 @@ export const CHANNEL_QUERY_TAGS_SELECTION = `
 
 export const CHANNEL_QUERY_PROXY_SELECTION = `
           settings {
+            quotaRoutingMode
             globalPriority
             tagPriorities { tag priority }
             modelPriceMultiplier
@@ -252,5 +266,6 @@ export const CHANNEL_QUERY_QUOTA_SELECTION = `
             ready
             quotaData
             providerType
+            accountKey
           }
 `;

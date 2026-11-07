@@ -170,13 +170,6 @@ export function CombinedTrendChart({ data, isLoading, currencyCode }: CombinedTr
               verticalAlign='top'
               height={36}
               itemSorter={null}
-              payload={[
-                { value: t('analytics.chart.cachedInput'), type: 'square' as const, color: 'var(--chart-1)' },
-                { value: t('analytics.chart.uncachedInput'), type: 'square' as const, color: 'var(--chart-2)' },
-                { value: t('analytics.chart.outputTokens'), type: 'square' as const, color: 'var(--chart-3)' },
-                { value: t('analytics.chart.requestCount'), type: 'line' as const, color: 'var(--chart-4)' },
-                { value: t('analytics.chart.cost'), type: 'line' as const, color: 'var(--chart-5)' },
-              ]}
             />
             <Bar yAxisId='tokens' dataKey='cachedInput' name={t('analytics.chart.cachedInput')} stackId='tokens' fill='var(--chart-1)' isAnimationActive={false} />
             <Bar yAxisId='tokens' dataKey='uncachedInput' name={t('analytics.chart.uncachedInput')} stackId='tokens' fill='var(--chart-2)' isAnimationActive={false} />

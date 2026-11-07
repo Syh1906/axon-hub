@@ -7,7 +7,9 @@ import { ChannelsArchiveDialog } from './channels-archive-dialog';
 import { ChannelsAvailabilityDialog } from './channels-availability-dialog';
 import { ChannelsBulkApplyTemplateDialog } from './channels-bulk-apply-template-dialog';
 import { ChannelsBulkArchiveDialog } from './channels-bulk-archive-dialog';
+import { ChannelsBulkAutoDisableDialog } from './channels-bulk-auto-disable-dialog';
 import { ChannelsBulkClearTemplateDialog } from './channels-bulk-clear-template-dialog';
+import { ChannelsBulkManageTagsDialog } from './channels-bulk-manage-tags-dialog';
 import { ChannelsBulkDeleteDialog } from './channels-bulk-delete-dialog';
 import { ChannelsBulkDisableDialog } from './channels-bulk-disable-dialog';
 import { ChannelsBulkEnableDialog } from './channels-bulk-enable-dialog';
@@ -29,6 +31,7 @@ import { ChannelsRequestSettingsDialog } from './channels-request-settings-dialo
 import { ChannelsStatusDialog } from './channels-status-dialog';
 import { ChannelsSystemSettingsDialog } from './channels-system-settings-dialog';
 import { ChannelsTagPrioritiesDialog } from './channels-tag-priorities-dialog';
+import { ChannelsTemplateManagerDialog } from './channels-template-manager-dialog';
 import { ChannelsTestDialog } from './channels-test-dialog';
 import { ChannelsTestHistoryDrawer } from './channels-test-history-drawer';
 import { ChannelsTransformOptionsDialog } from './channels-transform-options-dialog';
@@ -58,6 +61,8 @@ export function ChannelsDialogs() {
       <ChannelsSystemSettingsDialog />
       {open === 'tagPriorities' && <ChannelsTagPrioritiesDialog />}
 
+      <ChannelsTemplateManagerDialog open={open === 'templates'} onOpenChange={(isOpen) => setOpen(isOpen ? 'templates' : null)} />
+
       <ChannelsActionDialog key='channel-add' open={open === 'add'} onOpenChange={(isOpen) => setOpen(isOpen ? 'add' : null)} />
 
       <ChannelsBulkArchiveDialog />
@@ -70,9 +75,17 @@ export function ChannelsDialogs() {
 
       <ChannelsBulkDeleteDialog />
 
+      <ChannelsBulkManageTagsDialog />
+
       <ChannelsBulkApplyTemplateDialog
         open={open === 'bulkApplyTemplate'}
         onOpenChange={(isOpen) => setOpen(isOpen ? 'bulkApplyTemplate' : null)}
+        selectedChannels={selectedChannels}
+      />
+
+      <ChannelsBulkAutoDisableDialog
+        open={open === 'bulkAutoDisable'}
+        onOpenChange={(isOpen) => setOpen(isOpen ? 'bulkAutoDisable' : null)}
         selectedChannels={selectedChannels}
       />
 

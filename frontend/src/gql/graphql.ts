@@ -1,17 +1,15 @@
+import { withReadDeadline } from '@/lib/read-deadline';
 import { toast } from 'sonner';
 import { getTokenFromStorage, removeTokenFromStorage } from '@/stores/authStore';
+import { ensureFreshAccessToken } from '@/lib/auth-session';
 import i18n from '@/lib/i18n';
-import { withReadDeadline } from '@/lib/read-deadline';
 
 export class GraphQLRequestError extends Error {
   status?: number;
   isAuthError: boolean;
   extensions?: Record<string, any>;
 
-  constructor(
-    message: string,
-    options?: { status?: number; isAuthError?: boolean; extensions?: Record<string, any> }
-  ) {
+  constructor(message: string, options?: { status?: number; isAuthError?: boolean; extensions?: Record<string, any> }) {
     super(message);
     this.name = 'GraphQLRequestError';
     this.status = options?.status;
@@ -46,25 +44,16 @@ export function isUnauthorizedGraphQLError(error: any): boolean {
   return error?.extensions?.code === 'UNAUTHENTICATED';
 }
 
-// GraphQL client function with token support
-export async function graphqlRequest<T>(
-  query: string,
-  variables?: Record<string, any>,
-  customHeaders?: Record<string, string>,
-  init?: { signal?: AbortSignal; timeoutMs?: number }
-): Promise<T> {
-  // 只限制明确的读取；写操作、订阅和 fragment 前缀不猜测为读取。
-  if (!/^\s*(?:#[^\r\n]*[\r\n]\s*)*(?:query\b|\{)/.test(query)) return performGraphQLRequest(query, variables, customHeaders, init);
-  try {
-    return await withReadDeadline((signal) => performGraphQLRequest<T>(query, variables, customHeaders, { signal }), init?.signal, init?.timeoutMs);
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
-      throw new GraphQLRequestError(i18n.t('common.errors.readTimeout'), { status: 408 });
-    }
-    throw error;
+function redirectToSignIn() {
+  const { pathname, search, hash } = window.location;
+  if (pathname.startsWith('/sign-in')) {
+    window.location.href = '/sign-in';
+    return;
   }
+  window.location.href = `/sign-in?redirect=${encodeURIComponent(pathname + search + hash)}`;
 }
 
+// GraphQL client function with token support
 async function performGraphQLRequest<T>(
   query: string,
   variables?: Record<string, any>,
@@ -72,7 +61,7 @@ async function performGraphQLRequest<T>(
   init?: { signal?: AbortSignal; timeoutMs?: number }
 ): Promise<T> {
   // Get token from localStorage
-  const token = getTokenFromStorage();
+  const token = await ensureFreshAccessToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -114,9 +103,11 @@ async function performGraphQLRequest<T>(
   // Handle explicit auth failures (401 only — 403 is a permission denial, not a session issue)
   if (response.status === 401) {
     // Clear token and redirect to login
-    removeTokenFromStorage();
-    toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
-    window.location.href = '/sign-in';
+    if (getTokenFromStorage() === token) {
+      removeTokenFromStorage();
+      toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
+      redirectToSignIn();
+    }
     throw new GraphQLRequestError('Unauthorized', { status: response.status, isAuthError: true });
   }
 
@@ -133,7 +124,7 @@ async function performGraphQLRequest<T>(
     });
   }
 
-  let result;
+  let result: { data: T; errors?: Array<{ message?: string; extensions?: Record<string, unknown> }> };
   try {
     result = await response.json();
   } catch (_error) {
@@ -156,17 +147,38 @@ async function performGraphQLRequest<T>(
 
     if (authError) {
       // Clear token and redirect to login
-      removeTokenFromStorage();
-      toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
-      window.location.href = '/sign-in';
+      if (getTokenFromStorage() === token) {
+        removeTokenFromStorage();
+        toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
+        redirectToSignIn();
+      }
       throw new GraphQLRequestError('Unauthorized', { status: 401, isAuthError: true });
     }
 
     throw new GraphQLRequestError(firstError?.message || 'GraphQL Error', {
       status: isForbiddenGraphQLError(firstError) ? 403 : undefined,
-      extensions: firstError?.extensions ?? {},
+      extensions: firstError?.extensions,
     });
   }
 
   return result.data;
 }
+
+export async function graphqlRequest<T>(
+  query: string,
+  variables?: Record<string, any>,
+  customHeaders?: Record<string, string>,
+  init?: { signal?: AbortSignal; timeoutMs?: number }
+): Promise<T> {
+  // 只限制明确的读取；写操作、订阅和 fragment 前缀不猜测为读取。
+  if (!/^\s*(?:#[^\r\n]*[\r\n]\s*)*(?:query\b|\{)/.test(query)) return performGraphQLRequest(query, variables, customHeaders, init);
+  try {
+    return await withReadDeadline((signal) => performGraphQLRequest<T>(query, variables, customHeaders, { signal }), init?.signal, init?.timeoutMs);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new GraphQLRequestError(i18n.t('common.errors.readTimeout'), { status: 408 });
+    }
+    throw error;
+  }
+}
+

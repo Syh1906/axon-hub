@@ -843,6 +843,11 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, channel.FieldAutoDisabledAt)
 				fieldSeen[channel.FieldAutoDisabledAt] = struct{}{}
 			}
+		case "autoDisableExpiresAt":
+			if _, ok := fieldSeen[channel.FieldAutoDisableExpiresAt]; !ok {
+				selectedFields = append(selectedFields, channel.FieldAutoDisableExpiresAt)
+				fieldSeen[channel.FieldAutoDisableExpiresAt] = struct{}{}
+			}
 		case "remark":
 			if _, ok := fieldSeen[channel.FieldRemark]; !ok {
 				selectedFields = append(selectedFields, channel.FieldRemark)
@@ -3817,6 +3822,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldRequestBody)
 				fieldSeen[request.FieldRequestBody] = struct{}{}
 			}
+		case "responseHeaders":
+			if _, ok := fieldSeen[request.FieldResponseHeaders]; !ok {
+				selectedFields = append(selectedFields, request.FieldResponseHeaders)
+				fieldSeen[request.FieldResponseHeaders] = struct{}{}
+			}
 		case "responseBody":
 			if _, ok := fieldSeen[request.FieldResponseBody]; !ok {
 				selectedFields = append(selectedFields, request.FieldResponseBody)
@@ -3866,6 +3876,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 			if _, ok := fieldSeen[request.FieldClientIP]; !ok {
 				selectedFields = append(selectedFields, request.FieldClientIP)
 				fieldSeen[request.FieldClientIP] = struct{}{}
+			}
+		case "userAgent":
+			if _, ok := fieldSeen[request.FieldUserAgent]; !ok {
+				selectedFields = append(selectedFields, request.FieldUserAgent)
+				fieldSeen[request.FieldUserAgent] = struct{}{}
 			}
 		case "metricsLatencyMs":
 			if _, ok := fieldSeen[request.FieldMetricsLatencyMs]; !ok {
@@ -4056,6 +4071,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 				selectedFields = append(selectedFields, requestexecution.FieldChannelID)
 				fieldSeen[requestexecution.FieldChannelID] = struct{}{}
 			}
+		case "channelAPIKeyIndex":
+			if _, ok := fieldSeen[requestexecution.FieldChannelAPIKeyIndex]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldChannelAPIKeyIndex)
+				fieldSeen[requestexecution.FieldChannelAPIKeyIndex] = struct{}{}
+			}
 		case "dataStorageID":
 			if _, ok := fieldSeen[requestexecution.FieldDataStorageID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldDataStorageID)
@@ -4070,6 +4090,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 			if _, ok := fieldSeen[requestexecution.FieldModelID]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldModelID)
 				fieldSeen[requestexecution.FieldModelID] = struct{}{}
+			}
+		case "upstreamModelID":
+			if _, ok := fieldSeen[requestexecution.FieldUpstreamModelID]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldUpstreamModelID)
+				fieldSeen[requestexecution.FieldUpstreamModelID] = struct{}{}
 			}
 		case "costSnapshot":
 			if _, ok := fieldSeen[requestexecution.FieldCostSnapshot]; !ok {
@@ -4086,10 +4111,20 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 				selectedFields = append(selectedFields, requestexecution.FieldReasoningEffort)
 				fieldSeen[requestexecution.FieldReasoningEffort] = struct{}{}
 			}
+		case "channelAPIKeySuffix":
+			if _, ok := fieldSeen[requestexecution.FieldChannelAPIKeySuffix]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldChannelAPIKeySuffix)
+				fieldSeen[requestexecution.FieldChannelAPIKeySuffix] = struct{}{}
+			}
 		case "requestBody":
 			if _, ok := fieldSeen[requestexecution.FieldRequestBody]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldRequestBody)
 				fieldSeen[requestexecution.FieldRequestBody] = struct{}{}
+			}
+		case "responseHeaders":
+			if _, ok := fieldSeen[requestexecution.FieldResponseHeaders]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldResponseHeaders)
+				fieldSeen[requestexecution.FieldResponseHeaders] = struct{}{}
 			}
 		case "responseBody":
 			if _, ok := fieldSeen[requestexecution.FieldResponseBody]; !ok {

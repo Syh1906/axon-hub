@@ -357,5 +357,9 @@
   "models.codex.apply": "应用已确认的定义",
   "models.codex.clear": "清除覆盖，恢复自动同步",
   "models.codex.invalid": "请输入完整定义或继承覆盖的 JSON 对象。",
-  "models.codex.importFailed": "预览失败，请检查渠道资料或官方发布快照。"
+  "models.codex.importFailed": "预览失败，请检查渠道资料或官方发布快照。",
+  "models.dialogs.association.conditions.fields.reasoning_effort": "推理强度",
+  "models.dialogs.association.conditions.placeholders.reasoning_effort": "例如 high、xhigh、max",
+  "models.dialogs.association.conditions.formatOptions.openai/decisions": "OpenAI（决策 API）",
+  "models.modelCard.reasoningEfforts": "思考等级"
 }

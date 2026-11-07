@@ -1,6 +1,7 @@
+import type { APIKeyStrategyValue } from '../components/channel-api-key-strategy';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslation } from 'react-i18next';
@@ -11,65 +12,22 @@ import { Button } from '@/components/ui/button';
 import { FormLabel } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useProxyPresets, useSaveProxyPreset } from '@/features/system/data/system';
+import { useProxyPresets, useSaveProxyPreset, usePassThroughSettings, useQuotaRoutingSettings, useUserAgentPassThroughSettings } from '@/features/system/data/system';
 import { ProxyType } from '../components/channels-proxy-dialog';
 import { antigravityOAuthExchange, antigravityOAuthStart } from '../data/antigravity';
 import { useRefreshChannelUpstreams } from '../data/channel-upstream';
-import {
-  useCreateChannel,
-  useDuplicateChannel,
-  useUpdateChannelSettings,
-  useFetchModels,
-  useAllChannelNames,
-  useAllChannelTags,
-  useChannelDisabledAPIKeys,
-  useDisableChannelAPIKey,
-  useEnableChannelAPIKey,
-  useSyncChannelModels,
-} from '../data/channels';
+import { useCreateChannel, useDuplicateChannel, useUpdateChannelSettings, useFetchModels, useAllChannelNames, useAllChannelTags, useChannelDisabledAPIKeys, useDisableChannelAPIKey, useEnableChannelAPIKey, useSyncChannelModels } from '../data/channels';
 import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecode';
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
-import {
-  getDefaultBaseURL,
-  getDefaultModels,
-  OPENAI_CHAT_COMPLETIONS,
-  OPENAI_RESPONSES,
-  OPENAI_IMAGE_GENERATION,
-  GEMINI_CONTENTS,
-} from '../data/config_channels';
-import {
-  PROVIDER_CONFIGS,
-  getProviderFromChannelType,
-  getApiFormatsForProvider,
-  getChannelTypeForApiFormat,
-  getBaseChannelTypeForProvider,
-} from '../data/config_providers';
-import { getModelProtocolsForApiFormat } from '../data/protocol-options';
-import { Channel, ChannelType, ApiFormat, ChannelSettings, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
+import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
+import { PROVIDER_CONFIGS, getProviderFromChannelType, getApiFormatsForProvider, getChannelTypeForApiFormat, getBaseChannelTypeForProvider } from '../data/config_providers';
+import { getModelProtocolsForApiFormat, getCodexResponsesWebSocketState, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
-import {
-  ApiFormatOption,
-  MAX_MODELS_DISPLAY,
-  OPENAI_RESPONSES_WEBSOCKET,
-  Props,
-  ResponsesTransport,
-  alwaysOAuthProviderKeys,
-  baseURLMatchesResponsesTransport,
-  extractCodexAuthJSONText,
-  formatRetryableErrorPatterns,
-  formatRetryableStatusCodes,
-  getInitialApiFormatForRow,
-  getNextDuplicateName,
-  getResponsesTransportBaseURLError,
-  getResponsesTransportFromChannel,
-  getResponsesWebSocketBaseURL,
-  isOfficialClaudeCodeChannel,
-  isOfficialCodexChannel,
-  parseRetryableErrorPatternsInput,
-  parseRetryableStatusCodesInput,
-} from '../utils/channel-dialog';
+import { recallQuotaRoutingMode, quotaRoutingModeSettingsPatch, formatMaxSingleChannelRetries, parseMaxSingleChannelRetriesInput, isVertexChannelType, emptyVertexAPIKey, getInitialBaseURL, parseOauthToken, getCodexThirdPartySubmitCredentials, getFetchModelsApiKey, getCodexThirdPartyCredentialError, ApiFormatOption, MAX_MODELS_DISPLAY, OPENAI_RESPONSES_WEBSOCKET, Props, ResponsesTransport, alwaysOAuthProviderKeys, baseURLMatchesResponsesTransport, extractCodexAuthJSONText, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getNextDuplicateName, getResponsesTransportBaseURLError, getResponsesTransportFromChannel, getResponsesWebSocketBaseURL, isOfficialClaudeCodeChannel, isOfficialCodexChannel, parseRetryableErrorPatternsInput, parseRetryableStatusCodesInput } from '../utils/channel-dialog';
 import { mergeChannelSettingsForUpdate } from '../utils/merge';
+import { isSuggestedModel } from '../../models/data/model-suggestions';
 import { matchesModelPattern } from '../utils/pattern';
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -104,6 +62,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const { data: proxyPresets = [] } = useProxyPresets(open);
   const saveProxyPreset = useSaveProxyPreset();
   const { hasSystemScope, modelPermissions } = usePermissions();
+  const { data: quotaRoutingSettings } = useQuotaRoutingSettings();
+  const canReadSystemSettings = hasSystemScope('read_settings');
+  const { data: userAgentPassThroughSettings } = useUserAgentPassThroughSettings({ enabled: canReadSystemSettings });
+  const { data: passThroughSettings } = usePassThroughSettings({ enabled: canReadSystemSettings });
   const [supportedModels, setSupportedModels] = useState<string[]>(() => initialRow?.supportedModels || []);
   const [manualModels, setManualModels] = useState<string[]>(() => initialRow?.manualModels || []);
   const [newModel, setNewModel] = useState('');
@@ -126,8 +88,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const [showClearAllPopover, setShowClearAllPopover] = useState(false);
   const [applyPatternFilter, setApplyPatternFilter] = useState(false);
   const hasAutoSetDuplicateNameRef = useRef(false);
+  const codexThirdPartyBaseURLRef = useRef('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showCommandCodeAuthCookie, setShowCommandCodeAuthCookie] = useState(false);
+  const [showOllamaAuthCookie, setShowOllamaAuthCookie] = useState(false);
   const [showApiKeysPanel, setShowApiKeysPanel] = useState(false);
   const [apiKeysSearch, setApiKeysSearch] = useState('');
   const [selectedKeysToRemove, setSelectedKeysToRemove] = useState<Set<string>>(new Set());
@@ -163,11 +127,35 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const [passThroughBody, setPassThroughBody] = useState<boolean | null>(() => {
     return initialRow?.settings?.passThroughBody ?? null;
   });
+  const [quotaRoutingMode, setQuotaRoutingMode] = useState<ChannelQuotaRoutingMode>(() => recallQuotaRoutingMode(initialRow?.settings));
   const [retryableStatusCodesText, setRetryableStatusCodesText] = useState(() =>
     formatRetryableStatusCodes(initialRow?.settings?.retryableStatusCodes)
   );
   const [retryableErrorPatternsText, setRetryableErrorPatternsText] = useState(() =>
     formatRetryableErrorPatterns(initialRow?.settings?.retryableErrorPatterns)
+  );
+  const [maxSingleChannelRetriesText, setMaxSingleChannelRetriesText] = useState(() =>
+    formatMaxSingleChannelRetries(initialRow?.settings?.maxSingleChannelRetries)
+  );
+  const userAgentInheritLabel = userAgentPassThroughSettings
+    ? t('channels.dialogs.userAgentPassThrough.inheritWithValue', {
+        value: t(
+          userAgentPassThroughSettings.enabled
+            ? 'channels.dialogs.userAgentPassThrough.enabled'
+            : 'channels.dialogs.userAgentPassThrough.disabled'
+        ),
+      })
+    : t('channels.dialogs.userAgentPassThrough.inherit');
+  const passThroughInheritLabel = passThroughSettings
+    ? t('channels.dialogs.bodyPassThrough.inheritWithValue', {
+        value: t(passThroughSettings.enabled ? 'channels.dialogs.bodyPassThrough.enabled' : 'channels.dialogs.bodyPassThrough.disabled'),
+      })
+    : t('channels.dialogs.bodyPassThrough.inherit');
+  const [apiKeyStrategy, setApiKeyStrategy] = useState<APIKeyStrategyValue>(
+    () => initialRow?.settings?.apiKeyStrategy ?? 'sticky'
+  );
+  const [apiKeyRoundRobinSwitchAfter, setApiKeyRoundRobinSwitchAfter] = useState<number>(
+    () => initialRow?.settings?.apiKeyRoundRobinSwitchAfter ?? 1
   );
 
   // Memoized proxy config for OAuth exchange
@@ -246,6 +234,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     initialRow ? getInitialApiFormatForRow(initialRow) : OPENAI_CHAT_COMPLETIONS
   );
   const [responsesTransport, setResponsesTransport] = useState<ResponsesTransport>(() => getResponsesTransportFromChannel(initialRow));
+  const initialCodexResponses = useMemo(() => getCodexResponsesWebSocketState(initialRow), [initialRow]);
+  const setCodexResponsesWebSocket = (enabled: boolean) => setResponsesTransport(enabled ? 'websocket' : 'http');
   const [useGeminiVertex, setUseGeminiVertex] = useState(() => {
     if (initialRow) {
       return initialRow.type === 'gemini_vertex';
@@ -272,6 +262,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     setSelectedProvider(provider);
     setSelectedApiFormat(getInitialApiFormatForRow(initialRow));
     setResponsesTransport(getResponsesTransportFromChannel(initialRow));
+    setCodexResponsesWebSocket(getCodexResponsesWebSocketState(initialRow).enabled);
     setUseGeminiVertex(initialRow.type === 'gemini_vertex');
     setUseAnthropicAws(initialRow.type === 'anthropic_aws');
     setUseKimiCoding(initialRow.type === 'moonshot_coding');
@@ -293,14 +284,17 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       resetAntigravityOAuth();
       resetXaiOAuth();
       setCodexAuthJSONText('');
+      codexThirdPartyBaseURLRef.current = '';
+      setCodexResponsesWebSocket(initialCodexResponses.enabled);
       setXaiSSOToken('');
     }
-  }, [open, resetCodexOAuth, resetClaudecodeOAuth, resetAntigravityOAuth, resetXaiOAuth]);
+  }, [open, resetCodexOAuth, resetClaudecodeOAuth, resetAntigravityOAuth, resetXaiOAuth, initialCodexResponses.enabled]);
 
   useEffect(() => {
     if (!open) {
       setShowApiKey(false);
       setShowCommandCodeAuthCookie(false);
+      setShowOllamaAuthCookie(false);
       setShowApiKeysPanel(false);
       setApiKeysSearch('');
       setSelectedKeysToRemove(new Set());
@@ -363,13 +357,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       setShowApiKeysPanel(false);
     }
   }, [open, showModelsPanel, initialRow]);
-
-  // Sync manualModels when dialog opens with new initialRow
-  useEffect(() => {
-    if (open && initialRow) {
-      setManualModels(initialRow.manualModels || []);
-    }
-  }, [open, initialRow]);
 
   // Get available providers (excluding fake types)
   const availableProviders = useMemo(
@@ -447,13 +434,13 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
 
   const formSchema = isEdit ? updateChannelInputSchema : createChannelInputSchema;
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues:
       isEdit && currentRow
         ? {
             type: currentRow.type,
-            baseURL: currentRow.baseURL,
+            baseURL: getInitialBaseURL(currentRow),
             websiteURL: currentRow.websiteURL ?? '',
             endpoints: currentRow.endpoints ?? [],
             name: currentRow.name,
@@ -468,6 +455,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
               // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
               apiKey: currentRow.credentials?.apiKey || undefined,
               apiKeys: currentRow.credentials?.apiKeys || [],
+              vertexApiKeys: currentRow.type === 'gemini_vertex' ? (currentRow.credentials?.vertexApiKeys ?? undefined) : [],
               managementApiKey: currentRow.credentials?.managementApiKey || undefined,
               gcp: {
                 region: currentRow.credentials?.gcp?.region || '',
@@ -480,7 +468,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         : duplicateFromRow
           ? {
               type: duplicateFromRow.type,
-              baseURL: duplicateFromRow.baseURL,
+              baseURL: getInitialBaseURL(duplicateFromRow),
               websiteURL: duplicateFromRow.websiteURL ?? '',
               endpoints: duplicateFromRow.endpoints ?? [],
               name: duplicateFromRow.name,
@@ -496,6 +484,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
                 // OAuth 类型的凭据存储在 apiKey 字段，不放入 apiKeys
                 apiKey: duplicateFromRow.credentials?.apiKey || undefined,
                 apiKeys: duplicateFromRow.credentials?.apiKeys || [],
+                vertexApiKeys: duplicateFromRow.type === 'gemini_vertex' ? (duplicateFromRow.credentials?.vertexApiKeys ?? undefined) : [],
                 managementApiKey: duplicateFromRow.credentials?.managementApiKey || undefined,
                 gcp: {
                   region: duplicateFromRow.credentials?.gcp?.region || '',
@@ -512,6 +501,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
               policies: { stream: 'unlimited' },
               credentials: {
                 apiKeys: [],
+                vertexApiKeys: isVertexChannelType(derivedChannelType) ? [emptyVertexAPIKey()] : [],
                 managementApiKey: undefined,
                 gcp: {
                   region: '',
@@ -527,6 +517,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
             },
   });
 
+  const vertexApiKeyFields = useFieldArray({ control: form.control, name: 'credentials.vertexApiKeys' });
   const apiKeys = form.watch('credentials.apiKeys');
   const apiKeysCount = useMemo(() => (apiKeys || []).filter((k) => k.trim().length > 0).length, [apiKeys]);
   const isSubmitting = createChannel.isPending || duplicateChannel.isPending || updateChannelSettings.isPending;
@@ -561,6 +552,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     hasAutoSetDuplicateNameRef.current = true;
   }, [open, isDuplicate, duplicateFromRow, allChannelNamesLoaded, allChannelNames, form]);
   const selectedType = form.watch('type') as ChannelType | undefined;
+  const isGeminiVertex = (selectedType || derivedChannelType) === 'gemini_vertex';
   const watchedAutoSync = form.watch('autoSyncSupportedModels');
   const watchedAutoSyncPattern = form.watch('autoSyncModelPattern');
 
@@ -571,8 +563,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const isClaudeCodeType = activeChannelType === 'claudecode';
   const isCopilotType = activeChannelType === 'github_copilot';
   const isXAISubscriptionType = activeChannelType === 'xai_subscription';
-  const isZenmuxType = ['zenmux', 'zenmux_responses', 'zenmux_anthropic', 'zenmux_gemini'].includes(activeChannelType);
+  const isZenmuxType = ['zenmux', 'zenmux_responses', 'zenmux_anthropic', 'zenmux_gemini', 'zenmux_video'].includes(activeChannelType);
   const isCommandCodeType = activeChannelType === 'commandcode' || activeChannelType === 'commandcode_anthropic';
+  const isOllamaType = activeChannelType === 'ollama' || activeChannelType === 'ollama_anthropic';
 
   // OAuth providers cannot have their provider/API format changed during edit.
   // Derived from currentRow credentials so it stays stable across re-renders
@@ -617,6 +610,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     return t('channels.dialogs.fields.baseURL.placeholder');
   }, [selectedType, derivedChannelType, selectedApiFormat, responsesTransport, t]);
 
+
   // Sync form type when provider or API format changes
   const handleProviderChange = useCallback(
     (provider: string) => {
@@ -639,7 +633,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         setSelectedApiFormat(OPENAI_RESPONSES);
         form.setValue('type', 'codex');
         if (!isEdit) {
-          const baseURL = responsesTransport === 'websocket' ? getResponsesWebSocketBaseURL('codex') : getDefaultBaseURL('codex');
+          const baseURL = getDefaultBaseURL('codex');
           if (baseURL) {
             form.setValue('baseURL', baseURL, { shouldDirty: true });
           }
@@ -713,7 +707,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         }
       }
     },
-    [form, useGeminiVertex, useAnthropicAws, useKimiCoding, isDuplicate, isEdit, selectedApiFormat, isOAuthChannel, responsesTransport]
+    [form, useGeminiVertex, useAnthropicAws, useKimiCoding, isDuplicate, isEdit, selectedApiFormat, isOAuthChannel]
   );
 
   const handleApiFormatChange = useCallback(
@@ -795,6 +789,12 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         const newChannelType = checked ? 'gemini_vertex' : 'gemini';
         form.setValue('type', newChannelType);
 
+        // Switching into Vertex mode needs a row to edit: an empty list would
+        // reject the submit with no visible field to fill in.
+        if (checked && !(form.getValues('credentials.vertexApiKeys') ?? []).length) {
+          form.setValue('credentials.vertexApiKeys', [emptyVertexAPIKey()]);
+        }
+
         if (!isEdit) {
           const baseURLFieldState = form.getFieldState('baseURL', form.formState);
           if (!baseURLFieldState.isDirty && !isDuplicate) {
@@ -861,7 +861,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     if (!isCommandCodeType) {
       setShowCommandCodeAuthCookie(false);
     }
-  }, [isCommandCodeType]);
+    if (!isOllamaType) {
+      setShowOllamaAuthCookie(false);
+    }
+  }, [isCommandCodeType, isOllamaType]);
 
   useEffect(() => {
     if (isEdit || isDuplicate) return;
@@ -890,10 +893,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     const channelTypeForURL: ChannelType | undefined = providerToChannelType[selectedProvider];
 
     if (channelTypeForURL) {
-      const baseURL =
-        channelTypeForURL === 'codex' && responsesTransport === 'websocket'
-          ? getResponsesWebSocketBaseURL(channelTypeForURL)
-          : getDefaultBaseURL(channelTypeForURL);
+      const baseURL = getDefaultBaseURL(channelTypeForURL);
       if (baseURL) {
         // Use setValue instead of resetField to avoid infinite loop
         const currentURL = form.getValues('baseURL');
@@ -913,7 +913,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     resetClaudecodeOAuth,
     resetAntigravityOAuth,
     resetXaiOAuth,
-    responsesTransport,
   ]);
 
   const watchedDefaultTestModel = form.watch('defaultTestModel');
@@ -1054,6 +1053,13 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         return;
       }
 
+      const maxSingleChannelRetriesParsed = parseMaxSingleChannelRetriesInput(maxSingleChannelRetriesText);
+      if (!maxSingleChannelRetriesParsed.valid) {
+        toast.error(t('channels.dialogs.maxSingleChannelRetries.validation'));
+        return;
+      }
+      const maxSingleChannelRetries = maxSingleChannelRetriesParsed.value;
+
       const valuesForSubmit = isEdit
         ? values
         : {
@@ -1061,22 +1067,75 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
             type: derivedChannelType,
           };
 
+      // Vertex credentials are project-bound triples and are the only credential for
+      // that channel type: a leftover singular apiKey would still be selected at
+      // runtime and would not resolve to a project/region pair. Ordinary channels keep
+      // their flat apiKeys and never carry the Vertex field.
+      const submittedCredentials = valuesForSubmit.credentials;
+      const vertexApiKeys = submittedCredentials?.vertexApiKeys;
+      const credentials =
+        valuesForSubmit.type === 'gemini_vertex'
+          ? vertexApiKeys?.length
+            ? {
+                ...submittedCredentials,
+                apiKey: undefined,
+                apiKeys: undefined,
+                vertexApiKeys: vertexApiKeys.map((credential) => ({
+                  projectID: credential.projectID.trim(),
+                  apiKey: credential.apiKey.trim(),
+                  region: credential.region.trim() || 'global',
+                })),
+              }
+            : { ...submittedCredentials, vertexApiKeys: undefined }
+          : { ...submittedCredentials, vertexApiKeys: undefined };
+
+      // A third-party Codex channel authenticates with a plain API key: reject an
+      // empty or inherited OAuth-shaped credential instead of saving it.
+      const codexThirdPartyCredentialError = getCodexThirdPartyCredentialError({
+        type: values.type || derivedChannelType,
+        authMode,
+        apiKeys: values.credentials?.apiKeys,
+      });
+      if (codexThirdPartyCredentialError) {
+        form.setError('credentials.apiKeys', {
+          type: 'manual',
+          message: t(codexThirdPartyCredentialError),
+        });
+        return;
+      }
+
       const dataWithModels = {
         ...valuesForSubmit,
         supportedModels,
         manualModels,
-        credentials: valuesForSubmit.credentials,
+        credentials: credentials
+          ? getCodexThirdPartySubmitCredentials(credentials, {
+               type: valuesForSubmit.type,
+               authMode,
+             })
+          : credentials,
       };
-      // The Command Code quota cookie is a browser-session credential that only
-      // belongs on Command Code channels. Never let a duplicate/type-switch
-      // flow attach it to an unrelated channel type. Clearing it explicitly
-      // sends providerQuota: null so the backend removes the stored cookie.
-      const isCommandCodeSubmit = valuesForSubmit.type === 'commandcode' || valuesForSubmit.type === 'commandcode_anthropic';
-      const commandCodeAuthCookie = isCommandCodeSubmit ? values.settings?.providerQuota?.commandCode?.authCookie?.trim() : undefined;
+      // The Command Code / Ollama quota cookie is a browser-session credential
+      // that only belongs on its own channel type. Never let a
+      // duplicate/type-switch flow attach it to an unrelated channel type.
+      // Clearing it explicitly sends providerQuota: null so the backend
+      // removes the stored cookie.
+      const isCommandCodeSubmit =
+        valuesForSubmit.type === 'commandcode' || valuesForSubmit.type === 'commandcode_anthropic';
+      const commandCodeAuthCookie = isCommandCodeSubmit
+        ? values.settings?.providerQuota?.commandCode?.authCookie?.trim()
+        : undefined;
+      const isOllamaSubmit =
+        valuesForSubmit.type === 'ollama' || valuesForSubmit.type === 'ollama_anthropic';
+      const ollamaAuthCookie = isOllamaSubmit
+        ? values.settings?.providerQuota?.ollama?.authCookie?.trim()
+        : undefined;
       const settingsForSubmit = values.settings
         ? {
             ...values.settings,
-            ...(isCommandCodeSubmit && commandCodeAuthCookie ? {} : { providerQuota: null }),
+            ...((isCommandCodeSubmit && commandCodeAuthCookie) || (isOllamaSubmit && ollamaAuthCookie)
+              ? {}
+              : { providerQuota: null }),
           }
         : undefined;
 
@@ -1086,17 +1145,21 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         isXAISubscriptionType;
       if (shouldUseProtocolDefaultBaseURL) {
         const currentType = selectedType || derivedChannelType;
-        const baseURL =
-          isCodexType && responsesTransport === 'websocket' ? getResponsesWebSocketBaseURL('codex') : getDefaultBaseURL(currentType);
+        const baseURL = getDefaultBaseURL(currentType);
         if (baseURL) {
           dataWithModels.baseURL = baseURL;
         }
       }
 
-      if (selectedApiFormat === OPENAI_RESPONSES && !baseURLMatchesResponsesTransport(dataWithModels.baseURL, responsesTransport)) {
+      // Codex always saves an HTTP(S) Base URL; its WebSocket endpoint is derived from it.
+      const requiredResponsesTransport: ResponsesTransport = isCodexType ? 'http' : responsesTransport;
+      if (
+        (isCodexType || selectedApiFormat === OPENAI_RESPONSES) &&
+        !baseURLMatchesResponsesTransport(dataWithModels.baseURL, requiredResponsesTransport)
+      ) {
         form.setError('baseURL', {
           type: 'manual',
-          message: t(getResponsesTransportBaseURLError(responsesTransport)),
+          message: t(getResponsesTransportBaseURLError(requiredResponsesTransport)),
         });
         return;
       }
@@ -1109,6 +1172,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         if (index >= 0) endpoints[index] = endpoint; else endpoints.push(endpoint);
         dataWithModels.endpoints = endpoints;
       }
+
+      const codexModelProtocols =
+        isCodexType && initialRow ? translateLegacyCodexModelProtocols(initialRow, initialRow.settings?.modelProtocols) : undefined;
 
       if (isEdit && currentRow) {
         const existingModelProtocols = currentRow.settings?.modelProtocols;
@@ -1125,13 +1191,22 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           retryableStatusCodes,
           retryableErrorPatterns,
           primaryApiFormat: selectedApiFormat === OPENAI_IMAGE_GENERATION ? OPENAI_IMAGE_GENERATION : '',
+          maxSingleChannelRetries,
+          apiKeyStrategy,
+          apiKeyRoundRobinSwitchAfter:
+            apiKeyStrategy === 'round_robin' || apiKeyStrategy === 'round_robin_success'
+              ? apiKeyRoundRobinSwitchAfter
+              : null,
+
           // Cookie edits (including clearing the saved cookie) travel through
           // the settings patch; mergeChannelSettingsForUpdate preserves the
           // field when the patch omits it and carries the null clear through.
           providerQuota: settingsForSubmit?.providerQuota,
+          ...quotaRoutingModeSettingsPatch(quotaRoutingMode),
           ...(shouldUpdateModelProtocols
             ? { modelProtocols: getModelProtocolsForApiFormat(selectedApiFormat, supportedModels, existingModelProtocols) }
             : {}),
+          ...(codexModelProtocols ? { modelProtocols: codexModelProtocols } : {}),
         };
 
         const updateInput = {
@@ -1141,7 +1216,13 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         delete updateInput.settings;
 
         const finalChannelType = updateInput.type || currentRow.type;
-        const keepsManagementApiKey = ['zenmux', 'zenmux_responses', 'zenmux_anthropic', 'zenmux_gemini'].includes(finalChannelType);
+        const keepsManagementApiKey = [
+          'zenmux',
+          'zenmux_responses',
+          'zenmux_anthropic',
+          'zenmux_gemini',
+          'zenmux_video',
+        ].includes(finalChannelType);
         if (!keepsManagementApiKey && updateInput.credentials) {
           delete updateInput.credentials.managementApiKey;
         }
@@ -1158,8 +1239,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           values.credentials.gcp.projectID.trim() !== '' &&
           values.credentials?.gcp?.jsonData &&
           values.credentials.gcp.jsonData.trim() !== '';
+        const hasVertexApiKeys =
+          values.credentials?.vertexApiKeys && values.credentials.vertexApiKeys.some((binding) => binding.apiKey.trim() !== '');
 
-        if (!hasApiKey && !hasApiKeys && !hasManagementApiKey && !hasGcpCredentials) {
+        if (!hasApiKey && !hasApiKeys && !hasManagementApiKey && !hasGcpCredentials && !hasVertexApiKeys) {
           delete updateInput.credentials;
         }
 
@@ -1189,16 +1272,25 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           retryableStatusCodes,
           retryableErrorPatterns,
           primaryApiFormat: selectedApiFormat === OPENAI_IMAGE_GENERATION ? OPENAI_IMAGE_GENERATION : '',
+          maxSingleChannelRetries,
+
+          ...quotaRoutingModeSettingsPatch(quotaRoutingMode),
+          apiKeyStrategy,
+          apiKeyRoundRobinSwitchAfter:
+            apiKeyStrategy === 'round_robin' || apiKeyStrategy === 'round_robin_success'
+              ? apiKeyRoundRobinSwitchAfter
+              : null,
           ...(selectedApiFormat === 'zenmux/video' ||
           settingsForSubmit?.modelProtocols?.some((protocol) => protocol.apiFormats.includes('zenmux/video'))
             ? {
                 modelProtocols: getModelProtocolsForApiFormat(selectedApiFormat, supportedModels, settingsForSubmit?.modelProtocols),
               }
             : {}),
+          ...(codexModelProtocols ? { modelProtocols: codexModelProtocols } : {}),
         });
 
         const createInput = {
-          ...(dataWithModels as z.infer<typeof createChannelInputSchema>),
+          ...createChannelInputSchema.parse(dataWithModels),
           settings: nextSettings,
         } as z.infer<typeof createChannelInputSchema>;
 
@@ -1302,28 +1394,19 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     setSupportedModels([]);
     setManualModels([]);
   };
-  // Helper function to parse OAuth token from JSON string
-  const parseOauthToken = (oauthApiKey: string): string => {
-    if (!oauthApiKey) return '';
-    try {
-      const parsed = JSON.parse(oauthApiKey);
-      if (parsed.access_token) {
-        return parsed.access_token;
-      }
-      if (parsed.tokens?.access_token) {
-        return parsed.tokens.access_token;
-      }
-    } catch {
-      // Not JSON, use as-is
-    }
-    return oauthApiKey;
-  };
 
   const handleFetchModels = useCallback(async () => {
     const channelType = form.getValues('type');
     const baseURL = form.getValues('baseURL');
     const apiKeys = form.getValues('credentials.apiKeys');
     const oauthApiKey = form.getValues('credentials.apiKey');
+    const vertexApiKeys = channelType === 'gemini_vertex' ? form.getValues('credentials.vertexApiKeys') : undefined;
+    const selectedVertexCredential = vertexApiKeys?.find(
+      (credential) =>
+        credential.apiKey.trim().length > 0 &&
+        credential.projectID.trim().length > 0 &&
+        (credential.region ?? 'global').trim().length > 0,
+    );
 
     if (!channelType || !baseURL) {
       return;
@@ -1332,27 +1415,24 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     try {
       // For OAuth-based providers (like Copilot), prefer oauthApiKey first
       let firstApiKey = '';
-      if (oauthApiKey) {
-        // If it's OAuth JSON, send full JSON so backend detects isOAuthJSON
-        if (oauthApiKey.trimStart().startsWith('{')) {
-          firstApiKey = oauthApiKey;
-        } else {
-          const parsed = parseOauthToken(oauthApiKey || '');
-          if (parsed) {
-            firstApiKey = parsed;
-          }
-        }
+      if (channelType === 'gemini_vertex') {
+        firstApiKey = selectedVertexCredential?.apiKey.trim() || '';
+      } else {
+        firstApiKey = getFetchModelsApiKey({
+          type: channelType,
+          authMode,
+          oauthApiKey,
+          apiKeys,
+        });
       }
 
-      // Fall back to apiKeys array if no OAuth token
-      if (!firstApiKey && apiKeys?.length) {
-        firstApiKey = apiKeys.find((key) => key.trim().length > 0)?.trim() || '';
-      }
-
+      // Fall back to Vertex API keys if neither OAuth nor flat apiKeys are present
       const result = await fetchModels.mutateAsync({
         channelType,
         baseURL,
         apiKey: firstApiKey || undefined,
+        projectID: selectedVertexCredential?.projectID.trim() || undefined,
+        region: selectedVertexCredential?.region?.trim() || undefined,
         channelID: isEdit ? currentRow?.id : undefined,
       });
 
@@ -1377,7 +1457,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     } catch (_error) {
       // Error is already handled by the mutation
     }
-  }, [fetchModels, form, isEdit, currentRow]);
+  }, [fetchModels, form, isEdit, currentRow, authMode]);
 
   const handleSyncNow = useCallback(async () => {
     if (!currentRow) return [];
@@ -1393,7 +1473,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       pattern: formPattern.trim() ? formPattern : undefined,
     });
 
+    // Sync is authoritative for both lists; refreshing only supportedModels
+    // leaves manualModels stale and makes the header count drift from the badges.
     setSupportedModels(result.supportedModels || []);
+    setManualModels(result.manualModels || []);
     return result.supportedModels || [];
   }, [currentRow, form, patternError, syncChannelModels]);
 
@@ -1401,6 +1484,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     const baseURL = form.watch('baseURL');
     const apiKeys = form.watch('credentials.apiKeys');
     const hasApiKey = apiKeys?.some((key) => key.trim().length > 0);
+    const vertexApiKeys = form.watch('credentials.vertexApiKeys');
+    const hasVertexApiKey = vertexApiKeys?.some((credential) => credential.apiKey.trim().length > 0);
 
     if (isCodexType || isAntigravityType || isClineType || isXAISubscriptionType) {
       return !!baseURL;
@@ -1416,7 +1501,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       return !!baseURL;
     }
 
-    return !!baseURL && hasApiKey;
+    return !!baseURL && (isGeminiVertex ? hasVertexApiKey : hasApiKey);
   };
   // Memoize quick models to avoid re-evaluating on every render
   const currentType = form.watch('type');
@@ -1425,9 +1510,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     return getDefaultModels(currentType);
   }, [currentType, useFetchedModels]);
 
-  // Filtered fetched models based on search and filter
+  // Filter suggestions only; the complete fetched list still drives sync and deprecation checks.
   const filteredFetchedModels = useMemo(() => {
-    let models = fetchedModels;
+    let models = fetchedModels.filter(isSuggestedModel);
     if (showNotAddedModelsOnly) {
       models = models.filter((model) => !supportedModels.includes(model));
     }
@@ -1586,6 +1671,23 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     overscan: 5,
   });
   return {
+    quotaRoutingSettings,
+    quotaRoutingMode,
+    setQuotaRoutingMode,
+    maxSingleChannelRetriesText,
+    setMaxSingleChannelRetriesText,
+    apiKeyStrategy,
+    setApiKeyStrategy,
+    apiKeyRoundRobinSwitchAfter,
+    setApiKeyRoundRobinSwitchAfter,
+    vertexApiKeyFields,
+    isGeminiVertex,
+    isOllamaType,
+    showOllamaAuthCookie,
+    setShowOllamaAuthCookie,
+    userAgentInheritLabel,
+    passThroughInheritLabel,
+    codexThirdPartyBaseURLRef,
     addModel,
     addSelectedDefaultModels,
     addSelectedFetchedModels,

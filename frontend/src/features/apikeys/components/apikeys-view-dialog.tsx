@@ -9,8 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MaskedCodeBlock, MaskedCodeBlockCopyButton, highlightMaskedCode } from '@/components/ai-elements/masked-code-block';
+import { useQueryAllModels } from '@/features/models/data/models';
+import { useCodexCompatibilityEnabled } from '@/features/system/data/codex-compatibility-api';
 import { BudgetButton } from '@/features/budgets/budget-dialog';
 import { useApiKeysContext } from '../context/apikeys-context';
+import { useApiKey } from '../data/apikeys';
+import { buildPiModelsConfig, serializePiModelsConfig } from '../data/pi-models-config';
 
 function CopyBaseUrlButton({ baseUrl }: { baseUrl: string }) {
   const { t } = useTranslation();
@@ -36,19 +40,69 @@ export function ApiKeysViewDialog() {
   const { isDialogOpen, closeDialog, selectedApiKey } = useApiKeysContext();
   const [isVisible, setIsVisible] = useState(false);
   const [preRenderedCode, setPreRenderedCode] = useState<Record<string, { light: string; dark: string }>>({});
+  const [piPreRendered, setPiPreRendered] = useState<{ source: string; light: string; dark: string }>();
+  const [activeExampleTab, setActiveExampleTab] = useState('claudeCode');
   const { handleCopy: copyApiKey } = useCopyToClipboard({
     text: selectedApiKey?.key ?? '',
     copyMessage: t('apikeys.messages.copied'),
   });
+  const { data: codexCompatibilityEnabled } = useCodexCompatibilityEnabled();
+  const showCodexCompatibility = codexCompatibilityEnabled === true;
 
   const apiKey = selectedApiKey?.key || '';
   const maskedApiKey = selectedApiKey?.key ? selectedApiKey.key.slice(0, 3) + '...' + selectedApiKey.key.slice(-4) : '';
 
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8090';
 
-  const codeExamples = useMemo(() => {
-    if (!selectedApiKey?.key) return {};
+  // The key detail carries the active profile's model allowlist, which the list row omits.
+  const detailApiKeyId = isDialogOpen.view ? (selectedApiKey?.id ?? '') : '';
+  const { data: apiKeyDetail } = useApiKey(detailApiKeyId);
+  const { data: enabledModels } = useQueryAllModels({ where: { statusIn: ['enabled'] } }, { enabled: !!detailApiKeyId });
 
+  const piConfig = useMemo(() => {
+    // The list row omits profiles, so wait for the detail before trusting the allowlist.
+    if (!detailApiKeyId || !apiKey || !apiKeyDetail) return undefined;
+
+    const profiles = apiKeyDetail.profiles;
+    const modelIDs = profiles?.profiles?.find((profile) => profile.name === profiles.activeProfile)?.modelIDs ?? [];
+    const models = (enabledModels?.edges ?? [])
+      .map((edge) => edge.node)
+      .filter((model) => modelIDs.length === 0 || modelIDs.includes(model.modelID));
+
+    return {
+      config: buildPiModelsConfig({ origin: currentOrigin, apiKey, models }),
+      masked: buildPiModelsConfig({ origin: currentOrigin, apiKey: maskedApiKey, models }),
+    };
+  }, [detailApiKeyId, apiKeyDetail, enabledModels, currentOrigin, apiKey, maskedApiKey]);
+
+  const piConfigCode = useMemo(
+    () =>
+      piConfig && {
+        baseUrl: `${currentOrigin}/v1`,
+        display: serializePiModelsConfig(piConfig.masked),
+        real: serializePiModelsConfig(piConfig.config),
+      },
+    [piConfig, currentOrigin]
+  );
+
+  // Highlighting a full model list is expensive, so cache it per rendered content.
+  const piPreRenderedCode = piPreRendered && piConfigCode && piPreRendered.source === piConfigCode.display ? piPreRendered : undefined;
+
+  useEffect(() => {
+    if (activeExampleTab !== 'pi' || !piConfigCode || piPreRenderedCode) return;
+
+    let cancelled = false;
+
+    highlightMaskedCode(piConfigCode.display, 'json').then(([light, dark]) => {
+      if (!cancelled) setPiPreRendered({ source: piConfigCode.display, light, dark });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeExampleTab, piConfigCode, piPreRenderedCode]);
+
+  const codeExamples = useMemo(() => {
     return {
       codex: {
         baseUrl: `${currentOrigin}/v1`,
@@ -83,6 +137,53 @@ query_params = {}
 
 # Restart Codex to apply the configuration`,
       },
+      ...(showCodexCompatibility
+        ? {
+            codexCompatibility: {
+              baseUrl: `${currentOrigin}/codex`,
+              display: `# \${HOME}/.codex/config.toml
+model = "gpt-6.1-sol"
+model_provider = "openai"
+openai_base_url = "${currentOrigin}/codex"
+chatgpt_base_url = "${currentOrigin}/codex"
+web_search = "live"
+
+[features]
+fast_mode = true
+context_management = true
+
+# \${HOME}/.codex/auth.json
+{
+  "personal_access_token": "${maskedApiKey}",
+  "OPENAI_API_KEY": "${maskedApiKey}"
+}
+
+# In the same shell that starts Codex (macOS/Linux)
+export CODEX_AUTHAPI_BASE_URL="${currentOrigin}/codex"
+# Windows: add CODEX_AUTHAPI_BASE_URL=${currentOrigin}/codex in System Environment Variables`,
+              real: `# \${HOME}/.codex/config.toml
+model = "gpt-6.1-sol"
+model_provider = "openai"
+openai_base_url = "${currentOrigin}/codex"
+chatgpt_base_url = "${currentOrigin}/codex"
+web_search = "live"
+
+[features]
+fast_mode = true
+context_management = true
+
+# \${HOME}/.codex/auth.json
+{
+  "personal_access_token": "${apiKey}",
+  "OPENAI_API_KEY": "${apiKey}"
+}
+
+# In the same shell that starts Codex (macOS/Linux)
+export CODEX_AUTHAPI_BASE_URL="${currentOrigin}/codex"
+# Windows: add CODEX_AUTHAPI_BASE_URL=${currentOrigin}/codex in System Environment Variables`,
+            },
+          }
+        : {}),
       claudeCode: {
         baseUrl: `${currentOrigin}/anthropic`,
         display: `# In your terminal, set the API key
@@ -218,13 +319,20 @@ response = client.models.generate_content(
 print(response.text)`,
       },
     };
-  }, [selectedApiKey?.key, apiKey, maskedApiKey]);
+  }, [currentOrigin, apiKey, maskedApiKey, showCodexCompatibility]);
+
+  useEffect(() => {
+    if (!showCodexCompatibility && activeExampleTab === 'codexCompatibility') {
+      setActiveExampleTab('claudeCode');
+    }
+  }, [activeExampleTab, showCodexCompatibility]);
 
   useEffect(() => {
     if (!selectedApiKey?.key || Object.keys(codeExamples).length === 0) return;
 
     const languages: Record<string, 'bash' | 'python'> = {
       codex: 'bash',
+      codexCompatibility: 'bash',
       claudeCode: 'bash',
       anthropicSDK: 'python',
       openAISDK: 'python',
@@ -299,14 +407,45 @@ print(response.text)`,
         <div className='flex flex-1 flex-col overflow-hidden'>
           <label className='text-sm font-medium'>{t('apikeys.dialogs.view.usageExamples')}</label>
           {selectedApiKey?.type === 'user' || selectedApiKey?.type === 'personal' ? (
-            <Tabs defaultValue='claudeCode' className='mt-2 flex min-h-0 flex-1 flex-col'>
-              <TabsList className='grid w-full shrink-0 grid-cols-5'>
-                <TabsTrigger value='claudeCode'>{t('apikeys.dialogs.view.tabs.claudeCode')}</TabsTrigger>
-                <TabsTrigger value='codex'>{t('apikeys.dialogs.view.tabs.codex')}</TabsTrigger>
-                <TabsTrigger value='anthropicSDK'>{t('apikeys.dialogs.view.tabs.anthropicSDK')}</TabsTrigger>
-                <TabsTrigger value='openAISDK'>{t('apikeys.dialogs.view.tabs.openAISDK')}</TabsTrigger>
-                <TabsTrigger value='geminiSDK'>{t('apikeys.dialogs.view.tabs.geminiSDK')}</TabsTrigger>
+            <Tabs value={activeExampleTab} onValueChange={setActiveExampleTab} className='mt-2 flex min-h-0 flex-1 flex-col'>
+              <TabsList className='w-full shrink-0 justify-start gap-2 overflow-x-auto'>
+                <TabsTrigger className='flex-none' value='claudeCode'>
+                  {t('apikeys.dialogs.view.tabs.claudeCode')}
+                </TabsTrigger>
+                <TabsTrigger className='flex-none' value='codex'>
+                  {t('apikeys.dialogs.view.tabs.codex')}
+                </TabsTrigger>
+                {showCodexCompatibility && (
+                  <TabsTrigger className='flex-none' value='codexCompatibility'>
+                    {t('apikeys.dialogs.view.tabs.codexCompatibility')}
+                  </TabsTrigger>
+                )}
+                <TabsTrigger className='flex-none' value='pi'>
+                  {t('apikeys.dialogs.view.tabs.pi')}
+                </TabsTrigger>
+                <TabsTrigger className='flex-none' value='anthropicSDK'>
+                  {t('apikeys.dialogs.view.tabs.anthropicSDK')}
+                </TabsTrigger>
+                <TabsTrigger className='flex-none' value='openAISDK'>
+                  {t('apikeys.dialogs.view.tabs.openAISDK')}
+                </TabsTrigger>
+                <TabsTrigger className='flex-none' value='geminiSDK'>
+                  {t('apikeys.dialogs.view.tabs.geminiSDK')}
+                </TabsTrigger>
               </TabsList>
+              <TabsContent value='pi' className='mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto'>
+                <p className='text-muted-foreground text-xs'>{t('apikeys.dialogs.view.piHint')}</p>
+                <MaskedCodeBlock
+                  displayCode={piConfigCode?.display || ''}
+                  realCode={piConfigCode?.real || ''}
+                  language='json'
+                  className='overflow-visible'
+                  preRenderedHtml={piPreRenderedCode}
+                >
+                  <CopyBaseUrlButton baseUrl={piConfigCode?.baseUrl || ''} />
+                  <MaskedCodeBlockCopyButton />
+                </MaskedCodeBlock>
+              </TabsContent>
               <TabsContent value='anthropicSDK' className='mt-3 min-h-0 flex-1 overflow-y-auto'>
                 <MaskedCodeBlock
                   displayCode={codeExamples?.anthropicSDK?.display || ''}
@@ -343,6 +482,20 @@ print(response.text)`,
                   <MaskedCodeBlockCopyButton />
                 </MaskedCodeBlock>
               </TabsContent>
+              {showCodexCompatibility && (
+                <TabsContent value='codexCompatibility' className='mt-3 min-h-0 flex-1 overflow-y-auto'>
+                  <MaskedCodeBlock
+                    displayCode={codeExamples?.codexCompatibility?.display || ''}
+                    realCode={codeExamples?.codexCompatibility?.real || ''}
+                    language='bash'
+                    className='overflow-visible'
+                    preRenderedHtml={preRenderedCode.codexCompatibility}
+                  >
+                    <CopyBaseUrlButton baseUrl={codeExamples?.codexCompatibility?.baseUrl || ''} />
+                    <MaskedCodeBlockCopyButton />
+                  </MaskedCodeBlock>
+                </TabsContent>
+              )}
               <TabsContent value='claudeCode' className='mt-3 min-h-0 flex-1 overflow-y-auto'>
                 <MaskedCodeBlock
                   displayCode={codeExamples?.claudeCode?.display || ''}

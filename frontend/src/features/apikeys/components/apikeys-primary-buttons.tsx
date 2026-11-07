@@ -10,7 +10,7 @@ export function ApiKeysPrimaryButtons() {
   const { openDialog } = useApiKeysContext();
 
   return (
-    <div className='flex flex-wrap gap-2'>
+    <div className='flex min-w-0 max-w-full flex-wrap items-center gap-2'>
       <KeyGroupManager />
       <PermissionGuard requiredScope='write_api_keys'>
         <Button variant='outline' size='sm' onClick={() => openDialog('profileTemplates')}>

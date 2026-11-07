@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/enttest"
+"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
@@ -35,7 +36,7 @@ func TestRequestPayloadStorageLimitsAndRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(body), string(loaded))
 	response := []byte(`{"id":"response-1","status":"completed","output":[]}`)
-	require.NoError(t, svc.UpdateRequestCompleted(ctx, req.ID, "response-1", response, nil))
+	require.NoError(t, svc.UpdateRequestFinalized(ctx, req.ID, request.StatusCompleted, "response-1", response, nil))
 	req = client.Request.GetX(ctx, req.ID)
 	require.Less(t, len(req.ResponseBody), 512)
 	loaded, err = svc.LoadResponseBody(ctx, req)
@@ -81,7 +82,7 @@ func TestRequestPayloadDisabledDoesNotWriteBodiesOrContext(t *testing.T) {
 	output := []byte(`{"id":"response-disabled","status":"completed","output":[{"type":"message","content":"private output"}]}`)
 	req, err := svc.CreateRequest(ctx, &llm.Request{Model: "example"}, &httpclient.Request{Body: input}, llm.APIFormatOpenAIResponse)
 	require.NoError(t, err)
-	require.NoError(t, svc.UpdateRequestCompleted(ctx, req.ID, "response-disabled", output, nil))
+	require.NoError(t, svc.UpdateRequestFinalized(ctx, req.ID, request.StatusCompleted, "response-disabled", output, nil))
 	svc.SaveResponsesContext(ctx, input, output)
 	svc.SaveResponsesContext(ctx, input, []byte(`{"id":"response-interrupted-disabled","status":"incomplete","incomplete_details":{"reason":"interrupted"},"output":[]}`))
 	req = client.Request.GetX(ctx, req.ID)
