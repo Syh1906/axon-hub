@@ -1,4 +1,4 @@
-## [Unreleased] — v1.0.0-beta12-fork.1
+## [v1.0.0-beta12-fork.1] - 2026-11-07
 
 ### 新增与调整
 
@@ -25,7 +25,7 @@
 ### 升级与移除
 
 - 包含自动表结构升级和旧配额路由转换；自动迁移时清理 Wafer 退役配额记录，保留既有迁移版本及行为。不能仅靠切换旧镜像完成数据回退。
-- 尚未发布或部署。验证结果、类型诊断与外部服务验收限制见 [Fork 维护台账](docs/fork-maintenance.md)；完整待发布说明见 [.github/release-notes.md](.github/release-notes.md)。
+- 已正式发布并完成云悠、泉哥双机部署验收。发布源码固定为 `aed80ce3`；验证结果、缓存待办、类型诊断及未覆盖的真实业务范围见 [Fork 维护台账](docs/fork-maintenance.md)，完整说明见 [.github/release-notes.md](.github/release-notes.md)。
 
 ## [v1.0.0-beta10-fork.7.syh.19] - 2026-11-07
 

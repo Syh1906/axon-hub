@@ -105,7 +105,7 @@ Ent 新增 `cache_effectiveness_windows`，并给 `request_executions` 增加可
 
 `usage_archives` 新增可空 `pricing_complete` 与默认 0 的 `speed_version`。新归档记录费用完整性及修正后的速度版本 1；旧归档无法恢复逐请求依据时不参与新速度平均，费用完整性标记未知，不把旧零值视为已确认免费。两个字段由 Ent 自动迁移，不改已发布的数据迁移。
 
-旧请求的缺失采样保持 NULL，不回填猜测值，已有耗时与成本不变。SQLite 已验证旧 schema 升级、重复升级、历史字段保留和窗口唯一约束。SQL 使用各方言共有的聚合表达式，upsert 由 Ent 按方言生成；MySQL／PostgreSQL 实例升级尚未验证。
+旧请求的缺失采样保持 NULL，不回填猜测值，已有耗时与成本不变。SQLite 已验证旧 schema 升级、重复升级、历史字段保留和窗口唯一约束。SQL 使用各方言共有的聚合表达式，upsert 由 Ent 按方言生成；beta12 合并阶段已完成 SQLite／MySQL／PostgreSQL 隔离升级及重复启动检查；beta12-fork.1 已完成双机 PostgreSQL 生产升级的字段、版本和配置编号集合核对。范围与收据见 [Fork 维护台账](../../fork-maintenance.md#github-独立发布与两层上游追溯)，不等同于生产全部统计业务已验收。
 
 ## 验证入口
 

@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+当前正式版为 [`v1.0.0-beta12-fork.1`](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.1)（2026-11-07），发布源码 `aed80ce3`；双架构镜像及清单已核验，双机已完成部署验收。缓存完整证据链及真实业务未验边界继续以台账为准。
+
 本仓库为 Syh1906/axon-hub。beta12 起直接同步原始上游 looplj/axonhub；
 ChouUn/axon-hub 是保留历史与功能的继承 fork。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR，二进制包和
 部署清单保存在 GitHub Releases；不需要 Docker Hub 账号。自 `.syh.8` 起默认仅发布双架构镜像与部署清单，跨平台下载包由配置显式开启。

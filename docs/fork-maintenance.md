@@ -6,7 +6,7 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-07）：最新正式版为 `.syh.19`，源码 `65364d30`，云悠、泉哥均已更新并通过部署及 Codex 目录验收。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
+发布状态总览（2026-11-07）：最新正式版为 `v1.0.0-beta12-fork.1`，发布源码 `aed80ce3`，云悠、泉哥均已更新并通过健康、数据库升级和静态资源验收。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
 
 本仓库保留 ChouUn 的继承历史及功能归属，beta12 起直接合并 looplj 的原始 release。
 原始基线与继承 fork 分别记录在 `release.config.json`，新的 `beta12-fork.N` 发版规则见[独立发版与部署](zh/development/release.md)。
@@ -33,7 +33,7 @@ fork 改动，由用户决定。
 
 ## v1.0.0-beta12（原始上游合并，目标 beta12-fork.1）
 
-- 状态：本地合并及本轮复审修复已完成，目标基线为 `v1.0.0-beta12-fork.1`；当前仅保留本地提交，未推送、未发布、未部署。
+- 状态：原始上游合并及复审修复已完成，`v1.0.0-beta12-fork.1` 已正式发布并设为最新版本，云悠、泉哥均已部署验收；发布源码固定 `aed80ce3`，后续文档回填不移动 tag。
 - 来源：原始上游 `looplj/axonhub` 的 `v1.0.0-beta12`（`2b1a0f9321a4f783a4cceb2b4eb3a8303074487e`）。继承来源单独记录为 `ChouUn/axon-hub` 的 `v1.0.0-beta10-fork.7`（`b205ae8eb0db9fed6078e3a5c624bda61b36de31`）；beta10 原始基线为 `939b2bc07cc05bdf7750d7ec872290d67784d13d`。
 - 合并原则：当前 fork 的计价快照、预算、模型准入、权限范围、渠道优先级、健康门控、请求正文留存和多来源 Codex 目录为权威行为；上游新增协议、供应商、认证、队列、归档统计、管理字段和安全边界在不改变上述行为的前提下接入。
 - 合并提交：`50bc66fa8c9e6f750fe7736b453c0783cfe1903d`，第一父节点为本地基线 `b742b9a1`，第二父节点为原始 beta12 `2b1a0f93`；本地 `release/v1.0.x` 沿此历史维护。
@@ -61,7 +61,7 @@ fork 改动，由用户决定。
 - beta12 后的选定回补：`0fa12b22`（真实 usage 计数终态）、`e2759aad`（流式 usage 聚合）、`69f39b8d`（按实际传输协议选择端点）。本轮按当前实现适配回补，未将 beta12 后整个 unstable 分支纳入。下次上游包含这些提交时逐项判断是否已等效吸收，不能再次机械覆盖。
 - 本轮没有新增或改写已发布的 schema/data migration 版本；Ent／GraphQL 生成文件已按合并 schema 更新。版本顺序与迁移调度覆盖 `.syh.19 → beta12 → beta12-fork.1`、重复启动跳过旧迁移，以及后续 `beta13` 的顺序。
 
-后续人工演示反馈（2026-11-07）：本轮只修复渠道表头、补充用量成本列及缓存多用量归属问题；请求页布局／耗时保持合并前样式。完整缓存输入证据及旧窗口处理由用户明确留待后续；具体边界见本台账统计 topic 和[统计说明](zh/development/consumption-statistics.md#已知限制与后续修正)。新修复本地待发布，未推送、发布或部署。
+后续人工演示反馈（2026-11-07）：本轮只修复渠道表头、补充用量成本列及缓存多用量归属问题；请求页布局／耗时保持合并前样式。完整缓存输入证据及旧窗口处理由用户明确留待后续；具体边界见本台账统计 topic 和[统计说明](zh/development/consumption-statistics.md#已知限制与后续修正)。新修复已随 beta12-fork.1 发布并完成双机部署；完整缓存待办仍未实施。
 
 发布前依赖修复（2026-11-07）：首轮远端 Govulncheck 在根／llm 两模块确认 `GO-2026-6865` 可由 zstd 请求解压路径触达；根模块、llm及配置生成工具的压缩依赖统一升至 `github.com/klauspost/compress v1.20.2`。既有请求体解压／无效载荷定向测试通过；发版以修复后同提交 Test、Build、Lint、两模块漏洞检查成功为准。无 API、schema/data migration 变化，首版继续使用 beta12-fork.1。
 
@@ -313,7 +313,7 @@ fork 改动，由用户决定。
 
 
 - 状态：纳入 `v1.0.0-beta10-fork.7.syh.6`，实现提交 `83a82092`，2026-10-29 本地隔离验收通过。项目用量统计新增用户／Key 切换；管理区新增用户／密钥／渠道的消耗榜、缓存榜及模型展开，共用今天、昨天、本周、本月、全部、指定日期。系统级 `read_leaderboard` 只授予查看，项目所有者不自动获得全站权限。实际发布状态见下方独立发版条目。
-- 2026-11-07 演示反馈（本地待发布）：分组／密钥／用户成本榜的父行和模型明细增加每百万 Token 成本，复用已有 `avgCostPerMillionTokens` 字段、金额格式和可视区域渲染，不增加查询。缓存窗口资格从 `usage_count > 0` 收紧为 `= 1`，歧义请求仅保留可观测样本数，费用和 Token 汇总不变。补充缓存系数用途与样本修正说明；定向窗口／账单回归及真实页面排序、展开通过，独立 `gpt-6.1-sol / max` 只读复核无阻断项。无新增 schema/data migration。
+- 2026-11-07 演示反馈（已随 beta12-fork.1 发布）：分组／密钥／用户成本榜的父行和模型明细增加每百万 Token 成本，复用已有 `avgCostPerMillionTokens` 字段、金额格式和可视区域渲染，不增加查询。缓存窗口资格从 `usage_count > 0` 收紧为 `= 1`，歧义请求仅保留可观测样本数，费用和 Token 汇总不变。补充缓存系数用途与样本修正说明；定向窗口／账单回归及真实页面排序、展开通过，独立 `gpt-6.1-sol / max` 只读复核无阻断项。无新增 schema/data migration。
 - 缓存系数待办（用户确认暂缓）：保留 Chat／Responses／Anthropic／Gemini 输入字段缺失、null、明确0的证据，经流式汇总、执行持久化和预算恢复贯通；旧数据未知，新旧窗口需版本策略，不能用正Token或预算开关替代证据。本轮多用量修复不修正该问题，也不自动重算旧窗口。[完整边界与后续验收](zh/development/consumption-statistics.md#已知限制与后续修正)。本次核对平均输出速度未发现新公式偏差：仍逐请求按文本输出量÷首字节后时长，再求算术平均；路由评分独立。
 - 来源与边界：按 CCH `0c508eaa` 迁移字段、缓存触发请求分母、成功率分类、首字节输出速度及缓存系数的整数计算；Key 维度扩展其用户榜。保留 AxonHub 历史成本，不改变定价或路由。完整契约及直接来源见[统计说明](zh/development/consumption-statistics.md)与[英文说明](en/development/consumption-statistics.md)。
 - 代码：`internal/server/biz/consumption*.go`、`internal/pkg/usageanalytics/`、`internal/server/gql/consumption.graphql`、`llm/httpclient/first_byte.go`、请求执行采集和 `frontend/src/features/consumption/`。首字节观察覆盖 HTTP/SSE、Responses WebSocket 分片及 Vertex 请求转换。菜单、路由、接口及缓存前均执行权限检查；管理员统计明确区分项目筛选与顶部当前项目。
@@ -359,7 +359,7 @@ fork 改动，由用户决定。
 
 ### 标签优先级、渠道快捷设置与表单增强
 
-- 2026-11-07 渠道表头修复（本地待发布）：共享 `DataTableColumnHeader` 的 `fitContent` 仅在渠道列启用，减少排序按钮重复间距并完整显示短标题；其他页面默认行为保留。真实页面确认状态／优先级／权重完整且排序入口可用；无接口或数据库变化。
+- 2026-11-07 渠道表头修复（已随 beta12-fork.1 发布）：共享 `DataTableColumnHeader` 的 `fitContent` 仅在渠道列启用，减少排序按钮重复间距并完整显示短标题；其他页面默认行为保留。真实页面确认状态／优先级／权重完整且排序入口可用；无接口或数据库变化。
 
 - 版本：标签默认优先级首次纳入 `.syh.3`，默认标签与列表交互纳入 `.syh.5`；全局与全部标签统一编辑纳入 `.syh.6`，实现提交 `b78f041f`。全局和标签值保存于 `ChannelSettings` JSON，无新增 schema/data migration；旧 JSON 缺省保持原调度行为。
 - 保存与校验：渠道优先级浮窗同时编辑全局值和全部标签值，列表筛选不锁定编辑范围。全局与标签原子保存，普通渠道编辑保留此值；标签留空使用全局，全局留空沿用模型关联。允许 -2147483648～2147483647 的整数，包含负数和 0；未完成数字由原生表单校验阻止，保存接口拒绝越界。保存后等待列表回读再结束，避免慢网连续编辑使用旧草稿。
@@ -1148,6 +1148,13 @@ fork 改动，由用户决定。
   `scripts/e2e/fixtures/channel-groups.sql`。
 
 ### GitHub 独立发布与两层上游追溯
+
+- beta12 合并后首版（2026-11-07）：[v1.0.0-beta12-fork.1](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.1) 已正式发布并设为最新版本，源码 `aed80ce3e4f70cc175e764357e899462b525ebe4`，`prerelease=false`、`publishBinaries=false`。原始上游 looplj beta12 与 ChouUn 继承历史分别追溯；从此基线使用 beta12-fork.N。
+  同提交 [Test 42380791504](https://github.com/Syh1906/axon-hub/actions/runs/42380791504)、[Build 42380791474](https://github.com/Syh1906/axon-hub/actions/runs/42380791474)、[Lint 42380791461](https://github.com/Syh1906/axon-hub/actions/runs/42380791461)、[Govulncheck 42380791457](https://github.com/Syh1906/axon-hub/actions/runs/42380791457) 全部成功。[发布 42381370751](https://github.com/Syh1906/axon-hub/actions/runs/42381370751) 完成两架构构建、多架构合成和临时 PostgreSQL 17 启动／版本检查。唯一附件 release.json，SHA-256 `0251295d39abd82712cdc701cb0f5aab5db65b1847add02b2d564ccffe1761d4`，下载与附件摘要一致。
+  固定镜像 `ghcr.io/syh1906/axon-hub@sha256:c3a712901cd771b42c0b550c89810aee17c8a6a71f72eba5968a83d0693e8849`；OCI 索引已验证 linux/amd64 与 linux/arm64。首轮 CI 暴露 zstd 依赖漏洞、独立 schema 工具依赖不同步、整体截止时间取消竞态及新测试格式遗漏，均在发 tag 前修复；本地定向回归及独立复核通过，最终以以上同一提交四项检查为依据，不能把先前局部验收描述为完整发布预检。
+  云悠 22:35:38、泉哥 22:38:59（Asia/Singapore）依次完成部署。应用重建及健康等待分别 6.317／36.619 秒，不是逐请求中断时长。内外健康、完整版本／提交、首页 JS/CSS、初始化、匿名模型接口401、metrics404、OPTIONS204符合预期；启动错误仅各两条本次匿名鉴权检查。应用环境／资源／挂载／代理指纹保持，数据库及其他容器身份与启动时间不变。
+  数据库系统版本升至 beta12-fork.1；7个新增请求／执行字段齐全，渠道／模型／项目／Key编号集合前后一致。此次含schema升级与配额兼容转换，不改历史migration。未创建数据库备份，不能把切回旧镜像当完整回退；未做收费推理、真实账单、全量业务或长期负载验收，94项既有类型诊断与缓存完整证据待办仍保留。
+  按用户最新要求，本轮七份配置／元数据副本（云悠13601、泉哥13619字节）保留待用户删除；旧正式镜像未删除。两台本地私有运维台账、远端release.json／deployment.json／snapshot.json及升级收据已同步；临时目录清单见[本轮记录](../.agent/summary/release-beta12-fork1-20261107.md)。本地演示服务已关闭、Docker保持关闭，既有被审批拒绝的临时目录不绕过删除。
 
 - 第十九版发布（2026-11-07）：版本 `v1.0.0-beta10-fork.7.syh.19`，源码 `65364d30d7f466cf54606492964e60d42fbecc3c`。包含官方 Codex 快照与继承覆盖、推理档位选源，以及 .syh.18 后已提交的缓存计费、加载性能、日志精度和加密续聊修复；两层上游不变，无新增 schema/data migration。`prerelease=false`、`publishBinaries=false`。
   同提交 [Test 42335457875](https://github.com/Syh1906/axon-hub/actions/runs/42335457875)、[Build 42335458015](https://github.com/Syh1906/axon-hub/actions/runs/42335458015)、[Lint 42335457726](https://github.com/Syh1906/axon-hub/actions/runs/42335457726) 全部成功。[精简发布 42335917914](https://github.com/Syh1906/axon-hub/actions/runs/42335917914) 完成双架构镜像及临时 PostgreSQL 启动检查；[正式版本](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta10-fork.7.syh.19) 已设为最新，唯一附件为 release.json，SHA-256 `98b62ad0f1ffdbad347a983890979cede534f74cf624e18f35a3006fcdf40315`。

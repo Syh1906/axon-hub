@@ -108,7 +108,7 @@ Ent adds `cache_effectiveness_windows` and nullable first-byte latency, observat
 
 `usage_archives` adds nullable `pricing_complete` and `speed_version` defaulting to 0. New archives retain pricing completeness and corrected speed version 1. Old archives lack sufficient per-request evidence and are excluded from corrected speed averages; unknown pricing completeness does not become confirmed zero cost. Ent manages these columns without changing released data migrations.
 
-Missing legacy samples stay NULL; historical timing and cost data are unchanged. SQLite tests verify old-schema upgrade, repeated upgrade, legacy preservation and unique windows. Query expressions use shared SQL constructs and Ent generates dialect-specific upserts. Live MySQL/PostgreSQL upgrades remain unverified.
+Missing legacy samples stay NULL; historical timing and cost data are unchanged. SQLite tests verify old-schema upgrade, repeated upgrade, legacy preservation and unique windows. Query expressions use shared SQL constructs and Ent generates dialect-specific upserts. The beta12 merge validated isolated SQLite/MySQL/PostgreSQL upgrades and repeated startup. The beta12-fork.1 rollout also checked schema fields, version and configuration ID sets on both production PostgreSQL hosts. See the [maintenance ledger](../../fork-maintenance.md#github-独立发布与两层上游追溯) for scope and receipts; this does not validate every production statistics workflow.
 
 ## Verification
 
