@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-"github.com/tidwall/gjson"
+	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
@@ -126,7 +126,7 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 		record *responsesSessionRecord
 	}
 	metadata := s.lookup(ctx, responseID)
-var turns []turn
+	var turns []turn
 	visited := make(map[string]bool)
 	var base []json.RawMessage
 	sessionID, _ := shared.GetSessionID(ctx)
@@ -174,7 +174,12 @@ var turns []turn
 	}
 	record := turns[0].record
 	record.complete = true
-if metadata != nil { record.origin = metadata.origin; if metadata.sessionID != "" { sessionID = metadata.sessionID } }
+	if metadata != nil {
+		record.origin = metadata.origin
+		if metadata.sessionID != "" {
+			sessionID = metadata.sessionID
+		}
+	}
 	record.input = base
 	record.sessionID = sessionID
 	record.size = rawResponseSessionValuesSize(record.input) + rawResponseSessionValuesSize(record.output)
@@ -224,19 +229,30 @@ func decodeResponseSessionRecord(requestBody, responseBody []byte) (string, stri
 }
 
 func (s *responsesSessionStore) record(ctx context.Context, requestBody, responseBody []byte) {
- if s.save != nil { s.save(ctx, requestBody, responseBody) }
- if !json.Valid(requestBody) || !json.Valid(responseBody) { return }
- id := gjson.GetBytes(responseBody,"id").String()
- status := gjson.GetBytes(responseBody,"status").String()
- if id == "" || status == "failed" || status == "cancelled" || status == "canceled" { return }
- record := &responsesSessionRecord{}
- if len(responseBody) <= responsesSessionMaxResponse && len(gjson.GetBytes(requestBody,"input").Raw) <= responsesSessionMaxResponse+2 {
-  _, previous, decoded := decodeResponseSessionRecord(requestBody,responseBody)
-  if decoded != nil && previous == "" { record = decoded; record.complete = true }
- }
- if attempt := shared.GetResponsesAttempt(ctx); attempt != nil { record.origin = attempt.Origin() }
- record.sessionID, _ = shared.GetSessionID(ctx)
- s.cacheRecord(ctx,id,record)
+	if s.save != nil {
+		s.save(ctx, requestBody, responseBody)
+	}
+	if !json.Valid(requestBody) || !json.Valid(responseBody) {
+		return
+	}
+	id := gjson.GetBytes(responseBody, "id").String()
+	status := gjson.GetBytes(responseBody, "status").String()
+	if id == "" || status == "failed" || status == "cancelled" || status == "canceled" {
+		return
+	}
+	record := &responsesSessionRecord{}
+	if len(responseBody) <= responsesSessionMaxResponse && len(gjson.GetBytes(requestBody, "input").Raw) <= responsesSessionMaxResponse+2 {
+		_, previous, decoded := decodeResponseSessionRecord(requestBody, responseBody)
+		if decoded != nil && previous == "" {
+			record = decoded
+			record.complete = true
+		}
+	}
+	if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
+		record.origin = attempt.Origin()
+	}
+	record.sessionID, _ = shared.GetSessionID(ctx)
+	s.cacheRecord(ctx, id, record)
 }
 
 // 取消生成后仍须保存客户端已收到的完整输出项，取消信号不应取消这次短暂的历史写入。
@@ -262,22 +278,28 @@ func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, reco
 		s.totalBytes -= previous.size
 	}
 	copy := *record
-if copy.size > responsesSessionMaxResponse { copy.input, copy.output, copy.size, copy.complete = nil,nil,0,false }
+	if copy.size > responsesSessionMaxResponse {
+		copy.input, copy.output, copy.size, copy.complete = nil, nil, 0, false
+	}
 	copy.input = cloneResponseSessionValues(copy.input)
 	copy.output = cloneResponseSessionValues(copy.output)
 	copy.updatedAt = now
 	s.byResponse[key] = &copy
 	s.totalBytes += copy.size
 	for s.totalBytes > responsesSessionMaxBytes {
- var oldest *responsesSessionRecord
- for _, item := range s.byResponse {
-  if item.size > 0 && (oldest == nil || item.updatedAt.Before(oldest.updatedAt)) { oldest = item }
- }
- if oldest == nil { break }
- s.totalBytes -= oldest.size
- oldest.input, oldest.output, oldest.size, oldest.complete = nil,nil,0,false
-}
-for len(s.byResponse) > responsesSessionMaxRecords {
+		var oldest *responsesSessionRecord
+		for _, item := range s.byResponse {
+			if item.size > 0 && (oldest == nil || item.updatedAt.Before(oldest.updatedAt)) {
+				oldest = item
+			}
+		}
+		if oldest == nil {
+			break
+		}
+		s.totalBytes -= oldest.size
+		oldest.input, oldest.output, oldest.size, oldest.complete = nil, nil, 0, false
+	}
+	for len(s.byResponse) > responsesSessionMaxRecords {
 		if !s.evictOldestLocked() {
 			s.totalBytes = 0
 			break

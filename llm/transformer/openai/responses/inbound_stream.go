@@ -354,8 +354,8 @@ func (s *responsesInboundStream) Next() bool {
 		s.aggregator.serviceTier = lo.ToPtr(chunk.ServiceTier)
 	}
 	// Emit after finish only when usage carries real counts. Zero placeholders
- // must not hide a later authoritative usage chunk.
- if chunk.Usage.HasRealCounts() && s.hasFinished && !s.responseCompleted {
+	// must not hide a later authoritative usage chunk.
+	if chunk.Usage.HasRealCounts() && s.hasFinished && !s.responseCompleted {
 		if err := s.enqueueTerminalResponse(); err != nil {
 			s.err = err
 			return false

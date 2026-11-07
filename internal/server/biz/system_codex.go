@@ -15,9 +15,9 @@ import (
 const SystemKeyCodexCompatibility = "codex_compatibility"
 
 type CodexCompatibilitySettings struct {
-	Enabled   bool `json:"enabled"`
+	Enabled bool `json:"enabled"`
 	// ChannelID selects an optional diagnostic source; public catalogs use CodexCatalogService.
-ChannelID *int `json:"channelID"`
+	ChannelID *int `json:"channelID"`
 }
 
 func (s *SystemService) CodexCompatibilitySettings(ctx context.Context) (*CodexCompatibilitySettings, error) {

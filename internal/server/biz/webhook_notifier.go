@@ -25,9 +25,9 @@ const EventChannelAutoDisabled = "channel.auto_disabled"
 const (
 	EventChannelHealthGateOpened    = "channel.health_gate_opened"
 	EventChannelHealthGateRecovered = "channel.health_gate_recovered"
-	EventProviderQuotaWarning   = "provider.quota.warning"
-	EventProviderQuotaExhausted = "provider.quota.exhausted"
-	EventProviderQuotaRecovered = "provider.quota.recovered"
+	EventProviderQuotaWarning       = "provider.quota.warning"
+	EventProviderQuotaExhausted     = "provider.quota.exhausted"
+	EventProviderQuotaRecovered     = "provider.quota.recovered"
 )
 
 // QuotaEventSeverity maps quota status-change events to their webhook severity.

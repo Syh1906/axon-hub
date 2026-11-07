@@ -338,6 +338,9 @@ func TestResponsesOriginWriteFailurePreservesStreamDelivery(t *testing.T) {
 			for result.ChatCompletionStream.Next() {
 				deliveredCipher = deliveredCipher || strings.Contains(string(result.ChatCompletionStream.Current().Data), "gAAAA_unrecorded-cipher")
 			}
+			if ack, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+				ack.AcknowledgeDelivery()
+			}
 			require.True(t, deliveredCipher)
 			require.NoError(t, result.ChatCompletionStream.Err())
 			require.NoError(t, result.ChatCompletionStream.Close())
@@ -374,6 +377,9 @@ func TestResponsesOriginDoneTerminal(t *testing.T) {
 			}
 			require.NoError(t, result.ChatCompletionStream.Err())
 			require.NoError(t, result.ChatCompletionStream.Close())
+			if ack, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+				ack.AcknowledgeDelivery()
+			}
 			require.True(t, deliveredCipher)
 			require.Equal(t, 2, client.ResponsesOrigin.Query().CountX(ctx))
 		})

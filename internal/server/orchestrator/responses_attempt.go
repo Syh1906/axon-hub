@@ -154,7 +154,9 @@ func loadResponsesContinuationOwner(ctx context.Context, c *responsesContinuatio
 		return nil
 	}
 	record, err := c.store.lookupOrLoad(ctx, c.previous)
-	if err != nil { return nil }
+	if err != nil {
+		return nil
+	}
 	if record == nil {
 		return nil
 	}

@@ -10,7 +10,9 @@ import ts from 'typescript';
 // the exact call sites are pinned against the source below.
 const source = readFileSync(new URL('./channels-action-dialog.tsx', import.meta.url), 'utf8');
 const schemaSource = readFileSync(new URL('../data/schema.ts', import.meta.url), 'utf8');
-const ast = ts.createSourceFile('channels-action-dialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const helpersSource = readFileSync(new URL('../utils/channel-dialog.ts', import.meta.url), 'utf8');
+const hookSource = readFileSync(new URL('../hooks/use-channel-action-dialog.tsx', import.meta.url), 'utf8');
+const ast = ts.createSourceFile('channel-dialog.ts', helpersSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 const CODEX_BASE = 'https://chatgpt.com/backend-api/codex#';
 const OAUTH_JSON = JSON.stringify({ access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' });
@@ -22,7 +24,7 @@ async function loadDialogHelpers() {
 
   const helperNames = ['isOfficialCodexChannel', 'getCodexThirdPartySubmitCredentials', 'getFetchModelsApiKey', 'getCodexThirdPartyCredentialError', 'parseOauthToken'];
   const helperNodes = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && helperNames.includes(node.name?.text));
-  assert.equal(helperNodes.length, helperNames.length, 'Codex credential-mode helpers must stay in channels-action-dialog.tsx');
+  assert.equal(helperNodes.length, helperNames.length, 'Codex credential-mode helpers must exist in channel-dialog.ts');
 
   const helperModule = [
     `const getDefaultBaseURL = (type) => (type === 'codex' ? '${CODEX_BASE}' : '');`,
@@ -36,11 +38,12 @@ async function loadDialogHelpers() {
 }
 
 function between(startMarker, endMarker) {
-  const start = source.indexOf(startMarker);
+  const content = startMarker.startsWith('const ') ? hookSource : source;
+  const start = content.indexOf(startMarker);
   assert.notEqual(start, -1, `missing ${startMarker}`);
-  const end = source.indexOf(endMarker, start + startMarker.length);
+  const end = content.indexOf(endMarker, start + startMarker.length);
   assert.notEqual(end, -1, `missing ${endMarker}`);
-  return source.slice(start, end);
+  return content.slice(start, end);
 }
 
 test('a copied OAuth row switched to third-party submits no OAuth JSON and keeps the custom Base URL', async () => {

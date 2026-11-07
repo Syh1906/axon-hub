@@ -1,9 +1,9 @@
 package orchestrator
 
 import (
- "context"
- "github.com/looplj/axonhub/internal/server/biz"
+	"context"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 )
 
@@ -62,13 +62,14 @@ func requiresResponsesToolProtocol(req *llm.Request) bool {
 	return containsResponseCustomToolMessages(req.Messages)
 }
 
-
 func requiresExplicitEndpoint(requestType llm.RequestType) bool {
- return requestType == llm.RequestTypeAlphaSearch || requestType == llm.RequestTypeDecisions || requestType == llm.RequestTypeSystemOne
+	return requestType == llm.RequestTypeAlphaSearch || requestType == llm.RequestTypeDecisions || requestType == llm.RequestTypeSystemOne
 }
 func applyForcedAPIFormatsForRequest(ctx context.Context, ch *biz.Channel, entries []biz.ChannelModelEntry, model string, requestType llm.RequestType, endpoints []objects.ChannelEndpoint) []objects.ChannelEndpoint {
- forced := biz.ForcedAPIFormatsForCandidate(ch, entries, model)
- filtered := biz.ApplyForcedAPIFormats(ctx, ch, entries, model, endpoints)
- if len(forced)>0 && requiresExplicitEndpoint(requestType) && len(biz.FilterEndpointsByAPIFormats(endpoints, forced))==0 { return nil }
- return filtered
+	forced := biz.ForcedAPIFormatsForCandidate(ch, entries, model)
+	filtered := biz.ApplyForcedAPIFormats(ctx, ch, entries, model, endpoints)
+	if len(forced) > 0 && requiresExplicitEndpoint(requestType) && len(biz.FilterEndpointsByAPIFormats(endpoints, forced)) == 0 {
+		return nil
+	}
+	return filtered
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync/atomic"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"

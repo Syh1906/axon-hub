@@ -386,3 +386,15 @@ test('resolves the effective Responses formats a channel exposes for display', (
     assert.deepEqual(getEffectiveResponsesFormats(channel), expected, name);
   }
 });
+
+// 兼容本 fork 已发布的能力开关，并保留目录配置。
+test('published capability flags retain HTTP and round-trip through canonical Codex endpoints', () => {
+  const endpoints = [{ apiFormat: 'openai/responses', supportsWebSockets: true, catalogURL: 'https://catalog.test/models', catalogJSON: { models: [] } }];
+  assert.deepEqual(getCodexResponsesWebSocketState({ endpoints }), { enabled: true, webSocketOnly: false });
+  const saved = buildCodexResponsesEndpoints(endpoints, true);
+  assert.deepEqual(saved.map((ep) => ep.apiFormat), ['openai/responses', 'openai/responses-ws']);
+  assert.equal(saved[0].catalogURL, endpoints[0].catalogURL);
+  assert.deepEqual(saved[0].catalogJSON, endpoints[0].catalogJSON);
+  assert.equal(saved[0].supportsWebSockets, undefined);
+  assert.deepEqual(getCodexResponsesWebSocketState({ endpoints: buildCodexResponsesEndpoints(saved, false) }), { enabled: false, webSocketOnly: false });
+});

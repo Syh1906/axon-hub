@@ -16,7 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
-"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T) {
@@ -48,8 +48,8 @@ func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T
 	client, handlers, project := newResponsesIntegrationFixture(t, originA.URL, func(create *ent.ChannelCreate) {
 		create.SetCredentials(objects.ChannelCredentials{APIKey: "origin-a-key"})
 	})
-	require.NoError(t, handlers.SystemService.SetStoragePolicy(authz.WithTestBypass(ent.NewContext(t.Context(),client)), &biz.StoragePolicy{}))
-gateway := responsesIntegrationGateway(t, client, handlers, project)
+	require.NoError(t, handlers.SystemService.SetStoragePolicy(authz.WithTestBypass(ent.NewContext(t.Context(), client)), &biz.StoragePolicy{}))
+	gateway := responsesIntegrationGateway(t, client, handlers, project)
 
 	firstStatus, firstBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","input":"origin-a-input`+strings.Repeat("x", 16<<20)+`"}`, 60*time.Second)
 	require.Equal(t, http.StatusOK, firstStatus, string(firstBody))
@@ -68,8 +68,8 @@ gateway := responsesIntegrationGateway(t, client, handlers, project)
 	require.NoError(t, handlers.ChannelService.ReloadEnabledChannelsCache(ctx))
 
 	staleStatus, staleBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","previous_response_id":"origin-a-response","input":"orphan-delta"}`)
-	require.Equal(t, http.StatusBadRequest, staleStatus, string(staleBody))
-	require.Equal(t, "previous_response_not_found", gjson.GetBytes(staleBody, "error.code").String())
+	require.Equal(t, http.StatusConflict, staleStatus, string(staleBody))
+	require.Equal(t, "continuation_credential_unavailable", gjson.GetBytes(staleBody, "error.code").String())
 	require.Equal(t, int32(0), originBRequests.Load(), "stale delta reached the switched origin: %s", staleBody)
 
 	recoveryStatus, recoveryBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","input":"origin-a-input plus orphan-delta"}`)

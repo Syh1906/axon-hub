@@ -16,7 +16,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 )
 
-func assertStreamDeliveryWire(t *testing.T, response *http.Response, heartbeat bool) {
+func assertStreamDeliveryWire(t *testing.T, response *http.Response, heartbeat bool) string {
 	t.Helper()
 	body, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
@@ -30,6 +30,7 @@ func assertStreamDeliveryWire(t *testing.T, response *http.Response, heartbeat b
 	if heartbeat {
 		t.Log("heartbeat mode exercised; heartbeat framing is covered by TestStreamDeliverySSELoopback")
 	}
+	return text
 }
 
 func TestStreamDeliveryE2E_PostTerminalDisconnectPersistsCompletion(t *testing.T) {

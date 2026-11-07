@@ -247,15 +247,16 @@ func TestDashboardUsageAggregatesByAPIKeyJoinsNames(t *testing.T) {
 	require.Equal(t, "Key One", stats[0].APIKeyName)
 	require.Equal(t, 120, stats[0].TotalTokens)
 
-	// Soft-deleted keys are excluded from the widget, matching the previous
-	// behavior of resolving names through the ent API key query.
+	// 已删除密钥仍需关联历史用量，不能从统计中抹去既有消耗。
 	_, err = client.APIKey.UpdateOneID(apiKey.ID).SetDeletedAt(1).Save(ctx)
 	require.NoError(t, err)
 	resetDashboardQueryCache()
 
 	stats, err = resolver.TokenStatsByAPIKey(ctx, nil)
 	require.NoError(t, err)
-	require.Empty(t, stats)
+	require.Len(t, stats, 1)
+	require.Equal(t, "Key One", stats[0].APIKeyName)
+	require.Equal(t, 120, stats[0].TotalTokens)
 }
 
 func TestCanonicalDashboardTimeWindow(t *testing.T) {

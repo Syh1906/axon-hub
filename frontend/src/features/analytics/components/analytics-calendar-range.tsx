@@ -105,4 +105,3 @@ export function DateRangePicker({ startDate, endDate, onStartChange, onEndChange
     </div>
   );
 }
-

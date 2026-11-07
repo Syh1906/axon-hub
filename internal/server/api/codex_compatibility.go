@@ -15,7 +15,7 @@ import (
 )
 
 type CodexCompatibilityHandlers struct {
-	System   *biz.SystemService
+	System *biz.SystemService
 }
 
 type codexAccountCheckResponse struct {
@@ -86,5 +86,3 @@ func (h *CodexCompatibilityHandlers) AccountsCheck(c *gin.Context) {
 		DefaultAccountID: id,
 	})
 }
-
-

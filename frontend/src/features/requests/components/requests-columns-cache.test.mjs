@@ -3,94 +3,45 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
 
-// Execute the tokens column's cache-rate display instead of matching its source
-// text, so a wrong rate, a wrong rounding rule, or a wrong visibility rule
-// fails the test rather than passing silently.
-const source = readFileSync(new URL('./requests-columns.tsx', import.meta.url), 'utf8');
-const ast = ts.createSourceFile('requests-columns.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+// 执行当前 fork 共用的 Token 单元格，验证合并后仍保留明细与计数口径。
+const source = readFileSync(new URL('../../../components/request-usage-cells.tsx', import.meta.url), 'utf8');
+const ast = ts.createSourceFile('request-usage-cells.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const node = ast.statements.find((item) => ts.isFunctionDeclaration(item) && item.name?.text === 'TokensCell');
+assert.ok(node);
+const output = ts.transpileModule(node.getText(ast), {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023, jsx: ts.JsxEmit.React },
+}).outputText;
+const prelude = `import React from '${import.meta.resolve('react')}';
+const useTranslation = () => ({ t: (key) => key, i18n: { language: 'en' } });
+const useState = () => [false, () => {}];
+const HoverCard = 'hover-card', HoverCardTrigger = 'trigger', HoverCardContent = 'content';`;
+const { TokensCell } = await import(`data:text/javascript;base64,${Buffer.from(prelude + output).toString('base64')}`);
+function text(node) {
+  if (node == null || typeof node === 'boolean') return '';
+  if (Array.isArray(node)) return node.map(text).join('');
+  return typeof node === 'object' ? text(node.props.children) : String(node);
+}
+function render(values) { return TokensCell({ prompt: 1000, completion: 50, cached: 250, reasoning: 7, writeCached: 0, ...values }); }
 
-const helperNode = ast.statements.find(
-  (node) => ts.isFunctionDeclaration(node) && node.name?.text === 'tokensColumnCacheDisplay'
-);
-assert.ok(helperNode, 'tokensColumnCacheDisplay must stay a top-level function in requests-columns.tsx');
-
-const { outputText } = ts.transpileModule(`export ${helperNode.getText(ast).replace(/^export\s+/, '')}`, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
+test('请求列沿用共用 Token 单元格', () => {
+  const columns = readFileSync(new URL('./requests-columns.tsx', import.meta.url), 'utf8');
+  assert.match(columns, /<TokensCell/);
+  assert.match(columns, /cached=\{log\.promptCachedTokens/);
 });
-const { tokensColumnCacheDisplay } = await import(
-  `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
-);
-
-test('the tokens cell renders the rate this helper returns', () => {
-  assert.match(
-    source,
-    /tokensColumnCacheDisplay\(promptTokens, cachedTokens, reasoningTokens\)/,
-    'the cell must consume the helper instead of recomputing the rate inline'
-  );
+test('输入包含缓存，总量只计输入和输出，明细显示净输入及推理', () => {
+  const output = text(render({}));
+  assert.match(output, /requests.columns.totalTokens1,050/);
+  assert.match(output, /requests.tokenDetails.newInput: 750/);
+  assert.match(output, /requests.columns.reasoning: 7/);
+  assert.match(output, /requests.tokenDetails.cacheHit250/);
 });
-
-test('a cache read shows the cached share of the prompt', () => {
-  const display = tokensColumnCacheDisplay(1000, 250, 0);
-
-  assert.equal(display.cacheRate, '25.0');
-  assert.equal(display.showCacheRate, true);
-  assert.equal(display.showReasoning, false);
+test('无推理时隐藏推理摘要，零输入不产生 NaN', () => {
+  const output = text(render({ prompt: 0, cached: 0, completion: 0, reasoning: 0 }));
+  assert.doesNotMatch(output, /requests.columns.reasoning|NaN|Infinity/);
+  assert.match(output, /requests.columns.totalTokens0/);
 });
-
-test('no cache read hides the rate even when reasoning tokens exist', () => {
-  const display = tokensColumnCacheDisplay(1000, 0, 40);
-
-  assert.equal(display.showCacheRate, false);
-  assert.equal(display.showReasoning, true);
-});
-
-test('cache hits and reasoning tokens each report their own line', () => {
-  const display = tokensColumnCacheDisplay(1000, 999, 7);
-
-  assert.equal(display.cacheRate, '99.9');
-  assert.equal(display.showCacheRate, true);
-  assert.equal(display.showReasoning, true);
-});
-
-test('zero prompt tokens report a zero rate instead of dividing by zero', () => {
-  const display = tokensColumnCacheDisplay(0, 120, 0);
-
-  assert.equal(display.cacheRate, '0.0');
-  assert.equal(display.showCacheRate, true);
-});
-
-test('neither reasoning nor cache tokens render a metric', () => {
-  const display = tokensColumnCacheDisplay(500, 0, 0);
-
-  assert.equal(display.showReasoning, false);
-  assert.equal(display.showCacheRate, false);
-});
-
-test('the cache rate rides the input line and the reasoning count the output line', () => {
-  const tokensColumn = source.slice(source.indexOf("id: 'tokens'"), source.indexOf("id: 'readCache'"));
-
-  // Each metric sits on the line of the tokens it qualifies: the cache hit rate
-  // qualifies the prompt (input) tokens, the reasoning count the completion
-  // (output) tokens. Order in the source proves the pairing.
-  const inputAt = tokensColumn.indexOf('requests.columns.input');
-  const cacheRateAt = tokensColumn.indexOf('requests.columns.cacheRate');
-  const outputAt = tokensColumn.indexOf('requests.columns.output');
-  const reasoningAt = tokensColumn.indexOf('requests.columns.reasoning');
-
-  assert.ok(inputAt >= 0 && outputAt >= 0, 'both token lines must render');
-  assert.ok(inputAt < cacheRateAt, 'the cache rate follows the input count on the input line');
-  assert.ok(cacheRateAt < outputAt, 'the cache rate stays on the input line, before the output line');
-  assert.ok(outputAt < reasoningAt, 'the reasoning count follows the output count on the output line');
-
-  assert.doesNotMatch(tokensColumn, /showSharedRow/, 'the metrics no longer share a row');
-  assert.equal(
-    (tokensColumn.match(/requests\.columns\.cacheRate/g) ?? []).length,
-    1,
-    'the cache rate must render exactly once'
-  );
-  assert.equal(
-    (tokensColumn.match(/requests\.columns\.reasoning/g) ?? []).length,
-    1,
-    'the reasoning count must render exactly once'
-  );
+test('缓存写入在明细中单独展示，不重复加入总量', () => {
+  const output = text(render({ writeCached: 100 }));
+  assert.match(output, /requests.tokenDetails.cacheWrite100/);
+  assert.match(output, /requests.columns.totalTokens1,050/);
 });

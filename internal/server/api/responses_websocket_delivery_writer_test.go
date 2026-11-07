@@ -133,5 +133,5 @@ func TestStreamDeliveryWebSocketHeldWrite(t *testing.T) {
 }
 
 func newDeliveryWebSocketControl(streamID string) *responsesWebSocketResponse {
- return &responsesWebSocketResponse{streamID:streamID,cancel:func(){},dispatcher:&responsesWebSocketDispatcher{responses:make(map[string]*responsesWebSocketResponse),lastResponse:make(map[string]string)}}
+	return &responsesWebSocketResponse{streamID: streamID, cancel: func() {}, dispatcher: &responsesWebSocketDispatcher{responses: make(map[string]*responsesWebSocketResponse), lastResponse: make(map[string]string)}}
 }

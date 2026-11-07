@@ -17,14 +17,35 @@ func isResponsesEndpoint(format string) bool {
 // NormalizeEndpoints returns canonical copies; it never changes persisted input.
 // Legacy explicit transport takes precedence over the inherited Base URL scheme.
 func NormalizeEndpoints(endpoints []objects.ChannelEndpoint, baseURL string) []objects.ChannelEndpoint {
-	normalized := slices.Clone(endpoints)
-	for i, ep := range normalized {
+	normalized := make([]objects.ChannelEndpoint, 0, len(endpoints)+1)
+	for _, ep := range endpoints {
 		if !isResponsesEndpoint(ep.APIFormat) {
+			normalized = append(normalized, ep)
 			continue
 		}
 		resolvedBase := ep.BaseURL
 		if resolvedBase == "" {
 			resolvedBase = baseURL
+		}
+		// 已发布的 supports_websockets 表示附加能力；true 不能把 HTTP 入口移除。
+		if ep.APIFormat == llm.APIFormatOpenAIResponse.String() && ep.SupportsWebSockets != nil {
+			enabled := *ep.SupportsWebSockets
+			ep.SupportsWebSockets = nil
+			ep.Transport = ""
+			base := strings.TrimSpace(resolvedBase)
+			if strings.HasPrefix(strings.ToLower(base), "wss://") {
+				ep.BaseURL = "https://" + base[len("wss://"):]
+			} else if strings.HasPrefix(strings.ToLower(base), "ws://") {
+				ep.BaseURL = "http://" + base[len("ws://"):]
+			}
+			normalized = append(normalized, ep)
+			if enabled && !slices.ContainsFunc(endpoints, func(other objects.ChannelEndpoint) bool {
+				return other.APIFormat == llm.APIFormatOpenAIResponseWebSocket.String()
+			}) {
+				ep.APIFormat = llm.APIFormatOpenAIResponseWebSocket.String()
+				normalized = append(normalized, ep)
+			}
+			continue
 		}
 		if ep.APIFormat == llm.APIFormatOpenAIResponse.String() {
 			legacy := ep
@@ -43,7 +64,7 @@ func NormalizeEndpoints(endpoints []objects.ChannelEndpoint, baseURL string) []o
 			}
 		}
 		ep.Transport = ""
-		normalized[i] = ep
+		normalized = append(normalized, ep)
 	}
 	return normalized
 }

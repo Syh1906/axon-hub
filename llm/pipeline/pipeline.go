@@ -130,8 +130,6 @@ func WithResponseTimeouts(streamFirstEventTimeout, nonStreamTimeout time.Duratio
 	}
 }
 
-
-
 // Factory creates pipeline instances.
 type Factory struct {
 	Executor Executor
@@ -177,7 +175,6 @@ type pipeline struct {
 	emptyResponseDetection  bool
 	streamFirstEventTimeout time.Duration
 	nonStreamTimeout        time.Duration
-
 }
 
 type Result struct {

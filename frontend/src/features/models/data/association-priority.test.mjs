@@ -9,15 +9,15 @@ function firstIssue(value) {
   return result.success ? null : result.error.issues[0].message;
 }
 
-test('association priority accepts the documented 0-100 range', () => {
-  assert.equal(MAX_ASSOCIATION_PRIORITY, 100);
-  for (const priority of [0, 1, 10, 50, 99, 100]) {
+test('association priority accepts the documented 0-10 range', () => {
+  assert.equal(MAX_ASSOCIATION_PRIORITY, 10);
+  for (const priority of [0, 1, 5, 9, 10]) {
     assert.equal(firstIssue(priority), null, `priority ${priority} should be valid`);
   }
 });
 
 test('association priority reports out-of-range values instead of clamping them', () => {
-  assert.equal(firstIssue(101), 'Priority cannot exceed 100');
+  assert.equal(firstIssue(11), 'Priority cannot exceed 10');
   assert.equal(firstIssue(-1), 'Priority must be at least 0');
 });
 
@@ -37,14 +37,14 @@ test('association priority requires a value once the input is cleared', () => {
 test('new rules take the next priority after the current highest one', () => {
   assert.equal(nextAssociationPriority([]), 0);
   assert.equal(nextAssociationPriority([0]), 1);
-  assert.equal(nextAssociationPriority([20, 5]), 21);
-  assert.equal(nextAssociationPriority([99]), 100);
+  assert.equal(nextAssociationPriority([2, 5]), 6);
+  assert.equal(nextAssociationPriority([9]), 10);
 });
 
-test('new rules saturate at the cap and share priority 100 (same tier)', () => {
-  assert.equal(nextAssociationPriority([100]), 100);
-  assert.equal(nextAssociationPriority([100, 100]), 100);
-  assert.equal(nextAssociationPriority([150]), 100);
+test('new rules saturate at the cap and share priority 10 (same tier)', () => {
+  assert.equal(nextAssociationPriority([10]), 10);
+  assert.equal(nextAssociationPriority([10, 10]), 10);
+  assert.equal(nextAssociationPriority([150]), 10);
 });
 
 test('new rules ignore cleared inputs and normalize pending invalid values', () => {
@@ -56,13 +56,13 @@ test('new rules ignore cleared inputs and normalize pending invalid values', () 
 
 test('the preview gate only stops on invalid priorities', () => {
   assert.equal(hasInvalidAssociationPriority([]), false);
-  assert.equal(hasInvalidAssociationPriority([0, 60, 100]), false);
+  assert.equal(hasInvalidAssociationPriority([0, 6, 10]), false);
   // An empty input is pending, not invalid: the rule itself is incomplete too.
-  assert.equal(hasInvalidAssociationPriority([20, null, undefined]), false);
+  assert.equal(hasInvalidAssociationPriority([2, null, undefined]), false);
   assert.equal(hasInvalidAssociationPriority([1.5]), true);
-  assert.equal(hasInvalidAssociationPriority([101]), true);
+  assert.equal(hasInvalidAssociationPriority([11]), true);
   assert.equal(hasInvalidAssociationPriority([-1]), true);
-  assert.equal(hasInvalidAssociationPriority([20, 1.5]), true);
+  assert.equal(hasInvalidAssociationPriority([2, 1.5]), true);
 });
 
 test('the dialog and the shared model schema agree on the priority cap', () => {
@@ -76,5 +76,5 @@ test('the dialog and the shared model schema agree on the priority cap', () => {
   assert.doesNotMatch(dialog, /Math\.min\(MAX_ASSOCIATION_PRIORITY/);
   // The preview request must be skipped while a priority fails validation.
   assert.match(dialog, /hasInvalidAssociationPriority\(/);
-  assert.match(sharedSchema, new RegExp(`priority: z\\.number\\(\\)\\.min\\(0\\)\\.max\\(${MAX_ASSOCIATION_PRIORITY}\\)`));
+  assert.match(sharedSchema, new RegExp(`priority: z\\.number\\(\\)\\.int\\(\\)\\.min\\(0\\)\\.max\\(${MAX_ASSOCIATION_PRIORITY}\\)`));
 });

@@ -85,19 +85,19 @@ func NewOutboundPersistentStream(
 	}
 	s := &OutboundPersistentStream{
 		rawProviderRequest: state.RawProviderRequest,
-		ctx:             ctx,
-		stream:          stream,
-		request:         request,
-		requestExec:     requestExec,
-		RequestService:  requestService,
-		UsageLogService: usageLogService,
-		transformer:     outboundTransformer,
-		apiFormat:       format,
-		perf:            perf,
-		responseChunks:  make([]*httpclient.StreamEvent, 0),
-		state:           state,
-		terminalTracker: NewStreamTerminalTrackerForRequest(request),
-		consumerDone:    make(chan struct{}),
+		ctx:                ctx,
+		stream:             stream,
+		request:            request,
+		requestExec:        requestExec,
+		RequestService:     requestService,
+		UsageLogService:    usageLogService,
+		transformer:        outboundTransformer,
+		apiFormat:          format,
+		perf:               perf,
+		responseChunks:     make([]*httpclient.StreamEvent, 0),
+		state:              state,
+		terminalTracker:    NewStreamTerminalTrackerForRequest(request),
+		consumerDone:       make(chan struct{}),
 	}
 	if lifecycleOwner := streamLifecycleFromContext(ctx); lifecycleOwner != nil {
 		s.HoldFinalization()
@@ -186,7 +186,7 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 		observeServiceTier(ts.requestExec, event.Data, true)
 		ts.stateMu.Lock()
 		defer ts.stateMu.Unlock()
-		if string(event.Data) == "[DONE]" && isNonChoiceTerminalEvent(event) {
+		if string(event.Data) == "[DONE]" || isNonChoiceTerminalEvent(event) {
 			ts.sourceEnd = llm.SourceEndSemantic
 		}
 		if ts.upstreamModelID == "" {
@@ -216,8 +216,8 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 }
 
 func (ts *OutboundPersistentStream) Err() error {
- // Semantic terminal errors travel in response metadata; Err reports transport failure.
- return ts.stream.Err()
+	// Semantic terminal errors travel in response metadata; Err reports transport failure.
+	return ts.stream.Err()
 }
 
 func (ts *OutboundPersistentStream) Close() error {
@@ -503,9 +503,9 @@ func (ts *OutboundPersistentStream) persistExecutionFailure(ctx context.Context,
 	// has left that loop and can no longer be retried.
 	if ts.state.StreamReturned {
 		reason := "stream_returned"
-		if errors.Is(ts.ctx.Err(), context.Canceled) || errors.Is(rawErr, context.Canceled) {
+		if errors.Is(rawErr, context.Canceled) {
 			reason = "client_canceled"
-		} else if errors.Is(ts.ctx.Err(), context.DeadlineExceeded) || errors.Is(rawErr, context.DeadlineExceeded) {
+		} else if errors.Is(rawErr, context.DeadlineExceeded) {
 			reason = "context_done"
 		}
 		if err := ts.RequestService.SetExecutionRetryDecision(ctx, ts.requestExec.ID, reason); err != nil {
@@ -591,7 +591,9 @@ func (s streamTerminalState) executionStatus() requestexecution.Status {
 }
 
 func isCompletedAggregated(meta llm.ResponseMeta) bool {
-	if meta.Status != "" { return meta.Status == "completed" }
+	if meta.Status != "" {
+		return meta.Status == "completed"
+	}
 	return meta.Completed
 }
 
@@ -985,7 +987,9 @@ func (p *PersistentOutboundTransformer) SameChannelRetryLimit() (int, bool) {
 // attempt) keeps the overrides correct when a retry switches channels.
 func (p *PersistentOutboundTransformer) ResponseTimeouts(_ context.Context) (*time.Duration, *time.Duration) {
 	channel := p.GetCurrentChannel()
-	if channel == nil || channel.Settings == nil { return nil, nil }
+	if channel == nil || channel.Settings == nil {
+		return nil, nil
+	}
 	return secondsToDuration(channel.Settings.StreamFirstEventTimeoutSeconds), secondsToDuration(channel.Settings.NonStreamResponseTimeoutSeconds)
 }
 

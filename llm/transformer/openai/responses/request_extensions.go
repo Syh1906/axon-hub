@@ -40,12 +40,12 @@ func attachOpenAIResponsesRequestExtensions(chatReq *llm.Request, req *Request, 
 		return err
 	}
 	requestExt := &llm.OpenAIResponsesRequestExtensions{
-		ReasoningContext:        reasoningContext,
-		RawFields:               selectRawRequestFields(raw.Fields, rawCreateRequestFields),
-		RawTools:                buildRawOnlyToolFragments(req.Tools, raw.Tools),
-		ToolSignatures:          buildRepresentedToolSignatures(req.Tools),
-		RawToolChoice:           rawUnsupportedToolChoice(req.ToolChoice, raw.ToolChoice),
-		RawInputItems:           inputItems,
+		ReasoningContext: reasoningContext,
+		RawFields:        selectRawRequestFields(raw.Fields, rawCreateRequestFields),
+		RawTools:         buildRawOnlyToolFragments(req.Tools, raw.Tools),
+		ToolSignatures:   buildRepresentedToolSignatures(req.Tools),
+		RawToolChoice:    rawUnsupportedToolChoice(req.ToolChoice, raw.ToolChoice),
+		RawInputItems:    inputItems,
 	}
 
 	if requestExt.ReasoningContext == "" && len(requestExt.RawFields) == 0 && len(requestExt.RawTools) == 0 && len(requestExt.RawToolChoice) == 0 && len(requestExt.RawInputItems) == 0 {
@@ -283,8 +283,6 @@ func buildRawOnlyInputFragments(input Input, rawItems []json.RawMessage) ([]llm.
 
 	return fragments, nil
 }
-
-
 
 // isStructurallyRepresentedInputItem reports whether an input item type is
 // rebuilt from the unified request. Types that are not rebuilt are replayed

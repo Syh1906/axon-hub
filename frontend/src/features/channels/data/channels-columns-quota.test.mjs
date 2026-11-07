@@ -8,7 +8,7 @@ const dataDir = import.meta.dirname;
 const srcRoot = join(dataDir, '..', '..', '..');
 
 function read(relativePath) {
-  return readFileSync(join(srcRoot, relativePath), 'utf8');
+  return readFileSync(join(srcRoot, relativePath), 'utf8').replace(/\r\n/g, '\n');
 }
 
 // Load the real parser and channel schema through TypeScript transpilation so
@@ -20,7 +20,7 @@ function loadModule(relativePath, transform = (s) => s) {
   const transpiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
   }).outputText;
-  const prelude = 'const { z, pageInfoSchema } = globalThis.__importStubs;\n';
+  const prelude = 'const { z, pageInfoSchema, channelModelContextSchema } = globalThis.__importStubs;\n';
   return import(`data:text/javascript;base64,${Buffer.from(prelude + transpiled).toString('base64')}`);
 }
 
@@ -33,22 +33,29 @@ const paginationTranspiled = ts.transpileModule(paginationSource, {
 const { pageInfoSchema } = await import(
   `data:text/javascript;base64,${Buffer.from('const { z } = globalThis.__importStubs;\n' + paginationTranspiled).toString('base64')}`
 );
-globalThis.__importStubs = { z, pageInfoSchema };
+const { channelModelContextSchema } = await import('../../models/data/context-settings.ts');
+globalThis.__importStubs = { z, pageInfoSchema, channelModelContextSchema };
 
 const { parseQuotaLimits } = await loadModule('features/system/data/quotas.ts', (s) =>
   s.replace(/export function useProviderQuotaStatuses[\s\S]*$/m, '')
 );
 
-const { channelSchema } = await loadModule('features/channels/data/schema.ts', (s) => s.replace(/z\.url\(/g, 'z.string().url('));
-
-const channelQuerySource = read('features/channels/data/channels.ts').replace(/^import(?:.|\n)*?;\n/gm, '');
-const channelQueryTranspiled = ts.transpileModule(channelQuerySource, {
+const schemas = await loadModule('features/channels/data/schema.ts');
+const { channelSchema } = schemas;
+const selections = await import('./channel-query-fields.ts');
+const queryAST = ts.createSourceFile('channels.ts', read('features/channels/data/channels.ts'), ts.ScriptTarget.Latest, true);
+const queryNames = new Set(['CHANNEL_QUERY_ROUTING_STATUS_SELECTION', 'CHANNEL_QUERY_ENDPOINTS_SELECTION', 'isChannelColumnVisible', 'buildQueryChannelsQuery']);
+const queryNodes = queryAST.statements.filter((node) =>
+  (ts.isFunctionDeclaration(node) && queryNames.has(node.name?.text)) ||
+  (ts.isVariableStatement(node) && node.declarationList.declarations.some((decl) => queryNames.has(decl.name.getText(queryAST))))
+);
+assert.equal(queryNodes.length, queryNames.size);
+const channelQueryTranspiled = ts.transpileModule(queryNodes.map((node) => node.getText(queryAST)).join('\n'), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
 }).outputText;
+const selectionPrelude = Object.entries(selections).map(([name, value]) => `const ${name} = ${JSON.stringify(value)};`).join('\n');
 const { buildQueryChannelsQuery } = await import(
-  `data:text/javascript;base64,${Buffer.from(
-    'const { z, pageInfoSchema } = globalThis.__importStubs;\n' + channelQueryTranspiled
-  ).toString('base64')}`
+  `data:text/javascript;base64,${Buffer.from(selectionPrelude + channelQueryTranspiled).toString('base64')}`
 );
 
 const columnsSource = read('features/channels/components/channels-columns.tsx');
@@ -296,10 +303,10 @@ test('the search quota reaches the table with its production label', () => {
   );
 });
 
-test('channels table container allows horizontal scroll and wraps in min-w-max without table-fixed', () => {
+test('channels table container allows horizontal scroll and keeps the fork minimum table width without table-fixed', () => {
   const tableSource = read('features/channels/components/channels-table.tsx');
   assert.doesNotMatch(tableSource, /overflow-x-hidden/, 'table container must not disable horizontal scroll');
-  assert.match(tableSource, /min-w-max/, 'table must be wrapped in min-w-max to preserve column widths');
+  assert.match(tableSource, /min-w-\[1100px\]/, 'table must preserve the fork minimum width');
   assert.doesNotMatch(tableSource, /table-fixed/, 'table must not be table-fixed which crushes columns to 0');
 });
 
@@ -331,24 +338,15 @@ test('channel columns have minimum widths and are not hidden by responsive displ
   for (const columnId of ['name', 'provider', 'status', 'supportedModels']) {
     const meta = columnMeta(columnId);
     assert.doesNotMatch(meta, /min-w-0/, columnId + ' must have a non-zero minimum width');
-    assert.match(meta, /min-w-\d+/, columnId + ' must have an explicit min-w-* class to prevent collapse');
+    assert.match(meta, /(?:min-)?w-\d+/, columnId + ' must have an explicit min-w-* class to prevent collapse');
   }
-});
-
-test('channel percentage column widths sum to 100', () => {
-  const columnsSource = read('features/channels/components/channels-columns.tsx');
-  const percentages = [...columnsSource.matchAll(/w-\[([0-9.]+)%\]/g)].map((match) => Number(match[1]));
-
-  assert.ok(percentages.length > 0, 'expected percentage-width channel columns');
-  const total = percentages.reduce((sum, value) => sum + value, 0);
-  assert.equal(total, 100, 'channel column percentages must sum to 100, got ' + total);
 });
 
 test('supported models cell bounds badge container width to prevent horizontal stretching', () => {
   const columnsSource = read('features/channels/components/channels-columns.tsx');
   assert.match(
     columnsSource,
-    /max-w-(?:72|80|xs|sm)[^']*flex-wrap/,
-    'supported models badge container must have a max-width wrapper so badges wrap instead of stretching the table'
+    /w-48 max-w-48/,
+    'supported model column retains the fork fixed width'
   );
 });

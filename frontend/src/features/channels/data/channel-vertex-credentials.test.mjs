@@ -1,31 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-import { join as joinPath } from 'node:path';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-
-const srcRoot = joinPath(import.meta.dirname, '..', '..', '..');
-const schemaSource = readFileSync(joinPath(srcRoot, 'features/channels/data/schema.ts'), 'utf8');
-
-// schema.ts pulls pageInfoSchema from the gql barrel, which drags in GraphQL client
-// modules that cannot be imported in a plain node test. The pagination schema plays no
-// part in channel validation, so inline an equivalent and transpile the rest.
-const stubbed = schemaSource
-  .replace(/^import \{ pageInfoSchema \} from '@\/gql\/pagination';$/m, "import { z as zodForStub } from 'zod';\nconst pageInfoSchema = zodForStub.object({ hasNextPage: zodForStub.boolean(), hasPreviousPage: zodForStub.boolean(), startCursor: zodForStub.string().optional(), endCursor: zodForStub.string().optional() });")
-  .replace(/^import \{ z \} from 'zod';$/m, "import { z } from 'zod';\n");
-
-assert.notEqual(stubbed, schemaSource, 'the pageInfoSchema import stub must apply');
-
-// The transpiled module must stay inside frontend/ so node resolves 'zod' through the
-// package's own node_modules rather than a directory outside it.
-const outFile = joinPath(import.meta.dirname, `.schema-under-test-${process.pid}.mjs`);
-writeFileSync(outFile, ts.transpileModule(stubbed, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-}).outputText);
-
-const { createChannelInputSchema, updateChannelInputSchema } = await import(pathToFileURL(outFile).href);
-test.after(() => rmSync(outFile, { force: true }));
+const source = readFileSync(new URL('./schema.ts', import.meta.url), 'utf8');
+const imports = {
+  zod: import.meta.resolve('zod'),
+  '@/gql/pagination': new URL('../../../gql/pagination.ts', import.meta.url).href,
+  '@/features/models/data/context-settings': new URL('../../models/data/context-settings.ts', import.meta.url).href,
+};
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText
+  .replace(/(from ['"])([^'"]+)(['"])/g, (_, before, name, after) => before + imports[name] + after);
+const { createChannelInputSchema, updateChannelInputSchema } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 function vertexRow(overrides = {}) {
   return { projectID: 'miguo-vertex-prod-1', apiKey: 'AQ.key-1', region: 'global', ...overrides };

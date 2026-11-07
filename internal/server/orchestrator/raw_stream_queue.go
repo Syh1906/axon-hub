@@ -24,7 +24,11 @@ func newRawStreamQueue(backlog *rawStreamBacklog) *rawStreamQueue {
 
 func (q *rawStreamQueue) attach() ([]*httpclient.StreamEvent, error) {
 	q.backlog.mu.Lock()
-if q.backlog.err != nil { err := q.backlog.err; q.backlog.mu.Unlock(); return nil, err }
+	if q.backlog.err != nil {
+		err := q.backlog.err
+		q.backlog.mu.Unlock()
+		return nil, err
+	}
 	q.backlog.attached = true
 	q.heldMu.Lock()
 	q.held = q.backlog.events

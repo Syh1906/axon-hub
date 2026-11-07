@@ -41,9 +41,9 @@ func TestPersistentOutboundTransformer_ResponseTimeouts(t *testing.T) {
 		{
 			name: "custom overrides both timeouts",
 			settings: &objects.ChannelSettings{
-				
-					StreamFirstEventTimeoutSeconds:  lo.ToPtr(15),
-					NonStreamResponseTimeoutSeconds: lo.ToPtr(25),
+
+				StreamFirstEventTimeoutSeconds:  lo.ToPtr(15),
+				NonStreamResponseTimeoutSeconds: lo.ToPtr(25),
 			},
 			wantStream:    lo.ToPtr(15 * time.Second),
 			wantNonStream: lo.ToPtr(25 * time.Second),
@@ -51,17 +51,17 @@ func TestPersistentOutboundTransformer_ResponseTimeouts(t *testing.T) {
 		{
 			name: "custom overrides only the stream timeout",
 			settings: &objects.ChannelSettings{
-				
-					StreamFirstEventTimeoutSeconds: lo.ToPtr(15),
+
+				StreamFirstEventTimeoutSeconds: lo.ToPtr(15),
 			},
 			wantStream: lo.ToPtr(15 * time.Second),
 		},
 		{
 			name: "custom zero disables the timeout",
 			settings: &objects.ChannelSettings{
-				
-					StreamFirstEventTimeoutSeconds:  lo.ToPtr(0),
-					NonStreamResponseTimeoutSeconds: lo.ToPtr(0),
+
+				StreamFirstEventTimeoutSeconds:  lo.ToPtr(0),
+				NonStreamResponseTimeoutSeconds: lo.ToPtr(0),
 			},
 			wantStream:    lo.ToPtr(time.Duration(0)),
 			wantNonStream: lo.ToPtr(time.Duration(0)),

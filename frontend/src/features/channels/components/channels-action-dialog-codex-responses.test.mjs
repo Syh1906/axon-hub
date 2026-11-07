@@ -6,7 +6,9 @@ import ts from 'typescript';
 // Exercise the dialog's Codex form-state recall without loading React, then pin
 // how the Codex form wires the WebSocket checkbox into the submitted input.
 const source = readFileSync(new URL('./channels-action-dialog.tsx', import.meta.url), 'utf8');
-const ast = ts.createSourceFile('channels-action-dialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const helpersSource = readFileSync(new URL('../utils/channel-dialog.ts', import.meta.url), 'utf8');
+const hookSource = readFileSync(new URL('../hooks/use-channel-action-dialog.tsx', import.meta.url), 'utf8');
+const ast = ts.createSourceFile('channel-dialog.ts', helpersSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 const CODEX_BASE = 'https://chatgpt.com/backend-api/codex#';
 
@@ -16,10 +18,10 @@ async function loadDialogHelpers() {
 
   const helperNames = ['isOfficialCodexChannel', 'getInitialBaseURL', 'getResponsesTransportFromBaseURL', 'getResponsesTransportFromChannel'];
   const helperNodes = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && helperNames.includes(node.name?.text));
-  assert.equal(helperNodes.length, helperNames.length, 'Codex form-state helpers must stay in channels-action-dialog.tsx');
+  assert.equal(helperNodes.length, helperNames.length, 'Codex form-state helpers must exist in channel-dialog.ts');
 
   const helperModule = [
-    `import { toHttpBaseURL } from '${new URL('../data/protocol-options.ts', import.meta.url).href}';`,
+    `import { toHttpBaseURL, getCodexResponsesWebSocketState } from '${new URL('../data/protocol-options.ts', import.meta.url).href}';`,
     `const getDefaultBaseURL = (type) => (type === 'codex' ? '${CODEX_BASE}' : '');`,
     `const OPENAI_RESPONSES = 'openai/responses';`,
     ...helperNodes.map((node) => `export ${node.getText(ast).replace(/^export\s+/, '')}`),
@@ -32,11 +34,12 @@ async function loadDialogHelpers() {
 }
 
 function between(startMarker, endMarker) {
-  const start = source.indexOf(startMarker);
+  const content = startMarker.startsWith('const ') ? hookSource : source;
+  const start = content.indexOf(startMarker);
   assert.notEqual(start, -1, `missing ${startMarker}`);
-  const end = source.indexOf(endMarker, start + startMarker.length);
+  const end = content.indexOf(endMarker, start + startMarker.length);
   assert.notEqual(end, -1, `missing ${endMarker}`);
-  return source.slice(start, end);
+  return content.slice(start, end);
 }
 
 test('edit and duplicate show the canonical HTTPS Base URL for official and auth.json Codex credentials', async () => {
@@ -61,33 +64,24 @@ test('non-Codex channels keep their stored Base URL, including OpenAI Responses 
   assert.equal(getInitialBaseURL({ type: 'openai_responses', baseURL: 'wss://api.openai.com/v1#' }), 'wss://api.openai.com/v1#');
 });
 
-test('Codex form state never carries a WebSocket transport, other providers keep theirs', async () => {
+test('Codex form state recalls persisted WebSocket capability and canonical endpoints', async () => {
   const { getResponsesTransportFromChannel } = await loadDialogHelpers();
-  assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: 'wss://chatgpt.com/backend-api/codex#', endpoints: [] }), 'http');
-  assert.equal(
-    getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses', transport: 'websocket' }] }),
-    'http'
-  );
+  assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [] }), 'websocket');
+  assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses' }] }), 'http');
+  assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses', supportsWebSockets: false }] }), 'http');
+  assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses', supportsWebSockets: true }] }), 'websocket');
   assert.equal(getResponsesTransportFromChannel({ type: 'openai_responses', baseURL: 'wss://api.openai.com/v1#', endpoints: [] }), 'websocket');
 });
 
-test('Codex API format is a fixed Responses label with a right-aligned, labeled WebSocket checkbox', () => {
-  const block = between("{selectedProvider === 'codex' && (", "{selectedProvider === 'claudecode' && (");
-  assert.doesNotMatch(block, /SelectDropdown|OPENAI_RESPONSES_WEBSOCKET/, 'Codex must not offer a Responses / Responses WS selector');
-  assert.match(block, /getApiFormatLabel\(OPENAI_RESPONSES\)/);
-  assert.match(block, /justify-between/);
-  assert.match(block, /<label[^>]*>\s*<Checkbox/, 'clicking the label toggles the checkbox');
-  assert.match(block, /checked=\{codexResponsesWebSocket\}/);
-  assert.match(block, /onCheckedChange=\{\(checked\) => setCodexResponsesWebSocket\(checked === true\)\}/);
-  assert.match(block, /data-testid='codex-responses-websocket-checkbox'/);
-  assert.match(block, /t\('channels\.dialogs\.fields\.apiFormat\.codexWebSocket\.label'\)/);
-  assert.match(block, /data-testid='codex-responses-websocket-url'/);
-  assert.match(block, /data-testid='codex-responses-websocket-upgrade-note'/);
+test('Responses exposes the persisted WebSocket option through the shared checkbox', () => {
+  assert.match(source, /checked=\{responsesTransport === 'websocket'\}/);
+  assert.match(source, /handleResponsesTransportChange\(checked === true \? 'websocket' : 'http'\)/);
+  assert.match(source, /htmlFor='channel-supports-ws'/);
 });
 
 test('Codex submit serializes the checkbox into canonical endpoints and requires an HTTP(S) Base URL', () => {
   const submit = between('const onSubmit = async', 'const addModel = () =>');
-  assert.match(submit, /buildCodexResponsesEndpoints\(initialRow\?\.endpoints, codexResponsesWebSocket\)/);
+  assert.match(submit, /buildCodexResponsesEndpoints\(dataWithModels\.endpoints, responsesTransport === 'websocket'\)/);
   assert.match(submit, /isCodexType \? 'http' : responsesTransport/);
   assert.match(submit, /translateLegacyCodexModelProtocols\(initialRow/);
 });

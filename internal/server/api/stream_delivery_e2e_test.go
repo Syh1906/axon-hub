@@ -67,6 +67,9 @@ func TestStreamDeliveryE2E(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture := newStreamDeliveryE2EFixture(t, tc.format, tc.upstream, tc.heartbeat)
 			fixture.passthrough = tc.passthrough
+			if tc.name == "provider_failure" {
+				fixture.wantFailure = true
+			}
 			fixture.runHTTP(t, tc.path)
 			fixture.assertDatabase(t, tc.wantStatus, tc.wantUsage)
 		})
@@ -107,7 +110,7 @@ func TestStreamDeliveryE2E(t *testing.T) {
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.create","model":"gpt-test","input":"hello"}`)))
 		_, event, err := conn.ReadMessage()
 		require.NoError(t, err)
-		require.JSONEq(t, `{"type":"response.completed","response":{"status":"completed"}}`, string(event))
+		require.JSONEq(t, `{"type":"response.completed","sequence_number":0,"response":{"status":"completed"}}`, string(event))
 		select {
 		case <-stream.acknowledgedC:
 		case <-time.After(5 * time.Second):
@@ -118,6 +121,7 @@ func TestStreamDeliveryE2E(t *testing.T) {
 }
 
 type streamDeliveryE2EFixture struct {
+	wantFailure     bool
 	ctx             context.Context
 	client          *ent.Client
 	channel         *ent.Channel
@@ -177,6 +181,7 @@ func newStreamDeliveryE2EFixture(t *testing.T, format llm.APIFormat, payload str
 
 func (f *streamDeliveryE2EFixture) handler(t *testing.T) *ChatCompletionHandlers {
 	channelService, requestService, systemService, usageService := setupSpeechAPITestServices(t, f.client)
+	require.NoError(t, systemService.SetRetryPolicy(f.ctx, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 0, MaxSingleChannelRetries: 0}))
 	promptService := biz.NewPromptService(biz.PromptServiceParams{Ent: f.client})
 	storage, err := f.client.DataStorage.Query().Only(f.ctx)
 	require.NoError(t, err)
@@ -242,7 +247,11 @@ func (f *streamDeliveryE2EFixture) runHTTPUntil(t *testing.T, path string, first
 		}
 		return
 	}
-	assertStreamDeliveryWire(t, resp, f.heartbeat)
+	wire := assertStreamDeliveryWire(t, resp, f.heartbeat)
+	if f.wantFailure {
+		require.Contains(t, wire, `"code":"failed"`)
+	}
+
 	select {
 	case <-handlerDone:
 	case <-time.After(5 * time.Second):

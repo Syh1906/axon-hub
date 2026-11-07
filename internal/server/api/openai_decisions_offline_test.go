@@ -191,11 +191,11 @@ func TestOpenAIHandlers_CreateDecisions_persistsFinalRequestAndExecutionUsage(t 
 	requestRow, err := harness.client.Request.Query().Where(request.ProjectIDEQ(harness.project.ID)).Only(ctx)
 	require.NoError(t, err)
 	require.Equal(t, request.StatusCompleted, requestRow.Status)
-	require.JSONEq(t, `{"model":"provider-model","answers":[],"usage":{"input_tokens":120,"output_tokens":0}}`, string(loadDecisionsResponse(t,harness,requestRow)))
+	require.JSONEq(t, `{"model":"provider-model","answers":[],"usage":{"input_tokens":120,"output_tokens":0}}`, string(loadDecisionsResponse(t, harness, requestRow)))
 	execution, err := harness.client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestRow.ID)).Only(ctx)
 	require.NoError(t, err)
 	require.Equal(t, requestexecution.StatusCompleted, execution.Status)
-	require.JSONEq(t, `{"model":"provider-model","answers":[],"usage":{"input_tokens":120,"output_tokens":0}}`, string(loadDecisionsExecutionResponse(t,harness,execution)))
+	require.JSONEq(t, `{"model":"provider-model","answers":[],"usage":{"input_tokens":120,"output_tokens":0}}`, string(loadDecisionsExecutionResponse(t, harness, execution)))
 }
 
 func TestOpenAIHandlers_CreateDecisions_persistsTraceHeaderAndRedactedImageSpan(t *testing.T) {
@@ -232,8 +232,14 @@ func TestOpenAIHandlers_CreateDecisions_persistsTraceHeaderAndRedactedImageSpan(
 }
 
 func loadDecisionsResponse(t *testing.T, h *decisionsOfflineHarness, req *ent.Request) []byte {
- t.Helper(); body,err:=h.requestService.LoadResponseBody(h.ctx,req); require.NoError(t,err); return body
+	t.Helper()
+	body, err := h.requestService.LoadResponseBody(h.ctx, req)
+	require.NoError(t, err)
+	return body
 }
 func loadDecisionsExecutionResponse(t *testing.T, h *decisionsOfflineHarness, execution *ent.RequestExecution) []byte {
- t.Helper(); body,err:=h.requestService.LoadRequestExecutionResponseBody(h.ctx,execution); require.NoError(t,err); return body
+	t.Helper()
+	body, err := h.requestService.LoadRequestExecutionResponseBody(h.ctx, execution)
+	require.NoError(t, err)
+	return body
 }

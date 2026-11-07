@@ -80,8 +80,8 @@ func TestAnthropicEstimatedUsageDoesNotChangeAccounting(t *testing.T) {
 	f := newStreamDeliveryE2EFixture(t, llm.APIFormatOpenAIChatCompletion, streamDeliveryChat(12, 34, true), false)
 	h := f.handler(t)
 	h.ChatCompletionOrchestrator.Inbound = anthropic.NewInboundTransformer()
- projectID, _ := contexts.GetProjectID(f.ctx)
- key := f.client.APIKey.Create().SetName("calibration").SetKey("test-calibration").SetProjectID(projectID).SetUserID(1).SetType("user").SaveX(f.ctx)
+	projectID, _ := contexts.GetProjectID(f.ctx)
+	key := f.client.APIKey.Create().SetName("calibration").SetKey("test-calibration").SetProjectID(projectID).SetUserID(1).SetType("user").SaveX(f.ctx)
 	engine := gin.New()
 	engine.Use(f.testContext)
 	engine.Use(func(c *gin.Context) {

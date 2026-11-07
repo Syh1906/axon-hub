@@ -415,5 +415,3 @@ func TestGithubCopilotQuotaChecker_PreservesMonthlyResetWithoutPeriod(t *testing
 	require.Nil(t, quota.Limits[0].PeriodStart)
 	require.Equal(t, time.Date(2099, 3, 1, 0, 0, 0, 0, time.UTC), quota.Limits[0].NextResetAt.UTC())
 }
-
-

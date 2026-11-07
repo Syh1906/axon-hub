@@ -943,7 +943,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 { shouldDirty: true }
                               );
                               if (format === OPENAI_RESPONSES) {
-                                setResponsesTransport(getResponsesTransportFromChannel({ baseURL: watchedBaseURL, endpoints: initialRow?.defaultEndpoints ?? [] }));
+                                setResponsesTransport(getResponsesTransportFromChannel({ type: selectedType || derivedChannelType, baseURL: watchedBaseURL, endpoints: initialRow?.defaultEndpoints ?? [] }));
                               }
                             }}
                             onManageAddresses={openAddresses}

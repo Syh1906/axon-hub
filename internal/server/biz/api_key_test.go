@@ -1472,12 +1472,11 @@ func TestAPIKeyService_NameUniquenessForProjectOwner(t *testing.T) {
 	ctx := contexts.WithProjectID(ent.NewContext(context.Background(), client), project.ID)
 	ctx = contexts.WithUser(ctx, owner)
 	personal := apikey.TypePersonal
-_, err = apiKeyService.CreateAPIKey(ctx, ent.CreateAPIKeyInput{
-Name: "codex-high", ProjectID: project.ID, Type: &personal,
-})
-require.ErrorContains(t, err, "already exists", "names are unique per project and group, including hidden personal keys")
+	_, err = apiKeyService.CreateAPIKey(ctx, ent.CreateAPIKeyInput{
+		Name: "codex-high", ProjectID: project.ID, Type: &personal,
+	})
+	require.ErrorContains(t, err, "already exists", "names are unique per project and group, including hidden personal keys")
 }
-
 
 func TestAPIKeyService_RotateAPIKey(t *testing.T) {
 	apiKeyService, client := setupTestAPIKeyService(t, xcache.Config{Mode: xcache.ModeMemory})

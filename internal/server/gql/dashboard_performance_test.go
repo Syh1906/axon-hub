@@ -36,8 +36,9 @@ func TestModelPerformanceStatsUsesRequestModel(t *testing.T) {
 		SetRequestBody(objects.JSONRawMessage(`{}`)).
 		SetStatus(requestexecution.StatusCompleted).
 		SetStream(true).
+		SetFormat("openai/chat_completions").
 		SetMetricsLatencyMs(2000).
-		SetMetricsFirstTokenLatencyMs(500).
+		SetMetricsFirstByteLatencyMs(500).SetMetricsFirstTokenLatencyMs(500).
 		Save(ctx)
 	require.NoError(t, err)
 
@@ -48,10 +49,7 @@ func TestModelPerformanceStatsUsesRequestModel(t *testing.T) {
 		SetChannelID(ch.ID).
 		SetModelID("channel-model").
 		SetRequestBody(objects.JSONRawMessage(`{}`)).
-		SetStatus(requestexecution.StatusCompleted).
-		SetStream(true).
-		SetMetricsLatencyMs(3000).
-		SetMetricsFirstTokenLatencyMs(600).
+		SetStatus(requestexecution.StatusFailed).
 		Save(ctx)
 	require.NoError(t, err)
 
@@ -60,7 +58,11 @@ func TestModelPerformanceStatsUsesRequestModel(t *testing.T) {
 		SetChannelID(ch.ID).
 		SetModelID("channel-model").
 		SetRequestBody(objects.JSONRawMessage(`{}`)).
-		SetStatus(requestexecution.StatusFailed).
+		SetStatus(requestexecution.StatusCompleted).
+		SetStream(true).
+		SetFormat("openai/chat_completions").
+		SetMetricsLatencyMs(3000).
+		SetMetricsFirstByteLatencyMs(600).SetMetricsFirstTokenLatencyMs(600).
 		Save(ctx)
 	require.NoError(t, err)
 

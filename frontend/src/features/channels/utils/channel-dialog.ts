@@ -1,5 +1,5 @@
 import { getDefaultBaseURL, CHANNEL_CONFIGS, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION } from '../data/config_channels';
-import { getInitialApiFormatForChannel, toHttpBaseURL } from '../data/protocol-options';
+import { getInitialApiFormatForChannel, getCodexResponsesWebSocketState, toHttpBaseURL } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, RetryableErrorPattern, ChannelSettings, ChannelQuotaRoutingMode } from '../data/schema';
 
 export interface Props {
@@ -30,7 +30,7 @@ function getResponsesTransportFromBaseURL(baseURL?: string): ResponsesTransport 
 
 export function baseURLMatchesResponsesTransport(baseURL: string | undefined, _transport: ResponsesTransport): boolean {
   const normalized = baseURL?.trim().toLowerCase() ?? '';
-  return /^(https?|wss?):\/\//.test(normalized);
+  return _transport === 'http' ? /^https?:\/\//.test(normalized) : /^(https?|wss?):\/\//.test(normalized);
 }
 
 export function getInitialApiFormatForRow(row: Channel): ApiFormat {
@@ -112,7 +112,8 @@ export function parseRetryableErrorPatternsInput(value: string): RetryableErrorP
   return patterns;
 }
 
-export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'baseURL' | 'endpoints'>): ResponsesTransport {
+export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'type' | 'baseURL' | 'endpoints'>): ResponsesTransport {
+  if (channel?.type === 'codex') return getCodexResponsesWebSocketState(channel).enabled ? 'websocket' : 'http';
   const responsesEndpoint = channel?.endpoints?.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES);
   if (responsesEndpoint?.supportsWebSockets != null) return responsesEndpoint.supportsWebSockets ? 'websocket' : 'http';
   if (responsesEndpoint?.transport === 'http' || responsesEndpoint?.transport === 'websocket') return responsesEndpoint.transport;

@@ -85,7 +85,11 @@ func responsesCodexHTTPUnavailableWire(t *testing.T, previous string) {
 	// When
 	_, err := pipe.Process(ctx, &httpclient.Request{Body: body, Headers: make(http.Header)})
 	// Then
-	require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
+	if previous == "unknown" {
+		require.ErrorContains(t, err, "previous_response_not_found")
+	} else {
+		require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
+	}
 	require.Zero(t, writes.Load())
 }
 

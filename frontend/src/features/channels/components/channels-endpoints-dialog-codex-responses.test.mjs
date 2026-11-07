@@ -6,7 +6,7 @@ import ts from 'typescript';
 // The endpoints dialog is the second Codex entry point: it must project the
 // Responses family through the same WebSocket checkbox and serialization as the
 // channel form, while every other channel keeps the generic endpoint editor.
-const source = readFileSync(new URL('./channels-endpoints-dialog.tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('./channels-endpoints-dialog.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const ast = ts.createSourceFile('channels-endpoints-dialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 const H = 'openai/responses';
@@ -55,7 +55,7 @@ test('edits legacy WebSocket-only Codex restrictions in their WebSocket identity
 });
 
 test('Codex shows a fixed Responses label with the shared WebSocket checkbox, derived URL and upgrade note', () => {
-  const block = between('{isCodexChannel && (', '{/* Default endpoints */}');
+  const block = between('{isCodexChannel && (', '<ChannelEndpointEditor');
   assert.match(block, /t\('channels\.dialogs\.fields\.apiFormat\.formats\.openai\/responses'\)/);
   assert.match(block, /justify-between/);
   assert.match(block, /<label[^>]*>\s*<Checkbox/, 'clicking the label toggles the checkbox');
@@ -79,18 +79,17 @@ test('Codex built-in Responses defaults are projected, not listed or validated a
 
 test('both Codex entry points share one serialization routine and the save sends the projected endpoints', () => {
   assert.match(source, /isCodexChannel \? buildCodexResponsesEndpoints\(endpoints, codexResponsesWebSocket\) : endpoints/);
-  const save = between('const handleSave = useCallback', 'const handleKeyDown = useCallback');
+  const save = between('const handleSave = useCallback', '  return (\n    <>');
   assert.match(save, /const apiFormats = savedEndpoints\.map\(\(ep\) => ep\.apiFormat\)/);
   assert.match(save, /endpoints: savedEndpoints\.map\(\(ep\) => \(\{/);
   assert.match(save, /transport: ep\.transport \|\| undefined/, 'non-Codex legacy transport is still sent unchanged');
   assert.match(save, /isCodexChannel \? toHttpBaseURL\(channel\.baseURL\) : channel\.baseURL/, 'a legacy WS(S) Codex Base URL is saved as HTTP(S)');
 });
 
-test('Codex Responses rows are read-only previews while other endpoints stay removable', () => {
-  const current = between('<EndpointTable endpoints={savedEndpoints}>', '</EndpointTable>');
-  assert.match(current, /isCodexChannel && isResponsesFamilyFormat\(ep\.apiFormat\)/);
-  assert.match(current, /t\('channels\.endpoints\.readOnly'\)/);
-  assert.match(current, /handleRequestRemoveEndpoint\(ep\.apiFormat\)/);
+test('Codex shares the endpoint editor while the family checkbox owns WebSocket identity', () => {
+  assert.match(source, /savedEndpoints\.filter\(\(ep\) => ep\.apiFormat !== OPENAI_RESPONSES_WEBSOCKET\)/);
+  assert.match(source, /showWebSocketOption=\{!isCodexChannel\}/);
+  assert.match(source, /handleRequestRemoveEndpoint\(format\)/);
 });
 
 test('disabling WebSocket is blocked while an enabled model restriction still uses it', () => {
@@ -102,8 +101,8 @@ test('disabling WebSocket is blocked while an enabled model restriction still us
 
 test('recognizes WebSocket Responses endpoints instead of flagging them unsupported', () => {
   assert.match(source, /const RECOGNIZED_API_FORMATS: readonly string\[\] = \[\.\.\.ALLOWED_API_FORMATS, OPENAI_RESPONSES_WEBSOCKET\]/);
-  assert.match(source, /!readOnly && !RECOGNIZED_API_FORMATS\.includes\(ep\.apiFormat\)/);
-  const save = between('const handleSave = useCallback', 'const handleKeyDown = useCallback');
+
+  const save = between('const handleSave = useCallback', '  return (\n    <>');
   assert.match(save, /!RECOGNIZED_API_FORMATS\.includes\(format\)/);
 });
 

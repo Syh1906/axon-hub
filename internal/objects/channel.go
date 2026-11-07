@@ -295,7 +295,6 @@ type ChannelSettings struct {
 	// Pointer so GQL emits null instead of 0 for channels that never set it.
 	MaxSingleChannelRetries *int `json:"maxSingleChannelRetries,omitempty"`
 
-
 	// ModelProtocols force-specifies the outbound protocols for specific models of
 	// this channel. Each entry's apiFormats must reference api_formats the channel
 	// already has endpoints for. When set for a model, endpoint selection is
@@ -326,7 +325,7 @@ type ChannelSettings struct {
 	// still defaults to chat. It drives UI grouping and which request type the
 	// channel test sends; routing is unaffected and keeps using ResolveEndpoints.
 	// Empty means the channel type's first default endpoint.
-	PrimaryAPIFormat string `json:"primaryApiFormat,omitempty"`
+	PrimaryAPIFormat string           `json:"primaryApiFormat,omitempty"`
 	QuotaRoutingMode QuotaRoutingMode `json:"quotaRoutingMode,omitempty"`
 }
 

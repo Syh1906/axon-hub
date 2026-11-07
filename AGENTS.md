@@ -12,8 +12,9 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## 仓库维护模式
 
-- 本仓库的直接上游是 [ChouUn/axon-hub](https://github.com/ChouUn/axon-hub)，
-  原始上游是 [looplj/axonhub](https://github.com/looplj/axonhub)。两层来源不可混为一条基线。
+- beta12 起直接同步原始上游 [looplj/axonhub](https://github.com/looplj/axonhub) 的 release tag。
+  [ChouUn/axon-hub](https://github.com/ChouUn/axon-hub) 作为继承 fork 来源单独追溯，
+  不再作为下一次原始上游同步的基线；既有功能和历史仍保留。
 - 分支、上游同步、版本与发版遵循 [独立发版与部署](docs/zh/development/release.md)。
   发布来源以 `release.config.json` 为准；beta12 之后自己的 tag 使用 `<原始上游 tag>-fork.N`，
   不再新增 `.syh.N`，历史 `.syh.N` 仅兼容读取。生产镜像由 GitHub Actions 发布到本仓库 GHCR。

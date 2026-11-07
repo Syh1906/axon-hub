@@ -1,7 +1,7 @@
 # Independent releases and upstream maintenance
 
-This repository is Syh1906/axon-hub. Its direct upstream is ChouUn/axon-hub;
-the original upstream is looplj/axonhub. GitHub Actions builds the application,
+This repository is Syh1906/axon-hub. Starting with beta12, releases merge directly from looplj/axonhub.
+ChouUn/axon-hub remains a separately recorded inherited fork. GitHub Actions builds the application,
 GHCR stores container images, and GitHub Releases stores binary packages and
 deployment manifests. No Docker Hub account is required. Starting with .syh.8, releases default to dual-architecture images and the deployment manifest; binary archives are opt-in.
 
@@ -24,14 +24,14 @@ to the active maintenance records.
 | Name | Purpose |
 | --- | --- |
 | origin | Your Syh1906/axon-hub repository |
-| upstream | Direct upstream: ChouUn/axon-hub |
-| original-upstream | Original upstream: looplj/axonhub |
+| upstream | Inherited fork history and optional patches: ChouUn/axon-hub |
+| original-upstream | Direct release baseline: looplj/axonhub |
 | release/v1.0.x | Your maintained release branch |
 | feature/* and fix/* | Local features and fixes |
-| sync/chouun-* | Temporary branch for an upstream release merge |
+| codex/sync-original-* | Temporary branch for an original-upstream release merge |
 
 Create the synchronization branch from your maintained branch, then merge a
-selected direct-upstream release tag. Preserve published history; do not rebase,
+selected original-upstream release tag. Preserve published history; do not rebase,
 force-push, or replace your branch with upstream.
 
 Check git remote -v first. Add missing remotes only:
@@ -46,20 +46,21 @@ with `gh repo set-default Syh1906/axon-hub`. Publishing explicitly targets this 
 ## Version identity and provenance
 
 release.config.json records the publishing repository and branch, direct upstream
-tag/commit, original upstream tag/commit, and an explicit prerelease boolean. The current direct baseline is
-v1.0.0-beta10-fork.7 at b205ae8e; its original baseline is v1.0.0-beta10 at 939b2bc0.
+tag/commit, original upstream tag/commit, inherited fork provenance, and an explicit prerelease boolean.
+The current baseline is v1.0.0-beta12 at 2b1a0f93. The inherited fork remains
+ChouUn v1.0.0-beta10-fork.7 at b205ae8e, originally based on beta10 at 939b2bc0.
 
 After beta12, your tags use <original-upstream-tag>-fork.N:
 
 | Situation | Example |
 | --- | --- |
-| First independent release from this checkout | v1.0.0-beta10-fork.7.syh.1 |
-| Another local release on the same baseline | v1.0.0-beta10-fork.7.syh.2 |
-| After merging ChouUn fork.8 | v1.0.0-beta10-fork.8.syh.1 |
-| After a direct-upstream release based on beta11 | v1.0.0-beta11-fork.1.syh.1 |
+| First release on beta12 | v1.0.0-beta12-fork.1 |
+| Further changes on beta12 | v1.0.0-beta12-fork.2 |
+| Selected patches from another fork | v1.0.0-beta12-fork.3 |
+| A future beta13 release after merging it (example only) | v1.0.0-beta13-fork.1 |
 
-The last two rows are examples, not assertions that those releases exist.
-Never consume ChouUn's fork.N sequence. Increment fork.N within one original-upstream baseline; restart at fork.1 after adopting a newer baseline. Published tags are immutable.
+Historical .syh.N releases remain readable, but new releases use fork.N. Restart at
+fork.1 only after adopting a newer original-upstream baseline. Published tags are immutable.
 Only -fork.N tags trigger this fork's publishing workflow; historical .syh.N tags remain readable.
 
 Update checks and data migrations share xversion.Parse. Numeric ordering preserves:
@@ -68,36 +69,38 @@ Update checks and data migrations share xversion.Parse. Numeric ordering preserv
 
 The common v1.0.0- prefix is omitted. Do not invent a higher independent major
 version that causes future upstream migrations to be skipped. New local migrations
-use the complete syh version of their first release and must be newer than deployed
+use the complete fork.N version of their first release and must be newer than deployed
 versions. Existing published migration identifiers and behavior stay unchanged.
 
 The release.json attachment contains schemaVersion, version, repository, commit,
-upstream, originalUpstream, image, platforms and runURL. Deploy the immutable
+upstream, originalUpstream, inheritedFork, image, platforms and runURL. Deploy the immutable
 multi-platform image reference in image, such as ghcr.io/syh1906/axon-hub@sha256:….
 
-## Merging direct upstream
+## Merging original upstream
 
-For an illustrative v1.0.0-beta10-fork.8 target, first verify it actually exists:
+Verify the target release exists first. The following beta13 tag is an example,
+not a claim that the release already exists:
 
     git switch release/v1.0.x
-    git pull --ff-only origin release/v1.0.x
-    git fetch upstream
-    git fetch original-upstream
-    git switch -c sync/chouun-v1.0.0-beta10-fork.8
-    git merge --no-ff v1.0.0-beta10-fork.8
+    git fetch original-upstream tag v1.0.0-beta13
+    git switch -c codex/sync-original-beta13
+    git merge --no-ff --no-commit v1.0.0-beta13
+
+Keep both parents. The beta12 merge is `50bc66fa`; compare subsequent original
+release tags instead of replaying all fork changes from beta10.
 
 1. Review every relevant topic in [Fork maintenance](../../fork-maintenance.md);
    retain local behavior while resolving conflicts.
 2. Compare schema/data migrations, configuration and cache changes from both
    upstream levels. Local release numbers must not suppress new upstream migrations.
-3. Update the direct baseline in release.config.json; update originalUpstream only
-   when that baseline actually changes. Resolve commits with git rev-parse '<tag>^{commit}'.
+3. Update upstream and originalUpstream in release.config.json while retaining
+   inheritedFork provenance. Resolve commits with git rev-parse '<tag>^{commit}'.
 4. Update .github/release-notes.md with functionality, database/config changes,
    supported upgrade paths, actual verification and rollback conditions; update the ledger.
 5. Run relevant checks through PR and branch CI. Publication reuses the successful
    maintenance-branch Test run for the exact source commit instead of rerunning it.
 6. Push the synchronization branch, review its PR and merge it into your maintained
-   branch. Create your own syh release tag separately.
+   branch. Create your own fork.N release tag separately.
 
 Merging upstream does not publish or deploy. Do not mirror-push or push every
 historical tag into origin.
@@ -128,8 +131,8 @@ run for that exact commit and branch; a missing, pending or failed result stops 
 without rerunning tests. The release summary links the reused run.
 These commands illustrate the first release; documentation does not execute them:
 
-    git tag -a v1.0.0-beta10-fork.7.syh.1 -m "release: v1.0.0-beta10-fork.7.syh.1"
-    git push origin v1.0.0-beta10-fork.7.syh.1
+    git tag -a v1.0.0-beta12-fork.1 -m "release: v1.0.0-beta12-fork.1"
+    git push origin v1.0.0-beta12-fork.1
 
 The workflow validates version/repository/branch ancestry, reuses the branch's backend,
 llm, frontend and release-script test result, builds native amd64/arm64 images from the
@@ -148,7 +151,7 @@ replaces existing images or tags. Production continues to deploy immutable diges
 
 Failures leave the release unpublished. Inspect logs before retrying failed jobs;
 inspect existing draft assets before rerunning binary publication. Published
-versions must not be overwritten; issue a new syh number. Partial image tags do
+versions must not be overwritten; issue a new fork.N number. Partial image tags do
 not establish a successful release: the complete published manifest does.
 
 ## On-demand snapshot images
@@ -156,7 +159,7 @@ not establish a successful release: the complete published manifest does.
 Run `.github/workflows/snapshot.yml` manually from the maintenance branch, supplying
 a full 40-character `commit` and an already published official `base_version`, such
 as `v1.0.0-beta10-fork.7.syh.10`. This creates neither Git tags nor Releases, consumes
-no new `.syh.N` number, and does not deploy production. The workflow must exist on
+no new release number, and does not deploy production. The workflow must exist on
 the GitHub default branch, currently `release/v1.0.x`.
 
 Preparation verifies repository, maintenance-branch ancestry, both upstream sources,

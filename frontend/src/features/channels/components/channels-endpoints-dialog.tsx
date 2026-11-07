@@ -17,7 +17,7 @@ import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useChannels } from '../context/channels-context';
 import { cn } from '@/lib/utils';
 import { useDetectChannelEndpoints, useUpdateChannelSettings } from '../data/channels';
-import { getAvailableProtocolFormats, getConfigurableApiFormatsForChannelType, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { getAvailableProtocolFormats, getConfigurableApiFormatsForChannelType, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, getCodexResponsesWebSocketURL, isResponsesFamilyFormat, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelEndpoint, DetectedChannelEndpoint, ModelProtocol, configurableChannelEndpointApiFormats, configurableChannelEndpointApiFormatSchema } from '../data/schema';
 import { ChannelEndpointEditor } from './channel-endpoint-editor';
 import { RELAY_PROTOCOL_LABEL_KEYS, getChannelRelayProtocols, isRelayProtocol, type RelayProtocol } from '../data/relay-protocols';
@@ -153,7 +153,11 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
   const wasOpenRef = useRef(false);
 
   const isCodexChannel = channel.type === 'codex';
-  const defaultEndpoints = useMemo(() => channel.defaultEndpoints ?? [], [channel.defaultEndpoints]);
+  const defaultEndpoints = useMemo(() => {
+    const defaults = channel.defaultEndpoints ?? [];
+    return channel.type === 'codex' ? defaults.filter((ep) => !isResponsesFamilyFormat(ep.apiFormat)) : defaults;
+  }, [channel.type, channel.defaultEndpoints]);
+  const [codexResponsesWebSocket, setCodexResponsesWebSocket] = useState(() => getCodexResponsesWebSocketState(channel).enabled);
 
   const [endpoints, setEndpoints] = useState<ChannelEndpoint[]>(() => channel.endpoints ?? []);
   const [modelProtocols, setModelProtocols] = useState<ModelProtocol[]>(() => getInitialModelProtocols(channel));
@@ -185,6 +189,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     }
 
     setEndpoints(channel.endpoints ?? []);
+    setCodexResponsesWebSocket(getCodexResponsesWebSocketState(channel).enabled);
     setModelProtocols(getInitialModelProtocols(channel));
     setNewProtocolModel('');
     setNewProtocolFormats([]);
@@ -194,7 +199,19 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     setDetectionResults(null);
   }, [open, channel]);
 
-  const savedEndpoints = endpoints;
+  const savedEndpoints = useMemo(
+    () => isCodexChannel ? buildCodexResponsesEndpoints(endpoints, codexResponsesWebSocket) : endpoints,
+    [isCodexChannel, endpoints, codexResponsesWebSocket]
+  );
+  const codexWebSocketURL = getCodexResponsesWebSocketURL(toHttpBaseURL(channel.baseURL), endpoints);
+  const handleCodexWebSocketChange = useCallback((checked: boolean) => {
+    if (!checked && modelProtocols.some((mp) => mp.enabled !== false && mp.apiFormats.includes(OPENAI_RESPONSES_WEBSOCKET))) {
+      setBlockedEndpointRemoval(OPENAI_RESPONSES_WEBSOCKET);
+      return;
+    }
+    setCodexResponsesWebSocket(checked);
+    setBlockedEndpointRemoval(null);
+  }, [modelProtocols]);
   const handleRemoveEndpoint = useCallback((apiFormat: string) => {
     setEndpoints((prev) => prev.filter((ep) => ep.apiFormat !== apiFormat));
     setBlockedEndpointRemoval(null);
@@ -395,14 +412,34 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
           </DialogHeader>
 
           <div className='min-h-0 flex-1 space-y-6 overflow-y-auto py-4'>
+            {isCodexChannel && (
+              <div className='space-y-2'>
+                <div className='flex items-center justify-between gap-2'>
+                  <span>{t('channels.dialogs.fields.apiFormat.formats.openai/responses')}</span>
+                  <label className='flex items-center gap-2 text-sm'>
+                    <Checkbox data-testid='codex-endpoints-websocket-checkbox' checked={codexResponsesWebSocket} onCheckedChange={(checked) => handleCodexWebSocketChange(checked === true)} />
+                    {t('channels.dialogs.fields.apiFormat.codexWebSocket.label')}
+                  </label>
+                </div>
+                {codexResponsesWebSocket && codexWebSocketURL && <p data-testid='codex-endpoints-websocket-url' className='text-muted-foreground break-all text-xs'>{t('channels.dialogs.fields.apiFormat.codexWebSocket.derivedURL', { url: codexWebSocketURL })}</p>}
+                {getCodexResponsesWebSocketState(channel).webSocketOnly && <p data-testid='codex-endpoints-websocket-upgrade-note' className='text-muted-foreground text-xs'>{t('channels.dialogs.fields.apiFormat.codexWebSocket.legacyUpgrade')}</p>}
+              </div>
+            )}
             <ChannelEndpointEditor
               defaults={defaultEndpoints}
-              endpoints={endpoints}
+              endpoints={isCodexChannel ? savedEndpoints.filter((ep) => ep.apiFormat !== OPENAI_RESPONSES_WEBSOCKET) : endpoints}
+              showWebSocketOption={!isCodexChannel}
               formats={getConfigurableApiFormatsForChannelType(channel.type, configurableChannelEndpointApiFormats)}
               baseURL={channel.baseURL || ''}
               addresses={channel.settings?.upstreamAddresses ?? []}
               onChange={setEndpoints}
-              onRemove={handleRequestRemoveEndpoint}
+              onRemove={(format) => {
+                if (isCodexChannel && format === 'openai/responses') {
+                  setEndpoints((prev) => prev.filter((ep) => !isResponsesFamilyFormat(ep.apiFormat)));
+                  return;
+                }
+                handleRequestRemoveEndpoint(format);
+              }}
               onManageAddresses={() => setOpen('edit')}
               container={dialogContentElement}
             />

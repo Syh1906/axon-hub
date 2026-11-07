@@ -26,6 +26,12 @@ func TestParseComparableVersionOrdersNumericPrereleases(t *testing.T) {
 		"v1.0.0-beta10-fork.8",
 		"v1.0.0-beta10-fork.8.syh.1",
 		"v1.0.0-beta11",
+		"v1.0.0-beta12",
+		"v1.0.0-beta12-fork.1",
+		"v1.0.0-beta12-fork.2",
+		"v1.0.0-beta12-fork.10",
+		"v1.0.0-beta13",
+		"v1.0.0-beta13-fork.1",
 		"v1.0.0-rc1",
 		"v1.0.0",
 	}

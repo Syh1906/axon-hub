@@ -3,6 +3,7 @@ package biz
 import (
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -23,6 +24,8 @@ func TestCodexResponsesEndpointDefaults(t *testing.T) {
 		{"unconfigured HTTP", "http://example.test:8080/base#", nil, []string{h, w}},
 		{"legacy WSS base", "wss://example.test/base#", nil, []string{w}},
 		{"legacy WS base", "ws://example.test/base#", nil, []string{w}},
+		{"published capability true", "https://example.test/base#", []objects.ChannelEndpoint{{APIFormat: h, SupportsWebSockets: lo.ToPtr(true)}}, []string{h, w}},
+		{"published capability false", "wss://example.test/base#", []objects.ChannelEndpoint{{APIFormat: h, SupportsWebSockets: lo.ToPtr(false)}}, []string{h}},
 		{"explicit H", "https://example.test/base#", []objects.ChannelEndpoint{{APIFormat: h}}, []string{h}},
 		{"explicit legacy HTTP", "wss://example.test/base#", []objects.ChannelEndpoint{{APIFormat: h, Transport: "http"}}, []string{h}},
 		{"legacy websocket", "https://example.test/base#", []objects.ChannelEndpoint{{APIFormat: h, Transport: "websocket", Path: "/custom"}}, []string{w}},

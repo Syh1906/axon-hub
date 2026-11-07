@@ -163,7 +163,9 @@ func deriveLoadBalancerStrategy(retryPolicy *biz.RetryPolicy, apiKey *ent.APIKey
 
 // Structured provider disconnects keep their status-less retry contract.
 func isRetryableTransportError(err error) bool {
- var responseErr *llm.ResponseError
- if errors.As(err, &responseErr) && responseErr.StatusCode == 0 && ExtractStatusCodeFromError(err) == 0 && responseErr.Detail.Code == "upstream_stream_read_error" { return true }
- return IsUpstreamTransportError(err)
+	var responseErr *llm.ResponseError
+	if errors.As(err, &responseErr) && responseErr.StatusCode == 0 && ExtractStatusCodeFromError(err) == 0 && responseErr.Detail.Code == "upstream_stream_read_error" {
+		return true
+	}
+	return IsUpstreamTransportError(err)
 }

@@ -192,8 +192,8 @@ type ChatCompletionResult struct {
 	ChatCompletion       *httpclient.Response
 	ChatCompletionStream streams.Stream[*httpclient.StreamEvent]
 	// 保存网关结束当前生成时的完整项目，供 HTTP 上游的下一轮恢复历史。
-	RetainResponsesContinuation func(responseBody []byte) error
-	Route ResponseRoute
+	RetainResponsesContinuation   func(responseBody []byte) error
+	Route                         ResponseRoute
 	CodexResponseHeadersSupported bool
 }
 
@@ -202,8 +202,15 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	ctx = executionCtx
 	var preparedResponsesBody []byte
 	var continuation *responsesContinuation
- defer func() { if continuation != nil { continuation.releaseRetention(); continuation.releaseCapture() } }()
- if shared.IsResponsesAPI(ctx) { ctx = shared.WithResponsesAttempt(ctx, &shared.ResponsesAttempt{}) }
+	defer func() {
+		if continuation != nil {
+			continuation.releaseRetention()
+			continuation.releaseCapture()
+		}
+	}()
+	if shared.IsResponsesAPI(ctx) {
+		ctx = shared.WithResponsesAttempt(ctx, &shared.ResponsesAttempt{})
+	}
 
 	// API key providers cannot return a derived context, so install the shared
 	// request container before provider selection mutates it.
@@ -446,22 +453,37 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 	_ = healthGateTracker.finalize(ctx, state.ResponseTerminalError, result.Stream)
 
 	var route ResponseRoute
- if ch := outbound.GetCurrentChannel(); ch != nil { route.ChannelID = ch.ID }
- if state.RawProviderRequest != nil { route.Model = gjson.GetBytes(state.RawProviderRequest.Body, "model").String(); route.APIFormat = state.RawProviderRequest.APIFormat }
- if route.Model == "" && state.RequestExec != nil { route.Model = state.RequestExec.ModelID }
- if continuation != nil && shared.IsResponsesWebSocket(ctx) { preparedResponsesBody = continuation.snapshotBody }
- if result.Stream && continuation != nil {
-  source := result.EventStream
-  accepted := &responsesAcceptedStream{Stream: source, ctx: ctx, continuation: continuation}
-  result.EventStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, accepted), httpclient.GetResponseHeaders(source))
-  continuation = nil
- } else if continuation != nil && result.Response != nil { continuation.accept(ctx) }
- source := result.EventStream
- completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result)
- if result.Stream && completion.ChatCompletionStream != nil { completion.ChatCompletionStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, completion.ChatCompletionStream), httpclient.GetResponseHeaders(source)) } else { lifecycleOwner.Close() }
- completion.Route = route
- completion.CodexResponseHeadersSupported = outbound.SupportsCodexResponseHeaders()
- return completion, processErr
+	if ch := outbound.GetCurrentChannel(); ch != nil {
+		route.ChannelID = ch.ID
+	}
+	if state.RawProviderRequest != nil {
+		route.Model = gjson.GetBytes(state.RawProviderRequest.Body, "model").String()
+		route.APIFormat = state.RawProviderRequest.APIFormat
+	}
+	if route.Model == "" && state.RequestExec != nil {
+		route.Model = state.RequestExec.ModelID
+	}
+	if continuation != nil && shared.IsResponsesWebSocket(ctx) {
+		preparedResponsesBody = continuation.snapshotBody
+	}
+	if result.Stream && continuation != nil {
+		source := result.EventStream
+		accepted := &responsesAcceptedStream{Stream: source, ctx: ctx, continuation: continuation}
+		result.EventStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, accepted), httpclient.GetResponseHeaders(source))
+		continuation = nil
+	} else if continuation != nil && result.Response != nil {
+		continuation.accept(ctx)
+	}
+	source := result.EventStream
+	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result)
+	if result.Stream && completion.ChatCompletionStream != nil {
+		completion.ChatCompletionStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, completion.ChatCompletionStream), httpclient.GetResponseHeaders(source))
+	} else {
+		lifecycleOwner.Close()
+	}
+	completion.Route = route
+	completion.CodexResponseHeadersSupported = outbound.SupportsCodexResponseHeaders()
+	return completion, processErr
 }
 
 func maybeEvaluateChannelAPIKeyRulesOnFailure(

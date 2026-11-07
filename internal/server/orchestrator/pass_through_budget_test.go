@@ -29,7 +29,7 @@ func TestPassThroughAnthropicStream_RawBudget(t *testing.T) {
 		count int
 		data  string
 	}{
-		{name: "filtered event count", count: 1025, data: `{"type":"ping"}`},
+		{name: "filtered event count", count: maxRawPreAttachEvents + 1, data: `{"type":"ping"}`},
 		{name: "filtered event bytes", count: 4, data: `{"type":"ping","padding":"` + strings.Repeat("x", 17*1024*1024) + `"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -88,8 +88,8 @@ func TestRawStreamBacklog_ExactBudgets(t *testing.T) {
 		_, err := backlog.hold(&httpclient.StreamEvent{})
 		require.ErrorIs(t, err, pipeline.ErrPreCommitBufferExceeded)
 		heldEvents, attachErr := backlog.attach()
-require.ErrorIs(t, attachErr, pipeline.ErrPreCommitBufferExceeded)
-require.Empty(t, heldEvents)
+		require.ErrorIs(t, attachErr, pipeline.ErrPreCommitBufferExceeded)
+		require.Empty(t, heldEvents)
 		held, err := backlog.hold(&httpclient.StreamEvent{})
 		require.ErrorIs(t, err, pipeline.ErrPreCommitBufferExceeded)
 		require.False(t, held)
@@ -101,8 +101,8 @@ require.Empty(t, heldEvents)
 		_, err = backlog.hold(&httpclient.StreamEvent{Data: []byte("x")})
 		require.ErrorIs(t, err, pipeline.ErrPreCommitBufferExceeded)
 		heldEvents, attachErr := backlog.attach()
-require.ErrorIs(t, attachErr, pipeline.ErrPreCommitBufferExceeded)
-require.Empty(t, heldEvents)
+		require.ErrorIs(t, attachErr, pipeline.ErrPreCommitBufferExceeded)
+		require.Empty(t, heldEvents)
 	})
 }
 

@@ -130,7 +130,7 @@ func IsTerminalStreamEvent(event *httpclient.StreamEvent) bool {
 
 func isResponsesTerminalEvent(eventType string) bool {
 	switch eventType {
-	case "response.completed", "response.failed", "response.incomplete", "response.cancelled", "error":
+	case "response.done", "response.completed", "response.failed", "response.incomplete", "response.cancelled", "error":
 		return true
 	default:
 		return false

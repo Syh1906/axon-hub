@@ -771,7 +771,6 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			},
 		}
 
-
 	case StreamEventTypeError:
 		detail := llm.ErrorDetail{
 			Code:    streamEvent.Code,
@@ -860,7 +859,7 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			PreviousResponseID: s.state.previousResponseID,
 			Choices:            []llm.Choice{},
 			Usage:              s.state.usage,
-ServiceTier: resp.ServiceTier,
+			ServiceTier:        resp.ServiceTier,
 		})
 	}
 

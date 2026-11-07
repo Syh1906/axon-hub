@@ -1,18 +1,6 @@
 import { z } from 'zod';
 
-// Priority range accepted by the association dialog. It mirrors the shared
-// modelAssociationSchema (0-10) and the tiers in the Model Management Guide.
-// The GraphQL field is an Int, so fractional values are rejected as well.
-// Priority range accepted by the association dialog. It mirrors the shared
-// modelAssociationSchema (0-10) and the tiers in the Model Management Guide.
-// The GraphQL field is an Int, so fractional values are rejected as well.
-// Priority range accepted by the association dialog. It mirrors the shared
-// modelAssociationSchema (0-10) and the tiers in the Model Management Guide.
-// The GraphQL field is an Int, so fractional values are rejected as well.
-// Priority range accepted by the association dialog. It mirrors the shared
-// modelAssociationSchema (0-10) and the tiers in the Model Management Guide.
-// The GraphQL field is an Int, so fractional values are rejected as well.
-import { MAX_ASSOCIATION_PRIORITY } from '../utils/bulk-associations';
+import { MAX_ASSOCIATION_PRIORITY } from '../utils/bulk-associations.ts';
 export { MAX_ASSOCIATION_PRIORITY };
 
 export const associationPrioritySchema = z

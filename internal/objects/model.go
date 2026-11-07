@@ -31,12 +31,12 @@ type ModelCardLimit struct {
 }
 
 type ModelCard struct {
-	Reasoning   ModelCardReasoning  `json:"reasoning"`
-	ReasoningEfforts []string `json:"reasoningEfforts"`
-	ToolCall    bool                `json:"toolCall"`
-	Temperature bool                `json:"temperature"`
-	Modalities  ModelCardModalities `json:"modalities"`
-	Vision      bool                `json:"vision"`
+	Reasoning        ModelCardReasoning  `json:"reasoning"`
+	ReasoningEfforts []string            `json:"reasoningEfforts"`
+	ToolCall         bool                `json:"toolCall"`
+	Temperature      bool                `json:"temperature"`
+	Modalities       ModelCardModalities `json:"modalities"`
+	Vision           bool                `json:"vision"`
 	// Price is authoritative. Keep null in JSON to distinguish an unpriced card
 	// from legacy cost-only persisted data, including old cache entries.
 	Price       *ModelPrice    `json:"price"`

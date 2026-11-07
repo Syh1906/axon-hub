@@ -6,7 +6,9 @@ import ts from 'typescript';
 // Pin the channel-level "max single channel retries" override: it must reach the
 // dialog helpers, the GraphQL selection, and the submitted settings patch.
 const dialogSource = readFileSync(new URL('./channels-action-dialog.tsx', import.meta.url), 'utf8');
-const dialogAst = ts.createSourceFile('channels-action-dialog.tsx', dialogSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const hookSource = readFileSync(new URL('../hooks/use-channel-action-dialog.tsx', import.meta.url), 'utf8');
+const helpersSource = readFileSync(new URL('../utils/channel-dialog.ts', import.meta.url), 'utf8');
+const dialogAst = ts.createSourceFile('channel-dialog.ts', helpersSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 const helperNames = ['formatMaxSingleChannelRetries', 'parseMaxSingleChannelRetriesInput'];
 
@@ -15,7 +17,7 @@ async function loadHelpers() {
   if (helpers) return helpers;
 
   const nodes = dialogAst.statements.filter((node) => ts.isFunctionDeclaration(node) && helperNames.includes(node.name?.text));
-  assert.equal(nodes.length, helperNames.length, 'the max-retries helpers must stay in channels-action-dialog.tsx');
+  assert.equal(nodes.length, helperNames.length, 'the max-retries helpers must exist in channel-dialog.ts');
 
   const module = nodes.map((node) => `export ${node.getText(dialogAst).replace(/^export\s+/, '')}`).join('\n');
   const { outputText } = ts.transpileModule(module, {
@@ -47,15 +49,15 @@ test('parseMaxSingleChannelRetriesInput treats empty as inherit and rejects non-
 });
 
 test('the dialog wires the override into state, reset, and both settings patches', () => {
-  assert.match(dialogSource, /useState\(\(\) =>\s*\n?\s*formatMaxSingleChannelRetries\(initialRow\?\.settings\?\.maxSingleChannelRetries\)/, 'initial state must read the channel override');
-  assert.match(dialogSource, /setMaxSingleChannelRetriesText\(formatMaxSingleChannelRetries\(initialRow\?\.settings\?\.maxSingleChannelRetries\)\)/, 'reset must restore the override');
+  assert.match(hookSource, /useState\(\(\) =>\s*\n?\s*formatMaxSingleChannelRetries\(initialRow\?\.settings\?\.maxSingleChannelRetries\)/, 'initial state must read the channel override');
+  assert.match(hookSource, /setMaxSingleChannelRetriesText\(formatMaxSingleChannelRetries\(initialRow\?\.settings\?\.maxSingleChannelRetries\)\)/, 'reset must restore the override');
   assert.match(
-    dialogSource,
+    hookSource,
     /const settingsPatch: Partial<ChannelSettings> = \{[\s\S]*?maxSingleChannelRetries,/,
     'the edit settings patch must carry the override'
   );
   assert.match(
-    dialogSource,
+    hookSource,
     /mergeChannelSettingsForUpdate\(settingsForSubmit, \{[\s\S]*?maxSingleChannelRetries,/,
     'the create settings patch must carry the override'
   );

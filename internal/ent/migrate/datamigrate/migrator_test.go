@@ -537,4 +537,24 @@ func TestMigrator_Run_NumericPrereleaseOrdering(t *testing.T) {
 	require.NoError(t, migrator.Run(ctx))
 	assert.Equal(t, 0, forkOne.migrateCalls, "beta7-fork.1 should be skipped")
 	assert.Equal(t, 0, beta10Again.migrateCalls, "beta10 should be skipped")
+
+	// 已发布 syh.19 升级到 beta12-fork.1：历史迁移不重跑，新上游与 fork 迁移有序执行。
+	require.NoError(t, systemService.SetVersion(ctx, "v1.0.0-beta10-fork.7.syh.19"))
+	build.Version = "v1.0.0-beta12-fork.1"
+	historical := &mockMigrator{version: "v1.0.0-beta10-fork.7.syh.5"}
+	beta11 := &mockMigrator{version: "v1.0.0-beta11"}
+	beta12 := &mockMigrator{version: "v1.0.0-beta12"}
+	fork12 := &mockMigrator{version: "v1.0.0-beta12-fork.1"}
+	migrator = datamigrate.NewMigratorWithoutRegistrations(client)
+	migrator.Register(historical).Register(beta11).Register(beta12).Register(fork12)
+	require.NoError(t, migrator.Run(ctx))
+	require.NoError(t, migrator.Run(ctx))
+	assert.Zero(t, historical.migrateCalls)
+	for _, migration := range []*mockMigrator{beta11, beta12, fork12} {
+		assert.Equal(t, 1, migration.migrateCalls)
+	}
+	version, err = systemService.Version(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, build.Version, version)
+
 }

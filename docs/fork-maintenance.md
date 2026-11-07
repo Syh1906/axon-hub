@@ -8,8 +8,8 @@ fork 改动，由用户决定。
 
 发布状态总览（2026-11-07）：最新正式版为 `.syh.19`，源码 `65364d30`，云悠、泉哥均已更新并通过部署及 Codex 目录验收。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
 
-本仓库继承 ChouUn 的维护版本；下列既有功能保留原提交归属。直接上游与原始上游
-分别记录在 `release.config.json`，自己的 `.syh.N` 发版规则见[独立发版与部署](zh/development/release.md)。
+本仓库保留 ChouUn 的继承历史及功能归属，beta12 起直接合并 looplj 的原始 release。
+原始基线与继承 fork 分别记录在 `release.config.json`，新的 `beta12-fork.N` 发版规则见[独立发版与部署](zh/development/release.md)。
 
 ## 维护检查表
 
@@ -36,20 +36,38 @@ fork 改动，由用户决定。
 - 状态：本地合并已完成，目标基线为 `v1.0.0-beta12-fork.1`；当前仅保留本地提交，未推送、未发布、未部署。
 - 来源：原始上游 `looplj/axonhub` 的 `v1.0.0-beta12`（`2b1a0f9321a4f783a4cceb2b4eb3a8303074487e`）。继承来源单独记录为 `ChouUn/axon-hub` 的 `v1.0.0-beta10-fork.7`（`b205ae8eb0db9fed6078e3a5c624bda61b36de31`）；beta10 原始基线为 `939b2bc07cc05bdf7750d7ec872290d67784d13d`。
 - 合并原则：当前 fork 的计价快照、预算、模型准入、权限范围、渠道优先级、健康门控、请求正文留存和多来源 Codex 目录为权威行为；上游新增协议、供应商、认证、队列、归档统计、管理字段和安全边界在不改变上述行为的前提下接入。
-- 来源台账：完整提交／文件／冲突清单见 `.agent/summary/beta12-change-inventory-20261107.jsonl`；实施过程见 `.agent/summary/beta12-fork1-progress-20261107.md`。下次同步先以本节逐项核对，再按上游路径和测试入口处理。
+- 合并提交：`50bc66fa8c9e6f750fe7736b453c0783cfe1903d`，第一父节点为本地基线 `b742b9a1`，第二父节点为原始 beta12 `2b1a0f93`；本地 `release/v1.0.x` 沿此历史维护。
+- 本地调研附件（不随 Git 分发）：完整提交／文件／冲突清单见 `.agent/summary/beta12-change-inventory-20261107.jsonl`；实施过程见 `.agent/summary/beta12-fork1-progress-20261107.md`。下次同步先以本节逐项核对，再按上游路径和测试入口处理。
 
 | 主题 | beta12 变化 | 本 fork 的最终取舍与下次核对点 |
 | --- | --- | --- |
 | Codex 目录与 PAT 入口 | OAuth／第三方目录、目录缓存和兼容入口 | 复用当前多来源聚合、Key／项目权限、官方快照和别名；单渠道设置只保留为可选诊断来源。核对 `codex_catalog*.go`、`codex_compatibility.go` 和 `/codex/models` 路由唯一性。 |
 | Responses／流式 | HTTP／WebSocket 终态、交付确认、来源与续聊恢复 | 保留供应商终态、客户端交付、用量证据分离；HTTP 保留完整历史恢复，原生 WS 保留同一连接和上游 ID；未知执行禁止重放。核对 `responses_session.go`、`responses_attempt.go`、`inbound.go`、`outbound.go`。 |
 | 计价／预算 | 新供应商和异步任务结算 | 当前执行快照、阶梯／分时／图片分项、Key 倍率和预算锁优先；异步任务只在有供应商终态证据时结算或释放。核对 `usage_cost*`、`budget_*`、`video.go`。 |
-| 渠道端点／超时 | Responses 双协议、渠道重试和嵌套超时配置 | 平铺超时字段保持公开契约：nil 继承、0 关闭；端点按实际传输协议归一化，WS 仅适用于 Responses。核对 `channel_endpoint*.go`、`channel_llm.go`、GraphQL 输入回读。 |
-| 透传／队列 | 上游原始事件队列和交付边界 | 保留当前 4096 事件／64 MiB 预读边界，后续队列释放需保持预算、取消和顺序。核对 `pass_through.go`、`raw_stream_queue.go`。 |
+| 渠道端点／超时 | Responses 双协议、渠道重试和嵌套超时配置 | 平铺超时字段保持公开契约：nil 继承、0 关闭；已发布的 `supportsWebSockets=true` 保留 HTTP＋WS 能力，false 关闭 WS。Codex 的两个编辑入口统一保存独立端点，保留目录 URL／JSON；旧 `transport` 和 WS URL 按原语义读取。核对 `channel_endpoint*.go`、`channel_llm.go`、GraphQL 输入回读。 |
+| 透传／队列 | 上游原始事件队列和交付边界 | 保留当前 4096 事件／64 MiB 预读边界及对应溢出回归，后续队列释放需保持预算、取消和顺序。核对 `pass_through.go`、`raw_stream_queue.go`。 |
 | 权限／请求可见性 | Playground／项目读取范围调整 | 当前项目读取者查看项目全部请求的契约继续有效；仅保留跨项目隔离及服务账号授权上限。核对 scopes、请求列表 GraphQL 和测试。 |
-| API Key／模型／路由 | 分组唯一性、优先级、配额和健康门控增强 | 保留项目＋分组唯一性、预算锁、模型优先级上限 10、权重分层、health gate、多地址和会话来源。核对 `api_key_names.go`、`candidates*.go`、`health_gate*.go`。 |
+| API Key／模型／路由 | 分组唯一性、优先级、配额和健康门控增强 | 保留项目＋分组唯一性、预算锁、模型优先级前后端上限 10、权重分层、health gate、多地址和会话来源。核对 `api_key_names.go`、`candidates*.go`、`health_gate*.go`。 |
 | 统计／归档 | 归档用量、Key 标签、性能查询和更细时间范围 | live＋archive 一致快照、已删除 Key 和 first-byte／最终执行口径优先；不能用上游旧 TTFT 查询替代当前速度口径。核对 `dashboard*`、`analytics_helpers.go`、`gql/qb`。 |
 | Schema／迁移 | 新字段、归档表、后台转换任务 | 以 Ent 生成和现有历史迁移为准；已发布迁移不可变，fork 新迁移采用 `beta12-fork.N` 版本并验证排序。核对 `internal/ent/schema`、`migrations`、`datamigrate`。 |
-| 发布与来源 | 上游直接基线改变 | `release.config.json` 的 `upstream` 指向 looplj beta12，`inheritedFork` 单独指向 ChouUn；新 tag 使用 `v1.0.0-beta12-fork.N`，旧 `.syh.N` 只兼容读取。核对 `scripts/release/release.mjs`、两个发布 workflow 和 release manifest。 |
+| 发布与来源 | 上游直接基线改变 | `release.config.json` 的 `upstream` 指向 looplj beta12，`inheritedFork` 单独指向 ChouUn；新 tag 使用 `v1.0.0-beta12-fork.N`，旧 `.syh.N` 只兼容读取。核对 `scripts/release/release.mjs`、发布 workflow 和 release manifest；发布校验同时检查原始上游和继承 fork 的祖先关系。 |
+
+### 重叠行为与回补记录
+
+- 上游终态与本 fork 交付确认分别记录。供应商完成不能提前把客户端状态标为完成；失败／取消后的可信用量仍按当前计价快照入账。转换失败保留上游实际返回的模型名，不用该名称替换计价模型。
+- 当前 sticky 候选失败后进入正常候选链，不套用上游在 sticky 渠道上重复尝试的行为；原有 429、地址超时切换、预算限制继续生效。
+- 已删除 API Key 的历史用量仍保留。吞吐统计继续使用最终执行和首字节耗时；渠道表格保留当前最小宽度与虚拟列表，请求 Token 列保留共用明细组件。
+- 渠道编辑取消／重开恢复重试次数和配额路由；新模型优先级校验仍使用 0–10，上游 0–100 用例已适配，不放宽后端约束。
+- beta12 后的选定回补：`0fa12b22`（真实 usage 计数终态）、`e2759aad`（流式 usage 聚合）、`69f39b8d`（按实际传输协议选择端点）。本轮按当前实现适配回补，未将 beta12 后整个 unstable 分支纳入。下次上游包含这些提交时逐项判断是否已等效吸收，不能再次机械覆盖。
+- 本轮没有新增或改写已发布的 schema/data migration 版本；Ent／GraphQL 生成文件已按合并 schema 更新。版本顺序与迁移调度覆盖 `.syh.19 → beta12 → beta12-fork.1`、重复启动跳过旧迁移，以及后续 `beta13` 的顺序。
+
+### 下一次原始上游同步
+
+1. 从本地维护分支创建 `codex/sync-original-<版本>`，核对目标原始 tag 对应提交；比较 `v1.0.0-beta12..<目标 tag>` 的新提交、schema 和 data migration。
+2. 使用保留双父历史的 merge；本表用于判断语义重叠，不能以“没有 Git 冲突”替代功能核对。
+3. 优先检查上表代码路径及对应测试，尤其是 HTTP/WS、终态交付、计价预算、目录权限、归档统计和已发布能力字段；当前 fork 需求优先，无重叠部分吸收上游。
+4. 更新 `release.config.json` 的原始基线，保持 `inheritedFork` 历史来源；新原始基线从 `fork.1` 开始，同一基线递增。更新本节的取舍、迁移、验证和剩余限制。
+5. 提交与发布分开；新 tag、远程推送、镜像发布及部署按当次授权执行。
 
 ### beta12 合并验收入口
 
@@ -58,6 +76,16 @@ fork 改动，由用户决定。
 - 前端：使用 `corepack pnpm`，运行现有单元测试与 `tsc --noEmit -p tsconfig.app.json`；类型诊断需与 beta10 基线比较，不以清零全库历史错误为目标。
 - 数据库：升级路径需覆盖 schema migration、data migration、归档／预算／缓存读取；不能只看 Git 冲突数量。
 - 发布：先验证 `release.mjs` 的 `beta12-fork.N` 版本和双来源祖先关系，再由维护分支 Test 成功后发布；本地合并不自动推送或部署。
+
+### 本轮验证结果（2026-11-07）
+
+- Ent／GraphQL `go generate` 与根模块测试编译入口已通过；本轮未改变已发布迁移的行为或编号。
+- 根目录 `GOMAXPROCS=2 go test -p 1 -json ./...`：48 个有测试包通过，API 包仅因一个 Windows 临时目录清理竞态失败。修复测试服务退出等待后，该用例 `-count=10` 全部通过；其他 API 用例沿用本轮通过结果。收尾对非流式模型证据及迁移调度补验通过。
+- `llm/` 内 `GOMAXPROCS=2 go test -p 1 -json ./...`：44 个有测试包全部通过；真实服务测试按其环境条件跳过。
+- 前端 `node --test --test-reporter=tap "src/**/*.test.mjs"`：537 项，536 通过、1 跳过、0 失败。后续端点稳定引用和调用参数调整的 57 项定向回归全部通过。
+- `node --test scripts/release/release.test.mjs`：5 项通过，包含 beta12 新版本号、历史 `.syh.N` 读取以及同时包含两条来源历史的真实 Git 夹具。
+- `corepack pnpm exec tsc --noEmit -p tsconfig.app.json`：仍有 94 项既有类型诊断，未宣称全量类型检查通过；本轮新增的端点调用参数诊断已清除。已有 beta10 对照为 168 项，后续不能把此记录视为零诊断基线。
+- 未运行 lint／build（项目规则），未做浏览器页面验收、真实 PostgreSQL／MySQL 升级、收费供应商测试、发布或生产部署。生成成功、SQLite 测试通过均不替代这些验证。
 
 ## 上游同步记录
 

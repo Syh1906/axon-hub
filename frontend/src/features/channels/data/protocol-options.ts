@@ -160,6 +160,7 @@ function isWebSocketURL(url: string | null | undefined): boolean {
 // the scheme inherited from the endpoint or channel Base URL.
 function resolveResponsesFormat(endpoint: ChannelEndpoint, channelBaseURL: string | null | undefined): string {
   if (endpoint.apiFormat !== OPENAI_RESPONSES_FORMAT) return endpoint.apiFormat;
+  if (endpoint.supportsWebSockets != null) return endpoint.supportsWebSockets ? OPENAI_RESPONSES_WEBSOCKET_FORMAT : OPENAI_RESPONSES_FORMAT;
   if (endpoint.transport === 'websocket') return OPENAI_RESPONSES_WEBSOCKET_FORMAT;
   if (endpoint.transport === 'http') return OPENAI_RESPONSES_FORMAT;
   return isWebSocketURL(endpoint.baseURL || channelBaseURL) ? OPENAI_RESPONSES_WEBSOCKET_FORMAT : OPENAI_RESPONSES_FORMAT;
@@ -187,7 +188,9 @@ export function getCodexResponsesWebSocketState(channel?: CodexResponsesChannel 
   const formats = new Set(
     (channel.endpoints ?? [])
       .filter((endpoint) => isResponsesFamilyFormat(endpoint.apiFormat))
-      .map((endpoint) => resolveResponsesFormat(endpoint, channel.baseURL))
+      .flatMap((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT && endpoint.supportsWebSockets === true
+        ? [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT]
+        : [resolveResponsesFormat(endpoint, channel.baseURL)])
   );
   if (formats.size === 0) {
     // Without family entries the backend defaults to HTTP + WebSocket, or to
@@ -219,7 +222,9 @@ export function getEffectiveResponsesFormats(
 ): string[] {
   const formats = new Set([
     ...(channel.defaultEndpoints ?? []).map((endpoint) => endpoint.apiFormat),
-    ...(channel.endpoints ?? []).map((endpoint) => resolveResponsesFormat(endpoint, channel.baseURL)),
+    ...(channel.endpoints ?? []).flatMap((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT && endpoint.supportsWebSockets === true
+        ? [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT]
+        : [resolveResponsesFormat(endpoint, channel.baseURL)]),
   ]);
   return [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT].filter((format) => formats.has(format));
 }
@@ -234,8 +239,12 @@ export function buildCodexResponsesEndpoints(
   webSocketEnabled: boolean
 ): ChannelEndpoint[] {
   const shared = getSharedResponsesOverrides(endpoints);
+  const previous = endpoints?.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT);
   const family: ChannelEndpoint[] = [
-    { apiFormat: OPENAI_RESPONSES_FORMAT, ...shared },
+    { apiFormat: OPENAI_RESPONSES_FORMAT, ...shared,
+      ...(previous?.catalogURL ? { catalogURL: previous.catalogURL } : {}),
+      ...(previous?.catalogJSON != null ? { catalogJSON: previous.catalogJSON } : {}),
+    },
     ...(webSocketEnabled ? [{ apiFormat: OPENAI_RESPONSES_WEBSOCKET_FORMAT, ...shared }] : []),
   ];
 

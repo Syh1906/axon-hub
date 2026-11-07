@@ -370,7 +370,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 	}
 	// Classify with the original request context before detaching persistence.
 	// The first failure snapshot is retained by RequestService during finalization.
-	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, classifyRequestFailure(ctx, err), metrics, nil)
+	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, classifyRequestFailure(ctx, err), metrics, m.rawResponse, modelname.FromResponse(m.rawResponse, llm.APIFormat(state.RequestExec.Format)))
 	if updateErr != nil {
 		log.Warn(persistCtx, "Failed to update request execution status to failed", log.Cause(updateErr))
 	}

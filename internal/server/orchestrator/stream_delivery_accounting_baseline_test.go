@@ -30,7 +30,7 @@ func TestStreamDeliveryAccountingBaseline(t *testing.T) {
 		{"incomplete zero", "response.incomplete", "incomplete", `,"usage":{"input_tokens":0,"output_tokens":0,"total_tokens":0}`, requestexecution.StatusFailed, 1},
 		{"canceled usage", "response.cancelled", "canceled", `,"usage":{"input_tokens":12,"output_tokens":34,"total_tokens":46}`, requestexecution.StatusCanceled, 1},
 		{"failed missing usage", "response.failed", "failed", "", requestexecution.StatusFailed, 0},
-		{"partial cancel usage", "response.in_progress", "in_progress", `,"usage":{"input_tokens":12,"output_tokens":34,"total_tokens":46}`, requestexecution.StatusCanceled, 0},
+		{"partial cancel usage", "response.in_progress", "in_progress", `,"usage":{"input_tokens":12,"output_tokens":34,"total_tokens":46}`, requestexecution.StatusCanceled, 1},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			// Given

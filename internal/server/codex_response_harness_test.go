@@ -3,9 +3,8 @@ package server
 import (
 	"testing"
 
-
 	"github.com/looplj/axonhub/internal/ent"
-"github.com/looplj/axonhub/internal/ent/model"
+	"github.com/looplj/axonhub/internal/ent/model"
 
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/objects"
@@ -42,8 +41,8 @@ func setupCodexResponseHandlers(t *testing.T, h *codexRouteHarness, models *biz.
 }
 
 func (h *codexRouteHarness) registerModels(t *testing.T, ch *biz.Channel, modelType string) {
- t.Helper()
- for _, id := range ch.SupportedModels {
- h.db.Model.Create().SetDeveloper("fixture").SetName(id).SetModelID(id).SetIcon("test").SetGroup("test").SetType(model.Type(modelType)).SetStatus(model.StatusEnabled).SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type:"channel_model", ChannelModel:&objects.ChannelModelAssociation{ChannelID:ch.ID,ModelID:id}}}}).SaveX(h.ctx)
- }
+	t.Helper()
+	for _, id := range ch.SupportedModels {
+		h.db.Model.Create().SetDeveloper("fixture").SetName(id).SetModelID(id).SetIcon("test").SetGroup("test").SetType(model.Type(modelType)).SetStatus(model.StatusEnabled).SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: ch.ID, ModelID: id}}}}).SaveX(h.ctx)
+	}
 }

@@ -81,8 +81,7 @@ func TestResponsesProtocolIntegrationIsolation(t *testing.T) {
 		c.Next()
 	})
 	router.GET("/v1/responses", handlers.CreateResponseWebSocket(5*time.Second))
-	server := httptest.NewServer(router)
-	t.Cleanup(server.Close)
+	server := responsesIntegrationServer(t, router)
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/responses"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
@@ -108,8 +107,8 @@ func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure 
 	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
 	project, err := client.Project.Create().SetName("responses-integration-project").SetDescription("synthetic").SetStatus(project.StatusActive).Save(ctx)
 	require.NoError(t, err)
- owner := client.User.Create().SetEmail("fixture@example.invalid").SetPassword("test").SaveX(ctx)
- client.APIKey.Create().SetName("fixture").SetKey("fixture-key").SetProjectID(project.ID).SetUserID(owner.ID).SetType("user").SaveX(ctx)
+	owner := client.User.Create().SetEmail("fixture@example.invalid").SetPassword("test").SaveX(ctx)
+	client.APIKey.Create().SetName("fixture").SetKey("fixture-key").SetProjectID(project.ID).SetUserID(owner.ID).SetType("user").SaveX(ctx)
 	create := client.Channel.Create().SetType(channel.TypeOpenaiResponses).SetName("responses-integration-channel").SetStatus(channel.StatusEnabled).SetTags([]string{"synthetic"}).SetBaseURL(upstreamURL).SetCredentials(objects.ChannelCredentials{APIKey: "synthetic-key"}).SetSupportedModels([]string{"synthetic-model"}).SetDefaultTestModel("synthetic-model")
 	for _, apply := range configure {
 		apply(create)
@@ -119,7 +118,7 @@ func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure 
 
 	cacheConfig := xcache.Config{Mode: xcache.ModeMemory}
 	systemService := biz.NewSystemService(biz.SystemServiceParams{CacheConfig: cacheConfig, Ent: client})
-	client.Model.Create().SetDeveloper("test").SetName("synthetic-model").SetModelID("synthetic-model").SetIcon("test").SetGroup("test").SetStatus("enabled").SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type:"channel_model", ChannelModel:&objects.ChannelModelAssociation{ChannelID: fixtureChannel.ID, ModelID:"synthetic-model"}}}}).SaveX(ctx)
+	client.Model.Create().SetDeveloper("test").SetName("synthetic-model").SetModelID("synthetic-model").SetIcon("test").SetGroup("test").SetStatus("enabled").SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: fixtureChannel.ID, ModelID: "synthetic-model"}}}}).SaveX(ctx)
 	channelService := biz.NewChannelService(biz.ChannelServiceParams{CacheConfig: cacheConfig, Ent: client, SystemService: systemService, HttpClient: httpclient.NewHttpClient()})
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
 	storage := &biz.DataStorageService{AbstractService: &biz.AbstractService{}, SystemService: systemService, Cache: xcache.NewFromConfig[ent.DataStorage](cacheConfig)}
@@ -130,6 +129,7 @@ func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure 
 	require.NoError(t, err)
 	require.NotEmpty(t, candidates)
 	protection := biz.NewPromptProtectionRuleService(biz.PromptProtectionRuleServiceParams{CacheConfig: cacheConfig, Ent: client})
+	t.Cleanup(protection.Stop)
 	params := OpenAIHandlersParams{
 		ChannelService: channelService, ModelService: modelService, DefaultSelector: selector, RequestService: requestService,
 		SystemService: systemService, UsageLogService: usageLogService, PromptService: biz.NewPromptService(biz.PromptServiceParams{Ent: client}),

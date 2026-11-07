@@ -87,7 +87,7 @@ export function getAnalyticsQuickDateRange(
     endTime,
   };
 }
-import { buildDateRangeWhereClause, DEFAULT_END_TIME, DEFAULT_START_TIME, type DateTimeRangeValue, type TimeValue } from '@/utils/date-range';
+import { buildDateRangeWhereClause, DEFAULT_END_TIME, DEFAULT_START_TIME, type DateTimeRangeValue, type TimeValue } from '../../../utils/date-range.ts';
 
 interface RangeBounds {
   range: DateTimeRangeValue | undefined;

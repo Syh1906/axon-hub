@@ -39,7 +39,7 @@ func setupCodexResponsesUpstream(t *testing.T, h *codexRouteHarness) *atomic.Int
 	built, err := h.channels.GetChannel(h.ctx, source.ID)
 	require.NoError(t, err)
 	h.channels.SetEnabledChannelsForTest([]*biz.Channel{built})
-h.registerModels(t, built, "chat")
+	h.registerModels(t, built, "chat")
 	require.NoError(t, h.system.SetCodexCompatibilitySettings(h.ctx, biz.CodexCompatibilitySettings{Enabled: true, ChannelID: &h.source.ID}))
 	return calls
 }

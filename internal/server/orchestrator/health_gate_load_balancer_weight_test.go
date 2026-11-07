@@ -206,17 +206,21 @@ func TestHealthGateLoadBalancer_WeightTiersRespectHardLimitsAndQuota(t *testing.
 				lowScore := healthGateWeightTotalScore(t, ctx, strategies, low.Channel)
 				require.Equal(t, hard && scenario != "quota_exhausted", isHardUnavailableScore(highScore))
 				require.False(t, isHardUnavailableScore(lowScore))
-				if scenario != "quota_exhausted" { require.Greater(t, lowScore, highScore) }
+				if scenario != "quota_exhausted" {
+					require.Greater(t, lowScore, highScore)
+				}
 				for _, retries := range []int{0, 1} {
 					policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: retries}}
 					lb := NewLoadBalancer(policy, nil, strategies...).WithHealthGate(biz.NewHealthGate(nil))
 					lb.debug = debug
 					gate := NewQuotaRoutingGate(quota, biz.QuotaRoutingSettings{DefaultMode: objects.QuotaRoutingModeRemoveOnExhausted})
-filtered := gate.Filter(ctx, []*ChannelModelsCandidate{high, low}, &llm.Request{}, 0)
-result := lb.Sort(ctx, filtered, "alias", false)
-expectedCount := 1+retries
-if scenario == "quota_exhausted" { expectedCount = 1 }
-require.Len(t, result, expectedCount)
+					filtered := gate.Filter(ctx, []*ChannelModelsCandidate{high, low}, &llm.Request{}, 0)
+					result := lb.Sort(ctx, filtered, "alias", false)
+					expectedCount := 1 + retries
+					if scenario == "quota_exhausted" {
+						expectedCount = 1
+					}
+					require.Len(t, result, expectedCount)
 					require.Equal(t, expectedID, result[0].Channel.ID)
 				}
 			})

@@ -17,8 +17,6 @@ func (s *PersistenceState) observeStreamTerminal(event *httpclient.StreamEvent) 
 	if err := streamTerminalError(event); err != nil {
 		s.StreamTerminalError = err
 		s.StreamCompleted = false
-	} else if s.StreamTerminalError == nil && IsTerminalStreamEvent(event) {
-		s.StreamCompleted = true
 	}
 }
 

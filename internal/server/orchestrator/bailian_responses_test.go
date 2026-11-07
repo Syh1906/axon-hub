@@ -23,7 +23,7 @@ func TestBailianResponsesChannel_RoutesOnlyConfiguredModels(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-client.Model.Create().SetDeveloper("test").SetName("Qwen").SetModelID("qwen3.7-max").SetIcon("test").SetGroup("test").SetStatus("enabled").SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type:"channel_model",ChannelModel:&objects.ChannelModelAssociation{ChannelID:created.ID,ModelID:"qwen3.7-max"}}}}).SaveX(ctx)
+	client.Model.Create().SetDeveloper("test").SetName("Qwen").SetModelID("qwen3.7-max").SetIcon("test").SetGroup("test").SetStatus("enabled").SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: created.ID, ModelID: "qwen3.7-max"}}}}).SaveX(ctx)
 	channelService := newTestChannelServiceForChannels(client)
 	systemService := newTestSystemService(client)
 	requestService := newTestRequestServiceForChannels(t, client, systemService)

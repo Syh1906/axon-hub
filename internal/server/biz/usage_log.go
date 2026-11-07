@@ -86,7 +86,6 @@ func (s *UsageLogService) computeUsageCost(ctx context.Context, channelID int, m
 		return items, lo.ToPtr(totalCost), modelPrice.ReferenceID
 	}
 
-
 	return nil, nil, ""
 }
 

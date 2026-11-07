@@ -37,8 +37,10 @@ func Parse(v string) (*semver.Version, error) {
 		}
 
 		counter := strings.TrimLeft(match[2], "0")
-if counter == "" { counter = "0" }
-identifiers = append(identifiers, match[1], counter)
+		if counter == "" {
+			counter = "0"
+		}
+		identifiers = append(identifiers, match[1], counter)
 		if match[3] != "" {
 			identifiers = append(identifiers, match[3])
 		}

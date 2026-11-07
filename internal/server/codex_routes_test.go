@@ -70,10 +70,10 @@ func newCodexRouteHarness(t *testing.T) *codexRouteHarness {
 	h := &codexRouteHarness{db: db, ctx: ctx, system: system, channels: channels, key: key, keys: keys, source: source}
 	openAI, requests := setupCodexResponseHandlers(t, h, models)
 	h.openAI = openAI
-openAI.CodexCatalogService = biz.NewCodexCatalogService(models, channels)
+	openAI.CodexCatalogService = biz.NewCodexCatalogService(models, channels)
 	router := gin.New()
 	router.Use(middleware.WithEntClient(db))
-router.GET("/codex/models", middleware.WithIPBlocklist(system), middleware.WithStrictAPIKeyConfig(auth, nil), openAI.ListCodexModels)
+	router.GET("/codex/models", middleware.WithIPBlocklist(system), middleware.WithStrictAPIKeyConfig(auth, nil), openAI.ListCodexModels)
 	router.NoRoute(static.Handler())
 	timeout := time.Second
 	if os.Getenv("AXONHUB_CODEX_LIVE_QA") == "1" {

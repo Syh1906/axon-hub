@@ -731,12 +731,14 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		traceStickyMode = resolvedPolicy.TraceStickyMode
 	}
 	if s.quotaGate != nil {
- stickyID := 0
- if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
-  if selected, _, _ := s.selectTraceStickyCandidate(ctx, candidates); selected != nil { stickyID = selected.Channel.ID }
- }
- candidates = s.quotaGate.Filter(ctx, candidates, req, stickyID)
- }
+		stickyID := 0
+		if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
+			if selected, _, _ := s.selectTraceStickyCandidate(ctx, candidates); selected != nil {
+				stickyID = selected.Channel.ID
+			}
+		}
+		candidates = s.quotaGate.Filter(ctx, candidates, req, stickyID)
+	}
 	if selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider); handled || err != nil {
 		if err != nil || loadBalancer == nil {
 			return selected, err

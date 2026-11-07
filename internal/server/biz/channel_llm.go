@@ -2,9 +2,9 @@ package biz
 
 import (
 	"context"
-"encoding/json"
-"entgo.io/ent/dialect"
-"entgo.io/ent/dialect/sql"
+	"encoding/json"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"errors"
 	"fmt"
 	"net/url"
@@ -257,7 +257,7 @@ func (svc *ChannelService) buildChannelWithOutbounds(c *ent.Channel, apiKeyOverr
 		outbounds[ep.APIFormat] = out
 	}
 
-	for i, ep := range userEndpoints {
+	for _, ep := range userEndpoints {
 		if ep.APIFormat == "" {
 			continue
 		}
@@ -269,8 +269,11 @@ func (svc *ChannelService) buildChannelWithOutbounds(c *ent.Channel, apiKeyOverr
 			out = opencode.WithSessionHeader(out)
 		}
 		outbounds[ep.APIFormat] = out
-		if rawFormat := rawUserEndpoints[i].APIFormat; rawFormat != "" && rawFormat != ep.APIFormat {
-			aliases = append(aliases, outboundAlias{format: rawFormat, out: out})
+	}
+	for _, raw := range rawUserEndpoints {
+		normalized := NormalizeEndpoints([]objects.ChannelEndpoint{raw}, c.BaseURL)
+		if len(normalized) == 1 && raw.APIFormat != "" && raw.APIFormat != normalized[0].APIFormat {
+			aliases = append(aliases, outboundAlias{format: raw.APIFormat, out: outbounds[normalized[0].APIFormat]})
 		}
 	}
 	for _, alias := range aliases {
@@ -1663,18 +1666,23 @@ func (svc *ChannelService) refreshOAuthTokenWithClient(ctx context.Context, db *
 
 	for {
 		expected, err := json.Marshal(ch.Credentials)
-if err != nil { return fmt.Errorf("encode expected channel credentials: %w", err) }
-saved, err := db.Channel.UpdateOneID(ch.ID).Where(channel.UpdatedAt(ch.UpdatedAt), func(selector *sql.Selector) {
- selector.Where(sql.P(func(b *sql.Builder) {
-  // Timestamps can coincide on fast concurrent updates; compare credentials too.
-  column := selector.C(channel.FieldCredentials)
-  switch selector.Dialect() {
-  case dialect.Postgres: b.Ident(column).WriteString(" = ").Arg(string(expected)).WriteString("::jsonb")
-  case dialect.MySQL: b.Ident(column).WriteString(" = CAST(").Arg(string(expected)).WriteString(" AS JSON)")
-  default: b.WriteString("json(").Ident(column).WriteString(") = json(").Arg(string(expected)).WriteByte(')')
-  }
- }))
-}).SetCredentials(updated).Save(ctx)
+		if err != nil {
+			return fmt.Errorf("encode expected channel credentials: %w", err)
+		}
+		saved, err := db.Channel.UpdateOneID(ch.ID).Where(channel.UpdatedAt(ch.UpdatedAt), func(selector *sql.Selector) {
+			selector.Where(sql.P(func(b *sql.Builder) {
+				// Timestamps can coincide on fast concurrent updates; compare credentials too.
+				column := selector.C(channel.FieldCredentials)
+				switch selector.Dialect() {
+				case dialect.Postgres:
+					b.Ident(column).WriteString(" = ").Arg(string(expected)).WriteString("::jsonb")
+				case dialect.MySQL:
+					b.Ident(column).WriteString(" = CAST(").Arg(string(expected)).WriteString(" AS JSON)")
+				default:
+					b.WriteString("json(").Ident(column).WriteString(") = json(").Arg(string(expected)).WriteByte(')')
+				}
+			}))
+		}).SetCredentials(updated).Save(ctx)
 		if ent.IsNotFound(err) {
 			current, reloadErr := db.Channel.Get(ctx, ch.ID)
 			if reloadErr != nil {
@@ -1712,7 +1720,7 @@ func channelCredentialsEqual(a, b objects.ChannelCredentials) bool {
 	return a.APIKey == b.APIKey &&
 		oauthCredentialsEqual(a.OAuth, b.OAuth) &&
 		slices.Equal(a.APIKeys, b.APIKeys) &&
- slices.Equal(a.VertexAPIKeys, b.VertexAPIKeys) &&
+		slices.Equal(a.VertexAPIKeys, b.VertexAPIKeys) &&
 		a.ManagementAPIKey == b.ManagementAPIKey &&
 		azureCredentialsEqual(a.Azure, b.Azure) &&
 		gcpCredentialsEqual(a.GCP, b.GCP)

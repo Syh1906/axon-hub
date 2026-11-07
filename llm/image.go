@@ -101,10 +101,10 @@ type ImageUsage struct {
 }
 
 type ImageInputTokensDetails struct {
- ImageTokens *int64 `json:"image_tokens,omitempty"`
- TextTokens *int64 `json:"text_tokens,omitempty"`
- CachedTokens *int64 `json:"cached_tokens,omitempty"`
- CachedTokensDetails *CachedTokensDetails `json:"cached_tokens_details,omitempty"`
+	ImageTokens         *int64               `json:"image_tokens,omitempty"`
+	TextTokens          *int64               `json:"text_tokens,omitempty"`
+	CachedTokens        *int64               `json:"cached_tokens,omitempty"`
+	CachedTokensDetails *CachedTokensDetails `json:"cached_tokens_details,omitempty"`
 }
 
 type ImageOutputTokensDetails struct {

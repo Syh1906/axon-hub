@@ -106,8 +106,11 @@ func persistRequestExecutionFailure(
 	}
 
 	upstreamModelID := ""
-	if len(upstreamModels) > 0 { upstreamModelID = upstreamModels[0] }
-	if upstreamModelID == "" && response != nil { upstreamModelID = gjson.GetBytes(response.Body, "model").String() }
+	if len(upstreamModels) > 0 {
+		upstreamModelID = upstreamModels[0]
+	} else if response != nil {
+		upstreamModelID = gjson.GetBytes(response.Body, "model").String()
+	}
 	return requestService.UpdateRequestExecutionStatusWithMetrics(
 		ctx,
 		executionID,

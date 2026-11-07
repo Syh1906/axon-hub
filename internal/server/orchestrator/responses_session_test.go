@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
-"strings"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -271,7 +271,7 @@ func TestResponsesSessionStorePreservesWebSearchCallStatusWithoutPreviousRespons
 	body := []byte(`{"model":"gpt-5","input":[{"id":"ws_1","type":"web_search_call","status":"completed","action":{"type":"search","query":"example"}}]}`)
 
 	prepared, _, err := store.prepare(ctx, body)
-require.NoError(t, err)
+	require.NoError(t, err)
 	require.Equal(t, body, prepared)
 }
 
@@ -284,7 +284,7 @@ func TestResponsesSessionStorePreservesWebSearchCallStatusInPreviousResponse(t *
 	)
 
 	prepared, _, err := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_search","input":"continue"}`))
-require.NoError(t, err)
+	require.NoError(t, err)
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"search docs"},{"id":"ws_1","type":"web_search_call","status":"completed","action":{"type":"search","query":"example"}},{"id":"msg_1","type":"message","role":"assistant","content":"found it"},{"type":"message","role":"user","content":"continue"}]}`,
 		string(prepared),
@@ -301,7 +301,7 @@ func TestResponsesSessionStorePreservesWebSearchCallStatusOnMemoryMiss(t *testin
 	})
 
 	prepared, _, err := store.prepare(ctx, []byte(`{"model":"gpt-5","previous_response_id":"resp_search","input":"continue"}`))
-require.NoError(t, err)
+	require.NoError(t, err)
 	require.JSONEq(t,
 		`{"model":"gpt-5","input":[{"type":"message","role":"user","content":"search docs"},{"id":"ws_1","type":"web_search_call","status":"completed","action":{"type":"search","query":"example"}},{"type":"message","role":"user","content":"continue"}]}`,
 		string(prepared),
@@ -441,7 +441,7 @@ func TestResponsesSessionStoreRestoresNamespaceHistoryOnMemoryMiss(t *testing.T)
 			[]byte(`{"id":"resp_namespace","status":"completed","output":[{"type":"function_call","call_id":"call_1","name":"docs__search","namespace":"docs","arguments":"{}"}]}`), true, nil
 	})
 	prepared, _, err := store.prepare(ctx, []byte(`{"model":"test","previous_response_id":"resp_namespace","tools":[{"type":"namespace","name":"docs","tools":[{"type":"function","name":"docs__search"}]}],"input":[{"type":"function_call_output","call_id":"call_1","output":"ok"}]}`))
-require.NoError(t, err)
+	require.NoError(t, err)
 	req, err := openairesponses.NewInboundTransformer().TransformRequest(ctx, &httpclient.Request{Body: prepared})
 	require.NoError(t, err)
 	require.Equal(t, 1, loads)
@@ -485,24 +485,26 @@ func TestResponsesSessionStoreWrapStreamPreservesResponseHeaders(t *testing.T) {
 }
 
 func TestResponsesSessionMetadataSurvivesOversizedHistory(t *testing.T) {
- attempt := &shared.ResponsesAttempt{}
- origin := shared.ResponsesOrigin{ChannelID:42,Model:"model-a"}
- attempt.SetOrigin(origin)
- ctx:=shared.WithResponsesAttempt(shared.WithSessionScope(t.Context(),"key-a"),attempt)
- store:=newResponsesSessionStore()
- input:=[]byte(`{"input":"`+strings.Repeat("x",responsesSessionMaxResponse)+`"}`)
- store.record(ctx,input,[]byte(`{"id":"large","status":"completed","output":[]}`))
- record,err:=store.lookupOrLoad(ctx,"large")
- require.NoError(t,err)
- require.NotNil(t,record)
- require.False(t,record.complete)
- require.Equal(t,origin,record.origin)
- require.Zero(t,record.size)
- require.Nil(t,store.lookup(shared.WithSessionScope(t.Context(),"key-b"),"large"))
- store.load=func(context.Context,string)([]byte,[]byte,bool,error){return input,[]byte(`{"id":"large","status":"completed","output":[]}`),true,nil}
- restored,err:=store.lookupOrLoad(ctx,"large")
- require.NoError(t,err)
- require.True(t,restored.complete,"cache limits must not limit usable persisted history")
- require.Equal(t,origin,restored.origin)
- require.False(t,store.lookup(ctx,"large").complete,"large payload remains outside memory cache")
+	attempt := &shared.ResponsesAttempt{}
+	origin := shared.ResponsesOrigin{ChannelID: 42, Model: "model-a"}
+	attempt.SetOrigin(origin)
+	ctx := shared.WithResponsesAttempt(shared.WithSessionScope(t.Context(), "key-a"), attempt)
+	store := newResponsesSessionStore()
+	input := []byte(`{"input":"` + strings.Repeat("x", responsesSessionMaxResponse) + `"}`)
+	store.record(ctx, input, []byte(`{"id":"large","status":"completed","output":[]}`))
+	record, err := store.lookupOrLoad(ctx, "large")
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.False(t, record.complete)
+	require.Equal(t, origin, record.origin)
+	require.Zero(t, record.size)
+	require.Nil(t, store.lookup(shared.WithSessionScope(t.Context(), "key-b"), "large"))
+	store.load = func(context.Context, string) ([]byte, []byte, bool, error) {
+		return input, []byte(`{"id":"large","status":"completed","output":[]}`), true, nil
+	}
+	restored, err := store.lookupOrLoad(ctx, "large")
+	require.NoError(t, err)
+	require.True(t, restored.complete, "cache limits must not limit usable persisted history")
+	require.Equal(t, origin, restored.origin)
+	require.False(t, store.lookup(ctx, "large").complete, "large payload remains outside memory cache")
 }

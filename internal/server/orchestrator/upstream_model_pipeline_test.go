@@ -104,6 +104,11 @@ func TestUpstreamModelPipeline_NonStreaming(t *testing.T) {
 			reported: "wire-b", wantError: true,
 		},
 		{
+			name: "Gemini model metadata survives response conversion failure", format: llm.APIFormatGeminiContents,
+			response: `{"modelVersion":"gemini-reported","candidates":"invalid"}`,
+			reported: "gemini-reported", wantError: true,
+		},
+		{
 			name: "OpenAI pass through and override", format: llm.APIFormatOpenAIChatCompletion, passThrough: true,
 			response: `{"id":"resp","model":"wire-b","choices":[{"index":0,"message":{"role":"assistant","content":"hello"},"finish_reason":"stop"}]}`,
 			reported: "wire-b",
@@ -157,7 +162,7 @@ func TestUpstreamModelPipeline_NonStreaming(t *testing.T) {
 				require.Equal(t, requestexecution.StatusFailed, saved.Status)
 			}
 			require.Equal(t, tt.passThrough, saved.PassThroughApplied)
-			require.JSONEq(t, "{}", string(saved.RequestBody))
+			require.JSONEq(t, `{"_axon_payload":{"version":1,"state":"disabled"}}`, string(saved.RequestBody))
 			require.JSONEq(t, `{"_axon_payload":{"version":1,"state":"disabled"}}`, string(saved.ResponseBody))
 		})
 	}
@@ -183,6 +188,7 @@ func TestUpstreamModelPipeline_ChannelModelPricingAfterOverride(t *testing.T) {
 	channel, err := channelService.GetChannel(ctx, state.Request.ChannelID)
 	require.NoError(t, err)
 	channelService.PreloadModelPricesForTest(ctx, channel)
+	channelService.PreloadModelPricesForTest(ctx, state.ChannelModelsCandidates[0].Channel)
 	channelService.SetEnabledChannelsForTest([]*biz.Channel{channel})
 
 	inbound, outbound := NewPersistentTransformers(state, openai.NewInboundTransformer())

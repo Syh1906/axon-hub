@@ -23,7 +23,7 @@ function transpile(source) {
 // modules are concatenated into a single module to inspect the conversions.
 const sharedSource = transpile(read('utils/date-range.ts'));
 const analyticsSource = transpile(read('features/analytics/utils/date-range.ts')).replace(
-  /import[\s\S]*?from ['\"]@\/utils\/date-range['\"];?/,
+  /import[\s\S]*?from ['\"](?:@\/utils\/date-range|\.\.\/\.\.\/\.\.\/utils\/date-range\.ts)['\"];?/,
   ''
 );
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(sharedSource + analyticsSource).toString('base64')}`;

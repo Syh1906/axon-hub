@@ -121,7 +121,8 @@ func testAbnormalToolStreamSingleTerminal(t *testing.T, kind, status string, wit
 	} else {
 		require.Nil(t, terminals[0].Response.Usage)
 	}
-	require.Error(t, persistent.Err())
+	require.Error(t, persistent.state.StreamTerminalError)
+	require.NoError(t, persistent.Err(), "semantic failure is forwarded in the terminal event")
 	require.NoError(t, inbound.Err(), "the wire terminal already represents the incomplete response")
 }
 
@@ -177,7 +178,8 @@ func TestFailedToolStreamAcrossTwoGateways(t *testing.T) {
 					}
 				}
 				require.Equal(t, 1, failures, "hop %d must emit one terminal failure", hop)
-				require.Error(t, persistent.Err())
+				require.Error(t, persistent.state.StreamTerminalError)
+				require.NoError(t, persistent.Err(), "semantic failure is forwarded in the terminal event")
 				require.NoError(t, inbound.Err(), "the wire error already represents the failure")
 				require.NoError(t, inbound.Close())
 				events = forwarded

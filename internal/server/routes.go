@@ -41,8 +41,8 @@ type Handlers struct {
 	RequestContent     *api.RequestContentHandlers
 	OIDC               *api.OIDCHandlers
 	RequestPreview     *api.RequestPreviewHandlers
-	SelfUsageGraphql *selfusage.GraphqlHandler
-	DatabaseTransfer *api.DatabaseTransferHandlers
+	SelfUsageGraphql   *selfusage.GraphqlHandler
+	DatabaseTransfer   *api.DatabaseTransferHandlers
 }
 
 type Services struct {

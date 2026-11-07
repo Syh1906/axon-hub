@@ -1,7 +1,7 @@
 # 独立维护、同步上游与发版
 
-本仓库为 Syh1906/axon-hub。直接上游为 ChouUn/axon-hub，原始上游为
-looplj/axonhub。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR，二进制包和
+本仓库为 Syh1906/axon-hub。beta12 起直接同步原始上游 looplj/axonhub；
+ChouUn/axon-hub 是保留历史与功能的继承 fork。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR，二进制包和
 部署清单保存在 GitHub Releases；不需要 Docker Hub 账号。自 `.syh.8` 起默认仅发布双架构镜像与部署清单，跨平台下载包由配置显式开启。
 
 多台生产机各自使用 PostgreSQL、配置和数据卷，按维护记录分批升级。
@@ -18,13 +18,13 @@ looplj/axonhub。应用在 GitHub Actions 构建，镜像保存在 GitHub GHCR�
 | 对象 | 职责 |
 | --- | --- |
 | origin | Syh1906/axon-hub，自己的代码和发布 |
-| upstream | ChouUn/axon-hub，直接跟踪的维护版本 |
-| original-upstream | looplj/axonhub，核对原始发布、迁移和来源 |
+| upstream | ChouUn/axon-hub，继承 fork 历史与可选补丁来源 |
+| original-upstream | looplj/axonhub，直接同步的 release 基线 |
 | release/v1.0.x | 自己的长期维护分支 |
 | feature/*、fix/* | 二开功能与修复 |
-| sync/chouun-* | 合入某个 ChouUn 发布的临时分支 |
+| codex/sync-original-* | 合入原始上游 release 的临时分支 |
 
-从自己的维护分支创建同步分支，再 merge 直接上游的发布 tag。
+从自己的维护分支创建同步分支，再 merge 原始上游的发布 tag。
 已发布分支保持连续历史，不 rebase、强推或用上游分支覆盖自己的功能。
 
 首次配置远程时先检查 git remote -v；以下添加命令只在相应名称不存在时执行：
@@ -49,10 +49,10 @@ beta12 之后自己的版本采用 <原始上游 tag>-fork.N：
 
 | 场景 | 版本示例 |
 | --- | --- |
-| 当前代码首次独立发布 | v1.0.0-beta12-fork.1 |
-| 同一直接基线继续二开 | v1.0.0-beta12-fork.2 |
-| 合入 ChouUn 的 fork.8 后首次发布 | v1.0.0-beta12-fork.3 |
-| 直接上游以后基于 beta11 发布 fork.1 | v1.0.0-beta12-fork.4 |
+| beta12 基线首次发布 | v1.0.0-beta12-fork.1 |
+| 同一原始基线继续二开 | v1.0.0-beta12-fork.2 |
+| 后续合入其他 fork 的选定补丁 | v1.0.0-beta12-fork.3 |
+| 原始上游将来发布 beta13 并完成合并（示例） | v1.0.0-beta13-fork.1 |
 
 历史 `.syh.N` 仍可读取和追溯，但不再新增。原始上游变更后从 fork.1 开始递增，
 同一原始基线内严格递增，不得覆盖或移动已发布 tag。发布工作流只接收带 `-fork.N` 的 tag。
@@ -67,29 +67,29 @@ xversion.Parse 供升级检查和数据迁移共同使用，保证下列顺序�
 因此新迁移必须晚于已部署版本，不能在旧版本号下补迁移。
 
 Release 附件 release.json 包含 schemaVersion、version、repository、commit、
-upstream、originalUpstream、image、platforms 和 runURL。image 固定多架构摘要，
+upstream、originalUpstream、inheritedFork、image、platforms 和 runURL。image 固定多架构摘要，
 例如 ghcr.io/syh1906/axon-hub@sha256:…；tag 只用于标记版本，部署以摘要为准。
 
-## 合入直接上游
+## 合入原始上游
 
-以目标 v1.0.0-beta10-fork.8 为示例，实际执行前先确认它已发布：
+先核对目标 release tag 的真实性，并对照 [beta12 合并台账](../../fork-maintenance.md#v100-beta12原始上游合并目标-beta12-fork1)。以下用尚未确认发布的 beta13 作为操作示例：
 
     git switch release/v1.0.x
-    git pull --ff-only origin release/v1.0.x
-    git fetch upstream
-    git fetch original-upstream
-    git switch -c sync/chouun-v1.0.0-beta10-fork.8
-    git merge --no-ff v1.0.0-beta10-fork.8
+    git fetch original-upstream tag v1.0.0-beta13
+    git switch -c codex/sync-original-beta13
+    git merge --no-ff --no-commit v1.0.0-beta13
+
+合并保留两条父历史。beta12 的合并提交为 `50bc66fa`，后续通过原始上游 tag 比较新增范围，不重新重放 beta10 的全部 fork 改动。
 
 1. 逐项核对 [Fork 维护台账](../../fork-maintenance.md)，处理冲突并保留仍有效的自有功能。
-2. 检查原始上游及 ChouUn 的表结构迁移、数据迁移、配置和缓存变化；
+2. 检查原始上游新增表结构迁移、数据迁移与已有 fork 迁移、配置和缓存变化；
    新上游迁移不能因为自己的版本编号被跳过。
-3. 更新 release.config.json 的直接基线。原始基线仅在确实升级时更新。
+3. 更新 release.config.json 的 upstream 和 originalUpstream，inheritedFork 保留继承来源。
    用 git rev-parse '<tag>^{commit}' 取得提交号，不根据版本名猜测。
 4. 更新 .github/release-notes.md，列出新增功能、数据库/配置变化、支持的升级路径、
    真实验收结果及回退条件；同步维护台账。
 5. 运行相关检查。PR 和分支 CI 执行检查；正式发布核对同一提交在维护分支上的成功 Test 记录，不重复运行测试。
-6. 推送同步分支并创建 PR，审阅后合回自己的维护分支，再独立打 syh tag。
+6. 推送同步分支并创建 PR，审阅后合回自己的维护分支，再独立打 fork.N tag。
 
 同步上游不会自动发版或部署。不要使用 git push --mirror 或把所有历史 tag 一次推到 origin。
 
@@ -131,7 +131,7 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 发布级别调整不替换已有镜像或 tag；生产仍固定镜像摘要。
 
 中途失败不会把不完整版本公开为正式 Release。检查工作流记录后，可重试失败任务：
-重跑二进制发布前先核对现有草稿资产；已经公开的版本禁止重跑覆盖，使用新 syh 编号。
+重跑二进制发布前先核对现有草稿资产；已经公开的版本禁止重跑覆盖，使用新 fork.N 编号。
 镜像构建中途可能已有某架构 tag，发布成功与否以完整 Release 清单为准。
 
 ## 多台生产机部署
@@ -158,8 +158,8 @@ upstream、originalUpstream、image、platforms 和 runURL。image 固定多架�
 
 少量改动需要提前部署时，在维护分支的 Actions 中手动运行“按需构建快照镜像”
 （`.github/workflows/snapshot.yml`）。输入完整 40 位源码提交号 `commit` 和已公开的
-正式基线 `base_version`，例如 `v1.0.0-beta12-fork.10`。
-不创建 Git tag、Release 或新的 `.syh.N` 编号，也不自动部署生产机。
+正式基线 `base_version`，例如已发布的历史版本 `v1.0.0-beta10-fork.7.syh.19`（beta12 发布后再选对应正式版本）。
+不创建 Git tag、Release 或新的发布编号，也不自动部署生产机。
 手动入口要求工作流存在于 GitHub 默认分支；本仓库默认分支为 `release/v1.0.x`。
 
 工作流核对来源仓库、维护分支、两层上游和基线祖先关系；源码已包含更晚编号时拒绝

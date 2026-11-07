@@ -20,6 +20,16 @@ func TestResponsesProtocolIntegrationUpstreamWebSocket(t *testing.T) {
 			frames := make(chan []byte, 4)
 			closed := make(chan struct{})
 			upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if downstream == "http" {
+					require.Equal(t, http.MethodPost, r.Method)
+					body, err := readRequestBody(r)
+					require.NoError(t, err)
+					frames <- body
+					w.Header().Set("Content-Type", "application/json")
+					_, err = w.Write([]byte(`{"id":"provider-native","object":"response","status":"completed","output":[{"type":"message","id":"provider-tool-item","role":"assistant","content":[{"type":"output_text","text":"synthetic-answer"}]}]}`))
+					require.NoError(t, err)
+					return
+				}
 				require.Equal(t, http.MethodGet, r.Method)
 				require.Equal(t, "/v1/responses", r.URL.Path)
 				require.Equal(t, "Bearer synthetic-key", r.Header.Get("Authorization"))
@@ -83,7 +93,9 @@ func TestResponsesProtocolIntegrationUpstreamWebSocket(t *testing.T) {
 			first := <-frames
 			firstInput := gjson.GetBytes(first, "input")
 			require.Contains(t, firstInput.Raw, "root-canary")
-			require.Equal(t, "response.create", gjson.GetBytes(first, "type").String())
+			if downstream == "ws" {
+				require.Equal(t, "response.create", gjson.GetBytes(first, "type").String())
+			}
 		})
 	}
 }

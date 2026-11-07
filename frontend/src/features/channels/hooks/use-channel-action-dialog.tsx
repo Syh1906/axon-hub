@@ -21,7 +21,7 @@ import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecod
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
 import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
 import { PROVIDER_CONFIGS, getProviderFromChannelType, getApiFormatsForProvider, getChannelTypeForApiFormat, getBaseChannelTypeForProvider } from '../data/config_providers';
-import { getModelProtocolsForApiFormat, getCodexResponsesWebSocketState, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
@@ -256,13 +256,18 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   });
 
   useEffect(() => {
+    setQuotaRoutingMode(recallQuotaRoutingMode(initialRow?.settings));
+    setMaxSingleChannelRetriesText(formatMaxSingleChannelRetries(initialRow?.settings?.maxSingleChannelRetries));
+  }, [initialRow, open]);
+
+  useEffect(() => {
     if (!initialRow) return;
 
     const provider = getProviderFromChannelType(initialRow.type) || 'openai';
     setSelectedProvider(provider);
     setSelectedApiFormat(getInitialApiFormatForRow(initialRow));
     setResponsesTransport(getResponsesTransportFromChannel(initialRow));
-    setCodexResponsesWebSocket(getCodexResponsesWebSocketState(initialRow).enabled);
+    if (initialRow.type === 'codex') setCodexResponsesWebSocket(getCodexResponsesWebSocketState(initialRow).enabled);
     setUseGeminiVertex(initialRow.type === 'gemini_vertex');
     setUseAnthropicAws(initialRow.type === 'anthropic_aws');
     setUseKimiCoding(initialRow.type === 'moonshot_coding');
@@ -1164,7 +1169,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         return;
       }
 
-      if (selectedApiFormat === OPENAI_RESPONSES) {
+      if (isCodexType) {
+        dataWithModels.endpoints = buildCodexResponsesEndpoints(dataWithModels.endpoints, responsesTransport === 'websocket');
+      } else if (selectedApiFormat === OPENAI_RESPONSES) {
         dataWithModels.baseURL = dataWithModels.baseURL?.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
         const endpoints = [...(dataWithModels.endpoints ?? [])];
         const index = endpoints.findIndex((ep) => ep.apiFormat === OPENAI_RESPONSES);

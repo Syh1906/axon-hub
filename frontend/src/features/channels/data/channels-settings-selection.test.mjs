@@ -42,7 +42,8 @@ test('every settings selection block in channels.ts requests quotaRoutingMode', 
   const blocks = extractSettingsBlocks();
   assert.ok(blocks.length >= 1, 'no `settings {` blocks found — selection extraction is broken');
 
-  const missing = blocks.filter((b) => !/\bquotaRoutingMode\b/.test(b.body));
+  // Pricing reads only the multiplier and never feed a channel settings write.
+  const missing = blocks.filter((b) => b.name !== 'GET_CHANNEL_MODEL_PRICES_QUERY' && !/\bquotaRoutingMode\b/.test(b.body));
   assert.deepEqual(
     missing.map((b) => b.name),
     [],

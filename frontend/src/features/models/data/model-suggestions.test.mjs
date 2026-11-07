@@ -54,7 +54,7 @@ test('both direct presets offer Flash first and keep the regional endpoints', ()
 });
 
 test('filtering only affects suggestions, retaining complete fetched data for sync and saved selections', () => {
-  const source = read('../../channels/components/channels-action-dialog.tsx');
+  const source = read('../../channels/hooks/use-channel-action-dialog.tsx') + read('../../channels/components/channels-action-dialog.tsx');
   assert.match(source, /let models = fetchedModels\.filter\(isSuggestedModel\)/);
   assert.match(source, /items=\{fetchedModels\.filter\(isSuggestedModel\)\.map/);
   assert.match(source, /const fetchedModelsSet = new Set\(fetchedModels\)/);

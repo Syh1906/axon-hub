@@ -16,7 +16,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
-"github.com/looplj/axonhub/llm/transformer/shared"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 func TestResponsesProtocolWireMatrix(t *testing.T) {
@@ -80,8 +80,10 @@ func TestResponsesProtocolWireMatrix(t *testing.T) {
 				EndpointPath:   tt.endpointPath,
 			})
 			require.NoError(t, err)
-ctx := context.Background()
-if tt.source == llm.APIFormatOpenAIResponseWebSocket { ctx = shared.WithResponsesWebSocket(ctx) }
+			ctx := context.Background()
+			if tt.source == llm.APIFormatOpenAIResponseWebSocket {
+				ctx = shared.WithResponsesWebSocket(ctx)
+			}
 			requestBody, err := responses.AdaptRequestBody(
 				[]byte(`{"model":"wire-model","input":[{"type":"function_call_output","call_id":"call_wire","item_id":"item_wire","output":"canary"}],"provider_canary":"keep"}`),
 				llm.APIFormatOpenAIResponse,
@@ -111,7 +113,7 @@ if tt.source == llm.APIFormatOpenAIResponseWebSocket { ctx = shared.WithResponse
 			}
 			require.Equal(t, expectedMethod, method)
 			require.Equal(t, tt.expectedPath, path)
-			require.Equal(t, tt.target == responses.TransportWebSocket, upgraded)
+			require.Equal(t, tt.target == responses.TransportWebSocket && tt.source == llm.APIFormatOpenAIResponseWebSocket, upgraded)
 			require.Contains(t, body, "call_wire")
 			require.Contains(t, string(requestBody), "call_wire")
 			mu.Unlock()

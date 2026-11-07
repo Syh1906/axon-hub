@@ -669,7 +669,7 @@ func applyPassThroughStream(outbound *PersistentOutboundTransformer, systemServi
 
 		// Events captured while the pipeline pre-read the attempt precede the channel.
 		var held []*httpclient.StreamEvent
-var attachErr error
+		var attachErr error
 		var errMu *sync.Mutex
 		queue := outbound.state.RawStreamQueue
 		if queue != nil {
@@ -680,7 +680,9 @@ var attachErr error
 			errMu = &backlog.mu
 		}
 
-if attachErr != nil { return nil, attachErr }
+		if attachErr != nil {
+			return nil, attachErr
+		}
 		channel := outbound.GetCurrentChannel()
 
 		log.Debug(ctx, "applying pass-through stream",
@@ -910,7 +912,7 @@ func (s *responsesTransportStream) Close() error { return s.stream.Close() }
 // the channel buffer fills. Raw count and bytes are bounded before pipeline delivery,
 // including events filtered by the transformer and retained by persistence.
 type rawStreamBacklog struct {
-err error
+	err      error
 	mu       sync.Mutex
 	attached bool
 	events   []*httpclient.StreamEvent
@@ -934,8 +936,10 @@ func (b *rawStreamBacklog) hold(event *httpclient.StreamEvent) (bool, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.err != nil { return false, b.err }
-if b.attached {
+	if b.err != nil {
+		return false, b.err
+	}
+	if b.attached {
 		return false, nil
 	}
 
@@ -946,8 +950,8 @@ if b.attached {
 	}
 	if b.count >= maxRawPreAttachEvents || size > maxBytes-b.bytes {
 		b.err = errRawPreAttachBudgetExceeded
-b.events = nil
-return false, b.err
+		b.events = nil
+		return false, b.err
 	}
 	b.bytes += size
 	b.count++
@@ -962,7 +966,9 @@ func (b *rawStreamBacklog) attach() ([]*httpclient.StreamEvent, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-if b.err != nil { return nil, b.err }
+	if b.err != nil {
+		return nil, b.err
+	}
 	b.attached = true
 	events := b.events
 	b.events = nil

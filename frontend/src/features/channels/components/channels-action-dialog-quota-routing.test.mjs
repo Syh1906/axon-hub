@@ -7,11 +7,13 @@ import ts from 'typescript';
 // mergeChannelSettingsForUpdate without loading React or its providers.
 const dialogPath = new URL('./channels-action-dialog.tsx', import.meta.url);
 const source = readFileSync(dialogPath, 'utf8');
-const ast = ts.createSourceFile('channels-action-dialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const hookSource = readFileSync(new URL('../hooks/use-channel-action-dialog.tsx', import.meta.url), 'utf8');
+const helpersSource = readFileSync(new URL('../utils/channel-dialog.ts', import.meta.url), 'utf8');
+const ast = ts.createSourceFile('channel-dialog.ts', helpersSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 const helperNames = ['recallQuotaRoutingMode', 'quotaRoutingModeSettingsPatch'];
 const helperNodes = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && helperNames.includes(node.name?.text));
-assert.equal(helperNodes.length, 2, 'mapping helpers must stay in channels-action-dialog.tsx');
+assert.equal(helperNodes.length, 2, 'mapping helpers must exist in channel-dialog.ts');
 const helpers = helperNodes.map((node) => `export ${node.getText(ast).replace(/^export\s+/, '')}`).join('\n');
 
 function loadTsModule(sourceText) {
@@ -77,8 +79,8 @@ test('clobber protection: unrelated edit keeps the stored mode, INHERIT selectio
 });
 
 test('mapping helpers stay wired into the dialog payload boundaries', () => {
-  const spread = source.split('...quotaRoutingModeSettingsPatch(quotaRoutingMode)').length - 1;
-  const recall = source.split('recallQuotaRoutingMode(initialRow?.settings)').length - 1;
+  const spread = hookSource.split('...quotaRoutingModeSettingsPatch(quotaRoutingMode)').length - 1;
+  const recall = hookSource.split('recallQuotaRoutingMode(initialRow?.settings)').length - 1;
   assert.equal(spread, 2, 'payload mapping must feed the edit settingsPatch and the create merge');
   assert.equal(recall, 2, 'recall mapping must feed the state init and the reopen reset');
 });

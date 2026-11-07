@@ -23,6 +23,16 @@ test('发布使用独立 syh 编号，拒绝上游 tag、错误基线和非整�
   assert.throws(() => validateTag('v1.0.0-beta10-fork.7.syh.01', config));
 });
 
+test('beta12 起只接受原始上游的 fork 编号，历史 syh 配置仍可读取', () => {
+  const current = { ...config, upstreamRepository: 'looplj/axonhub', upstreamTag: 'v1.0.0-beta12' };
+  assert.equal(validateTag('v1.0.0-beta12-fork.1', current), 1);
+  assert.equal(validateTag('v1.0.0-beta12-fork.12', current), 12);
+  for (const tag of ['v1.0.0-beta12.syh.1', 'v1.0.0-beta12', 'v1.0.0-beta12-fork.0', 'v1.0.0-beta12-fork.01', 'v1.0.0-beta13-fork.1']) {
+    assert.throws(() => validateTag(tag, current));
+  }
+  assert.equal(validateTag('v1.0.0-beta10-fork.7.syh.19', config), 19);
+});
+
 test('清单固定源码、上游基线和多架构镜像摘要', () => {
   const prepared = { config: { ...config, upstreamCommit: 'b'.repeat(40) },
     version: 'v1.0.0-beta10-fork.7.syh.1', commit: 'a'.repeat(40), image: 'ghcr.io/syh1906/axon-hub' };
@@ -74,5 +84,36 @@ test('真实 Git 历史拒绝分支外发布、错误 tag 及倒退编号', () =
   git('tag', 'v1.0.0-beta10-fork.7.syh.2');
   assert.throws(() => prepareRelease(root, config.repository, tag), /继续递增/);
   git('update-ref', `refs/remotes/origin/${config.branch}`, upstreamCommit);
+  assert.throws(() => prepareRelease(root, config.repository, tag));
+});
+
+
+test('beta12 发布必须同时包含原始上游和继承 fork 的历史', () => {
+  assert.ok(process.env.RELEASE_TEST_ROOT);
+  const root = mkdtempSync(join(process.env.RELEASE_TEST_ROOT, 'beta12-'));
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=发布测试', '-c', 'user.email=test@example.invalid', ...args], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git('init', '-b', config.branch);
+  writeFileSync(join(root, 'notes.md'), 'beta12 合并记录');
+  git('add', '.');
+  git('commit', '-m', '公共基线');
+  const base = git('rev-parse', 'HEAD');
+  git('commit', '--allow-empty', '-m', '继承 fork');
+  const inherited = git('rev-parse', 'HEAD');
+  git('checkout', '-b', 'original-beta12', base);
+  git('commit', '--allow-empty', '-m', '原始 beta12');
+  const upstreamCommit = git('rev-parse', 'HEAD');
+  git('checkout', config.branch);
+  git('merge', '--no-ff', 'original-beta12', '-m', '合并 beta12');
+  const current = { ...config, upstreamRepository: 'looplj/axonhub', upstreamTag: 'v1.0.0-beta12', upstreamCommit,
+    originalUpstream: { repository: 'looplj/axonhub', tag: 'v1.0.0-beta12', commit: upstreamCommit },
+    inheritedFork: { repository: 'ChouUn/axon-hub', tag: 'v1.0.0-beta10-fork.7', commit: inherited } };
+  writeFileSync(join(root, 'release.config.json'), JSON.stringify(current));
+  git('add', '.'); git('commit', '-m', '发布来源');
+  git('update-ref', `refs/remotes/origin/${config.branch}`, 'HEAD');
+  const tag = 'v1.0.0-beta12-fork.1'; git('tag', tag);
+  const prepared = prepareRelease(root, config.repository, tag);
+  assert.deepEqual(createManifest(prepared, `sha256:${'c'.repeat(64)}`, 'https://example.invalid/run').inheritedFork, current.inheritedFork);
+  const detached = git('commit-tree', 'HEAD^{tree}', '-m', '不属于发布历史');
+  writeFileSync(join(root, 'release.config.json'), JSON.stringify({ ...current, inheritedFork: { ...current.inheritedFork, commit: detached } }));
   assert.throws(() => prepareRelease(root, config.repository, tag));
 });

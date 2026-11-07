@@ -1,9 +1,9 @@
 package api
 
 import (
+	"errors"
+	"github.com/looplj/axonhub/internal/ent/privacy"
 	"net/http"
-"errors"
-"github.com/looplj/axonhub/internal/ent/privacy"
 	"regexp"
 	"strconv"
 
@@ -22,8 +22,10 @@ func (h *OpenAIHandlers) ListCodexModels(c *gin.Context) {
 	c.Header("X-AxonHub-Catalog-Omitted", strconv.Itoa(omitted))
 	if err != nil {
 		status := http.StatusServiceUnavailable
-if errors.Is(err, privacy.Deny) { status = http.StatusForbidden }
-c.JSON(status, gin.H{"error": gin.H{"code": "codex_catalog_unavailable", "message": err.Error()}})
+		if errors.Is(err, privacy.Deny) {
+			status = http.StatusForbidden
+		}
+		c.JSON(status, gin.H{"error": gin.H{"code": "codex_catalog_unavailable", "message": err.Error()}})
 		return
 	}
 	c.Header("Cache-Control", "private, no-store")

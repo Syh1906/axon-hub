@@ -972,16 +972,16 @@ func TestChatCompletionOrchestrator_Process_StickyChannelRetryBudget(t *testing.
 			wantModels: []string{"gpt-4"},
 		},
 		{
-			name: "single channel exhausts retries", retries: 2, failures: 3, wantError: true,
-			wantModels: []string{"gpt-4", "gpt-4", "gpt-4"},
+			name: "sticky channel remains one shot despite retry budget", retries: 2, failures: 3, wantError: true,
+			wantModels: []string{"gpt-4"},
 		},
 		{
-			name: "single channel recovers on final retry", retries: 2, failures: 2,
-			wantModels: []string{"gpt-4", "gpt-4", "gpt-4"},
+			name: "sticky failure does not consume a later synthetic success", retries: 2, failures: 2, wantError: true,
+			wantModels: []string{"gpt-4"},
 		},
 		{
-			name: "fallback follows sticky retries", retries: 2, failures: 3, fallback: true,
-			wantModels: []string{"gpt-4", "gpt-4", "gpt-4", "gpt-3.5-turbo"},
+			name: "fallback follows one sticky attempt", retries: 2, failures: 1, fallback: true,
+			wantModels: []string{"gpt-4", "gpt-3.5-turbo"},
 		},
 		{
 			name: "zero retries switches directly to fallback", failures: 1, fallback: true,

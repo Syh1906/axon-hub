@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 export function validateTag(tag, config) {
   const primary = `${config.upstreamTag}-fork.`;
   const legacy = `${config.upstreamTag}.syh.`;
-  const prefix = tag.startsWith(primary) ? primary : legacy;
+  const prefix = config.upstreamRepository === 'ChouUn/axon-hub' ? legacy : primary;
   const suffix = tag.startsWith(prefix) ? tag.slice(prefix.length) : '';
   if (!/^[1-9]\d*$/.test(suffix) || !Number.isSafeInteger(Number(suffix))) {
     throw new Error(`版本必须采用 ${primary}N；历史 syh 版本仅用于兼容读取`);

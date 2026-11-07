@@ -554,7 +554,9 @@ func (s *RequestService) UpdateRequestFinalized(
 		return err
 	}
 
-	if updated > 0 { s.recordChatRequestMetrics(ctx, req, status, metrics) }
+	if updated > 0 {
+		s.recordChatRequestMetrics(ctx, req, status, metrics)
+	}
 
 	return nil
 }
@@ -1663,8 +1665,12 @@ func buildPreviousThreadChannelCacheKey(threadID int) string {
 
 // Metrics are best-effort and must observe the status before the terminal write.
 func (s *RequestService) requestMetricSnapshot(ctx context.Context, client *ent.Client, id int) *ent.Request {
- if !metrics.Enabled() { return nil }
- req, err := client.Request.Query().Where(request.IDEQ(id)).Select(request.FieldID, request.FieldStatus, request.FieldChannelID, request.FieldCreatedAt).Only(ctx)
- if err != nil { return nil }
- return req
+	if !metrics.Enabled() {
+		return nil
+	}
+	req, err := client.Request.Query().Where(request.IDEQ(id)).Select(request.FieldID, request.FieldStatus, request.FieldChannelID, request.FieldCreatedAt).Only(ctx)
+	if err != nil {
+		return nil
+	}
+	return req
 }

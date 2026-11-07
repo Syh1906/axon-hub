@@ -69,9 +69,9 @@ test('Bailian exposes native Responses with the officially documented fully comp
   );
   assert.match(providersConfig, /bailian:\s*{[\s\S]*channelTypes:\s*\[\s*'bailian',\s*'bailian_anthropic',\s*'bailian_responses'\s*\]/);
 
-  const configBlock = channelsConfig.match(/bailian_responses:\s*{([\s\S]*?)\n  },\n  bailian_anthropic:/)?.[1] ?? '';
+  const configBlock = channelsConfig.match(/bailian_responses:\s*{([\s\S]*?)\r?\n  },\r?\n  bailian_anthropic:/)?.[1] ?? '';
   const modelsBlock = configBlock.match(/defaultModels:\s*\[([\s\S]*?)\]/)?.[1] ?? '';
-  const models = [...modelsBlock.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  const models = [...modelsBlock.replace(/\/\/[^\n]*/g, '').matchAll(/'([^']+)'/g)].map((match) => match[1]);
   assert.deepEqual(models, [
     'qwen3.8-max',
     'qwen3.8-max-0902',
@@ -177,7 +177,7 @@ test('channel table shows normalized provider quota for any channel type', () =>
 });
 
 test('quota selection follows quota column visibility and preserves normalized fields', () => {
-  const channelsData = read('features/channels/data/channels.ts');
+  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-query-fields.ts');
   const channelIndex = read('features/channels/index.tsx');
   const channelColumns = read('features/channels/components/channels-columns.tsx');
   const enSystem = JSON.parse(read('locales/en/system.json'));
@@ -206,7 +206,7 @@ test('quota selection follows quota column visibility and preserves normalized f
 });
 
 test('filter-only model column stays hidden while model filtering remains configured', () => {
-  const channelsData = read('features/channels/data/channels.ts');
+  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-query-fields.ts');
   const channelColumns = read('features/channels/components/channels-columns.tsx');
   const channelsConfig = read('features/channels/data/config_channels.ts');
 
@@ -222,7 +222,7 @@ test('filter-only model column stays hidden while model filtering remains config
 
 test('ZenMux quota schema accepts all channel variants without row grouping', () => {
   const schema = read('features/channels/data/schema.ts');
-  const channelsData = read('features/channels/data/channels.ts');
+  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-query-fields.ts');
 
   for (const type of ['zenmux', 'zenmux_responses', 'zenmux_anthropic', 'zenmux_gemini', 'zenmux_video']) {
     assert.match(schema, new RegExp(`'${type}'`), `channel schema should accept ${type}`);
