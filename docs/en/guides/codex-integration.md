@@ -187,6 +187,8 @@ Automatic results are not stored in `settings.codexCatalog`. New associations, k
 
 ### Official release snapshots and rollback
 
+Available since `v1.0.0-beta10-fork.7.syh.19`. Existing automatic catalog configurations need no reimport: the rules below apply after upgrading. Complete third-party definitions remain supported.
+
 AxonHub bundles the complete `models.json` from OpenAI Codex release tags 0.166.0 and 0.167.0. Original bytes, source URLs and SHA-256 digests are in `internal/server/biz/codexdata/`. No OpenAI credential or metadata-bearing inference channel is required. These are release snapshots, not the authenticated service's live catalog or a grant of model access.
 
 Lookup uses the model page's exact **public model ID**, after resolving key aliases. An inherited definition can explicitly select a `sourceModelId`. No model names are guessed from prefixes, regexes or similarity, and no inference routes are added. Existing equally complete same-model channel metadata retains precedence. Official metadata fills missing profiles, different-model alias profiles, or a smaller set of non-`none` reasoning choices. Client tool protocols must still be compatible with a caller-visible route.
