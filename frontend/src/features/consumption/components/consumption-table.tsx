@@ -52,6 +52,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
       { key: 'totalTokens', format: 'tokens' },
       { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
       { key: 'totalCost', format: 'currency' },
+      { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' },
     ];
   return [
     { key: 'requestCount', format: 'number' },
@@ -61,7 +62,7 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
     { key: 'avgFirstTokenMs', format: 'ms', tooltip: 'firstTokenHelp' },
     { key: 'avgTokensPerSecond', format: 'speed', tooltip: 'speedHelp' },
     { key: 'avgCostPerRequest', format: 'currency' },
-    { key: 'avgCostPerMillionTokens', format: 'currency' },
+    { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' },
     { key: 'cacheCoefficient', format: 'coefficient', tooltip: 'cacheCoefficientHelp' },
     { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
   ];

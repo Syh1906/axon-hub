@@ -406,6 +406,35 @@ func TestConsumptionCacheWindowsIdempotenceAndConfidence(t *testing.T) {
 	}
 }
 
+func TestConsumptionCacheWindowsExcludeAmbiguousUsage(t *testing.T) {
+	f := newConsumptionFixture(t)
+	at := time.Now().UTC().Add(-time.Hour).Truncate(cacheWindowInterval)
+	f.addRequest(t, at, "model-a", request.StatusCompleted, 1000, 100, 800, 0, 1, nil)
+	ambiguous, _ := f.addRequest(t, at, "model-a", request.StatusCompleted, 1000, 100, 400, 0, 1, nil)
+	f.client.UsageLog.Create().SetRequestID(ambiguous.ID).SetProjectID(f.project.ID).
+		SetChannelID(f.channel.ID).SetAPIKeyID(f.key.ID).SetModelID("model-a").
+		SetPromptTokens(1000).SetCompletionTokens(50).SetTotalTokens(1050).
+		SetPromptCachedTokens(500).SetTotalCost(0.5).SaveX(f.ctx)
+
+	require.NoError(t, f.service.writeCacheWindow(f.ctx, f.project.ID, at, at.Add(cacheWindowInterval)))
+	window := f.client.CacheEffectivenessWindow.Query().OnlyX(f.ctx)
+	require.EqualValues(t, 2, window.SampleCount, "ambiguous requests remain observable samples")
+	require.EqualValues(t, 1, window.EligibleCount)
+	require.EqualValues(t, 1000, window.TheoreticalTokens)
+	require.EqualValues(t, 800, window.ObservedTokens, "retry usage must not inflate final-execution cache reads")
+
+	// This gate only changes cache effectiveness. Billing and token totals still
+	// retain all recorded usage, including the additional charged attempt.
+	result, err := f.service.Leaderboard(f.viewer(t, f.project.ID, string(scopes.ScopeReadLeaderboard)), ConsumptionFilter{
+		Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1)
+	require.Equal(t, 2, result.Entries[0].Metrics.RequestCount)
+	require.InDelta(t, 2.5, result.Entries[0].Metrics.TotalCost, 1e-9)
+	require.EqualValues(t, 3250, result.Entries[0].Metrics.TotalTokens)
+}
+
 func TestConsumptionCacheWindowsCombineModelsTTLsAndProjects(t *testing.T) {
 	f := newConsumptionFixture(t)
 	at := time.Now().UTC().Add(-time.Hour).Truncate(cacheWindowInterval)

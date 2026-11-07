@@ -148,7 +148,9 @@ func (s *ConsumptionService) writeCacheWindow(ctx context.Context, projectID int
 	var groups []consumptionCacheGroup
 	err := s.client.Request.Query().Where(request.ProjectIDEQ(projectID), request.CreatedAtGTE(start), request.CreatedAtLT(end)).Modify(func(q *sql.Selector) {
 		u, execution := joinConsumption(q, projectID, &start, end)
-		eligible := q.C("status") + " = 'completed' AND " + execution.C("status") + " = 'completed' AND " + u.C("usage_count") + " > 0"
+		// Multiple usage rows cannot be attributed to the final execution. Keep the
+		// request in Samples, but exclude its tokens from the effectiveness estimate.
+		eligible := q.C("status") + " = 'completed' AND " + execution.C("status") + " = 'completed' AND " + u.C("usage_count") + " = 1"
 		q.Where(sql.NotNull(execution.C("cache_compatibility_key"))).Where(sql.GT(q.C("channel_id"), 0))
 		q.Select(q.C("channel_id"), sql.As(execution.C("model_id"), "model"), sql.As(execution.C("cache_ttl_bucket"), "ttl"),
 			sql.As(sql.Count("*"), "samples"),

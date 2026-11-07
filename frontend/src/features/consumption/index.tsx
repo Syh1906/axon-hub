@@ -219,6 +219,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               {dimension === 'MODEL'
                 ? t(metric === 'CACHE' ? 'consumption.modelCacheNote' : 'consumption.modelCostNote')
                 : t(metric === 'CACHE' ? 'consumption.cacheNote' : 'consumption.costNote')}
+              {dimension === 'CHANNEL' && <span className='ml-2'>{t('consumption.cacheCoefficientNote')}</span>}
             </span>
             {data && (
               <span className='flex items-center gap-2'>

@@ -907,7 +907,7 @@ export const createColumns = (
       : []),
     {
       accessorKey: 'name',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.name')} />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('common.columns.name')} />,
       cell: ({ row }: { row: Row<Channel> }) => <NameCell row={row} globalDefaultMode={globalDefaultMode} />,
       meta: {
         className: 'md:table-cell min-w-40 text-center',
@@ -918,7 +918,7 @@ export const createColumns = (
     {
       id: 'provider',
       accessorKey: 'type',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.provider')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.provider')} className='justify-center' />,
       cell: ProviderCell,
       meta: {
         className: 'w-[19%] min-w-28 text-center',
@@ -931,7 +931,7 @@ export const createColumns = (
     },
     {
       accessorKey: 'status',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.status')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('common.columns.status')} className='justify-center' />,
       cell: StatusSwitchCell,
       meta: {
         className: 'w-[15%] min-w-20 text-center',
@@ -942,7 +942,7 @@ export const createColumns = (
     {
       id: 'quota',
       accessorFn: (row) => row.providerQuotaStatus?.status ?? '',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.quota')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.quota')} className='justify-center' />,
       cell: QuotaCell,
       meta: {
         className: 'w-36 min-w-36 text-center',
@@ -953,7 +953,7 @@ export const createColumns = (
 
     {
       accessorKey: 'tags',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.tags')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.tags')} className='justify-center' />,
       cell: TagsCell,
       meta: {
         className: 'w-[10%] min-w-28 text-center',
@@ -980,7 +980,7 @@ export const createColumns = (
     {
       accessorKey: 'supportedModels',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('channels.columns.supportedModels')} className='justify-center' />
+        <DataTableColumnHeader fitContent column={column} title={t('channels.columns.supportedModels')} className='justify-center' />
       ),
       cell: SupportedModelsCell,
       meta: {
@@ -992,7 +992,7 @@ export const createColumns = (
       id: 'endpointProtocols',
       accessorFn: (row) => Array.from(getChannelRelayProtocols(row.defaultEndpoints, row.endpoints)).join(','),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('channels.columns.endpointProtocols')} className='justify-center' />
+        <DataTableColumnHeader fitContent column={column} title={t('channels.columns.endpointProtocols')} className='justify-center' />
       ),
       cell: ({ row }: { row: Row<Channel> }) => <EndpointProtocolsCell channel={row.original} />,
       meta: {
@@ -1004,7 +1004,7 @@ export const createColumns = (
     {
       id: 'proxy',
       accessorFn: (row) => row.settings?.proxy?.url ?? row.settings?.proxy?.type ?? '',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.proxy')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.proxy')} className='justify-center' />,
       cell: ProxyCell,
       meta: {
         className: 'w-[13%] min-w-28 text-center',
@@ -1015,7 +1015,7 @@ export const createColumns = (
     {
       id: 'health',
       accessorKey: 'health',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.health')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.health')} className='justify-center' />,
       cell: ({ row }: { row: Row<Channel> }) => {
         const probePoints = (row.original as any).probePoints || [];
         return (
@@ -1033,7 +1033,7 @@ export const createColumns = (
     {
       id: 'load',
       accessorKey: 'liveUsage',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.load')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.load')} className='justify-center' />,
       cell: ({ row }) => <ChannelLimiterCell channel={row.original} />,
       meta: { className: 'w-36 min-w-36 text-center' },
       enableSorting: false,
@@ -1042,7 +1042,7 @@ export const createColumns = (
     {
       id: 'priority',
       accessorFn: (channel) => channelDisplayPriority(channel, tag).priority,
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.priority')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.priority')} className='justify-center' />,
       cell: ({ row }) => <ChannelPriorityCell channel={row.original} tag={tag} canWrite={canWrite} />,
       meta: { className: 'w-24 min-w-24 text-center' },
       enableSorting: true,
@@ -1051,7 +1051,7 @@ export const createColumns = (
     {
       accessorKey: 'orderingWeight',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('channels.columns.orderingWeight')} className='justify-center' />
+        <DataTableColumnHeader fitContent column={column} title={t('channels.columns.orderingWeight')} className='justify-center' />
       ),
       cell: ({ row }) => <ChannelRoutingValueCell channel={row.original} field='orderingWeight' canWrite={canWrite} />,
       meta: {
@@ -1065,7 +1065,7 @@ export const createColumns = (
       id: 'upstreamBalance',
       accessorFn: (channel) => channel.upstreamState?.provider ?? '',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('channels.columns.upstreamBalance')} className='justify-center' />
+        <DataTableColumnHeader fitContent column={column} title={t('channels.columns.upstreamBalance')} className='justify-center' />
       ),
       cell: ({ row }) => <ChannelUpstreamBalanceCell channel={row.original} />,
       meta: { className: 'w-40 min-w-40 text-center' },
@@ -1074,7 +1074,7 @@ export const createColumns = (
     },
     {
       id: 'todayUsage',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('channels.columns.todayUsage')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.todayUsage')} className='justify-center' />,
       cell: ({ row }) => <ChannelTodayUsageCell channel={row.original} />,
       meta: { className: 'w-32 min-w-32 text-center' },
       enableSorting: false,
@@ -1085,7 +1085,7 @@ export const createColumns = (
       accessorFn: (channel) => channel.settings?.modelPriceMultiplier ?? '1',
       header: ({ column }) => (
         <span title={t('channels.upstream.sortHint')}>
-          <DataTableColumnHeader column={column} title={t('channels.columns.costMultiplier')} className='justify-center' />
+          <DataTableColumnHeader fitContent column={column} title={t('channels.columns.costMultiplier')} className='justify-center' />
         </span>
       ),
       cell: ({ row }) => <ChannelUpstreamMultiplierCell channel={row.original} canWrite={canWrite} />,
@@ -1095,7 +1095,7 @@ export const createColumns = (
     },
     {
       accessorKey: 'createdAt',
-      header: ({ column }) => <DataTableColumnHeader column={column} title={t('common.columns.createdAt')} className='justify-center' />,
+      header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('common.columns.createdAt')} className='justify-center' />,
       cell: CreatedAtCell,
       meta: {
         className: 'w-28 min-w-28 text-center',
@@ -1108,7 +1108,7 @@ export const createColumns = (
           {
             id: 'action',
             header: ({ column }: { column: any }) => (
-              <DataTableColumnHeader column={column} title={t('common.columns.actions')} className='justify-center' />
+              <DataTableColumnHeader fitContent column={column} title={t('common.columns.actions')} className='justify-center' />
             ),
             cell: ActionCell,
             meta: {

@@ -51,7 +51,7 @@ Overall cache-hit rate in cost rankings and usage summaries divides all cache-re
 
 | Ranking | Model fields |
 | --- | --- |
-| User/key/group cost | Model, request count, total tokens, overall cache-hit rate, cost |
+| User/key/group cost | Model, request count, total tokens, overall cache-hit rate, cost, cost/million tokens |
 | Channel cost | Model, requests, cost, total tokens, success rate, average first-token latency, average output speed, cost/request, cost/million tokens, cache coefficient, overall cache-hit rate |
 | User/key cache | Model, cache-triggered requests, hit rate, cache-read tokens, total input tokens; model cost displays an em dash |
 | Channel cache | Model, cache-triggered requests, hit rate, cache coefficient, cache-read tokens, total input tokens |
@@ -71,7 +71,7 @@ Cost rankings default to descending cost. User/key cache rankings sort by hit ra
 
 Sampling supports Anthropic Messages, OpenAI Chat Completions/Responses and Gemini Contents. CCH normalization produces a digest and normalized prefix byte length; theoretical cache tokens are `floor(bytes / 4)`. The digest separates project, caller key, format and requested model. Prompt text is not stored by this collector. The digest is only a sampling marker and does not affect affinity or routing.
 
-Only successfully completed final executions with observable upstream usage are eligible. Failed, canceled, truncated and unobservable attempts remain in the sample count but do not contribute theoretical or observed tokens. Data is grouped by project, final channel, model and 5m/1h TTL bucket.
+Current eligibility requires a successfully completed final execution and exactly one usage row for the same request, channel and project. Multiple rows cannot be attributed uniquely to the final execution: they remain observable samples but contribute neither eligible samples nor theoretical/observed tokens. Failed, canceled, truncated requests and requests without usage rows are also excluded. Billing and token totals continue to retain all recorded usage. Data is grouped by project, final channel, model and 5m/1h TTL bucket.
 
 The existing scheduler runs every five minutes with a 15-minute terminal-state lag. The first run looks back one hour; later runs resume at the latest window. Fixed five-minute windows, a unique key and Ent upserts prevent duplicate accumulation across instances. Empty periods are skipped through an indexed lookup.
 
@@ -86,6 +86,19 @@ coefficient = raw * confidence / 10000
 ```
 
 Each division truncates. The UI divides the result by 10000 to display 0–1. No window samples produces an em dash. The score normally lags by 15–20 minutes. Requests settling after the buffer may be excluded from the window's eligible samples, matching CCH's display-only limitation. Cost and cache-hit statistics update independently.
+
+The coefficient compares observed cache utilization under similar workloads. It is neither a billing discount nor the cache-hit rate. With all samples eligible and observed reads equal to half the estimated cacheable tokens, 100 eligible samples yield about 0.50; 10 samples apply a 0.3 factor and yield about 0.15. A score of 0.50 does not mean half-price billing.
+
+### Known limitations and deferred correction
+
+The 2026-11-07 review confirmed that one usage row does not prove that the provider reported input usage. Tokenless flat-fee billing can create a zero-token row, and protocol conversion currently loses the distinction between a missing input field and an explicitly reported zero. This change only fixes ambiguous multi-row attribution; it does not fully correct the coefficient. Existing windows are not automatically recomputed and historical ranges can retain old results. The user explicitly deferred the complete correction:
+
+1. Preserve missing, null and explicit-zero input evidence through Chat, Responses, Anthropic and Gemini parsing, including the relevant events during stream aggregation.
+2. Carry this evidence through unified usage and persist it per execution, including budget recovery and late settlement. Leave historical evidence unknown; neither positive token counts nor enabled budgets substitute for evidence.
+3. Define a window calculation version and the scope of reliable historical recomputation. Do not mix new/old evidence, change released migration behavior or infer missing values from stored zeros.
+4. Cover missing/null/zero, split stream events, retries, disabled budgets and recovery, while preserving cost/token totals and checking upgrades and idempotent aggregation.
+
+This local correction adds no schema/data migration and changes neither pricing nor budgets.
 
 ## Queries, storage and upgrades
 

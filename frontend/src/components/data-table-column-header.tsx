@@ -8,22 +8,30 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 interface DataTableColumnHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   title: string;
+  fitContent?: boolean;
 }
 
-export function DataTableColumnHeader<TData, TValue>({ column, title, className }: DataTableColumnHeaderProps<TData, TValue>) {
+export function DataTableColumnHeader<TData, TValue>({ column, title, className, fitContent = false }: DataTableColumnHeaderProps<TData, TValue>) {
   const { t } = useTranslation();
 
   if (!column.getCanSort()) {
-    return <div className={cn('text-muted-foreground text-xs font-medium leading-5 truncate', className)}>{title}</div>;
+    return <div className={cn('text-muted-foreground text-xs font-medium leading-5', fitContent ? 'whitespace-nowrap' : 'truncate', className)}>{title}</div>;
   }
 
   return (
     <div className={cn('flex items-center space-x-2 min-w-0', className)}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant='ghost' size='sm' className='data-[state=open]:bg-accent -ml-3 h-8 max-w-full min-w-0 text-xs font-medium leading-5 text-muted-foreground'>
-            <span className='truncate'>{title}</span>
-            <span className='shrink-0 ml-2'>
+          <Button
+            variant='ghost'
+            size='sm'
+            className={cn(
+              'data-[state=open]:bg-accent h-8 text-xs font-medium leading-5 text-muted-foreground',
+              fitContent ? '-ml-2 gap-1 px-2' : '-ml-3 max-w-full min-w-0'
+            )}
+          >
+            <span className={fitContent ? 'whitespace-nowrap' : 'truncate'}>{title}</span>
+            <span className={cn('shrink-0', !fitContent && 'ml-2')}>
               {column.getIsSorted() === 'desc' ? (
                 <ArrowDownIcon className='h-4 w-4' />
               ) : column.getIsSorted() === 'asc' ? (
