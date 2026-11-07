@@ -633,7 +633,9 @@ func requestToSegment(ctx context.Context, req *ent.Request) (*Segment, error) {
 		responseSpans []Span
 	)
 
-	if len(req.RequestBody) > 0 {
+	// 留存标记不是供应商正文；分别处理两侧，保留仍可读取的内容。
+	_, requestUnavailable := parsePayloadMarker(req.RequestBody)
+	if len(req.RequestBody) > 0 && !requestUnavailable {
 		apiFormat := llm.APIFormat(req.Format)
 
 		if apiFormat == llm.APIFormatOpenAIResponseCompact {
@@ -674,7 +676,8 @@ func requestToSegment(ctx context.Context, req *ent.Request) (*Segment, error) {
 		}
 	}
 
-	if len(req.ResponseBody) > 0 {
+	_, responseUnavailable := parsePayloadMarker(req.ResponseBody)
+	if len(req.ResponseBody) > 0 && !responseUnavailable {
 		apiFormat := llm.APIFormat(req.Format)
 		var decisionsUsage *llm.Usage
 

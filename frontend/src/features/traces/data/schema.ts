@@ -188,20 +188,63 @@ const requestMetadataSchema = z
 
 export type RequestMetadata = z.infer<typeof requestMetadataSchema>;
 
-export const segmentSchema: z.ZodType<any> = z.lazy(() =>
-  z.object({
-    id: z.any(),
-    parentId: z.any().nullable().optional(),
-    model: z.string(),
-    duration: z.number(),
-    startTime: z.coerce.date(),
-    endTime: z.coerce.date(),
-    metadata: requestMetadataSchema,
-    requestSpans: z.array(spanSchema).nullable().optional().default([]),
-    responseSpans: z.array(spanSchema).nullable().optional().default([]),
-    children: z.array(segmentSchema).nullable().optional().default([]),
-  })
-);
+const segmentNodeSchema = z.object({
+  id: z.any(),
+  parentId: z.any().nullable().optional(),
+  model: z.string(),
+  duration: z.number(),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+  metadata: requestMetadataSchema,
+  requestSpans: z.array(spanSchema).nullable().optional().default([]),
+  responseSpans: z.array(spanSchema).nullable().optional().default([]),
+  children: z.array(z.unknown()).nullable().optional().default([]),
+});
+
+type SegmentNode = z.infer<typeof segmentNodeSchema>;
+
+type SegmentParseTask = {
+  input: unknown;
+  target: SegmentNode[];
+  index: number;
+  parent?: SegmentParseTask;
+};
+
+export const segmentSchema: z.ZodType<any> = z.unknown().transform((input, ctx) => {
+  const roots: SegmentNode[] = [];
+  const pending: SegmentParseTask[] = [{ input, target: roots, index: 0 }];
+
+  // 长会话可能形成很深的单链，逐节点校验，避免递归耗尽调用栈。
+  while (pending.length > 0) {
+    const task = pending.pop()!;
+    const result = segmentNodeSchema.safeParse(task.input);
+    if (!result.success) {
+      // 仅失败时回溯父节点，成功路径不复制每层的完整错误路径。
+      const indexes: number[] = [];
+      for (let current: SegmentParseTask | undefined = task; current?.parent; current = current.parent) {
+        indexes.push(current.index);
+      }
+      const path = indexes.reverse().flatMap((index) => ['children', index]);
+      for (const issue of result.error.issues) {
+        ctx.addIssue({ ...issue, path: [...path, ...issue.path] });
+      }
+      return z.NEVER;
+    }
+
+    const node = result.data;
+    task.target[task.index] = node;
+    if (node.children) {
+      const children = node.children;
+      const parsedChildren: SegmentNode[] = [];
+      node.children = parsedChildren;
+      for (let index = children.length - 1; index >= 0; index--) {
+        pending.push({ input: children[index], target: parsedChildren, index, parent: task });
+      }
+    }
+  }
+
+  return roots[0];
+});
 
 export type Segment = z.infer<typeof segmentSchema>;
 

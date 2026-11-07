@@ -924,6 +924,8 @@ fork 改动，由用户决定。
 
 ### 请求筛选与逐次诊断
 
+- beta12-fork.2 请求诊断校验修复（待发布）：Zod 升至 4.6.7 后，`z.any()` 不再隐含对象字段可缺省；路由／错误诊断及会话补查的 `includePayload=false` 与执行正文校验发生冲突。仅将 `requestExecutionSchema` 的 `requestBody`、`responseBody` 显式设为可缺省，保留必要字段、项目／权限、取消信号和按需查询，不强制下载正文。真实 schema＋queryFn 的 9 项回归修复前 3 项失败、修复后通过；新锁文件环境全部前端单元测试 554 通过、1 原有跳过。无迁移，入口及生产核查详见本地 `.agent/summary/beta12-production-validation-20261107.md`。
+
 - 2026-11-04 思考级别标签配色（已随 `.syh.17` 发布）：请求列表模型下方的思考级别沿用 claude-code-hub 配色，`none`／`minimal`／`low` 分别使用中性灰／暖灰／蓝灰，`medium` 为琥珀黄，`high` 为玫瑰红，`xhigh`／`max` 为逐步加深的红色，`auto` 为青蓝靛渐变；浅色、深色主题均适配，未知级别显示中性样式。实现为 `request-reasoning-badge.tsx`，接入共用的 `requests-columns.tsx`；不改变原有级别取值、文案、接口或数据库迁移。
 
 - 2026-11-03 状态筛选计数修复（已随 `.syh.14` 发布）：状态菜单展开时通过 `requestLogStatusCounts` 一次分组统计当前时间、项目、渠道、模型、来源、Key 等条件下的全部匹配请求，忽略本菜单已选状态与分页；空状态显示 `0`，加载和统计失败分别提示，不再使用已加载列表的局部数量。展开期间跟随页面自动刷新设置更新，关闭后停止自动统计，翻页与滚动不重复查询；重新获得焦点或网络恢复不额外触发统计。列表与统计共用日志筛选及权限策略，不新增数据库迁移。接口／权限／SQL 定向测试、前端参数测试、本地浏览器组件联调和十万条 SQLite 内存数据性能采样见[验证记录](../.agent/summary/request-status-counts-20261103.md)；生产规模磁盘与并发性能未验证。
@@ -1309,6 +1311,13 @@ fork 改动，由用户决定。
 - 详细规范：[独立发版与部署](zh/development/release.md)（[English](en/development/release.md)）。
 
 ## Bugfix Topics
+
+### 长会话追踪解析与正文留存标记
+
+- beta12-fork.2（待发布）：真实追踪含 1193 个串联节点，接口返回正常但前端递归 Zod 校验发生 `Maximum call stack size exceeded`；相同数量的宽树不触发。改为显式栈逐节点校验，保留顺序、所有节点、日期、默认数组、null 及深层错误路径，不以吞错或截断处理。源码为 `frontend/src/features/traces/data/schema.ts`；测试覆盖 1193／5000 层、分支、非空 span 和非法字段。多个节点同时非法时报告首个非法节点的全部错误，数据仍整体拒绝。
+- `internal/server/biz/trace.go` 在两侧协议解析前识别既有 `_axon_payload` 留存标记。关闭保存／缓存到期是已知无正文状态，不再将其作为供应商 JSON 解析并刷告警；另一侧有效正文继续产生 span 与用量元数据。可用缓存仍先由原加载入口解引用，真实非法正文保持原错误处理。Chat／Responses 两协议、六种不可用状态、请求／响应／双方三种组合共 36 个子用例通过，现有追踪树及预览测试通过。
+- 本地真实接口使用 1193 请求的隔离合成追踪，确认返回深度 1193；平铺、流程、树形和线程抽屉可查看，重启后无留存标记引起的转换告警。视图仍有大量 DOM，未宣称长树渲染性能已优化；节点校验合成宽树约增加 0.064ms，不代表生产页面性能。
+- 无 schema/data migration、缓存格式或模型转发变更。同步上游时同时核对递归 schema、两处追踪消费者、正文加载后不可用标记的处理。修复与验证已由独立 `gpt-6.1-sol / max` 复核；完整记录见本地 `.agent/summary/beta12-production-validation-20261107.md`。
 
 ### 智能体消息加密标记丢失与无效重试
 

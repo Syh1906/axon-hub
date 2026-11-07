@@ -69,8 +69,9 @@ export const requestExecutionSchema = z.object({
   upstreamModelID: z.string().nullable().optional(),
   requestHeaders: z.any().nullable().optional(),
   responseHeaders: z.any().nullable().optional(),
-  requestBody: z.any(), // JSONRawMessage
-  responseBody: z.any().nullable(), // JSONRawMessage
+  // 诊断与会话补查按需省略正文；Zod 4.6 的 any 不隐含字段可缺省。
+  requestBody: z.any().optional(), // JSONRawMessage
+  responseBody: z.any().nullable().optional(), // JSONRawMessage
   responseChunks: z.array(z.any()).nullable().optional(), // [JSONRawMessage!]
   errorMessage: z.string().nullable(),
   responseStatusCode: z.number().nullable().optional(),

@@ -2,6 +2,8 @@
 
 The current stable release is [`v1.0.0-beta12-fork.1`](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.1), published on 2026-11-07 from `aed80ce3`. Its dual-architecture image and manifest are verified, and both production hosts completed deployment checks. The ledger retains the deferred cache-evidence work and untested live-business boundaries.
 
+Post-release checks identified request-diagnostic validation and deep-trace parsing defects. Local fixes for `beta12-fork.2` are ready; publication and deployment are pending. Deployment acceptance must separately cover health, authenticated queries, nonempty diagnostics/details, and actual request outcomes. Database transfer requires a dedicated writable work-directory mount while keeping the container root read-only; without that mount, transfer is unavailable but model forwarding is unaffected.
+
 This repository is Syh1906/axon-hub. Starting with beta12, releases merge directly from looplj/axonhub.
 ChouUn/axon-hub remains a separately recorded inherited fork. GitHub Actions builds the application,
 GHCR stores container images, and GitHub Releases stores binary packages and
