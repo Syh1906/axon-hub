@@ -63,6 +63,8 @@ fork 改动，由用户决定。
 
 后续人工演示反馈（2026-11-07）：本轮只修复渠道表头、补充用量成本列及缓存多用量归属问题；请求页布局／耗时保持合并前样式。完整缓存输入证据及旧窗口处理由用户明确留待后续；具体边界见本台账统计 topic 和[统计说明](zh/development/consumption-statistics.md#已知限制与后续修正)。新修复本地待发布，未推送、发布或部署。
 
+发布前依赖修复（2026-11-07）：首轮远端 Govulncheck 在根／llm 两模块确认 `GO-2026-6865` 可由 zstd 请求解压路径触达；两模块压缩依赖统一升至 `github.com/klauspost/compress v1.20.2`。既有请求体解压／无效载荷定向测试通过；发版以修复后同提交 Test、Build、Lint、两模块漏洞检查成功为准。无 API、schema/data migration 变化，首版继续使用 beta12-fork.1。
+
 ### 下一次原始上游同步
 
 1. 从本地维护分支创建 `codex/sync-original-<版本>`，核对目标原始 tag 对应提交；比较 `v1.0.0-beta12..<目标 tag>` 的新提交、schema 和 data migration。
