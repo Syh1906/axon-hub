@@ -189,7 +189,18 @@ func (s *streamLifecycle) watch() {
 	}()
 	select {
 	case <-s.downstream.Done():
-		s.downstreamEnded(s.downstream.Err())
+		cause := s.downstream.Err()
+		if errors.Is(cause, context.DeadlineExceeded) && s.deadlineCancel != nil {
+			// The execution has the same deadline on an independent timer. Calling
+			// CancelCauseFunc first would set Err to Canceled even with a deadline
+			// cause, so let that timer preserve DeadlineExceeded for all consumers.
+			select {
+			case <-s.execution.Done():
+			case <-s.shutdownDone():
+				cause = context.Cause(s.shutdown)
+			}
+		}
+		s.downstreamEnded(cause)
 	case <-s.shutdownDone():
 		s.downstreamEnded(context.Cause(s.shutdown))
 	case <-s.stopWatch:

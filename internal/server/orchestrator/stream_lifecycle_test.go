@@ -151,6 +151,85 @@ func (s *lifecycleTailStream) Current() *httpclient.StreamEvent { return s.event
 func (s *lifecycleTailStream) Err() error                       { return nil }
 func (s *lifecycleTailStream) Close() error                     { return nil }
 
+// A manually dispatched deadline makes the parent-first timer race deterministic.
+type delayedDeadlineContext struct {
+	context.Context
+	done    chan struct{}
+	waiting chan struct{}
+	once    sync.Once
+}
+
+func (c *delayedDeadlineContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.waiting) })
+	return c.done
+}
+
+func (c *delayedDeadlineContext) Err() error {
+	select {
+	case <-c.done:
+		return context.DeadlineExceeded
+	default:
+		return nil
+	}
+}
+
+func TestStreamLifecycleParentDeadlineKeepsExecutionDeadline(t *testing.T) {
+	for _, shutdown := range []bool{false, true} {
+		name := "execution deadline fires"
+		if shutdown {
+			name = "shutdown while execution deadline is pending"
+		}
+		t.Run(name, func(t *testing.T) {
+			downstream, stop := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+			defer stop()
+			execution := &delayedDeadlineContext{Context: context.Background(), done: make(chan struct{}), waiting: make(chan struct{})}
+			manager := lifecycle.New()
+			canceled := make(chan error, 1)
+			owner := &streamLifecycle{
+				downstream: downstream, execution: execution, shutdown: manager.Context(),
+				deadlineCancel: func() {}, cancel: func(cause error) { canceled <- cause },
+				done: make(chan struct{}), stopWatch: make(chan struct{}),
+			}
+			go owner.watch()
+			t.Cleanup(func() {
+				select {
+				case <-execution.done:
+				default:
+					close(execution.done)
+				}
+				<-owner.done
+			})
+			select {
+			case <-execution.waiting:
+			case <-owner.done:
+				t.Fatal("parent deadline canceled execution before its deadline timer")
+			case <-time.After(time.Second):
+				t.Fatal("watcher did not observe the execution deadline")
+			}
+			select {
+			case cause := <-canceled:
+				t.Fatalf("execution canceled before its deadline: %v", cause)
+			default:
+			}
+			var want error = context.DeadlineExceeded
+			if shutdown {
+				want = errors.New("server shutdown")
+				manager.Shutdown(want)
+			} else {
+				close(execution.done)
+			}
+			select {
+			case cause := <-canceled:
+				if !errors.Is(cause, want) {
+					t.Fatalf("cancel cause = %v, want %v", cause, want)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("watcher did not finish after deadline or shutdown")
+			}
+		})
+	}
+}
+
 func TestStreamDeliveryCancelRace(t *testing.T) {
 	t.Run("cancel before acknowledgement cannot promote", func(t *testing.T) {
 		downstream, cancel := context.WithCancel(context.Background())
