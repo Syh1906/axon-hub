@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/llm"
 )
 
 // A regex publishes concrete IDs whose instructions and local tool policies may
@@ -283,7 +282,7 @@ func codexProfileRequiresResponses(profile, overrides map[string]any) bool {
 func codexRouteSupportsResponses(ctx context.Context, ch *Channel, entry ChannelModelEntry, target string) bool {
 	endpoints := ApplyForcedAPIFormats(ctx, ch, []ChannelModelEntry{entry}, target, ch.ResolveEndpoints())
 	return slices.ContainsFunc(endpoints, func(ep objects.ChannelEndpoint) bool {
-		return ep.APIFormat == llm.APIFormatOpenAIResponse.String()
+		return isResponsesEndpoint(ep.APIFormat)
 	})
 }
 

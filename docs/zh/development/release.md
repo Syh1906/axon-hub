@@ -156,6 +156,8 @@ upstream、originalUpstream、inheritedFork、image、platforms 和 runURL。ima
 
 ## 按需快照镜像
 
+快照使用与正式发布相同的版本格式和来源约束：基线 tag 必须同时包含原始上游与继承 fork；源码历史已包含更晚的 fork.N 时，不能继续以旧编号生成快照。历史 ChouUn 配置的 .syh.N 快照校验仍保留。
+
 少量改动需要提前部署时，在维护分支的 Actions 中手动运行“按需构建快照镜像”
 （`.github/workflows/snapshot.yml`）。输入完整 40 位源码提交号 `commit` 和已公开的
 正式基线 `base_version`，例如已发布的历史版本 `v1.0.0-beta10-fork.7.syh.19`（beta12 发布后再选对应正式版本）。

@@ -1,24 +1,24 @@
-## [Unreleased]
+## [Unreleased] — v1.0.0-beta12-fork.1
 
-### Added
+### 新增与调整
 
-- Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
-- NeuralWatt channels now show the elapsed monthly energy window marker on the kWh bar and an estimated period quota, matching the other windowed providers.
+- 原始上游基线升级为 looplj/axonhub beta12；保留 ChouUn 继承历史，后续版本使用 beta12-fork.N，历史 syh 版本不改写。
+- 接入 Decisions、TypeSafe、Cloudflare、Bailian Responses、ZenMux 视频及图片供应商扩展，增加 Claude 自动模式审核、单渠道重试、多 Key 策略、自动禁用／恢复和配额路由配置。
+- 吸收请求诊断、秒级分析范围、分页和聚合查询改进；保留 live＋archive 统计、最终执行／首字节耗时口径、项目＋分组 Key 名称约束和 0–10 模型优先级。
+- 保留当前计价快照、预算预留／归属、分组预算、倍率、健康门控、多地址、请求留存及多来源 Codex 目录。
 
-### Changed
+### 修复
 
-- The `/analytics` time range is now precise to the second. `AnalyticsFilter.startTime`/`endTime` take RFC3339 timestamps instead of `YYYY-MM-DD` strings, `analyticsMetadata.earliestTime` replaces `earliestDate` with the earliest usage instant, every range is filtered as an inclusive absolute instant down to the millisecond, and the page uses the shared date-and-time range picker. The trend chart still aggregates per local calendar day.
+- 统一供应商终态、客户端交付确认和实际用量；失败／取消不能被后续 `[DONE]` 或其他 choice 的正常结束覆盖，转换失败仍保留供应商模型证据。
+- 修复 WS-only Codex 目录、认证、工具兼容性及刷新优先级遗漏；两个编辑入口保留目录资料和旧 HTTP 模型协议限制，取消后重开恢复设置。
+- 保留后台性能优化，修复普通 GraphQL 业务错误重复查询的回退；分析速度列沿用最终执行、首字节和文本 Token 口径，合并到已有维度统计，减少重复扫描。
+- 修复渠道菜单打开的弹窗关闭后可能阻止整页点击的问题。
+- 正式发布及快照支持新 fork.N 版本、两条来源祖先检查和过期基线拒绝。
 
-### Fixed
+### 升级与移除
 
-- Dashboard analytics no longer rescan the full usage history for every widget: request, cost, and token widgets share one grouped query, expensive 30-day aggregates are cached, SQLite uses window functions instead of correlated `MAX(id)` scans, and off-screen sections load only when they approach the viewport.
-- PostgreSQL fastest-model and fastest-channel resolver rankings use `DISTINCT ON` to select each request's latest successful execution before aggregation; SQLite retains the `ROW_NUMBER` path. `modelPerformanceStats` keeps `ROW_NUMBER` because `DISTINCT ON` measured a 5% regression without the covering index (not yet approved).
-- Personal API Key names can be reused by different creators in a project; creating or renaming a key rejects collisions with non-personal keys visible to its creator. Duplicate checks run after create authorization.
-- Synthetic weekly credit amounts that parse to NaN or infinity are now ignored instead of leaking into the period money fields and breaking quota persistence.
-
-### Removed
-
-- Wafer quota monitor removed — Wafer is PAYG-only. Legacy wafer quota rows are purged at startup before schema migration when automatic migration is enabled.
+- 包含自动表结构升级和旧配额路由转换；自动迁移时清理 Wafer 退役配额记录，保留既有迁移版本及行为。不能仅靠切换旧镜像完成数据回退。
+- 尚未发布或部署。验证结果、类型诊断与外部服务验收限制见 [Fork 维护台账](docs/fork-maintenance.md)；完整待发布说明见 [.github/release-notes.md](.github/release-notes.md)。
 
 ## [v1.0.0-beta10-fork.7.syh.19] - 2026-11-07
 

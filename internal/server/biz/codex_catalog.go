@@ -170,14 +170,30 @@ func (s *CodexCatalogService) fetchCatalogInputs(ctx context.Context, connection
 	return sources, snapshots
 }
 
-func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, version string) (map[string]map[string]any, error) {
+func codexCatalogEndpoint(ch *Channel) objects.ChannelEndpoint {
 	var ep objects.ChannelEndpoint
-	for _, candidate := range ch.ResolveEndpoints() {
-		if candidate.APIFormat == llm.APIFormatOpenAIResponse.String() {
-			ep = candidate
-			break
+	// Explicit catalog metadata wins over a default endpoint. Prefer HTTP when
+	// both Responses transports declare a catalog, preserving the existing rule.
+selectEndpoint:
+	for _, format := range []string{llm.APIFormatOpenAIResponse.String(), llm.APIFormatOpenAIResponseWebSocket.String()} {
+		for _, candidate := range ch.ResolveEndpoints() {
+			if candidate.APIFormat != format {
+				continue
+			}
+			if ep.APIFormat == "" {
+				ep = candidate
+			}
+			if candidate.CatalogURL != "" || (len(candidate.CatalogJSON) > 0 && string(candidate.CatalogJSON) != "null") {
+				ep = candidate
+				break selectEndpoint
+			}
 		}
 	}
+	return ep
+}
+
+func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, version string) (map[string]map[string]any, error) {
+	ep := codexCatalogEndpoint(ch)
 	if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
 		return parseCodexCatalog(ep.CatalogJSON)
 	}
@@ -192,7 +208,7 @@ func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, v
 	q.Set("client_version", version)
 	u.RawQuery = q.Encode()
 	headers := make(http.Header)
-	if provider, ok := ch.Outbounds[llm.APIFormatOpenAIResponse.String()].(*codex.OutboundTransformer); ok {
+	if provider, ok := ch.Outbounds[ep.APIFormat].(*codex.OutboundTransformer); ok {
 		creds, err := provider.TokenProvider().Get(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("catalog authentication unavailable")
@@ -372,18 +388,16 @@ func (s *CodexCatalogService) fetchCatalogSources(ctx context.Context, connectio
 }
 
 func codexCatalogSourcePriority(ch *Channel) int {
-	for _, ep := range ch.ResolveEndpoints() {
-		if ep.APIFormat != llm.APIFormatOpenAIResponse.String() {
-			continue
-		}
-		if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
-			return 0
-		}
-		if ep.CatalogURL != "" || ch.Type == channel.TypeCodex ||
-			codexCatalogURL(ch, ep) == "https://chatgpt.com/backend-api/codex/models" {
-			return 1
-		}
-		break
+	ep := codexCatalogEndpoint(ch)
+	if ep.APIFormat == "" {
+		return 2
+	}
+	if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
+		return 0
+	}
+	if ep.CatalogURL != "" || ch.Type == channel.TypeCodex ||
+		codexCatalogURL(ch, ep) == "https://chatgpt.com/backend-api/codex/models" {
+		return 1
 	}
 	return 2
 }

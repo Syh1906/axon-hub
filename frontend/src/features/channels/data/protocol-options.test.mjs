@@ -398,3 +398,31 @@ test('published capability flags retain HTTP and round-trip through canonical Co
   assert.equal(saved[0].supportsWebSockets, undefined);
   assert.deepEqual(getCodexResponsesWebSocketState({ endpoints: buildCodexResponsesEndpoints(saved, false) }), { enabled: false, webSocketOnly: false });
 });
+
+
+test('附加 WebSocket 能力的旧渠道普通编辑保留 HTTP 模型限制', () => {
+  const restrictions = [{ model: 'gpt-5', apiFormats: [H], enabled: true }];
+  for (const supportsWebSockets of [true, false]) {
+    for (const baseURL of [CODEX_BASE, 'wss://proxy.test/codex#']) {
+      const endpoints = [{ apiFormat: H, supportsWebSockets }];
+      assert.equal(translateLegacyCodexModelProtocols({ baseURL, endpoints }, restrictions), undefined);
+      const saved = buildCodexResponsesEndpoints(endpoints, supportsWebSockets);
+      assert.equal(translateLegacyCodexModelProtocols({ baseURL: toHttpBaseURL(baseURL), endpoints: saved }, restrictions), undefined);
+    }
+  }
+});
+
+test('仅 WS 端点的目录资料在取消后重开及重复保存中保留', () => {
+  const metadata = { catalogURL: 'https://catalog.test/models', catalogJSON: { models: [] } };
+  for (const endpoints of [[{ apiFormat: W, ...metadata }], [{ apiFormat: H }, { apiFormat: W, ...metadata }]]) {
+    const before = structuredClone(endpoints);
+    for (const enabled of [true, false]) {
+      const saved = buildCodexResponsesEndpoints(endpoints, enabled);
+      assert.deepEqual(endpoints, before);
+      assert.deepEqual(saved[0], { apiFormat: H, ...metadata });
+      assert.deepEqual(buildCodexResponsesEndpoints(saved, enabled), saved);
+    }
+  }
+  const preferred = { apiFormat: H, catalogURL: 'https://http.test/models' };
+  assert.deepEqual(buildCodexResponsesEndpoints([{ apiFormat: W, ...metadata }, preferred], true)[0], preferred);
+});

@@ -878,14 +878,16 @@ func lessModelAnalyticsStat(
 
 func (r *queryResolver) queryChannelStats(ctx context.Context, filter *AnalyticsFilter, apiKeyIDs []int, hasUserFilter bool) ([]dimStats, error) {
 	type channelStatsRaw struct {
-		ChannelID    int     `json:"channel_id"`
-		Name         string  `json:"name"`
-		RequestCount int     `json:"request_count"`
-		InputTokens  int64   `json:"input_tokens"`
-		CachedTokens int64   `json:"cached_tokens"`
-		OutputTokens int64   `json:"output_tokens"`
-		TotalTokens  int64   `json:"total_tokens"`
-		Cost         float64 `json:"cost"`
+		TokensPerSecond *float64 `json:"tokens_per_second"`
+		TtftMs          *float64 `json:"ttft_ms"`
+		ChannelID       int      `json:"channel_id"`
+		Name            string   `json:"name"`
+		RequestCount    int      `json:"request_count"`
+		InputTokens     int64    `json:"input_tokens"`
+		CachedTokens    int64    `json:"cached_tokens"`
+		OutputTokens    int64    `json:"output_tokens"`
+		TotalTokens     int64    `json:"total_tokens"`
+		Cost            float64  `json:"cost"`
 	}
 
 	var rawResults []channelStatsRaw
@@ -913,6 +915,7 @@ func (r *queryResolver) queryChannelStats(ctx context.Context, filter *Analytics
 			).
 				GroupBy(s.C(usagelog.FieldChannelID), channelTable.C(channel.FieldName)).
 				OrderBy(sql.Desc("total_tokens"))
+			appendAnalyticsPerformance(s)
 		}).
 		Scan(ctx, &rawResults)
 	if err != nil {
@@ -923,14 +926,16 @@ func (r *queryResolver) queryChannelStats(ctx context.Context, filter *Analytics
 
 	for _, raw := range rawResults {
 		results = append(results, dimStats{
-			ID:           fmt.Sprintf("%d", raw.ChannelID),
-			Name:         raw.Name,
-			RequestCount: raw.RequestCount,
-			InputTokens:  raw.InputTokens,
-			CachedTokens: raw.CachedTokens,
-			OutputTokens: raw.OutputTokens,
-			TotalTokens:  raw.TotalTokens,
-			Cost:         raw.Cost,
+			ID:              fmt.Sprintf("%d", raw.ChannelID),
+			Name:            raw.Name,
+			RequestCount:    raw.RequestCount,
+			InputTokens:     raw.InputTokens,
+			CachedTokens:    raw.CachedTokens,
+			OutputTokens:    raw.OutputTokens,
+			TotalTokens:     raw.TotalTokens,
+			Cost:            raw.Cost,
+			TokensPerSecond: raw.TokensPerSecond,
+			TtftMs:          raw.TtftMs,
 		})
 	}
 
@@ -956,6 +961,7 @@ func (r *queryResolver) queryModelStats(ctx context.Context, filter *AnalyticsFi
 			).
 				GroupBy(s.C(usagelog.FieldModelID)).
 				OrderBy(sql.Desc("total_tokens"))
+			appendAnalyticsPerformance(s)
 		}).
 		Scan(ctx, &results)
 	if err != nil {
@@ -967,13 +973,15 @@ func (r *queryResolver) queryModelStats(ctx context.Context, filter *AnalyticsFi
 
 func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsFilter, apiKeyIDs []int, hasUserFilter bool) ([]dimStats, error) {
 	type apiKeyStatsRaw struct {
-		APIKeyID     int     `json:"api_key_id"`
-		RequestCount int     `json:"request_count"`
-		InputTokens  int64   `json:"input_tokens"`
-		CachedTokens int64   `json:"cached_tokens"`
-		OutputTokens int64   `json:"output_tokens"`
-		TotalTokens  int64   `json:"total_tokens"`
-		Cost         float64 `json:"cost"`
+		TokensPerSecond *float64 `json:"tokens_per_second"`
+		TtftMs          *float64 `json:"ttft_ms"`
+		APIKeyID        int      `json:"api_key_id"`
+		RequestCount    int      `json:"request_count"`
+		InputTokens     int64    `json:"input_tokens"`
+		CachedTokens    int64    `json:"cached_tokens"`
+		OutputTokens    int64    `json:"output_tokens"`
+		TotalTokens     int64    `json:"total_tokens"`
+		Cost            float64  `json:"cost"`
 	}
 
 	var rawResults []apiKeyStatsRaw
@@ -994,6 +1002,7 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 			).
 				GroupBy(s.C(usagelog.FieldAPIKeyID)).
 				OrderBy(sql.Desc("total_tokens"))
+			appendAnalyticsPerformance(s)
 		}).
 		Scan(ctx, &rawResults)
 	if err != nil {
@@ -1020,14 +1029,16 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 				name = labels[ak.ID]
 			}
 			results = append(results, dimStats{
-				ID:           fmt.Sprintf("%d", raw.APIKeyID),
-				Name:         name,
-				RequestCount: raw.RequestCount,
-				InputTokens:  raw.InputTokens,
-				CachedTokens: raw.CachedTokens,
-				OutputTokens: raw.OutputTokens,
-				TotalTokens:  raw.TotalTokens,
-				Cost:         raw.Cost,
+				ID:              fmt.Sprintf("%d", raw.APIKeyID),
+				Name:            name,
+				RequestCount:    raw.RequestCount,
+				InputTokens:     raw.InputTokens,
+				CachedTokens:    raw.CachedTokens,
+				OutputTokens:    raw.OutputTokens,
+				TotalTokens:     raw.TotalTokens,
+				Cost:            raw.Cost,
+				TokensPerSecond: raw.TokensPerSecond,
+				TtftMs:          raw.TtftMs,
 			})
 		}
 	}
@@ -1037,16 +1048,18 @@ func (r *queryResolver) queryAPIKeyStats(ctx context.Context, filter *AnalyticsF
 
 func (r *queryResolver) queryUserStats(ctx context.Context, filter *AnalyticsFilter, apiKeyIDs []int, hasUserFilter bool) ([]dimStats, error) {
 	type userStatsRaw struct {
-		UserID       int     `json:"user_id"`
-		FirstName    string  `json:"first_name"`
-		LastName     string  `json:"last_name"`
-		Email        string  `json:"email"`
-		RequestCount int     `json:"request_count"`
-		InputTokens  int64   `json:"input_tokens"`
-		CachedTokens int64   `json:"cached_tokens"`
-		OutputTokens int64   `json:"output_tokens"`
-		TotalTokens  int64   `json:"total_tokens"`
-		Cost         float64 `json:"cost"`
+		TokensPerSecond *float64 `json:"tokens_per_second"`
+		TtftMs          *float64 `json:"ttft_ms"`
+		UserID          int      `json:"user_id"`
+		FirstName       string   `json:"first_name"`
+		LastName        string   `json:"last_name"`
+		Email           string   `json:"email"`
+		RequestCount    int      `json:"request_count"`
+		InputTokens     int64    `json:"input_tokens"`
+		CachedTokens    int64    `json:"cached_tokens"`
+		OutputTokens    int64    `json:"output_tokens"`
+		TotalTokens     int64    `json:"total_tokens"`
+		Cost            float64  `json:"cost"`
 	}
 
 	var rawResults []userStatsRaw
@@ -1088,6 +1101,7 @@ func (r *queryResolver) queryUserStats(ctx context.Context, filter *AnalyticsFil
 					userTable.C("email"),
 				).
 				OrderBy(sql.Desc("total_tokens"))
+			appendAnalyticsPerformance(s)
 		}).
 		Scan(ctx, &rawResults)
 	if err != nil {
@@ -1103,14 +1117,16 @@ func (r *queryResolver) queryUserStats(ctx context.Context, filter *AnalyticsFil
 			userName = raw.Email
 		}
 		results = append(results, dimStats{
-			ID:           fmt.Sprintf("%d", raw.UserID),
-			Name:         userName,
-			RequestCount: raw.RequestCount,
-			InputTokens:  raw.InputTokens,
-			CachedTokens: raw.CachedTokens,
-			OutputTokens: raw.OutputTokens,
-			TotalTokens:  raw.TotalTokens,
-			Cost:         raw.Cost,
+			ID:              fmt.Sprintf("%d", raw.UserID),
+			Name:            userName,
+			RequestCount:    raw.RequestCount,
+			InputTokens:     raw.InputTokens,
+			CachedTokens:    raw.CachedTokens,
+			OutputTokens:    raw.OutputTokens,
+			TotalTokens:     raw.TotalTokens,
+			Cost:            raw.Cost,
+			TokensPerSecond: raw.TokensPerSecond,
+			TtftMs:          raw.TtftMs,
 		})
 	}
 
@@ -1137,129 +1153,4 @@ func dimStatsToDimensionStats(items []dimStats) []*AnalyticsDimensionStat {
 func startOfDay(t time.Time, loc *time.Location) time.Time {
 	t = t.In(loc)
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
-}
-
-type dimensionPerformanceStats struct {
-	TokensPerSecond *float64 `json:"tokens_per_second"`
-	TtftMs          *float64 `json:"ttft_ms"`
-}
-
-func (r *queryResolver) queryDimensionPerformanceStats(
-	ctx context.Context,
-	filter *AnalyticsFilter,
-	apiKeyIDs []int,
-	hasUserFilter bool,
-	dimension string,
-) (map[string]dimensionPerformanceStats, error) {
-	type rawPerformanceStats struct {
-		ID              string   `json:"id"`
-		TokensPerSecond *float64 `json:"tokens_per_second"`
-		TtftMs          *float64 `json:"ttft_ms"`
-	}
-
-	var rawResults []rawPerformanceStats
-
-	err := r.client.UsageLog.Query().
-		Modify(func(s *sql.Selector) {
-			executionTable := sql.Table(requestexecution.Table).As("analytics_execution")
-			latestExecutionTable := sql.Table(requestexecution.Table).As("latest_analytics_execution")
-
-			s.Join(executionTable).On(
-				s.C(usagelog.FieldRequestID),
-				executionTable.C(requestexecution.FieldRequestID),
-			)
-			s.OnP(sql.ColumnsEQ(
-				s.C(usagelog.FieldChannelID),
-				executionTable.C(requestexecution.FieldChannelID),
-			))
-
-			// The correlated subquery keeps the current table's date and dimension filters on usage_logs.
-			// It only selects a single completed attempt for a request/channel pair to avoid retry double counting.
-			latestExecutionID := sql.Select(sql.Max(latestExecutionTable.C(requestexecution.FieldID))).
-				From(latestExecutionTable).
-				Where(sql.And(
-					sql.ColumnsEQ(latestExecutionTable.C(requestexecution.FieldRequestID), s.C(usagelog.FieldRequestID)),
-					sql.ColumnsEQ(latestExecutionTable.C(requestexecution.FieldChannelID), s.C(usagelog.FieldChannelID)),
-					sql.EQ(latestExecutionTable.C(requestexecution.FieldStatus), requestexecution.StatusCompleted),
-					sql.GT(latestExecutionTable.C(requestexecution.FieldMetricsLatencyMs), 0),
-				))
-			s.Where(
-				sql.EQ(executionTable.C(requestexecution.FieldID), latestExecutionID),
-			)
-
-			r.buildAnalyticsWhere(s, filter, apiKeyIDs, hasUserFilter)
-
-			var dimensionIDColumn string
-			switch dimension {
-			case "channel":
-				dimensionIDColumn = s.C(usagelog.FieldChannelID)
-			case "model":
-				dimensionIDColumn = s.C(usagelog.FieldModelID)
-			case "apiKey":
-				s.Where(sql.NotNull(s.C(usagelog.FieldAPIKeyID)))
-				dimensionIDColumn = s.C(usagelog.FieldAPIKeyID)
-			case "user":
-				apiKeyTable := sql.Table(apikey.Table)
-				userTable := sql.Table("users")
-				s.Join(apiKeyTable).On(
-					s.C(usagelog.FieldAPIKeyID),
-					apiKeyTable.C(apikey.FieldID),
-				)
-				s.Join(userTable).On(
-					apiKeyTable.C(apikey.FieldUserID),
-					userTable.C("id"),
-				)
-				s.Where(sql.EQ(apiKeyTable.C(apikey.FieldDeletedAt), 0))
-				dimensionIDColumn = userTable.C("id")
-			default:
-				return
-			}
-
-			// Throughput follows the requests table and biz.PerformanceRecord.Calculate:
-			// only completion_tokens count (reasoning/audio tokens are a breakdown of it), streaming
-			// requests exclude TTFT, and the generation time is clamped to biz.MinLatencyMs so cache
-			// hits (TTFT >= latency) cannot contribute a zero duration.
-			generationLatency := fmt.Sprintf(
-				"CASE WHEN %s AND %s IS NOT NULL THEN %s - %s ELSE %s END",
-				executionTable.C(requestexecution.FieldStream),
-				executionTable.C(requestexecution.FieldMetricsFirstTokenLatencyMs),
-				executionTable.C(requestexecution.FieldMetricsLatencyMs),
-				executionTable.C(requestexecution.FieldMetricsFirstTokenLatencyMs),
-				executionTable.C(requestexecution.FieldMetricsLatencyMs),
-			)
-			effectiveLatency := fmt.Sprintf(
-				"CASE WHEN %[1]s < %[2]d THEN %[2]d ELSE %[1]s END",
-				generationLatency,
-				biz.MinLatencyMs,
-			)
-			throughput := fmt.Sprintf(
-				"CASE WHEN SUM(%[1]s) > 0 THEN SUM(%[2]s) * 1000.0 / SUM(%[1]s) ELSE NULL END",
-				effectiveLatency,
-				s.C(usagelog.FieldCompletionTokens),
-			)
-			ttft := fmt.Sprintf(
-				"AVG(CASE WHEN %s AND %s IS NOT NULL AND %s > 0 THEN %s END)",
-				executionTable.C(requestexecution.FieldStream),
-				executionTable.C(requestexecution.FieldMetricsFirstTokenLatencyMs),
-				executionTable.C(requestexecution.FieldMetricsFirstTokenLatencyMs),
-				executionTable.C(requestexecution.FieldMetricsFirstTokenLatencyMs),
-			)
-
-			s.Select(
-				sql.As(dimensionIDColumn, "id"),
-				sql.As(throughput, "tokens_per_second"),
-				sql.As(ttft, "ttft_ms"),
-			).GroupBy(dimensionIDColumn)
-		}).
-		Scan(ctx, &rawResults)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get analytics performance stats by %s: %w", dimension, err)
-	}
-
-	return lo.SliceToMap(rawResults, func(item rawPerformanceStats) (string, dimensionPerformanceStats) {
-		return item.ID, dimensionPerformanceStats{
-			TokensPerSecond: item.TokensPerSecond,
-			TtftMs:          item.TtftMs,
-		}
-	}), nil
 }

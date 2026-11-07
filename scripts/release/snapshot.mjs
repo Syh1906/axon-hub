@@ -19,10 +19,12 @@ export function prepareSnapshot(root, repository, commit, baseVersion, runID, ru
   git('merge-base', '--is-ancestor', baseCommit, commit);
   git('merge-base', '--is-ancestor', commit, `origin/${config.branch}`);
   git('merge-base', '--is-ancestor', config.upstreamCommit, baseCommit);
-  git('merge-base', '--is-ancestor', config.originalUpstream.commit, config.upstreamCommit);
+  git('merge-base', '--is-ancestor', config.originalUpstream.commit, baseCommit);
+  if (config.inheritedFork) git('merge-base', '--is-ancestor', config.inheritedFork.commit, baseCommit);
 
   // 已包含更晚正式编号的源码不能再标为旧基线的快照。
-  for (const tag of git('tag', '--merged', commit, '--list', `${config.upstreamTag}.syh.*`).split('\n').filter(Boolean)) {
+  const prefix = config.upstreamRepository === 'ChouUn/axon-hub' ? `${config.upstreamTag}.syh.` : `${config.upstreamTag}-fork.`;
+  for (const tag of git('tag', '--merged', commit, '--list', `${prefix}*`).split('\n').filter(Boolean)) {
     if (validateTag(tag, config) > baseNumber) throw new Error(`源码已包含 ${tag}，请使用对应的新基线`);
   }
   const migrationChanges = git('diff', '--name-only', baseCommit, commit, '--',

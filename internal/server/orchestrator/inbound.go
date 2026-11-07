@@ -110,7 +110,7 @@ func (ts *InboundPersistentStream) Current() *httpclient.StreamEvent {
 			}
 			if ts.terminalTracker.Observe(event) {
 				ts.stateMu.Lock()
-				ts.terminalState = classifyAcceptedTerminalEvent(event)
+				ts.terminalState = ts.terminalTracker.TerminalState()
 				ts.terminalState = ts.finalTerminalState()
 				ts.outcome.observeTerminal(ts.terminalState)
 				ts.state.StreamCompleted = ts.outcome.deliveryState() == streamTerminalCompleted
@@ -167,6 +167,14 @@ func classifyAcceptedTerminalEvent(event *httpclient.StreamEvent) streamTerminal
 		return streamTerminalIncomplete
 	}
 
+	for _, choice := range gjson.GetBytes(event.Data, "choices").Array() {
+		switch choice.Get("finish_reason").String() {
+		case "error":
+			return streamTerminalFailed
+		case responseStatusCanceledBritish, "canceled":
+			return streamTerminalCanceled
+		}
+	}
 	return streamTerminalCompleted
 }
 

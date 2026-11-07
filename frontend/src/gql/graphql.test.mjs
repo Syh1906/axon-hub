@@ -84,3 +84,36 @@ test('the real template listing still receives a read deadline', async (t) => {
   }));
   await assert.rejects(graphqlRequest(query, undefined, undefined, { timeoutMs: 10 }), (error) => error.status === 408);
 });
+
+
+// Exercise the production retry callback, including errors with no extensions.
+const mainSource = ts.createSourceFile('main.tsx', readFileSync(join(import.meta.dirname, '../main.tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+let retrySource;
+function findRetry(node) {
+  if (ts.isPropertyAssignment(node) && node.name.getText(mainSource) === 'retry' && ts.isArrowFunction(node.initializer)) {
+    retrySource = node.initializer.getText(mainSource);
+  }
+  ts.forEachChild(node, findRetry);
+}
+findRetry(mainSource);
+assert.ok(retrySource);
+const retryModule = ts.transpileModule(`export default ${retrySource.replaceAll('import.meta.env.DEV', 'false')}`, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
+}).outputText;
+const { default: productionRetry } = await import(`data:text/javascript;base64,${Buffer.from(retryModule).toString('base64')}`);
+
+test('生产态普通 GraphQL 业务错误不重复查询，网络短暂失败仍沿用重试策略', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ errors: [{ message: 'query deadline exceeded' }] }));
+  await assert.rejects(graphqlRequest('query Stats { stats }'), (error) => {
+    assert.equal(error.message, 'query deadline exceeded');
+    assert.equal(error.isAuthError, false);
+    assert.equal(productionRetry(0, error), false);
+    return true;
+  });
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('connection interrupted'); });
+  await assert.rejects(graphqlRequest('query Stats { stats }'), (error) => {
+    assert.equal(productionRetry(0, error), true);
+    assert.equal(productionRetry(3, error), false);
+    return true;
+  });
+});

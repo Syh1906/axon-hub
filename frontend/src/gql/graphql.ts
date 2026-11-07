@@ -157,7 +157,7 @@ async function performGraphQLRequest<T>(
 
     throw new GraphQLRequestError(firstError?.message || 'GraphQL Error', {
       status: isForbiddenGraphQLError(firstError) ? 403 : undefined,
-      extensions: firstError?.extensions,
+      extensions: firstError?.extensions ?? {},
     });
   }
 

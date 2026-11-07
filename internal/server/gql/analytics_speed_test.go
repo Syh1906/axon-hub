@@ -30,6 +30,8 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	project := db.Project.Create().SetName("Speed audit").SaveX(ctx)
 	ch := db.Channel.Create().SetType("openai").SetName("Speed channel").SetSupportedModels([]string{"text-model"}).SetDefaultTestModel("text-model").SetCredentials(objects.ChannelCredentials{}).SaveX(ctx)
 	ctx = contexts.WithUser(ctx, &ent.User{ID: 1, IsOwner: true})
+	user := db.User.Create().SetEmail("dimension@example.invalid").SetPassword("fixture").SaveX(ctx)
+	key := db.APIKey.Create().SetName("dimension").SetKey("fixture").SetProjectID(project.ID).SetUserID(user.ID).SaveX(ctx)
 	at := time.Now().UTC().Add(-time.Hour)
 	var ids []int
 	for _, sample := range []struct {
@@ -45,7 +47,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 		req := db.Request.Create().SetProjectID(project.ID).SetChannelID(ch.ID).SetModelID("text-model").SetRequestBody([]byte(`{}`)).SetStatus(sample.status).SetStream(true).SetCreatedAt(at).SaveX(ctx)
 		ids = append(ids, req.ID)
 		db.RequestExecution.Create().SetProjectID(project.ID).SetChannelID(ch.ID).SetRequestID(req.ID).SetModelID("text-model").SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.Status(sample.status)).SetStream(true).SetMetricsLatencyMs(sample.latency).SetMetricsFirstByteLatencyMs(1000).SetMetricsFirstTokenLatencyMs(sample.firstToken).SetCreatedAt(at).SaveX(ctx)
-		db.UsageLog.Create().SetProjectID(project.ID).SetChannelID(ch.ID).SetRequestID(req.ID).SetModelID("text-model").SetCompletionTokens(sample.tokens).SetTotalTokens(sample.tokens).SetTotalCost(0).SaveX(ctx)
+		db.UsageLog.Create().SetProjectID(project.ID).SetChannelID(ch.ID).SetRequestID(req.ID).SetAPIKeyID(key.ID).SetModelID("text-model").SetCompletionTokens(sample.tokens).SetTotalTokens(sample.tokens).SetTotalCost(0).SaveX(ctx)
 	}
 	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}})
 	speeds, err := biz.RequestOutputSpeeds(ctx, db, ids)
@@ -60,6 +62,19 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	require.Len(t, leaderboard.Entries, 1)
 	require.Equal(t, int64(3), leaderboard.Entries[0].Metrics.SpeedSampleCount)
 	require.Equal(t, 300.0, *leaderboard.Entries[0].Metrics.AvgTokensPerSecond)
+
+	// All four new analytics dimensions must match the existing request/leaderboard speed.
+	resolver := &queryResolver{&Resolver{client: db, systemService: system}}
+	scans := countUsageLogGroupedScans(db)
+	for i, dimension := range []string{"channel", "model", "apiKey", "user"} {
+		stats, err := resolver.AnalyticsDimensionStats(ctx, nil, dimension)
+		require.NoError(t, err)
+		require.Len(t, stats, 1)
+		require.NotNil(t, stats[0].TokensPerSecond)
+		require.Equal(t, 300.0, *stats[0].TokensPerSecond)
+		require.Equal(t, 3, stats[0].RequestCount)
+		require.Equal(t, i+1, *scans, "one usage aggregate per dimension")
+	}
 
 	handler := NewGraphqlHandlers(Dependencies{Ent: db, SystemService: system})
 	graphqlClient := client.New(handler.Graphql, func(req *client.Request) { req.HTTP = req.HTTP.WithContext(ctx) })

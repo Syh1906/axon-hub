@@ -15,6 +15,7 @@ type StreamTerminalTracker struct {
 	choices         map[int]struct{}
 	finished        map[int]struct{}
 	terminal        bool
+	terminalState   streamTerminalState
 }
 
 func NewStreamTerminalTracker(expectedChoices int) *StreamTerminalTracker {
@@ -53,6 +54,11 @@ func (t *StreamTerminalTracker) Observe(event *httpclient.StreamEvent) bool {
 	if t.terminal || event == nil {
 		return t.terminal
 	}
+	// A failed choice may arrive before the remaining choices finish. Keep its
+	// outcome until the existing completion condition accepts the whole stream.
+	if t.terminalState == streamTerminalNone || t.terminalState == streamTerminalCompleted {
+		t.terminalState = classifyAcceptedTerminalEvent(event)
+	}
 	if bytes.Equal(event.Data, llm.DoneStreamEvent.Data) || isNonChoiceTerminalEvent(event) {
 		t.terminal = true
 		return true
@@ -81,6 +87,13 @@ func (t *StreamTerminalTracker) Observe(event *httpclient.StreamEvent) bool {
 	}
 
 	return t.terminal
+}
+
+func (t *StreamTerminalTracker) TerminalState() streamTerminalState {
+	if !t.terminal {
+		return streamTerminalNone
+	}
+	return t.terminalState
 }
 
 func (t *StreamTerminalTracker) AllChoicesFinished() bool {

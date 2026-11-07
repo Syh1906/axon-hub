@@ -132,7 +132,7 @@ func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEve
 	defer ts.stateMu.Unlock()
 	ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
 	if ts.terminalState == streamTerminalNone && ts.terminalTracker.Observe(event) {
-		ts.terminalState = classifyAcceptedTerminalEvent(event)
+		ts.terminalState = ts.terminalTracker.TerminalState()
 		ts.state.OutboundStreamTerminal = ts.terminalState
 		ts.outcome.observeTerminal(ts.terminalState)
 	}
@@ -198,7 +198,7 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 		ts.state.observeStreamTerminal(event)
 		if ts.terminalState == streamTerminalNone {
 			if ts.terminalTracker.Observe(event) {
-				ts.terminalState = classifyAcceptedTerminalEvent(event)
+				ts.terminalState = ts.terminalTracker.TerminalState()
 				ts.state.OutboundStreamTerminal = ts.terminalState
 				if ts.terminalState != streamTerminalCompleted {
 					ts.terminalError = streamTerminalErrorMessage(event, ts.terminalState)

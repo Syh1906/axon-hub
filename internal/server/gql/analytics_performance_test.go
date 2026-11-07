@@ -16,7 +16,7 @@ import (
 )
 
 // TestAnalyticsDimensionStatsIncludesPerformanceMetrics verifies that model rows
-// expose throughput and average TTFT calculated from their completed executions.
+// preserve the fork text-stream speed contract without another usage scan.
 func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:analytics-performance?mode=memory&_fk=0")
 	defer client.Close()
@@ -43,12 +43,13 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 		audioTokens      int64
 		latencyMs        int64
 		firstTokenMs     int64
+		firstByteMs      int64
 	}{
-		// Reasoning and audio tokens are a breakdown of completion tokens and must not be re-added.
-		{completionTokens: 100, reasoningTokens: 20, audioTokens: 30, latencyMs: 2500, firstTokenMs: 500},
-		{completionTokens: 100, latencyMs: 2500, firstTokenMs: 1500},
-		// Cache hit: TTFT equals latency, so the generation time is clamped to biz.MinLatencyMs.
-		{completionTokens: 50, latencyMs: 2500, firstTokenMs: 2500},
+		// Audio is excluded; first-byte and first-token wait are different measurements.
+		{completionTokens: 100, reasoningTokens: 20, audioTokens: 30, latencyMs: 2500, firstTokenMs: 500, firstByteMs: 500},
+		{completionTokens: 100, latencyMs: 2500, firstTokenMs: 1500, firstByteMs: 500},
+		// Less than 100 ms of generation does not create an artificial speed sample.
+		{completionTokens: 50, latencyMs: 2500, firstTokenMs: 2500, firstByteMs: 2500},
 	} {
 		req, createErr := client.Request.Create().
 			SetModelID("performance-model").
@@ -68,6 +69,7 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 			SetStream(true).
 			SetMetricsLatencyMs(sample.latencyMs).
 			SetMetricsFirstTokenLatencyMs(sample.firstTokenMs).
+			SetMetricsFirstByteLatencyMs(sample.firstByteMs).
 			Save(ctx)
 		require.NoError(t, createErr)
 
@@ -84,23 +86,84 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 		require.NoError(t, createErr)
 	}
 
-	// 250 completion tokens over 2000 + 1000 + MinLatencyMs milliseconds of generation time.
-	expectedTokensPerSecond := 250.0 * 1000 / float64(3000+biz.MinLatencyMs)
+	// Only the second sample is a measurable text stream: 100 / (2.5 - 0.5).
+	expectedTokensPerSecond := 50.0
 	expectedTTFTMs := 1500.0
 
+	scans := countUsageLogGroupedScans(client)
 	stats, err := resolver.AnalyticsDimensionStats(ctx, nil, "model")
+	require.Equal(t, 1, *scans)
 	require.NoError(t, err)
 	require.Len(t, stats, 1)
+	require.Equal(t, 3, stats[0].RequestCount)
+	require.Equal(t, 250, stats[0].OutputTokens)
 	require.NotNil(t, stats[0].TokensPerSecond)
 	require.InDelta(t, expectedTokensPerSecond, *stats[0].TokensPerSecond, 0.001)
 	require.NotNil(t, stats[0].TtftMs)
 	require.InDelta(t, expectedTTFTMs, *stats[0].TtftMs, 0.001)
 
 	channelStats, err := resolver.AnalyticsDimensionStats(ctx, nil, "channel")
+	require.Equal(t, 2, *scans)
 	require.NoError(t, err)
 	require.Len(t, channelStats, 1)
 	require.NotNil(t, channelStats[0].TokensPerSecond)
 	require.InDelta(t, expectedTokensPerSecond, *channelStats[0].TokensPerSecond, 0.001)
 	require.NotNil(t, channelStats[0].TtftMs)
 	require.InDelta(t, expectedTTFTMs, *channelStats[0].TtftMs, 0.001)
+}
+
+func TestAnalyticsDimensionPerformanceKeepsUsageAndFinalExecution(t *testing.T) {
+	for _, scenario := range []string{"failed", "canceled", "different_channel", "duplicate_usage", "missing_first_byte", "short_stream", "non_stream", "image", "audio"} {
+		t.Run(scenario, func(t *testing.T) {
+			resolver, ctx := newDashboardUsageTestResolver(t)
+			client := resolver.client
+			ch := createDashboardUsageChannel(t, ctx, client, "timing")
+			other := createDashboardUsageChannel(t, ctx, client, "other")
+			req := client.Request.Create().SetModelID("timing-model").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusCompleted).SetChannelID(ch.ID).SaveX(ctx)
+			client.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("timing-model").SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).SetStream(true).SetMetricsLatencyMs(1100).SetMetricsFirstByteLatencyMs(100).SaveX(ctx)
+			final := client.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("timing-model").SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusFailed).SetStream(true).SetMetricsLatencyMs(2100).SetMetricsFirstByteLatencyMs(100).SetMetricsFirstTokenLatencyMs(1500)
+			switch scenario {
+			case "canceled":
+				final.SetStatus(requestexecution.StatusCanceled)
+			case "different_channel":
+				final.SetChannelID(other.ID)
+			case "missing_first_byte":
+				final.Mutation().ResetMetricsFirstByteLatencyMs()
+			case "short_stream":
+				final.SetMetricsLatencyMs(150)
+			case "non_stream":
+				final.SetStream(false)
+			}
+			final.SaveX(ctx)
+			createUsage := func() {
+				usage := client.UsageLog.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("timing-model").SetPromptTokens(20).SetCompletionTokens(200).SetTotalTokens(220).SetTotalCost(1)
+				if scenario == "image" {
+					usage.SetCostSnapshot(&objects.RequestCostSnapshot{Images: []objects.ImageOutput{{}}})
+				}
+				if scenario == "audio" {
+					usage.SetCompletionAudioTokens(20)
+				}
+				usage.SaveX(ctx)
+			}
+			createUsage()
+			count := 1
+			if scenario == "duplicate_usage" {
+				createUsage()
+				count = 2
+			}
+			rows, err := resolver.AnalyticsDimensionStats(ctx, nil, "model")
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			require.Equal(t, count, rows[0].RequestCount)
+			require.Equal(t, 220*count, rows[0].TotalTokens)
+			require.Equal(t, float64(count), rows[0].Cost)
+			if scenario == "failed" || scenario == "canceled" {
+				require.NotNil(t, rows[0].TokensPerSecond)
+				require.Equal(t, 100.0, *rows[0].TokensPerSecond, "latest execution and first byte determine speed")
+				require.Nil(t, rows[0].TtftMs, "TTFT retains completed-stream samples only")
+			} else {
+				require.Nil(t, rows[0].TokensPerSecond)
+			}
+		})
+	}
 }

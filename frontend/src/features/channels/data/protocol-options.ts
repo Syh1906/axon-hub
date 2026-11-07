@@ -160,7 +160,8 @@ function isWebSocketURL(url: string | null | undefined): boolean {
 // the scheme inherited from the endpoint or channel Base URL.
 function resolveResponsesFormat(endpoint: ChannelEndpoint, channelBaseURL: string | null | undefined): string {
   if (endpoint.apiFormat !== OPENAI_RESPONSES_FORMAT) return endpoint.apiFormat;
-  if (endpoint.supportsWebSockets != null) return endpoint.supportsWebSockets ? OPENAI_RESPONSES_WEBSOCKET_FORMAT : OPENAI_RESPONSES_FORMAT;
+  // The published flag adds WebSocket support without changing the HTTP identity.
+  if (endpoint.supportsWebSockets != null) return OPENAI_RESPONSES_FORMAT;
   if (endpoint.transport === 'websocket') return OPENAI_RESPONSES_WEBSOCKET_FORMAT;
   if (endpoint.transport === 'http') return OPENAI_RESPONSES_FORMAT;
   return isWebSocketURL(endpoint.baseURL || channelBaseURL) ? OPENAI_RESPONSES_WEBSOCKET_FORMAT : OPENAI_RESPONSES_FORMAT;
@@ -239,7 +240,9 @@ export function buildCodexResponsesEndpoints(
   webSocketEnabled: boolean
 ): ChannelEndpoint[] {
   const shared = getSharedResponsesOverrides(endpoints);
-  const previous = endpoints?.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT);
+  const previous = [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT]
+    .flatMap((format) => (endpoints ?? []).filter((endpoint) => endpoint.apiFormat === format))
+    .find((endpoint) => endpoint.catalogURL || endpoint.catalogJSON != null);
   const family: ChannelEndpoint[] = [
     { apiFormat: OPENAI_RESPONSES_FORMAT, ...shared,
       ...(previous?.catalogURL ? { catalogURL: previous.catalogURL } : {}),

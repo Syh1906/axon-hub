@@ -209,6 +209,8 @@ exact tags and that run's manifest and `.dockerbuild` artifacts. Shared tags or 
 replacement digest block deletion. Preserve workflow history and retirement receipts;
 record completed operations and stop on partial failure without automatic retries.
 
+Snapshots use the same version format and provenance rules as releases: the base tag must include both the original upstream and inherited fork. A commit containing a later fork.N tag cannot produce a snapshot from an older base. Historical ChouUn configurations retain their .syh.N snapshot validation.
+
 ## Independent production machines
 
 Use the active maintenance project for inventory, dedicated SSH credentials and
