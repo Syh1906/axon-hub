@@ -40,7 +40,8 @@ func previewCodexModelProfile(publicID string, connections []*ModelChannelConnec
 				continue
 			}
 			candidate := &codexModelProfile{SourceChannelID: connection.Channel.ID, SourceModelID: entry.ActualModel, Model: metadata}
-			if selected == nil || (selected.SourceModelID != publicID && entry.ActualModel == publicID) {
+			if selected == nil || (selected.SourceModelID != publicID && entry.ActualModel == publicID) ||
+				(selected.SourceModelID == entry.ActualModel && codexReasoningChoiceCount(metadata) > codexReasoningChoiceCount(selected.Model)) {
 				selected = candidate
 			}
 		}
@@ -72,6 +73,21 @@ func previewCodexModelProfile(publicID string, connections []*ModelChannelConnec
 	return selected, differences
 }
 
+// Prefer a complete reasoning profile over a proxy's default-only declaration
+// for the same actual model. Equal coverage retains configured source precedence.
+func codexReasoningChoiceCount(metadata map[string]any) int {
+	levels, _ := metadata["supported_reasoning_levels"].([]any)
+	seen := make(map[string]bool)
+	for _, item := range levels {
+		level, _ := item.(map[string]any)
+		effort, _ := level["effort"].(string)
+		if effort != "" && effort != "none" {
+			seen[effort] = true
+		}
+	}
+	return len(seen)
+}
+
 // Stable source precedence follows configured association priority, then channel
 // ID. An exact actual-model match still takes precedence over an alias profile.
 func orderedCodexConnections(connections []*ModelChannelConnection) []*ModelChannelConnection {
@@ -94,6 +110,22 @@ func orderedCodexConnections(connections []*ModelChannelConnection) []*ModelChan
 }
 
 func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, version string) (map[string]any, error) {
+	// A richer profile must remain usable by the caller. Metadata can be shared
+	// from an inaccessible channel, but its tool protocol cannot grant a route.
+	canUseResponses := false
+	for _, connection := range m.Connections {
+		if ch := channels[connection.Channel.ID]; ch != nil {
+			for _, entry := range connection.Models {
+				if codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+					canUseResponses = true
+					break
+				}
+			}
+		}
+		if canUseResponses {
+			break
+		}
+	}
 	// A source can describe an actual model even when that particular channel
 	// is not configured to route it. Metadata discovery must use the complete
 	// source catalog, while inference admission continues to use m.Connections.
@@ -104,23 +136,38 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		}
 	}
 	var metadataConnections []*ModelChannelConnection
+	var profileConnections []*ModelChannelConnection
+	hasMetadata := false
 	for _, connection := range connections {
 		candidate := *connection
 		candidate.Models = nil
+		profileCandidate := candidate
 		for actualModel := range needed {
-			if sources[connection.Channel.ID][actualModel] != nil {
-				candidate.Models = append(candidate.Models, ChannelModelEntry{ActualModel: actualModel})
+			metadata := sources[connection.Channel.ID][actualModel]
+			if metadata == nil {
+				continue
 			}
+			hasMetadata = true
+			candidate.Models = append(candidate.Models, ChannelModelEntry{ActualModel: actualModel})
+			if codexProfileRequiresResponses(metadata) && !canUseResponses {
+				continue
+			}
+			profileCandidate.Models = append(profileCandidate.Models, ChannelModelEntry{ActualModel: actualModel})
 		}
 		metadataConnections = append(metadataConnections, &candidate)
+		profileConnections = append(profileConnections, &profileCandidate)
 	}
 	connections = metadataConnections
-	profile, _ := previewCodexModelProfile(m.TargetID, connections, sources)
+	profile, _ := previewCodexModelProfile(m.TargetID, profileConnections, sources)
 	if profile == nil {
+		if hasMetadata {
+			return nil, fmt.Errorf("no visible route")
+		}
 		return nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
 	}
-	// Prefer metadata for the exact actual model. Explicit model associations
-	// also define aliases whose providers may expose only a plain model list.
+	// Use all source metadata for actual-model capabilities, even when its client
+	// tools cannot serve this caller. Profile filtering must not erase an alias's
+	// context limit. Explicit associations can include plain-list-only providers.
 	byActualModel := make(map[string]map[string]any)
 	for _, connection := range orderedCodexConnections(connections) {
 		for _, entry := range connection.Models {
@@ -141,13 +188,8 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		copyConnection := *connection
 		copyConnection.Models = nil
 		for _, entry := range connection.Models {
-			if profile.Model["apply_patch_tool_type"] == "freeform" || profile.Model["tool_mode"] == "code_mode_only" {
-				endpoints := ApplyForcedAPIFormats(ctx, ch, []ChannelModelEntry{entry}, m.TargetID, ch.ResolveEndpoints())
-				if !slices.ContainsFunc(endpoints, func(ep objects.ChannelEndpoint) bool {
-					return ep.APIFormat == llm.APIFormatOpenAIResponse.String()
-				}) {
-					continue
-				}
+			if codexProfileRequiresResponses(profile.Model) && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+				continue
 			}
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
 			if metadata == nil {
@@ -170,43 +212,42 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	return d.catalogModel(m, false)
 }
 
-// Ultra is a client delegation mode. Codex sends the selected profile's
-// multi_agent_reasoning_effort, so a route can support it without advertising
-// the UI option itself. Explicit route limits are applied after this inheritance.
-func inheritCodexUltraLevel(variant, profile map[string]any) bool {
-	effort, _ := profile["multi_agent_reasoning_effort"].(string)
-	if effort == "" || effort == "ultra" {
-		return false
-	}
-	levels, _ := variant["supported_reasoning_levels"].([]any)
-	supportsEffort := false
-	for _, item := range levels {
-		level, _ := item.(map[string]any)
-		if level["effort"] == "ultra" {
-			return false
-		}
-		if level["effort"] == effort {
-			supportsEffort = true
-		}
-	}
-	if !supportsEffort {
-		return false
-	}
-	profileLevels, _ := profile["supported_reasoning_levels"].([]any)
-	for _, item := range profileLevels {
-		level, _ := item.(map[string]any)
-		if level["effort"] == "ultra" {
-			variant["supported_reasoning_levels"] = append(slices.Clone(levels), item)
-			return true
-		}
-	}
-	return false
+func codexProfileRequiresResponses(profile map[string]any) bool {
+	return profile["apply_patch_tool_type"] == "freeform" || profile["tool_mode"] == "code_mode_only"
 }
 
-// Inheritance is valid only while the selected effort survives every route limit
-// and the final intersection. Existing all-route Ultra declarations are unchanged.
-func constrainInheritedCodexUltraLevel(result, profile map[string]any) {
+func codexRouteSupportsResponses(ctx context.Context, ch *Channel, entry ChannelModelEntry, target string) bool {
+	endpoints := ApplyForcedAPIFormats(ctx, ch, []ChannelModelEntry{entry}, target, ch.ResolveEndpoints())
+	return slices.ContainsFunc(endpoints, func(ep objects.ChannelEndpoint) bool {
+		return ep.APIFormat == llm.APIFormatOpenAIResponse.String()
+	})
+}
+
+// These are client model metadata, not per-route admission constraints. Keep
+// reading them in old route snapshots, but only explicit Limits may narrow them.
+func codexReasoningProfileField(field string) bool {
+	switch field {
+	case "supported_reasoning_levels", "default_reasoning_level", "supports_reasoning_effort_updates":
+		return true
+	default:
+		return false
+	}
+}
+
+// Ultra sends the profile's underlying effort. An explicit limit that removes
+// that effort must also remove Ultra; an unknown mapping is not guessed.
+func constrainCodexReasoningProfile(result, profile map[string]any) {
 	effort, _ := profile["multi_agent_reasoning_effort"].(string)
+	if effort == "" || effort == "ultra" {
+		return
+	}
+	profileLevels, _ := profile["supported_reasoning_levels"].([]any)
+	if !slices.ContainsFunc(profileLevels, func(item any) bool {
+		level, _ := item.(map[string]any)
+		return level["effort"] == effort
+	}) {
+		return
+	}
 	levels, _ := result["supported_reasoning_levels"].([]any)
 	for _, item := range levels {
 		level, _ := item.(map[string]any)

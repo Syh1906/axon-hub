@@ -162,7 +162,6 @@ func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool)
 		bindings[ChannelModelKey{ChannelID: r.ChannelID, ModelID: r.ModelID}] = r
 	}
 	var variants []map[string]any
-	inheritedUltra := false
 	for _, connection := range m.Connections {
 		for _, entry := range connection.Models {
 			r := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
@@ -173,14 +172,15 @@ func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool)
 
 			if r.Capabilities != nil {
 				for _, field := range codexCapabilityFields {
-					delete(variant, field)
+					if !codexReasoningProfileField(field) {
+						delete(variant, field)
+					}
 				}
 				for k, v := range r.Capabilities {
-					variant[k] = v
+					if !codexReasoningProfileField(k) {
+						variant[k] = v
+					}
 				}
-			}
-			if inheritCodexUltraLevel(variant, canonical) {
-				inheritedUltra = true
 			}
 			// Truncation controls local tool output, not an upstream context limit.
 			// Keep accepting old route snapshots but use the confirmed client policy.
@@ -207,9 +207,7 @@ func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool)
 	if err != nil {
 		return nil, err
 	}
-	if inheritedUltra {
-		constrainInheritedCodexUltraLevel(result, canonical)
-	}
+	constrainCodexReasoningProfile(result, canonical)
 	if !preserveKnownContext {
 		return result, nil
 	}

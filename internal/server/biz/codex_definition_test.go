@@ -500,22 +500,22 @@ func TestCodexDefinitionHeterogeneousPublicProfiles(t *testing.T) {
 	require.Equal(t, "code_mode_only", parsed["client-alias"]["tool_mode"])
 }
 
-func TestCodexDefinitionUltraUsesClientReasoningEffort(t *testing.T) {
+func TestCodexDefinitionReasoningUsesClientProfile(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
 		clientEffort    string
 		routeEffort     string
 		profileHasUltra bool
 		limitUltra      bool
-		wantUltra       bool
 	}{
-		{"xhigh route without ultra", "xhigh", "xhigh", true, false, true},
-		{"max configured by client profile", "max", "max", true, false, true},
-		{"actual effort unavailable", "xhigh", "high", true, false, false},
-		{"profile does not offer ultra", "xhigh", "xhigh", false, false, false},
-		{"unknown client effort", "", "xhigh", true, false, false},
-		{"ultra cannot map to itself", "ultra", "xhigh", true, false, false},
-		{"explicit limit still removes ultra", "xhigh", "xhigh", true, true, false},
+		{"xhigh route without ultra", "xhigh", "xhigh", true, false},
+		{"max configured by client profile", "max", "max", true, false},
+		{"source omits actual effort", "xhigh", "high", true, false},
+		{"sparse source includes none", "xhigh", "none", true, false},
+		{"profile does not offer ultra", "xhigh", "xhigh", false, false},
+		{"unknown mapping retains declared ultra", "", "xhigh", true, false},
+		{"self mapping retains declared ultra", "ultra", "xhigh", true, false},
+		{"explicit limit still removes ultra", "xhigh", "xhigh", true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			parsed, err := parseCodexCatalog([]byte(catalogFixture))
@@ -557,9 +557,12 @@ func TestCodexDefinitionUltraUsesClientReasoningEffort(t *testing.T) {
 			for _, level := range result["supported_reasoning_levels"].([]any) {
 				efforts = append(efforts, level.(map[string]any)["effort"].(string))
 			}
-			want := []string{"medium", tc.routeEffort}
-			if tc.wantUltra {
+			want := []string{"medium", "high", "xhigh", "max"}
+			if tc.profileHasUltra {
 				want = append(want, "ultra")
+			}
+			if tc.limitUltra {
+				want = []string{"medium", tc.routeEffort}
 			}
 			require.Equal(t, want, efforts)
 			after, err := json.Marshal(d)
@@ -569,7 +572,7 @@ func TestCodexDefinitionUltraUsesClientReasoningEffort(t *testing.T) {
 	}
 }
 
-func TestCodexDefinitionInheritedUltraRequiresFinalEffort(t *testing.T) {
+func TestCodexDefinitionUltraRespectsExplicitLimits(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		secondEfforts []string
@@ -577,10 +580,10 @@ func TestCodexDefinitionInheritedUltraRequiresFinalEffort(t *testing.T) {
 		limits        []string
 		want          []string
 	}{
-		{"mixed ultra mappings", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh"}, nil, []string{"medium"}},
+		{"mixed source mappings retain client profile", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh"}, nil, []string{"medium", "xhigh", "ultra"}},
 		{"limits remove actual effort", []string{"medium", "xhigh", "ultra"}, []string{"medium", "xhigh"}, []string{"medium", "ultra"}, []string{"medium"}},
 		{"all routes retain actual effort", []string{"medium", "xhigh", "ultra"}, []string{"medium", "xhigh"}, nil, []string{"medium", "xhigh", "ultra"}},
-		{"existing ultra declarations remain unchanged", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh", "ultra"}, nil, []string{"medium", "ultra"}},
+		{"incomplete source does not remove actual effort", []string{"medium", "high", "ultra"}, []string{"medium", "xhigh", "ultra"}, nil, []string{"medium", "xhigh", "ultra"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			levels := func(efforts []string) []any {
