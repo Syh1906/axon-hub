@@ -1075,6 +1075,9 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
+- 第十九版准备（2026-11-07）：目标 `v1.0.0-beta10-fork.7.syh.19`，正式级别、精简镜像发布。包含官方 Codex 快照与继承覆盖、推理档位选源，以及 .syh.18 后已提交的缓存计费、加载性能和加密续聊修复；无新增 schema/data migration。当前处于提交与发布检查阶段，尚未发布或部署；最终产物与双机目录配置验收在本条后续更新。
+
+
 - 第十八版发布（2026-11-05）：版本 `v1.0.0-beta10-fork.7.syh.18`，源码 `99b0d23273a97db8a0f8badacd1fd9882a03d09b`。纳入文字／图片输入分项计费、Key／分组用量统一入口、分组日志 GraphQL 422 修复及渠道内置生图权限。两层上游不变，`publishBinaries=false`、`prerelease=false`。
   同提交 [Test 41982063432](https://github.com/Syh1906/axon-hub/actions/runs/41982063432)、[Build 41982063266](https://github.com/Syh1906/axon-hub/actions/runs/41982063266)、[Lint 41982063301](https://github.com/Syh1906/axon-hub/actions/runs/41982063301) 全部成功。[发布任务 41982715472](https://github.com/Syh1906/axon-hub/actions/runs/41982715472) 复用 Test，双架构构建、合成和临时 PostgreSQL 启动检查通过；新加坡时间 14:52:44 正式发布并设为最新版本。唯一附件 [release.json](../output/implementation/release-syh18-20261105/release.json) 为 707 字节，SHA-256 `0fc164441005ffc16383b2d887f28dcf663d1dcdba7136e7f2d7cebf41c1ee7f` 与 GitHub 一致。
   固定镜像 `ghcr.io/syh1906/axon-hub@sha256:81c40c9468cf59e49969da0bb1356e4845f10dd927d27c8ddcafedd81a1c2d11`。云悠 14:57:41、泉哥 15:00:28（新加坡时间）依次通过部署验收：内外网健康／版本／源码、首页 JS/CSS、初始化及匿名鉴权正确；数据库与其他应用容器未重建，应用资源／环境／挂载和代理摘要不变。重建及等待健康分别为 36.34 秒、29.333 秒，不等同逐请求中断时长。
