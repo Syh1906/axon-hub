@@ -777,7 +777,7 @@ func (p *PersistentOutboundTransformer) CanRetry(err error) bool {
 	if p.state.CurrentCandidate == nil {
 		return false
 	}
-	if p.state.CurrentCandidate.continuationBound && invalidResponsesContinuation(err) {
+	if invalidResponsesContinuation(err) {
 		return false
 	}
 	// Repeating the same payload/model/address cannot resolve this channel's

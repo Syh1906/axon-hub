@@ -64,6 +64,33 @@ AxonHub provides partial support for the OpenAI Responses API. This API offers a
 - ✅ Basic response generation is fully functional
 - ✅ Streaming responses are supported
 
+**Agent messages and encrypted arguments:**
+
+Responses function calls preserve `encrypted_function_args` in non-streaming responses,
+streaming responses, and replayed history. An absent field, an empty array `[]`, and a
+non-empty array have different meanings. AxonHub does not infer plaintext from an absent field.
+
+If an earlier `collaboration.spawn_agent`, `send_message`, or `followup_task` call in the
+same request explicitly contains `encrypted_function_args: []`, and its `message` argument
+exactly matches a later `agent_message.content[]` value mislabeled as `encrypted_content`,
+and the target matches the recipient's full path or a child path relative to the author,
+AxonHub restores that content block to `input_text`. Message IDs, authors, recipients, order,
+and other content are preserved. Only the outbound copy is repaired; client and database
+history are not rewritten. The same rule applies to body pass-through and the input of
+`/v1/responses/compact`. Without this evidence, or when a target ID or alias cannot be resolved
+unambiguously from the message paths, content is preserved without guessing from
+ciphertext prefixes or readable-looking text. Existing affected conversations are not
+guaranteed to recover automatically.
+
+An upstream `invalid_encrypted_content` error is not retried on the same channel and does not
+count as a channel health or circuit-breaker failure; request records still reflect the failure.
+Statusless Responses errors with this code, and structured failures with this code in
+`response.failed`, are returned as HTTP 400 before output begins. Once a stream has started,
+the failure event and error fields are preserved without changing the HTTP status already sent.
+Explicit HTTP error statuses and original error fields are preserved. Real ciphertext may still depend on
+its original upstream; eligible channel fallback follows existing continuation and permission
+rules and does not guarantee decryption across sources.
+
 **Example Request:**
 ```go
 import (

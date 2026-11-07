@@ -25,6 +25,9 @@ func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOut
 	if err == nil {
 		return biz.HealthGateOutcomeSuccess
 	}
+	if invalidResponsesContinuation(err) {
+		return biz.HealthGateOutcomeNeutral
+	}
 	if errors.Is(err, errSkipCandidateByCircuitBreaker) || errors.Is(err, errSkipCandidateByHealthGate) ||
 		isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
 		return biz.HealthGateOutcomeNeutral

@@ -237,8 +237,9 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			// Initialize tool call tracking
 			toolCallIdx := len(s.state.toolCalls)
 			s.state.toolCalls[item.CallID] = &llm.ToolCall{
-				ID:   item.CallID,
-				Type: "function",
+				ID:                  item.CallID,
+				Type:                "function",
+				TransformerMetadata: encryptedFunctionArgsMetadata(item.EncryptedFunctionArgs),
 				Function: llm.FunctionCall{
 					Name:      item.Name,
 					Namespace: item.Namespace,
@@ -255,9 +256,10 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 					Delta: &llm.Message{
 						ToolCalls: []llm.ToolCall{
 							{
-								ID:    item.CallID,
-								Type:  "function",
-								Index: toolCallIdx,
+								ID:                  item.CallID,
+								Type:                "function",
+								Index:               toolCallIdx,
+								TransformerMetadata: encryptedFunctionArgsMetadata(item.EncryptedFunctionArgs),
 								Function: llm.FunctionCall{
 									Name:      item.Name,
 									Namespace: item.Namespace,
@@ -481,15 +483,26 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 			return nil // Intentionally skip this event
 		}
 		if streamEvent.Item.Type == "function_call" || streamEvent.Item.Type == "custom_tool_call" {
-			if lo.FromPtr(streamEvent.Item.Status) != "completed" {
-				return nil
-			}
 			callID := streamEvent.Item.CallID
 			if callID == "" {
 				callID = s.state.itemToCallID[streamEvent.Item.ID]
 			}
 			stored := s.state.toolCalls[callID]
 			if stored == nil {
+				return nil
+			}
+			if streamEvent.Item.Type == "function_call" {
+				retainEncryptedFunctionArgs(stored, streamEvent.Item.EncryptedFunctionArgs)
+			}
+			if lo.FromPtr(streamEvent.Item.Status) != "completed" {
+				// The Responses protocol permits item.done without status. Keep
+				// its final metadata while leaving completion to the terminal event.
+				if lo.FromPtr(streamEvent.Item.Status) == "" && streamEvent.Item.Type == "function_call" && streamEvent.Item.EncryptedFunctionArgs != nil {
+					resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{{
+						Index: s.state.toolCallIndex[callID], TransformerMetadata: encryptedFunctionArgsMetadata(streamEvent.Item.EncryptedFunctionArgs),
+					}}}}}
+					break
+				}
 				return nil
 			}
 			previousName, previousNamespace := stored.Function.Name, stored.Function.Namespace
@@ -524,7 +537,10 @@ func (s *responsesOutboundStream) transformStreamChunk(event *httpclient.StreamE
 					delta.Function.Namespace = ""
 				}
 			}
-			delta.TransformerMetadata = map[string]any{responsesToolCallCompletedMetadataKey: true}
+			if delta.TransformerMetadata == nil {
+				delta.TransformerMetadata = make(map[string]any)
+			}
+			delta.TransformerMetadata[responsesToolCallCompletedMetadataKey] = true
 			resp.Choices = []llm.Choice{{Index: 0, Delta: &llm.Message{ToolCalls: []llm.ToolCall{*delta}}}}
 			break
 		}
@@ -810,7 +826,8 @@ func (s *responsesOutboundStream) finalToolInputDelta(callID, finalInput string)
 	}
 	delta := &llm.ToolCall{
 		ID: stored.ID, Type: stored.Type, Index: s.state.toolCallIndex[callID],
-		Function: llm.FunctionCall{Name: stored.Function.Name, Namespace: stored.Function.Namespace, Arguments: missing},
+		Function:            llm.FunctionCall{Name: stored.Function.Name, Namespace: stored.Function.Namespace, Arguments: missing},
+		TransformerMetadata: encryptedFunctionArgsMetadata(encryptedFunctionArgs(*stored)),
 	}
 	if custom {
 		delta.Function = llm.FunctionCall{}

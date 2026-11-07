@@ -262,11 +262,12 @@ func convertAssistantMessage(msg llm.Message) []Item {
 			})
 		} else {
 			toolCallItems = append(toolCallItems, Item{
-				Type:      "function_call",
-				CallID:    tc.ID,
-				Name:      tc.Function.Name,
-				Namespace: tc.Function.Namespace,
-				Arguments: tc.Function.Arguments,
+				Type:                  "function_call",
+				CallID:                tc.ID,
+				Name:                  tc.Function.Name,
+				Namespace:             tc.Function.Namespace,
+				Arguments:             tc.Function.Arguments,
+				EncryptedFunctionArgs: encryptedFunctionArgs(tc),
 			})
 		}
 	}
@@ -714,8 +715,9 @@ func convertOutputToMessage(output []Item, transformerMetadata map[string]any) l
 			annotations = appendOutputText(&textContent, &visibleTextRuneCount, annotations, outputItem)
 		case "function_call":
 			toolCalls = append(toolCalls, llm.ToolCall{
-				ID:   outputItem.CallID,
-				Type: "function",
+				ID:                  outputItem.CallID,
+				Type:                "function",
+				TransformerMetadata: encryptedFunctionArgsMetadata(outputItem.EncryptedFunctionArgs),
 				Function: llm.FunctionCall{
 					Name:      outputItem.Name,
 					Namespace: outputItem.Namespace,

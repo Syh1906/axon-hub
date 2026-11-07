@@ -1219,6 +1219,15 @@ fork 改动，由用户决定。
 
 ## Bugfix Topics
 
+### 智能体消息加密标记丢失与无效重试
+
+- 状态：2026-11-07 本地阶段验收通过；独立 `gpt-6.1-sol / max` 审查及主执行者自检发现的四类遗漏已修复，最终复核无剩余阻塞；尚未发布或部署。
+- 问题：Responses 转换器未表示 `encrypted_function_args`，普通响应、流式响应和历史回传均会丢弃明确的明文标记 `[]`。Codex 多智能体直接调用在标记缺失时可能将普通文字送入加密消息路径；泉哥现场已观察到此类误标，但历史上游分片已过期，不能把全部现场误标归因于网关。来源协议见 [Codex 官方提交](https://github.com/openai/codex/commit/03edf16f0bce2c454fc9a8ddb382e9c23c114f7f)。这不是直接 cherry-pick，采用本仓库转换器适配。
+- 行为：缺失、空列表及非空列表分别保留；覆盖 item.added、item.done（含省略 status）、最终响应聚合、非流式响应和历史调用。仅在同一请求较早的 collaboration 调用明确标记明文、message 值完全匹配且接收路径可对应时修复后续 agent_message 内容块；保留原生消息身份、顺序及未知内容。转换、透传和 compact 输入采用同一修复条件；原始项插回位置按结构化转换结果计算，避免 system 移出及无签名 reasoning 省略时丢消息。
+- 错误处理：`invalid_encrypted_content` 无论是否绑定来源都不在同一渠道重试，已允许的备用渠道仍可参与；不计为渠道健康或熔断故障，含流已经交付后的收尾。无状态错误及 response.failed 中该错误码在输出开始前按 HTTP 400 返回，开始后通过失败事件保留错误原因；原 HTTP 状态与错误详情不伪造，请求失败记录仍保留。缺少明文证据的旧历史不会自动改写。
+- 代码：`llm/transformer/openai/responses/{encrypted_arguments,agent_message_history,model,inbound,inbound_stream,outbound_convert,outbound_stream,aggregator,compact_inbound,request_extensions}.go`；`internal/server/orchestrator/{outbound,pass_through,responses_continuation_route,health_gate_outcome,health_gate_middleware,model_circuit_breaker,stream_terminal}.go`。
+- 验证与同步：新增合成协议夹具、普通／流式／历史回传、明文证据边界、compact／透传、单渠道一次调用与备用渠道回归；Responses 包测试及 orchestrator 定向测试通过，无 schema/data migration。同步上游时保留空列表语义与分片结束阶段标记，不能按密文前缀猜测明文或补空标记。详细命令及边界见[修复记录](../.agent/summary/agent-message-encryption-20261107.md)。
+
 ### Responses 失败终态的记录与结算
 
 - 2026-11-03 两轮复审修正了交错工具提前完成、异常终态重复及无用量时丢失结果的问题。参数增量逐段传递；上游明确完成的工具及时交付，缺少单项完成信号时才等待本轮成功结束，后续失败保留前面工具的完成状态。新增完成事件不重复发送函数名称和调用 ID。Responses 整包、管线及两层网关定向测试通过，独立收敛复核无待处理项。上游主动停滞仍待供应方证据，详见[阶段复审及边界](../.agent/summary/responses-stage-review-20261103.md)。
@@ -1372,7 +1381,7 @@ fork 改动，由用户决定。
 
 - 状态：2026-11-03 本地修复及定向回归通过，未发布、未部署。
 - 问题：上游 `error` 事件允许不带 `status`，内部错误因此保留 0。Responses HTTP 出口原样传递该值，Gin 忽略 0 后以默认 200 返回错误正文。泉哥 `#20915` 的日志与该路径一致，但原始上游事件未留存，具体字段属于有证据支持的推断。
-- 行为：仅在 `responses.InboundTransformer.TransformError` 将缺省 0 映射为客户端 502；保留显式错误状态、错误码和说明，不修改原错误对象、执行记录的上游状态或重试选择。
+- 行为：在 `responses.InboundTransformer.TransformError` 将缺省 0 默认映射为客户端 502；2026-11-07 对明确的 `invalid_encrypted_content` 改为 400，详见上方智能体消息条目。保留显式错误状态、错误码和说明，不修改原错误对象或伪造执行记录的上游 HTTP 状态。
 - 代码与验收：`llm/transformer/openai/responses/inbound.go`、`internal/server/api/chat_test.go`。真实转换器与 Gin 的本地回归在修复前复现 200，修复后返回 502 且内部状态仍为 0；原 429、取消及期限分类回归通过。无数据库迁移，供应方断流及限流原因未由此消除。详见[本轮审查与验证记录](../.agent/summary/catalog-error-flow-20261103.md#独立审查与追加诊断)。
 - 同步上游重点：错误事件解析与 HTTP 出口职责分开；不要为修正客户端状态而把合成 502 当作真实上游 HTTP 状态参与重试或故障转移。
 

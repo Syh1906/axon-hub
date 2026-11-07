@@ -131,6 +131,9 @@ func (t *InboundTransformer) TransformError(ctx context.Context, rawErr error) *
 		status := llmErr.StatusCode
 		if status == 0 {
 			status = http.StatusBadGateway
+			if llmErr.Detail.Code == "invalid_encrypted_content" {
+				status = http.StatusBadRequest
+			}
 		}
 		errResp := ResponseError{
 			Error: ResponseErrorDetail{
@@ -313,7 +316,9 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 	}
 
 	if len(rawBody) > 0 {
-		attachOpenAIResponsesRequestExtensions(chatReq, req, rawBody[0])
+		if err := attachOpenAIResponsesRequestExtensions(chatReq, req, rawBody[0]); err != nil {
+			return nil, err
+		}
 	}
 
 	return chatReq, nil
@@ -473,8 +478,9 @@ func convertReasoningWithFollowing(items []Item, startIdx int) (*llm.Message, in
 		case "function_call":
 			// Merge function_call into the same assistant message
 			msg.ToolCalls = append(msg.ToolCalls, llm.ToolCall{
-				ID:   nextItem.CallID,
-				Type: "function",
+				ID:                  nextItem.CallID,
+				Type:                "function",
+				TransformerMetadata: encryptedFunctionArgsMetadata(nextItem.EncryptedFunctionArgs),
 				Function: llm.FunctionCall{
 					Name:      nextItem.Name,
 					Namespace: nextItem.Namespace,
@@ -580,8 +586,9 @@ func convertItemToMessage(item *Item) (*llm.Message, error) {
 			Role: "assistant",
 			ToolCalls: []llm.ToolCall{
 				{
-					ID:   item.CallID,
-					Type: "function",
+					ID:                  item.CallID,
+					Type:                "function",
+					TransformerMetadata: encryptedFunctionArgsMetadata(item.EncryptedFunctionArgs),
 					Function: llm.FunctionCall{
 						Name:      item.Name,
 						Namespace: item.Namespace,
@@ -1038,13 +1045,14 @@ func convertToResponsesAPIResponse(chatResp *llm.Response) *Response {
 					})
 				} else {
 					resp.Output = append(resp.Output, Item{
-						ID:        toolCall.ID,
-						Type:      "function_call",
-						CallID:    toolCall.ID,
-						Name:      toolCall.Function.Name,
-						Namespace: toolCall.Function.Namespace,
-						Arguments: toolCall.Function.Arguments,
-						Status:    lo.ToPtr("completed"),
+						ID:                    toolCall.ID,
+						Type:                  "function_call",
+						CallID:                toolCall.ID,
+						Name:                  toolCall.Function.Name,
+						Namespace:             toolCall.Function.Namespace,
+						Arguments:             toolCall.Function.Arguments,
+						EncryptedFunctionArgs: encryptedFunctionArgs(toolCall),
+						Status:                lo.ToPtr("completed"),
 					})
 				}
 			}

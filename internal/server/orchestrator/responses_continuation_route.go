@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm"
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 type responsesContinuationRouteProvider interface {
@@ -255,13 +256,22 @@ func continuationRouteError(code, message string) error {
 
 func invalidResponsesContinuation(err error) bool {
 	var responseErr *llm.ResponseError
-	if !errors.As(err, &responseErr) {
-		return false
+	var code, message string
+	if errors.As(err, &responseErr) {
+		code, message = responseErr.Detail.Code, responseErr.Detail.Message
+	} else {
+		// Raw-error middleware runs before the provider error is converted.
+		var rawErr *httpclient.Error
+		if !errors.As(err, &rawErr) {
+			return false
+		}
+		code = gjson.GetBytes(rawErr.Body, "error.code").String()
+		message = gjson.GetBytes(rawErr.Body, "error.message").String()
 	}
-	if responseErr.Detail.Code == "invalid_encrypted_content" {
+	if code == "invalid_encrypted_content" {
 		return true
 	}
-	message := responseErr.Detail.Message
-	return strings.Contains(message, "encrypted content") &&
+	message = strings.ToLower(message)
+	return message == "invalid encrypted content." || strings.Contains(message, "encrypted content") &&
 		(strings.Contains(message, "could not be verified") || strings.Contains(message, "could not be decrypted or parsed"))
 }

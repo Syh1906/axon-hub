@@ -64,6 +64,26 @@ AxonHub 提供对 OpenAI Responses API 的部分支持。该 API 为单轮交互
 - ✅ 基本响应生成完全可用
 - ✅ 支持流式响应
 
+**智能体消息与加密参数：**
+
+Responses 函数调用的 `encrypted_function_args` 在普通响应、流式响应和历史回传中保留。
+字段缺失、空数组 `[]` 与非空数组有不同含义；AxonHub 不会因为字段缺失而推定参数是明文。
+
+当同一次请求中较早的 `collaboration.spawn_agent`、`send_message` 或 `followup_task`
+函数调用明确带有 `encrypted_function_args: []`，且它的 `message` 参数与后续
+`agent_message.content[]` 中误标为 `encrypted_content` 的值完全相同，且目标是同一接收者的
+完整路径或相对发送者的子路径时，AxonHub 将该内容块
+恢复为 `input_text`。消息 ID、发送者、接收者、顺序和其他内容保持；只修正当次发往上游的
+副本，不改写客户端或数据库历史。此规则也用于请求体透传及 `/v1/responses/compact` 的输入。
+缺少上述证据或只有无法确定路径的代理 ID／别名时保留原内容，不依据密文前缀或文字外观
+猜测；已有受影响会话不保证自动恢复。
+
+上游返回 `invalid_encrypted_content` 时，不在同一渠道重复发送，也不计为渠道健康或熔断故障；
+请求日志仍记录实际失败。没有 HTTP 状态码的此类 Responses 错误，以及 `response.failed`
+中的此类结构化失败，在输出开始前按 HTTP 400 返回。流已经开始时保留失败事件和错误字段，
+不改变已经发出的 HTTP 状态；已有显式 HTTP 错误状态及原错误字段保留。真实密文仍可能依赖原上游，
+允许的备用渠道选择沿用现有续聊与权限规则，不保证跨来源解密成功。
+
 **示例请求：**
 ```go
 import (

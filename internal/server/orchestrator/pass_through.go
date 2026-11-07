@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
 // codexResponsesPassThroughHeaders contains Codex identity metadata that can
@@ -188,6 +189,13 @@ func applyPassThroughRequestHeaders(outbound *PersistentOutboundTransformer) pip
 
 func mergePassThroughRequestBody(rawBody []byte, apiFormat llm.APIFormat, model string) ([]byte, error) {
 	body := append([]byte(nil), rawBody...)
+	if isResponsesFormat(apiFormat) {
+		var err error
+		body, err = responses.NormalizeAgentMessageHistory(body)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if !passThroughBodyNeedsModelPatch(apiFormat) {
 		return body, nil

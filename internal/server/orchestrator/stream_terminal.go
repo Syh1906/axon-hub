@@ -89,6 +89,9 @@ func responseStatusError(status string, detail llm.ErrorDetail) error {
 		detail.Type = "upstream_response_error"
 	}
 	err := &llm.ResponseError{StatusCode: 502, Detail: detail}
+	if detail.Code == "invalid_encrypted_content" {
+		err.StatusCode = 400
+	}
 	if status == "canceled" || status == responseStatusCanceledAlternate {
 		return errors.Join(context.Canceled, err)
 	}

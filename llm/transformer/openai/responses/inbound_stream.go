@@ -743,6 +743,7 @@ func (s *responsesInboundStream) handleToolCalls(toolCalls []llm.ToolCall) error
 				return err
 			}
 		}
+		retainEncryptedFunctionArgs(s.toolCalls[toolCallIndex], encryptedFunctionArgs(tc))
 
 		// Process delta based on tool type
 		switch {
@@ -781,6 +782,7 @@ func (s *responsesInboundStream) initToolCall(tc llm.ToolCall) error {
 		ID:                     tc.ID,
 		Type:                   tc.Type,
 		ResponseCustomToolCall: tc.ResponseCustomToolCall,
+		TransformerMetadata:    encryptedFunctionArgsMetadata(encryptedFunctionArgs(tc)),
 		Function: llm.FunctionCall{
 			Name:      tc.Function.Name,
 			Namespace: tc.Function.Namespace,
@@ -832,12 +834,13 @@ func (s *responsesInboundStream) startToolCallItem(toolCallIndex int) error {
 
 	default:
 		item := &Item{
-			ID:        itemID,
-			Type:      "function_call",
-			Status:    lo.ToPtr("in_progress"),
-			CallID:    tc.ID,
-			Name:      tc.Function.Name,
-			Namespace: tc.Function.Namespace,
+			ID:                    itemID,
+			Type:                  "function_call",
+			Status:                lo.ToPtr("in_progress"),
+			CallID:                tc.ID,
+			Name:                  tc.Function.Name,
+			Namespace:             tc.Function.Namespace,
+			EncryptedFunctionArgs: encryptedFunctionArgs(*tc),
 		}
 
 		err := s.enqueueEvent(&StreamEvent{
@@ -1198,13 +1201,14 @@ func (s *responsesInboundStream) closeToolCallItem(idx int) error {
 		}
 
 		item := Item{
-			ID:        itemID,
-			Type:      "function_call",
-			Status:    lo.ToPtr("completed"),
-			CallID:    tc.ID,
-			Name:      tc.Function.Name,
-			Namespace: tc.Function.Namespace,
-			Arguments: tc.Function.Arguments,
+			ID:                    itemID,
+			Type:                  "function_call",
+			Status:                lo.ToPtr("completed"),
+			CallID:                tc.ID,
+			Name:                  tc.Function.Name,
+			Namespace:             tc.Function.Namespace,
+			Arguments:             tc.Function.Arguments,
+			EncryptedFunctionArgs: encryptedFunctionArgs(*tc),
 		}
 
 		err = s.enqueueEvent(&StreamEvent{

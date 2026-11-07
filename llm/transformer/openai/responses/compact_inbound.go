@@ -72,6 +72,17 @@ func (t *CompactInboundTransformer) TransformRequest(ctx context.Context, httpRe
 			PromptCacheKey: req.PromptCacheKey,
 		},
 	}
+	// Compaction replays the same history as /responses. Preserve native agent
+	// messages rather than dropping the items unknown to the common model.
+	raw := parseRawRequestFragments(httpReq.Body)
+	items, err := buildRawOnlyInputFragments(req.Input, raw.InputItems)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) > 0 {
+		ext := llm.EnsureOpenAIResponsesProviderExtensions(llmReq)
+		ext.Request = &llm.OpenAIResponsesRequestExtensions{RawInputItems: items}
+	}
 	attachOpenAIResponsesRawRequestFields(llmReq, httpReq.Body, rawCompactRequestFields)
 
 	return llmReq, nil

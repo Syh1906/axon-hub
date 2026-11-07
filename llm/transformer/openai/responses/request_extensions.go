@@ -3,6 +3,8 @@ package responses
 import (
 	"encoding/json"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/llm"
 )
 
@@ -21,9 +23,9 @@ var rawCompactRequestFields = []string{
 	"service_tier",
 }
 
-func attachOpenAIResponsesRequestExtensions(chatReq *llm.Request, req *Request, rawBody []byte) {
+func attachOpenAIResponsesRequestExtensions(chatReq *llm.Request, req *Request, rawBody []byte) error {
 	if chatReq == nil || req == nil {
-		return
+		return nil
 	}
 
 	raw := parseRawRequestFragments(rawBody)
@@ -31,24 +33,29 @@ func attachOpenAIResponsesRequestExtensions(chatReq *llm.Request, req *Request, 
 	if req.Reasoning != nil {
 		reasoningContext = req.Reasoning.Context
 	}
+	inputItems, err := buildRawOnlyInputFragments(req.Input, raw.InputItems)
+	if err != nil {
+		return err
+	}
 	requestExt := &llm.OpenAIResponsesRequestExtensions{
 		ReasoningContext: reasoningContext,
 		RawFields:        selectRawRequestFields(raw.Fields, rawCreateRequestFields),
 		RawTools:         buildRawOnlyToolFragments(req.Tools, raw.Tools),
 		ToolSignatures:   buildRepresentedToolSignatures(req.Tools),
 		RawToolChoice:    rawUnsupportedToolChoice(req.ToolChoice, raw.ToolChoice),
-		RawInputItems:    buildRawOnlyInputFragments(req.Input, raw.InputItems),
+		RawInputItems:    inputItems,
 	}
 
 	if requestExt.ReasoningContext == "" && len(requestExt.RawFields) == 0 && len(requestExt.RawTools) == 0 && len(requestExt.RawToolChoice) == 0 && len(requestExt.RawInputItems) == 0 {
-		return
+		return nil
 	}
 
 	ext := llm.EnsureOpenAIResponsesProviderExtensions(chatReq)
 	if ext == nil {
-		return
+		return nil
 	}
 	ext.Request = requestExt
+	return nil
 }
 
 type rawRequestFragments struct {
@@ -231,28 +238,40 @@ func rawUnsupportedToolChoice(choice *ToolChoice, rawChoice json.RawMessage) jso
 	return nil
 }
 
-func buildRawOnlyInputFragments(input Input, rawItems []json.RawMessage) []llm.OpenAIResponsesRawFragment {
+func buildRawOnlyInputFragments(input Input, rawItems []json.RawMessage) ([]llm.OpenAIResponsesRawFragment, error) {
 	if len(input.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	fragments := make([]llm.OpenAIResponsesRawFragment, 0)
+	segmentStart, replayIndex := 0, 0
 	for i := range input.Items {
 		item := input.Items[i]
 		if i >= len(rawItems) || len(rawItems[i]) == 0 || isStructurallyRepresentedInputItem(item.Type) {
 			continue
 		}
+		// A structured input is not necessarily one replayed item: system
+		// messages move to instructions, and unsigned reasoning is omitted.
+		// Project each contiguous segment through the existing converters once
+		// so native items retain their position relative to what is replayed.
+		messages, err := convertInputToMessages(&Input{Items: input.Items[segmentStart:i]})
+		if err != nil {
+			return nil, err
+		}
+		replayIndex += len(convertInputFromMessages(messages, llm.TransformOptions{ArrayInputs: lo.ToPtr(true)}).Items)
 
 		fragments = append(fragments, llm.OpenAIResponsesRawFragment{
 			Type:          item.Type,
 			Name:          item.Name,
 			CallID:        item.CallID,
-			OriginalIndex: i,
+			OriginalIndex: replayIndex,
 			Raw:           cloneRaw(rawItems[i]),
 		})
+		replayIndex++
+		segmentStart = i + 1
 	}
 
-	return fragments
+	return fragments, nil
 }
 
 func isStructurallyRepresentedInputItem(itemType string) bool {
@@ -282,7 +301,7 @@ func marshalRequestPayload(payload Request, llmReq *llm.Request) ([]byte, error)
 
 	requestExt := openAIResponsesRequestExtensions(llmReq)
 	if requestExt == nil {
-		return body, nil
+		return NormalizeAgentMessageHistory(body)
 	}
 
 	var obj map[string]json.RawMessage
@@ -311,7 +330,11 @@ func marshalRequestPayload(payload Request, llmReq *llm.Request) ([]byte, error)
 		obj["input"] = inputRaw
 	}
 
-	return json.Marshal(obj)
+	body, err = json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return NormalizeAgentMessageHistory(body)
 }
 
 func mergeRawRequestFields(obj map[string]json.RawMessage, requestExt *llm.OpenAIResponsesRequestExtensions) {
@@ -333,8 +356,8 @@ func marshalCompactRequestPayload(payload CompactAPIRequest, llmReq *llm.Request
 	}
 
 	requestExt := openAIResponsesRequestExtensions(llmReq)
-	if requestExt == nil || len(requestExt.RawFields) == 0 {
-		return body, nil
+	if requestExt == nil || len(requestExt.RawFields) == 0 && len(requestExt.RawInputItems) == 0 {
+		return NormalizeAgentMessageHistory(body)
 	}
 
 	var obj map[string]json.RawMessage
@@ -342,8 +365,19 @@ func marshalCompactRequestPayload(payload CompactAPIRequest, llmReq *llm.Request
 		return nil, err
 	}
 	mergeRawRequestFields(obj, requestExt)
+	if input, ok := mergeRawOnlyInputItems(obj["input"], requestExt); ok {
+		inputRaw, err := json.Marshal(input)
+		if err != nil {
+			return nil, err
+		}
+		obj["input"] = inputRaw
+	}
 
-	return json.Marshal(obj)
+	body, err = json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return NormalizeAgentMessageHistory(body)
 }
 
 func mergeRawOnlyInputItems(structuredRaw json.RawMessage, requestExt *llm.OpenAIResponsesRequestExtensions) ([]json.RawMessage, bool) {

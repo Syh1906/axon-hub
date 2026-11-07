@@ -202,11 +202,22 @@ func (s *healthGateStream) Close() error {
 			}
 			return
 		}
+		streamErr := s.stream.Err()
+		if streamErr == nil {
+			streamErr = closeErr
+		}
+		// A structured failed terminal can end the converted stream cleanly.
+		// Preserve this request error when deciding health after commitment too.
+		if invalidResponsesContinuation(s.state.StreamTerminalError) {
+			streamErr = s.state.StreamTerminalError
+		}
 		var outcome biz.HealthGateOutcome
 		switch {
 		case s.state.StreamCompleted:
 			outcome = biz.HealthGateOutcomeSuccess
 		case healthGateClientCanceled(s.ctx):
+			outcome = biz.HealthGateOutcomeNeutral
+		case invalidResponsesContinuation(streamErr):
 			outcome = biz.HealthGateOutcomeNeutral
 		case s.meaningful:
 			outcome = biz.HealthGateOutcomeUnstable
@@ -214,10 +225,6 @@ func (s *healthGateStream) Close() error {
 			outcome = biz.HealthGateOutcomeFailure
 		}
 		m.lastOutcome = outcome
-		streamErr := s.stream.Err()
-		if streamErr == nil {
-			streamErr = closeErr
-		}
 		if streamErr == nil && (outcome == biz.HealthGateOutcomeFailure || outcome == biz.HealthGateOutcomeUnstable) {
 			streamErr = ErrStreamIncomplete
 		}
