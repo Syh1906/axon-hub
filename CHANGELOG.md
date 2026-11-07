@@ -4,6 +4,22 @@
 
 - Added per-channel API key rules with status/keyword matching, configurable error thresholds, temporary auto-recovery, and permanent disable/delete actions.
 
+## [v1.0.0-beta10-fork.7.syh.19] - 2026-11-07
+
+### 新增与调整
+
+- 增加独立官方 Codex 发布快照兜底、按客户端版本更新与归档、离线及固定版本回退；按对外模型 ID 精确匹配，缺少供应商目录也能取得完整 GPT 配置，不增加调用权限。
+- 模型支持 mode: inherit 差异覆盖，未覆盖字段跟随资料更新；原完整定义与 DeepSeek 等第三方模型继续独立支持。
+- 渠道缓存价格支持 5m／1h 双向转换，展示实际写入时长和计费依据，默认关闭；Key 请求成本精度与后台一致。
+- 改善读取超时、取消、初始化失败恢复、模型列表可视区域渲染及排行榜查询；写操作不新增自动重试。
+
+### 修复与升级
+
+- 修复简略来源抹掉完整思考档位、工具覆盖未参与兼容判断、官方预览漏报来源差异的问题，保留人工限制和 Key 权限。
+- 保留 encrypted_function_args 的缺失与空列表区别，按明确明文及接收者证据恢复误标智能体消息；compact／透传保持原始项，明确加密内容错误不在同渠道重复调用、不计为渠道健康故障。
+- 相对 .syh.18 无新增 schema/data migration；新快照使用 systems 独立键，配置沿用 JSON 字段。旧版不支持继承定义，回退前需恢复兼容模型配置。
+- 精简正式发布仅含双架构镜像和 release.json。本地定向验证及独立审查完成，生产验收另记；未来客户端、真实供应商推理／账单及全部页面性能未据此宣称通过。
+
 ## [v1.0.0-beta10-fork.7.syh.18] - 2026-11-05
 
 ### 新增与调整
