@@ -154,6 +154,7 @@ func (s *lifecycleTailStream) Close() error                     { return nil }
 // A manually dispatched deadline makes the parent-first timer race deterministic.
 type delayedDeadlineContext struct {
 	context.Context
+
 	done    chan struct{}
 	waiting chan struct{}
 	once    sync.Once
