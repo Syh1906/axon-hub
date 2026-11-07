@@ -175,6 +175,9 @@ deploy_dev.sh
 /.local/
 /scripts/maintenance/__pycache__/
 
+# 本地设计预览、验收截图和生成产物。
+/output/
+
 docs/superpowers/
 docs/superpowers/**
 superpowers/
