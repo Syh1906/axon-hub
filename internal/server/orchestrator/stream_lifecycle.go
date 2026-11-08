@@ -47,6 +47,7 @@ type streamLifecycle struct {
 	deadlineCancel context.CancelFunc
 
 	acknowledged bool
+	deliveryErr  error
 	canceled     bool
 	closed       bool
 	done         chan struct{}
@@ -60,6 +61,7 @@ type streamTailOwner struct {
 	source         streams.Stream[*httpclient.StreamEvent]
 	readerDone     <-chan struct{}
 	readerDoneFunc func() <-chan struct{}
+	consumerDone   func()
 	abort          func()
 	onEvent        func(*httpclient.StreamEvent) error
 	sourceEnd      func() llm.SourceEndReason
@@ -252,12 +254,27 @@ func (s *streamLifecycle) registerTailOwner(owner *streamTailOwner) {
 	}
 }
 
+// Capture callbacks for this attempt before starting its independent consumer.
+func (s *streamLifecycle) sourceConsumerCallbacks() (abort, consumerDone func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.tail.abort, s.tail.consumerDone
+}
+
 func (s *streamLifecycle) startTail(owner *streamTailOwner, cause error) {
 	owner.startOnce.Do(func() {
 		if owner.accountingDone == nil {
 			owner.accountingDone = make(chan struct{})
 		}
-		tailCtx, cancel := context.WithTimeout(s.execution, streamTailTimeout)
+		base := s.execution
+		if cause != nil {
+			// run aborts the live source before collecting its already-buffered
+			// events. A canceled execution must not skip that bounded cleanup:
+			// the raw client branch may have observed a terminal the accounting
+			// consumer has not read yet. The source itself remains canceled.
+			base = context.WithoutCancel(base)
+		}
+		tailCtx, cancel := context.WithTimeout(base, streamTailTimeout)
 		go func() {
 			defer cancel()
 			defer close(owner.accountingDone)
@@ -299,10 +316,18 @@ func (s *streamLifecycle) AcknowledgeDelivery() {
 	s.acknowledged = true
 }
 
-func (s *streamLifecycle) Deliver(ctx context.Context, write func() (bool, error)) error {
+func (s *streamLifecycle) Deliver(ctx context.Context, write func() (bool, error)) (deliveryErr error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || s.canceled {
+	defer func() {
+		if s.deliveryErr == nil && deliveryErr != nil {
+			s.deliveryErr = deliveryErr
+		}
+	}()
+	if s.canceled {
+		return context.Cause(s.execution)
+	}
+	if s.closed {
 		return context.Canceled
 	}
 	if err := ctx.Err(); err != nil {
@@ -318,6 +343,12 @@ func (s *streamLifecycle) Deliver(ctx context.Context, write func() (bool, error
 		s.acknowledged = true
 	}
 	return err
+}
+
+func (s *streamLifecycle) DeliveryError() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.deliveryErr
 }
 
 func (s *streamLifecycle) DeliveryAcknowledged() bool {

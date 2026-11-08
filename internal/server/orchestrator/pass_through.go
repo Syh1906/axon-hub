@@ -691,11 +691,17 @@ func applyPassThroughStream(outbound *PersistentOutboundTransformer, systemServi
 		)
 
 		observer := streamLifecycleFromContext(ctx)
+		var abortSource, consumerDone func()
+		if observer != nil {
+			abortSource, consumerDone = observer.sourceConsumerCallbacks()
+		}
 		drainDone := make(chan struct{})
 		go func() {
 			defer close(drainDone)
 			if observer == nil {
 				defer stream.Close()
+			} else {
+				defer consumerDone()
 			}
 			defer func() {
 				if r := recover(); r != nil {
@@ -730,7 +736,7 @@ func applyPassThroughStream(outbound *PersistentOutboundTransformer, systemServi
 		}
 
 		if observer != nil {
-			return withPassThroughDeliveryGateAndDrain(rawStream, observer, stream.Close, drainDone), nil
+			return withPassThroughDeliveryGateAndDrain(rawStream, observer, abortSource, stream.Close, drainDone), nil
 		}
 
 		return rawStream, nil
@@ -742,6 +748,7 @@ type passThroughDeliveryStream struct {
 
 	observer streams.DeliveryAcknowledger
 	boundary streams.DeliveryBoundary
+	abort    func()
 	close    func() error
 	done     <-chan struct{}
 }
@@ -766,6 +773,7 @@ func withPassThroughDeliveryGate(
 func withPassThroughDeliveryGateAndDrain(
 	stream streams.Stream[*httpclient.StreamEvent],
 	observer streams.DeliveryAcknowledger,
+	abort func(),
 	close func() error,
 	done <-chan struct{},
 ) streams.Stream[*httpclient.StreamEvent] {
@@ -774,32 +782,22 @@ func withPassThroughDeliveryGateAndDrain(
 	}
 
 	boundary, _ := observer.(streams.DeliveryBoundary)
-	return &passThroughDeliveryStream{Stream: stream, observer: observer, boundary: boundary, close: close, done: done}
+	return &passThroughDeliveryStream{Stream: stream, observer: observer, boundary: boundary, abort: abort, close: close, done: done}
 }
 
 func (s *passThroughDeliveryStream) Close() error {
-	// Stop the producer before waiting on the drain. A failed downstream write
-	// stops the pass-through consumer, so nothing reads the raw queue, the
-	// producer blocks on it, and the drain blocks on the producer. Only s.close
-	// cancels the producer, so waiting first deadlocks. The drain still consumes
-	// everything already buffered, preserving the background reader's accounting.
-	var closeErr error
-	producerClosed := false
+	// Stop only the producer before waiting on the real consumer. Closing the
+	// full pipeline here would falsely signal that a reader paused between Next
+	// and Current has finished, letting the tail steal its current event.
 	delivered := s.DeliveryAcknowledged()
-	if !delivered && s.close != nil {
-		closeErr = s.close()
-		producerClosed = true
-	}
 	if s.done != nil {
 		if delivered {
 			timer := time.NewTimer(streamTailTimeout)
 			select {
 			case <-s.done:
 			case <-timer.C:
-				if s.close != nil {
-					closeErr = s.close()
-					producerClosed = true
-				}
+				s.abort()
+				<-s.done
 			}
 			if !timer.Stop() {
 				select {
@@ -808,10 +806,12 @@ func (s *passThroughDeliveryStream) Close() error {
 				}
 			}
 		} else {
+			s.abort()
 			<-s.done
 		}
 	}
-	if delivered && !producerClosed && s.close != nil {
+	var closeErr error
+	if s.close != nil {
 		closeErr = s.close()
 	}
 	return errors.Join(closeErr, s.Stream.Close())

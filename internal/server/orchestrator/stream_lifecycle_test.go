@@ -12,6 +12,8 @@ import (
 	"github.com/looplj/axonhub/internal/server/lifecycle"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
 type lifecycleTailStream struct {
@@ -463,6 +465,105 @@ func closedChannel() <-chan struct{} {
 	channel := make(chan struct{})
 	close(channel)
 	return channel
+}
+
+func TestStreamDeliveryCanceledLifecycleDrainsBufferedTerminal(t *testing.T) {
+	downstream, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	owner, execution := newStreamLifecycle(downstream)
+	defer owner.Close()
+	events := make(chan *httpclient.StreamEvent, 1)
+	events <- &httpclient.StreamEvent{Type: "response.completed", Data: []byte(`{"type":"response.completed"}`)}
+	close(events)
+	var aborted atomic.Bool
+	seen := 0
+	source := &passThroughChannelStream{ctx: execution, ch: events, owner: true, cancel: func() { aborted.Store(true) }}
+	owner.registerTailOwner(&streamTailOwner{
+		source: source, readerDone: closedChannel(), abort: func() { _ = source.Close() },
+		onEvent: func(event *httpclient.StreamEvent) error {
+			if !aborted.Load() || execution.Err() == nil {
+				t.Error("buffered drain must run after cancellation and source abort")
+			}
+			if event.Type == "response.completed" {
+				seen++
+			}
+			return nil
+		},
+		done: make(chan struct{}),
+	})
+	cancel()
+	<-execution.Done()
+	owner.Close()
+	if seen != 1 {
+		t.Fatalf("buffered provider terminal observed %d times, want 1", seen)
+	}
+}
+
+type observedHandoffStream struct {
+	streams.Stream[*httpclient.StreamEvent]
+	nextCalls  atomic.Int32
+	secondNext chan struct{}
+	aborted    chan struct{}
+	abortOnce  sync.Once
+}
+
+func (s *observedHandoffStream) Next() bool {
+	if s.nextCalls.Add(1) == 2 {
+		close(s.secondNext)
+	}
+	return s.Stream.Next()
+}
+
+func (s *observedHandoffStream) Close() error {
+	s.abortOnce.Do(func() { close(s.aborted) })
+	return s.Stream.Close()
+}
+
+func TestStreamDeliveryProductionTailWaitsBetweenNextAndCurrent(t *testing.T) {
+	downstream, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	owner, execution := newStreamLifecycle(downstream)
+	defer owner.Close()
+	events := make(chan *httpclient.StreamEvent, 2)
+	events <- &httpclient.StreamEvent{Type: "response.created", Data: []byte(`{"type":"response.created","response":{"id":"r","status":"in_progress"}}`)}
+	events <- &httpclient.StreamEvent{Type: "response.completed", Data: []byte(`{"type":"response.completed","response":{"id":"r","status":"completed","usage":{"input_tokens":12,"output_tokens":34}}}`)}
+	close(events)
+	source := &observedHandoffStream{
+		Stream:     &passThroughChannelStream{ctx: execution, ch: events},
+		secondNext: make(chan struct{}), aborted: make(chan struct{}),
+	}
+	outbound, err := responses.NewOutboundTransformer("https://example.test", "synthetic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := &PersistenceState{}
+	provider := NewOutboundPersistentStream(execution, source, nil, nil, nil, nil, outbound, nil, state)
+	defer provider.Close()
+	if !provider.Next() {
+		t.Fatal("missing first provider event")
+	}
+	// Pause the real consumer after Next, before it reads Current.
+	cancel()
+	select {
+	case <-source.aborted:
+	case <-time.After(time.Second):
+		t.Fatal("source was not aborted")
+	}
+	select {
+	case <-source.secondNext:
+		t.Fatal("tail advanced the source before the consumer stopped")
+	case <-time.After(50 * time.Millisecond):
+	}
+	if event := provider.Current(); event.Type != "response.created" {
+		t.Fatalf("consumer event was replaced with %s", event.Type)
+	}
+	if err := provider.Close(); err != nil {
+		t.Fatal(err)
+	}
+	owner.Close()
+	if len(provider.responseChunks) != 2 || provider.terminalState != streamTerminalCompleted {
+		t.Fatalf("expected both events exactly once and completed execution; chunks=%d state=%s", len(provider.responseChunks), provider.terminalState)
+	}
 }
 
 func TestStreamDeliveryLifecycleTailOwner(t *testing.T) {

@@ -2995,22 +2995,20 @@ func (o *closeOrderObserver) AcknowledgeDelivery() { o.acknowledged = true }
 func (o *closeOrderObserver) DeliveryAcknowledged() bool { return o.acknowledged }
 
 func TestPassThroughDeliveryStream_CloseStopsProducerBeforeWaitingForDrain(t *testing.T) {
-	// A failed downstream write stops the pass-through consumer while the request
-	// context is still live, so nothing reads the raw queue and the producer blocks
-	// on it. Only the owner close (fan-out cancel plus upstream Close) unblocks the
-	// producer, which is what lets the pipeline drain finish. Waiting for the drain
-	// before stopping the producer deadlocks, and the bounded tail never starts
-	// because the lifecycle has not been closed.
+	// Stop the producer before waiting; finalize only after the real drain exits.
 	var closeCalls atomic.Int32
 	drained := make(chan struct{})
 	stream := withPassThroughDeliveryGateAndDrain(
 		testHTTPStream(nil),
 		&closeOrderObserver{},
+		func() { close(drained) },
 		func() error {
 			closeCalls.Add(1)
-			// Stopping the producer is what releases the drain.
-			close(drained)
-
+			select {
+			case <-drained:
+			default:
+				t.Error("pipeline closed before the consumer finished")
+			}
 			return nil
 		},
 		drained,

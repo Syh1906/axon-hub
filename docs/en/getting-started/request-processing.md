@@ -105,6 +105,10 @@ If the upstream call fails, AxonHub may retry or switch to the next candidate ch
 
 The system converts the upstream result back into the format the client expects and records the result.
 
+Streaming requests record upstream execution and client delivery separately. For example, if the provider completes a response but the client connection is canceled before the gateway sends the final completion event, the execution remains completed while the request is canceled. Diagnostics identify the response delivery stage and cancellation cause. Write failures and deadlines remain failed; missing delivery acknowledgement without an explicit cancellation does not establish success or cancellation. A disconnect after the final event was successfully sent does not undo completion.
+
+HTTP 200 only indicates that the streaming response started, not that the client received the complete result. Interrupted delivery neither removes recorded upstream usage nor automatically resubmits generation. New delivery diagnostics do not backfill historical requests; an upstream completion alone cannot establish successful delivery for an older record lacking evidence.
+
 ## Which Document to Read Next
 
 | If your question is | Read this |

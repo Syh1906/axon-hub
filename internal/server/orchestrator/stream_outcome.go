@@ -19,10 +19,17 @@ type streamOutcome struct {
 	contextState           streamTerminalState
 	deadlineBeforeTerminal bool
 	deliveryAcknowledged   bool
+	deliveryErr            error
 }
 
 func (o *streamOutcome) observeDeliveryAcknowledgement() {
 	o.deliveryAcknowledged = true
+}
+
+func (o *streamOutcome) observeDeliveryError(err error) {
+	if o.deliveryErr == nil && err != nil {
+		o.deliveryErr = err
+	}
 }
 
 func (o streamOutcome) deliveryState() streamTerminalState {
@@ -31,13 +38,23 @@ func (o streamOutcome) deliveryState() streamTerminalState {
 
 func (o streamOutcome) deliveryDecision() streamOutcomeDecision {
 	decision := o.finalDecision()
+	// A provider failure remains authoritative, and a successful terminal write
+	// cannot be undone by a later disconnect or trailing write failure.
+	if o.deliveryAcknowledged || (o.providerTerminal && o.terminalState != streamTerminalCompleted) {
+		return decision
+	}
+	if o.deliveryErr != nil && !(decision.state == streamTerminalFailed && decision.cause != nil) {
+		state := streamTerminalFailed
+		if errors.Is(o.deliveryErr, context.Canceled) {
+			state = streamTerminalCanceled
+		}
+		return streamOutcomeDecision{state: state, cause: o.deliveryErr}
+	}
 	if decision.state != streamTerminalCompleted {
 		return decision
 	}
-	if !o.deliveryAcknowledged {
-		decision.state = streamTerminalIncomplete
-		decision.cause = ErrStreamIncomplete
-	}
+	decision.state = streamTerminalIncomplete
+	decision.cause = errStreamDeliveryUnconfirmed
 	return decision
 }
 

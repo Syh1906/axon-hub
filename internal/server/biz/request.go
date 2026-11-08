@@ -1093,11 +1093,13 @@ func (s *RequestService) UpdateRequestStatusFromError(ctx context.Context, reque
 	if errors.Is(rawErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 		status = request.StatusCanceled
 	}
+	// Stream cleanup must not replace an already recorded failure (for example,
+	// continuation persistence) with a later delivery error or cancellation.
+	update := s.entFromContext(ctx).Request.Update().Where(request.IDEQ(requestID), request.FailureIsNil()).SetStatus(status)
 	if len(failure) > 0 && failure[0] != nil {
-		return s.entFromContext(ctx).Request.UpdateOneID(requestID).SetStatus(status).SetFailure(failure[0]).Exec(ctx)
+		update.SetFailure(failure[0])
 	}
-	// Stream cleanup may observe cancellation after an explicit delivery failure.
-	return s.entFromContext(ctx).Request.Update().Where(request.IDEQ(requestID), request.FailureIsNil()).SetStatus(status).Exec(ctx)
+	return update.Exec(ctx)
 }
 
 // cancelStaleRecords updates records older than maxAge to canceled status.

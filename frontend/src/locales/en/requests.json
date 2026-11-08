@@ -222,6 +222,7 @@
   "requests.diagnostics.stages.origin_persistence": "Failure stage: continuation origin persistence",
   "requests.diagnostics.stages.routing": "Failure stage: channel selection",
   "requests.diagnostics.stages.execution": "Failure stage: request execution",
+  "requests.diagnostics.stages.delivery": "Interrupted stage: response delivery to the client",
   "requests.diagnostics.failure.quota": "Upstream account quota exhausted",
   "requests.diagnostics.failure.rateLimit": "Upstream rate limit reached",
   "requests.diagnostics.failure.generic": "This attempt failed",

@@ -943,6 +943,8 @@ fork 改动，由用户决定。
 
 ### 请求筛选与逐次诊断
 
+- 2026-11-08 流式交付取消诊断修复（本地验收与独立复审通过，未发布）：保留实际发送错误和关闭前的客户端取消原因，避免上游完成后把交付取消误归为无原因的 `failed`。取消记为 `canceled`；写入错误、超时、停机和无交付确认分别保留原因，使用既有 `requests.failure` 的 `delivery` 阶段展示。取消后先停止上游连接，等待实际消费者退出，再按原有 1 秒／256 事件／1 MiB 收集预算处理已缓冲事件；该预算不等于整个关闭流程的时限。修复后台晚读完成事件时漏记完成与用量的问题，保证尾部收集不提前接管仍在读取的源。成功交付后的断开不撤销完成；已有明确失败不被清理覆盖，不增加重试或改写历史数据。`gpt-6.1-sol / max` 独立审查发现的停止原因丢失、透传发送绕过记录、消费者结束信号提前三个问题已修复并复审。16 项持久化场景、普通／心跳 Responses 六场景各 10 次、真实消费者交接 10 次及相关流式／透传／重试／WebSocket 回归通过。无 schema/data migration。同步上游时核对 `stream_outcome.go`、`inbound.go`、`outbound.go`、`pass_through.go`、`request_failure.go`、`stream_lifecycle.go` 及请求失败保存；行为说明见[请求处理流程](zh/getting-started/request-processing.md)，命令及限制见[本轮记录](../.agent/summary/request57765-delivery-fix-20261108.md)。
+
 - beta12-fork.2 请求诊断校验修复（已发布）：Zod 升至 4.6.7 后，`z.any()` 不再隐含对象字段可缺省；路由／错误诊断及会话补查的 `includePayload=false` 与执行正文校验发生冲突。仅将 `requestExecutionSchema` 的 `requestBody`、`responseBody` 显式设为可缺省，保留必要字段、项目／权限、取消信号和按需查询，不强制下载正文。真实 schema＋queryFn 的 9 项回归修复前 3 项失败、修复后通过；新锁文件环境全部前端单元测试 554 通过、1 原有跳过。无迁移，入口及生产核查详见本地 `.agent/summary/beta12-production-validation-20261107.md`。
 
 - 2026-11-04 思考级别标签配色（已随 `.syh.17` 发布）：请求列表模型下方的思考级别沿用 claude-code-hub 配色，`none`／`minimal`／`low` 分别使用中性灰／暖灰／蓝灰，`medium` 为琥珀黄，`high` 为玫瑰红，`xhigh`／`max` 为逐步加深的红色，`auto` 为青蓝靛渐变；浅色、深色主题均适配，未知级别显示中性样式。实现为 `request-reasoning-badge.tsx`，接入共用的 `requests-columns.tsx`；不改变原有级别取值、文案、接口或数据库迁移。

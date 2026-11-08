@@ -219,7 +219,15 @@ func (ts *InboundPersistentStream) Err() error {
 	return ts.stream.Err()
 }
 
-func (ts *InboundPersistentStream) Deliver(ctx context.Context, write func() (bool, error)) error {
+func (ts *InboundPersistentStream) Deliver(ctx context.Context, write func() (bool, error)) (deliveryErr error) {
+	defer func() {
+		if deliveryErr == nil {
+			return
+		}
+		ts.stateMu.Lock()
+		ts.outcome.observeDeliveryError(deliveryErr)
+		ts.stateMu.Unlock()
+	}()
 	if ts.lifecycle != nil {
 		terminal, err := deliverAndTrack(write, func(write func() (bool, error)) error {
 			return ts.lifecycle.Deliver(ctx, write)
@@ -307,6 +315,19 @@ func (ts *InboundPersistentStream) Close() error {
 	ts.closeMu.Unlock()
 	defer close(ts.closeDone)
 
+	// Capture the actual downstream cancellation before cleanup cancels the
+	// execution context itself. Cleanup is not evidence of a client disconnect.
+	deliveryCtx := ts.ctx
+	if ts.lifecycle != nil {
+		deliveryCtx = ts.lifecycle.downstream
+	}
+	ts.stateMu.Lock()
+	if ts.lifecycle != nil {
+		ts.outcome.observeDeliveryError(ts.lifecycle.DeliveryError())
+	}
+	ts.outcome.observeDeliveryError(deliveryCtx.Err())
+	ts.stateMu.Unlock()
+
 	// Close the lifecycle first to quiesce the drain goroutine before reading shared state
 	if ts.lifecycle != nil {
 		_ = ts.stream.Close()
@@ -387,7 +408,7 @@ func (ts *InboundPersistentStream) Close() error {
 		ts.persistFailureChunks(persistCtx)
 
 		if ts.request != nil {
-			if err := ts.requestService.UpdateRequestStatusFromError(persistCtx, ts.request.ID, decision.cause); err != nil {
+			if err := ts.persistStreamFailure(persistCtx, decision.cause); err != nil {
 				log.Warn(persistCtx, "Failed to update request status from error", log.Cause(err))
 			}
 		}
@@ -407,7 +428,7 @@ func (ts *InboundPersistentStream) Close() error {
 		ts.persistFailureChunks(persistCtx)
 
 		if ts.request != nil {
-			if err := ts.requestService.UpdateRequestStatusFromError(persistCtx, ts.request.ID, decision.cause); err != nil {
+			if err := ts.persistStreamFailure(persistCtx, decision.cause); err != nil {
 				log.Warn(persistCtx, "Failed to update request status from error", log.Cause(err))
 			}
 		}

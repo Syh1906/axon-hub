@@ -105,8 +105,8 @@ func NewOutboundPersistentStream(
 			source:         stream,
 			readerDone:     s.consumerDone,
 			readerDoneFunc: s.readerDone,
+			consumerDone:   s.finishConsumption,
 			abort: func() {
-				s.consumerDoneOnce.Do(func() { close(s.consumerDone) })
 				_ = stream.Close()
 			},
 			onEvent: s.consumeTailEvent,
@@ -225,7 +225,7 @@ func (ts *OutboundPersistentStream) Close() error {
 	held := ts.finalizationHeld
 	ts.finalizationMu.Unlock()
 	if held {
-		ts.consumerDoneOnce.Do(func() { close(ts.consumerDone) })
+		ts.finishConsumption()
 		return nil
 	}
 	ts.stateMu.Lock()
@@ -235,6 +235,10 @@ func (ts *OutboundPersistentStream) Close() error {
 	})
 
 	return ts.closeErr
+}
+
+func (ts *OutboundPersistentStream) finishConsumption() {
+	ts.consumerDoneOnce.Do(func() { close(ts.consumerDone) })
 }
 
 // HoldFinalization must run before consumption. Consumer Close then only

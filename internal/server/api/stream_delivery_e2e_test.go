@@ -133,10 +133,14 @@ type streamDeliveryE2EFixture struct {
 	upstreamRelease chan struct{}
 }
 
-func newStreamDeliveryE2EFixture(t *testing.T, format llm.APIFormat, payload string, heartbeat bool) *streamDeliveryE2EFixture {
+func newStreamDeliveryE2EFixture(t *testing.T, format llm.APIFormat, payload string, heartbeat bool, databaseDSN ...string) *streamDeliveryE2EFixture {
 	t.Helper()
 	dbName := strings.ReplaceAll(t.Name(), "/", "_")
-	client := enttest.NewEntClient(t, "sqlite3", "file:stream-delivery-e2e-"+dbName+"?mode=memory&_fk=0")
+	dsn := "file:stream-delivery-e2e-" + dbName + "?mode=memory&_fk=0"
+	if len(databaseDSN) > 0 {
+		dsn = databaseDSN[0]
+	}
+	client := enttest.NewEntClient(t, "sqlite3", dsn)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
 	project, err := client.Project.Create().SetName("stream-delivery-e2e").Save(ctx)

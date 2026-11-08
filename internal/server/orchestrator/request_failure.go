@@ -16,6 +16,35 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 )
 
+var errStreamDeliveryUnconfirmed = errors.New("stream terminal delivery was not confirmed")
+
+// Preserve delivery errors separately from upstream completion and accounting.
+// This runs while the inbound stream's state lock is held during finalization.
+func (ts *InboundPersistentStream) persistStreamFailure(ctx context.Context, cause error) error {
+	if !errors.Is(cause, errStreamDeliveryUnconfirmed) &&
+		(ts.outcome.deliveryErr == nil || !errors.Is(cause, ts.outcome.deliveryErr)) {
+		return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request.ID, cause)
+	}
+	failure := &objects.RequestFailure{
+		Stage: "delivery", Type: "gateway_error", Code: "stream_delivery_failed",
+		Message: "Response delivery to the client failed before completion was confirmed.",
+	}
+	switch {
+	case errors.Is(cause, context.Canceled):
+		failure.Code = "stream_delivery_canceled"
+		failure.Message = "The client connection was canceled before response delivery was confirmed."
+	case errors.Is(cause, context.DeadlineExceeded):
+		failure.Code = "stream_delivery_timeout"
+		failure.Message = "The request deadline expired before response delivery was confirmed."
+	case errors.Is(cause, errStreamDeliveryUnconfirmed):
+		failure.Code = "stream_delivery_unconfirmed"
+		failure.Message = "The response completed, but delivery of its terminal event to the client was not confirmed."
+	}
+	key, _ := contexts.GetChannelAPIKey(ts.ctx)
+	failure.Message += " " + sanitizeDiagnosticText(ExtractErrorMessage(cause), key)
+	return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request.ID, cause, failure)
+}
+
 func persistRequestFailure(ctx context.Context, state *PersistenceState, err error) {
 	stage := state.FailureStage
 	if stage == "" {
