@@ -6,9 +6,9 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-08）：最新正式版为 `v1.0.0-beta12-fork.2`，发布源码 `5fb33840`，云悠、泉哥已更新；健康、静态资源、非空请求诊断、追踪详情及迁移功能状态已复验，正文缓存与磁盘策略保留。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
+发布状态总览（2026-11-08）：最新正式版为 `v1.0.0-beta12-fork.3`，发布源码 `8f984fe5`，云悠、泉哥已依次升级；PostgreSQL 字段、索引、迁移版本及登录后的统计、速度与接续历史回读通过，抽查原记录的状态、用量、费用与时间保持。各阶段过程记录保留，最终源码、产物及部署状态以[发布条目](#github-独立发布与两层上游追溯)为准。
 
-本轮准备发布 `v1.0.0-beta12-fork.3`，纳入下述统计缓存、平均速度、成本列及取消接续功能；本地验收和独立复审已完成，精简发版与双机部署结果待实际完成后回填。
+本版纳入下述统计缓存、平均速度、成本列及取消接续功能；同提交 Test／Build／Lint／Govulncheck 及精简发布成功，双机本轮配置副本已清理。原始长时间卡顿未完整复现，单次生产响应结果不代表长期性能保证；MySQL 实库升级、真实账单与长期负载仍未验证。
 
 本仓库保留 ChouUn 的继承历史及功能归属，beta12 起直接合并 looplj 的原始 release。
 原始基线与继承 fork 分别记录在 `release.config.json`，新的 `beta12-fork.N` 发版规则见[独立发版与部署](zh/development/release.md)。
@@ -289,13 +289,13 @@ fork 改动，由用户决定。
 
 ### 客户端取消后的接续展示
 
-- 2026-11-08（本地修改，未发布）：请求列表在分页前折叠有明确客户端轮次依据的取消接续，后一次请求作为主行；灰色“接续 N”沿用重试次数的文字层级，保持 145px ID 列和主行高度。原记录状态、用量、费用及详情保留，历史点击后每页读取 20 条，展开区独立滚动。
+- 2026-11-08（已随 beta12-fork.3 发布并部署双机）：请求列表在分页前折叠有明确客户端轮次依据的取消接续，后一次请求作为主行；灰色“接续 N”沿用重试次数的文字层级，保持 145px ID 列和主行高度。原记录状态、用量、费用及详情保留，历史点击后每页读取 20 条，展开区独立滚动。
 - 新增内部 `requests.continuation_key` 和对应查询索引，新增幂等 data migration `v1.0.0-beta12-fork.3`。已核对原始上游 beta12 无同名字段或迁移版本，并验证其位于 fork.2 与 beta13 之间。同步上游时重点检查请求创建、客户端轮次解析、最后执行的计时边界、原始详情权限、代表行筛选与状态计数。
-- 维护契约见 [Codex 集成指南](zh/guides/codex-integration.md#客户端取消后的接续记录)及对应英文版本。独立复审修复并发回填漏补和逐行接续计数；SQLite 行为与升级回归、三种方言的 SQL 结构检查、真实本地接口／页面验收通过。发版前又用 PostgreSQL 只读合成记录验证代表行、计数与历史，修复了表达式参数误用问号占位符的问题；参数由方言感知的 Builder.Arg 生成。PostgreSQL／MySQL 实库升级未执行，未发布或部署；证据见[接续聚合验收记录](../.agent/summary/continuation-implementation-20261108.md)。
+- 维护契约见 [Codex 集成指南](zh/guides/codex-integration.md#客户端取消后的接续记录)及对应英文版本。独立复审修复并发回填漏补和逐行接续计数；SQLite 行为与升级回归、三种方言的 SQL 结构检查、真实本地接口／页面验收通过。发版前又用 PostgreSQL 只读合成记录验证代表行、计数与历史，修复了表达式参数误用问号占位符的问题；参数由方言感知的 Builder.Arg 生成。两台 PostgreSQL 实库升级及真实接续记录展开通过，MySQL 实库升级仍未验证；阶段证据见[接续聚合验收记录](../.agent/summary/continuation-implementation-20261108.md)，发布后结果见[本轮发布记录](../.agent/summary/release-beta12-fork3-20261108.md)。
 
 ### 用量统计与消耗排行榜
 
-- 2026-11-08（本地修改，未发布）：平均输出速度改为最终执行的输出 Token 除以完整耗时，含等待与推理。共享请求／分析／排行查询同步；归档速度版本升至 2、统计缓存升至 v4；渠道探测增加速度版本，旧值保留但不参与新速度展示。不存在可恢复证据时不猜测历史速度。已核对 beta12 schema，无 data migration 版本变更。
+- 2026-11-08（已随 beta12-fork.3 发布并部署双机）：平均输出速度改为最终执行的输出 Token 除以完整耗时，含等待与推理。共享请求／分析／排行查询同步；归档速度版本升至 2、统计缓存升至 v4；渠道探测增加速度版本，旧值保留但不参与新速度展示。不存在可恢复证据时不猜测历史速度。已核对 beta12 schema，此速度调整不单独新增 data migration。
 - 浏览器复用完整汇总完成分组／模型／渠道名称筛选和密钥分组选择，新鲜期与 1／5 分钟刷新周期对齐，统计闲置缓存保留 30 分钟并按用户／项目隔离；密钥／用户原始名称与邮箱搜索仍在服务器执行。用量统计的密钥分组、密钥、用户将每百万 Token 成本放在成本前，展开明细保持列对齐。验收与限制见[本轮记录](../.agent/summary/consumption-speed-20261108.md)。
 
 - 2026-11-07 性能验收边界：主要本地检查与独立复核通过，但当时慢总览下其他卡片独立加载的故障注入尚缺可靠结果（beta12 复审已在本地补齐12秒延迟场景，见本页 beta12 条目），生产部署已随 `.syh.19` 完成，原卡顿体验验收仍未完成；类型检查仍有既有诊断。发布不表示全部性能验收通过。
@@ -1170,7 +1170,10 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 第三版候选（2026-11-08）：`v1.0.0-beta12-fork.3`，沿用 looplj beta12 与 ChouUn 继承来源，`prerelease=false`、`publishBinaries=false`。发布说明见 [本版更新日志](../.github/release-notes.md)；相关本地 Go／前端／页面检查及独立复审通过。新增 `channel_probes.speed_version`、`requests.continuation_key`、接续查询索引及幂等回填迁移，历史状态和费用保留。发布前复用同提交维护分支 Test，发布后先云悠再泉哥，未成功前不登记为已部署。
+- 第三版发布（2026-11-08）：[`v1.0.0-beta12-fork.3`](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.3)，源码 `8f984fe5a53861a4a8a2c15133112955fff8a7f3`；沿用 looplj beta12 与 ChouUn 继承来源，`prerelease=false`、`publishBinaries=false`，新加坡时间 19:17:28 正式发布并设为最新版本。[本版更新日志](../.github/release-notes.md)说明新增字段、索引、幂等回填与回退限制。
+  同提交 [Test 42474088065](https://github.com/Syh1906/axon-hub/actions/runs/42474088065)、[Build 42474088206](https://github.com/Syh1906/axon-hub/actions/runs/42474088206)、[Lint 42474088158](https://github.com/Syh1906/axon-hub/actions/runs/42474088158)、[Govulncheck 42474088134](https://github.com/Syh1906/axon-hub/actions/runs/42474088134) 均成功。[精简发布 42474580388](https://github.com/Syh1906/axon-hub/actions/runs/42474580388)复用该 Test，完成双架构构建、合成和临时 PostgreSQL 启动检查。唯一附件 release.json 为 847 字节，SHA-256 `68ef9f4b0c59ff2dbb85c52ccd3acde0195573d79e122d4f67b844107a4728a1` 与下载内容一致。
+  固定镜像 `ghcr.io/syh1906/axon-hub@sha256:7ecabb6e7f5f41640d6e26eb865958c3f7034ec910a90bceb2a2793c644f4d35` 已核对 linux/amd64、linux/arm64。云悠 19:28:18、泉哥 19:38:09（Asia/Singapore）依次完成业务验收和配置副本清理；应用重建及健康等待为 6.359／44.840 秒，不等于逐请求中断实测。两台 PostgreSQL 字段、索引和迁移版本正确，配置对象编号集合与抽查原记录保持；应用资源、环境、挂载及其他容器未变。
+  昨日统计本次分别约 184／703ms 收到响应，名称本地筛选均新增 0 次统计请求；速度按完整耗时显示，真实取消记录正确折叠、展开并保留错误详情。两台页面无相关控制台错误。没有创建数据库备份，本轮配置副本分别 17898／17913 字节已删除；旧 fork.2 镜像暂留，每台 Docker 报告 59384583 字节，不据此推算可释放空间。未进行收费推理、真实账单、长期并发或 MySQL 实库升级验证；完整证据与命令见[发布记录](../.agent/summary/release-beta12-fork3-20261108.md)。
 
 - beta12 合并后首版（2026-11-07）：[v1.0.0-beta12-fork.1](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.1) 已正式发布并设为最新版本，源码 `aed80ce3e4f70cc175e764357e899462b525ebe4`，`prerelease=false`、`publishBinaries=false`。原始上游 looplj beta12 与 ChouUn 继承历史分别追溯；从此基线使用 beta12-fork.N。
   同提交 [Test 42380791504](https://github.com/Syh1906/axon-hub/actions/runs/42380791504)、[Build 42380791474](https://github.com/Syh1906/axon-hub/actions/runs/42380791474)、[Lint 42380791461](https://github.com/Syh1906/axon-hub/actions/runs/42380791461)、[Govulncheck 42380791457](https://github.com/Syh1906/axon-hub/actions/runs/42380791457) 全部成功。[发布 42381370751](https://github.com/Syh1906/axon-hub/actions/runs/42381370751) 完成两架构构建、多架构合成和临时 PostgreSQL 17 启动／版本检查。唯一附件 release.json，SHA-256 `0251295d39abd82712cdc701cb0f5aab5db65b1847add02b2d564ccffe1761d4`，下载与附件摘要一致。
