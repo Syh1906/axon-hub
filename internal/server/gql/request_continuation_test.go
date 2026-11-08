@@ -39,8 +39,13 @@ func newContinuationFixture(t *testing.T) *continuationFixture {
 	ctx := authz.WithTestBypass(context.Background())
 	project := db.Project.Create().SetName("continuation").SaveX(ctx)
 	trace := db.Trace.Create().SetProjectID(project.ID).SetTraceID("session").SaveX(ctx)
-	return &continuationFixture{db: db, ctx: ctx, project: project, traceID: trace.ID,
-		at: time.Date(2026, 11, 7, 23, 59, 40, 0, time.UTC)}
+	return &continuationFixture{
+		db:      db,
+		ctx:     ctx,
+		project: project,
+		traceID: trace.ID,
+		at:      time.Date(2026, 11, 7, 23, 59, 40, 0, time.UTC),
+	}
 }
 
 func (f *continuationFixture) add(at time.Time, status, identity string) *ent.Request {
@@ -208,7 +213,7 @@ func TestRequestContinuationGraphQLCountsAreBatched(t *testing.T) {
 	f := newContinuationFixture(t)
 	f.add(f.at, "canceled", "same-turn")
 	f.add(f.at.Add(2*time.Second), "completed", "same-turn")
-	for i := 0; i < 24; i++ {
+	for i := range 24 {
 		f.add(f.at.Add(time.Duration(i+4)*time.Second), "completed", fmt.Sprintf("turn-%d", i))
 	}
 	var queries atomic.Int32

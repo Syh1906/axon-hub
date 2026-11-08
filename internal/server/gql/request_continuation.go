@@ -16,8 +16,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 )
 
-const continuationGapMilliseconds = 10_000
-const continuationChainTable = "request_continuation_chain"
+const (
+	continuationGapMilliseconds = 10_000
+	continuationChainTable      = "request_continuation_chain"
+)
 
 // Adjacent means the next/previous request in this explicit client turn, not
 // the next canceled row. Completed tool calls and overlapping requests break
