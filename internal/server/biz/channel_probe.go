@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
 	"github.com/looplj/axonhub/internal/scopes"
 	"github.com/looplj/axonhub/internal/server/gql/qb"
@@ -204,7 +205,7 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 			success: r.SuccessCount,
 		}
 
-		// Average valid per-request text speeds using the first body byte.
+		// Average valid per-request text speeds over the full execution duration.
 		if r.SpeedCount > 0 {
 			tps := r.SpeedSum / float64(r.SpeedCount)
 			stats.avgTokensPerSecond = &tps
@@ -310,6 +311,7 @@ func (svc *ChannelProbeService) runProbe(ctx context.Context) {
 			SetTotalRequestCount(stats.total).
 			SetSuccessRequestCount(stats.success).
 			SetNillableAvgTokensPerSecond(stats.avgTokensPerSecond).
+			SetSpeedVersion(usageanalytics.OutputSpeedVersion).
 			SetNillableAvgTimeToFirstTokenMs(stats.avgTimeToFirstTokenMs).
 			SetTimestamp(timestamp),
 		)
@@ -397,11 +399,15 @@ func (svc *ChannelProbeService) QueryChannelProbes(ctx context.Context, channelI
 
 		for _, ts := range timestamps {
 			if p, ok := channelProbes[ts]; ok {
+				speed := p.AvgTokensPerSecond
+				if p.SpeedVersion != usageanalytics.OutputSpeedVersion {
+					speed = nil
+				}
 				points = append(points, &ChannelProbePoint{
 					Timestamp:             ts,
 					TotalRequestCount:     p.TotalRequestCount,
 					SuccessRequestCount:   p.SuccessRequestCount,
-					AvgTokensPerSecond:    p.AvgTokensPerSecond,
+					AvgTokensPerSecond:    speed,
 					AvgTimeToFirstTokenMs: p.AvgTimeToFirstTokenMs,
 				})
 			} else {

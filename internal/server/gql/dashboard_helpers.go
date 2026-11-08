@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xtime"
 	"github.com/looplj/axonhub/internal/server/gql/qb"
 )
@@ -94,7 +95,7 @@ func buildDateExpression(dialectName string, timestampCol string, offsetSeconds 
 }
 
 func buildProbeQuerySelects(s *sql.Selector, dateExpr string) []string {
-	avgTokensCol := s.C(channelprobe.FieldAvgTokensPerSecond)
+	avgTokensCol := fmt.Sprintf("CASE WHEN %s = %d THEN %s END", s.C(channelprobe.FieldSpeedVersion), usageanalytics.OutputSpeedVersion, s.C(channelprobe.FieldAvgTokensPerSecond))
 	totalRequestsCol := s.C(channelprobe.FieldTotalRequestCount)
 	avgTTFTCol := s.C(channelprobe.FieldAvgTimeToFirstTokenMs)
 	channelIDCol := s.C(channelprobe.FieldChannelID)
@@ -112,8 +113,8 @@ func buildProbeQuerySelects(s *sql.Selector, dateExpr string) []string {
 		sql.As(dateExpr, "date"),
 		sql.As(channelIDCol, "channel_id"),
 		sql.As(sql.Sum(totalRequestsCol), "request_count"),
-		sql.As(throughputExpr, "throughput"),
-		sql.As(ttftExpr, "ttft_ms"),
+		sql.As("COALESCE("+throughputExpr+", 0)", "throughput"),
+		sql.As("COALESCE("+ttftExpr+", 0)", "ttft_ms"),
 	}
 }
 

@@ -377,8 +377,8 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 			wantContains: []string{
 				"completion_tokens",
 				"* 1000.0",
-				"metrics_first_byte_latency_ms",
-				"metrics_latency_ms - se.metrics_first_byte_latency_ms",
+				"se.metrics_latency_ms",
+				"/ se.metrics_latency_ms",
 			},
 		},
 		{
@@ -387,7 +387,7 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 			wantContains: []string{
 				"completion_tokens",
 				"* 1000.0",
-				"metrics_first_byte_latency_ms",
+				"/ se.metrics_latency_ms",
 			},
 		},
 	}
@@ -472,7 +472,8 @@ func TestBuildDailyThroughputQuery_StreamingLatencyHandling(t *testing.T) {
 	got := BuildDailyModelThroughputQuery("postgres", "UTC", 0, 10, ThroughputModeRowNumber)
 	assert.Contains(t, got, "CASE WHEN se.stream")
 	assert.Contains(t, got, "AVG(")
-	assert.Contains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms) >= 100")
+	assert.Contains(t, got, "se.metrics_latency_ms > 0")
+	assert.NotContains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms")
 }
 
 func TestBuildDailyPerformanceStatsQuery(t *testing.T) {

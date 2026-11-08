@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,8 @@ import type { IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import type { Request } from '../data/schema';
+import { RequestContinuationHistory, type ContinuationHistoryPosition } from './request-continuation-history';
+import type { RequestDiagnosticTab } from './request-log-cells';
 
 export const REQUEST_COLUMN_WIDTHS: Record<string, number> = {
   id: 145,
@@ -62,21 +64,40 @@ export function RequestsTableBody({
   scroll,
   loading,
   animate,
+  onHistoryBodyClick,
+  onViewDetail,
 }: {
   table: Table<Request>;
   containerRef: RefObject<HTMLDivElement | null>;
   scroll: IncrementalScrollOptions;
   loading?: boolean;
   animate: boolean;
+  onHistoryBodyClick: (requests: Request[], id: string, index: number, tab: RequestDiagnosticTab) => void;
+  onViewDetail: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const rows = table.getRowModel().rows;
-  const getItemKey = useCallback((index: number) => rows[index].id, [rows]);
+  const expanded = table.getState().expanded;
+  const entries = useMemo(() => rows.flatMap((row, index) => {
+    const main = { row, index, history: false, key: row.id };
+    return row.getIsExpanded() ? [main, { row, index, history: true, key: `${row.id}-history` }] : [main];
+  }), [rows, expanded]);
+  const positions = useMemo(() => new Map<string, ContinuationHistoryPosition>(), [scroll.resetKey]);
+  const [, updateHistoryPage] = useState(0);
+  const getPosition = (id: string) => {
+    if (!positions.has(id)) positions.set(id, { cursors: [], scrollTop: 0 });
+    return positions.get(id)!;
+  };
+  useEffect(() => {
+    const visible = new Set(rows.map((row) => row.id));
+    for (const id of positions.keys()) if (!visible.has(id)) positions.delete(id);
+  }, [rows, positions]);
+  const getItemKey = useCallback((index: number) => entries[index].key, [entries]);
   const virtualizer = useVirtualizer({
-    count: rows.length,
+    count: entries.length,
     getScrollElement: () => containerRef.current,
     getItemKey,
-    estimateSize: () => 80,
+    estimateSize: (index) => entries[index].history ? 320 : 80,
     overscan: 10,
     scrollMargin: 40,
     useFlushSync: false,
@@ -91,7 +112,9 @@ export function RequestsTableBody({
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const starts = new Map(rows.map((row, index) => [row.id, virtualizer.measurementsCache[index]?.start ?? 40]));
+    const starts = new Map(entries.flatMap((entry, index) => entry.history ? [] :
+      [[entry.row.id, virtualizer.measurementsCache[index]?.start ?? 40] as const]
+    ));
     const previous = windowPosition.current;
     const firstId = rows[0]?.id;
     if (
@@ -115,8 +138,8 @@ export function RequestsTableBody({
     }
     windowPosition.current = { firstId, starts, hasPrevious: scroll.hasPrevious, resetKey: scroll.resetKey };
   });
-  const lastIndex = items.at(-1)?.index ?? -1;
-  const firstIndex = items[0]?.index ?? -1;
+  const lastIndex = entries[items.at(-1)?.index ?? -1]?.index ?? -1;
+  const firstIndex = entries[items[0]?.index ?? -1]?.index ?? -1;
   useEffect(() => {
     // A cache window change can leave one render with the previous virtual range.
     // Read the actual viewport before starting another page request.
@@ -141,7 +164,7 @@ export function RequestsTableBody({
 
   const columnCount = table.getVisibleLeafColumns().length;
   const state = table.getState();
-  const columnState = JSON.stringify([state.columnVisibility, state.columnOrder]);
+  const columnState = JSON.stringify([state.columnVisibility, state.columnOrder, expanded]);
   const top = Math.max(0, (items[0]?.start ?? 40) - 40);
   const bottom = Math.max(0, virtualizer.getTotalSize() - ((items.at(-1)?.end ?? 40) - 40));
 
@@ -163,13 +186,29 @@ export function RequestsTableBody({
             </tr>
           )}
           {items.map((item) => {
-            const row = rows[item.index];
+            const entry = entries[item.index];
+            const row = entry.row;
+            if (entry.history) return (
+              <TableRow key={entry.key} ref={virtualizer.measureElement} data-index={item.index} data-scroll-index={entry.index}>
+                <TableCell colSpan={columnCount} className='p-0'>
+                  <RequestContinuationHistory
+                    request={row.original} parentTable={table} widths={REQUEST_COLUMN_WIDTHS}
+                    position={getPosition(row.id)}
+                    onPageChange={(cursors) => {
+                      positions.set(row.id, { cursors, scrollTop: 0 });
+                      updateHistoryPage((value) => value + 1);
+                    }}
+                    onBodyClick={onHistoryBodyClick} onViewDetail={onViewDetail}
+                  />
+                </TableCell>
+              </TableRow>
+            );
             return (
               <TableRow
                 key={row.id}
                 ref={virtualizer.measureElement}
                 data-index={item.index}
-                data-scroll-index={item.index}
+                data-scroll-index={entry.index}
                 data-request-id={row.id}
                 className='group/row'
               >

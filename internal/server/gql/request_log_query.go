@@ -22,6 +22,9 @@ func (r *queryResolver) requestLogQuery(ctx context.Context, filter *RequestLogF
 	if filter == nil {
 		return query, nil
 	}
+	if filter.CollapseContinuations != nil && *filter.CollapseContinuations {
+		query.Where(excludeContinuedRequests)
+	}
 	if len(filter.ChannelTagsIn) > 0 {
 		if authz.HasScope(ctx, scopes.ScopeReadChannels) {
 			query.Where(func(q *sql.Selector) {

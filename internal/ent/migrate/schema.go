@@ -475,6 +475,7 @@ var (
 		{Name: "total_request_count", Type: field.TypeInt},
 		{Name: "success_request_count", Type: field.TypeInt},
 		{Name: "avg_tokens_per_second", Type: field.TypeFloat64, Nullable: true},
+		{Name: "speed_version", Type: field.TypeInt, Default: 0},
 		{Name: "avg_time_to_first_token_ms", Type: field.TypeFloat64, Nullable: true},
 		{Name: "timestamp", Type: field.TypeInt64},
 		{Name: "channel_id", Type: field.TypeInt},
@@ -487,7 +488,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_probes_channels_channel_probes",
-				Columns:    []*schema.Column{ChannelProbesColumns[6]},
+				Columns:    []*schema.Column{ChannelProbesColumns[7]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -496,7 +497,7 @@ var (
 			{
 				Name:    "channel_probes_by_channel_id_timestamp",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelProbesColumns[6], ChannelProbesColumns[5]},
+				Columns: []*schema.Column{ChannelProbesColumns[7], ChannelProbesColumns[6]},
 			},
 		},
 	}
@@ -815,6 +816,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "user_id", Type: field.TypeInt, Nullable: true},
+		{Name: "continuation_key", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"api", "playground", "test"}, Default: "api"},
 		{Name: "model_id", Type: field.TypeString},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true},
@@ -853,31 +855,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "requests_api_keys_requests",
-				Columns:    []*schema.Column{RequestsColumns[28]},
+				Columns:    []*schema.Column{RequestsColumns[29]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "requests_channels_requests",
-				Columns:    []*schema.Column{RequestsColumns[29]},
+				Columns:    []*schema.Column{RequestsColumns[30]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "requests_data_storages_requests",
-				Columns:    []*schema.Column{RequestsColumns[30]},
+				Columns:    []*schema.Column{RequestsColumns[31]},
 				RefColumns: []*schema.Column{DataStoragesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "requests_projects_requests",
-				Columns:    []*schema.Column{RequestsColumns[31]},
+				Columns:    []*schema.Column{RequestsColumns[32]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "requests_traces_requests",
-				Columns:    []*schema.Column{RequestsColumns[32]},
+				Columns:    []*schema.Column{RequestsColumns[33]},
 				RefColumns: []*schema.Column{TracesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -886,32 +888,37 @@ var (
 			{
 				Name:    "requests_by_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[28], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[29], RequestsColumns[1]},
 			},
 			{
 				Name:    "requests_by_project_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[31], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[32], RequestsColumns[1]},
 			},
 			{
 				Name:    "requests_by_project_id_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[31], RequestsColumns[3], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[32], RequestsColumns[3], RequestsColumns[1]},
 			},
 			{
 				Name:    "requests_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[29], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[30], RequestsColumns[1]},
 			},
 			{
 				Name:    "requests_by_trace_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[32], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[33], RequestsColumns[1]},
+			},
+			{
+				Name:    "requests_by_trace_continuation_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{RequestsColumns[33], RequestsColumns[4], RequestsColumns[1], RequestsColumns[0]},
 			},
 			{
 				Name:    "requests_by_external_id_api_key_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[14], RequestsColumns[28], RequestsColumns[15], RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[15], RequestsColumns[29], RequestsColumns[16], RequestsColumns[1]},
 			},
 			{
 				Name:    "requests_by_created_at",

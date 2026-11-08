@@ -306,7 +306,7 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	require.Equal(t, 200, *row.ClientStatusCode, "the client status takes precedence over upstream status")
 	require.Equal(t, 1, row.RetryCount)
 	require.NotNil(t, row.OutputTokensPerSecond)
-	require.Equal(t, 100.0, *row.OutputTokensPerSecond)
+	require.InDelta(t, 200.0/3, *row.OutputTokensPerSecond, 1e-9)
 	require.True(t, row.PassThroughApplied)
 	require.Equal(t, 40, row.CacheWriteTokens5m)
 	require.Equal(t, 60, row.CacheWriteTokens1h)

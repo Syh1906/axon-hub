@@ -90,7 +90,7 @@ func channelUsageBatchQuery(db string, id int, start, end, afterTime time.Time, 
 	q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("id"), u.C("request_id")), sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id"))))
 	outcome := consumptionOutcome(execution)
 	speed := usageanalytics.OutputSpeedSQL(usageanalytics.TextTokensSQL(u.C("completion_tokens"), u.C("cost_snapshot"), u.C("completion_audio_tokens"), db),
-		execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+		execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("format"))
 	q.Select(sql.As(q.C("id"), "usage_request_id"), sql.As(q.C("created_at"), "request_created_at"),
 		sql.As("COALESCE(NULLIF(TRIM("+execution.C("model_id")+"), ''), "+q.C("model_id")+")", "model"),
 		sql.As(q.C("status")+" IN ('completed', 'failed', 'canceled')", "terminal"),

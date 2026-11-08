@@ -29,6 +29,11 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 		return table.Name == "cache_effectiveness_windows"
 	})
 	for _, table := range oldTables {
+		if table.Name == "channel_probes" {
+			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool {
+				return column.Name == "speed_version"
+			})
+		}
 		if table.Name == "usage_archives" {
 			table.Columns = slices.DeleteFunc(table.Columns, func(column *schema.Column) bool {
 				return column.Name == "pricing_complete" || column.Name == "speed_version"
@@ -45,6 +50,8 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, `INSERT INTO usage_archives (kind, source_id, request_id, project_id, model_id, occurred_at, total_cost, speed_sum, speed_count) VALUES ('request', 1, 1, 1, 'legacy-model', CURRENT_TIMESTAMP, 0, 9999, 1)`)
 	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO channel_probes (channel_id, total_request_count, success_request_count, avg_tokens_per_second, timestamp) VALUES (1, 3, 3, 389, 1794074400)`)
+	require.NoError(t, err)
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)))
 	require.NoError(t, client.Schema.Create(ctx, migrate.WithForeignKeys(false)), "repeated upgrades are safe")
 	legacy := client.RequestExecution.Query().OnlyX(ctx)
@@ -58,6 +65,9 @@ func TestConsumptionSchemaUpgradePreservesMissingSamples(t *testing.T) {
 	legacyArchive := client.UsageArchive.Query().OnlyX(ctx)
 	require.Nil(t, legacyArchive.PricingComplete, "unknown legacy zero cost must not become confirmed free")
 	require.Zero(t, legacyArchive.SpeedVersion, "legacy speed must not be treated as the corrected formula")
+	legacyProbe := client.ChannelProbe.Query().OnlyX(ctx)
+	require.Zero(t, legacyProbe.SpeedVersion)
+	require.Equal(t, 389.0, *legacyProbe.AvgTokensPerSecond, "upgrade preserves historical evidence")
 
 	start := time.Date(2026, 10, 29, 0, 0, 0, 0, time.UTC)
 	createWindow := func(projectID int) error {

@@ -2,6 +2,8 @@
 
 The current stable release is [`v1.0.0-beta12-fork.2`](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.2), published on 2026-11-08 from `5fb33840`. Both production hosts are updated, with authenticated request diagnostics, trace details, and database-transfer readiness rechecked.
 
+The current candidate is `v1.0.0-beta12-fork.3`, covering statistics reuse, average output speed over total execution time, and client-cancellation continuations. It keeps `prerelease=false` and `publishBinaries=false` for the image-only workflow. Two fields, a request lookup index and an identity backfill migration are added; see the [release notes](../../../.github/release-notes.md). Publishing and host deployment results are recorded only after they complete.
+
 The request-validation, deep-trace parsing, and retention-marker defects found after fork.1 are fixed. Acceptance must distinguish health, authenticated queries, nonempty diagnostics/details, and actual request outcomes. Database transfer uses a dedicated writable mount while keeping the container root read-only; both hosts now have that mount, with no backup or import performed. Short-lived payload caching and existing disk policies are preserved. Deferred cache evidence, real provider billing, and long-term load remain explicit limitations.
 
 This repository is Syh1906/axon-hub. Starting with beta12, releases merge directly from looplj/axonhub.

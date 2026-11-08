@@ -2,10 +2,12 @@ package biz
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent/usagearchive"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
 func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
@@ -18,6 +20,7 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 	}
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
+		speedVersion := strconv.Itoa(usageanalytics.OutputSpeedVersion)
 		selectConsumptionEntity(q, input, q.C("model_id"))
 		appendConsumptionPricing(q, q.C("pricing_complete"), q.C("total_cost"), "COALESCE("+q.C("prompt_tokens")+" + "+q.C("completion_tokens")+", 0)")
 		if input.Metric == ConsumptionMetricCache {
@@ -25,8 +28,8 @@ func (s *ConsumptionService) queryArchivedGroups(ctx context.Context, projectID 
 		}
 		q.AppendSelect(sql.As(sql.Count("*"), "requests"),
 			sql.As("SUM(CASE WHEN "+q.C("pricing_complete")+" THEN 0 ELSE 1 END)", "unpriced_requests"),
-			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = 1 THEN "+q.C("speed_sum")+" ELSE 0 END)", "speed_sum"),
-			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = 1 THEN "+q.C("speed_count")+" ELSE 0 END)", "speed_count"),
+			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = "+speedVersion+" THEN "+q.C("speed_sum")+" ELSE 0 END)", "speed_sum"),
+			sql.As("SUM(CASE WHEN "+q.C("speed_version")+" = "+speedVersion+" THEN "+q.C("speed_count")+" ELSE 0 END)", "speed_count"),
 			sql.As("COALESCE(SUM("+q.C("prompt_tokens")+" + "+q.C("completion_tokens")+"),0)", "tokens"))
 		for _, field := range [][2]string{
 			{"total_cost", "cost"}, {"cache_requests", "cache_requests"}, {"prompt_cached_tokens", "cache_read"},

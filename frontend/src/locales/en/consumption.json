@@ -56,7 +56,7 @@
   "consumption.avgCostPerMillionTokensHelp": "Cost of fully priced requests with input/output tokens × 1,000,000 ÷ input and output tokens from those same requests. Per-request fees with no tokens are excluded; no eligible samples displays —.",
   "consumption.successRateHelp": "Successful requests divided by countable outcomes. Follows CCH exclusions for client aborts after response data, 404s, quota and rate limits.",
   "consumption.firstTokenHelp": "Average time from request start to the first meaningful output. Historical records without timing are excluded.",
-  "consumption.speedHelp": "Average of per-request output tokens divided by seconds after the first body byte. Only matched final text streams with at least 100ms and complete timing participate.",
+  "consumption.speedHelp": "Average of output tokens divided by the final execution's full elapsed time, including waiting and reasoning. This is average request throughput, not pure model generation speed. Only matched final text streams with valid duration and output usage participate.",
   "consumption.noSample": "No usable samples",
   "consumption.empty": "No data in the selected time range",
   "consumption.cacheNote": "Only requests with cache reads or writes are included. Cost is the full historical cost of those requests. Cache coefficients lag by about 15–20 minutes.",

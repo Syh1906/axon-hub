@@ -43,7 +43,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     dimension,
     metric,
     groupRef: isKeyDimension ? groupRef : undefined,
-    search: debouncedSearch || undefined,
+    search: (dimension === 'API_KEY' || dimension === 'USER' ? debouncedSearch : search) || undefined,
     projectID: isLeaderboard && projectID !== 'all' ? projectID : undefined,
   };
   const { data, isLoading, isFetching, error, refetch } = useConsumption(filter, view, selectedProjectID);
@@ -173,7 +173,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               />
             </div>
           </div>
-          {error ? (
+          {error && (
             <Alert variant='destructive'>
               <AlertTitle>{t('common.loadError')}</AlertTitle>
               <AlertDescription>
@@ -183,7 +183,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 </Button>
               </AlertDescription>
             </Alert>
-          ) : (
+          )}
+          {(!error || data) && (
             <div
               ref={setTableScrollElement}
               className='border-border/70 relative min-h-0 flex-1 overflow-auto rounded-xl border'
@@ -200,6 +201,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 <ConsumptionTable
                   key={`${scope}:${dimension}:${metric}`}
                   scrollElement={tableScrollElement}
+                  view={view}
                   entries={data.entries}
                   dimension={dimension}
                   metric={metric}

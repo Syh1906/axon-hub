@@ -60,10 +60,10 @@ UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;`)
 			require.NoError(t, rows.Scan(destinations...))
 			for i, column := range columns {
 				if column == "throughput" {
-					require.Equal(t, 300.0, values[i])
+					require.Equal(t, (50.0+375.0+2000.0+150.0)/4, values[i])
 				}
 				if column == "request_count" {
-					require.EqualValues(t, 3, values[i])
+					require.EqualValues(t, 4, values[i])
 				}
 			}
 			require.False(t, rows.Next())

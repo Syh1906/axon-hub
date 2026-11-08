@@ -3,6 +3,7 @@ import {
   ColumnFiltersState,
   ColumnOrderState,
   RowData,
+  ExpandedState,
   SortingState,
   VisibilityState,
   Updater,
@@ -137,8 +138,21 @@ export function RequestsTable({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerInitialRequestId, setDrawerInitialRequestId] = useState<string | null>(null);
   const [drawerInitialIndex, setDrawerInitialIndex] = useState(0);
+  const [drawerHistory, setDrawerHistory] = useState<Request[] | null>(null);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+
+  useEffect(() => setExpanded({}), [scroll.resetKey]);
 
   const handleBodyClick = useCallback((requestId: string, index: number, tab: RequestDiagnosticTab = 'request') => {
+    setDrawerHistory(null);
+    setDrawerInitialTab(tab);
+    setDrawerInitialRequestId(requestId);
+    setDrawerInitialIndex(index);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleHistoryBodyClick = useCallback((requests: Request[], requestId: string, index: number, tab: RequestDiagnosticTab) => {
+    setDrawerHistory(requests);
     setDrawerInitialTab(tab);
     setDrawerInitialRequestId(requestId);
     setDrawerInitialIndex(index);
@@ -146,6 +160,7 @@ export function RequestsTable({
   }, []);
 
   const requestsColumns = useRequestsColumns({
+    allowContinuationExpansion: true,
     onBodyClick: handleBodyClick,
     onViewDetail,
     onCallerFilter: (kind, value) =>
@@ -352,7 +367,10 @@ export function RequestsTable({
       columnOrder,
       rowSelection,
       columnFilters,
+      expanded,
     },
+    getRowCanExpand: (row) => (row.original.continuationCount ?? 0) > 0,
+    onExpandedChange: setExpanded,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -460,7 +478,10 @@ export function RequestsTable({
                 </TableRow>
               ))}
             </TableHeader>
-            <RequestsTableBody table={table} containerRef={scrolling.containerRef} scroll={scroll} loading={loading} animate={animate} />
+            <RequestsTableBody
+              table={table} containerRef={scrolling.containerRef} scroll={scroll} loading={loading} animate={animate}
+              onHistoryBodyClick={handleHistoryBodyClick} onViewDetail={onViewDetail}
+            />
           </Table>
         </div>
         <div ref={scrolling.sentinelRef} className='h-px' />
@@ -486,8 +507,8 @@ export function RequestsTable({
         onOpenChange={setDrawerOpen}
         initialRequestId={drawerInitialRequestId}
         initialIndex={drawerInitialIndex}
-        initialRequests={data}
-        pageInfo={pageInfo}
+        initialRequests={drawerHistory ?? data}
+        pageInfo={drawerHistory ? undefined : pageInfo}
         queryWhere={queryWhere}
         onViewDetail={onViewDetail}
       />

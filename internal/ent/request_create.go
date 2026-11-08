@@ -114,6 +114,20 @@ func (_c *RequestCreate) SetNillableTraceID(v *int) *RequestCreate {
 	return _c
 }
 
+// SetContinuationKey sets the "continuation_key" field.
+func (_c *RequestCreate) SetContinuationKey(v string) *RequestCreate {
+	_c.mutation.SetContinuationKey(v)
+	return _c
+}
+
+// SetNillableContinuationKey sets the "continuation_key" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableContinuationKey(v *string) *RequestCreate {
+	if v != nil {
+		_c.SetContinuationKey(*v)
+	}
+	return _c
+}
+
 // SetDataStorageID sets the "data_storage_id" field.
 func (_c *RequestCreate) SetDataStorageID(v int) *RequestCreate {
 	_c.mutation.SetDataStorageID(v)
@@ -548,6 +562,11 @@ func (_c *RequestCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Request.project_id"`)}
 	}
+	if v, ok := _c.mutation.ContinuationKey(); ok {
+		if err := request.ContinuationKeyValidator(v); err != nil {
+			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Source(); !ok {
 		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "Request.source"`)}
 	}
@@ -631,6 +650,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(request.FieldUserID, field.TypeInt, value)
 		_node.UserID = &value
+	}
+	if value, ok := _c.mutation.ContinuationKey(); ok {
+		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)
+		_node.ContinuationKey = value
 	}
 	if value, ok := _c.mutation.Source(); ok {
 		_spec.SetField(request.FieldSource, field.TypeEnum, value)
@@ -906,6 +929,24 @@ func (u *RequestUpsert) SetUpdatedAt(v time.Time) *RequestUpsert {
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *RequestUpsert) UpdateUpdatedAt() *RequestUpsert {
 	u.SetExcluded(request.FieldUpdatedAt)
+	return u
+}
+
+// SetContinuationKey sets the "continuation_key" field.
+func (u *RequestUpsert) SetContinuationKey(v string) *RequestUpsert {
+	u.Set(request.FieldContinuationKey, v)
+	return u
+}
+
+// UpdateContinuationKey sets the "continuation_key" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateContinuationKey() *RequestUpsert {
+	u.SetExcluded(request.FieldContinuationKey)
+	return u
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (u *RequestUpsert) ClearContinuationKey() *RequestUpsert {
+	u.SetNull(request.FieldContinuationKey)
 	return u
 }
 
@@ -1328,6 +1369,27 @@ func (u *RequestUpsertOne) SetUpdatedAt(v time.Time) *RequestUpsertOne {
 func (u *RequestUpsertOne) UpdateUpdatedAt() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetContinuationKey sets the "continuation_key" field.
+func (u *RequestUpsertOne) SetContinuationKey(v string) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetContinuationKey(v)
+	})
+}
+
+// UpdateContinuationKey sets the "continuation_key" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateContinuationKey() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateContinuationKey()
+	})
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (u *RequestUpsertOne) ClearContinuationKey() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearContinuationKey()
 	})
 }
 
@@ -1970,6 +2032,27 @@ func (u *RequestUpsertBulk) SetUpdatedAt(v time.Time) *RequestUpsertBulk {
 func (u *RequestUpsertBulk) UpdateUpdatedAt() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetContinuationKey sets the "continuation_key" field.
+func (u *RequestUpsertBulk) SetContinuationKey(v string) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetContinuationKey(v)
+	})
+}
+
+// UpdateContinuationKey sets the "continuation_key" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateContinuationKey() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateContinuationKey()
+	})
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (u *RequestUpsertBulk) ClearContinuationKey() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearContinuationKey()
 	})
 }
 

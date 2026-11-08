@@ -381,6 +381,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			channelprobe.FieldTotalRequestCount:     {Type: field.TypeInt, Column: channelprobe.FieldTotalRequestCount},
 			channelprobe.FieldSuccessRequestCount:   {Type: field.TypeInt, Column: channelprobe.FieldSuccessRequestCount},
 			channelprobe.FieldAvgTokensPerSecond:    {Type: field.TypeFloat64, Column: channelprobe.FieldAvgTokensPerSecond},
+			channelprobe.FieldSpeedVersion:          {Type: field.TypeInt, Column: channelprobe.FieldSpeedVersion},
 			channelprobe.FieldAvgTimeToFirstTokenMs: {Type: field.TypeFloat64, Column: channelprobe.FieldAvgTimeToFirstTokenMs},
 			channelprobe.FieldTimestamp:             {Type: field.TypeInt64, Column: channelprobe.FieldTimestamp},
 		},
@@ -605,6 +606,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldUserID:                     {Type: field.TypeInt, Column: request.FieldUserID},
 			request.FieldProjectID:                  {Type: field.TypeInt, Column: request.FieldProjectID},
 			request.FieldTraceID:                    {Type: field.TypeInt, Column: request.FieldTraceID},
+			request.FieldContinuationKey:            {Type: field.TypeString, Column: request.FieldContinuationKey},
 			request.FieldDataStorageID:              {Type: field.TypeInt, Column: request.FieldDataStorageID},
 			request.FieldSource:                     {Type: field.TypeEnum, Column: request.FieldSource},
 			request.FieldModelID:                    {Type: field.TypeString, Column: request.FieldModelID},
@@ -3296,6 +3298,11 @@ func (f *ChannelProbeFilter) WhereAvgTokensPerSecond(p entql.Float64P) {
 	f.Where(p.Field(channelprobe.FieldAvgTokensPerSecond))
 }
 
+// WhereSpeedVersion applies the entql int predicate on the speed_version field.
+func (f *ChannelProbeFilter) WhereSpeedVersion(p entql.IntP) {
+	f.Where(p.Field(channelprobe.FieldSpeedVersion))
+}
+
 // WhereAvgTimeToFirstTokenMs applies the entql float64 predicate on the avg_time_to_first_token_ms field.
 func (f *ChannelProbeFilter) WhereAvgTimeToFirstTokenMs(p entql.Float64P) {
 	f.Where(p.Field(channelprobe.FieldAvgTimeToFirstTokenMs))
@@ -4444,6 +4451,11 @@ func (f *RequestFilter) WhereProjectID(p entql.IntP) {
 // WhereTraceID applies the entql int predicate on the trace_id field.
 func (f *RequestFilter) WhereTraceID(p entql.IntP) {
 	f.Where(p.Field(request.FieldTraceID))
+}
+
+// WhereContinuationKey applies the entql string predicate on the continuation_key field.
+func (f *RequestFilter) WhereContinuationKey(p entql.StringP) {
+	f.Where(p.Field(request.FieldContinuationKey))
 }
 
 // WhereDataStorageID applies the entql int predicate on the data_storage_id field.

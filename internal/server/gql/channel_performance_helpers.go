@@ -12,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/server/gql/qb"
 )
 
@@ -37,7 +38,7 @@ func (r *queryResolver) queryChannelProbeStats(ctx context.Context, startTimesta
 	err := r.client.ChannelProbe.Query().
 		Where(
 			channelprobe.TimestampGTE(startTimestamp),
-			channelprobe.AvgTokensPerSecondLTE(maxThroughputCap),
+			channelprobe.Or(channelprobe.SpeedVersionNEQ(usageanalytics.OutputSpeedVersion), channelprobe.AvgTokensPerSecondIsNil(), channelprobe.AvgTokensPerSecondLTE(maxThroughputCap)),
 		).
 		Modify(func(s *sql.Selector) {
 			timestampCol := s.C(channelprobe.FieldTimestamp)

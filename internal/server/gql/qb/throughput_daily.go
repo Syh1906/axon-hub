@@ -152,7 +152,7 @@ func outputSpeedSQL(alias, placeholder string) string {
 		dialect = "postgres"
 	}
 	tokens := usageanalytics.TextTokensSQL("ul.completion_tokens", "ul.cost_snapshot", "ul.completion_audio_tokens", dialect)
-	return usageanalytics.OutputSpeedSQL(tokens, alias+".metrics_latency_ms", alias+".metrics_first_byte_latency_ms", alias+".stream", alias+".format")
+	return usageanalytics.OutputSpeedSQL(tokens, alias+".metrics_latency_ms", alias+".stream", alias+".format")
 }
 
 func throughputCalculationSQL(alias, placeholder string) string {

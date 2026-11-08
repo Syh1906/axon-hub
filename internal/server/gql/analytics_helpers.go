@@ -445,7 +445,7 @@ func (r *queryResolver) queryAnalyticsModelStats(
 				sql.ExprP(s.C("id")+" = (SELECT MAX(final_execution.id) FROM request_executions final_execution WHERE final_execution.request_id = "+s.C("request_id")+")"),
 			))
 			tokens := usageanalytics.TextTokensSQL(speedUsage.C("completion_tokens"), speedUsage.C("cost_snapshot"), speedUsage.C("completion_audio_tokens"), s.Dialect())
-			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, s.C("metrics_first_byte_latency_ms"), streamColumn, s.C("format"))
+			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, streamColumn, s.C("format"))
 
 			s.Select(
 				sql.As(s.C(requestexecution.FieldModelID), "model_id"),

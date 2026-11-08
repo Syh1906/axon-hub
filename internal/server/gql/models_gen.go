@@ -551,6 +551,8 @@ type RemoveUserFromProjectInput struct {
 }
 
 type RequestLogFilterInput struct {
+	// Show the final request of a verified client-cancellation continuation chain. Filters and counts apply to that representative.
+	CollapseContinuations *bool `json:"collapseContinuations,omitempty"`
 	// Skip this many matching requests for page navigation; cannot be combined with cursors.
 	Offset        *int     `json:"offset,omitempty"`
 	ChannelTagsIn []string `json:"channelTagsIn,omitempty"`

@@ -49,7 +49,7 @@ func TestChannelTodayUsagePerformanceUsesValidFinalSamples(t *testing.T) {
 	ambiguous, _ := f.addRequest(t, start, "ambiguous", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
 	f.client.UsageLog.Create().SetRequestID(ambiguous.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
 		SetModelID("ambiguous").SetCompletionTokens(100).SetTotalCost(1).SaveX(f.ctx)
-	f.addRequest(t, start, "too-short", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(1150)))
+	f.addRequest(t, start, "forwarded", request.StatusCompleted, 100, 100, 0, 0, 1, lo.ToPtr(int64(1150)))
 	f.addRequest(t, start, "in-progress", request.StatusProcessing, 100, 100, 0, 0, 1, lo.ToPtr(int64(200)))
 	rows, err := queryChannelTodayUsageModels(f.ctx, f.client, f.channel.ID, start, start.AddDate(0, 0, 1))
 	require.NoError(t, err)
@@ -59,7 +59,9 @@ func TestChannelTodayUsagePerformanceUsesValidFinalSamples(t *testing.T) {
 			require.Equal(t, 4, row.RequestCount)
 			require.InDelta(t, 2.0/3, *row.SuccessRate, 1e-9)
 			require.Equal(t, 200.0, *row.AvgFirstTokenMs)
-			require.Equal(t, 125.0, *row.AvgTokensPerSecond)
+			require.InDelta(t, (100.0/1.2+300.0/2.2)/2, *row.AvgTokensPerSecond, 1e-9)
+		case "forwarded":
+			require.InDelta(t, 100.0/1.2, *row.AvgTokensPerSecond, 1e-9)
 		case "in-progress":
 			require.Nil(t, row.SuccessRate)
 			require.Nil(t, row.AvgFirstTokenMs)
@@ -192,7 +194,7 @@ func TestChannelTodayUsageKeepsAllUsageRowsBeforePaging(t *testing.T) {
 	require.Equal(t, 2, rows[0].RequestCount)
 	require.Equal(t, int64((channelUsageBatchSize+2)*110), rows[0].TotalTokens)
 	require.Equal(t, float64(channelUsageBatchSize+3), rows[0].TotalCost)
-	require.Nil(t, rows[0].AvgTokensPerSecond)
+	require.InDelta(t, 10.0/1.2, *rows[0].AvgTokensPerSecond, 1e-9)
 }
 
 func TestChannelTodayUsageDetailsPermissionsAndEmpty(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 // Keep archival and live success/latency calculations identical.
 func consumptionOutcomeAndSpeed(u *sql.Selector, execution *sql.SelectTable) (string, string) {
 	tokens := "CASE WHEN " + u.C("usage_count") + " = 1 THEN " + u.C("text_completion_tokens") + " ELSE NULL END"
-	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("format"))
 	return consumptionOutcome(execution), speed
 }
 

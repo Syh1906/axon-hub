@@ -193,6 +193,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 			ctx = biz.WithModelAssociationQueryCache(ctx)
 		}
 		ctx = withRequestChannelSessionCache(ctx)
+		ctx = withRequestContinuationCache(ctx)
 		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
 	})
 	gqlSrv.AroundOperations(apiKeyReadOnly)

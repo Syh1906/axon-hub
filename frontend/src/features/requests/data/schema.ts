@@ -120,6 +120,7 @@ export const requestRoutingDecisionSchema = z.object({
 
 // Request
 export const requestSchema = z.object({
+  continuationCount: z.number().int().nonnegative().optional(),
   outputTokensPerSecond: z.number().nullable().optional(),
   id: z.string(),
   createdAt: z.coerce.date(),

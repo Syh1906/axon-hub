@@ -15,7 +15,39 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
+
+func TestChannelProbeReadExcludesLegacySpeedOnly(t *testing.T) {
+	f := newConsumptionFixture(t)
+	svc := NewChannelProbeService(ChannelProbeServiceParams{Ent: f.client, SystemService: f.service.system})
+	settings := f.service.system.ChannelSettingOrDefault(f.ctx)
+	interval := time.Duration(settings.Probe.GetIntervalMinutes()) * time.Minute
+	at := time.Now().UTC().Truncate(interval)
+	f.client.ChannelProbe.Create().SetChannelID(f.channel.ID).SetTotalRequestCount(3).
+		SetSuccessRequestCount(3).SetAvgTokensPerSecond(389).SetAvgTimeToFirstTokenMs(1000).
+		SetTimestamp(at.Add(-interval).Unix()).SaveX(f.ctx)
+	f.client.ChannelProbe.Create().SetChannelID(f.channel.ID).SetTotalRequestCount(1).
+		SetSuccessRequestCount(1).SetAvgTokensPerSecond(36).SetAvgTimeToFirstTokenMs(1000).
+		SetSpeedVersion(usageanalytics.OutputSpeedVersion).SetTimestamp(at.Unix()).SaveX(f.ctx)
+	rows, err := svc.QueryChannelProbes(f.ctx, []int{f.channel.ID})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	var checked int
+	for _, point := range rows[0].Points {
+		switch point.Timestamp {
+		case at.Add(-interval).Unix():
+			require.Nil(t, point.AvgTokensPerSecond)
+			require.Equal(t, 3, point.TotalRequestCount)
+			require.Equal(t, 1000.0, *point.AvgTimeToFirstTokenMs)
+			checked++
+		case at.Unix():
+			require.Equal(t, 36.0, *point.AvgTokensPerSecond)
+			checked++
+		}
+	}
+	require.Equal(t, 2, checked)
+}
 
 // TestTPSCalculation_RetryScenario tests that only successful executions are counted
 func TestTPSCalculation_RetryScenario(t *testing.T) {
@@ -629,9 +661,9 @@ func TestComputeAllChannelProbeStats_MultipleRequests(t *testing.T) {
 	assert.Equal(t, 3, channelStats.total)
 	assert.Equal(t, 3, channelStats.success)
 
-	// Audio and non-stream responses are excluded; only 80 / 1.6 = 50 remains.
+	// Audio and non-stream responses are excluded; only 80 / 2 = 40 remains.
 	require.NotNil(t, channelStats.avgTokensPerSecond)
-	assert.InDelta(t, 50, *channelStats.avgTokensPerSecond, 0.1)
+	assert.InDelta(t, 40, *channelStats.avgTokensPerSecond, 0.1)
 
 	// TTFT: (500 + 400 + 0) / 2 = 450ms (only streaming requests count: 2 out of 3 requests are streaming)
 	require.NotNil(t, channelStats.avgTimeToFirstTokenMs)
@@ -890,23 +922,23 @@ func TestComputeAllChannelProbeStats_MultipleChannels(t *testing.T) {
 	require.NotNil(t, stats)
 	assert.Len(t, stats, 2, "should have stats for both channels")
 
-	// Verify channel 1 stats: 100 tokens / ((2000-400)/1000) = 100 / 1.6 = 62.5 TPS
+	// Channel 1: 100 output tokens over the full 2-second execution.
 	require.Contains(t, stats, ch1.ID)
 	stats1 := stats[ch1.ID]
 	assert.Equal(t, 1, stats1.total)
 	assert.Equal(t, 1, stats1.success)
 	require.NotNil(t, stats1.avgTokensPerSecond)
-	assert.InDelta(t, 62.5, *stats1.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 50.0, *stats1.avgTokensPerSecond, 0.01)
 	require.NotNil(t, stats1.avgTimeToFirstTokenMs)
 	assert.InDelta(t, 400.0, *stats1.avgTimeToFirstTokenMs, 0.01)
 
-	// Verify channel 2 stats: 150 tokens / ((3000-600)/1000) = 150 / 2.4 = 62.5 TPS
+	// Channel 2: 150 output tokens over the full 3-second execution.
 	require.Contains(t, stats, ch2.ID)
 	stats2 := stats[ch2.ID]
 	assert.Equal(t, 1, stats2.total)
 	assert.Equal(t, 1, stats2.success)
 	require.NotNil(t, stats2.avgTokensPerSecond)
-	assert.InDelta(t, 62.5, *stats2.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 50.0, *stats2.avgTokensPerSecond, 0.01)
 	require.NotNil(t, stats2.avgTimeToFirstTokenMs)
 	assert.InDelta(t, 600.0, *stats2.avgTimeToFirstTokenMs, 0.01)
 }
@@ -1109,7 +1141,7 @@ func TestComputeAllChannelProbeStats_FailedExecutionsCountTowardTotalOnly(t *tes
 	assert.Equal(t, 2, channelStats.total)
 	assert.Equal(t, 1, channelStats.success)
 
-	// TPS: 100 tokens / ((3000-500)/1000) = 100 / 2.5 = 40 tokens/s
+	// Average output speed includes the full 3 seconds.
 	require.NotNil(t, channelStats.avgTokensPerSecond)
-	assert.InDelta(t, 40.0, *channelStats.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 100.0/3, *channelStats.avgTokensPerSecond, 0.01)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
+	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
@@ -567,6 +568,12 @@ func init() {
 	channeloverridetemplateDescBodyOverrideOperations := channeloverridetemplateFields[6].Descriptor()
 	// channeloverridetemplate.DefaultBodyOverrideOperations holds the default value on creation for the body_override_operations field.
 	channeloverridetemplate.DefaultBodyOverrideOperations = channeloverridetemplateDescBodyOverrideOperations.Default.([]objects.OverrideOperation)
+	channelprobeFields := schema.ChannelProbe{}.Fields()
+	_ = channelprobeFields
+	// channelprobeDescSpeedVersion is the schema descriptor for speed_version field.
+	channelprobeDescSpeedVersion := channelprobeFields[4].Descriptor()
+	// channelprobe.DefaultSpeedVersion holds the default value on creation for the speed_version field.
+	channelprobe.DefaultSpeedVersion = channelprobeDescSpeedVersion.Default.(int)
 	channelupstreamstatusMixin := schema.ChannelUpstreamStatus{}.Mixin()
 	channelupstreamstatusMixinFields0 := channelupstreamstatusMixin[0].Fields()
 	_ = channelupstreamstatusMixinFields0
@@ -932,28 +939,32 @@ func init() {
 	requestDescProjectID := requestFields[2].Descriptor()
 	// request.DefaultProjectID holds the default value on creation for the project_id field.
 	request.DefaultProjectID = requestDescProjectID.Default.(int)
+	// requestDescContinuationKey is the schema descriptor for continuation_key field.
+	requestDescContinuationKey := requestFields[4].Descriptor()
+	// request.ContinuationKeyValidator is a validator for the "continuation_key" field. It is called by the builders before save.
+	request.ContinuationKeyValidator = requestDescContinuationKey.Validators[0].(func(string) error)
 	// requestDescFormat is the schema descriptor for format field.
-	requestDescFormat := requestFields[8].Descriptor()
+	requestDescFormat := requestFields[9].Descriptor()
 	// request.DefaultFormat holds the default value on creation for the format field.
 	request.DefaultFormat = requestDescFormat.Default.(string)
 	// requestDescExternalID is the schema descriptor for external_id field.
-	requestDescExternalID := requestFields[16].Descriptor()
+	requestDescExternalID := requestFields[17].Descriptor()
 	// request.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
 	request.ExternalIDValidator = requestDescExternalID.Validators[0].(func(string) error)
 	// requestDescStream is the schema descriptor for stream field.
-	requestDescStream := requestFields[20].Descriptor()
+	requestDescStream := requestFields[21].Descriptor()
 	// request.DefaultStream holds the default value on creation for the stream field.
 	request.DefaultStream = requestDescStream.Default.(bool)
 	// requestDescClientIP is the schema descriptor for client_ip field.
-	requestDescClientIP := requestFields[21].Descriptor()
+	requestDescClientIP := requestFields[22].Descriptor()
 	// request.DefaultClientIP holds the default value on creation for the client_ip field.
 	request.DefaultClientIP = requestDescClientIP.Default.(string)
 	// requestDescUserAgent is the schema descriptor for user_agent field.
-	requestDescUserAgent := requestFields[22].Descriptor()
+	requestDescUserAgent := requestFields[23].Descriptor()
 	// request.DefaultUserAgent holds the default value on creation for the user_agent field.
 	request.DefaultUserAgent = requestDescUserAgent.Default.(string)
 	// requestDescContentSaved is the schema descriptor for content_saved field.
-	requestDescContentSaved := requestFields[26].Descriptor()
+	requestDescContentSaved := requestFields[27].Descriptor()
 	// request.DefaultContentSaved holds the default value on creation for the content_saved field.
 	request.DefaultContentSaved = requestDescContentSaved.Default.(bool)
 	requestexecutionMixin := schema.RequestExecution{}.Mixin()

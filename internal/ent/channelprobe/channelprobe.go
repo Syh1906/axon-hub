@@ -20,6 +20,8 @@ const (
 	FieldSuccessRequestCount = "success_request_count"
 	// FieldAvgTokensPerSecond holds the string denoting the avg_tokens_per_second field in the database.
 	FieldAvgTokensPerSecond = "avg_tokens_per_second"
+	// FieldSpeedVersion holds the string denoting the speed_version field in the database.
+	FieldSpeedVersion = "speed_version"
 	// FieldAvgTimeToFirstTokenMs holds the string denoting the avg_time_to_first_token_ms field in the database.
 	FieldAvgTimeToFirstTokenMs = "avg_time_to_first_token_ms"
 	// FieldTimestamp holds the string denoting the timestamp field in the database.
@@ -44,6 +46,7 @@ var Columns = []string{
 	FieldTotalRequestCount,
 	FieldSuccessRequestCount,
 	FieldAvgTokensPerSecond,
+	FieldSpeedVersion,
 	FieldAvgTimeToFirstTokenMs,
 	FieldTimestamp,
 }
@@ -57,6 +60,11 @@ func ValidColumn(column string) bool {
 	}
 	return false
 }
+
+var (
+	// DefaultSpeedVersion holds the default value on creation for the "speed_version" field.
+	DefaultSpeedVersion int
+)
 
 // OrderOption defines the ordering options for the ChannelProbe queries.
 type OrderOption func(*sql.Selector)
@@ -84,6 +92,11 @@ func BySuccessRequestCount(opts ...sql.OrderTermOption) OrderOption {
 // ByAvgTokensPerSecond orders the results by the avg_tokens_per_second field.
 func ByAvgTokensPerSecond(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAvgTokensPerSecond, opts...).ToFunc()
+}
+
+// BySpeedVersion orders the results by the speed_version field.
+func BySpeedVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpeedVersion, opts...).ToFunc()
 }
 
 // ByAvgTimeToFirstTokenMs orders the results by the avg_time_to_first_token_ms field.

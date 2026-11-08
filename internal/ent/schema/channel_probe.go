@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -28,6 +29,7 @@ func (ChannelProbe) Fields() []ent.Field {
 		field.Int("total_request_count").Immutable(),
 		field.Int("success_request_count").Immutable(),
 		field.Float("avg_tokens_per_second").Optional().Nillable().Immutable(),
+		field.Int("speed_version").Default(0).Immutable().Annotations(entgql.Skip(entgql.SkipAll)),
 		field.Float("avg_time_to_first_token_ms").Optional().Nillable().Immutable(),
 		field.Int64("timestamp").Immutable(),
 	}

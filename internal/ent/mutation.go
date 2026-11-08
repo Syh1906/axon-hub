@@ -15127,6 +15127,8 @@ type ChannelProbeMutation struct {
 	addsuccess_request_count      *int
 	avg_tokens_per_second         *float64
 	addavg_tokens_per_second      *float64
+	speed_version                 *int
+	addspeed_version              *int
 	avg_time_to_first_token_ms    *float64
 	addavg_time_to_first_token_ms *float64
 	timestamp                     *int64
@@ -15455,6 +15457,62 @@ func (m *ChannelProbeMutation) ResetAvgTokensPerSecond() {
 	delete(m.clearedFields, channelprobe.FieldAvgTokensPerSecond)
 }
 
+// SetSpeedVersion sets the "speed_version" field.
+func (m *ChannelProbeMutation) SetSpeedVersion(i int) {
+	m.speed_version = &i
+	m.addspeed_version = nil
+}
+
+// SpeedVersion returns the value of the "speed_version" field in the mutation.
+func (m *ChannelProbeMutation) SpeedVersion() (r int, exists bool) {
+	v := m.speed_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpeedVersion returns the old "speed_version" field's value of the ChannelProbe entity.
+// If the ChannelProbe object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProbeMutation) OldSpeedVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpeedVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpeedVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpeedVersion: %w", err)
+	}
+	return oldValue.SpeedVersion, nil
+}
+
+// AddSpeedVersion adds i to the "speed_version" field.
+func (m *ChannelProbeMutation) AddSpeedVersion(i int) {
+	if m.addspeed_version != nil {
+		*m.addspeed_version += i
+	} else {
+		m.addspeed_version = &i
+	}
+}
+
+// AddedSpeedVersion returns the value that was added to the "speed_version" field in this mutation.
+func (m *ChannelProbeMutation) AddedSpeedVersion() (r int, exists bool) {
+	v := m.addspeed_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSpeedVersion resets all changes to the "speed_version" field.
+func (m *ChannelProbeMutation) ResetSpeedVersion() {
+	m.speed_version = nil
+	m.addspeed_version = nil
+}
+
 // SetAvgTimeToFirstTokenMs sets the "avg_time_to_first_token_ms" field.
 func (m *ChannelProbeMutation) SetAvgTimeToFirstTokenMs(f float64) {
 	m.avg_time_to_first_token_ms = &f
@@ -15642,7 +15700,7 @@ func (m *ChannelProbeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelProbeMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.channel != nil {
 		fields = append(fields, channelprobe.FieldChannelID)
 	}
@@ -15654,6 +15712,9 @@ func (m *ChannelProbeMutation) Fields() []string {
 	}
 	if m.avg_tokens_per_second != nil {
 		fields = append(fields, channelprobe.FieldAvgTokensPerSecond)
+	}
+	if m.speed_version != nil {
+		fields = append(fields, channelprobe.FieldSpeedVersion)
 	}
 	if m.avg_time_to_first_token_ms != nil {
 		fields = append(fields, channelprobe.FieldAvgTimeToFirstTokenMs)
@@ -15677,6 +15738,8 @@ func (m *ChannelProbeMutation) Field(name string) (ent.Value, bool) {
 		return m.SuccessRequestCount()
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.AvgTokensPerSecond()
+	case channelprobe.FieldSpeedVersion:
+		return m.SpeedVersion()
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		return m.AvgTimeToFirstTokenMs()
 	case channelprobe.FieldTimestamp:
@@ -15698,6 +15761,8 @@ func (m *ChannelProbeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSuccessRequestCount(ctx)
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.OldAvgTokensPerSecond(ctx)
+	case channelprobe.FieldSpeedVersion:
+		return m.OldSpeedVersion(ctx)
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		return m.OldAvgTimeToFirstTokenMs(ctx)
 	case channelprobe.FieldTimestamp:
@@ -15739,6 +15804,13 @@ func (m *ChannelProbeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAvgTokensPerSecond(v)
 		return nil
+	case channelprobe.FieldSpeedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpeedVersion(v)
+		return nil
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		v, ok := value.(float64)
 		if !ok {
@@ -15770,6 +15842,9 @@ func (m *ChannelProbeMutation) AddedFields() []string {
 	if m.addavg_tokens_per_second != nil {
 		fields = append(fields, channelprobe.FieldAvgTokensPerSecond)
 	}
+	if m.addspeed_version != nil {
+		fields = append(fields, channelprobe.FieldSpeedVersion)
+	}
 	if m.addavg_time_to_first_token_ms != nil {
 		fields = append(fields, channelprobe.FieldAvgTimeToFirstTokenMs)
 	}
@@ -15790,6 +15865,8 @@ func (m *ChannelProbeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSuccessRequestCount()
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.AddedAvgTokensPerSecond()
+	case channelprobe.FieldSpeedVersion:
+		return m.AddedSpeedVersion()
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		return m.AddedAvgTimeToFirstTokenMs()
 	case channelprobe.FieldTimestamp:
@@ -15823,6 +15900,13 @@ func (m *ChannelProbeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAvgTokensPerSecond(v)
+		return nil
+	case channelprobe.FieldSpeedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSpeedVersion(v)
 		return nil
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		v, ok := value.(float64)
@@ -15891,6 +15975,9 @@ func (m *ChannelProbeMutation) ResetField(name string) error {
 		return nil
 	case channelprobe.FieldAvgTokensPerSecond:
 		m.ResetAvgTokensPerSecond()
+		return nil
+	case channelprobe.FieldSpeedVersion:
+		m.ResetSpeedVersion()
 		return nil
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
 		m.ResetAvgTimeToFirstTokenMs()
@@ -25209,6 +25296,7 @@ type RequestMutation struct {
 	updated_at                        *time.Time
 	user_id                           *int
 	adduser_id                        *int
+	continuation_key                  *string
 	source                            *request.Source
 	model_id                          *string
 	reasoning_effort                  *string
@@ -25637,6 +25725,55 @@ func (m *RequestMutation) TraceIDCleared() bool {
 func (m *RequestMutation) ResetTraceID() {
 	m.trace = nil
 	delete(m.clearedFields, request.FieldTraceID)
+}
+
+// SetContinuationKey sets the "continuation_key" field.
+func (m *RequestMutation) SetContinuationKey(s string) {
+	m.continuation_key = &s
+}
+
+// ContinuationKey returns the value of the "continuation_key" field in the mutation.
+func (m *RequestMutation) ContinuationKey() (r string, exists bool) {
+	v := m.continuation_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContinuationKey returns the old "continuation_key" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldContinuationKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContinuationKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContinuationKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContinuationKey: %w", err)
+	}
+	return oldValue.ContinuationKey, nil
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (m *RequestMutation) ClearContinuationKey() {
+	m.continuation_key = nil
+	m.clearedFields[request.FieldContinuationKey] = struct{}{}
+}
+
+// ContinuationKeyCleared returns if the "continuation_key" field was cleared in this mutation.
+func (m *RequestMutation) ContinuationKeyCleared() bool {
+	_, ok := m.clearedFields[request.FieldContinuationKey]
+	return ok
+}
+
+// ResetContinuationKey resets all changes to the "continuation_key" field.
+func (m *RequestMutation) ResetContinuationKey() {
+	m.continuation_key = nil
+	delete(m.clearedFields, request.FieldContinuationKey)
 }
 
 // SetDataStorageID sets the "data_storage_id" field.
@@ -27257,7 +27394,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -27275,6 +27412,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m.trace != nil {
 		fields = append(fields, request.FieldTraceID)
+	}
+	if m.continuation_key != nil {
+		fields = append(fields, request.FieldContinuationKey)
 	}
 	if m.data_storage != nil {
 		fields = append(fields, request.FieldDataStorageID)
@@ -27374,6 +27514,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case request.FieldTraceID:
 		return m.TraceID()
+	case request.FieldContinuationKey:
+		return m.ContinuationKey()
 	case request.FieldDataStorageID:
 		return m.DataStorageID()
 	case request.FieldSource:
@@ -27447,6 +27589,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldProjectID(ctx)
 	case request.FieldTraceID:
 		return m.OldTraceID(ctx)
+	case request.FieldContinuationKey:
+		return m.OldContinuationKey(ctx)
 	case request.FieldDataStorageID:
 		return m.OldDataStorageID(ctx)
 	case request.FieldSource:
@@ -27549,6 +27693,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTraceID(v)
+		return nil
+	case request.FieldContinuationKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContinuationKey(v)
 		return nil
 	case request.FieldDataStorageID:
 		v, ok := value.(int)
@@ -27846,6 +27997,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldTraceID) {
 		fields = append(fields, request.FieldTraceID)
 	}
+	if m.FieldCleared(request.FieldContinuationKey) {
+		fields = append(fields, request.FieldContinuationKey)
+	}
 	if m.FieldCleared(request.FieldDataStorageID) {
 		fields = append(fields, request.FieldDataStorageID)
 	}
@@ -27919,6 +28073,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldTraceID:
 		m.ClearTraceID()
+		return nil
+	case request.FieldContinuationKey:
+		m.ClearContinuationKey()
 		return nil
 	case request.FieldDataStorageID:
 		m.ClearDataStorageID()
@@ -27996,6 +28153,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldTraceID:
 		m.ResetTraceID()
+		return nil
+	case request.FieldContinuationKey:
+		m.ResetContinuationKey()
 		return nil
 	case request.FieldDataStorageID:
 		m.ResetDataStorageID()

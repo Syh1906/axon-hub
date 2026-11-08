@@ -20,6 +20,8 @@ import { RequestLogStatusCell, RequestChannelCell, RequestCacheCell, RequestDura
 import { RequestModelCell } from './request-model-cell';
 
 interface UseRequestsColumnsOptions {
+  allowContinuationExpansion?: boolean;
+  continuationHistory?: boolean;
   onBodyClick?: (requestId: string, index: number, tab?: RequestDiagnosticTab) => void;
   onCallerFilter?: (kind: 'key' | 'group', value: string) => void;
   onViewDetail?: (requestId: string) => void;
@@ -113,6 +115,9 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         cell: ({ row }) => (
           <RequestLogStatusCell
             request={row.original}
+            onToggleContinuation={optionsRef.current?.allowContinuationExpansion ? row.getToggleExpandedHandler() : undefined}
+            continuationExpanded={row.getIsExpanded()}
+            continued={optionsRef.current?.continuationHistory}
             onOpen={(tab) => optionsRef.current?.onBodyClick?.(row.original.id, row.index, tab)}
           />
         ),

@@ -44,6 +44,8 @@ input RequestLogTimeRangeInput {
 }
 
 input RequestLogFilterInput {
+  "Show the final request of a verified client-cancellation continuation chain. Filters and counts apply to that representative."
+  collapseContinuations: Boolean = false
   "Skip this many matching requests for page navigation; cannot be combined with cursors."
   offset: Int
   channelTagsIn: [String!]
@@ -66,11 +68,15 @@ type RequestSessionExecution {
 }
 
 extend type Request {
+  "Number of canceled requests immediately preceding this request in the same explicit client turn."
+  continuationCount: Int! @goField(forceResolver: true)
   "Last execution dispatched for the session history of a finished request."
   sessionExecution: RequestSessionExecution @goField(forceResolver: true)
 }
 
 extend type Query {
+  "Original canceled requests folded into this request, newest first. Original detail access remains unchanged."
+  requestContinuations(requestID: ID!, first: Int, after: Cursor): RequestConnection!
   requestLogTimezone: String!
   requestLogStatusCounts(where: RequestWhereInput, filter: RequestLogFilterInput): [RequestLogStatusCount!]!
   requestLogs(after: Cursor, first: Int, before: Cursor, last: Int, orderBy: RequestOrder, where: RequestWhereInput, filter: RequestLogFilterInput): RequestConnection!

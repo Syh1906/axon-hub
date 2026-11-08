@@ -19,6 +19,30 @@ import (
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
+// RequestContinuations is the resolver for the requestContinuations field.
+func (r *queryResolver) RequestContinuations(ctx context.Context, requestID objects.GUID, first *int, after *entgql.Cursor[int]) (*ent.RequestConnection, error) {
+	if err := validatePaginationArgs(first, nil); err != nil {
+		return nil, err
+	}
+	if requestID.Type != ent.TypeRequest {
+		return nil, fmt.Errorf("requestID must identify a request")
+	}
+	// Authorize the representative before following any internal relation.
+	if _, err := r.client.Request.Query().Where(request.IDEQ(requestID.ID)).Select(request.FieldID).Only(ctx); err != nil {
+		return nil, err
+	}
+	page, err := requestContinuationHistoryQuery(r.client, requestID.ID).Paginate(ctx, after, first, nil, nil,
+		ent.WithRequestOrder(&ent.RequestOrder{Direction: entgql.OrderDirectionDesc, Field: ent.DefaultRequestOrder.Field}))
+	if err == nil && page != nil {
+		records := make([]*ent.Request, 0, len(page.Edges))
+		for _, edge := range page.Edges {
+			records = append(records, edge.Node)
+		}
+		cacheRequestChannelSessions(ctx, r.client, records, true)
+	}
+	return cacheRequestSpeeds(ctx, r.client, page, err)
+}
+
 // RequestLogTimezone is the resolver for the requestLogTimezone field.
 func (r *queryResolver) RequestLogTimezone(ctx context.Context) (string, error) {
 	location, err := r.systemService.RequestLogLocation(ctx)
@@ -83,8 +107,16 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 			requests = append(requests, edge.Node)
 		}
 		cacheRequestChannelSessions(ctx, r.client, requests, true)
+		if err := cacheRequestContinuationCounts(ctx, r.client, requests); err != nil {
+			return nil, err
+		}
 	}
 	return cacheRequestSpeeds(ctx, r.client, page, err)
+}
+
+// ContinuationCount is the resolver for the continuationCount field.
+func (r *requestResolver) ContinuationCount(ctx context.Context, obj *ent.Request) (int, error) {
+	return requestContinuationCount(ctx, r.client, obj.ID)
 }
 
 // SessionExecution is the resolver for the sessionExecution field.

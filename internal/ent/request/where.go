@@ -85,6 +85,11 @@ func TraceID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldTraceID, v))
 }
 
+// ContinuationKey applies equality check predicate on the "continuation_key" field. It's identical to ContinuationKeyEQ.
+func ContinuationKey(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldContinuationKey, v))
+}
+
 // DataStorageID applies equality check predicate on the "data_storage_id" field. It's identical to DataStorageIDEQ.
 func DataStorageID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldDataStorageID, v))
@@ -378,6 +383,81 @@ func TraceIDIsNil() predicate.Request {
 // TraceIDNotNil applies the NotNil predicate on the "trace_id" field.
 func TraceIDNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldTraceID))
+}
+
+// ContinuationKeyEQ applies the EQ predicate on the "continuation_key" field.
+func ContinuationKeyEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldContinuationKey, v))
+}
+
+// ContinuationKeyNEQ applies the NEQ predicate on the "continuation_key" field.
+func ContinuationKeyNEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldContinuationKey, v))
+}
+
+// ContinuationKeyIn applies the In predicate on the "continuation_key" field.
+func ContinuationKeyIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldContinuationKey, vs...))
+}
+
+// ContinuationKeyNotIn applies the NotIn predicate on the "continuation_key" field.
+func ContinuationKeyNotIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldContinuationKey, vs...))
+}
+
+// ContinuationKeyGT applies the GT predicate on the "continuation_key" field.
+func ContinuationKeyGT(v string) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldContinuationKey, v))
+}
+
+// ContinuationKeyGTE applies the GTE predicate on the "continuation_key" field.
+func ContinuationKeyGTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldContinuationKey, v))
+}
+
+// ContinuationKeyLT applies the LT predicate on the "continuation_key" field.
+func ContinuationKeyLT(v string) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldContinuationKey, v))
+}
+
+// ContinuationKeyLTE applies the LTE predicate on the "continuation_key" field.
+func ContinuationKeyLTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldContinuationKey, v))
+}
+
+// ContinuationKeyContains applies the Contains predicate on the "continuation_key" field.
+func ContinuationKeyContains(v string) predicate.Request {
+	return predicate.Request(sql.FieldContains(FieldContinuationKey, v))
+}
+
+// ContinuationKeyHasPrefix applies the HasPrefix predicate on the "continuation_key" field.
+func ContinuationKeyHasPrefix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasPrefix(FieldContinuationKey, v))
+}
+
+// ContinuationKeyHasSuffix applies the HasSuffix predicate on the "continuation_key" field.
+func ContinuationKeyHasSuffix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasSuffix(FieldContinuationKey, v))
+}
+
+// ContinuationKeyIsNil applies the IsNil predicate on the "continuation_key" field.
+func ContinuationKeyIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldContinuationKey))
+}
+
+// ContinuationKeyNotNil applies the NotNil predicate on the "continuation_key" field.
+func ContinuationKeyNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldContinuationKey))
+}
+
+// ContinuationKeyEqualFold applies the EqualFold predicate on the "continuation_key" field.
+func ContinuationKeyEqualFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldEqualFold(FieldContinuationKey, v))
+}
+
+// ContinuationKeyContainsFold applies the ContainsFold predicate on the "continuation_key" field.
+func ContinuationKeyContainsFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldContainsFold(FieldContinuationKey, v))
 }
 
 // DataStorageIDEQ applies the EQ predicate on the "data_storage_id" field.

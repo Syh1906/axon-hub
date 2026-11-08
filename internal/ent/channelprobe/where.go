@@ -73,6 +73,11 @@ func AvgTokensPerSecond(v float64) predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldEQ(FieldAvgTokensPerSecond, v))
 }
 
+// SpeedVersion applies equality check predicate on the "speed_version" field. It's identical to SpeedVersionEQ.
+func SpeedVersion(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldSpeedVersion, v))
+}
+
 // AvgTimeToFirstTokenMs applies equality check predicate on the "avg_time_to_first_token_ms" field. It's identical to AvgTimeToFirstTokenMsEQ.
 func AvgTimeToFirstTokenMs(v float64) predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldEQ(FieldAvgTimeToFirstTokenMs, v))
@@ -231,6 +236,46 @@ func AvgTokensPerSecondIsNil() predicate.ChannelProbe {
 // AvgTokensPerSecondNotNil applies the NotNil predicate on the "avg_tokens_per_second" field.
 func AvgTokensPerSecondNotNil() predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldNotNull(FieldAvgTokensPerSecond))
+}
+
+// SpeedVersionEQ applies the EQ predicate on the "speed_version" field.
+func SpeedVersionEQ(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldSpeedVersion, v))
+}
+
+// SpeedVersionNEQ applies the NEQ predicate on the "speed_version" field.
+func SpeedVersionNEQ(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNEQ(FieldSpeedVersion, v))
+}
+
+// SpeedVersionIn applies the In predicate on the "speed_version" field.
+func SpeedVersionIn(vs ...int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldIn(FieldSpeedVersion, vs...))
+}
+
+// SpeedVersionNotIn applies the NotIn predicate on the "speed_version" field.
+func SpeedVersionNotIn(vs ...int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNotIn(FieldSpeedVersion, vs...))
+}
+
+// SpeedVersionGT applies the GT predicate on the "speed_version" field.
+func SpeedVersionGT(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGT(FieldSpeedVersion, v))
+}
+
+// SpeedVersionGTE applies the GTE predicate on the "speed_version" field.
+func SpeedVersionGTE(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGTE(FieldSpeedVersion, v))
+}
+
+// SpeedVersionLT applies the LT predicate on the "speed_version" field.
+func SpeedVersionLT(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLT(FieldSpeedVersion, v))
+}
+
+// SpeedVersionLTE applies the LTE predicate on the "speed_version" field.
+func SpeedVersionLTE(v int) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLTE(FieldSpeedVersion, v))
 }
 
 // AvgTimeToFirstTokenMsEQ applies the EQ predicate on the "avg_time_to_first_token_ms" field.

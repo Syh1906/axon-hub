@@ -30,6 +30,8 @@ const (
 	FieldProjectID = "project_id"
 	// FieldTraceID holds the string denoting the trace_id field in the database.
 	FieldTraceID = "trace_id"
+	// FieldContinuationKey holds the string denoting the continuation_key field in the database.
+	FieldContinuationKey = "continuation_key"
 	// FieldDataStorageID holds the string denoting the data_storage_id field in the database.
 	FieldDataStorageID = "data_storage_id"
 	// FieldSource holds the string denoting the source field in the database.
@@ -158,6 +160,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldProjectID,
 	FieldTraceID,
+	FieldContinuationKey,
 	FieldDataStorageID,
 	FieldSource,
 	FieldModelID,
@@ -212,6 +215,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultProjectID holds the default value on creation for the "project_id" field.
 	DefaultProjectID int
+	// ContinuationKeyValidator is a validator for the "continuation_key" field. It is called by the builders before save.
+	ContinuationKeyValidator func(string) error
 	// DefaultFormat holds the default value on creation for the "format" field.
 	DefaultFormat string
 	// ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
@@ -315,6 +320,11 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 // ByTraceID orders the results by the trace_id field.
 func ByTraceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTraceID, opts...).ToFunc()
+}
+
+// ByContinuationKey orders the results by the continuation_key field.
+func ByContinuationKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContinuationKey, opts...).ToFunc()
 }
 
 // ByDataStorageID orders the results by the data_storage_id field.

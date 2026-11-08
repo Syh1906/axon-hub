@@ -36,6 +36,8 @@ type Request struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// Trace ID that this request belongs to
 	TraceID int `json:"trace_id,omitempty"`
+	// SHA256 of explicit client session, thread and turn identity
+	ContinuationKey string `json:"continuation_key,omitempty"`
 	// Data Storage ID that this request belongs to
 	DataStorageID int `json:"data_storage_id,omitempty"`
 	// Source holds the value of the "source" field.
@@ -204,7 +206,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
 			values[i] = new(sql.NullInt64)
-		case request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
+		case request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
 			values[i] = new(sql.NullString)
 		case request.FieldCreatedAt, request.FieldUpdatedAt, request.FieldContentSavedAt:
 			values[i] = new(sql.NullTime)
@@ -265,6 +267,12 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field trace_id", values[i])
 			} else if value.Valid {
 				_m.TraceID = int(value.Int64)
+			}
+		case request.FieldContinuationKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field continuation_key", values[i])
+			} else if value.Valid {
+				_m.ContinuationKey = value.String
 			}
 		case request.FieldDataStorageID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -533,6 +541,9 @@ func (_m *Request) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("trace_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TraceID))
+	builder.WriteString(", ")
+	builder.WriteString("continuation_key=")
+	builder.WriteString(_m.ContinuationKey)
 	builder.WriteString(", ")
 	builder.WriteString("data_storage_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DataStorageID))

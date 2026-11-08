@@ -73,6 +73,14 @@ server:
 
 **Note**: Enabling this also ensures that requests from the same trace are prioritized to be sent to the same upstream channel, significantly improving provider-side cache hit rates (e.g., Anthropic Prompt Caching).
 
+#### Continuations after client cancellation
+
+The request list folds a verified client-cancellation continuation into its later request and shows a muted “Resumed N” label beside the ID, matching the retry-count style. Click it to page through the original canceled records. The representative keeps the later request's actual status, including failure. Original details, tokens and costs remain separate, and cost statistics retain the earlier records. Date, status and other list filters, pagination and status counts apply to the final representative; a continuation across midnight therefore belongs to the later request's date.
+
+Only adjacent requests in the same project, API key, trace and explicitly supplied client session, thread and turn can match. Turn metadata must include `request_kind="turn"`. The preceding request and its final execution must both be canceled, without an explicit failure, and have a positive measured duration. The next request must start within 10 seconds after that execution's estimated end. Missing markers, overlapping work, an intervening normal request or missing timing leave requests separate. The estimate uses execution creation time plus total latency, so an extremely fast continuation may conservatively remain separate.
+
+The `v1.0.0-beta12-fork.3` migration backfills the internal normalized identity from saved client headers in batches. It is idempotent and preserves current statuses and timestamps; it does not restore deleted headers or invent usage. Ordinary GraphQL `requestLogs` calls keep the original per-request semantics. The UI opts in through `filter.collapseContinuations=true` and loads history on demand through `requestContinuations`, under the same authorization checks.
+
 #### Testing
 - Send a sample prompt; AxonHub's request logs should show a `/v1/responses` call.
 - Enable tracing in AxonHub to inspect prompts, responses, and latency.

@@ -19,7 +19,7 @@ type Column = {
   tooltip?: string;
 };
 
-function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric): Column[] {
+function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric, view: 'leaderboard' | 'usage'): Column[] {
   if (metric === 'CACHE') {
     return [
       { key: 'cacheRequests', format: 'number', tooltip: 'cacheRequestsHelp' },
@@ -46,14 +46,19 @@ function columnsFor(dimension: ConsumptionDimension, metric: ConsumptionMetric):
       { key: 'avgTokensPerSecond', format: 'speed', tooltip: 'speedHelp' },
       { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
     ];
-  if (dimension !== 'CHANNEL')
+  if (dimension !== 'CHANNEL') {
+    const costColumns: Column[] = [
+      { key: 'totalCost', format: 'currency' },
+      { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' },
+    ];
+    if (view === 'usage') costColumns.reverse();
     return [
       { key: 'requestCount', format: 'number' },
       { key: 'totalTokens', format: 'tokens' },
       { key: 'cacheHitRate', format: 'percent', tooltip: 'overallCacheHitRateHelp' },
-      { key: 'totalCost', format: 'currency' },
-      { key: 'avgCostPerMillionTokens', format: 'currency', tooltip: 'avgCostPerMillionTokensHelp' },
+      ...costColumns,
     ];
+  }
   return [
     { key: 'requestCount', format: 'number' },
     { key: 'totalCost', format: 'currency' },
@@ -75,6 +80,7 @@ export function ConsumptionTable({
   currencyCode,
   expandable = true,
   scrollElement,
+  view = 'leaderboard',
 }: {
   entries: ConsumptionEntry[];
   dimension: ConsumptionDimension;
@@ -82,12 +88,13 @@ export function ConsumptionTable({
   currencyCode: string;
   expandable?: boolean;
   scrollElement: HTMLDivElement | null;
+  view?: 'leaderboard' | 'usage';
 }) {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<{ key: MetricKey; direction: 'asc' | 'desc' } | null>(null);
-  const columns = useMemo(() => columnsFor(dimension, metric), [dimension, metric]);
+  const columns = useMemo(() => columnsFor(dimension, metric, view), [dimension, metric, view]);
   const visibleSort = sort && columns.some((column) => column.key === sort.key) ? sort : null;
   const sorted = useMemo(() => {
     if (!visibleSort) return entries;

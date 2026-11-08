@@ -282,6 +282,9 @@ func (s *RequestService) CreateRequest(
 	if httpRequest != nil {
 		mut = mut.SetClientIP(httpRequest.ClientIP)
 		mut = mut.SetUserAgent(httpRequest.UserAgent)
+		if key := RequestContinuationKey(httpRequest.Headers); key != "" && isStream && contexts.GetSourceOrDefault(ctx, request.SourceAPI) == request.SourceAPI {
+			mut.SetContinuationKey(key)
+		}
 	}
 
 	if llmRequest.ReasoningEffort != "" {

@@ -40,6 +40,26 @@ func (_u *RequestUpdate) SetUpdatedAt(v time.Time) *RequestUpdate {
 	return _u
 }
 
+// SetContinuationKey sets the "continuation_key" field.
+func (_u *RequestUpdate) SetContinuationKey(v string) *RequestUpdate {
+	_u.mutation.SetContinuationKey(v)
+	return _u
+}
+
+// SetNillableContinuationKey sets the "continuation_key" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableContinuationKey(v *string) *RequestUpdate {
+	if v != nil {
+		_u.SetContinuationKey(*v)
+	}
+	return _u
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (_u *RequestUpdate) ClearContinuationKey() *RequestUpdate {
+	_u.mutation.ClearContinuationKey()
+	return _u
+}
+
 // SetRequestHeaders sets the "request_headers" field.
 func (_u *RequestUpdate) SetRequestHeaders(v objects.JSONRawMessage) *RequestUpdate {
 	_u.mutation.SetRequestHeaders(v)
@@ -511,6 +531,11 @@ func (_u *RequestUpdate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RequestUpdate) check() error {
+	if v, ok := _u.mutation.ContinuationKey(); ok {
+		if err := request.ContinuationKeyValidator(v); err != nil {
+			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ExternalID(); ok {
 		if err := request.ExternalIDValidator(v); err != nil {
 			return &ValidationError{Name: "external_id", err: fmt.Errorf(`ent: validator failed for field "Request.external_id": %w`, err)}
@@ -550,6 +575,12 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ContinuationKey(); ok {
+		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)
+	}
+	if _u.mutation.ContinuationKeyCleared() {
+		_spec.ClearField(request.FieldContinuationKey, field.TypeString)
 	}
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(request.FieldReasoningEffort, field.TypeString)
@@ -823,6 +854,26 @@ type RequestUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RequestUpdateOne) SetUpdatedAt(v time.Time) *RequestUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetContinuationKey sets the "continuation_key" field.
+func (_u *RequestUpdateOne) SetContinuationKey(v string) *RequestUpdateOne {
+	_u.mutation.SetContinuationKey(v)
+	return _u
+}
+
+// SetNillableContinuationKey sets the "continuation_key" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableContinuationKey(v *string) *RequestUpdateOne {
+	if v != nil {
+		_u.SetContinuationKey(*v)
+	}
+	return _u
+}
+
+// ClearContinuationKey clears the value of the "continuation_key" field.
+func (_u *RequestUpdateOne) ClearContinuationKey() *RequestUpdateOne {
+	_u.mutation.ClearContinuationKey()
 	return _u
 }
 
@@ -1310,6 +1361,11 @@ func (_u *RequestUpdateOne) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RequestUpdateOne) check() error {
+	if v, ok := _u.mutation.ContinuationKey(); ok {
+		if err := request.ContinuationKeyValidator(v); err != nil {
+			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ExternalID(); ok {
 		if err := request.ExternalIDValidator(v); err != nil {
 			return &ValidationError{Name: "external_id", err: fmt.Errorf(`ent: validator failed for field "Request.external_id": %w`, err)}
@@ -1366,6 +1422,12 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ContinuationKey(); ok {
+		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)
+	}
+	if _u.mutation.ContinuationKeyCleared() {
+		_spec.ClearField(request.FieldContinuationKey, field.TypeString)
 	}
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(request.FieldReasoningEffort, field.TypeString)

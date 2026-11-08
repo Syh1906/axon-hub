@@ -118,7 +118,7 @@ func TestConsumptionCountsModelsAndCacheDenominator(t *testing.T) {
 		require.Len(t, entry.Models, 2)
 		require.Equal(t, "model-b", entry.Models[0].Model)
 		require.Equal(t, 1.0, *entry.Metrics.SuccessRate)
-		require.Equal(t, 100.0, *entry.Metrics.AvgTokensPerSecond)        // missing first-byte samples excluded
+		require.Equal(t, 125.0, *entry.Metrics.AvgTokensPerSecond)        // first-byte timing does not change full-request averages
 		require.InDelta(t, 800.0/3000, *entry.Metrics.CacheHitRate, 1e-9) // all input, including cache misses
 	}
 	result, err := f.service.Leaderboard(ctx, ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey, Metric: ConsumptionMetricCache, Period: ConsumptionPeriodAll})
@@ -137,7 +137,7 @@ func TestConsumptionModelTotalsSearchAndArchive(t *testing.T) {
 		SetSupportedModels([]string{"model-a"}).SetDefaultTestModel("model-a").SetCredentials(objects.ChannelCredentials{}).SaveX(f.ctx)
 	f.addRequest(t, at, "model-a", request.StatusCompleted, 2000, 200, 0, 0, 3, nil)
 	_, missingPerformance := f.addRequest(t, at, "model-b", request.StatusCompleted, 500, 50, 450, 0, 1, nil)
-	missingPerformance.Update().ClearMetricsFirstTokenLatencyMs().SaveX(f.ctx)
+	missingPerformance.Update().ClearMetricsLatencyMs().ClearMetricsFirstTokenLatencyMs().SaveX(f.ctx)
 	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{archived.ID}))
 	ctx := f.viewer(t, f.project.ID, string(scopes.ScopeReadLeaderboard))
 	input := ConsumptionFilter{Dimension: ConsumptionDimensionModel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodAll}
@@ -152,7 +152,7 @@ func TestConsumptionModelTotalsSearchAndArchive(t *testing.T) {
 	require.Equal(t, int64(3300), model.Metrics.TotalTokens)
 	require.InDelta(t, 800.0/3000, *model.Metrics.CacheHitRate, 1e-9)
 	require.Equal(t, 700.0, *model.Metrics.AvgFirstTokenMs)
-	require.Equal(t, 100.0, *model.Metrics.AvgTokensPerSecond)
+	require.Equal(t, 125.0, *model.Metrics.AvgTokensPerSecond)
 	require.Nil(t, result.ModelEntries[1].Metrics.AvgTokensPerSecond)
 	require.Nil(t, result.ModelEntries[1].Metrics.AvgFirstTokenMs)
 
@@ -254,7 +254,7 @@ func TestConsumptionOutcomeAndSpeedSamples(t *testing.T) {
 	metrics := result.Entries[0].Metrics
 	require.Equal(t, 9, metrics.RequestCount)
 	require.Equal(t, 0.5, *metrics.SuccessRate) // Two successes, one upstream failure, one new pre-byte cancellation.
-	require.Equal(t, 100.0, *metrics.AvgTokensPerSecond)
+	require.InDelta(t, (100.0/1.2+900.0/1.2)/2, *metrics.AvgTokensPerSecond, 1e-9)
 }
 
 func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
@@ -270,7 +270,7 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	}{
 		{false, "openai/chat_completions", 60000, 59000, false},
 		{true, "openai/image_generations", 60000, 59000, false},
-		{true, "openai/chat_completions", 1200, 1150, false},
+		{true, "openai/chat_completions", 0, 1150, false},
 		{true, "gemini/contents", 60000, 59000, true},
 	} {
 		req, _ := f.addRequest(t, at, "model", request.StatusCompleted, 1000, 4000, 0, 0, 0, lo.ToPtr(sample.firstByte))
@@ -284,11 +284,11 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	require.NoError(t, err)
 	metrics := rows[0].metrics()
 	require.EqualValues(t, 2, metrics.SpeedSampleCount)
-	require.Equal(t, 300.0, *metrics.AvgTokensPerSecond)
+	require.Equal(t, 250.0, *metrics.AvgTokensPerSecond)
 	require.Zero(t, metrics.UnpricedRequestCount)
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{first.ID})
 	require.NoError(t, err)
-	require.Equal(t, 100.0, *speeds[first.ID])
+	require.InDelta(t, 100.0/1.2, *speeds[first.ID], 1e-9)
 	usage := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(first.ID)).OnlyX(f.ctx)
 	f.client.UsageLog.UpdateOne(usage).ClearTotalCost().SaveX(f.ctx)
 	rows, err = f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
@@ -303,6 +303,35 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	archived, err := f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, rows, archived)
+}
+
+func TestConsumptionSpeedIgnoresForwardedFirstByte(t *testing.T) {
+	f := newConsumptionFixture(t)
+	at := time.Now().Add(-time.Hour)
+	var ids []int
+	for _, firstByte := range []*int64{lo.ToPtr(int64(1593)), lo.ToPtr(int64(12193)), nil} {
+		req, execution := f.addRequest(t, at, "forwarded", request.StatusCompleted, 1000, 486, 0, 0, 1, firstByte)
+		f.client.RequestExecution.UpdateOne(execution).SetMetricsLatencyMs(13442).SaveX(f.ctx)
+		ids = append(ids, req.ID)
+	}
+	speeds, err := RequestOutputSpeeds(f.ctx, f.client, ids)
+	require.NoError(t, err)
+	for _, id := range ids {
+		require.NotNil(t, speeds[id])
+		require.InDelta(t, 36.1553, *speeds[id], 0.0001)
+	}
+	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, ids[:1]))
+	archive := f.client.UsageArchive.Query().OnlyX(f.ctx)
+	require.Equal(t, 2, archive.SpeedVersion)
+	// Old archives retain their costs/counts but cannot provide a new-formula speed.
+	f.client.UsageArchive.UpdateOne(archive).SetSpeedVersion(1).SetSpeedSum(9999).SaveX(f.ctx)
+	rows, err := f.service.queryGroups(f.ctx, f.project.ID,
+		ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost}, nil, time.Now())
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.EqualValues(t, 3, rows[0].Requests)
+	require.EqualValues(t, 2, rows[0].SpeedCount)
+	require.InDelta(t, 36.1553, *rows[0].metrics().AvgTokensPerSecond, 0.0001)
 }
 
 func TestConsumptionLocalAdmissionOutcomes(t *testing.T) {

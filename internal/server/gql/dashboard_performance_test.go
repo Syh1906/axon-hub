@@ -3,13 +3,39 @@ package gql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
+
+func TestChannelProbeSpeedVersionsDoNotMix(t *testing.T) {
+	r, ctx := newDashboardUsageTestResolver(t)
+	ch := createDashboardUsageChannel(t, ctx, r.client, "speed-version")
+	at := time.Now().UTC().Truncate(24 * time.Hour).Add(time.Hour)
+	r.client.ChannelProbe.Create().SetChannelID(ch.ID).SetTotalRequestCount(100).
+		SetSuccessRequestCount(100).SetAvgTokensPerSecond(389).SetAvgTimeToFirstTokenMs(1000).
+		SetTimestamp(at.Unix()).SaveX(ctx)
+	rows, err := r.queryChannelProbeStats(ctx, at.Add(-time.Minute).Unix(), "UTC", 0)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Zero(t, rows[0].Throughput, "the response maps unavailable legacy speed to nil")
+	require.Equal(t, 100, rows[0].RequestCount)
+	require.Equal(t, 1000.0, rows[0].TTFTMs)
+	r.client.ChannelProbe.Create().SetChannelID(ch.ID).SetTotalRequestCount(1).
+		SetSuccessRequestCount(1).SetAvgTokensPerSecond(36).SetAvgTimeToFirstTokenMs(1000).
+		SetSpeedVersion(usageanalytics.OutputSpeedVersion).SetTimestamp(at.Add(time.Minute).Unix()).SaveX(ctx)
+	rows, err = r.queryChannelProbeStats(ctx, at.Add(-time.Minute).Unix(), "UTC", 0)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, 36.0, rows[0].Throughput)
+	require.Equal(t, 101, rows[0].RequestCount)
+	require.Equal(t, 1000.0, rows[0].TTFTMs)
+}
 
 // TestModelPerformanceStatsUsesRequestModel verifies that the daily
 // performance aggregate groups by the client-requested model, not the channel

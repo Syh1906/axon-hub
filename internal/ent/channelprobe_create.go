@@ -54,6 +54,20 @@ func (_c *ChannelProbeCreate) SetNillableAvgTokensPerSecond(v *float64) *Channel
 	return _c
 }
 
+// SetSpeedVersion sets the "speed_version" field.
+func (_c *ChannelProbeCreate) SetSpeedVersion(v int) *ChannelProbeCreate {
+	_c.mutation.SetSpeedVersion(v)
+	return _c
+}
+
+// SetNillableSpeedVersion sets the "speed_version" field if the given value is not nil.
+func (_c *ChannelProbeCreate) SetNillableSpeedVersion(v *int) *ChannelProbeCreate {
+	if v != nil {
+		_c.SetSpeedVersion(*v)
+	}
+	return _c
+}
+
 // SetAvgTimeToFirstTokenMs sets the "avg_time_to_first_token_ms" field.
 func (_c *ChannelProbeCreate) SetAvgTimeToFirstTokenMs(v float64) *ChannelProbeCreate {
 	_c.mutation.SetAvgTimeToFirstTokenMs(v)
@@ -86,6 +100,7 @@ func (_c *ChannelProbeCreate) Mutation() *ChannelProbeMutation {
 
 // Save creates the ChannelProbe in the database.
 func (_c *ChannelProbeCreate) Save(ctx context.Context) (*ChannelProbe, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -111,6 +126,14 @@ func (_c *ChannelProbeCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *ChannelProbeCreate) defaults() {
+	if _, ok := _c.mutation.SpeedVersion(); !ok {
+		v := channelprobe.DefaultSpeedVersion
+		_c.mutation.SetSpeedVersion(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *ChannelProbeCreate) check() error {
 	if _, ok := _c.mutation.ChannelID(); !ok {
@@ -121,6 +144,9 @@ func (_c *ChannelProbeCreate) check() error {
 	}
 	if _, ok := _c.mutation.SuccessRequestCount(); !ok {
 		return &ValidationError{Name: "success_request_count", err: errors.New(`ent: missing required field "ChannelProbe.success_request_count"`)}
+	}
+	if _, ok := _c.mutation.SpeedVersion(); !ok {
+		return &ValidationError{Name: "speed_version", err: errors.New(`ent: missing required field "ChannelProbe.speed_version"`)}
 	}
 	if _, ok := _c.mutation.Timestamp(); !ok {
 		return &ValidationError{Name: "timestamp", err: errors.New(`ent: missing required field "ChannelProbe.timestamp"`)}
@@ -166,6 +192,10 @@ func (_c *ChannelProbeCreate) createSpec() (*ChannelProbe, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.AvgTokensPerSecond(); ok {
 		_spec.SetField(channelprobe.FieldAvgTokensPerSecond, field.TypeFloat64, value)
 		_node.AvgTokensPerSecond = &value
+	}
+	if value, ok := _c.mutation.SpeedVersion(); ok {
+		_spec.SetField(channelprobe.FieldSpeedVersion, field.TypeInt, value)
+		_node.SpeedVersion = value
 	}
 	if value, ok := _c.mutation.AvgTimeToFirstTokenMs(); ok {
 		_spec.SetField(channelprobe.FieldAvgTimeToFirstTokenMs, field.TypeFloat64, value)
@@ -267,6 +297,9 @@ func (u *ChannelProbeUpsertOne) UpdateNewValues() *ChannelProbeUpsertOne {
 		if _, exists := u.create.mutation.AvgTokensPerSecond(); exists {
 			s.SetIgnore(channelprobe.FieldAvgTokensPerSecond)
 		}
+		if _, exists := u.create.mutation.SpeedVersion(); exists {
+			s.SetIgnore(channelprobe.FieldSpeedVersion)
+		}
 		if _, exists := u.create.mutation.AvgTimeToFirstTokenMs(); exists {
 			s.SetIgnore(channelprobe.FieldAvgTimeToFirstTokenMs)
 		}
@@ -356,6 +389,7 @@ func (_c *ChannelProbeCreateBulk) Save(ctx context.Context) ([]*ChannelProbe, er
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*ChannelProbeMutation)
 				if !ok {
@@ -490,6 +524,9 @@ func (u *ChannelProbeUpsertBulk) UpdateNewValues() *ChannelProbeUpsertBulk {
 			}
 			if _, exists := b.mutation.AvgTokensPerSecond(); exists {
 				s.SetIgnore(channelprobe.FieldAvgTokensPerSecond)
+			}
+			if _, exists := b.mutation.SpeedVersion(); exists {
+				s.SetIgnore(channelprobe.FieldSpeedVersion)
 			}
 			if _, exists := b.mutation.AvgTimeToFirstTokenMs(); exists {
 				s.SetIgnore(channelprobe.FieldAvgTimeToFirstTokenMs)

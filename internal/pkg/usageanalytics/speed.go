@@ -2,11 +2,15 @@ package usageanalytics
 
 import "fmt"
 
-// OutputSpeedSQL uses CCH's per-request first-body-byte denominator. Only text
-// streams are comparable; a non-stream body measures download, not generation.
+// OutputSpeedVersion identifies the formula persisted in usage archives.
+const OutputSpeedVersion = 2
+
+// OutputSpeedSQL measures average output over the entire final execution,
+// including waiting and reasoning. A forwarded stream can omit early events,
+// so the first body byte is not a comparable start time across gateways.
 // Arguments are trusted SQL column expressions, never request values.
-func OutputSpeedSQL(tokens, duration, firstByte, stream, format string) string {
-	return fmt.Sprintf("CASE WHEN %s AND COALESCE(%s, '') NOT LIKE '%%image%%' AND COALESCE(%s, '') NOT LIKE '%%audio%%' AND COALESCE(%s, '') NOT LIKE '%%video%%' AND %s > 0 AND %s >= 0 AND (%s - %s) >= 100 THEN %s * 1000.0 / (%s - %s) ELSE NULL END", stream, format, format, format, tokens, firstByte, duration, firstByte, tokens, duration, firstByte)
+func OutputSpeedSQL(tokens, duration, stream, format string) string {
+	return fmt.Sprintf("CASE WHEN %s AND COALESCE(%s, '') NOT LIKE '%%image%%' AND COALESCE(%s, '') NOT LIKE '%%audio%%' AND COALESCE(%s, '') NOT LIKE '%%video%%' AND %s > 0 AND %s > 0 THEN %s * 1000.0 / %s ELSE NULL END", stream, format, format, format, tokens, duration, tokens, duration)
 }
 
 // TextTokensSQL rejects persisted image outputs even when they were sent over a

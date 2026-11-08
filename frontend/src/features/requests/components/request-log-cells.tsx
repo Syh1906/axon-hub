@@ -25,32 +25,53 @@ export function requestProvider(request: Request) {
 export function RequestLogStatusCell({
   request,
   onOpen,
+  onToggleContinuation,
+  continuationExpanded = false,
+  continued = false,
 }: {
-  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'stream'> & {
+  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'stream' | 'continuationCount'> & {
     executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount?: number };
   };
   onOpen?: (tab: RequestDiagnosticTab) => void;
+  onToggleContinuation?: () => void;
+  continuationExpanded?: boolean;
+  continued?: boolean;
 }) {
   const { t } = useTranslation();
   const execution = request.executions?.edges[0]?.node;
   const status = request.clientStatusCode ?? execution?.responseStatusCode;
   const retries = Math.max((request.executions?.totalCount ?? 0) - 1, 0);
   return (
-    <div className='flex min-w-[150px] flex-col gap-1.5'>
-      <div className='flex items-center gap-2'>
+    <div className='flex min-w-0 flex-col gap-1.5'>
+      <div className='flex min-w-0 items-center gap-2'>
         {onOpen ? (
-          <button type='button' onClick={() => onOpen('request')} className='text-primary font-mono text-xs hover:underline'>
+          <button type='button' onClick={() => onOpen('request')} title={`#${extractNumberID(request.id)}`} className='text-primary min-w-0 truncate font-mono text-xs hover:underline'>
             #{extractNumberID(request.id)}
           </button>
         ) : (
           <span className='text-primary font-mono text-xs'>#{extractNumberID(request.id)}</span>
         )}
-        <span className='text-muted-foreground text-xs'>
+        <span className='text-muted-foreground shrink-0 text-xs'>
           {t(request.stream ? 'requests.stream.streaming' : 'requests.stream.nonStreaming')}
         </span>
+        {!!request.continuationCount && onToggleContinuation && (
+          <button
+            type='button'
+            className='text-muted-foreground shrink-0 text-xs hover:underline'
+            onClick={onToggleContinuation}
+            aria-expanded={continuationExpanded}
+            title={t('requests.continuation.count', { count: request.continuationCount })}
+          >
+            {t('requests.continuation.count', { count: request.continuationCount })}
+          </button>
+        )}
       </div>
       <div className='flex items-center gap-2 whitespace-nowrap'>
-        <Badge className={getStatusColor(request.status)} asChild={!!onOpen}>
+        <Badge
+          className={continued ? 'bg-muted text-muted-foreground' : getStatusColor(request.status)}
+          title={continued ? t('requests.continuation.canceled') : undefined}
+          asChild={!!onOpen}
+        >
           {onOpen ? (
             <button type='button' onClick={() => onOpen('errors')}>
               {t(`requests.status.${request.status}`)}
@@ -210,8 +231,8 @@ export function RequestDurationCell({
         {request.stream && first != null ? `${t('requests.duration.firstToken', { duration: formatDuration(first) })} · ` : ''}
         {t('requests.duration.total', { duration: latency == null ? '—' : formatDuration(latency) })}
       </span>
-      <span className='text-muted-foreground'>
-        {!request.stream ? `${t('requests.diagnostics.average')} ` : ''}
+      <span className='text-muted-foreground' title={t('consumption.speedHelp')}>
+        {`${t('requests.diagnostics.average')} `}
         {speed == null ? t('requests.diagnostics.noSpeed') : `${Math.round(speed)} tok/s`}
       </span>
     </div>

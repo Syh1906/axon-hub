@@ -30,7 +30,10 @@ export function useRequestLogTimezone() {
 }
 
 // Dynamic GraphQL query builder
-function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChannels: boolean; canViewCallerUser: boolean }) {
+function buildRequestsQuery(
+  permissions: { canViewApiKeys: boolean; canViewChannels: boolean; canViewCallerUser: boolean },
+  mode: 'list' | 'continuations' = 'list'
+) {
   const apiKeyFields = permissions.canViewApiKeys
     ? `
           apiKey {
@@ -71,7 +74,8 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
     : '';
 
   return `
-    query GetRequests(
+    ${mode === 'continuations' ? `query GetRequestContinuations($requestID: ID!, $first: Int, $after: Cursor) {
+      requests: requestContinuations(requestID: $requestID, first: $first, after: $after) {` : `query GetRequests(
       $first: Int
       $after: Cursor
       $last: Int
@@ -80,10 +84,11 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
       $where: RequestWhereInput
       $filter: RequestLogFilterInput
     ) {
-      requests: requestLogs(first: $first, after: $after, last: $last, before: $before, orderBy: $orderBy, where: $where, filter: $filter) {
+      requests: requestLogs(first: $first, after: $after, last: $last, before: $before, orderBy: $orderBy, where: $where, filter: $filter) {`}
         edges {
           node {
             id
+            ${mode === 'list' ? 'continuationCount' : ''}
             createdAt
             updatedAt${apiKeyFields}${requestChannelFields}
             source
@@ -107,6 +112,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
               costSnapshot { applied { value } }
             }` : ''}
             executions(first: 10, orderBy: { field: CREATED_AT, direction: DESC }) {
+              totalCount
               edges {
                 node {
                   id
@@ -384,6 +390,28 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }, 
 }
 
 // Query hooks
+export function useRequestContinuations(requestID: string, count: number, after: string | null) {
+  const permissions = useRequestPermissions();
+  const projectId = useSelectedProjectId();
+  return useQuery({
+    queryKey: ['request-continuations', requestID, count, after, permissions, projectId],
+    queryFn: async ({ signal }) => {
+      const data = await graphqlRequest<{ requests: RequestConnection }>(
+        buildRequestsQuery(permissions, 'continuations'),
+        { requestID, first: 20, after },
+        projectId ? { 'X-Project-ID': projectId } : undefined,
+        { signal }
+      );
+      return requestConnectionSchema.parse(data.requests);
+    },
+    structuralSharing: shareRequestList,
+    staleTime: 60_000,
+    gcTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
 export function useInfiniteRequests(where: Record<string, any> | undefined, pageSize: number, enabled = true) {
   const permissions = useRequestPermissions();
   const projectId = useSelectedProjectId();

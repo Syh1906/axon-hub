@@ -48,7 +48,7 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 		// Audio is excluded; first-byte and first-token wait are different measurements.
 		{completionTokens: 100, reasoningTokens: 20, audioTokens: 30, latencyMs: 2500, firstTokenMs: 500, firstByteMs: 500},
 		{completionTokens: 100, latencyMs: 2500, firstTokenMs: 1500, firstByteMs: 500},
-		// Less than 100 ms of generation does not create an artificial speed sample.
+		// Buffered output still uses the full request duration.
 		{completionTokens: 50, latencyMs: 2500, firstTokenMs: 2500, firstByteMs: 2500},
 	} {
 		req, createErr := client.Request.Create().
@@ -86,8 +86,8 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 		require.NoError(t, createErr)
 	}
 
-	// Only the second sample is a measurable text stream: 100 / (2.5 - 0.5).
-	expectedTokensPerSecond := 50.0
+	// Both text samples use their full 2.5-second duration; audio remains excluded.
+	expectedTokensPerSecond := (100.0/2.5 + 50.0/2.5) / 2
 	expectedTTFTMs := 1500.0
 
 	scans := countUsageLogGroupedScans(client)
@@ -157,9 +157,13 @@ func TestAnalyticsDimensionPerformanceKeepsUsageAndFinalExecution(t *testing.T) 
 			require.Equal(t, count, rows[0].RequestCount)
 			require.Equal(t, 220*count, rows[0].TotalTokens)
 			require.Equal(t, float64(count), rows[0].Cost)
-			if scenario == "failed" || scenario == "canceled" {
+			if scenario == "failed" || scenario == "canceled" || scenario == "missing_first_byte" || scenario == "short_stream" {
 				require.NotNil(t, rows[0].TokensPerSecond)
-				require.Equal(t, 100.0, *rows[0].TokensPerSecond, "latest execution and first byte determine speed")
+				duration := 2.1
+				if scenario == "short_stream" {
+					duration = 0.15
+				}
+				require.InDelta(t, 200.0/duration, *rows[0].TokensPerSecond, 1e-9, "the final execution's full duration determines speed")
 				require.Nil(t, rows[0].TtftMs, "TTFT retains completed-stream samples only")
 			} else {
 				require.Nil(t, rows[0].TokensPerSecond)

@@ -34,6 +34,9 @@ func (Request) Indexes() []ent.Index {
 			StorageKey("requests_by_channel_id_created_at"),
 		index.Fields("trace_id", "created_at").
 			StorageKey("requests_by_trace_id_created_at"),
+		// Adjacent requests of one explicit client turn are read before pagination.
+		index.Fields("trace_id", "continuation_key", "created_at", "id").
+			StorageKey("requests_by_trace_continuation_created_at"),
 		index.Fields("external_id", "api_key_id", "status", "created_at").
 			StorageKey("requests_by_external_id_api_key_id_status_created_at"),
 		// Performance indexes for dashboard queries
@@ -67,6 +70,9 @@ func (Request) Fields() []ent.Field {
 			Optional().
 			Immutable().
 			Comment("Trace ID that this request belongs to"),
+		field.String("continuation_key").Optional().MaxLen(64).
+			Annotations(entgql.Skip(entgql.SkipAll)).
+			Comment("SHA256 of explicit client session, thread and turn identity"),
 		field.Int("data_storage_id").
 			Optional().
 			Immutable().
