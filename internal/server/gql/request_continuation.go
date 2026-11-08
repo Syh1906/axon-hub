@@ -82,7 +82,9 @@ func validRequestContinuation(db string, previous, next, execution *sql.SelectTa
 		sql.EQ(execution.C(requestexecution.FieldStatus), requestexecution.StatusCanceled),
 		sql.GT(latency, 0),
 		sql.ExprP("("+elapsed+") >= "+latency),
-		sql.ExprP("("+elapsed+") <= "+latency+" + ?", continuationGapMilliseconds),
+		sql.P(func(b *sql.Builder) {
+			b.WriteString("(" + elapsed + ") <= " + latency + " + ").Arg(continuationGapMilliseconds)
+		}),
 	)
 }
 

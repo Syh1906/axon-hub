@@ -263,6 +263,7 @@ func TestRequestContinuationDialectQueries(t *testing.T) {
 				case dialect.Postgres:
 					require.Contains(t, statement, "EXTRACT(EPOCH FROM")
 					require.NotContains(t, statement, "`")
+					require.NotContains(t, statement, "?", "PostgreSQL requires numbered placeholders, including expression arguments")
 				case dialect.MySQL:
 					require.Contains(t, statement, "TIMESTAMPDIFF(MICROSECOND")
 				case dialect.SQLite:

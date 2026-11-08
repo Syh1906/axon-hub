@@ -291,7 +291,7 @@ fork 改动，由用户决定。
 
 - 2026-11-08（本地修改，未发布）：请求列表在分页前折叠有明确客户端轮次依据的取消接续，后一次请求作为主行；灰色“接续 N”沿用重试次数的文字层级，保持 145px ID 列和主行高度。原记录状态、用量、费用及详情保留，历史点击后每页读取 20 条，展开区独立滚动。
 - 新增内部 `requests.continuation_key` 和对应查询索引，新增幂等 data migration `v1.0.0-beta12-fork.3`。已核对原始上游 beta12 无同名字段或迁移版本，并验证其位于 fork.2 与 beta13 之间。同步上游时重点检查请求创建、客户端轮次解析、最后执行的计时边界、原始详情权限、代表行筛选与状态计数。
-- 维护契约见 [Codex 集成指南](zh/guides/codex-integration.md#客户端取消后的接续记录)及对应英文版本。独立复审修复并发回填漏补和逐行接续计数；SQLite 行为与升级回归、三种方言的 SQL 结构检查、真实本地接口／页面验收通过。PostgreSQL／MySQL 实库升级未执行，未发布或部署；证据见[接续聚合验收记录](../.agent/summary/continuation-implementation-20261108.md)。
+- 维护契约见 [Codex 集成指南](zh/guides/codex-integration.md#客户端取消后的接续记录)及对应英文版本。独立复审修复并发回填漏补和逐行接续计数；SQLite 行为与升级回归、三种方言的 SQL 结构检查、真实本地接口／页面验收通过。发版前又用 PostgreSQL 只读合成记录验证代表行、计数与历史，修复了表达式参数误用问号占位符的问题；参数由方言感知的 Builder.Arg 生成。PostgreSQL／MySQL 实库升级未执行，未发布或部署；证据见[接续聚合验收记录](../.agent/summary/continuation-implementation-20261108.md)。
 
 ### 用量统计与消耗排行榜
 
