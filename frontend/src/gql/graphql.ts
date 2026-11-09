@@ -1,20 +1,22 @@
-import { withReadDeadline } from '@/lib/read-deadline';
 import { toast } from 'sonner';
 import { getTokenFromStorage, removeTokenFromStorage } from '@/stores/authStore';
 import { ensureFreshAccessToken } from '@/lib/auth-session';
 import i18n from '@/lib/i18n';
+import { withReadDeadline } from '@/lib/read-deadline';
 
 export class GraphQLRequestError extends Error {
   status?: number;
   isAuthError: boolean;
   extensions?: Record<string, any>;
+  requestId?: string;
 
-  constructor(message: string, options?: { status?: number; isAuthError?: boolean; extensions?: Record<string, any> }) {
+  constructor(message: string, options?: { status?: number; isAuthError?: boolean; extensions?: Record<string, any>; requestId?: string }) {
     super(message);
     this.name = 'GraphQLRequestError';
     this.status = options?.status;
     this.isAuthError = Boolean(options?.isAuthError);
     this.extensions = options?.extensions;
+    this.requestId = options?.requestId;
   }
 }
 
@@ -100,6 +102,8 @@ async function performGraphQLRequest<T>(
     throw new GraphQLRequestError('Network error', { status: undefined, isAuthError: false });
   }
 
+  const requestId = response.headers.get('AH-Request-Id') ?? undefined;
+
   // Handle explicit auth failures (401 only — 403 is a permission denial, not a session issue)
   if (response.status === 401) {
     // Clear token and redirect to login
@@ -108,12 +112,12 @@ async function performGraphQLRequest<T>(
       toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
       redirectToSignIn();
     }
-    throw new GraphQLRequestError('Unauthorized', { status: response.status, isAuthError: true });
+    throw new GraphQLRequestError('Unauthorized', { status: response.status, isAuthError: true, requestId });
   }
 
   // Handle permission denial — do NOT clear token or redirect
   if (response.status === 403) {
-    throw new GraphQLRequestError('Forbidden', { status: 403, isAuthError: false });
+    throw new GraphQLRequestError('Forbidden', { status: 403, isAuthError: false, requestId });
   }
 
   // Check content type before parsing JSON
@@ -121,6 +125,7 @@ async function performGraphQLRequest<T>(
   if (!contentType || !contentType.includes('application/json')) {
     throw new GraphQLRequestError('Server returned non-JSON response. Please check the API endpoint.', {
       status: response.status,
+      requestId,
     });
   }
 
@@ -130,12 +135,15 @@ async function performGraphQLRequest<T>(
   } catch (_error) {
     throw new GraphQLRequestError('Failed to parse server response as JSON', {
       status: response.status,
+      requestId,
     });
   }
 
   if (!response.ok) {
     throw new GraphQLRequestError(result?.errors?.[0]?.message || 'Request failed', {
+      extensions: result?.errors?.[0]?.extensions,
       status: response.status,
+      requestId,
     });
   }
 
@@ -152,12 +160,13 @@ async function performGraphQLRequest<T>(
         toast.error(i18n.t('common.errors.sessionExpiredSignIn'));
         redirectToSignIn();
       }
-      throw new GraphQLRequestError('Unauthorized', { status: 401, isAuthError: true });
+      throw new GraphQLRequestError('Unauthorized', { status: 401, isAuthError: true, requestId });
     }
 
     throw new GraphQLRequestError(firstError?.message || 'GraphQL Error', {
       status: isForbiddenGraphQLError(firstError) ? 403 : undefined,
       extensions: firstError?.extensions ?? {},
+      requestId,
     });
   }
 
@@ -173,7 +182,11 @@ export async function graphqlRequest<T>(
   // 只限制明确的读取；写操作、订阅和 fragment 前缀不猜测为读取。
   if (!/^\s*(?:#[^\r\n]*[\r\n]\s*)*(?:query\b|\{)/.test(query)) return performGraphQLRequest(query, variables, customHeaders, init);
   try {
-    return await withReadDeadline((signal) => performGraphQLRequest<T>(query, variables, customHeaders, { signal }), init?.signal, init?.timeoutMs);
+    return await withReadDeadline(
+      (signal) => performGraphQLRequest<T>(query, variables, customHeaders, { signal }),
+      init?.signal,
+      init?.timeoutMs
+    );
   } catch (error) {
     if (error instanceof DOMException && error.name === 'TimeoutError') {
       throw new GraphQLRequestError(i18n.t('common.errors.readTimeout'), { status: 408 });

@@ -81,6 +81,7 @@ func (t *loggingTracer) InterceptResponse(ctx context.Context, next graphql.Resp
 	}
 
 	resp := next(ctx)
+	recordRequestErrors(ctx, resp)
 
 	// Capture GraphQL errors to context for access logging
 	if resp != nil && len(resp.Errors) > 0 {

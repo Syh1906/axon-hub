@@ -233,6 +233,14 @@ Thread (用户会话)
 - **缺少线程关联** – 在请求中提供 `AH-Thread-Id`，或先通过 API 创建线程。
 - **追踪 ID 异常** – 检查上游代理是否覆盖了相关请求头。
 
+#### 后台页面提示加载失败
+
+后台首次进入时需要读取系统状态、账号和项目资料。读取失败时页面显示具体对象与原因；网络失败不等同于登录过期。点击重试会重新读取，已经成功加载的资料不会因一次后台刷新失败被丢弃；首次账号资料未取得时仍保持权限检查。
+
+如果错误响应已经到达，页面可显示 `AH-Request-Id` 对应的请求编号。管理端 `GraphQL request failed` 日志中的 `admin_request_id` 用于关联该请求，`phase` 区分 `request_body`（接收）、`decode`（解码）、`validation`（校验）和 `execution`（执行）。`body_bytes_read`、`content_length`、`body_read_duration`、`processing_duration` 分别记录应用接收字节数、声明长度和两个阶段的耗时。诊断不保存正文或凭据；读取错误保留安全的分类，不输出原始解码输入。
+
+使用 Nginx 时，可以仅为 `/admin/graphql` 开启 `proxy_request_buffering on`，完整接收后再送给应用，避免客户端上传等待耗尽后台处理时间。该配置不等同于响应缓冲，不应批量修改模型推理／流式接口。评估同入口文件导入的大小限制和临时磁盘空间；同时在现有访问日志记录请求总耗时与上游耗时。应用更新不会自动修改代理配置，接收超时也不能单凭健康检查归因于数据库或 VPN。
+
 ### 相关文档
 - [请求处理流程指南](../getting-started/request-processing.md)
 - [负载均衡指南](load-balance.md)
