@@ -207,7 +207,7 @@ func (p *pipeline) preReadLlmStream(
 	llmStream streams.Stream[*llm.Response],
 	firstEventGuard *firstEventTimeoutGuard,
 ) (streams.Stream[*llm.Response], error) {
-	preReadUntilContent := p.hasStreamRetryBudget()
+	preReadUntilContent := p.hasStreamRetryBudget() || p.streamOutputCommit
 	probeLimit := maxPreReadEvents
 
 	var buffered []*llm.Response
@@ -229,7 +229,11 @@ func (p *pipeline) preReadLlmStream(
 			llmStream.Close()
 			return nil, event.Error
 		}
-		if hasResponseContent(event) {
+		content := hasResponseContent(event)
+		if p.streamOutputCommit {
+			content = hasResponseOutput(event)
+		}
+		if content {
 			// Meaningful output commits the attempt immediately. Do not apply the
 			// private metadata budget to legitimate large media/audio payloads.
 			buffered = append(buffered, event)
@@ -265,7 +269,7 @@ func (p *pipeline) preReadLlmStream(
 				llmStream.Close()
 				return nil, err
 			}
-			if !p.emptyResponseDetection {
+			if !p.emptyResponseDetection && !p.streamOutputCommit {
 				return streams.PrependStream(llmStream, buffered...), nil
 			}
 
@@ -451,7 +455,7 @@ func (p *pipeline) stream(
 
 	// Check stream start before the handler commits the response. This enforces
 	// first-event timeout, empty-response detection, and pre-content retry.
-	if p.emptyResponseDetection || firstEventTimeout > 0 || p.hasStreamRetryBudget() {
+	if p.emptyResponseDetection || firstEventTimeout > 0 || p.hasStreamRetryBudget() || p.streamOutputCommit {
 		rawLlmStream := llmStream
 
 		llmStream, err = p.preReadLlmStream(ctx, llmStream, firstEventGuard)

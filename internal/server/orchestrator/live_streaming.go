@@ -34,6 +34,9 @@ func (m *livePreviewMiddleware) Name() string {
 }
 
 func (m *livePreviewMiddleware) OnInboundLlmRequest(ctx context.Context, request *llm.Request) (*llm.Request, error) {
+	if m.state != nil && m.state.hedge != nil {
+		return request, nil
+	}
 	if m.liveStreamRegistry == nil {
 		m.enabled = false
 		return request, nil
@@ -53,6 +56,9 @@ func (m *livePreviewMiddleware) OnInboundLlmRequest(ctx context.Context, request
 }
 
 func (m *livePreviewMiddleware) OnOutboundRawRequest(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
+	if m.state != nil && m.state.hedge != nil {
+		m.enabled = false
+	}
 	if !m.enabled {
 		return request, nil
 	}

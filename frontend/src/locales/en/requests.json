@@ -270,6 +270,8 @@
   "requests.diagnostics.decisions.stream_returned": "Response stream handed to client; no retry after interruption",
   "requests.diagnostics.decisions.context_done": "Request canceled or deadline exceeded",
   "requests.diagnostics.decisions.client_canceled": "Client canceled the request",
+  "requests.diagnostics.decisions.hedge_lost": "Another title attempt returned content first; the gateway canceled this attempt",
+  "requests.diagnostics.decisions.concurrent_attempt_stopped": "A concurrent attempt triggered a stop condition; no further request was sent",
   "requests.diagnostics.decisions.budget_denied": "Budget checks prevented further attempts",
   "requests.diagnostics.hints.quota": "The upstream explicitly reported insufficient quota. Check the account associated with the actual key used.",
   "requests.diagnostics.hints.rateLimit": "The upstream explicitly reported a rate limit. Check the account limits and retry history.",

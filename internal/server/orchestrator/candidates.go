@@ -739,7 +739,8 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		}
 		candidates = s.quotaGate.Filter(ctx, candidates, req, stickyID)
 	}
-	if selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider); handled || err != nil {
+	selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider)
+	if handled || err != nil {
 		if err != nil || loadBalancer == nil {
 			return selected, err
 		}
@@ -756,6 +757,11 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 			return append(selected[:1:1], fallbacks...), nil
 		}
 		return s.sortCandidates(ctx, loadBalancer, selected, req, requiredCount, true), nil
+	}
+	if selected != nil {
+		// Complete opaque history still needs a compatible protocol when its
+		// preference expires; then resume ordinary session and priority routing.
+		candidates = selected
 	}
 	if loadBalancer != nil && loadBalancer.healthGate != nil {
 		return s.selectHealthGated(ctx, req, candidates, retryPolicy, traceStickyMode, loadBalancer)

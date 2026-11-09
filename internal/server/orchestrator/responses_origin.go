@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -26,12 +27,36 @@ func responsesOriginRecorder(ctx context.Context, state *PersistenceState, reque
 	}
 }
 
+func responsesAffinityRecorder(ctx context.Context, state *PersistenceState, requestBody []byte) func([]byte) {
+	return func(body []byte) {
+		if !state.publishesRequest() {
+			return
+		}
+		if state.StreamReturned {
+			if !state.StreamCompleted || !state.DeliveryAcknowledged {
+				return
+			}
+		} else if ctx.Err() != nil {
+			return
+		}
+		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		if err := state.RequestService.RecordResponsesAffinity(persistCtx, state.RequestExec, requestBody, body); err != nil {
+			log.Warn(persistCtx, "Unable to retain optional Responses affinity", log.Cause(err))
+		}
+	}
+}
+
 type responsesOriginStream struct {
 	streams.Stream[*httpclient.StreamEvent]
 
-	record  func([]byte) error
-	current *httpclient.StreamEvent
-	err     error
+	record    func([]byte) error
+	current   *httpclient.StreamEvent
+	err       error
+	affinity  func([]byte)
+	completed []byte
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func (s *responsesOriginStream) Next() bool {
@@ -62,7 +87,11 @@ func (s *responsesOriginStream) Next() bool {
 	case "response.completed", "response.done", "response.incomplete":
 		response := gjson.GetBytes(event.Data, "response")
 		if response.IsObject() {
-			s.err = s.record([]byte(response.Raw))
+			body := []byte(response.Raw)
+			s.err = s.record(body)
+			if kind != "response.incomplete" {
+				s.completed = body
+			}
 		}
 	}
 	if s.err != nil {
@@ -81,6 +110,16 @@ func (s *responsesOriginStream) Err() error {
 	return s.Stream.Err()
 }
 
+func (s *responsesOriginStream) Close() error {
+	s.closeOnce.Do(func() {
+		s.closeErr = s.Stream.Close()
+		if s.closeErr == nil && s.affinity != nil && s.completed != nil {
+			s.affinity(s.completed)
+		}
+	})
+	return s.closeErr
+}
+
 func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context.Context, state *PersistenceState, request *httpclient.Request, preparedResponsesBody []byte, result *pipeline.Result) (ChatCompletionResult, error) {
 	requestID := 0
 	if state.Request != nil {
@@ -88,13 +127,15 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 	}
 	// Return result based on stream type
 	var recordOrigin func([]byte) error
+	var recordAffinity func([]byte)
 	if state.LlmRequest != nil && isResponsesFormat(state.LlmRequest.APIFormat) {
 		recordOrigin = responsesOriginRecorder(ctx, state, request.Body)
+		recordAffinity = responsesAffinityRecorder(ctx, state, request.Body)
 	}
 	if result.Stream {
 		state.StreamReturned = true
 		if recordOrigin != nil {
-			result.EventStream = &responsesOriginStream{Stream: result.EventStream, record: recordOrigin}
+			result.EventStream = &responsesOriginStream{Stream: result.EventStream, record: recordOrigin, affinity: recordAffinity}
 		}
 		var retainContinuation func([]byte) error
 		if preparedResponsesBody != nil {
@@ -124,6 +165,7 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 		if err := recordOrigin(result.Response.Body); err != nil {
 			return ChatCompletionResult{RequestID: requestID}, err
 		}
+		recordAffinity(result.Response.Body)
 	}
 	if preparedResponsesBody != nil && result.Response != nil {
 		processor.responsesSessions.record(ctx, preparedResponsesBody, result.Response.Body)

@@ -12,7 +12,9 @@ import (
 // PersistenceState holds shared state with channel management and retry capabilities.
 // TODO: move the dependencies out of the state to make it a real state.
 type PersistenceState struct {
-	APIKey *ent.APIKey
+	titleTask bool
+	hedge     *titleHedgeAttempt
+	APIKey    *ent.APIKey
 
 	RequestService      *biz.RequestService
 	UsageLogService     *biz.UsageLogService
@@ -135,4 +137,8 @@ type PersistenceState struct {
 
 	// PassThroughApplied records whether the inbound request body was substituted during pass-through.
 	PassThroughApplied bool
+}
+
+func (s *PersistenceState) publishesRequest() bool {
+	return s.hedge == nil || s.hedge.winner.Load()
 }

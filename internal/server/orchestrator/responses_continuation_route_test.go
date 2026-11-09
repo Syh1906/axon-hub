@@ -32,6 +32,10 @@ func (p *continuationRouteFixture) GetResponsesContinuationRoute(_ context.Conte
 	return p.route, p.found, p.err
 }
 
+func (p *continuationRouteFixture) GetResponsesAffinity(ctx context.Context, _ string, previousID, _ string) (biz.ResponsesContinuationRoute, bool, error) {
+	return p.GetResponsesContinuationRoute(ctx, previousID)
+}
+
 func TestResponsesContinuationRouting(t *testing.T) {
 	provider := &continuationRouteFixture{route: biz.ResponsesContinuationRoute{ChannelID: 2, KeyRef: "key-reference"}, found: true}
 	policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3, TraceStickyMode: biz.TraceStickyDisabled}}

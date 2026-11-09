@@ -44,6 +44,7 @@ type RequestService struct {
 	LiveStreamRegistry   *LiveStreamRegistry
 	PayloadService       *RequestPayloadService
 	previousChannelCache xcache.Cache[int]
+	responsesAffinity    *responsesAffinityStore
 	sessionOwnerCache    xcache.Cache[SessionOwner]
 	metricClaims         *requestMetricClaims
 }
@@ -72,6 +73,7 @@ func NewRequestService(
 		LiveStreamRegistry:   liveStreamRegistry,
 		PayloadService:       payloadService,
 		previousChannelCache: xcache.NewFromConfig[int](cacheConfig),
+		responsesAffinity:    newResponsesAffinityStore(cacheConfig),
 		sessionOwnerCache:    newSessionOwnerCache(cacheConfig),
 		metricClaims:         newRequestMetricClaims(),
 	}

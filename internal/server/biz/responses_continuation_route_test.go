@@ -57,6 +57,9 @@ func TestResponsesContinuationRouteSurvivesCacheLossAndFailedSelection(t *testin
 		require.NoError(t, err)
 		require.True(t, found)
 		require.Equal(t, ResponsesContinuationRoute{ChannelID: ch.ID, KeyRef: "fixture-key-ref", KeyHint: "••••test"}, route)
+		_, affinityFound, affinityErr := service.GetResponsesAffinity(ctx, "gpt-test", "resp_succeeded", "")
+		require.NoError(t, affinityErr)
+		require.False(t, affinityFound, "durable provenance must not resurrect expired or missing routing preferences")
 	}
 	_, found, err := service.GetResponsesContinuationRoute(ctx, "resp_failed")
 	require.NoError(t, err)

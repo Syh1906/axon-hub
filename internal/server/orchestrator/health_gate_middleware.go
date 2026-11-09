@@ -215,7 +215,7 @@ func (s *healthGateStream) Close() error {
 		switch {
 		case s.state.StreamCompleted:
 			outcome = biz.HealthGateOutcomeSuccess
-		case healthGateClientCanceled(s.ctx):
+		case healthGateClientCanceled(titleHealthContext(s.ctx, streamErr)):
 			outcome = biz.HealthGateOutcomeNeutral
 		case invalidResponsesContinuation(streamErr):
 			outcome = biz.HealthGateOutcomeNeutral

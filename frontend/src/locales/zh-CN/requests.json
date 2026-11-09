@@ -270,6 +270,8 @@
   "requests.diagnostics.decisions.stream_returned": "响应流已交给客户端，断流后不再重试",
   "requests.diagnostics.decisions.context_done": "请求已取消或超过截止时间",
   "requests.diagnostics.decisions.client_canceled": "客户端已取消请求",
+  "requests.diagnostics.decisions.hedge_lost": "其他标题尝试已先返回内容，网关取消本次尝试",
+  "requests.diagnostics.decisions.concurrent_attempt_stopped": "并发尝试触发停止条件，未再发送请求",
   "requests.diagnostics.decisions.budget_denied": "额度检查阻止继续调用",
   "requests.diagnostics.hints.quota": "上游明确返回额度不足代码，请检查本次实际密钥所属账户的额度。",
   "requests.diagnostics.hints.rateLimit": "上游明确返回限流代码，请查看该账户的速率限制和重试记录。",

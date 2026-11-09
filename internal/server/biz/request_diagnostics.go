@@ -46,6 +46,23 @@ func (s *RequestService) SetExecutionRetryDecision(ctx context.Context, executio
 	return s.entFromContext(ctx).RequestExecution.UpdateOneID(executionID).SetRetryDecision(decision).Exec(ctx)
 }
 
+// MarkExecutionHedgeLost runs after the losing attempt's stream has finalized.
+// Preserve genuine provider failures; a canceled speculative attempt is a
+// gateway decision, not evidence that the user canceled the logical request.
+func (s *RequestService) MarkExecutionHedgeLost(ctx context.Context, executionID int) error {
+	client := s.entFromContext(ctx)
+	execution, err := client.RequestExecution.Get(ctx, executionID)
+	if err != nil {
+		return err
+	}
+	update := client.RequestExecution.UpdateOneID(executionID).SetRetryDecision("hedge_lost")
+	if execution.Status == requestexecution.StatusCanceled && (execution.Failure == nil || execution.Failure.Source == "client_canceled") {
+		update.SetFailure(&objects.RequestExecutionFailure{Source: "gateway", Code: "hedge_lost"}).
+			SetErrorMessage("Another title attempt produced output first; this attempt was canceled by the gateway.")
+	}
+	return update.Exec(ctx)
+}
+
 func (s *RequestService) SetRequestClientStatus(ctx context.Context, requestID, status int) error {
 	return s.entFromContext(ctx).Request.UpdateOneID(requestID).SetClientStatusCode(status).Exec(ctx)
 }

@@ -18,6 +18,10 @@ type responsesContinuationRouteProvider interface {
 	GetResponsesContinuationRoute(context.Context, string, ...string) (biz.ResponsesContinuationRoute, bool, error)
 }
 
+type responsesAffinityProvider interface {
+	GetResponsesAffinity(context.Context, string, string, string) (biz.ResponsesContinuationRoute, bool, error)
+}
+
 type responsesPreviousIDContextKey struct{}
 
 func responsePreviousID(body []byte) string {
@@ -80,11 +84,18 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	if strict {
 		route, found, err = routes.GetResponsesContinuationRoute(ctx, previousID, contents...)
 	} else {
-		if previousID != "" {
-			route, found, err = routes.GetResponsesContinuationRoute(ctx, previousID)
+		model := req.Model
+		if req.RawRequest != nil {
+			if original := gjson.GetBytes(req.RawRequest.Body, "model").String(); original != "" {
+				model = original
+			}
 		}
-		if !found && err == nil && len(contents) > 0 {
-			route, found, err = routes.GetResponsesContinuationRoute(ctx, "", contents[len(contents)-1])
+		latest := ""
+		if len(contents) > 0 {
+			latest = contents[len(contents)-1]
+		}
+		if affinity, ok := provider.(responsesAffinityProvider); ok {
+			route, found, err = affinity.GetResponsesAffinity(ctx, model, previousID, latest)
 		}
 	}
 	if !strict {
@@ -93,10 +104,10 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 			if !errors.Is(err, biz.ErrResponsesOriginConflict) {
 				log.Warn(ctx, "Unable to load optional Responses origin", log.Cause(err))
 			}
-			return eligible, true, nil
+			return eligible, false, nil
 		}
 		if !found || route.UnavailableCode != "" {
-			return eligible, true, nil
+			return eligible, false, nil
 		}
 		candidates = eligible
 	}
@@ -166,7 +177,7 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		return result, true, nil
 	}
 	if !strict {
-		return candidates, true, nil
+		return candidates, false, nil
 	}
 	return nil, true, continuationRouteError("continuation_candidate_unavailable", "原历史渠道未进入当前模型和调用权限的可选范围，请检查模型映射、协议支持及调用权限。")
 }

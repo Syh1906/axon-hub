@@ -314,6 +314,11 @@ func (ts *InboundPersistentStream) Close() error {
 	ts.closed = true
 	ts.closeMu.Unlock()
 	defer close(ts.closeDone)
+	if !ts.state.publishesRequest() {
+		// Losing speculative attempts still close their execution/accounting
+		// stream, but may not replace the logical request's winning outcome.
+		return ts.stream.Close()
+	}
 
 	// Capture the actual downstream cancellation before cleanup cancels the
 	// execution context itself. Cleanup is not evidence of a client disconnect.

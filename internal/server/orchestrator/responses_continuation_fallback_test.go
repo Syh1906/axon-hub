@@ -10,6 +10,8 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/contexts"
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
@@ -17,6 +19,25 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
+
+func TestExpiredResponsesAffinityResumesOrdinarySessionRouting(t *testing.T) {
+	provider := &continuationRouteFixture{found: false}
+	provider.traceChannelIDs = map[int]int{7: 2}
+	policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 1, TraceStickyMode: biz.TraceStickyPreferPreviousChannel}}
+	candidates := []*ChannelModelsCandidate{stickyTestCandidate(1, 0), stickyTestCandidate(2, 9), stickyTestCandidate(3, -1)}
+	candidates[0].APIFormat, candidates[1].APIFormat = string(llm.APIFormatOpenAIResponse), string(llm.APIFormatOpenAIResponse)
+	candidates[2].APIFormat = string(llm.APIFormatOpenAIChatCompletion)
+	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(policy, nil), policy, provider)
+	ctx := contexts.WithTrace(t.Context(), &ent.Trace{ID: 7})
+	req := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, Model: "alias", RawRequest: &httpclient.Request{Body: []byte(`{"input":[{"encrypted_content":"expired"}]}`)}}
+	selected, err := selector.Select(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, 2, selected[0].Channel.ID, "an active ordinary binding still wins")
+	provider.traceChannelIDs = nil
+	selected, err = selector.Select(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, 1, selected[0].Channel.ID, "after both bindings expire, use current priority within Responses channels")
+}
 
 func TestResponsesContinuationUnavailableUsesEligibleCandidates(t *testing.T) {
 	for _, reason := range []string{"disabled", "missing", "not_permitted", "mixed_origins", "lookup_failed"} {
@@ -110,6 +131,17 @@ type orderedOriginFixture struct {
 	fakePreviousChannelProvider
 
 	queries []string
+}
+
+func (p *orderedOriginFixture) GetResponsesAffinity(ctx context.Context, _ string, previousID, latest string) (biz.ResponsesContinuationRoute, bool, error) {
+	route, found, err := p.GetResponsesContinuationRoute(ctx, previousID)
+	if previousID == "" {
+		p.queries = p.queries[:len(p.queries)-1]
+	}
+	if !found && err == nil && latest != "" {
+		return p.GetResponsesContinuationRoute(ctx, "", latest)
+	}
+	return route, found, err
 }
 
 func (p *orderedOriginFixture) GetResponsesContinuationRoute(_ context.Context, id string, contents ...string) (biz.ResponsesContinuationRoute, bool, error) {

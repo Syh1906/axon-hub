@@ -130,6 +130,28 @@ func WithResponseTimeouts(streamFirstEventTimeout, nonStreamTimeout time.Duratio
 	}
 }
 
+// WithStreamOutputCommit keeps reasoning-only and startup events private until
+// user-visible output. It is used by callers racing short structured responses.
+func WithStreamOutputCommit() Option {
+	return func(p *pipeline) { p.streamOutputCommit = true }
+}
+
+// WithDispatchGuard prevents future attempts after a concurrent attempt has
+// reported an outcome that forbids replay. It never cancels an in-flight call.
+func WithDispatchGuard(guard func() error) Option {
+	return func(p *pipeline) { p.dispatchGuard = guard }
+}
+
+// DispatchStoppedError distinguishes a logical dispatch stop from this lane's
+// last provider outcome, so concurrent callers can finalize health accurately.
+type DispatchStoppedError struct {
+	Cause            error
+	LastAttemptError error
+}
+
+func (e *DispatchStoppedError) Error() string { return e.Cause.Error() }
+func (e *DispatchStoppedError) Unwrap() error { return e.Cause }
+
 // Factory creates pipeline instances.
 type Factory struct {
 	Executor Executor
@@ -175,6 +197,8 @@ type pipeline struct {
 	emptyResponseDetection  bool
 	streamFirstEventTimeout time.Duration
 	nonStreamTimeout        time.Duration
+	streamOutputCommit      bool
+	dispatchGuard           func() error
 }
 
 type Result struct {
@@ -304,6 +328,16 @@ func (p *pipeline) applyLlmStreamMiddlewares(ctx context.Context, stream streams
 }
 
 func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*Result, error) {
+	llmRequest, err := p.Prepare(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	return p.ProcessPrepared(ctx, llmRequest)
+}
+
+// Prepare validates and selects candidates once before dispatch. Callers that
+// schedule independent attempts must give each attempt its own pipeline/state.
+func (p *pipeline) Prepare(ctx context.Context, request *httpclient.Request) (*llm.Request, error) {
 	// Step 1: Transform httpclient.Request to llm.Request using inbound transformer
 	llmRequest, err := p.Inbound.TransformRequest(ctx, request)
 	if err != nil {
@@ -319,6 +353,14 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 		return nil, err
 	}
 
+	return llmRequest, nil
+}
+
+// ProcessPrepared runs the ordinary retry policy for an already prepared request.
+func (p *pipeline) ProcessPrepared(ctx context.Context, llmRequest *llm.Request, options ...Option) (*Result, error) {
+	for _, option := range options {
+		option(p)
+	}
 	originalStream := llmRequest.Stream
 
 	var lastErr error
@@ -328,6 +370,12 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 
 	// Step 3: Process the request
 	for {
+		if p.dispatchGuard != nil {
+			if err := p.dispatchGuard(); err != nil {
+				p.notifyRetryStopped(ctx, "concurrent_attempt_stopped")
+				return nil, &DispatchStoppedError{Cause: err, LastAttemptError: lastErr}
+			}
+		}
 		llmRequest.Stream = originalStream
 
 		result, err := p.processRequest(ctx, llmRequest)

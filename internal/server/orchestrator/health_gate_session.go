@@ -159,6 +159,9 @@ func (d *healthGateRequestDecision) ownerGatedAtCompletion(ctx context.Context, 
 // session owner happens in biz under its per-session lock, so a late completion
 // cannot overwrite a newer migration made after this request selected candidates.
 func (m *healthGateAttemptTracker) finishSession(ctx context.Context, successful bool) {
+	if m.outbound != nil && m.outbound.state != nil && !m.outbound.state.publishesRequest() {
+		return
+	}
 	d := m.decision
 	if d == nil || m.outbound == nil || m.outbound.state == nil {
 		return

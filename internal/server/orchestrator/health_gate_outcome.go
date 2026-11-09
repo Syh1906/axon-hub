@@ -22,6 +22,9 @@ func healthGateClientCanceled(ctx context.Context) bool {
 }
 
 func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOutcome {
+	if ctx != nil {
+		ctx = titleHealthContext(ctx, err)
+	}
 	if err == nil {
 		return biz.HealthGateOutcomeSuccess
 	}
