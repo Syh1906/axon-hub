@@ -21,7 +21,7 @@ import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecod
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
 import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
 import { PROVIDER_CONFIGS, getProviderFromChannelType, getApiFormatsForProvider, getChannelTypeForApiFormat, getBaseChannelTypeForProvider } from '../data/config_providers';
-import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, setResponsesWebSocketSupport, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
@@ -1173,11 +1173,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         dataWithModels.endpoints = buildCodexResponsesEndpoints(dataWithModels.endpoints, responsesTransport === 'websocket');
       } else if (selectedApiFormat === OPENAI_RESPONSES) {
         dataWithModels.baseURL = dataWithModels.baseURL?.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
-        const endpoints = [...(dataWithModels.endpoints ?? [])];
-        const index = endpoints.findIndex((ep) => ep.apiFormat === OPENAI_RESPONSES);
-        const endpoint = { ...(index >= 0 ? endpoints[index] : { apiFormat: OPENAI_RESPONSES }), supportsWebSockets: responsesTransport === 'websocket', transport: '' as const };
-        if (index >= 0) endpoints[index] = endpoint; else endpoints.push(endpoint);
-        dataWithModels.endpoints = endpoints;
+        dataWithModels.endpoints = setResponsesWebSocketSupport(dataWithModels.endpoints, responsesTransport === 'websocket');
       }
 
       const codexModelProtocols =

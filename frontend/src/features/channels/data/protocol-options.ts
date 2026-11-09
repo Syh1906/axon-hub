@@ -230,6 +230,39 @@ export function getEffectiveResponsesFormats(
   return [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT].filter((format) => formats.has(format));
 }
 
+/** Read non-Codex capabilities in both published and canonical endpoint formats. */
+export function getResponsesWebSocketEnabled(
+  channel: CodexResponsesChannel & { readonly defaultEndpoints?: readonly ChannelEndpoint[] | null }
+): boolean {
+  // An explicit draft replaces stale backend defaults derived from saved legacy
+  // transport. Only an absent Responses-family draft inherits those defaults.
+  const endpoints = channel.endpoints?.some((endpoint) => isResponsesFamilyFormat(endpoint.apiFormat))
+    ? channel.endpoints
+    : channel.defaultEndpoints;
+  if (!(endpoints ?? []).some((endpoint) => isResponsesFamilyFormat(endpoint.apiFormat))) {
+    return isWebSocketURL(channel.baseURL);
+  }
+  return getEffectiveResponsesFormats({ baseURL: channel.baseURL, endpoints }).includes(OPENAI_RESPONSES_WEBSOCKET_FORMAT);
+}
+
+/**
+ * Keep the published capability input, which the backend normalizes on save.
+ * Disabling it must also remove a previously normalized WebSocket endpoint;
+ * otherwise that independent endpoint would keep WebSocket enabled.
+ */
+export function setResponsesWebSocketSupport(
+  endpoints: readonly ChannelEndpoint[] | null | undefined,
+  enabled: boolean
+): ChannelEndpoint[] {
+  const current = endpoints ?? [];
+  const http = current.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT);
+  const updated = { ...(http ?? { apiFormat: OPENAI_RESPONSES_FORMAT }), supportsWebSockets: enabled, transport: '' as const };
+  const result = current
+    .filter((endpoint) => enabled || endpoint.apiFormat !== OPENAI_RESPONSES_WEBSOCKET_FORMAT)
+    .map((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES_FORMAT ? updated : endpoint);
+  return http ? result : [...result, updated];
+}
+
 /**
  * Canonical Codex endpoints for the WebSocket checkbox: explicit HTTP Responses,
  * plus WebSocket Responses when checked, without the legacy transport field.

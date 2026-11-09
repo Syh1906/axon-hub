@@ -3,6 +3,7 @@ package responses
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -151,8 +152,15 @@ func TestResponsesStandaloneThreadDeliveryReplay(t *testing.T) {
 }
 
 func TestTransportDoesNotReplayAuthFailureOrUnknownExecution(t *testing.T) {
-	for _, status := range []int{401, 403, 429, 101} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
+	for _, tc := range []struct {
+		status    int
+		closeCode int
+	}{
+		{status: 401}, {status: 403}, {status: 429}, {status: 101},
+		{status: 101, closeCode: websocket.CloseTryAgainLater},
+	} {
+		t.Run(fmt.Sprintf("%s/close-%d", http.StatusText(tc.status), tc.closeCode), func(t *testing.T) {
+			status := tc.status
 			var posts atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if !websocket.IsWebSocketUpgrade(r) {
@@ -169,7 +177,9 @@ func TestTransportDoesNotReplayAuthFailureOrUnknownExecution(t *testing.T) {
 				}
 				defer c.Close()
 				var event json.RawMessage
-				_ = c.ReadJSON(&event)
+				if c.ReadJSON(&event) == nil && tc.closeCode != 0 {
+					_ = c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(tc.closeCode, "no available account"))
+				}
 			}))
 			defer srv.Close()
 			client := httpclient.NewHttpClientWithClient(srv.Client())
@@ -181,6 +191,9 @@ func TestTransportDoesNotReplayAuthFailureOrUnknownExecution(t *testing.T) {
 				require.NoError(t, err)
 				require.False(t, stream.Next())
 				require.ErrorIs(t, stream.Err(), httpclient.ErrRequestMayHaveExecuted)
+				if tc.closeCode != 0 {
+					require.ErrorContains(t, stream.Err(), "1013: no available account")
+				}
 				_ = stream.Close()
 			} else {
 				require.Error(t, err)

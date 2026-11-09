@@ -1,5 +1,5 @@
-import { getDefaultBaseURL, CHANNEL_CONFIGS, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION } from '../data/config_channels';
-import { getInitialApiFormatForChannel, getCodexResponsesWebSocketState, toHttpBaseURL } from '../data/protocol-options';
+import { getDefaultBaseURL, CHANNEL_CONFIGS, OPENAI_CHAT_COMPLETIONS, OPENAI_IMAGE_GENERATION } from '../data/config_channels';
+import { getInitialApiFormatForChannel, getCodexResponsesWebSocketState, getResponsesWebSocketEnabled, toHttpBaseURL } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, RetryableErrorPattern, ChannelSettings, ChannelQuotaRoutingMode } from '../data/schema';
 
 export interface Props {
@@ -23,10 +23,6 @@ export const OPENAI_RESPONSES_WEBSOCKET: ApiFormatOption = 'openai/responses-ws'
 const OPENAI_RESPONSES_WEBSOCKET_BASE_URL = 'https://api.openai.com/v1#';
 
 const CODEX_RESPONSES_WEBSOCKET_BASE_URL = 'https://chatgpt.com/backend-api/codex#';
-
-function getResponsesTransportFromBaseURL(baseURL?: string): ResponsesTransport {
-  return baseURL?.trim().toLowerCase().startsWith('ws') ? 'websocket' : 'http';
-}
 
 export function baseURLMatchesResponsesTransport(baseURL: string | undefined, _transport: ResponsesTransport): boolean {
   const normalized = baseURL?.trim().toLowerCase() ?? '';
@@ -114,10 +110,7 @@ export function parseRetryableErrorPatternsInput(value: string): RetryableErrorP
 
 export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'type' | 'baseURL' | 'endpoints'>): ResponsesTransport {
   if (channel?.type === 'codex') return getCodexResponsesWebSocketState(channel).enabled ? 'websocket' : 'http';
-  const responsesEndpoint = channel?.endpoints?.find((endpoint) => endpoint.apiFormat === OPENAI_RESPONSES);
-  if (responsesEndpoint?.supportsWebSockets != null) return responsesEndpoint.supportsWebSockets ? 'websocket' : 'http';
-  if (responsesEndpoint?.transport === 'http' || responsesEndpoint?.transport === 'websocket') return responsesEndpoint.transport;
-  return getResponsesTransportFromBaseURL(responsesEndpoint?.baseURL || channel?.baseURL);
+  return channel && getResponsesWebSocketEnabled(channel) ? 'websocket' : 'http';
 }
 
 export function getResponsesWebSocketBaseURL(channelType: ChannelType): string | undefined {

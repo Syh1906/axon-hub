@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { endpointName, endpointDefaultPath, endpointRequestURL, mergeEndpoints } from '../data/channel-addresses';
 import type { ChannelAddress, ChannelEndpoint } from '../data/schema';
+import { getResponsesWebSocketEnabled, setResponsesWebSocketSupport } from '../data/protocol-options';
 import { CodexEndpointOptions } from './codex-endpoint-options';
 
 export function ChannelEndpointEditor({
@@ -41,10 +42,13 @@ export function ChannelEndpointEditor({
   const update = (patch: Partial<ChannelEndpoint>) => {
     if (!endpoint) return;
     const next = { ...endpoint, ...patch };
+    const nextEndpoints = endpoints.some((item) => item.apiFormat === selected)
+      ? endpoints.map((item) => (item.apiFormat === selected ? next : item))
+      : [...endpoints, next];
     onChange(
-      endpoints.some((item) => item.apiFormat === selected)
-        ? endpoints.map((item) => (item.apiFormat === selected ? next : item))
-        : [...endpoints, next]
+      selected === 'openai/responses' && patch.supportsWebSockets != null
+        ? setResponsesWebSocketSupport(nextEndpoints, patch.supportsWebSockets)
+        : nextEndpoints
     );
   };
   const enabled = addresses.filter((address) => address.enabled).sort((a, b) => a.priority - b.priority);
@@ -132,7 +136,7 @@ export function ChannelEndpointEditor({
               />
             )}
           </div>
-          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} baseURL={baseURL} onChange={update} showWebSocketOption={showWebSocketOption} />}
+          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} webSocketEnabled={getResponsesWebSocketEnabled({ baseURL, endpoints, defaultEndpoints: defaults })} onChange={update} showWebSocketOption={showWebSocketOption} />}
           <div className='bg-muted/40 flex flex-col gap-2 rounded-md p-3'>
             <p className='text-sm font-medium'>{t('channels.addresses.requestURL')}</p>
             {previewBases.slice(0, 3).map((address) => (

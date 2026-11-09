@@ -248,6 +248,7 @@ fork 改动，由用户决定。
 - 状态：已实现并完成本地验收及独立复核，待发布。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。
 - 新增 `/codex/models`，保留 `/v1/models`；目录元数据来自渠道可信 URL 或完整 JSON，按项目、Key、公开模型与别名筛选。缓存不绕过权限，不凭名称补造能力，多路由仅公布共同能力。
 - 渠道新增 `supportsWebSockets` 能力声明，客户端 HTTP 始终走 HTTP；客户端 WS 可走 WS 或桥接 HTTP。仅发送前的安全握手失败可降级；续聊恢复完整历史，缺失历史明确报错；发送后的未知结果禁止自动重放，包括超时和解码错误转换。
+- 普通 Responses 开关回读修正（2026-11-10，本地验收及独立审查通过，待发布）：主编辑窗口和接口编辑器同时识别独立 `openai/responses-ws` 与已发布的能力字段；取消勾选会移除独立 WS 接口，明确草稿优先于旧默认 WS，保留 HTTP 的地址、路径、目录及其他接口。页面明确发送前回退与发送后结果未知的区别；补充 `1013: no available account` 不重放回归。安全回退继续沿用同一请求／执行记录及同连接 HTTP 降级，不把账号暂不可用解释为不支持 WS，不自动改写渠道能力。无数据库迁移。
 - 请求诊断记录客户端协议、实际上游协议及回退原因；列表默认顺序改为 ID、渠道、模型、服务商，旧列配置只交换相关两列，保留其余排序。
 - 数据影响：仅扩展现有 endpoint/selection JSON 和 GraphQL 字段，无新 schema/data migration；兼容读取已发布的 `transport` 与 WS URL，显式新布尔值优先，新保存清空旧 transport。
 - 验证：相关六个 Go 包、25 项定向前端测试、真实 Codex 0.159.2 目录解析、本地 HTTP/WS 双轮联调和浏览器操作通过。最终全库 TypeScript 基线与工作区均为 170 条诊断，本次新增为 0。未接入生产、真实收费上游或外部数据库；未执行 lint/build。

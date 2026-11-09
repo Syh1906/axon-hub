@@ -12,6 +12,8 @@ import {
   hasCodexResponsesWebSocketOverrideReplacement,
   getConfigurableApiFormatsForChannelType,
   getEffectiveResponsesFormats,
+  getResponsesWebSocketEnabled,
+  setResponsesWebSocketSupport,
   getInitialApiFormatForChannel,
   getModelProtocolsForApiFormat,
   isResponsesFamilyFormat,
@@ -22,6 +24,55 @@ import { getApiPath } from '../../requests/utils/curl-paths.ts';
 
 const dataDir = import.meta.dirname;
 const frontendRoot = join(dataDir, '..', '..', '..');
+
+test('普通 Responses 开关识别独立端点及已发布的能力配置', () => {
+  const http = { apiFormat: 'openai/responses' };
+  const ws = { apiFormat: 'openai/responses-ws' };
+  const cases = [
+    [[], 'https://example.test', false],
+    [[], 'wss://example.test', true],
+    [[http, ws], 'https://example.test', true],
+    [[ws], 'https://example.test', true],
+    [[http], 'https://example.test', false],
+    [[{ ...http, supportsWebSockets: true }], 'https://example.test', true],
+    [[{ ...http, supportsWebSockets: false }], 'wss://example.test', false],
+    [[{ ...http, transport: 'websocket' }], 'https://example.test', true],
+    [[{ ...http, transport: 'http' }], 'wss://example.test', false],
+    [[{ ...http, supportsWebSockets: false }, ws], 'https://example.test', true],
+  ];
+  for (const [endpoints, baseURL, expected] of cases) {
+    assert.equal(getResponsesWebSocketEnabled({ endpoints, baseURL }), expected, JSON.stringify({ endpoints, baseURL }));
+  }
+});
+
+test('关闭普通 Responses WS 会移除独立端点，保留 HTTP 配置和其他接口', () => {
+  const http = { apiFormat: 'openai/responses', path: '/custom', baseURL: 'https://http.test', catalogURL: 'https://catalog.test', catalogJSON: { models: [] } };
+  const ws = { apiFormat: 'openai/responses-ws', path: '/other', baseURL: 'wss://ws.test' };
+  const image = { apiFormat: 'openai/image_generation', path: '/images' };
+  const endpoints = [http, ws, image];
+  const original = structuredClone(endpoints);
+  const enabled = setResponsesWebSocketSupport(endpoints, true);
+  assert.deepEqual(enabled, [{ ...http, supportsWebSockets: true, transport: '' }, ws, image]);
+  const disabled = setResponsesWebSocketSupport(endpoints, false);
+  assert.deepEqual(disabled, [{ ...http, supportsWebSockets: false, transport: '' }, image]);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints: disabled, baseURL: 'https://example.test' }), false);
+  assert.deepEqual(setResponsesWebSocketSupport(disabled, false), disabled);
+  assert.deepEqual(endpoints, original, '编辑草稿不能改变已保存的渠道对象');
+  const reenabled = setResponsesWebSocketSupport(disabled, true);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints: reenabled }), true);
+  assert.deepEqual(setResponsesWebSocketSupport([], true), [{ apiFormat: 'openai/responses', supportsWebSockets: true, transport: '' }]);
+});
+
+test('旧 WS 默认值不能覆盖取消勾选的草稿，恢复默认仍继承其能力', () => {
+  const defaultEndpoints = [{ apiFormat: 'openai/responses-ws' }];
+  const baseURL = 'https://example.test';
+  const endpoints = [{ apiFormat: 'openai/responses', transport: 'websocket', path: '/custom' }];
+  const disabled = setResponsesWebSocketSupport(endpoints, false);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints, defaultEndpoints, baseURL }), true);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints: disabled, defaultEndpoints, baseURL }), false);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints: [], defaultEndpoints, baseURL }), true);
+  assert.equal(getResponsesWebSocketEnabled({ endpoints: [{ apiFormat: 'openai/image_generation' }], defaultEndpoints, baseURL }), true);
+});
 
 function read(relativePath) {
   return readFileSync(join(frontendRoot, relativePath), 'utf8');

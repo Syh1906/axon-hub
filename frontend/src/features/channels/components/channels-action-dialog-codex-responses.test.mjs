@@ -16,14 +16,13 @@ let dialogHelpers;
 async function loadDialogHelpers() {
   if (dialogHelpers) return dialogHelpers;
 
-  const helperNames = ['isOfficialCodexChannel', 'getInitialBaseURL', 'getResponsesTransportFromBaseURL', 'getResponsesTransportFromChannel'];
+  const helperNames = ['isOfficialCodexChannel', 'getInitialBaseURL', 'getResponsesTransportFromChannel'];
   const helperNodes = ast.statements.filter((node) => ts.isFunctionDeclaration(node) && helperNames.includes(node.name?.text));
   assert.equal(helperNodes.length, helperNames.length, 'Codex form-state helpers must exist in channel-dialog.ts');
 
   const helperModule = [
-    `import { toHttpBaseURL, getCodexResponsesWebSocketState } from '${new URL('../data/protocol-options.ts', import.meta.url).href}';`,
+    `import { toHttpBaseURL, getCodexResponsesWebSocketState, getResponsesWebSocketEnabled } from '${new URL('../data/protocol-options.ts', import.meta.url).href}';`,
     `const getDefaultBaseURL = (type) => (type === 'codex' ? '${CODEX_BASE}' : '');`,
-    `const OPENAI_RESPONSES = 'openai/responses';`,
     ...helperNodes.map((node) => `export ${node.getText(ast).replace(/^export\s+/, '')}`),
   ].join('\n');
   const { outputText } = ts.transpileModule(helperModule, {
@@ -77,6 +76,13 @@ test('Responses exposes the persisted WebSocket option through the shared checkb
   assert.match(source, /checked=\{responsesTransport === 'websocket'\}/);
   assert.match(source, /handleResponsesTransportChange\(checked === true \? 'websocket' : 'http'\)/);
   assert.match(source, /htmlFor='channel-supports-ws'/);
+});
+
+test('普通 Responses 保存后的独立 WS 端点重新打开仍显示勾选', async () => {
+  const { getResponsesTransportFromChannel } = await loadDialogHelpers();
+  const channel = { type: 'openai_responses', baseURL: 'https://example.test', endpoints: [{ apiFormat: 'openai/responses' }, { apiFormat: 'openai/responses-ws' }] };
+  assert.equal(getResponsesTransportFromChannel(channel), 'websocket');
+  assert.equal(getResponsesTransportFromChannel({ ...channel, endpoints: [{ apiFormat: 'openai/responses' }] }), 'http');
 });
 
 test('Codex submit serializes the checkbox into canonical endpoints and requires an HTTP(S) Base URL', () => {

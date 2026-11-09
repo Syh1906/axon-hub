@@ -6,9 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { ChannelEndpoint } from '../data/schema';
 
-export function CodexEndpointOptions({ endpoint, baseURL, onChange, showWebSocketOption = true }: {
+export function CodexEndpointOptions({ endpoint, webSocketEnabled, onChange, showWebSocketOption = true }: {
   endpoint: ChannelEndpoint;
-  baseURL: string;
+  webSocketEnabled: boolean;
   onChange: (patch: Partial<ChannelEndpoint>) => void;
   showWebSocketOption?: boolean;
 }) {
@@ -20,13 +20,10 @@ export function CodexEndpointOptions({ endpoint, baseURL, onChange, showWebSocke
     setDraft({ source: endpoint.catalogJSON, text: endpoint.catalogJSON ? JSON.stringify(endpoint.catalogJSON, null, 2) : '', invalid: false });
   }
   const { text, invalid } = draft;
-  const supportsWS = endpoint.supportsWebSockets ?? (endpoint.transport
-    ? endpoint.transport === 'websocket'
-    : /^wss?:\/\//.test(endpoint.baseURL || baseURL));
   return (
     <div className='flex flex-col gap-3'>
       {showWebSocketOption && <><div className='flex items-center gap-2'>
-        <Checkbox id='endpoint-supports-ws' checked={supportsWS} onCheckedChange={(checked) => onChange({ supportsWebSockets: checked === true, transport: '' })} />
+        <Checkbox id='endpoint-supports-ws' checked={webSocketEnabled} onCheckedChange={(checked) => onChange({ supportsWebSockets: checked === true, transport: '' })} />
         <Label htmlFor='endpoint-supports-ws'>{t('channels.endpoints.supportsWebSockets')}</Label>
       </div>
       <p className='text-muted-foreground text-xs'>{t('channels.endpoints.webSocketsHint')}</p></>}
