@@ -416,7 +416,8 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN ($3, $4)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
+				"COUNT(CASE WHEN",
+				"WHEN se.status = 'failed' THEN 0 ELSE NULL END) as total_count",
 				"se.status = 'completed'",
 				"se.channel_id",
 				"speed_sum",
@@ -435,7 +436,8 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN (?, ?)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
+				"COUNT(CASE WHEN",
+				"WHEN se.status = 'failed' THEN 0 ELSE NULL END) as total_count",
 			},
 			wantNotContains: []string{"$1", "$2", "ROW_NUMBER()", "WITH latest_execs AS", "MAX(re2.id)"},
 		},
@@ -451,7 +453,8 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN ($3, $4)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
+				"COUNT(CASE WHEN",
+				"WHEN se.status = 'failed' THEN 0 ELSE NULL END) as total_count",
 				"se.channel_id",
 				"speed_sum",
 				"total_first_token_latency",
@@ -469,7 +472,8 @@ func TestBuildProbeStatsQuery(t *testing.T) {
 				"AND se.channel_id IN (?, ?)",
 				"FROM request_executions se",
 				"se.status IN ('completed', 'failed')",
-				"SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count",
+				"COUNT(CASE WHEN",
+				"WHEN se.status = 'failed' THEN 0 ELSE NULL END) as total_count",
 			},
 			wantNotContains: []string{"$1", "$2", "ROW_NUMBER()", "WITH latest_execs AS", "MAX(re2.id)"},
 		},
@@ -553,7 +557,9 @@ func TestBuildProbeStatsQuery_BoundsUsageByRequest(t *testing.T) {
 	for _, postgres := range []bool{true, false} {
 		query := BuildProbeStatsQuery(postgres, "", ThroughputModeRowNumber)
 		assert.Contains(t, query, "LEFT JOIN usage_logs ul ON se.request_id = ul.request_id AND se.channel_id = ul.channel_id")
-		assert.Contains(t, query, "duplicate_usage.request_id = ul.request_id")
+		assert.Contains(t, query, "duplicate_speed_usage.request_id = se.request_id")
+		assert.Contains(t, query, "duplicate_speed_usage.channel_id = se.channel_id")
+		assert.Contains(t, query, "duplicate_speed_usage.project_id = se.project_id")
 		assert.NotContains(t, query, "FROM usage_logs GROUP BY", "must not aggregate historical usage globally")
 	}
 }
