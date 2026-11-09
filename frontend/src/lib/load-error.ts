@@ -14,10 +14,7 @@ export function loadErrorKey(error: unknown): string {
   if (failure?.status === 403 || code === 'FORBIDDEN') return 'common.loadFailure.forbidden';
   if (code === 'REQUEST_BODY_INCOMPLETE' || code === 'REQUEST_BODY_READ_FAILED') return 'common.loadFailure.interrupted';
   if (failure?.status === 0 || (failure?.status === undefined && !failure?.extensions)) return 'common.loadFailure.network';
-<<<<<<< HEAD
   if (code === 'INTERNAL_SERVER_ERROR') return 'common.loadFailure.server';
-=======
->>>>>>> origin/release/v1.0.x
   if (failure?.status === 400 || failure?.status === 422) return 'common.loadFailure.invalid';
   return 'common.loadFailure.server';
 }

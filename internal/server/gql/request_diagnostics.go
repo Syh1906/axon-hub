@@ -2,17 +2,11 @@ package gql
 
 import (
 	"context"
-<<<<<<< HEAD
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
-=======
-	"errors"
-	"fmt"
-	"io"
->>>>>>> origin/release/v1.0.x
 	"net"
 	"net/http"
 	"time"
@@ -66,33 +60,24 @@ func requestBodyError(err error) (int, string, string) {
 
 type diagnosticResponseWriter struct {
 	http.ResponseWriter
-<<<<<<< HEAD
 	diagnostics    *requestDiagnostics
 	wroteHeader    bool
 	wroteReadError bool
-=======
-	diagnostics *requestDiagnostics
-	wroteHeader bool
->>>>>>> origin/release/v1.0.x
 }
 
 func (w *diagnosticResponseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *diagnosticResponseWriter) WriteHeader(status int) {
-<<<<<<< HEAD
 	if w.diagnostics.readErr != nil {
 		status, _, _ = requestBodyError(w.diagnostics.readErr)
 		w.Header().Del("Content-Length")
 		w.Header().Set("Content-Type", "application/json")
 	}
-=======
->>>>>>> origin/release/v1.0.x
 	w.wroteHeader = true
 	w.ResponseWriter.WriteHeader(status)
 }
 
 func (w *diagnosticResponseWriter) Write(p []byte) (int, error) {
-<<<<<<< HEAD
 	if w.diagnostics.readErr != nil {
 		if w.wroteReadError {
 			return len(p), nil
@@ -121,14 +106,6 @@ func (w *diagnosticResponseWriter) Write(p []byte) (int, error) {
 	}
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
-=======
-	if !w.wroteHeader {
-		status := http.StatusOK
-		if w.diagnostics.readErr != nil {
-			status, _, _ = requestBodyError(w.diagnostics.readErr)
-		}
-		w.WriteHeader(status)
->>>>>>> origin/release/v1.0.x
 	}
 	return w.ResponseWriter.Write(p)
 }
@@ -136,7 +113,6 @@ func (w *diagnosticResponseWriter) Write(p []byte) (int, error) {
 func withRequestDiagnostics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := &requestDiagnostics{ReadCloser: r.Body, started: time.Now(), phase: "request_body"}
-<<<<<<< HEAD
 		mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if mediaType == "multipart/form-data" && r.Method == http.MethodPost {
 			if r.ContentLength > maxBackupUploadSize {
@@ -146,22 +122,16 @@ func withRequestDiagnostics(next http.Handler) http.Handler {
 				d.ReadCloser = http.MaxBytesReader(w, r.Body, maxBackupUploadSize)
 			}
 		}
-=======
->>>>>>> origin/release/v1.0.x
 		if r.Body != nil {
 			r.Body = d
 		}
 		r = r.WithContext(context.WithValue(r.Context(), requestDiagnosticsKey{}, d))
-<<<<<<< HEAD
 		writer := &diagnosticResponseWriter{ResponseWriter: w, diagnostics: d}
 		if d.readErr != nil {
 			_, _ = writer.Write(nil)
 		} else {
 			next.ServeHTTP(writer, r)
 		}
-=======
-		next.ServeHTTP(&diagnosticResponseWriter{ResponseWriter: w, diagnostics: d}, r)
->>>>>>> origin/release/v1.0.x
 		if !d.failed && d.readErr == nil {
 			return
 		}
@@ -206,16 +176,8 @@ func recordRequestErrors(ctx context.Context, resp *graphql.Response) {
 	}
 	if d != nil {
 		d.failed = true
-<<<<<<< HEAD
 		if graphql.HasOperationContext(ctx) && d.phase != "execution" {
 			d.phase = "validation"
-=======
-		if graphql.HasOperationContext(ctx) {
-			d.phase = "validation"
-			if graphql.GetOperationContext(ctx).Operation != nil {
-				d.phase = "execution"
-			}
->>>>>>> origin/release/v1.0.x
 		}
 		if code, ok := resp.Errors[0].Extensions["code"].(string); ok {
 			d.code = code
