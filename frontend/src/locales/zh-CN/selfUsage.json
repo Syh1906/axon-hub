@@ -59,5 +59,11 @@
   "selfUsage.cacheHit.hint": "悬浮查看各模型",
   "selfUsage.cacheHit.models": "各模型缓存命中率",
   "selfUsage.cacheHit.empty": "暂无模型用量",
-  "selfUsage.cacheHit.formula": "缓存读取 Token ÷ 全部输入 Token；整体按词元总量计算。"
+  "selfUsage.cacheHit.formula": "缓存读取 Token ÷ 全部输入 Token；整体按词元总量计算。",
+  "selfUsage.width.label": "页面宽度",
+  "selfUsage.width.current": "页面宽度：{{mode}}",
+  "selfUsage.width.standard": "标准",
+  "selfUsage.width.wide": "宽屏",
+  "selfUsage.width.wideDefault": "宽屏（默认）",
+  "selfUsage.width.full": "铺满"
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 type SelfUsageCostItem struct {
@@ -46,49 +47,52 @@ type SelfUsageModelStat struct {
 }
 
 type SelfUsageRequest struct {
-	CallerKeyName         string                 `json:"callerKeyName"`
-	CallerGroupName       *string                `json:"callerGroupName,omitempty"`
-	ExecutedModels        []string               `json:"executedModels"`
-	ReasoningEffort       *string                `json:"reasoningEffort,omitempty"`
-	Format                string                 `json:"format"`
-	OutboundFormat        *string                `json:"outboundFormat,omitempty"`
-	PassThroughApplied    bool                   `json:"passThroughApplied"`
-	ClientStatusCode      *int                   `json:"clientStatusCode,omitempty"`
-	RetryCount            int                    `json:"retryCount"`
-	CacheWriteTokens5m    int                    `json:"cacheWriteTokens5m"`
-	CacheWriteTokens1h    int                    `json:"cacheWriteTokens1h"`
-	OutputTokensPerSecond *float64               `json:"outputTokensPerSecond,omitempty"`
-	APIKeyName            string                 `json:"apiKeyName"`
-	ID                    int                    `json:"id"`
-	CreatedAt             time.Time              `json:"createdAt"`
-	Model                 string                 `json:"model"`
-	Status                SelfUsageRequestStatus `json:"status"`
-	RequestStatus         string                 `json:"requestStatus"`
-	Stream                bool                   `json:"stream"`
-	LatencyMs             *int                   `json:"latencyMs,omitempty"`
-	FirstTokenLatencyMs   *int                   `json:"firstTokenLatencyMs,omitempty"`
-	InputTokens           int                    `json:"inputTokens"`
-	OutputTokens          int                    `json:"outputTokens"`
-	CacheReadTokens       int                    `json:"cacheReadTokens"`
-	CacheWriteTokens      int                    `json:"cacheWriteTokens"`
-	ReasoningTokens       int                    `json:"reasoningTokens"`
-	TotalTokens           int                    `json:"totalTokens"`
-	Cost                  *float64               `json:"cost,omitempty"`
-	CostItems             []*SelfUsageCostItem   `json:"costItems"`
-	CostMultiplier        *float64               `json:"costMultiplier,omitempty"`
-	CostMultiplierMixed   bool                   `json:"costMultiplierMixed"`
-	UsageRecords          int                    `json:"usageRecords"`
-	UnpricedRecords       int                    `json:"unpricedRecords"`
+	Channel               *biz.SelfUsageChannel          `json:"channel,omitempty"`
+	ModelExecutions       []*biz.SelfUsageModelExecution `json:"modelExecutions"`
+	CallerKeyName         string                         `json:"callerKeyName"`
+	CallerGroupName       *string                        `json:"callerGroupName,omitempty"`
+	ExecutedModels        []string                       `json:"executedModels"`
+	ReasoningEffort       *string                        `json:"reasoningEffort,omitempty"`
+	Format                string                         `json:"format"`
+	OutboundFormat        *string                        `json:"outboundFormat,omitempty"`
+	PassThroughApplied    bool                           `json:"passThroughApplied"`
+	ClientStatusCode      *int                           `json:"clientStatusCode,omitempty"`
+	RetryCount            int                            `json:"retryCount"`
+	CacheWriteTokens5m    int                            `json:"cacheWriteTokens5m"`
+	CacheWriteTokens1h    int                            `json:"cacheWriteTokens1h"`
+	OutputTokensPerSecond *float64                       `json:"outputTokensPerSecond,omitempty"`
+	APIKeyName            string                         `json:"apiKeyName"`
+	ID                    int                            `json:"id"`
+	CreatedAt             time.Time                      `json:"createdAt"`
+	Model                 string                         `json:"model"`
+	Status                SelfUsageRequestStatus         `json:"status"`
+	RequestStatus         string                         `json:"requestStatus"`
+	Stream                bool                           `json:"stream"`
+	LatencyMs             *int                           `json:"latencyMs,omitempty"`
+	FirstTokenLatencyMs   *int                           `json:"firstTokenLatencyMs,omitempty"`
+	InputTokens           int                            `json:"inputTokens"`
+	OutputTokens          int                            `json:"outputTokens"`
+	CacheReadTokens       int                            `json:"cacheReadTokens"`
+	CacheWriteTokens      int                            `json:"cacheWriteTokens"`
+	ReasoningTokens       int                            `json:"reasoningTokens"`
+	TotalTokens           int                            `json:"totalTokens"`
+	Cost                  *float64                       `json:"cost,omitempty"`
+	CostItems             []*SelfUsageCostItem           `json:"costItems"`
+	CostMultiplier        *float64                       `json:"costMultiplier,omitempty"`
+	CostMultiplierMixed   bool                           `json:"costMultiplierMixed"`
+	UsageRecords          int                            `json:"usageRecords"`
+	UnpricedRecords       int                            `json:"unpricedRecords"`
 }
 
 type SelfUsageRequestPage struct {
-	ScopeID    string              `json:"scopeID"`
-	APIKeyName string              `json:"apiKeyName"`
-	GroupName  *string             `json:"groupName,omitempty"`
-	Items      []*SelfUsageRequest `json:"items"`
-	Page       int                 `json:"page"`
-	PageSize   int                 `json:"pageSize"`
-	Total      int                 `json:"total"`
+	ChannelVisible bool                `json:"channelVisible"`
+	ScopeID        string              `json:"scopeID"`
+	APIKeyName     string              `json:"apiKeyName"`
+	GroupName      *string             `json:"groupName,omitempty"`
+	Items          []*SelfUsageRequest `json:"items"`
+	Page           int                 `json:"page"`
+	PageSize       int                 `json:"pageSize"`
+	Total          int                 `json:"total"`
 }
 
 type SelfUsageStats struct {

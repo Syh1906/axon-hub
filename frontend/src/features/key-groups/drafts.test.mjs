@@ -52,6 +52,24 @@ test('same key name across target groups keeps stable independent row IDs', () =
   assert.equal(result[1].keys[0].name, 'Codex');
 });
 
+test('创建分组的渠道可见性默认关闭，批量默认值和逐行覆盖保持独立', () => {
+  const drafts = [
+    { ...newDraft(), name: 'A' },
+    { ...newDraft(), name: 'B', overrides: { keys: [], showChannelInSelfUsage: false } },
+  ];
+  assert.deepEqual(
+    materialize(drafts, { keys: [] }, true).map((r) => r.showChannelInSelfUsage),
+    [false, false]
+  );
+  assert.deepEqual(
+    materialize(drafts, { keys: [], showChannelInSelfUsage: true }, true).map((r) => r.showChannelInSelfUsage),
+    [true, false]
+  );
+  assert.ok(
+    materialize(drafts, { keys: [], showChannelInSelfUsage: true }, false).every((r) => !Object.hasOwn(r, 'showChannelInSelfUsage'))
+  );
+});
+
 test('存储不可写时收起弹窗仍保留原批次，账号和项目保持隔离', () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
   Object.defineProperty(globalThis, 'sessionStorage', {

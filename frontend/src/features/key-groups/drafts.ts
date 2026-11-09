@@ -1,6 +1,6 @@
 import type { BudgetPatch, KeyInput, ManagementRow } from './data';
 
-export type Defaults = { budget?: BudgetPatch; keys: KeyInput[] };
+export type Defaults = { budget?: BudgetPatch; keys: KeyInput[]; showChannelInSelfUsage?: boolean };
 export type Draft = { id: string; selected: boolean; name: string; note: string; groupRef: number; overrides?: Defaults };
 export const newKey = (name = ''): KeyInput => ({ name, type: 'personal' });
 export const newDraft = (groupRef = 0): Draft => ({ id: crypto.randomUUID(), selected: true, name: '', note: '', groupRef });
@@ -30,7 +30,15 @@ export function materialize(drafts: Draft[], defaults: Defaults, groups: boolean
     .map((d) => {
       const settings = d.overrides ?? defaults;
       return groups
-        ? { rowID: d.id, action: 'createGroup', name: d.name.trim(), note: d.note, budget: settings.budget, keys: settings.keys }
+        ? {
+            rowID: d.id,
+            action: 'createGroup',
+            name: d.name.trim(),
+            note: d.note,
+            budget: settings.budget,
+            keys: settings.keys,
+            showChannelInSelfUsage: settings.showChannelInSelfUsage ?? false,
+          }
         : { rowID: d.id, action: 'createKey', groupRef: d.groupRef, keys: [{ ...(settings.keys[0] ?? newKey()), name: d.name.trim() }] };
     });
 }

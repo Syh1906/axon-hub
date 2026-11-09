@@ -76,7 +76,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	for _, item := range result.Items {
 		items = append(items, toRequest(item))
 	}
-	return &SelfUsageRequestPage{ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
+	return &SelfUsageRequestPage{ChannelVisible: result.ChannelVisible, ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
 }
 
 // SelfUsageBudgets is the resolver for the selfUsageBudgets field.

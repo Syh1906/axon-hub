@@ -74,3 +74,11 @@ models:
 
   ServiceTierPriceSource:
     model: github.com/looplj/axonhub/internal/objects.ServiceTierPriceSource
+
+  SelfUsageModelExecution:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageModelExecution
+  SelfUsageExecutionStatus:
+    model: github.com/looplj/axonhub/internal/ent/requestexecution.Status
+
+  SelfUsageChannel:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageChannel

@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -15,9 +14,8 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
-	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 type requestChannelSessionCacheKey struct{}
@@ -132,45 +130,16 @@ func requestSessionExecution(ctx context.Context, client *ent.Client, id int) *e
 	return loadRequestSessionExecutions(ctx, client, []int{id})[id]
 }
 
-// Legacy requests without dispatch evidence retain the previous rule: only
-// their last recorded attempt can qualify, and it must match the request channel.
-func sessionDispatchEligible(dialect *sql.DialectBuilder, req *sql.SelectTable, executionID, channelID, selection string) *sql.Predicate {
-	dispatch := sqljson.Path("dispatch")
-	newer := sql.Table(requestexecution.Table).As("newer_attempt")
-	return sql.And(sql.GT(channelID, 0), sql.Or(
-		sqljson.ValueEQ(selection, objects.RequestExecutionDispatchStarted, dispatch),
-		sql.And(sql.Not(sqljson.HasKey(selection, dispatch)),
-			sql.ColumnsEQ(channelID, req.C(request.FieldChannelID)),
-			sql.Not(sql.Exists(dialect.Select(newer.C(requestexecution.FieldID)).From(newer).Where(sql.And(
-				sql.ColumnsEQ(newer.C(requestexecution.FieldRequestID), req.C(request.FieldID)),
-				sql.ColumnsGT(newer.C(requestexecution.FieldID), executionID),
-			)))),
-		),
-	))
-}
-
 func finalSessionAttempt(db string, req *sql.SelectTable, field string) *sql.Selector {
-	dialect := sql.Dialect(db)
-	attempt := sql.Table(requestexecution.Table).As("session_attempt")
-	req.SetDialect(db)
-	attempt.SetDialect(db)
-	return dialect.Select(attempt.C(field)).From(attempt).Where(sql.And(
-		sql.ColumnsEQ(attempt.C(requestexecution.FieldRequestID), req.C(request.FieldID)),
-		sql.ExprP(usageanalytics.RequestResultMatchSQL(req.C, attempt.C, db)),
-		sql.Or(sql.ColumnsEQ(attempt.C(requestexecution.FieldID), req.C(request.FieldResultExecutionID)),
-			sessionDispatchEligible(dialect, req, attempt.C(requestexecution.FieldID),
-				attempt.C(requestexecution.FieldChannelID), attempt.C(requestexecution.FieldSelection))),
-	)).OrderBy(sql.Desc(attempt.C(requestexecution.FieldID))).Limit(1)
+	return biz.FinalRequestChannelAttempt(db, req, field)
 }
 
 func sessionAttemptMatches(column string, subquery *sql.Selector) *sql.Predicate {
-	return sql.P(func(b *sql.Builder) {
-		b.Ident(column).WriteOp(sql.OpEQ).Wrap(func(b *sql.Builder) { b.Join(subquery) })
-	})
+	return biz.RequestSessionAttemptMatches(column, subquery)
 }
 
 func sessionRequestFinished(req *sql.SelectTable) *sql.Predicate {
-	return sql.In(req.C(request.FieldStatus), request.StatusCompleted, request.StatusFailed, request.StatusCanceled)
+	return biz.RequestSessionFinished(req)
 }
 
 func loadRequestSessionExecutions(ctx context.Context, client *ent.Client, ids []int) map[int]*ent.RequestExecution {
@@ -199,37 +168,6 @@ func loadRequestSessionExecutions(ctx context.Context, client *ent.Client, ids [
 	return finals
 }
 
-// Each finished request contributes its last dispatched attempt, even if it failed.
 func requestChannelSessions(ctx context.Context, client *ent.Client, ids []int) map[int]string {
-	states := make(map[int]string, len(ids))
-	if len(ids) == 0 {
-		return states
-	}
-	var rows []struct {
-		ID              int  `json:"id"`
-		Channel         int  `json:"channel"`
-		PreviousChannel *int `json:"previous_channel"`
-		UsedBefore      bool `json:"used_before"`
-	}
-	err := client.RequestExecution.Query().Where(requestexecution.IDIn(ids...)).Modify(func(q *sql.Selector) {
-		requestSessionHistoryQuery(q, ids)
-	}).Scan(ctx, &rows)
-	for _, id := range ids {
-		states[id] = ""
-	}
-	if err != nil {
-		log.Warn(ctx, "Failed to read request channel session history", log.Cause(err))
-		return states
-	}
-	for _, row := range rows {
-		switch {
-		case row.PreviousChannel != nil && *row.PreviousChannel == row.Channel:
-			states[row.ID] = "reused"
-		case row.UsedBefore:
-			states[row.ID] = "returned"
-		default:
-			states[row.ID] = "new"
-		}
-	}
-	return states
+	return biz.RequestChannelSessions(ctx, client, ids)
 }

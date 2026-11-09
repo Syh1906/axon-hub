@@ -446,7 +446,7 @@ function GroupPage() {
                             >
                               <Plus className='size-4' />
                             </Button>
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
                                 <Button size='icon' variant='ghost' aria-label={t('kg.settings') + ' ' + g.name}>
                                   <MoreHorizontal className='size-4' />

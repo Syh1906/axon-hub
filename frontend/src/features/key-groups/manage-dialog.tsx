@@ -14,6 +14,7 @@ import { useKeyGroups } from '@/features/apikeys/data/groups';
 import type { Group, Member, ManagementRow, BudgetPatch } from './data';
 import { useManagementAPI } from './data';
 import { BudgetPatchFields, Choice, GroupChoice, TemplateChoice } from './editors';
+import { SelfUsageChannelSetting } from './self-usage-channel-setting';
 import { ResultsPanel, SubmissionActions, useSubmission } from './submission';
 
 export type Selection = { kind: 'group'; items: Group[] } | { kind: 'key'; items: Member[] };
@@ -38,6 +39,7 @@ export function ManageDialog({
   const [note, setNote] = useState(groups && single ? (first as Group).note : '');
   const [noteMode, setNoteMode] = useState('set');
   const [enabled, setEnabled] = useState('true');
+  const [showChannelInSelfUsage, setShowChannelInSelfUsage] = useState(groups && single ? (first as Group).showChannelInSelfUsage : false);
   const [groupRef, setGroupRef] = useState(initialGroup ?? 0);
   const [template, setTemplate] = useState<number>();
   const [ips, setIPs] = useState(single && !groups ? (first as Member).allowedIps.join('\n') : '');
@@ -76,6 +78,7 @@ export function ManageDialog({
               ...(single && has('name') ? { name: name.trim() } : {}),
               ...(groups && has('note') ? { note: noteMode === 'clear' ? '' : note } : {}),
               ...(has('enabled') ? { enabled: enabled === 'true' } : {}),
+              ...(groups && has('showChannelInSelfUsage') ? { showChannelInSelfUsage } : {}),
               ...(has('budget')
                 ? {
                     budget: {
@@ -195,6 +198,14 @@ export function ManageDialog({
                       { value: 'false', label: t('kg.disabled') },
                     ]}
                   />
+                )}
+                {groups && (
+                  <>
+                    {field('showChannelInSelfUsage')}
+                    {has('showChannelInSelfUsage') && (
+                      <SelfUsageChannelSetting checked={showChannelInSelfUsage} onCheckedChange={setShowChannelInSelfUsage} />
+                    )}
+                  </>
                 )}
                 {!groups && (
                   <>

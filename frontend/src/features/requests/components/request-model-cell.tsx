@@ -18,7 +18,14 @@ export type RequestModelDisplay = {
   oneHourPromptCacheUsageLogs?: { totalCount?: number };
 };
 
-export function RequestModelCell({ request }: { request: RequestModelDisplay }) {
+export function RequestModelCell({
+  request,
+  displayExecution,
+}: {
+  request: RequestModelDisplay;
+  // Keep adopted-result display metadata separate from the full execution audit.
+  displayExecution?: { format: string | null; reasoningEffort: string | null };
+}) {
   const { t } = useTranslation();
   const originalModelId = request.modelID || t('requests.columns.unknown');
   const executions = request.executions?.edges?.flatMap((edge) => (edge.node ? [edge.node] : [])) ?? [];
@@ -38,9 +45,11 @@ export function RequestModelCell({ request }: { request: RequestModelDisplay }) 
                 : 'text-red-700 dark:text-red-400';
         const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
 
-  const reasoningEffort = executions[0]?.reasoningEffort ?? request.reasoningEffort;
+  const reasoningEffort = displayExecution
+    ? displayExecution.reasoningEffort
+    : (executions[0]?.reasoningEffort ?? request.reasoningEffort);
   const inboundFormat = request.format;
-  const outboundFormat = executions[0]?.format;
+  const outboundFormat = displayExecution ? displayExecution.format : executions[0]?.format;
   const passThroughApplied = executions.some((execution) => execution.passThroughApplied);
   const oneHourPromptCache = (request.oneHourPromptCacheUsageLogs?.totalCount ?? 0) > 0;
   // Orange is reserved for a confirmed mismatch: a missing format on either

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/internal/server/biz"
 )
@@ -61,6 +62,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 	}
 	return &SelfUsageRequest{APIKeyName: value.APIKeyName,
 		CallerKeyName: value.CallerKeyName, CallerGroupName: value.CallerGroupName,
+		Channel: value.Channel, ModelExecutions: lo.ToSlicePtr(value.ModelExecutions),
 		ExecutedModels: value.ExecutedModels, ReasoningEffort: value.ReasoningEffort,
 		Format: value.Format, OutboundFormat: value.OutboundFormat, PassThroughApplied: value.PassThroughApplied,
 		ClientStatusCode: value.ClientStatusCode, RetryCount: value.RetryCount,

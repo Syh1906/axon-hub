@@ -1,4 +1,4 @@
-package gql
+package biz
 
 import (
 	"entgo.io/ent/dialect/sql"
@@ -19,20 +19,20 @@ func requestSessionHistoryPostgresQuery(q *sql.Selector) {
 	channel := q.C(requestexecution.FieldChannelID)
 	q.Join(current).On(q.C(requestexecution.FieldRequestID), current.C(request.FieldID)).
 		LeftJoin(currentTrace).On(current.C(request.FieldTraceID), currentTrace.C(trace.FieldID))
-	q.Where(sql.And(sessionRequestFinished(current),
-		sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), current, requestexecution.FieldID)),
+	q.Where(sql.And(RequestSessionFinished(current),
+		RequestSessionAttemptMatches(q.C(requestexecution.FieldID), FinalRequestChannelAttempt(q.Dialect(), current, requestexecution.FieldID)),
 	))
 	sameSession := sql.Or(
 		sql.ColumnsEQ(priorTrace.C(trace.FieldID), current.C(request.FieldTraceID)),
 		sql.And(sql.GT(currentTrace.C(trace.FieldThreadID), 0), sql.ColumnsEQ(priorTrace.C(trace.FieldThreadID), currentTrace.C(trace.FieldThreadID))),
 	)
-	finalPriorChannel := finalSessionAttempt(q.Dialect(), prior, requestexecution.FieldChannelID)
+	finalPriorChannel := FinalRequestChannelAttempt(q.Dialect(), prior, requestexecution.FieldChannelID)
 	boundedHistory := dialect.Select(prior.Columns(request.FieldID, request.FieldChannelID,
 		request.FieldResultExecutionID, request.FieldStatus, request.FieldFailure)...).From(prior).
 		Join(priorTrace).On(prior.C(request.FieldTraceID), priorTrace.C(trace.FieldID)).Where(sql.And(
 		sql.ColumnsEQ(prior.C(request.FieldProjectID), current.C(request.FieldProjectID)),
 		sql.ColumnsLT(prior.C(request.FieldID), current.C(request.FieldID)),
-		sameSession, sessionRequestFinished(prior),
+		sameSession, RequestSessionFinished(prior),
 	))
 	history := boundedHistory
 	if q.Dialect() == "postgres" {
@@ -47,7 +47,7 @@ func requestSessionHistoryPostgresQuery(q *sql.Selector) {
 	})).Where(sql.P(func(b *sql.Builder) {
 		b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) }).WriteOp(sql.OpNotNull)
 	})).OrderBy(sql.Desc(prior.C(request.FieldID))).Limit(1)
-	usedBefore := history.Select(prior.C(request.FieldID)).Where(sessionAttemptMatches(channel, finalPriorChannel))
+	usedBefore := history.Select(prior.C(request.FieldID)).Where(RequestSessionAttemptMatches(channel, finalPriorChannel))
 	q.Select(q.C(requestexecution.FieldID), sql.As(channel, "channel")).
 		AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) { b.Wrap(func(b *sql.Builder) { b.Join(previous) }) }), "previous_channel").
 		AppendSelectExprAs(sql.Exists(usedBefore), "used_before")

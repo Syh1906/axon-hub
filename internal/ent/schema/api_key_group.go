@@ -20,6 +20,7 @@ func (APIKeyGroup) Fields() []ent.Field {
 		field.String("name").NotEmpty().MaxLen(128),
 		field.String("note").Default("").MaxLen(1024),
 		field.Bool("enabled").Default(true),
+		field.Bool("show_channel_in_self_usage").Default(false),
 		field.Int("revision").Default(0),
 		field.Int("project_id").Immutable(),
 	}

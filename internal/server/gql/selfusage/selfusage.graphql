@@ -51,7 +51,30 @@ type SelfUsageStats {
 
 enum SelfUsageRequestStatus { SUCCESS FAILED PROCESSING }
 
+enum SelfUsageExecutionStatus { pending processing completed failed canceled }
+
+type SelfUsageModelExecution {
+  modelID: String!
+  upstreamModelID: String
+  status: SelfUsageExecutionStatus!
+  format: String!
+  reasoningEffort: String
+  passThroughApplied: Boolean!
+}
+
+type SelfUsageChannel {
+  name: String!
+  provider: String!
+  channelType: String!
+  tags: [String!]!
+  sessionState: String!
+  multiplier: Float
+  multiplierMixed: Boolean!
+}
+
 type SelfUsageRequest {
+  channel: SelfUsageChannel
+  modelExecutions: [SelfUsageModelExecution!]!
   callerKeyName: String!
   callerGroupName: String
   executedModels: [String!]!
@@ -119,6 +142,7 @@ type SelfUsageTierCost {
 }
 
 type SelfUsageRequestPage {
+  channelVisible: Boolean!
   scopeID: String!
   apiKeyName: String!
   groupName: String

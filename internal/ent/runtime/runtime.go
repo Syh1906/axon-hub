@@ -158,8 +158,12 @@ func init() {
 	apikeygroupDescEnabled := apikeygroupFields[2].Descriptor()
 	// apikeygroup.DefaultEnabled holds the default value on creation for the enabled field.
 	apikeygroup.DefaultEnabled = apikeygroupDescEnabled.Default.(bool)
+	// apikeygroupDescShowChannelInSelfUsage is the schema descriptor for show_channel_in_self_usage field.
+	apikeygroupDescShowChannelInSelfUsage := apikeygroupFields[3].Descriptor()
+	// apikeygroup.DefaultShowChannelInSelfUsage holds the default value on creation for the show_channel_in_self_usage field.
+	apikeygroup.DefaultShowChannelInSelfUsage = apikeygroupDescShowChannelInSelfUsage.Default.(bool)
 	// apikeygroupDescRevision is the schema descriptor for revision field.
-	apikeygroupDescRevision := apikeygroupFields[3].Descriptor()
+	apikeygroupDescRevision := apikeygroupFields[4].Descriptor()
 	// apikeygroup.DefaultRevision holds the default value on creation for the revision field.
 	apikeygroup.DefaultRevision = apikeygroupDescRevision.Default.(int)
 	apikeyoperationMixin := schema.APIKeyOperation{}.Mixin()

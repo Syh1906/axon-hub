@@ -59,5 +59,11 @@
   "selfUsage.cacheHit.hint": "Hover for model details",
   "selfUsage.cacheHit.models": "Cache hit rate by model",
   "selfUsage.cacheHit.empty": "No model usage",
-  "selfUsage.cacheHit.formula": "Cache read tokens / all input tokens, weighted by token totals."
+  "selfUsage.cacheHit.formula": "Cache read tokens / all input tokens, weighted by token totals.",
+  "selfUsage.width.label": "Page width",
+  "selfUsage.width.current": "Page width: {{mode}}",
+  "selfUsage.width.standard": "Standard",
+  "selfUsage.width.wide": "Wide",
+  "selfUsage.width.wideDefault": "Wide (default)",
+  "selfUsage.width.full": "Full width"
 }

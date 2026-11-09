@@ -30,7 +30,7 @@ func TestKeyGroupManagementSchemaUpgrade(t *testing.T) {
 		if table.Name == "api_key_groups" {
 			columns := table.Columns[:0]
 			for _, column := range table.Columns {
-				if column.Name != "note" && column.Name != "enabled" && column.Name != "revision" {
+				if column.Name != "note" && column.Name != "enabled" && column.Name != "revision" && column.Name != "show_channel_in_self_usage" {
 					columns = append(columns, column)
 				}
 			}
@@ -47,6 +47,7 @@ func TestKeyGroupManagementSchemaUpgrade(t *testing.T) {
 	group := client.APIKeyGroup.Query().OnlyX(ctx)
 	require.Equal(t, "existing", group.Name)
 	require.True(t, group.Enabled)
+	require.False(t, group.ShowChannelInSelfUsage)
 	require.Empty(t, group.Note)
 	require.Zero(t, group.Revision)
 	require.NoError(t, client.APIKeyOperation.Create().SetProjectID(project.ID).SetActorID(1).SetOperationID("batch").SetRowID("row").SetDigest("digest").Exec(ctx))

@@ -135,7 +135,8 @@ func (s *APIKeyService) applyManagementRow(ctx context.Context, templates *APIKe
 		if err != nil {
 			return err
 		}
-		group, err = group.Update().SetNillableNote(row.Note).SetNillableEnabled(row.Enabled).Save(ctx)
+		group, err = group.Update().SetNillableNote(row.Note).SetNillableEnabled(row.Enabled).
+			SetNillableShowChannelInSelfUsage(row.ShowChannelInSelfUsage).Save(ctx)
 		if err != nil {
 			return err
 		}
@@ -173,7 +174,8 @@ func (s *APIKeyService) applyManagementRow(ctx context.Context, templates *APIKe
 		if row.Revision == nil || group.Revision != *row.Revision {
 			return fmt.Errorf("group changed; reload before saving")
 		}
-		_, err = group.Update().SetNillableName(normalizedName).SetNillableNote(row.Note).SetNillableEnabled(row.Enabled).AddRevision(1).Save(ctx)
+		_, err = group.Update().SetNillableName(normalizedName).SetNillableNote(row.Note).SetNillableEnabled(row.Enabled).
+			SetNillableShowChannelInSelfUsage(row.ShowChannelInSelfUsage).AddRevision(1).Save(ctx)
 		if err != nil {
 			return err
 		}

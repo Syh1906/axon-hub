@@ -80,6 +80,11 @@ func Enabled(v bool) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldEQ(FieldEnabled, v))
 }
 
+// ShowChannelInSelfUsage applies equality check predicate on the "show_channel_in_self_usage" field. It's identical to ShowChannelInSelfUsageEQ.
+func ShowChannelInSelfUsage(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldShowChannelInSelfUsage, v))
+}
+
 // Revision applies equality check predicate on the "revision" field. It's identical to RevisionEQ.
 func Revision(v int) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldEQ(FieldRevision, v))
@@ -308,6 +313,16 @@ func EnabledEQ(v bool) predicate.APIKeyGroup {
 // EnabledNEQ applies the NEQ predicate on the "enabled" field.
 func EnabledNEQ(v bool) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// ShowChannelInSelfUsageEQ applies the EQ predicate on the "show_channel_in_self_usage" field.
+func ShowChannelInSelfUsageEQ(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldEQ(FieldShowChannelInSelfUsage, v))
+}
+
+// ShowChannelInSelfUsageNEQ applies the NEQ predicate on the "show_channel_in_self_usage" field.
+func ShowChannelInSelfUsageNEQ(v bool) predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNEQ(FieldShowChannelInSelfUsage, v))
 }
 
 // RevisionEQ applies the EQ predicate on the "revision" field.

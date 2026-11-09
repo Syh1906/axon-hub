@@ -478,7 +478,7 @@ export function RequestLog({
         {(result.isPending || scopeMismatch || !expectedScope) && <p role='status'>{t('selfUsage.loading')}</p>}
         {data && (
           <>
-            <UsageRequestTable items={data.items} meta={meta} />
+            <UsageRequestTable items={data.items} meta={meta} channelVisible={data.channelVisible} />
             <div className='flex items-center justify-between gap-2 text-sm'>
               <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t('selfUsage.requests.previous')}

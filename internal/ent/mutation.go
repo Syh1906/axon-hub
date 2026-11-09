@@ -1462,22 +1462,23 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // APIKeyGroupMutation represents an operation that mutates the APIKeyGroup nodes in the graph.
 type APIKeyGroupMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	name           *string
-	note           *string
-	enabled        *bool
-	revision       *int
-	addrevision    *int
-	clearedFields  map[string]struct{}
-	project        *int
-	clearedproject bool
-	done           bool
-	oldValue       func(context.Context) (*APIKeyGroup, error)
-	predicates     []predicate.APIKeyGroup
+	op                         Op
+	typ                        string
+	id                         *int
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	name                       *string
+	note                       *string
+	enabled                    *bool
+	show_channel_in_self_usage *bool
+	revision                   *int
+	addrevision                *int
+	clearedFields              map[string]struct{}
+	project                    *int
+	clearedproject             bool
+	done                       bool
+	oldValue                   func(context.Context) (*APIKeyGroup, error)
+	predicates                 []predicate.APIKeyGroup
 }
 
 var _ ent.Mutation = (*APIKeyGroupMutation)(nil)
@@ -1758,6 +1759,42 @@ func (m *APIKeyGroupMutation) ResetEnabled() {
 	m.enabled = nil
 }
 
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (m *APIKeyGroupMutation) SetShowChannelInSelfUsage(b bool) {
+	m.show_channel_in_self_usage = &b
+}
+
+// ShowChannelInSelfUsage returns the value of the "show_channel_in_self_usage" field in the mutation.
+func (m *APIKeyGroupMutation) ShowChannelInSelfUsage() (r bool, exists bool) {
+	v := m.show_channel_in_self_usage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldShowChannelInSelfUsage returns the old "show_channel_in_self_usage" field's value of the APIKeyGroup entity.
+// If the APIKeyGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyGroupMutation) OldShowChannelInSelfUsage(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldShowChannelInSelfUsage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldShowChannelInSelfUsage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldShowChannelInSelfUsage: %w", err)
+	}
+	return oldValue.ShowChannelInSelfUsage, nil
+}
+
+// ResetShowChannelInSelfUsage resets all changes to the "show_channel_in_self_usage" field.
+func (m *APIKeyGroupMutation) ResetShowChannelInSelfUsage() {
+	m.show_channel_in_self_usage = nil
+}
+
 // SetRevision sets the "revision" field.
 func (m *APIKeyGroupMutation) SetRevision(i int) {
 	m.revision = &i
@@ -1911,7 +1948,7 @@ func (m *APIKeyGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyGroupMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, apikeygroup.FieldCreatedAt)
 	}
@@ -1926,6 +1963,9 @@ func (m *APIKeyGroupMutation) Fields() []string {
 	}
 	if m.enabled != nil {
 		fields = append(fields, apikeygroup.FieldEnabled)
+	}
+	if m.show_channel_in_self_usage != nil {
+		fields = append(fields, apikeygroup.FieldShowChannelInSelfUsage)
 	}
 	if m.revision != nil {
 		fields = append(fields, apikeygroup.FieldRevision)
@@ -1951,6 +1991,8 @@ func (m *APIKeyGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case apikeygroup.FieldEnabled:
 		return m.Enabled()
+	case apikeygroup.FieldShowChannelInSelfUsage:
+		return m.ShowChannelInSelfUsage()
 	case apikeygroup.FieldRevision:
 		return m.Revision()
 	case apikeygroup.FieldProjectID:
@@ -1974,6 +2016,8 @@ func (m *APIKeyGroupMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldNote(ctx)
 	case apikeygroup.FieldEnabled:
 		return m.OldEnabled(ctx)
+	case apikeygroup.FieldShowChannelInSelfUsage:
+		return m.OldShowChannelInSelfUsage(ctx)
 	case apikeygroup.FieldRevision:
 		return m.OldRevision(ctx)
 	case apikeygroup.FieldProjectID:
@@ -2021,6 +2065,13 @@ func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEnabled(v)
+		return nil
+	case apikeygroup.FieldShowChannelInSelfUsage:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetShowChannelInSelfUsage(v)
 		return nil
 	case apikeygroup.FieldRevision:
 		v, ok := value.(int)
@@ -2114,6 +2165,9 @@ func (m *APIKeyGroupMutation) ResetField(name string) error {
 		return nil
 	case apikeygroup.FieldEnabled:
 		m.ResetEnabled()
+		return nil
+	case apikeygroup.FieldShowChannelInSelfUsage:
+		m.ResetShowChannelInSelfUsage()
 		return nil
 	case apikeygroup.FieldRevision:
 		m.ResetRevision()

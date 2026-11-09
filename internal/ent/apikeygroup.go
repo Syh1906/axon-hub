@@ -28,6 +28,8 @@ type APIKeyGroup struct {
 	Note string `json:"note,omitempty"`
 	// Enabled holds the value of the "enabled" field.
 	Enabled bool `json:"enabled,omitempty"`
+	// ShowChannelInSelfUsage holds the value of the "show_channel_in_self_usage" field.
+	ShowChannelInSelfUsage bool `json:"show_channel_in_self_usage,omitempty"`
 	// Revision holds the value of the "revision" field.
 	Revision int `json:"revision,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
@@ -63,7 +65,7 @@ func (*APIKeyGroup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikeygroup.FieldEnabled:
+		case apikeygroup.FieldEnabled, apikeygroup.FieldShowChannelInSelfUsage:
 			values[i] = new(sql.NullBool)
 		case apikeygroup.FieldID, apikeygroup.FieldRevision, apikeygroup.FieldProjectID:
 			values[i] = new(sql.NullInt64)
@@ -121,6 +123,12 @@ func (_m *APIKeyGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field enabled", values[i])
 			} else if value.Valid {
 				_m.Enabled = value.Bool
+			}
+		case apikeygroup.FieldShowChannelInSelfUsage:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field show_channel_in_self_usage", values[i])
+			} else if value.Valid {
+				_m.ShowChannelInSelfUsage = value.Bool
 			}
 		case apikeygroup.FieldRevision:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -189,6 +197,9 @@ func (_m *APIKeyGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("show_channel_in_self_usage=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ShowChannelInSelfUsage))
 	builder.WriteString(", ")
 	builder.WriteString("revision=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Revision))

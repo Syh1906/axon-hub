@@ -198,5 +198,7 @@
   "kg.quick.keySettings": "Key settings",
   "kg.quick.keySettingsHelp": "Edit and save directly. Click limits and expiry in the list to adjust them.",
   "kg.quick.templateHelp": "Leave unselected to keep the current profile. A selected template is applied when saved.",
-  "kg.quick.ipsHelp": "One IP address or network per line. Leave empty for no restriction."
+  "kg.quick.ipsHelp": "One IP address or network per line. Leave empty for no restriction.",
+  "kg.field.showChannelInSelfUsage": "Show channels on usage page",
+  "kg.selfUsageChannelHelp": "Allow group members to see channel names, multipliers, session states, and tags in the usage log, without upstream key information. Off by default."
 }

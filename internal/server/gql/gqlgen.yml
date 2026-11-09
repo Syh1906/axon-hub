@@ -1159,3 +1159,9 @@ models:
 
   OfficialServiceTierItem:
     model: github.com/looplj/axonhub/internal/objects.OfficialServiceTierItem
+
+  SelfUsageModelExecution:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageModelExecution
+
+  SelfUsageChannel:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageChannel

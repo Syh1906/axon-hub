@@ -37,7 +37,7 @@ func (svc *BackupService) streamAPIKeyGroups(ctx context.Context, out *objWriter
 			if group.Edges.Project != nil {
 				projectName = group.Edges.Project.Name
 			}
-			data, err := json.Marshal(BackupAPIKeyGroup{ProjectName: projectName, Name: group.Name, Note: group.Note, Enabled: group.Enabled})
+			data, err := json.Marshal(BackupAPIKeyGroup{ProjectName: projectName, Name: group.Name, Note: group.Note, Enabled: group.Enabled, ShowChannelInSelfUsage: group.ShowChannelInSelfUsage})
 			return data, true, err
 		})
 }
@@ -56,13 +56,15 @@ func (svc *BackupService) restoreAPIKeyGroups(ctx context.Context, db *ent.Clien
 		}
 		existing, err := db.APIKeyGroup.Query().Where(apikeygroup.ProjectIDEQ(target.ID), apikeygroup.NameEQ(source.Name)).Only(ctx)
 		if ent.IsNotFound(err) {
-			_, err = db.APIKeyGroup.Create().SetProjectID(target.ID).SetName(source.Name).SetNote(source.Note).SetEnabled(source.Enabled).Save(ctx)
+			_, err = db.APIKeyGroup.Create().SetProjectID(target.ID).SetName(source.Name).SetNote(source.Note).SetEnabled(source.Enabled).
+				SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).Save(ctx)
 		} else if err == nil {
 			switch strategy {
 			case ConflictStrategyError:
 				return fmt.Errorf("API key group %s already exists", source.Name)
 			case ConflictStrategyOverwrite:
-				_, err = existing.Update().SetNote(source.Note).SetEnabled(source.Enabled).AddRevision(1).Save(ctx)
+				_, err = existing.Update().SetNote(source.Note).SetEnabled(source.Enabled).
+					SetShowChannelInSelfUsage(source.ShowChannelInSelfUsage).AddRevision(1).Save(ctx)
 			}
 		}
 		if err != nil {

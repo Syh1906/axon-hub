@@ -198,5 +198,7 @@
   "kg.quick.keySettings": "密钥设置",
   "kg.quick.keySettingsHelp": "直接修改并保存；独立额度与有效期可在列表中点击调整。",
   "kg.quick.templateHelp": "未选择模板时保留现有配置；选择模板后在保存时应用。",
-  "kg.quick.ipsHelp": "每行一个 IP 或网段；留空表示不限制。"
+  "kg.quick.ipsHelp": "每行一个 IP 或网段；留空表示不限制。",
+  "kg.field.showChannelInSelfUsage": "用量页显示渠道",
+  "kg.selfUsageChannelHelp": "开启后，分组成员可在用量页查看渠道名称、倍率、会话状态和标签；不展示上游密钥信息。默认关闭。"
 }

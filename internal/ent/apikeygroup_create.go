@@ -85,6 +85,20 @@ func (_c *APIKeyGroupCreate) SetNillableEnabled(v *bool) *APIKeyGroupCreate {
 	return _c
 }
 
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (_c *APIKeyGroupCreate) SetShowChannelInSelfUsage(v bool) *APIKeyGroupCreate {
+	_c.mutation.SetShowChannelInSelfUsage(v)
+	return _c
+}
+
+// SetNillableShowChannelInSelfUsage sets the "show_channel_in_self_usage" field if the given value is not nil.
+func (_c *APIKeyGroupCreate) SetNillableShowChannelInSelfUsage(v *bool) *APIKeyGroupCreate {
+	if v != nil {
+		_c.SetShowChannelInSelfUsage(*v)
+	}
+	return _c
+}
+
 // SetRevision sets the "revision" field.
 func (_c *APIKeyGroupCreate) SetRevision(v int) *APIKeyGroupCreate {
 	_c.mutation.SetRevision(v)
@@ -169,6 +183,10 @@ func (_c *APIKeyGroupCreate) defaults() error {
 		v := apikeygroup.DefaultEnabled
 		_c.mutation.SetEnabled(v)
 	}
+	if _, ok := _c.mutation.ShowChannelInSelfUsage(); !ok {
+		v := apikeygroup.DefaultShowChannelInSelfUsage
+		_c.mutation.SetShowChannelInSelfUsage(v)
+	}
 	if _, ok := _c.mutation.Revision(); !ok {
 		v := apikeygroup.DefaultRevision
 		_c.mutation.SetRevision(v)
@@ -196,6 +214,9 @@ func (_c *APIKeyGroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "APIKeyGroup.enabled"`)}
+	}
+	if _, ok := _c.mutation.ShowChannelInSelfUsage(); !ok {
+		return &ValidationError{Name: "show_channel_in_self_usage", err: errors.New(`ent: missing required field "APIKeyGroup.show_channel_in_self_usage"`)}
 	}
 	if _, ok := _c.mutation.Revision(); !ok {
 		return &ValidationError{Name: "revision", err: errors.New(`ent: missing required field "APIKeyGroup.revision"`)}
@@ -252,6 +273,10 @@ func (_c *APIKeyGroupCreate) createSpec() (*APIKeyGroup, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
 		_node.Enabled = value
+	}
+	if value, ok := _c.mutation.ShowChannelInSelfUsage(); ok {
+		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)
+		_node.ShowChannelInSelfUsage = value
 	}
 	if value, ok := _c.mutation.Revision(); ok {
 		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
@@ -374,6 +399,18 @@ func (u *APIKeyGroupUpsert) UpdateEnabled() *APIKeyGroupUpsert {
 	return u
 }
 
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (u *APIKeyGroupUpsert) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldShowChannelInSelfUsage, v)
+	return u
+}
+
+// UpdateShowChannelInSelfUsage sets the "show_channel_in_self_usage" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateShowChannelInSelfUsage() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldShowChannelInSelfUsage)
+	return u
+}
+
 // SetRevision sets the "revision" field.
 func (u *APIKeyGroupUpsert) SetRevision(v int) *APIKeyGroupUpsert {
 	u.Set(apikeygroup.FieldRevision, v)
@@ -493,6 +530,20 @@ func (u *APIKeyGroupUpsertOne) SetEnabled(v bool) *APIKeyGroupUpsertOne {
 func (u *APIKeyGroupUpsertOne) UpdateEnabled() *APIKeyGroupUpsertOne {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (u *APIKeyGroupUpsertOne) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetShowChannelInSelfUsage(v)
+	})
+}
+
+// UpdateShowChannelInSelfUsage sets the "show_channel_in_self_usage" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateShowChannelInSelfUsage() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateShowChannelInSelfUsage()
 	})
 }
 
@@ -784,6 +835,20 @@ func (u *APIKeyGroupUpsertBulk) SetEnabled(v bool) *APIKeyGroupUpsertBulk {
 func (u *APIKeyGroupUpsertBulk) UpdateEnabled() *APIKeyGroupUpsertBulk {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateEnabled()
+	})
+}
+
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (u *APIKeyGroupUpsertBulk) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetShowChannelInSelfUsage(v)
+	})
+}
+
+// UpdateShowChannelInSelfUsage sets the "show_channel_in_self_usage" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateShowChannelInSelfUsage() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateShowChannelInSelfUsage()
 	})
 }
 

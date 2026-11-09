@@ -1,4 +1,4 @@
-package gql
+package biz
 
 import (
 	"entgo.io/ent/dialect/sql"
@@ -40,8 +40,8 @@ func requestSessionHistoryQuery(q *sql.Selector, ids []int) {
 		sql.ExprP(traceKey(historicalTrace)+" = "+scope.C("session_trace")),
 		sql.ColumnsLTE(historical.C(request.FieldID), scope.C("last_request_id")),
 	)).
-		Join(final).OnP(sql.EQ(final.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), historical, requestexecution.FieldID))).
-		Where(sessionRequestFinished(historical)).
+		Join(final).OnP(sql.EQ(final.C(requestexecution.FieldID), FinalRequestChannelAttempt(q.Dialect(), historical, requestexecution.FieldID))).
+		Where(RequestSessionFinished(historical)).
 		AppendSelectAs(historical.C(request.FieldID), "request_id").
 		AppendSelectAs(final.C(requestexecution.FieldID), "execution_id").
 		AppendSelectAs(final.C(requestexecution.FieldChannelID), "channel_id").
@@ -55,8 +55,8 @@ func requestSessionHistoryQuery(q *sql.Selector, ids []int) {
 	q.Prefix(sql.With("page_sessions").As(scopes).With("session_history").As(history)).
 		Join(current).On(q.C(requestexecution.FieldRequestID), current.C(request.FieldID)).
 		LeftJoin(window).On(q.C(requestexecution.FieldID), window.C("execution_id")).
-		Where(sql.And(sessionRequestFinished(current),
-			sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), current, requestexecution.FieldID)))).
+		Where(sql.And(RequestSessionFinished(current),
+			RequestSessionAttemptMatches(q.C(requestexecution.FieldID), FinalRequestChannelAttempt(q.Dialect(), current, requestexecution.FieldID)))).
 		Select(q.C(requestexecution.FieldID), sql.As(q.C(requestexecution.FieldChannelID), "channel"), window.C("previous_channel")).
 		AppendSelectAs("CASE WHEN "+window.C("first_use_id")+" < "+current.C(request.FieldID)+" THEN TRUE ELSE FALSE END", "used_before")
 }

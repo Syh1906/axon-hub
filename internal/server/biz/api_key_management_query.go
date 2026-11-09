@@ -125,7 +125,8 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 		if status == "exhausted" && !exhausted {
 			continue
 		}
-		items = append(items, &ManagedKeyGroup{ID: group.ID, Name: group.Name, Note: group.Note, Enabled: group.Enabled, Revision: group.Revision, CreatedAt: group.CreatedAt, Budget: view})
+		items = append(items, &ManagedKeyGroup{ID: group.ID, Name: group.Name, Note: group.Note, Enabled: group.Enabled,
+			ShowChannelInSelfUsage: group.ShowChannelInSelfUsage, Revision: group.Revision, CreatedAt: group.CreatedAt, Budget: view})
 	}
 	if derivedFilter {
 		total = len(items)

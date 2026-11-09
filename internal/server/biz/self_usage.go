@@ -76,6 +76,8 @@ type SelfUsageStats struct {
 }
 
 type SelfUsageRequest struct {
+	Channel               *SelfUsageChannel
+	ModelExecutions       []SelfUsageModelExecution
 	CallerKeyName         string
 	CallerGroupName       *string
 	ExecutedModels        []string
@@ -112,25 +114,27 @@ type SelfUsageRequest struct {
 }
 
 type SelfUsageRequestPage struct {
-	ScopeID    string
-	APIKeyName string
-	GroupName  *string
-	Items      []SelfUsageRequest
-	Page       int
-	PageSize   int
-	Total      int
+	ChannelVisible bool
+	ScopeID        string
+	APIKeyName     string
+	GroupName      *string
+	Items          []SelfUsageRequest
+	Page           int
+	PageSize       int
+	Total          int
 }
 
 // The request predicates are applied to every request query and again to the
 // request side of every usage join. Usage-log key/project fields are not used
 // as a substitute: the request is the authoritative owner and time anchor.
 type selfUsageScope struct {
-	id         string
-	apiKeyName string
-	groupName  *string
-	projectID  int
-	keyIDs     []int
-	start, end time.Time
+	channelVisible bool
+	id             string
+	apiKeyName     string
+	groupName      *string
+	projectID      int
+	keyIDs         []int
+	start, end     time.Time
 }
 
 func selfUsageKey(ctx context.Context) (*ent.APIKey, error) {
@@ -210,6 +214,7 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, gr
 			}
 			if row != nil {
 				result.groupName = &row.Name
+				result.channelVisible = row.ShowChannelInSelfUsage
 			}
 		}
 		if result.groupName != nil {
@@ -480,7 +485,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		if err != nil {
 			return nil, fmt.Errorf("list self usage requests: %w", err)
 		}
-		result := &SelfUsageRequestPage{ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
+		result := &SelfUsageRequestPage{ChannelVisible: scope.channelVisible, ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
 		if len(requests) == 0 {
 			return result, nil
 		}
@@ -527,7 +532,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		if err != nil {
 			return nil, err
 		}
-		displays, err := s.requestDisplayFields(ctx, requests)
+		displays, err := s.requestDisplayFields(ctx, requests, scope.channelVisible)
 		if err != nil {
 			return nil, err
 		}
@@ -548,6 +553,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 				Cost: usage.Cost, UsageRecords: usage.UsageRecords, UnpricedRecords: usage.UnpricedRecords,
 			}
 			display := displays[req.ID]
+			row.Channel, row.ModelExecutions = display.Channel, display.ModelExecutions
 			row.ExecutedModels, row.ReasoningEffort = display.ExecutedModels, display.ReasoningEffort
 			row.Format, row.OutboundFormat = display.Format, display.OutboundFormat
 			row.PassThroughApplied, row.ClientStatusCode = display.PassThroughApplied, display.ClientStatusCode
@@ -561,6 +567,10 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			row.CostItems = costs[req.ID].items
 			row.CostMultiplier = costs[req.ID].multiplier
 			row.CostMultiplierMixed = costs[req.ID].multiplierMixed
+			if row.Channel != nil && row.Channel.hasCostSnapshot && row.UsageRecords > 0 && row.Cost != nil {
+				row.Channel.Multiplier = row.CostMultiplier
+				row.Channel.MultiplierMixed = row.CostMultiplierMixed || row.CostMultiplier == nil
+			}
 			switch req.Status {
 			case request.StatusCompleted:
 				row.Status = "SUCCESS"

@@ -1,11 +1,21 @@
 import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CostCell, TokensCell } from '@/components/request-usage-cells';
+import { getProviderFromChannelType } from '@/features/channels/data/config_providers';
+import { RequestChannelDisplayCell } from '@/features/requests/components/request-channel-display-cell';
 import { RequestCacheCell, RequestDurationCell, RequestLogStatusCell } from '@/features/requests/components/request-log-cells';
 import { RequestModelCell } from '@/features/requests/components/request-model-cell';
 import type { SelfUsageMeta, UsageRequest } from '../api';
 
-export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta: SelfUsageMeta }) {
+export function UsageRequestTable({
+  items,
+  meta,
+  channelVisible,
+}: {
+  items: UsageRequest[];
+  meta: SelfUsageMeta;
+  channelVisible: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const date = new Intl.DateTimeFormat(i18n.language.startsWith('zh') ? 'zh-CN' : 'en-GB', {
     timeZone: meta.timezone,
@@ -19,10 +29,11 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
   });
   return (
     <div className='overflow-x-auto'>
-      <Table>
+      <Table className='[&_td]:whitespace-nowrap'>
         <TableHeader className='bg-[var(--table-header)]'>
           <TableRow>
             <TableHead>{t('common.columns.id')}</TableHead>
+            {channelVisible && <TableHead>{t('requests.columns.channel')}</TableHead>}
             <TableHead>{t('requests.columns.model')}</TableHead>
             <TableHead>{t('requests.columns.tokens')}</TableHead>
             <TableHead>{t('requests.columns.cache')}</TableHead>
@@ -48,20 +59,33 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
                   <span className='text-muted-foreground text-xs'>{t('requests.diagnostics.retries', { count: item.retryCount })}</span>
                 )}
               </TableCell>
+              {channelVisible && (
+                <TableCell>
+                  <RequestChannelDisplayCell
+                    channel={
+                      item.channel && {
+                        ...item.channel,
+                        provider:
+                          item.channel.provider ||
+                          (item.channel.channelType
+                            ? getProviderFromChannelType(item.channel.channelType) || item.channel.channelType
+                            : undefined),
+                        multiplier: item.channel.multiplierMixed ? 'mixed' : item.channel.multiplier,
+                      }
+                    }
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 <RequestModelCell
+                  displayExecution={{ format: item.outboundFormat, reasoningEffort: item.reasoningEffort }}
                   request={{
                     modelID: item.model,
+                    status: item.requestStatus,
                     reasoningEffort: item.reasoningEffort,
                     format: item.format,
                     executions: {
-                      edges: (item.executedModels.length ? item.executedModels : ['']).map((modelID) => ({
-                        node: {
-                          modelID,
-                          format: item.outboundFormat ?? undefined,
-                          passThroughApplied: item.passThroughApplied,
-                        },
-                      })),
+                      edges: item.modelExecutions.map((node) => ({ node })),
                     },
                     oneHourPromptCacheUsageLogs: { totalCount: item.cacheWriteTokens1h > 0 ? 1 : 0 },
                   }}
@@ -148,7 +172,7 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
           ))}
           {!items.length && (
             <TableRow>
-              <TableCell colSpan={8}>{t('selfUsage.requests.empty')}</TableCell>
+              <TableCell colSpan={channelVisible ? 9 : 8}>{t('selfUsage.requests.empty')}</TableCell>
             </TableRow>
           )}
         </TableBody>

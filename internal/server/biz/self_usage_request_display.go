@@ -11,9 +11,18 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 )
 
+type SelfUsageModelExecution struct {
+	ModelID            string
+	UpstreamModelID    string
+	Status             requestexecution.Status
+	Format             string
+	ReasoningEffort    *string
+	PassThroughApplied bool
+}
+
 // Only read display metadata for the already-authorized page. Payloads, channel
-// identities, selection snapshots and credentials never enter the self-service API.
-func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []*ent.Request) (map[int]*SelfUsageRequest, error) {
+// IDs, selection snapshots and credentials never enter the self-service API.
+func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []*ent.Request, channelVisible bool) (map[int]*SelfUsageRequest, error) {
 	ids := make([]int, 0, len(requests))
 	result := make(map[int]*SelfUsageRequest, len(requests))
 	owners := make(map[int]*ent.Request, len(requests))
@@ -21,8 +30,9 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 		ids = append(ids, req.ID)
 		owners[req.ID] = req
 		result[req.ID] = &SelfUsageRequest{
-			ExecutedModels: []string{},
-			Format:         req.Format, ClientStatusCode: req.ClientStatusCode,
+			ModelExecutions: []SelfUsageModelExecution{},
+			ExecutedModels:  []string{},
+			Format:          req.Format, ClientStatusCode: req.ClientStatusCode,
 		}
 		if req.ReasoningEffort != "" {
 			result[req.ID].ReasoningEffort = &req.ReasoningEffort
@@ -30,6 +40,7 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 	}
 	executions, err := s.client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...)).
 		Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldModelID,
+			requestexecution.FieldUpstreamModelID, requestexecution.FieldStatus,
 			requestexecution.FieldChannelID,
 			requestexecution.FieldReasoningEffort, requestexecution.FieldFormat,
 			requestexecution.FieldResponseStatusCode, requestexecution.FieldPassThroughApplied).
@@ -41,6 +52,10 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 	adopted := make(map[int]bool, len(requests))
 	for _, execution := range executions {
 		row := result[execution.RequestID]
+		row.ModelExecutions = append(row.ModelExecutions, SelfUsageModelExecution{
+			ModelID: execution.ModelID, UpstreamModelID: execution.UpstreamModelID, Status: execution.Status,
+			Format: execution.Format, ReasoningEffort: execution.ReasoningEffort, PassThroughApplied: execution.PassThroughApplied,
+		})
 		owner := owners[execution.RequestID]
 		eligible := owner.ResultExecutionID == nil || *owner.ResultExecutionID == execution.ID
 		if owner.ResultExecutionID == nil && (owner.Status == "completed" || owner.Failure != nil && owner.Failure.Code == "stream_delivery_canceled") && owner.ChannelID > 0 {
@@ -62,6 +77,15 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			row.ExecutedModels = append(row.ExecutedModels, execution.ModelID)
 		}
 		row.PassThroughApplied = row.PassThroughApplied || execution.PassThroughApplied
+	}
+	if channelVisible {
+		channels, err := s.requestChannelDisplays(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for id, channel := range channels {
+			result[id].Channel = channel
+		}
 	}
 	speeds, err := RequestOutputSpeeds(ctx, s.client, ids)
 	if err != nil {

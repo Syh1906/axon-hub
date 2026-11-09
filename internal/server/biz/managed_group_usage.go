@@ -70,6 +70,7 @@ func (s *APIKeyService) managedGroupUsageScope(ctx context.Context, system *Syst
 	if group != nil {
 		q.Where(apikey.GroupRefEQ(group.ID))
 		scope.groupName, scope.apiKeyName = &group.Name, group.Name
+		scope.channelVisible = group.ShowChannelInSelfUsage
 	} else {
 		q.Where(apikey.GroupRefIsNil())
 	}

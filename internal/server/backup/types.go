@@ -59,10 +59,11 @@ type BackupAPIKey struct {
 }
 
 type BackupAPIKeyGroup struct {
-	ProjectName string `json:"project_name"`
-	Name        string `json:"name"`
-	Note        string `json:"note"`
-	Enabled     bool   `json:"enabled"`
+	ProjectName            string `json:"project_name"`
+	Name                   string `json:"name"`
+	Note                   string `json:"note"`
+	Enabled                bool   `json:"enabled"`
+	ShowChannelInSelfUsage bool   `json:"show_channel_in_self_usage"`
 }
 
 type BackupChannelModelPrice struct {

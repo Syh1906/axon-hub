@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { extractNumberID } from '@/lib/utils';
+import { currencyFractionDigits } from '@/utils/currency-display';
+import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,10 +18,9 @@ import { useApiKeyProfileTemplates } from '@/features/apikeys/data/apikeys';
 import { useKeyGroups } from '@/features/apikeys/data/groups';
 import { BudgetTime } from '@/features/budgets/budget-table';
 import { useGeneralSettings } from '@/features/system/data/system';
-import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
-import { currencyFractionDigits } from '@/utils/currency-display';
 import { importedGroup, materialize, newDraft, newKey, parseTable, type Defaults, type Draft } from './drafts';
 import { BudgetPatchFields, Choice, GroupChoice, KeyInputFields, TemplateChoice } from './editors';
+import { SelfUsageChannelSetting } from './self-usage-channel-setting';
 import { ResultsPanel, SubmissionActions, useSubmission } from './submission';
 
 function Settings({
@@ -38,6 +39,10 @@ function Settings({
     <div className='flex flex-col gap-4'>
       {groups && (
         <>
+          <SelfUsageChannelSetting
+            checked={value.showChannelInSelfUsage ?? false}
+            onCheckedChange={(showChannelInSelfUsage) => onChange({ ...value, showChannelInSelfUsage })}
+          />
           <h3 className='font-medium'>{t('kg.sharedBudget')}</h3>
           <BudgetPatchFields value={value.budget} onChange={(budget) => onChange({ ...value, budget })} />
           <label className='flex items-center gap-2 text-sm'>

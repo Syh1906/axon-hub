@@ -23,20 +23,21 @@ type ManagedKeyInput struct {
 	Budget     *KeyBudgetPatch `json:"budget"`
 }
 type KeyManagementRow struct {
-	RowID         string             `json:"rowID"`
-	Action        string             `json:"action"`
-	TargetID      *int               `json:"targetID"`
-	GroupRef      *int               `json:"groupRef"`
-	Name          *string            `json:"name"`
-	Note          *string            `json:"note"`
-	Enabled       *bool              `json:"enabled"`
-	Revision      *int               `json:"revision"`
-	UpdatedAt     *time.Time         `json:"updatedAt"`
-	Budget        *KeyBudgetPatch    `json:"budget"`
-	Keys          []*ManagedKeyInput `json:"keys"`
-	TemplateID    *int               `json:"templateID"`
-	AllowedIPs    []string           `json:"allowedIPs"`
-	SetAllowedIPs bool               `json:"setAllowedIPs"`
+	RowID                  string             `json:"rowID"`
+	Action                 string             `json:"action"`
+	TargetID               *int               `json:"targetID"`
+	GroupRef               *int               `json:"groupRef"`
+	Name                   *string            `json:"name"`
+	Note                   *string            `json:"note"`
+	Enabled                *bool              `json:"enabled"`
+	ShowChannelInSelfUsage *bool              `json:"showChannelInSelfUsage,omitempty"`
+	Revision               *int               `json:"revision"`
+	UpdatedAt              *time.Time         `json:"updatedAt"`
+	Budget                 *KeyBudgetPatch    `json:"budget"`
+	Keys                   []*ManagedKeyInput `json:"keys"`
+	TemplateID             *int               `json:"templateID"`
+	AllowedIPs             []string           `json:"allowedIPs"`
+	SetAllowedIPs          bool               `json:"setAllowedIPs"`
 }
 type KeyManagementResult struct {
 	RowID   string `json:"rowID"`
@@ -46,14 +47,15 @@ type KeyManagementResult struct {
 	KeyIDs  []int  `json:"keyIDs"`
 }
 type ManagedKeyGroup struct {
-	ID        int         `json:"id"`
-	Name      string      `json:"name"`
-	Note      string      `json:"note"`
-	Enabled   bool        `json:"enabled"`
-	Revision  int         `json:"revision"`
-	KeyCount  int         `json:"keyCount"`
-	CreatedAt time.Time   `json:"createdAt"`
-	Budget    *BudgetView `json:"budget"`
+	ID                     int         `json:"id"`
+	Name                   string      `json:"name"`
+	Note                   string      `json:"note"`
+	Enabled                bool        `json:"enabled"`
+	ShowChannelInSelfUsage bool        `json:"showChannelInSelfUsage"`
+	Revision               int         `json:"revision"`
+	KeyCount               int         `json:"keyCount"`
+	CreatedAt              time.Time   `json:"createdAt"`
+	Budget                 *BudgetView `json:"budget"`
 }
 type ManagedKeyGroups struct {
 	Items          []*ManagedKeyGroup `json:"items"`

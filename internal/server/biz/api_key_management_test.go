@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -29,7 +30,7 @@ func TestKeyManagementAtomicRowsAndReplay(t *testing.T) {
 	badRevision := 99
 	patch := &KeyBudgetPatch{Rules: []*BudgetRuleInput{{Period: budget.Daily, Mode: budget.Fixed, Limit: "10", Minute: 0}}}
 	rows := []*KeyManagementRow{
-		{RowID: "a", Action: "createGroup", Name: &name, Budget: patch, Keys: []*ManagedKeyInput{{Name: "Codex", Budget: patch}, {Name: "Claude"}}},
+		{RowID: "a", Action: "createGroup", Name: &name, ShowChannelInSelfUsage: lo.ToPtr(true), Budget: patch, Keys: []*ManagedKeyInput{{Name: "Codex", Budget: patch}, {Name: "Claude"}}},
 		{RowID: "bad", Action: "createGroup", Name: &badName, Budget: patch, Keys: []*ManagedKeyInput{{Name: "first", Budget: patch}, {Name: "second", Budget: &KeyBudgetPatch{Revision: &badRevision}}}},
 	}
 	results, err := s.ApplyKeyManagement(ctx, nil, "batch-1", rows)
@@ -53,6 +54,7 @@ func TestKeyManagementAtomicRowsAndReplay(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, groups.Items, 1)
 	require.Equal(t, 2, groups.Items[0].KeyCount)
+	require.True(t, groups.Items[0].ShowChannelInSelfUsage, "creation must round-trip the setting")
 	for i, window := range view.Windows {
 		actual := groups.Items[0].Budget.Windows[i]
 		require.Equal(t, window.Period, actual.Period)
@@ -79,13 +81,16 @@ func TestKeyManagementAtomicRowsAndReplay(t *testing.T) {
 	require.True(t, out[0].Success, out[0].Error)
 	require.ErrorIs(t, s.CheckAPIKeyGroupEnabled(ctx, member.ID, p.ID), ErrInvalidAPIKey)
 	group = db.APIKeyGroup.GetX(ctx, group.ID)
+	require.True(t, group.ShowChannelInSelfUsage, "an omitted field must remain unchanged")
 	update.RowID = "enable"
 	update.Revision = &group.Revision
 	update.Enabled = &enabled
+	update.ShowChannelInSelfUsage = lo.ToPtr(false)
 	out, err = s.ApplyKeyManagement(ctx, nil, "status", []*KeyManagementRow{update})
 	require.NoError(t, err)
 	require.True(t, out[0].Success, out[0].Error)
 	require.NoError(t, s.CheckAPIKeyGroupEnabled(ctx, member.ID, p.ID))
+	require.False(t, db.APIKeyGroup.GetX(ctx, group.ID).ShowChannelInSelfUsage, "explicit false must disable visibility")
 	require.Equal(t, apikey.StatusDisabled, db.APIKey.GetX(ctx, member.ID).Status)
 }
 

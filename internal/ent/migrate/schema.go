@@ -75,6 +75,7 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 128},
 		{Name: "note", Type: field.TypeString, Size: 1024, Default: ""},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "show_channel_in_self_usage", Type: field.TypeBool, Default: false},
 		{Name: "revision", Type: field.TypeInt, Default: 0},
 		{Name: "project_id", Type: field.TypeInt},
 	}
@@ -86,7 +87,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_key_groups_projects_api_key_groups",
-				Columns:    []*schema.Column{APIKeyGroupsColumns[7]},
+				Columns:    []*schema.Column{APIKeyGroupsColumns[8]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -95,7 +96,7 @@ var (
 			{
 				Name:    "api_key_groups_by_project_name",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeyGroupsColumns[7], APIKeyGroupsColumns[3]},
+				Columns: []*schema.Column{APIKeyGroupsColumns[8], APIKeyGroupsColumns[3]},
 			},
 		},
 	}

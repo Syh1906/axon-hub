@@ -25,6 +25,8 @@ const (
 	FieldNote = "note"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
+	// FieldShowChannelInSelfUsage holds the string denoting the show_channel_in_self_usage field in the database.
+	FieldShowChannelInSelfUsage = "show_channel_in_self_usage"
 	// FieldRevision holds the string denoting the revision field in the database.
 	FieldRevision = "revision"
 	// FieldProjectID holds the string denoting the project_id field in the database.
@@ -50,6 +52,7 @@ var Columns = []string{
 	FieldName,
 	FieldNote,
 	FieldEnabled,
+	FieldShowChannelInSelfUsage,
 	FieldRevision,
 	FieldProjectID,
 }
@@ -86,6 +89,8 @@ var (
 	NoteValidator func(string) error
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
+	// DefaultShowChannelInSelfUsage holds the default value on creation for the "show_channel_in_self_usage" field.
+	DefaultShowChannelInSelfUsage bool
 	// DefaultRevision holds the default value on creation for the "revision" field.
 	DefaultRevision int
 )
@@ -121,6 +126,11 @@ func ByNote(opts ...sql.OrderTermOption) OrderOption {
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
+}
+
+// ByShowChannelInSelfUsage orders the results by the show_channel_in_self_usage field.
+func ByShowChannelInSelfUsage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldShowChannelInSelfUsage, opts...).ToFunc()
 }
 
 // ByRevision orders the results by the revision field.

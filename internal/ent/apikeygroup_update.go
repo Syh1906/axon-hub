@@ -77,6 +77,20 @@ func (_u *APIKeyGroupUpdate) SetNillableEnabled(v *bool) *APIKeyGroupUpdate {
 	return _u
 }
 
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (_u *APIKeyGroupUpdate) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpdate {
+	_u.mutation.SetShowChannelInSelfUsage(v)
+	return _u
+}
+
+// SetNillableShowChannelInSelfUsage sets the "show_channel_in_self_usage" field if the given value is not nil.
+func (_u *APIKeyGroupUpdate) SetNillableShowChannelInSelfUsage(v *bool) *APIKeyGroupUpdate {
+	if v != nil {
+		_u.SetShowChannelInSelfUsage(*v)
+	}
+	return _u
+}
+
 // SetRevision sets the "revision" field.
 func (_u *APIKeyGroupUpdate) SetRevision(v int) *APIKeyGroupUpdate {
 	_u.mutation.ResetRevision()
@@ -193,6 +207,9 @@ func (_u *APIKeyGroupUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.ShowChannelInSelfUsage(); ok {
+		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Revision(); ok {
 		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)
 	}
@@ -265,6 +282,20 @@ func (_u *APIKeyGroupUpdateOne) SetEnabled(v bool) *APIKeyGroupUpdateOne {
 func (_u *APIKeyGroupUpdateOne) SetNillableEnabled(v *bool) *APIKeyGroupUpdateOne {
 	if v != nil {
 		_u.SetEnabled(*v)
+	}
+	return _u
+}
+
+// SetShowChannelInSelfUsage sets the "show_channel_in_self_usage" field.
+func (_u *APIKeyGroupUpdateOne) SetShowChannelInSelfUsage(v bool) *APIKeyGroupUpdateOne {
+	_u.mutation.SetShowChannelInSelfUsage(v)
+	return _u
+}
+
+// SetNillableShowChannelInSelfUsage sets the "show_channel_in_self_usage" field if the given value is not nil.
+func (_u *APIKeyGroupUpdateOne) SetNillableShowChannelInSelfUsage(v *bool) *APIKeyGroupUpdateOne {
+	if v != nil {
+		_u.SetShowChannelInSelfUsage(*v)
 	}
 	return _u
 }
@@ -414,6 +445,9 @@ func (_u *APIKeyGroupUpdateOne) sqlSave(ctx context.Context) (_node *APIKeyGroup
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(apikeygroup.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ShowChannelInSelfUsage(); ok {
+		_spec.SetField(apikeygroup.FieldShowChannelInSelfUsage, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Revision(); ok {
 		_spec.SetField(apikeygroup.FieldRevision, field.TypeInt, value)

@@ -21,6 +21,7 @@ input KeyManagementRow {
   name: String
   note: String
   enabled: Boolean
+  showChannelInSelfUsage: Boolean
   revision: Int
   budget: KeyBudgetPatch
   updatedAt: Time
@@ -41,6 +42,7 @@ type ManagedKeyGroup {
   name: String!
   note: String!
   enabled: Boolean!
+  showChannelInSelfUsage: Boolean!
   revision: Int!
   keyCount: Int!
   createdAt: Time!

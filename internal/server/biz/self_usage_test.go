@@ -288,7 +288,7 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	f.client.Request.UpdateOne(req).SetChannelID(ch.ID).SaveX(ctx)
 	for i, model := range []string{"fallback-model", "executed-model"} {
 		f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(ch.ID).
-			SetModelID(model).SetFormat("anthropic/messages").SetReasoningEffort("8192").SetResponseStatusCode(201).
+			SetModelID(model).SetUpstreamModelID(model).SetFormat("anthropic/messages").SetReasoningEffort("8192").SetResponseStatusCode(201).
 			SetStream(true).SetMetricsLatencyMs(3000).SetMetricsFirstByteLatencyMs(1000).SetStatus("completed").SetPassThroughApplied(true).SetRequestBody([]byte(`{"private":"must not be returned"}`)).
 			SetCreatedAt(at.Add(time.Duration(i) * time.Second)).SaveX(ctx)
 	}
@@ -300,6 +300,12 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	require.Len(t, page.Items, 1)
 	row := page.Items[0]
 	require.Equal(t, []string{"executed-model", "fallback-model"}, row.ExecutedModels)
+	require.Len(t, row.ModelExecutions, 2)
+	require.Equal(t, "executed-model", row.ModelExecutions[0].ModelID)
+	require.Equal(t, "executed-model", row.ModelExecutions[0].UpstreamModelID)
+	require.EqualValues(t, "completed", row.ModelExecutions[0].Status)
+	require.False(t, page.ChannelVisible)
+	require.Nil(t, row.Channel)
 	require.Equal(t, "8192", *row.ReasoningEffort)
 	require.Equal(t, "openai/chat_completions", row.Format)
 	require.Equal(t, "anthropic/messages", *row.OutboundFormat)

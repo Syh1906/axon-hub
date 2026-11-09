@@ -1355,14 +1355,15 @@ type ComplexityRoot struct {
 	}
 
 	ManagedKeyGroup struct {
-		Budget    func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		Enabled   func(childComplexity int) int
-		ID        func(childComplexity int) int
-		KeyCount  func(childComplexity int) int
-		Name      func(childComplexity int) int
-		Note      func(childComplexity int) int
-		Revision  func(childComplexity int) int
+		Budget                 func(childComplexity int) int
+		CreatedAt              func(childComplexity int) int
+		Enabled                func(childComplexity int) int
+		ID                     func(childComplexity int) int
+		KeyCount               func(childComplexity int) int
+		Name                   func(childComplexity int) int
+		Note                   func(childComplexity int) int
+		Revision               func(childComplexity int) int
+		ShowChannelInSelfUsage func(childComplexity int) int
 	}
 
 	ManagedKeyGroups struct {
@@ -2505,6 +2506,16 @@ type ComplexityRoot struct {
 		StartTime     func(childComplexity int) int
 	}
 
+	SelfUsageChannel struct {
+		ChannelType     func(childComplexity int) int
+		Multiplier      func(childComplexity int) int
+		MultiplierMixed func(childComplexity int) int
+		Name            func(childComplexity int) int
+		Provider        func(childComplexity int) int
+		SessionState    func(childComplexity int) int
+		Tags            func(childComplexity int) int
+	}
+
 	SelfUsageCostItem struct {
 		Image                       func(childComplexity int) int
 		ImageRule                   func(childComplexity int) int
@@ -2544,6 +2555,15 @@ type ComplexityRoot struct {
 		Timezone                func(childComplexity int) int
 	}
 
+	SelfUsageModelExecution struct {
+		Format             func(childComplexity int) int
+		ModelID            func(childComplexity int) int
+		PassThroughApplied func(childComplexity int) int
+		ReasoningEffort    func(childComplexity int) int
+		Status             func(childComplexity int) int
+		UpstreamModelID    func(childComplexity int) int
+	}
+
 	SelfUsageModelStat struct {
 		Model func(childComplexity int) int
 		Usage func(childComplexity int) int
@@ -2557,6 +2577,7 @@ type ComplexityRoot struct {
 		CacheWriteTokens5m    func(childComplexity int) int
 		CallerGroupName       func(childComplexity int) int
 		CallerKeyName         func(childComplexity int) int
+		Channel               func(childComplexity int) int
 		ClientStatusCode      func(childComplexity int) int
 		Cost                  func(childComplexity int) int
 		CostItems             func(childComplexity int) int
@@ -2570,6 +2591,7 @@ type ComplexityRoot struct {
 		InputTokens           func(childComplexity int) int
 		LatencyMs             func(childComplexity int) int
 		Model                 func(childComplexity int) int
+		ModelExecutions       func(childComplexity int) int
 		OutboundFormat        func(childComplexity int) int
 		OutputTokens          func(childComplexity int) int
 		OutputTokensPerSecond func(childComplexity int) int
@@ -2586,13 +2608,14 @@ type ComplexityRoot struct {
 	}
 
 	SelfUsageRequestPage struct {
-		APIKeyName func(childComplexity int) int
-		GroupName  func(childComplexity int) int
-		Items      func(childComplexity int) int
-		Page       func(childComplexity int) int
-		PageSize   func(childComplexity int) int
-		ScopeID    func(childComplexity int) int
-		Total      func(childComplexity int) int
+		APIKeyName     func(childComplexity int) int
+		ChannelVisible func(childComplexity int) int
+		GroupName      func(childComplexity int) int
+		Items          func(childComplexity int) int
+		Page           func(childComplexity int) int
+		PageSize       func(childComplexity int) int
+		ScopeID        func(childComplexity int) int
+		Total          func(childComplexity int) int
 	}
 
 	SelfUsageStats struct {
@@ -8745,6 +8768,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ManagedKeyGroup.Revision(childComplexity), true
+	case "ManagedKeyGroup.showChannelInSelfUsage":
+		if e.complexity.ManagedKeyGroup.ShowChannelInSelfUsage == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroup.ShowChannelInSelfUsage(childComplexity), true
 
 	case "ManagedKeyGroups.items":
 		if e.complexity.ManagedKeyGroups.Items == nil {
@@ -14901,6 +14930,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Segment.StartTime(childComplexity), true
 
+	case "SelfUsageChannel.channelType":
+		if e.complexity.SelfUsageChannel.ChannelType == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.ChannelType(childComplexity), true
+	case "SelfUsageChannel.multiplier":
+		if e.complexity.SelfUsageChannel.Multiplier == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.Multiplier(childComplexity), true
+	case "SelfUsageChannel.multiplierMixed":
+		if e.complexity.SelfUsageChannel.MultiplierMixed == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.MultiplierMixed(childComplexity), true
+	case "SelfUsageChannel.name":
+		if e.complexity.SelfUsageChannel.Name == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.Name(childComplexity), true
+	case "SelfUsageChannel.provider":
+		if e.complexity.SelfUsageChannel.Provider == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.Provider(childComplexity), true
+	case "SelfUsageChannel.sessionState":
+		if e.complexity.SelfUsageChannel.SessionState == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.SessionState(childComplexity), true
+	case "SelfUsageChannel.tags":
+		if e.complexity.SelfUsageChannel.Tags == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageChannel.Tags(childComplexity), true
+
 	case "SelfUsageCostItem.image":
 		if e.complexity.SelfUsageCostItem.Image == nil {
 			break
@@ -15067,6 +15139,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SelfUsageMeta.Timezone(childComplexity), true
 
+	case "SelfUsageModelExecution.format":
+		if e.complexity.SelfUsageModelExecution.Format == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.Format(childComplexity), true
+	case "SelfUsageModelExecution.modelID":
+		if e.complexity.SelfUsageModelExecution.ModelID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.ModelID(childComplexity), true
+	case "SelfUsageModelExecution.passThroughApplied":
+		if e.complexity.SelfUsageModelExecution.PassThroughApplied == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.PassThroughApplied(childComplexity), true
+	case "SelfUsageModelExecution.reasoningEffort":
+		if e.complexity.SelfUsageModelExecution.ReasoningEffort == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.ReasoningEffort(childComplexity), true
+	case "SelfUsageModelExecution.status":
+		if e.complexity.SelfUsageModelExecution.Status == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.Status(childComplexity), true
+	case "SelfUsageModelExecution.upstreamModelID":
+		if e.complexity.SelfUsageModelExecution.UpstreamModelID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageModelExecution.UpstreamModelID(childComplexity), true
+
 	case "SelfUsageModelStat.model":
 		if e.complexity.SelfUsageModelStat.Model == nil {
 			break
@@ -15122,6 +15231,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.CallerKeyName(childComplexity), true
+	case "SelfUsageRequest.channel":
+		if e.complexity.SelfUsageRequest.Channel == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.Channel(childComplexity), true
 	case "SelfUsageRequest.clientStatusCode":
 		if e.complexity.SelfUsageRequest.ClientStatusCode == nil {
 			break
@@ -15200,6 +15315,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.Model(childComplexity), true
+	case "SelfUsageRequest.modelExecutions":
+		if e.complexity.SelfUsageRequest.ModelExecutions == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ModelExecutions(childComplexity), true
 	case "SelfUsageRequest.outboundFormat":
 		if e.complexity.SelfUsageRequest.OutboundFormat == nil {
 			break
@@ -15285,6 +15406,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequestPage.APIKeyName(childComplexity), true
+	case "SelfUsageRequestPage.channelVisible":
+		if e.complexity.SelfUsageRequestPage.ChannelVisible == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.ChannelVisible(childComplexity), true
 	case "SelfUsageRequestPage.groupName":
 		if e.complexity.SelfUsageRequestPage.GroupName == nil {
 			break
@@ -48341,6 +48468,35 @@ func (ec *executionContext) fieldContext_ManagedKeyGroup_enabled(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ManagedKeyGroup_showChannelInSelfUsage(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroup_showChannelInSelfUsage,
+		func(ctx context.Context) (any, error) {
+			return obj.ShowChannelInSelfUsage, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroup_showChannelInSelfUsage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroup",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ManagedKeyGroup_revision(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroup) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -48511,6 +48667,8 @@ func (ec *executionContext) fieldContext_ManagedKeyGroups_items(_ context.Contex
 				return ec.fieldContext_ManagedKeyGroup_note(ctx, field)
 			case "enabled":
 				return ec.fieldContext_ManagedKeyGroup_enabled(ctx, field)
+			case "showChannelInSelfUsage":
+				return ec.fieldContext_ManagedKeyGroup_showChannelInSelfUsage(ctx, field)
 			case "revision":
 				return ec.fieldContext_ManagedKeyGroup_revision(ctx, field)
 			case "keyCount":
@@ -71186,6 +71344,8 @@ func (ec *executionContext) fieldContext_Query_managedGroupUsageRequests(ctx con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "channelVisible":
+				return ec.fieldContext_SelfUsageRequestPage_channelVisible(ctx, field)
 			case "scopeID":
 				return ec.fieldContext_SelfUsageRequestPage_scopeID(ctx, field)
 			case "apiKeyName":
@@ -80463,6 +80623,209 @@ func (ec *executionContext) fieldContext_Segment_duration(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageChannel_name(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_provider(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_channelType(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_channelType,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_channelType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_tags(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_tags,
+		func(ctx context.Context) (any, error) {
+			return obj.Tags, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_tags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_sessionState(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_sessionState,
+		func(ctx context.Context) (any, error) {
+			return obj.SessionState, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_sessionState(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_multiplier(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_multiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.Multiplier, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_multiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageChannel_multiplierMixed(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageChannel_multiplierMixed,
+		func(ctx context.Context) (any, error) {
+			return obj.MultiplierMixed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageChannel_multiplierMixed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageCostItem_pricingEvidence(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageCostItem) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -81326,6 +81689,180 @@ func (ec *executionContext) fieldContext_SelfUsageMeta_maxRangeDays(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageModelExecution_modelID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_modelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_modelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelExecution_upstreamModelID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_upstreamModelID,
+		func(ctx context.Context) (any, error) {
+			return obj.UpstreamModelID, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_upstreamModelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelExecution_status(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNRequestExecutionStatus2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋrequestexecutionᚐStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type RequestExecutionStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelExecution_format(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_format,
+		func(ctx context.Context) (any, error) {
+			return obj.Format, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_format(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelExecution_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_reasoningEffort,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEffort, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageModelExecution_passThroughApplied(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageModelExecution_passThroughApplied,
+		func(ctx context.Context) (any, error) {
+			return obj.PassThroughApplied, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageModelExecution_passThroughApplied(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageModelExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageModelStat_model(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageModelStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -81403,6 +81940,94 @@ func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Cont
 				return ec.fieldContext_SelfUsageSummary_unpricedRecords(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SelfUsageSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_channel(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_channel,
+		func(ctx context.Context) (any, error) {
+			return obj.Channel, nil
+		},
+		nil,
+		ec.marshalOSelfUsageChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageChannel,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_channel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_SelfUsageChannel_name(ctx, field)
+			case "provider":
+				return ec.fieldContext_SelfUsageChannel_provider(ctx, field)
+			case "channelType":
+				return ec.fieldContext_SelfUsageChannel_channelType(ctx, field)
+			case "tags":
+				return ec.fieldContext_SelfUsageChannel_tags(ctx, field)
+			case "sessionState":
+				return ec.fieldContext_SelfUsageChannel_sessionState(ctx, field)
+			case "multiplier":
+				return ec.fieldContext_SelfUsageChannel_multiplier(ctx, field)
+			case "multiplierMixed":
+				return ec.fieldContext_SelfUsageChannel_multiplierMixed(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageChannel", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_modelExecutions(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_modelExecutions,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelExecutions, nil
+		},
+		nil,
+		ec.marshalNSelfUsageModelExecution2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelExecutionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_modelExecutions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "modelID":
+				return ec.fieldContext_SelfUsageModelExecution_modelID(ctx, field)
+			case "upstreamModelID":
+				return ec.fieldContext_SelfUsageModelExecution_upstreamModelID(ctx, field)
+			case "status":
+				return ec.fieldContext_SelfUsageModelExecution_status(ctx, field)
+			case "format":
+				return ec.fieldContext_SelfUsageModelExecution_format(ctx, field)
+			case "reasoningEffort":
+				return ec.fieldContext_SelfUsageModelExecution_reasoningEffort(ctx, field)
+			case "passThroughApplied":
+				return ec.fieldContext_SelfUsageModelExecution_passThroughApplied(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SelfUsageModelExecution", field.Name)
 		},
 	}
 	return fc, nil
@@ -82387,6 +83012,35 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_unpricedRecords(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequestPage_channelVisible(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_channelVisible,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelVisible, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_channelVisible(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequestPage_scopeID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -82498,6 +83152,10 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "channel":
+				return ec.fieldContext_SelfUsageRequest_channel(ctx, field)
+			case "modelExecutions":
+				return ec.fieldContext_SelfUsageRequest_modelExecutions(ctx, field)
 			case "callerKeyName":
 				return ec.fieldContext_SelfUsageRequest_callerKeyName(ctx, field)
 			case "callerGroupName":
@@ -108114,7 +108772,7 @@ func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, 
 		asMap["setAllowedIPs"] = false
 	}
 
-	fieldsInOrder := [...]string{"rowID", "action", "targetID", "groupRef", "name", "note", "enabled", "revision", "budget", "updatedAt", "keys", "templateID", "allowedIPs", "setAllowedIPs"}
+	fieldsInOrder := [...]string{"rowID", "action", "targetID", "groupRef", "name", "note", "enabled", "showChannelInSelfUsage", "revision", "budget", "updatedAt", "keys", "templateID", "allowedIPs", "setAllowedIPs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -108170,6 +108828,13 @@ func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, 
 				return it, err
 			}
 			it.Enabled = data
+		case "showChannelInSelfUsage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("showChannelInSelfUsage"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ShowChannelInSelfUsage = data
 		case "revision":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -138155,6 +138820,11 @@ func (ec *executionContext) _ManagedKeyGroup(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "showChannelInSelfUsage":
+			out.Values[i] = ec._ManagedKeyGroup_showChannelInSelfUsage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "revision":
 			out.Values[i] = ec._ManagedKeyGroup_revision(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -149856,6 +150526,72 @@ func (ec *executionContext) _Segment(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
+var selfUsageChannelImplementors = []string{"SelfUsageChannel"}
+
+func (ec *executionContext) _SelfUsageChannel(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageChannel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageChannelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageChannel")
+		case "name":
+			out.Values[i] = ec._SelfUsageChannel_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "provider":
+			out.Values[i] = ec._SelfUsageChannel_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelType":
+			out.Values[i] = ec._SelfUsageChannel_channelType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tags":
+			out.Values[i] = ec._SelfUsageChannel_tags(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sessionState":
+			out.Values[i] = ec._SelfUsageChannel_sessionState(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "multiplier":
+			out.Values[i] = ec._SelfUsageChannel_multiplier(ctx, field, obj)
+		case "multiplierMixed":
+			out.Values[i] = ec._SelfUsageChannel_multiplierMixed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var selfUsageCostItemImplementors = []string{"SelfUsageCostItem"}
 
 func (ec *executionContext) _SelfUsageCostItem(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageCostItem) graphql.Marshaler {
@@ -150112,6 +150848,64 @@ func (ec *executionContext) _SelfUsageMeta(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var selfUsageModelExecutionImplementors = []string{"SelfUsageModelExecution"}
+
+func (ec *executionContext) _SelfUsageModelExecution(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageModelExecution) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, selfUsageModelExecutionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SelfUsageModelExecution")
+		case "modelID":
+			out.Values[i] = ec._SelfUsageModelExecution_modelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "upstreamModelID":
+			out.Values[i] = ec._SelfUsageModelExecution_upstreamModelID(ctx, field, obj)
+		case "status":
+			out.Values[i] = ec._SelfUsageModelExecution_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "format":
+			out.Values[i] = ec._SelfUsageModelExecution_format(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningEffort":
+			out.Values[i] = ec._SelfUsageModelExecution_reasoningEffort(ctx, field, obj)
+		case "passThroughApplied":
+			out.Values[i] = ec._SelfUsageModelExecution_passThroughApplied(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var selfUsageModelStatImplementors = []string{"SelfUsageModelStat"}
 
 func (ec *executionContext) _SelfUsageModelStat(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageModelStat) graphql.Marshaler {
@@ -150167,6 +150961,13 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "channel":
+			out.Values[i] = ec._SelfUsageRequest_channel(ctx, field, obj)
+		case "modelExecutions":
+			out.Values[i] = ec._SelfUsageRequest_modelExecutions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "callerKeyName":
 			out.Values[i] = ec._SelfUsageRequest_callerKeyName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -150339,6 +151140,11 @@ func (ec *executionContext) _SelfUsageRequestPage(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequestPage")
+		case "channelVisible":
+			out.Values[i] = ec._SelfUsageRequestPage_channelVisible(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "scopeID":
 			out.Values[i] = ec._SelfUsageRequestPage_scopeID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -164220,6 +165026,54 @@ func (ec *executionContext) marshalNSelfUsageMeta2ᚖgithubᚗcomᚋloopljᚋaxo
 	return ec._SelfUsageMeta(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSelfUsageModelExecution2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelExecution(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageModelExecution) graphql.Marshaler {
+	return ec._SelfUsageModelExecution(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSelfUsageModelExecution2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelExecutionᚄ(ctx context.Context, sel ast.SelectionSet, v []biz.SelfUsageModelExecution) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSelfUsageModelExecution2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelExecution(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNSelfUsageModelStat2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageModelStat(ctx context.Context, sel ast.SelectionSet, v biz.SelfUsageModelStat) graphql.Marshaler {
 	return ec._SelfUsageModelStat(ctx, sel, &v)
 }
@@ -172493,6 +173347,13 @@ func (ec *executionContext) marshalOSegment2ᚖgithubᚗcomᚋloopljᚋaxonhub�
 		return graphql.Null
 	}
 	return ec._Segment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOSelfUsageChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageChannel(ctx context.Context, sel ast.SelectionSet, v *biz.SelfUsageChannel) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SelfUsageChannel(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐImageOutput(ctx context.Context, sel ast.SelectionSet, v *objects.ImageOutput) graphql.Marshaler {

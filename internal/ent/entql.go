@@ -86,13 +86,14 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		Type: "APIKeyGroup",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			apikeygroup.FieldCreatedAt: {Type: field.TypeTime, Column: apikeygroup.FieldCreatedAt},
-			apikeygroup.FieldUpdatedAt: {Type: field.TypeTime, Column: apikeygroup.FieldUpdatedAt},
-			apikeygroup.FieldName:      {Type: field.TypeString, Column: apikeygroup.FieldName},
-			apikeygroup.FieldNote:      {Type: field.TypeString, Column: apikeygroup.FieldNote},
-			apikeygroup.FieldEnabled:   {Type: field.TypeBool, Column: apikeygroup.FieldEnabled},
-			apikeygroup.FieldRevision:  {Type: field.TypeInt, Column: apikeygroup.FieldRevision},
-			apikeygroup.FieldProjectID: {Type: field.TypeInt, Column: apikeygroup.FieldProjectID},
+			apikeygroup.FieldCreatedAt:              {Type: field.TypeTime, Column: apikeygroup.FieldCreatedAt},
+			apikeygroup.FieldUpdatedAt:              {Type: field.TypeTime, Column: apikeygroup.FieldUpdatedAt},
+			apikeygroup.FieldName:                   {Type: field.TypeString, Column: apikeygroup.FieldName},
+			apikeygroup.FieldNote:                   {Type: field.TypeString, Column: apikeygroup.FieldNote},
+			apikeygroup.FieldEnabled:                {Type: field.TypeBool, Column: apikeygroup.FieldEnabled},
+			apikeygroup.FieldShowChannelInSelfUsage: {Type: field.TypeBool, Column: apikeygroup.FieldShowChannelInSelfUsage},
+			apikeygroup.FieldRevision:               {Type: field.TypeInt, Column: apikeygroup.FieldRevision},
+			apikeygroup.FieldProjectID:              {Type: field.TypeInt, Column: apikeygroup.FieldProjectID},
 		},
 	}
 	graph.Nodes[2] = &sqlgraph.Node{
@@ -1968,6 +1969,11 @@ func (f *APIKeyGroupFilter) WhereNote(p entql.StringP) {
 // WhereEnabled applies the entql bool predicate on the enabled field.
 func (f *APIKeyGroupFilter) WhereEnabled(p entql.BoolP) {
 	f.Where(p.Field(apikeygroup.FieldEnabled))
+}
+
+// WhereShowChannelInSelfUsage applies the entql bool predicate on the show_channel_in_self_usage field.
+func (f *APIKeyGroupFilter) WhereShowChannelInSelfUsage(p entql.BoolP) {
+	f.Where(p.Field(apikeygroup.FieldShowChannelInSelfUsage))
 }
 
 // WhereRevision applies the entql int predicate on the revision field.

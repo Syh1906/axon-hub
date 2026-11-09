@@ -15,6 +15,7 @@ export type ManagementRow = {
   name?: string;
   note?: string;
   enabled?: boolean;
+  showChannelInSelfUsage?: boolean;
   revision?: number;
   updatedAt?: string;
   budget?: BudgetPatch;
@@ -29,6 +30,7 @@ export type Group = {
   name: string;
   note: string;
   enabled: boolean;
+  showChannelInSelfUsage: boolean;
   revision: number;
   keyCount: number;
   createdAt: string;
@@ -115,7 +117,9 @@ export function useManagementAPI() {
                 ? query.queryKey[2] === project && query.queryKey[3] === verifyKey.groupRef
                 : query.queryKey[2] === project &&
                   ((query.queryKey[3] === 'key' && query.queryKey[4] === verifyKey.ownerID) ||
-                    (query.queryKey[3] === 'summaries' && Array.isArray(query.queryKey[4]) && query.queryKey[4].includes(verifyKey.ownerID)));
+                    (query.queryKey[3] === 'summaries' &&
+                      Array.isArray(query.queryKey[4]) &&
+                      query.queryKey[4].includes(verifyKey.ownerID)));
             return Promise.all([
               cache.invalidateQueries({ queryKey: [key], predicate: matches }, { throwOnError: true }),
               cache.invalidateQueries({ queryKey: [key], predicate: (query) => !matches(query) }),
@@ -135,7 +139,7 @@ export function useManagedGroups(search: string, status: string, offset: number,
     queryFn: async ({ signal }) =>
       (
         await graphqlRequest<{ managedKeyGroups: { items: Group[]; total: number; ungroupedCount: number } }>(
-          `query ManagedGroups($search:String!,$status:String!,$offset:Int!,$limit:Int!,$descending:Boolean!){managedKeyGroups(search:$search,status:$status,offset:$offset,limit:$limit,descending:$descending){total ungroupedCount items{id name note enabled revision keyCount createdAt budget{${budgetFields}}}}}`,
+          `query ManagedGroups($search:String!,$status:String!,$offset:Int!,$limit:Int!,$descending:Boolean!){managedKeyGroups(search:$search,status:$status,offset:$offset,limit:$limit,descending:$descending){total ungroupedCount items{id name note enabled showChannelInSelfUsage revision keyCount createdAt budget{${budgetFields}}}}}`,
           { search, status, offset, limit, descending },
           { 'X-Project-ID': project! },
           { signal }

@@ -1,7 +1,8 @@
+import i18n from '@/lib/i18n';
+import { withReadDeadline } from '@/lib/read-deadline';
 import { COST_PRICING_EVIDENCE_FIELDS, type CostPricingEvidence } from '@/components/cost-pricing-evidence';
 import { budgetFields, type BudgetView } from '@/features/budgets/data';
-import { withReadDeadline } from '@/lib/read-deadline';
-import i18n from '@/lib/i18n';
+import type { ChannelType } from '@/features/channels/data/schema';
 
 export type SelfUsageMeta = {
   apiKeyName: string;
@@ -65,7 +66,23 @@ export type UsageRequest = Omit<Usage, 'successRequests' | 'failedRequests'> & {
   requestStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   callerKeyName: string;
   callerGroupName: string | null;
-  executedModels: string[];
+  channel: {
+    name: string;
+    provider: string;
+    channelType: ChannelType | '';
+    tags: string[];
+    sessionState: string;
+    multiplier: number | null;
+    multiplierMixed: boolean;
+  } | null;
+  modelExecutions: {
+    modelID: string;
+    upstreamModelID: string | null;
+    status: UsageRequest['requestStatus'];
+    format: string;
+    reasoningEffort: string | null;
+    passThroughApplied: boolean;
+  }[];
   reasoningEffort: string | null;
   format: string;
   outboundFormat: string | null;
@@ -82,7 +99,13 @@ export type UsageRequest = Omit<Usage, 'successRequests' | 'failedRequests'> & {
   latencyMs: number | null;
   firstTokenLatencyMs: number | null;
 };
-export type RequestPage = SelfUsageIdentity & { items: UsageRequest[]; page: number; pageSize: number; total: number };
+export type RequestPage = SelfUsageIdentity & {
+  channelVisible: boolean;
+  items: UsageRequest[];
+  page: number;
+  pageSize: number;
+  total: number;
+};
 
 export class SelfUsageError extends Error {
   constructor(
@@ -106,8 +129,8 @@ export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, 
 }`;
 export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
   selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
-    items { callerKeyName callerGroupName executedModels reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
-    scopeID apiKeyName groupName page pageSize total
+    items { channel { name provider channelType tags sessionState multiplier multiplierMixed } modelExecutions { modelID upstreamModelID status format reasoningEffort passThroughApplied } callerKeyName callerGroupName reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
+    channelVisible scopeID apiKeyName groupName page pageSize total
   }
 }`;
 
