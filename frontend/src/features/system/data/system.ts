@@ -709,15 +709,8 @@ export function useOnboardingInfo() {
   return useQuery({
     queryKey: ['onboardingInfo'],
     queryFn: async ({ signal }) => {
-      try {
-        const data = await graphqlRequest<{ onboardingInfo: OnboardingInfo | null }>(ONBOARDING_INFO_QUERY, undefined, undefined, { signal });
-        return data.onboardingInfo;
-      } catch (_error) {
-        return {
-          onboarded: true,
-          completedAt: new Date().toISOString(),
-        };
-      }
+      const data = await graphqlRequest<{ onboardingInfo: OnboardingInfo | null }>(ONBOARDING_INFO_QUERY, undefined, undefined, { signal });
+      return data.onboardingInfo;
     },
   });
 }

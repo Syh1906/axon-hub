@@ -148,10 +148,10 @@ function ActionButtons() {
 
 export default function ModelsManagement() {
   const { t } = useTranslation();
-  const { data: onboardingInfo } = useOnboardingInfo();
+  const { data: onboardingInfo, isSuccess } = useOnboardingInfo();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const shouldShowOnboarding = onboardingInfo && !onboardingInfo.systemModelSetting?.onboarded;
+  const shouldShowOnboarding = isSuccess && !!onboardingInfo && !onboardingInfo.systemModelSetting?.onboarded;
 
   useEffect(() => {
     if (shouldShowOnboarding) {

@@ -15,13 +15,13 @@ interface OnboardingProviderProps {
 }
 
 export function OnboardingProvider({ children, showOnboarding = true, onComplete }: OnboardingProviderProps) {
-  const { data: onboardingInfo, isLoading } = useOnboardingInfo();
+  const { data: onboardingInfo, isSuccess } = useOnboardingInfo();
   const [mode, setMode] = useState<OnboardingMode>('none');
   const user = useAuthStore((state) => state.auth.user);
   const isOwner = user?.isOwner ?? false;
 
   useEffect(() => {
-    if (!isLoading && showOnboarding && isOwner) {
+    if (isSuccess && showOnboarding && isOwner) {
       if (!onboardingInfo || !onboardingInfo.onboarded) {
         setMode('main');
       } else if (!onboardingInfo.autoDisableChannel?.onboarded) {
@@ -32,7 +32,7 @@ export function OnboardingProvider({ children, showOnboarding = true, onComplete
     } else if (!showOnboarding || !isOwner) {
       setMode('none');
     }
-  }, [onboardingInfo, isLoading, showOnboarding, isOwner]);
+  }, [onboardingInfo, isSuccess, showOnboarding, isOwner]);
 
   const handleComplete = () => {
     setMode('none');
