@@ -197,13 +197,16 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
 	})
 	gqlSrv.AroundOperations(apiKeyReadOnly)
-	gqlSrv.Use(entgql.Transactioner{
+	gqlSrv.Use(transactioner{entgql.Transactioner{
 		TxOpener:   deps.Ent,
 		SkipTxFunc: skipMutationTransaction,
-	})
+	}})
 
 	// Set error presenter to handle CodedError and add extensions.code
 	gqlSrv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return &gqlerror.Error{Message: "request processing timed out", Extensions: map[string]any{"code": "REQUEST_TIMEOUT"}}
+		}
 		// Check if it's a CodedError
 		var codedErr *xerrors.CodedError
 		if errors.As(err, &codedErr) {
@@ -231,7 +234,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	})
 
 	return &GraphqlHandler{
-		Graphql:    gqlSrv,
+		Graphql:    withRequestDiagnostics(gqlSrv),
 		Playground: playground.Handler("AxonHub", "/admin/graphql"),
 	}
 }

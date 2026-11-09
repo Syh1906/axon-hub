@@ -44,7 +44,8 @@ class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public response?: unknown
+    public response?: unknown,
+    public requestId?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -109,7 +110,7 @@ async function performApiRequest<T>(endpoint: string, options: ApiRequestOptions
         // If response is not JSON, use status text
       }
 
-      throw new ApiError(errorMessage, response.status, errorData);
+      throw new ApiError(errorMessage, response.status, errorData, response.headers.get('AH-Request-Id') ?? undefined);
     }
 
     // Handle empty responses

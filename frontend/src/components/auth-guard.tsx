@@ -3,9 +3,10 @@ import { useRouter } from '@tanstack/react-router';
 import { isAuthError } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
-import { Button } from '@/components/ui/button';
 import { useSelectedProjectId } from '@/stores/projectStore';
+import { loadErrorKey, loadErrorRequestId } from '@/lib/load-error';
 import { isProjectSelectionValid } from '@/lib/project-membership';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMe } from '@/features/auth/data/auth';
 
@@ -20,7 +21,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const selectedProjectId = useSelectedProjectId();
 
   // Automatically fetch user info when token is available
-  const { isLoading: isMeLoading, error: meError, data: me, refetch } = useMe();
+  const { isLoading: isMeLoading, error: meError, data: me, refetch, isFetching } = useMe();
   const projectReady = isProjectSelectionValid(me, selectedProjectId);
 
   useEffect(() => {
@@ -75,8 +76,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (meError && !me) {
     return (
       <div className='flex h-screen flex-col items-center justify-center gap-4' role='alert'>
-        <p>{t('common.loadError')}</p>
-        <Button onClick={() => void refetch()}>{t('common.buttons.retry')}</Button>
+        <p>{t('common.loadFailure.account')}</p>
+        <p className='text-muted-foreground max-w-md px-4 text-center text-sm'>{t(loadErrorKey(meError))}</p>
+        {loadErrorRequestId(meError) && (
+          <p className='text-muted-foreground text-xs'>{t('common.loadFailure.requestId', { id: loadErrorRequestId(meError) })}</p>
+        )}
+        <Button disabled={isFetching} onClick={() => void refetch()}>
+          {t(isFetching ? 'common.loadFailure.retrying' : 'common.buttons.retry')}
+        </Button>
       </div>
     );
   }

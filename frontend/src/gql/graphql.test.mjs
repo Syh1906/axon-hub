@@ -117,3 +117,27 @@ test('生产态普通 GraphQL 业务错误不重复查询，网络短暂失败�
     return true;
   });
 });
+
+test('读取失败保留服务端分类和请求编号，不误判为登录失效', async (t) => {
+  const requestId = 'ar-12345678-1234-1234-1234-123456789abc';
+  t.mock.method(globalThis, 'fetch', async () =>
+    Response.json(
+      {
+        errors: [
+          {
+            message: 'request body was interrupted',
+            extensions: { code: 'REQUEST_BODY_INCOMPLETE', phase: 'request_body' },
+          },
+        ],
+      },
+      { status: 400, headers: { 'AH-Request-Id': requestId } }
+    )
+  );
+  await assert.rejects(graphqlRequest('query Me { me { id } }'), (error) => {
+    assert.equal(error.status, 400);
+    assert.equal(error.extensions.code, 'REQUEST_BODY_INCOMPLETE');
+    assert.equal(error.requestId, requestId);
+    assert.equal(error.isAuthError, false);
+    return true;
+  });
+});

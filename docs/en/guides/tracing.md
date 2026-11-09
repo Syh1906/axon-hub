@@ -233,6 +233,14 @@ Thread (User Session)
 - **Missing thread linkage** – Provide `AH-Thread-Id` or create threads via the API before sending requests.
 - **Unexpected trace IDs** – Check for upstream reverse proxies overriding headers.
 
+#### Admin pages fail to load
+
+The admin entry checks system status, account information, and project membership. A failed initial read shows the affected check and a specific reason; a network failure does not mean the login session has expired. Retry repeats the read. Previously loaded data remains available after a failed background refresh, while initial account and permission checks remain required.
+
+When an error response arrives, the page can display the request ID from `AH-Request-Id`. The admin `GraphQL request failed` log includes `admin_request_id` for correlation and a `phase`: `request_body`, `decode`, `validation`, or `execution`. `body_bytes_read`, `content_length`, `body_read_duration`, and `processing_duration` describe the received size, declared length, and application receive/processing durations. Diagnostics never retain request bodies or credentials; read errors use safe categories instead of raw decode input.
+
+With Nginx, enable `proxy_request_buffering on` specifically for `/admin/graphql` to receive the complete request before forwarding it to the application. This keeps upload delays out of the admin processing budget. Request buffering is separate from response buffering; do not apply this change broadly to inference or streaming routes. Review upload limits and temporary disk capacity for imports sharing this endpoint, and record request and upstream durations in the existing access log. Application updates do not change the proxy configuration, and a healthy endpoint alone cannot establish whether a receive timeout originated in the database or VPN.
+
 ### Related Documentation
 - [Request Processing Guide](../getting-started/request-processing.md)
 - [Load Balancing Guide](load-balance.md)

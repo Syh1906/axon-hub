@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useState } from 'react';
 import { useRouter } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { loadErrorKey, loadErrorRequestId } from '@/lib/load-error';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSystemStatus } from '@/features/auth/data/initialization';
@@ -13,7 +14,7 @@ interface InitializationGuardProps {
 export function InitializationGuard({ children }: InitializationGuardProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { data: systemStatus, isLoading, error, refetch } = useSystemStatus();
+  const { data: systemStatus, isLoading, error, refetch, isFetching } = useSystemStatus();
   const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
@@ -46,11 +47,15 @@ export function InitializationGuard({ children }: InitializationGuardProps) {
   // Show error if failed to check system status
   if (error && !systemStatus) {
     return (
-      <div className='flex h-screen items-center justify-center'>
-        <div className='text-center'>
-          <p className='text-muted-foreground'>{t('common.loadError')}</p>
-          <Button onClick={() => void refetch()}>{t('common.buttons.retry')}</Button>
-        </div>
+      <div className='flex h-screen flex-col items-center justify-center gap-4' role='alert'>
+        <p>{t('common.loadFailure.system')}</p>
+        <p className='text-muted-foreground max-w-md px-4 text-center text-sm'>{t(loadErrorKey(error))}</p>
+        {loadErrorRequestId(error) && (
+          <p className='text-muted-foreground text-xs'>{t('common.loadFailure.requestId', { id: loadErrorRequestId(error) })}</p>
+        )}
+        <Button disabled={isFetching} onClick={() => void refetch()}>
+          {t(isFetching ? 'common.loadFailure.retrying' : 'common.buttons.retry')}
+        </Button>
       </div>
     );
   }
