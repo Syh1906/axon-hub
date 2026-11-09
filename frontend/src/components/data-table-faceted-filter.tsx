@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +19,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
     icon?: React.ComponentType<{ className?: string }>;
   }[];
   singleSelect?: boolean;
+  exclusiveLabelSelection?: boolean;
   value?: string[];
   onValueChange?: (value: string[]) => void;
   footer?: React.ReactNode;
@@ -38,6 +40,7 @@ export function DataTableFacetedFilter<TData, TValue>({
   title,
   options = [],
   singleSelect = false,
+  exclusiveLabelSelection = false,
   value,
   onValueChange,
   footer,
@@ -117,8 +120,12 @@ export function DataTableFacetedFilter<TData, TValue>({
                   return (
                     <CommandItem
                       key={option.value}
+                      value={exclusiveLabelSelection ? option.value : undefined}
+                      keywords={exclusiveLabelSelection ? [option.label] : undefined}
                       onSelect={() => {
-                        if (singleSelect) {
+                        if (exclusiveLabelSelection) {
+                          updateSelection([option.value]);
+                        } else if (singleSelect) {
                           // Single select mode: set value directly or clear if already selected
                           updateSelection(isSelected ? [] : [option.value]);
                         } else {
@@ -133,14 +140,31 @@ export function DataTableFacetedFilter<TData, TValue>({
                         }
                       }}
                     >
-                      <div
-                        className={cn(
-                          'border-primary flex h-4 w-4 items-center justify-center rounded-sm border',
-                          isSelected ? 'bg-primary text-primary-foreground' : 'opacity-50 [&_svg]:invisible'
-                        )}
-                      >
-                        <CheckIcon className={cn('h-4 w-4')} />
-                      </div>
+                      {exclusiveLabelSelection ? (
+                        <Checkbox
+                          checked={isSelected}
+                          aria-label={option.label}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => {
+                            // 方框获得焦点时，列表不能单独移动高亮项。
+                            if (event.key !== 'Tab' && event.key !== 'Escape') event.stopPropagation();
+                          }}
+                          onCheckedChange={(checked) => {
+                            updateSelection(
+                              checked ? [...selectedValues, option.value] : [...selectedValues].filter((value) => value !== option.value)
+                            );
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            'border-primary flex h-4 w-4 items-center justify-center rounded-sm border',
+                            isSelected ? 'bg-primary text-primary-foreground' : 'opacity-50 [&_svg]:invisible'
+                          )}
+                        >
+                          <CheckIcon className={cn('h-4 w-4')} />
+                        </div>
+                      )}
                       {option.icon && <option.icon className='text-muted-foreground h-4 w-4' />}
                       <span>{option.label}</span>
                       {(countState || facets.has(option.value)) && (
@@ -160,7 +184,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                 <CommandGroup>{footer}</CommandGroup>
               </>
             )}
-            {selectedValues.size > 0 && (
+            {!exclusiveLabelSelection && selectedValues.size > 0 && (
               <>
                 <CommandSeparator />
                 <CommandGroup>
@@ -172,6 +196,13 @@ export function DataTableFacetedFilter<TData, TValue>({
             )}
           </CommandList>
         </Command>
+        {exclusiveLabelSelection && selectedValues.size > 0 && (
+          <div className='shrink-0 border-t p-1'>
+            <Button variant='ghost' size='sm' className='w-full' onClick={() => updateSelection([])}>
+              {t('common.clearFilters')}
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

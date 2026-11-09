@@ -24,6 +24,7 @@ type QueryChannelsInput struct {
 	Where                   *ent.ChannelWhereInput
 	HasTag                  *string
 	Model                   *string
+	Models                  []string
 	PrimaryAPIFormat        *string
 	ExcludePrimaryAPIFormat *string
 	HealthGateAbnormal      *bool
@@ -71,16 +72,17 @@ func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannel
 		return svc.queryChannelsByRoutingOrder(ctx, query, input)
 	}
 
-	if input.Model != nil && *input.Model != "" {
+	if len(input.Models) > 0 || (input.Model != nil && *input.Model != "") {
 		// Model aliases depend on settings. Inspect only these small fields,
 		// then let Ent paginate and load details for the matching page.
-		var candidates []*ent.Channel
-		if err := query.Clone().Select(channel.FieldID, channel.FieldSupportedModels, channel.FieldSettings).Scan(ctx, &candidates); err != nil {
+		// 实体解码同时支持 SQLite 中以 TEXT 或 BLOB 保存的 JSON。
+		candidates, err := query.Clone().Select(channel.FieldID, channel.FieldSupportedModels, channel.FieldSettings).All(ctx)
+		if err != nil {
 			return nil, err
 		}
 		ids := make([]int, 0, len(candidates))
 		for _, candidate := range candidates {
-			if (&Channel{Channel: candidate}).IsModelSupported(*input.Model) {
+			if matchesChannelModelFilter(candidate, input) {
 				ids = append(ids, candidate.ID)
 			}
 		}
@@ -95,4 +97,14 @@ func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannel
 	return query.WithProviderQuotaStatus().Paginate(ctx, input.After, input.First, input.Before, input.Last,
 		ent.WithChannelOrder(input.OrderBy),
 	)
+}
+
+// matchesChannelModelFilter keeps the published single-model constraint and
+// matches any selected model using the same alias/prefix rules as routing.
+func matchesChannelModelFilter(ch *ent.Channel, input QueryChannelsInput) bool {
+	candidate := &Channel{Channel: ch}
+	if input.Model != nil && *input.Model != "" && !candidate.IsModelSupported(*input.Model) {
+		return false
+	}
+	return len(input.Models) == 0 || lo.ContainsBy(input.Models, candidate.IsModelSupported)
 }

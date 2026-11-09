@@ -114315,7 +114315,7 @@ func (ec *executionContext) unmarshalInputQueryChannelInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"after", "first", "before", "last", "orderBy", "routingOrder", "where", "hasTag", "model", "primaryApiFormat", "excludePrimaryApiFormat", "healthGateAbnormal"}
+	fieldsInOrder := [...]string{"after", "first", "before", "last", "orderBy", "routingOrder", "where", "hasTag", "model", "models", "primaryApiFormat", "excludePrimaryApiFormat", "healthGateAbnormal"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -114385,6 +114385,13 @@ func (ec *executionContext) unmarshalInputQueryChannelInput(ctx context.Context,
 				return it, err
 			}
 			it.Model = data
+		case "models":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("models"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Models = data
 		case "primaryApiFormat":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("primaryApiFormat"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

@@ -87,7 +87,7 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 		}
 	}
 	for _, ch := range channels {
-		if input.Model != nil && *input.Model != "" && !(&Channel{Channel: ch}).IsModelSupported(*input.Model) {
+		if !matchesChannelModelFilter(ch, input) {
 			continue
 		}
 		var value *decimal.Decimal

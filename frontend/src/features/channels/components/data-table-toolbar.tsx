@@ -122,13 +122,13 @@ export function DataTableToolbar<TData>({
         {t('channels.filters.providerToggle')}
       </Button>
       {table.getColumn('status') && (
-        <DataTableFacetedFilter column={table.getColumn('status')} title={t('channels.filters.status')} options={channelStatuses} />
+        <DataTableFacetedFilter column={table.getColumn('status')} title={t('channels.filters.status')} options={channelStatuses} exclusiveLabelSelection />
       )}
       {table.getColumn('tags') && tagOptions?.length > 0 && (
-        <DataTableFacetedFilter column={table.getColumn('tags')} title={t('channels.filters.tags')} options={tagOptions} />
+        <DataTableFacetedFilter column={table.getColumn('tags')} title={t('channels.filters.tags')} options={tagOptions} exclusiveLabelSelection />
       )}
       {table.getColumn('model') && modelOptions?.length > 0 && (
-        <DataTableFacetedFilter column={table.getColumn('model')} title={t('channels.filters.model')} options={modelOptions} singleSelect />
+        <DataTableFacetedFilter column={table.getColumn('model')} title={t('channels.filters.model')} options={modelOptions} exclusiveLabelSelection />
       )}
       <label className='flex shrink-0 cursor-pointer items-center gap-2 text-sm'>
         <Checkbox checked={showHealthGateAbnormal} onCheckedChange={(checked) => onHealthGateAbnormalChange?.(checked === true)} />

@@ -1221,6 +1221,9 @@ input QueryChannelInput {
   """
   model: String
 
+  "Filter channels supporting any selected model; combined with model when both are provided."
+  models: [String!]
+
   """
   Keep only channels whose settings.primaryApiFormat equals this value.
   """

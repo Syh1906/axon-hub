@@ -17,6 +17,55 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 )
 
+func TestChannelService_QueryChannels_MultipleModels(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+	defer svc.Stop()
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+	first := createTestChannel(t, client, ctx, "first", []string{"gpt-4"}, nil)
+	second := createTestChannel(t, client, ctx, "second", []string{"claude"}, &objects.ChannelSettings{
+		ModelMappings: []objects.ModelMapping{{From: "alias", To: "claude"}},
+	})
+	// 与 Ent 写入的 BLOB 混用文本 JSON，覆盖真实 SQLite 查询的解码路径。
+	require.NoError(t, client.Driver().Exec(ctx,
+		"UPDATE channels SET supported_models = CAST(supported_models AS TEXT), settings = CAST(settings AS TEXT) WHERE id = ?",
+		[]any{second.ID}, nil))
+	createTestChannel(t, client, ctx, "unmatched", []string{"other"}, nil)
+	for _, routingOrder := range []*ChannelRoutingOrder{
+		nil,
+		{Field: objects.ChannelRoutingOrderPriority, Direction: entgql.OrderDirectionAsc},
+		{Field: objects.ChannelRoutingOrderCostMultiplier, Direction: entgql.OrderDirectionAsc},
+	} {
+		input := QueryChannelsInput{Models: []string{"gpt-4", "alias", "gpt-4"}, First: lo.ToPtr(1), RoutingOrder: routingOrder}
+		page, err := svc.QueryChannels(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, 2, page.TotalCount)
+		require.Len(t, page.Edges, 1)
+		require.True(t, page.PageInfo.HasNextPage)
+		ids := []int{page.Edges[0].Node.ID}
+		input.After = page.PageInfo.EndCursor
+		next, err := svc.QueryChannels(ctx, input)
+		require.NoError(t, err)
+		require.Len(t, next.Edges, 1)
+		ids = append(ids, next.Edges[0].Node.ID)
+		require.ElementsMatch(t, []int{first.ID, second.ID}, ids)
+		require.False(t, next.PageInfo.HasNextPage)
+
+		input.After, input.First = nil, nil
+		input.Model = lo.ToPtr("gpt-4")
+		intersection, err := svc.QueryChannels(ctx, input)
+		require.NoError(t, err)
+		require.Len(t, intersection.Edges, 1)
+		require.Equal(t, first.ID, intersection.Edges[0].Node.ID)
+
+		input.Model, input.Models = nil, []string{"missing"}
+		empty, err := svc.QueryChannels(ctx, input)
+		require.NoError(t, err)
+		require.Empty(t, empty.Edges)
+		require.Zero(t, empty.TotalCount)
+	}
+}
+
 func TestChannelService_QueryChannels_WithModelFilter(t *testing.T) {
 	svc, client := setupTestChannelService(t)
 	defer client.Close()

@@ -1319,6 +1319,7 @@ export function useQueryChannels(
     hasTag?: string;
     routingOrder?: { field: 'PRIORITY' | 'COST_MULTIPLIER'; direction: 'ASC' | 'DESC' };
     model?: string;
+    models?: string[];
     primaryApiFormat?: string;
     excludePrimaryApiFormat?: string;
     healthGateAbnormal?: boolean;

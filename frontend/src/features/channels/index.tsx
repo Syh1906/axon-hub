@@ -74,7 +74,7 @@ function ChannelsContent() {
   const [nameFilter, setNameFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [modelFilter, setModelFilter] = useState<string>('');
+  const [modelFilter, setModelFilter] = useState<string[]>([]);
   const [selectedTypeTab, setSelectedTypeTab] = useState(() => readDefaultProvider(CHANNEL_TYPE_TO_PROVIDER));
   const [showErrorOnly, setShowErrorOnly] = useState<boolean>(false);
   const [showHealthGateAbnormal, setShowHealthGateAbnormal] = useState(false);
@@ -200,7 +200,7 @@ function ChannelsContent() {
           ? { field: sorting[0].id === 'priority' ? 'PRIORITY' : 'COST_MULTIPLIER', direction: sorting[0].desc ? 'DESC' : 'ASC' }
           : undefined,
       hasTag: tagFilter.length === 1 ? tagFilter[0] : undefined,
-      model: modelFilter || undefined,
+      models: modelFilter.length ? modelFilter : undefined,
       primaryApiFormat: selectedTypeGroup?.primaryApiFormat,
       excludePrimaryApiFormat: selectedTypeTab !== 'all' && !selectedTypeGroup?.primaryApiFormat ? IMAGE_PRIMARY_API_FORMAT : undefined,
       healthGateAbnormal: showHealthGateAbnormal || undefined,
@@ -289,7 +289,7 @@ function ChannelsContent() {
   );
 
   const handleModelFilterChange = useCallback(
-    (filter: string) => {
+    (filter: string[]) => {
       setModelFilter(filter);
       resetCursor();
     },

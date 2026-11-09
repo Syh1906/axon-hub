@@ -31,7 +31,7 @@ interface DataTableProps {
   typeFilter: string[];
   statusFilter: string[];
   tagFilter: string[];
-  modelFilter: string;
+  modelFilter: string[];
   selectedTypeTab?: string;
   providerGroups: ChannelTypeGroup[];
   onApplyProvider: (provider: string) => void;
@@ -47,7 +47,7 @@ interface DataTableProps {
   onTypeFilterChange: (filters: string[]) => void;
   onStatusFilterChange: (filters: string[]) => void;
   onTagFilterChange: (filter: string[]) => void;
-  onModelFilterChange: (filter: string) => void;
+  onModelFilterChange: (filter: string[]) => void;
   columnVisibility: ChannelListColumnVisibility;
   onColumnVisibilityChange: React.Dispatch<React.SetStateAction<ChannelListColumnVisibility>>;
   canWrite?: boolean;
@@ -124,7 +124,7 @@ export function ChannelsTable({
     if (tagFilter.length) {
       newColumnFilters.push({ id: 'tags', value: tagFilter });
     }
-    if (modelFilter) {
+    if (modelFilter.length) {
       newColumnFilters.push({ id: 'model', value: modelFilter });
     }
 
@@ -147,14 +147,14 @@ export function ChannelsTable({
       const typeFilterValue = newFilters.find((filter) => filter.id === 'provider')?.value as string[];
       const statusFilterValue = newFilters.find((filter) => filter.id === 'status')?.value as string[];
       const tagFilterValue = newFilters.find((filter) => filter.id === 'tags')?.value as string[];
-      const modelFilterValue = newFilters.find((filter) => filter.id === 'model')?.value as string;
+      const modelFilterValue = newFilters.find((filter) => filter.id === 'model')?.value as string[];
 
       // Update server filters only if changed
       const newNameFilter = nameFilterValue || '';
       const newTypeFilter = Array.isArray(typeFilterValue) ? typeFilterValue : [];
       const newStatusFilter = Array.isArray(statusFilterValue) ? statusFilterValue : [];
       const newTagFilter = Array.isArray(tagFilterValue) ? tagFilterValue : [];
-      const newModelFilter = modelFilterValue || '';
+      const newModelFilter = Array.isArray(modelFilterValue) ? modelFilterValue : [];
 
       if (newNameFilter !== nameFilter) {
         onNameFilterChange(newNameFilter);
@@ -172,7 +172,7 @@ export function ChannelsTable({
         onTagFilterChange(newTagFilter);
       }
 
-      if (newModelFilter !== modelFilter) {
+      if (JSON.stringify(newModelFilter) !== JSON.stringify(modelFilter)) {
         onModelFilterChange(newModelFilter);
       }
     },
