@@ -52,7 +52,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}})
 	speeds, err := biz.RequestOutputSpeeds(ctx, db, ids)
 	require.NoError(t, err)
-	for i, want := range []float64{50, 375, 150} {
+	for i, want := range []float64{100, 500, 300} {
 		require.NotNil(t, speeds[ids[i]])
 		require.Equal(t, want, *speeds[ids[i]])
 	}
@@ -61,7 +61,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, leaderboard.Entries, 1)
 	require.Equal(t, int64(3), leaderboard.Entries[0].Metrics.SpeedSampleCount)
-	require.InDelta(t, 575.0/3, *leaderboard.Entries[0].Metrics.AvgTokensPerSecond, 1e-9)
+	require.InDelta(t, 900.0/3, *leaderboard.Entries[0].Metrics.AvgTokensPerSecond, 1e-9)
 
 	// All four new analytics dimensions must match the existing request/leaderboard speed.
 	resolver := &queryResolver{&Resolver{client: db, systemService: system}}
@@ -71,7 +71,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, stats, 1)
 		require.NotNil(t, stats[0].TokensPerSecond)
-		require.InDelta(t, 575.0/3, *stats[0].TokensPerSecond, 1e-9)
+		require.InDelta(t, 900.0/3, *stats[0].TokensPerSecond, 1e-9)
 		require.Equal(t, 3, stats[0].RequestCount)
 		require.Equal(t, i+1, *scans, "one usage aggregate per dimension")
 	}
@@ -93,23 +93,23 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 		require.NotNil(t, edge.Node.OutputTokensPerSecond)
 		displayedSpeeds = append(displayedSpeeds, *edge.Node.OutputTokensPerSecond)
 	}
-	require.ElementsMatch(t, []float64{50, 375, 150}, displayedSpeeds)
+	require.ElementsMatch(t, []float64{100, 500, 300}, displayedSpeeds)
 	var result struct{ AnalyticsModelStats []*AnalyticsModelStat }
 	err = graphqlClient.Post(`query { analyticsModelStats { id requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount channels { requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount } } }`, &result)
 	require.NoError(t, err)
 	require.Len(t, result.AnalyticsModelStats, 1)
 	model := result.AnalyticsModelStats[0]
 	require.Equal(t, 3, model.SpeedSampleCount)
-	require.InDelta(t, 575.0/3, *model.AvgOutputTokensPerSecond, 1e-9)
+	require.InDelta(t, 900.0/3, *model.AvgOutputTokensPerSecond, 1e-9)
 	require.Equal(t, 2, model.RequestCount)
 	require.Equal(t, 50.0, model.SuccessRate)
-	require.Equal(t, 1500.0, *model.AvgFirstTokenLatencyMs)
+	require.InDelta(t, 5800.0/3, *model.AvgFirstTokenLatencyMs, 1e-9)
 	require.Len(t, model.Channels, 1)
 	require.Equal(t, 3, model.Channels[0].SpeedSampleCount)
-	require.InDelta(t, 575.0/3, *model.Channels[0].AvgOutputTokensPerSecond, 1e-9)
+	require.InDelta(t, 900.0/3, *model.Channels[0].AvgOutputTokensPerSecond, 1e-9)
 	require.Equal(t, 2, model.Channels[0].RequestCount)
 	require.Equal(t, 50.0, model.Channels[0].SuccessRate)
-	require.Equal(t, 1500.0, *model.Channels[0].AvgFirstTokenLatencyMs)
+	require.InDelta(t, 5800.0/3, *model.Channels[0].AvgFirstTokenLatencyMs, 1e-9)
 
 	var rows sql.Rows
 	err = db.Driver().Query(ctx, qb.BuildProbeStatsQuery(false, "", qb.ThroughputModeRowNumber), []any{at.Add(-time.Minute), at.Add(time.Minute)}, &rows)
@@ -120,12 +120,37 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	var speedSum float64
 	require.NoError(t, rows.Scan(&channelID, &total, &success, &speedSum, &speedCount, &ttft, &requests, &streams))
 	require.EqualValues(t, 3, speedCount)
-	require.InDelta(t, 575.0/3, speedSum/float64(speedCount), 1e-9)
+	require.InDelta(t, 900.0/3, speedSum/float64(speedCount), 1e-9)
 	require.EqualValues(t, 2, total) // canceled stays outside probe availability.
 	require.EqualValues(t, 1, success)
 	require.EqualValues(t, 2, requests)
-	require.EqualValues(t, 1, streams)
-	require.EqualValues(t, 1500, ttft)
+	require.EqualValues(t, 3, streams)
+	require.EqualValues(t, 5800, ttft)
 	require.False(t, rows.Next())
 	require.NoError(t, rows.Err())
+}
+
+func TestModelPerformanceDoesNotMultiplyAttemptsByUsageRows(t *testing.T) {
+	db := enttest.NewEntClient(t, "sqlite3", "file:model-attempt-samples?mode=memory&_fk=0")
+	defer db.Close()
+	ctx := authz.WithTestBypass(t.Context())
+	ch := db.Channel.Create().SetType("openai").SetName("channel").SetSupportedModels([]string{"model"}).SetDefaultTestModel("model").SetCredentials(objects.ChannelCredentials{}).SaveX(ctx)
+	req := db.Request.Create().SetChannelID(ch.ID).SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus("completed").SaveX(ctx)
+	for i, status := range []requestexecution.Status{requestexecution.StatusFailed, requestexecution.StatusCompleted} {
+		db.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("model").SetRequestBody([]byte(`{}`)).
+			SetStatus(status).SetStream(true).SetMetricsLatencyMs(1000).SetMetricsFirstTokenLatencyMs(int64(100 + i*200)).SaveX(ctx)
+	}
+	for range 2 {
+		db.UsageLog.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("model").SetTotalTokens(100).SetTotalCost(1).SaveX(ctx)
+	}
+	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db})
+	resolver := &queryResolver{&Resolver{client: db, systemService: system}}
+	stats, err := resolver.queryAnalyticsModelStats(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	require.Equal(t, 2, stats[0].RequestCount)
+	require.Equal(t, 50.0, stats[0].SuccessRate)
+	require.Equal(t, 200.0, *stats[0].AvgFirstTokenLatencyMs)
+	require.Equal(t, 200, stats[0].TotalTokens)
+	require.Equal(t, 2.0, stats[0].Cost)
 }

@@ -20,6 +20,10 @@ const (
 	FieldSuccessRequestCount = "success_request_count"
 	// FieldAvgTokensPerSecond holds the string denoting the avg_tokens_per_second field in the database.
 	FieldAvgTokensPerSecond = "avg_tokens_per_second"
+	// FieldSpeedSampleCount holds the string denoting the speed_sample_count field in the database.
+	FieldSpeedSampleCount = "speed_sample_count"
+	// FieldFirstTokenSampleCount holds the string denoting the first_token_sample_count field in the database.
+	FieldFirstTokenSampleCount = "first_token_sample_count"
 	// FieldSpeedVersion holds the string denoting the speed_version field in the database.
 	FieldSpeedVersion = "speed_version"
 	// FieldAvgTimeToFirstTokenMs holds the string denoting the avg_time_to_first_token_ms field in the database.
@@ -46,6 +50,8 @@ var Columns = []string{
 	FieldTotalRequestCount,
 	FieldSuccessRequestCount,
 	FieldAvgTokensPerSecond,
+	FieldSpeedSampleCount,
+	FieldFirstTokenSampleCount,
 	FieldSpeedVersion,
 	FieldAvgTimeToFirstTokenMs,
 	FieldTimestamp,
@@ -62,6 +68,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultSpeedSampleCount holds the default value on creation for the "speed_sample_count" field.
+	DefaultSpeedSampleCount int64
+	// DefaultFirstTokenSampleCount holds the default value on creation for the "first_token_sample_count" field.
+	DefaultFirstTokenSampleCount int64
 	// DefaultSpeedVersion holds the default value on creation for the "speed_version" field.
 	DefaultSpeedVersion int
 )
@@ -92,6 +102,16 @@ func BySuccessRequestCount(opts ...sql.OrderTermOption) OrderOption {
 // ByAvgTokensPerSecond orders the results by the avg_tokens_per_second field.
 func ByAvgTokensPerSecond(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAvgTokensPerSecond, opts...).ToFunc()
+}
+
+// BySpeedSampleCount orders the results by the speed_sample_count field.
+func BySpeedSampleCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpeedSampleCount, opts...).ToFunc()
+}
+
+// ByFirstTokenSampleCount orders the results by the first_token_sample_count field.
+func ByFirstTokenSampleCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirstTokenSampleCount, opts...).ToFunc()
 }
 
 // BySpeedVersion orders the results by the speed_version field.

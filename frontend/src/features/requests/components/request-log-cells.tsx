@@ -227,13 +227,13 @@ export function RequestDurationCell({
   const speed = getTokensPerSecondValue(request);
   return (
     <div className='flex min-w-[150px] flex-col gap-1 text-xs whitespace-nowrap'>
-      <span>
+      <span title={t('requests.duration.firstTokenHelp')}>
         {request.stream && first != null ? `${t('requests.duration.firstToken', { duration: formatDuration(first) })} · ` : ''}
         {t('requests.duration.total', { duration: latency == null ? '—' : formatDuration(latency) })}
       </span>
       <span className='text-muted-foreground' title={t('consumption.speedHelp')}>
-        {`${t('requests.diagnostics.average')} `}
-        {speed == null ? t('requests.diagnostics.noSpeed') : `${Math.round(speed)} tok/s`}
+        {`${t('requests.duration.outputRate')} `}
+        {speed == null ? '—' : `${Math.round(speed)} tok/s`}
       </span>
     </div>
   );

@@ -4,13 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChannelProbePoint } from '../data/schema';
+import type { Channel } from '../data/schema';
+import { useChannelControlData } from '../context/channel-controls-context';
 
 interface ChannelHealthCellProps {
-  points: ChannelProbePoint[];
+  channel: Channel;
 }
 
-export const ChannelHealthCell = memo(({ points }: ChannelHealthCellProps) => {
+export const ChannelHealthCell = memo(({ channel }: ChannelHealthCellProps) => {
+  const { probePoints: points } = useChannelControlData(channel, ['probePoints']);
   const { t } = useTranslation();
 
   if (!points || points.length === 0) {

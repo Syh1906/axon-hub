@@ -389,7 +389,18 @@ func (r *queryResolver) queryAnalyticsModelStats(
 	var rawResults []modelChannelAnalyticsRaw
 	err = r.client.RequestExecution.Query().
 		Modify(func(s *sql.Selector) {
-			usageTable := sql.Table(usagelog.Table)
+			d := sql.Dialect(s.Dialect())
+			usageSource := sql.Table(usagelog.Table).As("model_usage_source")
+			bounded := d.Select(requestexecution.FieldRequestID).From(sql.Table(requestexecution.Table))
+			r.buildModelAnalyticsWhere(bounded, filter, channelIDs, hasChannelFilter, loc)
+			if projectID, ok := contexts.GetProjectID(ctx); ok {
+				bounded.Where(sql.EQ(bounded.C(requestexecution.FieldProjectID), projectID))
+			}
+			keys := usageSource.Columns("request_id", "channel_id", "project_id", "model_id")
+			usageTable := d.Select(keys...).From(usageSource).Where(sql.In(usageSource.C("request_id"), bounded)).GroupBy(keys...).As("model_usage")
+			for _, field := range []string{"total_tokens", "prompt_tokens", "prompt_cached_tokens", "total_cost"} {
+				usageTable.AppendSelectAs(sql.Sum(usageSource.C(field)), field)
+			}
 			channelTable := sql.Table(channel.Table)
 			s.LeftJoin(usageTable).OnP(sql.And(
 				sql.ColumnsEQ(
@@ -408,6 +419,8 @@ func (r *queryResolver) queryAnalyticsModelStats(
 					s.C(requestexecution.FieldStatus),
 					requestexecution.StatusCompleted,
 				),
+				sql.ColumnsEQ(s.C("project_id"), usageTable.C("project_id")),
+				sql.ExprP(s.C("id")+" = (SELECT MAX(model_final.id) FROM request_executions model_final WHERE model_final.request_id = "+s.C("request_id")+" AND model_final.channel_id = "+s.C("channel_id")+" AND model_final.project_id = "+s.C("project_id")+" AND model_final.model_id = "+s.C("model_id")+" AND model_final.status = 'completed')"),
 			))
 			s.Join(channelTable).On(
 				s.C(requestexecution.FieldChannelID),
@@ -434,18 +447,17 @@ func (r *queryResolver) queryAnalyticsModelStats(
 				requestexecution.FieldMetricsFirstTokenLatencyMs,
 			)
 			streamColumn := s.C(requestexecution.FieldStream)
-			completed := requestexecution.StatusCompleted
+			outcome := usageanalytics.ChannelOutcomeSQL(statusColumn, s.C("selection"), s.C("response_status_code"), s.C("error_message"), s.Dialect())
 			speedUsage := sql.Table(usagelog.Table).As("speed_usage")
 			s.LeftJoin(speedUsage).OnP(sql.And(
 				sql.ColumnsEQ(speedUsage.C("request_id"), s.C("request_id")),
 				sql.ColumnsEQ(speedUsage.C("channel_id"), s.C("channel_id")),
 				sql.ColumnsEQ(speedUsage.C("project_id"), s.C("project_id")),
 				sql.In(s.C("status"), "completed", "failed", "canceled"),
-				sql.ExprP("(SELECT COUNT(*) FROM usage_logs same_usage WHERE same_usage.request_id = "+s.C("request_id")+" AND same_usage.channel_id = "+s.C("channel_id")+") = 1"),
-				sql.ExprP(s.C("id")+" = (SELECT MAX(final_execution.id) FROM request_executions final_execution WHERE final_execution.request_id = "+s.C("request_id")+")"),
+				sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(s.C("id"), s.C("request_id"), s.C("channel_id"), s.C("project_id"), speedUsage.C("id"))),
 			))
 			tokens := usageanalytics.TextTokensSQL(speedUsage.C("completion_tokens"), speedUsage.C("cost_snapshot"), speedUsage.C("completion_audio_tokens"), s.Dialect())
-			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, streamColumn, s.C("format"))
+			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, s.C(requestexecution.FieldMetricsFirstByteLatencyMs), streamColumn, s.C("format"))
 
 			s.Select(
 				sql.As(s.C(requestexecution.FieldModelID), "model_id"),
@@ -458,14 +470,10 @@ func (r *queryResolver) queryAnalyticsModelStats(
 					"channel_name",
 				),
 				sql.As(
-					"SUM(CASE WHEN "+statusColumn+" IN ('completed', 'failed') THEN 1 ELSE 0 END)",
+					"COUNT("+outcome+")",
 					"request_count",
 				),
-				sql.As(fmt.Sprintf(
-					"SUM(CASE WHEN %s = '%s' THEN 1 ELSE 0 END)",
-					statusColumn,
-					completed,
-				), "success_count"),
+				sql.As("COALESCE(SUM("+outcome+"),0)", "success_count"),
 				sql.As(fmt.Sprintf(
 					"COALESCE(SUM(%s), 0)",
 					usageTable.C(usagelog.FieldTotalTokens),
@@ -484,25 +492,8 @@ func (r *queryResolver) queryAnalyticsModelStats(
 				), "cost"),
 				sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
 				sql.As("COUNT("+speed+")", "speed_count"),
-				sql.As(fmt.Sprintf(
-					"SUM(CASE WHEN %s = '%s' AND %s "+
-						"AND %s IS NOT NULL "+
-						"THEN %s ELSE 0 END)",
-					statusColumn,
-					completed,
-					streamColumn,
-					firstTokenColumn,
-					firstTokenColumn,
-				), "first_token_latency_ms"),
-				sql.As(fmt.Sprintf(
-					"SUM(CASE WHEN %s = '%s' AND %s "+
-						"AND %s IS NOT NULL "+
-						"THEN 1 ELSE 0 END)",
-					statusColumn,
-					completed,
-					streamColumn,
-					firstTokenColumn,
-				), "first_token_latency_count"),
+				sql.As("COALESCE(SUM("+usageanalytics.FirstTokenSQL(firstTokenColumn, latencyColumn, streamColumn, statusColumn)+"),0)", "first_token_latency_ms"),
+				sql.As("COUNT("+usageanalytics.FirstTokenSQL(firstTokenColumn, latencyColumn, streamColumn, statusColumn)+")", "first_token_latency_count"),
 			).
 				GroupBy(
 					s.C(requestexecution.FieldModelID),

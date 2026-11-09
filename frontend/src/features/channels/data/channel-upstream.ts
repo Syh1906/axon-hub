@@ -27,12 +27,15 @@ export const upstreamStateFields = `channelId provider manualMultiplier keySessi
     }
   }`;
 
-export function useChannelUpstreamStates(channelIds: string[]) {
-  return useQuery({
+export function channelUpstreamQueryOptions(channelIds: string[]) {
+  return {
     queryKey: ['channel-upstream', channelIds],
-    gcTime: 0,
+    gcTime: 5 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     enabled: channelIds.length > 0,
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(
         `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${upstreamStateFields} } }`,
         { channelIds },
@@ -41,7 +44,11 @@ export function useChannelUpstreamStates(channelIds: string[]) {
       );
       return z.array(channelUpstreamStateSchema).parse(data.channelUpstreamStates);
     },
-  });
+  };
+}
+
+export function useChannelUpstreamStates(channelIds: string[]) {
+  return useQuery(channelUpstreamQueryOptions(channelIds));
 }
 
 export function useUpstreamRefreshPending(channelId?: string) {
@@ -89,7 +96,7 @@ export function useRefreshChannelUpstreams() {
     },
     onSuccess: async ({ channels, failed }, variables) => {
       await publishUpstreamStates(queryClient, channels);
-      await queryClient.invalidateQueries({ queryKey: ['channels'] });
+      await queryClient.invalidateQueries({ queryKey: ['channels', 'live'] });
       if (failed && !variables.silent) toast.warning(t('channels.upstream.refreshFailed'));
     },
     onError: (error, variables) => {

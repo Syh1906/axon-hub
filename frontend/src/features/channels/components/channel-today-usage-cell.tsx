@@ -1,3 +1,4 @@
+import { useChannelControlData } from '../context/channel-controls-context';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { currencyFractionDigits } from '@/utils/currency-display';
@@ -7,7 +8,8 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { useChannelTodayUsageDetails } from '../data/channel-usage';
 import type { Channel } from '../data/schema';
 
-export function ChannelTodayUsageCell({ channel }: { channel: Channel }) {
+export function ChannelTodayUsageCell({ channel: source }: { channel: Channel }) {
+  const channel = useChannelControlData(source, ['todayUsage', 'todayUsageError']);
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const [open, setOpen] = useState(false);
@@ -105,7 +107,7 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
                 {t('channels.todayUsage.avgOutput')}
                 <span className='text-muted-foreground block font-normal'>tok/s</span>
               </th>
-              <th className='px-2 py-2 text-right' title={t('consumption.successRateHelp')}>
+              <th className='px-2 py-2 text-right' title={t('consumption.channelSuccessRateHelp')}>
                 {t('consumption.columns.successRate')}
               </th>
               <th className='px-2 py-2 text-right'>{t('consumption.columns.requestCount')}</th>

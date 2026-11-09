@@ -50,14 +50,16 @@ export function useChannelTodayUsageDetails(channelId: string) {
   });
 }
 
-export function useChannelTodayUsage(channelIds: string[]) {
-  return useQuery({
+export function channelTodayUsageQueryOptions(channelIds: string[]) {
+  return {
     queryKey: ['channel-today-usage', channelIds],
     enabled: channelIds.length > 0,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    gcTime: 0,
-    queryFn: async ({ signal }) => {
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const data = await graphqlRequest<{ channelTodayUsage: unknown }>(
         `query ChannelTodayUsage($channelIds: [ID!]!) {
           channelTodayUsage(channelIds: $channelIds) { channelId requestCount unpricedCount totalCost timezone currencyCode }
@@ -68,5 +70,9 @@ export function useChannelTodayUsage(channelIds: string[]) {
       );
       return z.array(channelTodayUsageSchema).parse(data.channelTodayUsage);
     },
-  });
+  };
+}
+
+export function useChannelTodayUsage(channelIds: string[]) {
+  return useQuery(channelTodayUsageQueryOptions(channelIds));
 }

@@ -6,6 +6,7 @@ import { formatDuration } from '@/utils/format-duration';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGeneralSettings } from '../../system/data/system';
+import { summarizePerformance } from '../utils/performance-summary';
 
 function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
   return array.reduce((acc, item) => {
@@ -34,8 +35,8 @@ export interface LegendItem {
   id: string;
   name: string;
   color: string;
-  avgThroughput: number;
-  avgTtft: number;
+  avgThroughput: number | null;
+  avgTtft: number | null;
 }
 
 export interface PerformanceDataPoint {
@@ -45,6 +46,8 @@ export interface PerformanceDataPoint {
   throughput: number | null;
   ttftMs: number | null;
   requestCount: number;
+  speedSampleCount: number;
+  firstTokenSampleCount: number;
 }
 
 interface PerformanceChartProps {
@@ -83,7 +86,7 @@ function PerformanceTooltip({ active, payload, label, displayMode }: Performance
 
   const filteredPayload = displayMode === 'throughput'
     ? payload.filter((item) => item.dataKey.toString().includes('-capped') && !item.dataKey.toString().includes('-ttft') && item.value != null && item.value > 0)
-    : payload.filter((item) => item.dataKey.toString().includes('-ttft-capped') && item.value != null && item.value > 0);
+    : payload.filter((item) => item.dataKey.toString().includes('-ttft-capped') && item.value != null && item.value >= 0);
 
   const itemData = filteredPayload
     .map((item) => {
@@ -150,13 +153,12 @@ export function PerformanceChart({
   nameField,
 }: PerformanceChartProps) {
   const { t, i18n } = useTranslation();
-  const { data: generalSettings, isLoading: isSettingsLoading } = useGeneralSettings();
+  const { isLoading: isSettingsLoading } = useGeneralSettings();
   const [activeSeries, setActiveSeries] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<PerformanceDisplayMode>('throughput');
 
   const isLoadingData = isLoading || isSettingsLoading;
 
-  const timezone = generalSettings?.timezone || 'UTC';
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
 
   const memoizedSafeData = useMemo(() => data ?? [], [data]);
@@ -173,20 +175,12 @@ export function PerformanceChart({
       const name = nameField && itemStatsList[0]?.name
         ? itemStatsList[0].name
         : id;
-      const totalRequests = itemStatsList.reduce((sum, s) => sum + s.requestCount, 0);
-      const weightedThroughput = totalRequests > 0
-        ? itemStatsList.reduce((sum, s) => sum + (s.throughput ?? 0) * s.requestCount, 0) / totalRequests
-        : 0;
-      const weightedTtft = totalRequests > 0
-        ? itemStatsList.reduce((sum, s) => sum + (s.ttftMs ?? 0) * s.requestCount, 0) / totalRequests
-        : 0;
 
       return {
         id,
         name,
         color: COLORS[index % COLORS.length],
-        avgThroughput: weightedThroughput,
-        avgTtft: weightedTtft,
+        ...summarizePerformance(itemStatsList),
       };
     });
 
@@ -208,33 +202,6 @@ export function PerformanceChart({
       return acc;
     }, {} as Record<string, Record<string, typeof memoizedSafeData[0]>>);
   }, [memoizedSafeData]);
-
-  const seriesDateRanges = useMemo(() => {
-    const ranges: Record<string, {
-      throughput: { first: string | null; last: string | null };
-      ttft: { first: string | null; last: string | null };
-    }> = {};
-    topItems.forEach((id) => {
-      const throughputDates = dates.filter((date) => statsMap[date]?.[id]?.throughput != null);
-      const ttftDates = dates.filter((date) => statsMap[date]?.[id]?.ttftMs != null);
-      ranges[id] = {
-        throughput: throughputDates.length > 0
-          ? { first: throughputDates[0], last: throughputDates[throughputDates.length - 1] }
-          : { first: null, last: null },
-        ttft: ttftDates.length > 0
-          ? { first: ttftDates[0], last: ttftDates[ttftDates.length - 1] }
-          : { first: null, last: null },
-      };
-    });
-    return ranges;
-  }, [dates, statsMap, topItems]);
-
-  // Build date→index map for O(1) lookups instead of O(n) indexOf
-  const dateIndexMap = useMemo(() => {
-    const map = new Map<string, number>();
-    dates.forEach((date, index) => map.set(date, index));
-    return map;
-  }, [dates]);
 
   if (isLoadingData) {
     return (
@@ -271,26 +238,12 @@ export function PerformanceChart({
       }),
     };
 
-    const dateIndex = dateIndexMap.get(date) ?? -1;
-
     topItems.forEach((id) => {
       const stat = statsMap[date]?.[id];
-      const ranges = seriesDateRanges[id];
-
-      const throughputRange = ranges.throughput;
-      const throughputFirstIndex = throughputRange.first != null ? (dateIndexMap.get(throughputRange.first) ?? -1) : -1;
-      const throughputLastIndex = throughputRange.last != null ? (dateIndexMap.get(throughputRange.last) ?? -1) : -1;
-      const isThroughputOutsideRange = dateIndex < throughputFirstIndex || dateIndex > throughputLastIndex;
-
-      const ttftRange = ranges.ttft;
-      const ttftFirstIndex = ttftRange.first != null ? (dateIndexMap.get(ttftRange.first) ?? -1) : -1;
-      const ttftLastIndex = ttftRange.last != null ? (dateIndexMap.get(ttftRange.last) ?? -1) : -1;
-      const isTtftOutsideRange = dateIndex < ttftFirstIndex || dateIndex > ttftLastIndex;
-
-      dataPoint[id] = stat?.throughput ?? (isThroughputOutsideRange ? 0 : null);
-      dataPoint[`${id}-ttft`] = stat?.ttftMs ?? (isTtftOutsideRange ? 0 : null);
-      dataPoint[`${id}-capped`] = Math.min(stat?.throughput ?? 0, MAX_CHART_THROUGHPUT);
-      dataPoint[`${id}-ttft-capped`] = Math.min(stat?.ttftMs ?? 0, MAX_CHART_TTFT_MS);
+      dataPoint[id] = stat?.throughput ?? null;
+      dataPoint[`${id}-ttft`] = stat?.ttftMs ?? null;
+      dataPoint[`${id}-capped`] = stat?.throughput == null ? null : Math.min(stat.throughput, MAX_CHART_THROUGHPUT);
+      dataPoint[`${id}-ttft-capped`] = stat?.ttftMs == null ? null : Math.min(stat.ttftMs, MAX_CHART_TTFT_MS);
     });
 
     return dataPoint;
@@ -413,7 +366,7 @@ export function PerformanceChart({
                 <span className='font-medium'>{item.name}</span>
               </span>
               <span className='text-xs text-muted-foreground tabular-nums 2xl:text-right'>
-                {formatNumber(item.avgThroughput, { digits: 0 })} {t('dashboard.stats.throughput')} · {t('dashboard.stats.ttft')} {formatDuration(item.avgTtft)}
+                {item.avgThroughput == null ? '—' : formatNumber(item.avgThroughput, { digits: 0 })} {t('dashboard.stats.throughput')} · {t('dashboard.stats.ttft')} {item.avgTtft == null ? '—' : formatDuration(item.avgTtft)}
               </span>
             </button>
           );

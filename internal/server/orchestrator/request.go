@@ -191,19 +191,7 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	// Build latency metrics from performance record
-	var metrics *biz.LatencyMetrics
-
-	if state.Perf != nil {
-		firstTokenLatencyMs, requestLatencyMs, _ := state.Perf.Calculate()
-
-		metrics = &biz.LatencyMetrics{
-			LatencyMs: &requestLatencyMs,
-		}
-		if state.Perf.Stream && state.Perf.FirstTokenTime != nil {
-			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
-		}
-	}
+	metrics := state.Perf.LatencyMetrics()
 
 	// Video generation is async: initial response contains provider task id, but task may not be completed.
 	// Keep request in processing status and store provider task id in external_id.

@@ -1002,7 +1002,14 @@ func (r *queryResolver) QueryChannels(ctx context.Context, input biz.QueryChanne
 	if err := r.filterHealthGateAbnormal(ctx, &input); err != nil {
 		return nil, err
 	}
-	return r.channelService.QueryChannels(ctx, input)
+	page, err := r.channelService.QueryChannels(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.cacheChannelHealthGates(ctx, page); err != nil {
+		return nil, err
+	}
+	return page, nil
 }
 
 // APIKeyQuotaUsages is the resolver for the apiKeyQuotaUsages field.

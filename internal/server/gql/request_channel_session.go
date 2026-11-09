@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sync"
 
-	entdialect "entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/99designs/gqlgen/graphql"
@@ -15,7 +14,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
-	"github.com/looplj/axonhub/internal/ent/trace"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
@@ -200,46 +198,7 @@ func requestChannelSessions(ctx context.Context, client *ent.Client, ids []int) 
 		UsedBefore      bool `json:"used_before"`
 	}
 	err := client.RequestExecution.Query().Where(requestexecution.IDIn(ids...)).Modify(func(q *sql.Selector) {
-		q.Where(sql.GT(q.C(requestexecution.FieldChannelID), 0))
-		dialect := sql.Dialect(q.Dialect())
-		current := sql.Table(request.Table).As("current_request")
-		currentTrace := sql.Table(trace.Table).As("current_trace")
-		prior := sql.Table(request.Table).As("prior_request")
-		priorTrace := sql.Table(trace.Table).As("prior_trace")
-		channel := q.C(requestexecution.FieldChannelID)
-		q.Join(current).On(q.C(requestexecution.FieldRequestID), current.C(request.FieldID)).
-			LeftJoin(currentTrace).On(current.C(request.FieldTraceID), currentTrace.C(trace.FieldID))
-		q.Where(sql.And(sessionRequestFinished(current),
-			sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(dialect, current, requestexecution.FieldID)),
-		))
-		sameSession := sql.Or(
-			sql.ColumnsEQ(priorTrace.C(trace.FieldID), current.C(request.FieldTraceID)),
-			sql.And(sql.GT(currentTrace.C(trace.FieldThreadID), 0), sql.ColumnsEQ(priorTrace.C(trace.FieldThreadID), currentTrace.C(trace.FieldThreadID))),
-		)
-		finalPriorChannel := finalSessionAttempt(dialect, prior, requestexecution.FieldChannelID)
-		boundedHistory := dialect.Select(prior.C(request.FieldID), prior.C(request.FieldChannelID)).From(prior).
-			Join(priorTrace).On(prior.C(request.FieldTraceID), priorTrace.C(trace.FieldID)).Where(sql.And(
-			sql.ColumnsEQ(prior.C(request.FieldProjectID), current.C(request.FieldProjectID)),
-			sql.ColumnsLT(prior.C(request.FieldID), current.C(request.FieldID)),
-			sameSession, sessionRequestFinished(prior),
-		))
-		history := boundedHistory
-		if q.Dialect() == entdialect.Postgres {
-			// 先筛出同一会话的历史，阻止 PostgreSQL 将昂贵的最终执行
-			// 子查询提前到全项目历史上执行；OFFSET 0 不截断任何记录。
-			history = dialect.Select().From(boundedHistory.Offset(0).As("prior_request"))
-		} else {
-			history.Select()
-		}
-		previous := history.Clone().AppendSelectExpr(sql.ExprFunc(func(b *sql.Builder) {
-			b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) })
-		})).Where(sql.P(func(b *sql.Builder) {
-			b.Wrap(func(b *sql.Builder) { b.Join(finalPriorChannel) }).WriteOp(sql.OpNotNull)
-		})).OrderBy(sql.Desc(prior.C(request.FieldID))).Limit(1)
-		usedBefore := history.Select(prior.C(request.FieldID)).Where(sessionAttemptMatches(channel, finalPriorChannel))
-		q.Select(q.C(requestexecution.FieldID), sql.As(channel, "channel")).
-			AppendSelectExprAs(sql.ExprFunc(func(b *sql.Builder) { b.Wrap(func(b *sql.Builder) { b.Join(previous) }) }), "previous_channel").
-			AppendSelectExprAs(sql.Exists(usedBefore), "used_before")
+		requestSessionHistoryQuery(q, ids)
 	}).Scan(ctx, &rows)
 	for _, id := range ids {
 		states[id] = ""

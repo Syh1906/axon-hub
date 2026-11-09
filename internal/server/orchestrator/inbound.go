@@ -489,19 +489,7 @@ func (ts *InboundPersistentStream) _persistResponse(ctx context.Context, respons
 		return
 	}
 
-	// Build latency metrics from performance record
-	var metrics *biz.LatencyMetrics
-
-	if ts.perf != nil {
-		firstTokenLatencyMs, requestLatencyMs, _ := ts.perf.Calculate()
-
-		metrics = &biz.LatencyMetrics{
-			LatencyMs: &requestLatencyMs,
-		}
-		if ts.perf.Stream && ts.perf.FirstTokenTime != nil {
-			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
-		}
-	}
+	metrics := ts.perf.LatencyMetrics()
 
 	status := ts.terminalState.requestStatus()
 	err := ts.requestService.UpdateRequestFinalized(ctx, ts.request.ID, status, meta.ID, responseBody, metrics)

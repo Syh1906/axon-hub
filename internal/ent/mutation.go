@@ -15127,6 +15127,10 @@ type ChannelProbeMutation struct {
 	addsuccess_request_count      *int
 	avg_tokens_per_second         *float64
 	addavg_tokens_per_second      *float64
+	speed_sample_count            *int64
+	addspeed_sample_count         *int64
+	first_token_sample_count      *int64
+	addfirst_token_sample_count   *int64
 	speed_version                 *int
 	addspeed_version              *int
 	avg_time_to_first_token_ms    *float64
@@ -15457,6 +15461,118 @@ func (m *ChannelProbeMutation) ResetAvgTokensPerSecond() {
 	delete(m.clearedFields, channelprobe.FieldAvgTokensPerSecond)
 }
 
+// SetSpeedSampleCount sets the "speed_sample_count" field.
+func (m *ChannelProbeMutation) SetSpeedSampleCount(i int64) {
+	m.speed_sample_count = &i
+	m.addspeed_sample_count = nil
+}
+
+// SpeedSampleCount returns the value of the "speed_sample_count" field in the mutation.
+func (m *ChannelProbeMutation) SpeedSampleCount() (r int64, exists bool) {
+	v := m.speed_sample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpeedSampleCount returns the old "speed_sample_count" field's value of the ChannelProbe entity.
+// If the ChannelProbe object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProbeMutation) OldSpeedSampleCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpeedSampleCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpeedSampleCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpeedSampleCount: %w", err)
+	}
+	return oldValue.SpeedSampleCount, nil
+}
+
+// AddSpeedSampleCount adds i to the "speed_sample_count" field.
+func (m *ChannelProbeMutation) AddSpeedSampleCount(i int64) {
+	if m.addspeed_sample_count != nil {
+		*m.addspeed_sample_count += i
+	} else {
+		m.addspeed_sample_count = &i
+	}
+}
+
+// AddedSpeedSampleCount returns the value that was added to the "speed_sample_count" field in this mutation.
+func (m *ChannelProbeMutation) AddedSpeedSampleCount() (r int64, exists bool) {
+	v := m.addspeed_sample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSpeedSampleCount resets all changes to the "speed_sample_count" field.
+func (m *ChannelProbeMutation) ResetSpeedSampleCount() {
+	m.speed_sample_count = nil
+	m.addspeed_sample_count = nil
+}
+
+// SetFirstTokenSampleCount sets the "first_token_sample_count" field.
+func (m *ChannelProbeMutation) SetFirstTokenSampleCount(i int64) {
+	m.first_token_sample_count = &i
+	m.addfirst_token_sample_count = nil
+}
+
+// FirstTokenSampleCount returns the value of the "first_token_sample_count" field in the mutation.
+func (m *ChannelProbeMutation) FirstTokenSampleCount() (r int64, exists bool) {
+	v := m.first_token_sample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstTokenSampleCount returns the old "first_token_sample_count" field's value of the ChannelProbe entity.
+// If the ChannelProbe object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProbeMutation) OldFirstTokenSampleCount(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstTokenSampleCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstTokenSampleCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstTokenSampleCount: %w", err)
+	}
+	return oldValue.FirstTokenSampleCount, nil
+}
+
+// AddFirstTokenSampleCount adds i to the "first_token_sample_count" field.
+func (m *ChannelProbeMutation) AddFirstTokenSampleCount(i int64) {
+	if m.addfirst_token_sample_count != nil {
+		*m.addfirst_token_sample_count += i
+	} else {
+		m.addfirst_token_sample_count = &i
+	}
+}
+
+// AddedFirstTokenSampleCount returns the value that was added to the "first_token_sample_count" field in this mutation.
+func (m *ChannelProbeMutation) AddedFirstTokenSampleCount() (r int64, exists bool) {
+	v := m.addfirst_token_sample_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFirstTokenSampleCount resets all changes to the "first_token_sample_count" field.
+func (m *ChannelProbeMutation) ResetFirstTokenSampleCount() {
+	m.first_token_sample_count = nil
+	m.addfirst_token_sample_count = nil
+}
+
 // SetSpeedVersion sets the "speed_version" field.
 func (m *ChannelProbeMutation) SetSpeedVersion(i int) {
 	m.speed_version = &i
@@ -15700,7 +15816,7 @@ func (m *ChannelProbeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelProbeMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 9)
 	if m.channel != nil {
 		fields = append(fields, channelprobe.FieldChannelID)
 	}
@@ -15712,6 +15828,12 @@ func (m *ChannelProbeMutation) Fields() []string {
 	}
 	if m.avg_tokens_per_second != nil {
 		fields = append(fields, channelprobe.FieldAvgTokensPerSecond)
+	}
+	if m.speed_sample_count != nil {
+		fields = append(fields, channelprobe.FieldSpeedSampleCount)
+	}
+	if m.first_token_sample_count != nil {
+		fields = append(fields, channelprobe.FieldFirstTokenSampleCount)
 	}
 	if m.speed_version != nil {
 		fields = append(fields, channelprobe.FieldSpeedVersion)
@@ -15738,6 +15860,10 @@ func (m *ChannelProbeMutation) Field(name string) (ent.Value, bool) {
 		return m.SuccessRequestCount()
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.AvgTokensPerSecond()
+	case channelprobe.FieldSpeedSampleCount:
+		return m.SpeedSampleCount()
+	case channelprobe.FieldFirstTokenSampleCount:
+		return m.FirstTokenSampleCount()
 	case channelprobe.FieldSpeedVersion:
 		return m.SpeedVersion()
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
@@ -15761,6 +15887,10 @@ func (m *ChannelProbeMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSuccessRequestCount(ctx)
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.OldAvgTokensPerSecond(ctx)
+	case channelprobe.FieldSpeedSampleCount:
+		return m.OldSpeedSampleCount(ctx)
+	case channelprobe.FieldFirstTokenSampleCount:
+		return m.OldFirstTokenSampleCount(ctx)
 	case channelprobe.FieldSpeedVersion:
 		return m.OldSpeedVersion(ctx)
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
@@ -15804,6 +15934,20 @@ func (m *ChannelProbeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAvgTokensPerSecond(v)
 		return nil
+	case channelprobe.FieldSpeedSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpeedSampleCount(v)
+		return nil
+	case channelprobe.FieldFirstTokenSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstTokenSampleCount(v)
+		return nil
 	case channelprobe.FieldSpeedVersion:
 		v, ok := value.(int)
 		if !ok {
@@ -15842,6 +15986,12 @@ func (m *ChannelProbeMutation) AddedFields() []string {
 	if m.addavg_tokens_per_second != nil {
 		fields = append(fields, channelprobe.FieldAvgTokensPerSecond)
 	}
+	if m.addspeed_sample_count != nil {
+		fields = append(fields, channelprobe.FieldSpeedSampleCount)
+	}
+	if m.addfirst_token_sample_count != nil {
+		fields = append(fields, channelprobe.FieldFirstTokenSampleCount)
+	}
 	if m.addspeed_version != nil {
 		fields = append(fields, channelprobe.FieldSpeedVersion)
 	}
@@ -15865,6 +16015,10 @@ func (m *ChannelProbeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSuccessRequestCount()
 	case channelprobe.FieldAvgTokensPerSecond:
 		return m.AddedAvgTokensPerSecond()
+	case channelprobe.FieldSpeedSampleCount:
+		return m.AddedSpeedSampleCount()
+	case channelprobe.FieldFirstTokenSampleCount:
+		return m.AddedFirstTokenSampleCount()
 	case channelprobe.FieldSpeedVersion:
 		return m.AddedSpeedVersion()
 	case channelprobe.FieldAvgTimeToFirstTokenMs:
@@ -15900,6 +16054,20 @@ func (m *ChannelProbeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAvgTokensPerSecond(v)
+		return nil
+	case channelprobe.FieldSpeedSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSpeedSampleCount(v)
+		return nil
+	case channelprobe.FieldFirstTokenSampleCount:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstTokenSampleCount(v)
 		return nil
 	case channelprobe.FieldSpeedVersion:
 		v, ok := value.(int)
@@ -15975,6 +16143,12 @@ func (m *ChannelProbeMutation) ResetField(name string) error {
 		return nil
 	case channelprobe.FieldAvgTokensPerSecond:
 		m.ResetAvgTokensPerSecond()
+		return nil
+	case channelprobe.FieldSpeedSampleCount:
+		m.ResetSpeedSampleCount()
+		return nil
+	case channelprobe.FieldFirstTokenSampleCount:
+		m.ResetFirstTokenSampleCount()
 		return nil
 	case channelprobe.FieldSpeedVersion:
 		m.ResetSpeedVersion()

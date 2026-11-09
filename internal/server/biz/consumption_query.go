@@ -70,14 +70,22 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 	for _, field := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "total_cost"} {
 		query.AppendSelect(sql.As("COALESCE(SUM("+table.C(field)+"), 0)", field))
 	}
-	query.AppendSelect(sql.As("SUM("+usageanalytics.TextTokensSQL(table.C("completion_tokens"), table.C("cost_snapshot"), table.C("completion_audio_tokens"), dialect)+")", "text_completion_tokens"))
 	query.AppendSelect(sql.As(sql.Count("*"), "usage_count"))
 	query.AppendSelect(sql.As(sql.Count(table.C("total_cost")), "priced_count"))
 	return query.As("usage")
 }
 
 func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
-	return joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+	u, execution := joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+	joinExecutionUsage(s, execution)
+	return u, execution
+}
+
+func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) {
+	u := sql.Table(usagelog.Table).As("execution_usage")
+	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(u.C("request_id"), execution.C("request_id")),
+		sql.ColumnsEQ(u.C("channel_id"), execution.C("channel_id")), sql.ColumnsEQ(u.C("project_id"), execution.C("project_id")),
+		sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"), u.C("id")))))
 }
 
 func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time) *sql.Selector {
@@ -92,6 +100,9 @@ func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilt
 	// Search and group filters can select very few requests. Keep their indexed
 	// lookup instead of sorting executions from the entire time range.
 	if s.Dialect() != dialect.Postgres || input.GroupRef != nil || (input.Search != nil && *input.Search != "") {
+		if input.Dimension == ConsumptionDimensionChannel {
+			return joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+		}
 		return joinConsumption(s, projectID, start, end)
 	}
 	u := joinConsumptionUsage(s, projectID, start, end)
@@ -114,7 +125,11 @@ func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilt
 		OrderBy(append(keys, sql.Desc(e.C("id")))...).As("execution")
 	s.LeftJoin(final).OnP(sql.And(sql.ColumnsEQ(s.C("id"), final.C("request_id")),
 		sql.ColumnsEQ(s.C("project_id"), final.C("project_id")), sql.ColumnsEQ(s.C("channel_id"), final.C("channel_id"))))
-	return u, sql.Table(requestexecution.Table).As("execution")
+	execution := sql.Table(requestexecution.Table).As("execution")
+	if input.Dimension != ConsumptionDimensionChannel {
+		joinExecutionUsage(s, execution)
+	}
+	return u, execution
 }
 
 func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
@@ -165,9 +180,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 		if input.Metric == ConsumptionMetricCache {
 			cacheInput = "COALESCE(SUM(CASE WHEN " + cacheCondition + " THEN " + u.C("prompt_tokens") + " ELSE 0 END), 0)"
 		}
-		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
 		appendConsumptionPricing(q, "("+consumptionUnpriced(u)+") = 0", u.C("total_cost"), "COALESCE("+u.C("prompt_tokens")+" + "+u.C("completion_tokens")+", 0)")
-		firstToken := execution.C("metrics_first_token_latency_ms")
 		q.AppendSelect(
 			sql.As("SUM("+consumptionUnpriced(u)+")", "unpriced_requests"),
 			sql.As(sql.Count("*"), "requests"),
@@ -177,13 +190,21 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 			sql.As("SUM(CASE WHEN "+cacheCondition+" THEN "+cacheRead+" ELSE 0 END)", "cache_read"),
 			sql.As(cacheInput, "cache_input"),
 			sql.As("COALESCE(SUM(CASE WHEN "+cacheWrite+" > 0 THEN "+u.C("total_cost")+" ELSE 0 END), 0)", "cache_creation_cost"),
-			sql.As("COALESCE(SUM("+outcome+"), 0)", "success_count"),
-			sql.As("COUNT("+outcome+")", "outcome_count"),
-			sql.As("COALESCE(SUM("+firstToken+"), 0)", "first_token_sum"),
-			sql.As("COUNT("+firstToken+")", "first_token_count"),
-			sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
-			sql.As("COUNT("+speed+")", "speed_count"),
 		)
+		// Channel performance is computed from all attempts below; avoid calculating
+		// final-request performance that would immediately be discarded.
+		if input.Dimension != ConsumptionDimensionChannel {
+			outcome, speed := consumptionOutcomeAndSpeed(u, execution)
+			firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
+			q.AppendSelect(
+				sql.As("COALESCE(SUM("+outcome+"), 0)", "success_count"),
+				sql.As("COUNT("+outcome+")", "outcome_count"),
+				sql.As("COALESCE(SUM("+firstToken+"), 0)", "first_token_sum"),
+				sql.As("COUNT("+firstToken+")", "first_token_count"),
+				sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
+				sql.As("COUNT("+speed+")", "speed_count"),
+			)
+		}
 	}).Scan(ctx, &rows)
 	if err != nil {
 		return nil, fmt.Errorf("query consumption groups: %w", err)
@@ -192,7 +213,15 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 	if err != nil {
 		return nil, err
 	}
-	return mergeConsumptionGroups(rows, archived), nil
+	rows = mergeConsumptionGroups(rows, archived)
+	if input.Dimension == ConsumptionDimensionChannel {
+		attempts, err := queryChannelAttemptGroups(ctx, s.client, projectID, input, nil, start, end)
+		if err != nil {
+			return nil, err
+		}
+		rows = replaceChannelPerformance(rows, attempts, input.Metric != ConsumptionMetricCache)
+	}
+	return rows, nil
 }
 
 // Each average uses matching cost and quantity samples. Unknown costs never

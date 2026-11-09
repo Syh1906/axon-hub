@@ -570,8 +570,16 @@ func init() {
 	channeloverridetemplate.DefaultBodyOverrideOperations = channeloverridetemplateDescBodyOverrideOperations.Default.([]objects.OverrideOperation)
 	channelprobeFields := schema.ChannelProbe{}.Fields()
 	_ = channelprobeFields
+	// channelprobeDescSpeedSampleCount is the schema descriptor for speed_sample_count field.
+	channelprobeDescSpeedSampleCount := channelprobeFields[4].Descriptor()
+	// channelprobe.DefaultSpeedSampleCount holds the default value on creation for the speed_sample_count field.
+	channelprobe.DefaultSpeedSampleCount = channelprobeDescSpeedSampleCount.Default.(int64)
+	// channelprobeDescFirstTokenSampleCount is the schema descriptor for first_token_sample_count field.
+	channelprobeDescFirstTokenSampleCount := channelprobeFields[5].Descriptor()
+	// channelprobe.DefaultFirstTokenSampleCount holds the default value on creation for the first_token_sample_count field.
+	channelprobe.DefaultFirstTokenSampleCount = channelprobeDescFirstTokenSampleCount.Default.(int64)
 	// channelprobeDescSpeedVersion is the schema descriptor for speed_version field.
-	channelprobeDescSpeedVersion := channelprobeFields[4].Descriptor()
+	channelprobeDescSpeedVersion := channelprobeFields[6].Descriptor()
 	// channelprobe.DefaultSpeedVersion holds the default value on creation for the speed_version field.
 	channelprobe.DefaultSpeedVersion = channelprobeDescSpeedVersion.Default.(int)
 	channelupstreamstatusMixin := schema.ChannelUpstreamStatus{}.Mixin()

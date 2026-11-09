@@ -1,3 +1,4 @@
+import { useChannelControlData } from '../context/channel-controls-context';
 import { useState } from 'react';
 import { RefreshCw, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +36,8 @@ export function useBalanceLabel() {
   };
 }
 
-export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
+export function ChannelUpstreamBalanceCell({ channel: source }: { channel: Channel }) {
+  const channel = useChannelControlData(source, ['upstreamState', 'upstreamLoadError']);
   const { t } = useTranslation();
   const formatBalance = useBalanceLabel();
   const { channelPermissions } = usePermissions();
@@ -153,7 +155,8 @@ export function ChannelUpstreamBalanceCell({ channel }: { channel: Channel }) {
   );
 }
 
-export function ChannelUpstreamMultiplierCell({ channel, canWrite }: { channel: Channel; canWrite: boolean }) {
+export function ChannelUpstreamMultiplierCell({ channel: source, canWrite }: { channel: Channel; canWrite: boolean }) {
+  const channel = useChannelControlData(source, ['upstreamState', 'upstreamLoadError']);
   const { t } = useTranslation();
   const state = channel.upstreamState;
   const keys = state?.keys.filter((key) => !key.disabled) ?? [];

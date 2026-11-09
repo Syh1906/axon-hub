@@ -122,6 +122,8 @@ export const modelPerformanceStatSchema = z.object({
   throughput: z.number().nullable(),
   ttftMs: z.number().nullable(),
   requestCount: z.number(),
+  speedSampleCount: z.number(),
+  firstTokenSampleCount: z.number(),
 });
 
 export const channelPerformanceStatSchema = z.object({
@@ -131,6 +133,8 @@ export const channelPerformanceStatSchema = z.object({
   throughput: z.number().nullable(),
   ttftMs: z.number().nullable(),
   requestCount: z.number(),
+  speedSampleCount: z.number(),
+  firstTokenSampleCount: z.number(),
 });
 
 export type RequestStats = z.infer<typeof requestStatsSchema>;
@@ -380,6 +384,8 @@ const MODEL_PERFORMANCE_STATS_QUERY = `
       modelId
       throughput
       ttftMs
+      speedSampleCount
+      firstTokenSampleCount
       requestCount
     }
   }
@@ -393,6 +399,8 @@ const CHANNEL_PERFORMANCE_STATS_QUERY = `
       channelName
       throughput
       ttftMs
+      speedSampleCount
+      firstTokenSampleCount
       requestCount
     }
   }

@@ -311,5 +311,7 @@
   "requests.tooltips.upstreamModelRequestFailed": "Request did not succeed; model consistency is not a successful result. See the failure reason",
   "requests.tooltips.upstreamModelPartial": "Only some executions can be audited: {{compared}} compared, {{unknown}} unknown",
   "requests.detail.routedModel": "Channel model",
-  "requests.detail.upstreamModels": "Upstream-reported model"
+  "requests.detail.upstreamModels": "Upstream-reported model",
+  "requests.duration.outputRate": "Output",
+  "requests.duration.firstTokenHelp": "Time from sending this attempt to its first text, reasoning content or tool arguments. Initial status frames do not count."
 }

@@ -6,6 +6,8 @@ package qb
 
 import (
 	"fmt"
+
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
 // ThroughputQueryType identifies the type of throughput query to build.
@@ -125,7 +127,7 @@ func buildRowNumberQuery(placeholder string, config QueryFragmentConfig, limit i
 	return `
 WITH successful_execs AS (
     SELECT
-        id, request_id,
+        id, request_id, project_id,
         channel_id,
         metrics_latency_ms,
         metrics_first_byte_latency_ms,
@@ -197,7 +199,7 @@ func buildDistinctOnQuery(placeholder string, config QueryFragmentConfig, limit 
 	return `
 WITH successful_execs AS (
     SELECT DISTINCT ON (request_id)
-        id, request_id,
+        id, request_id, project_id,
         channel_id,
         metrics_latency_ms,
         metrics_first_byte_latency_ms,
@@ -290,17 +292,23 @@ func BuildProbeStatsQuery(useDollarPlaceholders bool, channelIDFilter string, _ 
 	if useDollarPlaceholders {
 		placeholder1, placeholder2 = "$1", "$2"
 	}
+	dialect := "sqlite3"
+	if useDollarPlaceholders {
+		dialect = "postgres"
+	}
+	outcome := usageanalytics.ChannelOutcomeSQL("se.status", "se.selection", "se.response_status_code", "se.error_message", dialect)
+	first := usageanalytics.FirstTokenSQL("se.metrics_first_token_latency_ms", "se.metrics_latency_ms", "se.stream", "se.status")
 
 	return fmt.Sprintf(`
 SELECT
     se.channel_id,
-    SUM(CASE WHEN se.status IN ('completed', 'failed') THEN 1 ELSE 0 END) as total_count,
-    SUM(CASE WHEN se.status = 'completed' THEN 1 ELSE 0 END) as success_count,
+    COUNT(%s) as total_count,
+    COALESCE(SUM(%s), 0) as success_count,
     COALESCE(SUM(%s), 0) as speed_sum,
     COUNT(%s) as speed_count,
-    SUM(CASE WHEN se.status = 'completed' AND se.stream AND se.metrics_first_token_latency_ms IS NOT NULL THEN se.metrics_first_token_latency_ms ELSE 0 END) as total_first_token_latency,
+    COALESCE(SUM(%s), 0) as total_first_token_latency,
     COUNT(DISTINCT CASE WHEN se.status IN ('completed', 'failed') THEN se.request_id END) as request_count,
-    SUM(CASE WHEN se.status = 'completed' AND se.stream AND se.metrics_first_token_latency_ms IS NOT NULL THEN 1 ELSE 0 END) as streaming_request_count
+    COUNT(%s) as streaming_request_count
 FROM request_executions se
 LEFT `+throughputUsageJoin+`
 WHERE se.created_at >= %s
@@ -308,5 +316,5 @@ WHERE se.created_at >= %s
     AND se.status IN ('completed', 'failed', 'canceled')
     %s
 GROUP BY se.channel_id
-ORDER BY se.channel_id`, outputSpeedSQL("se", placeholder1), outputSpeedSQL("se", placeholder1), placeholder1, placeholder2, channelIDFilter)
+ORDER BY se.channel_id`, outcome, outcome, outputSpeedSQL("se", placeholder1), outputSpeedSQL("se", placeholder1), first, first, placeholder1, placeholder2, channelIDFilter)
 }

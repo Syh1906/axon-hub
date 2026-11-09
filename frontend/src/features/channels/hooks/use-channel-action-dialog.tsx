@@ -64,8 +64,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const { hasSystemScope, modelPermissions } = usePermissions();
   const { data: quotaRoutingSettings } = useQuotaRoutingSettings();
   const canReadSystemSettings = hasSystemScope('read_settings');
-  const { data: userAgentPassThroughSettings } = useUserAgentPassThroughSettings({ enabled: canReadSystemSettings });
-  const { data: passThroughSettings } = usePassThroughSettings({ enabled: canReadSystemSettings });
+  const { data: userAgentPassThroughSettings } = useUserAgentPassThroughSettings({ enabled: open && canReadSystemSettings });
+  const { data: passThroughSettings } = usePassThroughSettings({ enabled: open && canReadSystemSettings });
   const [supportedModels, setSupportedModels] = useState<string[]>(() => initialRow?.supportedModels || []);
   const [manualModels, setManualModels] = useState<string[]>(() => initialRow?.manualModels || []);
   const [newModel, setNewModel] = useState('');

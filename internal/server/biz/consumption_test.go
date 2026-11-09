@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
@@ -118,7 +119,7 @@ func TestConsumptionCountsModelsAndCacheDenominator(t *testing.T) {
 		require.Len(t, entry.Models, 2)
 		require.Equal(t, "model-b", entry.Models[0].Model)
 		require.Equal(t, 1.0, *entry.Metrics.SuccessRate)
-		require.Equal(t, 125.0, *entry.Metrics.AvgTokensPerSecond)        // first-byte timing does not change full-request averages
+		require.Equal(t, 100.0, *entry.Metrics.AvgTokensPerSecond)        // 缺少首字节的记录不参与速度平均
 		require.InDelta(t, 800.0/3000, *entry.Metrics.CacheHitRate, 1e-9) // all input, including cache misses
 	}
 	result, err := f.service.Leaderboard(ctx, ConsumptionFilter{Dimension: ConsumptionDimensionAPIKey, Metric: ConsumptionMetricCache, Period: ConsumptionPeriodAll})
@@ -152,7 +153,7 @@ func TestConsumptionModelTotalsSearchAndArchive(t *testing.T) {
 	require.Equal(t, int64(3300), model.Metrics.TotalTokens)
 	require.InDelta(t, 800.0/3000, *model.Metrics.CacheHitRate, 1e-9)
 	require.Equal(t, 700.0, *model.Metrics.AvgFirstTokenMs)
-	require.Equal(t, 125.0, *model.Metrics.AvgTokensPerSecond)
+	require.Equal(t, 100.0, *model.Metrics.AvgTokensPerSecond)
 	require.Nil(t, result.ModelEntries[1].Metrics.AvgTokensPerSecond)
 	require.Nil(t, result.ModelEntries[1].Metrics.AvgFirstTokenMs)
 
@@ -253,8 +254,8 @@ func TestConsumptionOutcomeAndSpeedSamples(t *testing.T) {
 	require.NoError(t, err)
 	metrics := result.Entries[0].Metrics
 	require.Equal(t, 9, metrics.RequestCount)
-	require.Equal(t, 0.5, *metrics.SuccessRate) // Two successes, one upstream failure, one new pre-byte cancellation.
-	require.InDelta(t, (100.0/1.2+900.0/1.2)/2, *metrics.AvgTokensPerSecond, 1e-9)
+	require.Equal(t, 0.4, *metrics.SuccessRate) // 两次成功、三次实际失败；客户端取消与499不计入渠道成功率。
+	require.InDelta(t, 100.0, *metrics.AvgTokensPerSecond, 1e-9)
 }
 
 func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
@@ -284,11 +285,11 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	require.NoError(t, err)
 	metrics := rows[0].metrics()
 	require.EqualValues(t, 2, metrics.SpeedSampleCount)
-	require.Equal(t, 250.0, *metrics.AvgTokensPerSecond)
+	require.Equal(t, 300.0, *metrics.AvgTokensPerSecond)
 	require.Zero(t, metrics.UnpricedRequestCount)
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{first.ID})
 	require.NoError(t, err)
-	require.InDelta(t, 100.0/1.2, *speeds[first.ID], 1e-9)
+	require.InDelta(t, 100.0, *speeds[first.ID], 1e-9)
 	usage := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(first.ID)).OnlyX(f.ctx)
 	f.client.UsageLog.UpdateOne(usage).ClearTotalCost().SaveX(f.ctx)
 	rows, err = f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
@@ -305,33 +306,32 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	require.Equal(t, rows, archived)
 }
 
-func TestConsumptionSpeedIgnoresForwardedFirstByte(t *testing.T) {
+func TestConsumptionSpeedUsesMeasuredWindowAndRejectsUnknownArchives(t *testing.T) {
 	f := newConsumptionFixture(t)
 	at := time.Now().Add(-time.Hour)
 	var ids []int
 	for _, firstByte := range []*int64{lo.ToPtr(int64(1593)), lo.ToPtr(int64(12193)), nil} {
 		req, execution := f.addRequest(t, at, "forwarded", request.StatusCompleted, 1000, 486, 0, 0, 1, firstByte)
-		f.client.RequestExecution.UpdateOne(execution).SetMetricsLatencyMs(13442).SaveX(f.ctx)
+		execution.Update().SetMetricsLatencyMs(13442).SaveX(f.ctx)
 		ids = append(ids, req.ID)
 	}
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, ids)
 	require.NoError(t, err)
-	for _, id := range ids {
-		require.NotNil(t, speeds[id])
-		require.InDelta(t, 36.1553, *speeds[id], 0.0001)
-	}
+	require.InDelta(t, 486000.0/(13442-1593), *speeds[ids[0]], 1e-8)
+	require.InDelta(t, 486000.0/(13442-12193), *speeds[ids[1]], 1e-8)
+	require.Nil(t, speeds[ids[2]])
 	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, ids[:1]))
-	archive := f.client.UsageArchive.Query().OnlyX(f.ctx)
-	require.Equal(t, 2, archive.SpeedVersion)
-	// Old archives retain their costs/counts but cannot provide a new-formula speed.
-	f.client.UsageArchive.UpdateOne(archive).SetSpeedVersion(1).SetSpeedSum(9999).SaveX(f.ctx)
-	rows, err := f.service.queryGroups(f.ctx, f.project.ID,
-		ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost}, nil, time.Now())
+	archives := f.client.UsageArchive.Query().Where(usagearchive.RequestIDEQ(ids[0])).AllX(f.ctx)
+	for _, archive := range archives {
+		require.Equal(t, 3, archive.SpeedVersion)
+		archive.Update().SetSpeedVersion(2).SetSpeedSum(9999).SaveX(f.ctx)
+	}
+	rows, err := f.service.queryGroups(f.ctx, f.project.ID, ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost}, nil, time.Now())
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.EqualValues(t, 3, rows[0].Requests)
-	require.EqualValues(t, 2, rows[0].SpeedCount)
-	require.InDelta(t, 36.1553, *rows[0].metrics().AvgTokensPerSecond, 0.0001)
+	require.EqualValues(t, 1, rows[0].SpeedCount)
+	require.InDelta(t, 486000.0/1249, *rows[0].metrics().AvgTokensPerSecond, 1e-8)
 }
 
 func TestConsumptionLocalAdmissionOutcomes(t *testing.T) {

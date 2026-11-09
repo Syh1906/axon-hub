@@ -157,6 +157,8 @@ models:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionResult
   ConsumptionProject:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionProject
+  ConsumptionGroupOption:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionGroupOption
   ClaudeCodeSafeguardsSettings:
     model: github.com/looplj/axonhub/internal/server/biz.ClaudeCodeSafeguardsSettings
   ClaudeCodeSafeguardsConfig:

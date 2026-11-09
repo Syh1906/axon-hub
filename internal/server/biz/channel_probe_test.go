@@ -566,6 +566,19 @@ func TestComputeAllChannelProbeStats_Integration(t *testing.T) {
 	assert.InDelta(t, 500.0, *channelStats.avgTimeToFirstTokenMs, 0.01)
 }
 
+func TestComputeAllChannelProbeStats_PreservesZeroFirstToken(t *testing.T) {
+	f := newConsumptionFixture(t)
+	end := time.Now().UTC()
+	_, execution := f.addRequest(t, end.Add(-time.Second), "model-a", request.StatusCompleted, 0, 100, 0, 0, 1, nil)
+	f.client.RequestExecution.UpdateOne(execution).SetMetricsFirstTokenLatencyMs(0).ExecX(f.ctx)
+	svc := &ChannelProbeService{AbstractService: &AbstractService{db: f.client}}
+	stats, err := svc.computeAllChannelProbeStats(f.ctx, []int{f.channel.ID}, end.Add(-time.Minute), end)
+	require.NoError(t, err)
+	require.NotNil(t, stats[f.channel.ID].avgTimeToFirstTokenMs)
+	require.Zero(t, *stats[f.channel.ID].avgTimeToFirstTokenMs)
+	require.EqualValues(t, 1, stats[f.channel.ID].firstTokenSampleCount)
+}
+
 // TestComputeAllChannelProbeStats_MultipleRequests tests with multiple requests
 func TestComputeAllChannelProbeStats_MultipleRequests(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:ent?mode=memory&_fk=0")
@@ -663,7 +676,7 @@ func TestComputeAllChannelProbeStats_MultipleRequests(t *testing.T) {
 
 	// Audio and non-stream responses are excluded; only 80 / 2 = 40 remains.
 	require.NotNil(t, channelStats.avgTokensPerSecond)
-	assert.InDelta(t, 40, *channelStats.avgTokensPerSecond, 0.1)
+	assert.InDelta(t, 50, *channelStats.avgTokensPerSecond, 0.1)
 
 	// TTFT: (500 + 400 + 0) / 2 = 450ms (only streaming requests count: 2 out of 3 requests are streaming)
 	require.NotNil(t, channelStats.avgTimeToFirstTokenMs)
@@ -928,7 +941,7 @@ func TestComputeAllChannelProbeStats_MultipleChannels(t *testing.T) {
 	assert.Equal(t, 1, stats1.total)
 	assert.Equal(t, 1, stats1.success)
 	require.NotNil(t, stats1.avgTokensPerSecond)
-	assert.InDelta(t, 50.0, *stats1.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 62.5, *stats1.avgTokensPerSecond, 0.01)
 	require.NotNil(t, stats1.avgTimeToFirstTokenMs)
 	assert.InDelta(t, 400.0, *stats1.avgTimeToFirstTokenMs, 0.01)
 
@@ -938,7 +951,7 @@ func TestComputeAllChannelProbeStats_MultipleChannels(t *testing.T) {
 	assert.Equal(t, 1, stats2.total)
 	assert.Equal(t, 1, stats2.success)
 	require.NotNil(t, stats2.avgTokensPerSecond)
-	assert.InDelta(t, 50.0, *stats2.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 62.5, *stats2.avgTokensPerSecond, 0.01)
 	require.NotNil(t, stats2.avgTimeToFirstTokenMs)
 	assert.InDelta(t, 600.0, *stats2.avgTimeToFirstTokenMs, 0.01)
 }
@@ -1141,7 +1154,7 @@ func TestComputeAllChannelProbeStats_FailedExecutionsCountTowardTotalOnly(t *tes
 	assert.Equal(t, 2, channelStats.total)
 	assert.Equal(t, 1, channelStats.success)
 
-	// Average output speed includes the full 3 seconds.
+	// 100 个输出 Token 除以扣除首字节等待后的 2.5 秒。
 	require.NotNil(t, channelStats.avgTokensPerSecond)
-	assert.InDelta(t, 100.0/3, *channelStats.avgTokensPerSecond, 0.01)
+	assert.InDelta(t, 100.0/2.5, *channelStats.avgTokensPerSecond, 0.01)
 }

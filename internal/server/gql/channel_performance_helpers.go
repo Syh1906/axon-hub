@@ -12,18 +12,19 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/log"
-	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/server/gql/qb"
 )
 
 const topPerformersLimit = 6
 
 type probeStats struct {
-	DateStr      string  `json:"date"`
-	ChannelID    int     `json:"channel_id"`
-	RequestCount int     `json:"request_count"`
-	Throughput   float64 `json:"throughput"`
-	TTFTMs       float64 `json:"ttft_ms"`
+	DateStr               string   `json:"date"`
+	ChannelID             int      `json:"channel_id"`
+	RequestCount          int      `json:"request_count"`
+	Throughput            float64  `json:"throughput"`
+	TTFTMs                *float64 `json:"ttft_ms"`
+	SpeedSampleCount      int      `json:"speed_sample_count"`
+	FirstTokenSampleCount int      `json:"first_token_sample_count"`
 }
 
 type channelInfo struct {
@@ -33,12 +34,9 @@ type channelInfo struct {
 
 func (r *queryResolver) queryChannelProbeStats(ctx context.Context, startTimestamp int64, locName string, offsetSeconds int) ([]probeStats, error) {
 	var probeResults []probeStats
-	const maxThroughputCap = 2000.0
-
 	err := r.client.ChannelProbe.Query().
 		Where(
 			channelprobe.TimestampGTE(startTimestamp),
-			channelprobe.Or(channelprobe.SpeedVersionNEQ(usageanalytics.OutputSpeedVersion), channelprobe.AvgTokensPerSecondIsNil(), channelprobe.AvgTokensPerSecondLTE(maxThroughputCap)),
 		).
 		Modify(func(s *sql.Selector) {
 			timestampCol := s.C(channelprobe.FieldTimestamp)
@@ -181,19 +179,15 @@ func buildChannelPerformanceResponse(
 					throughput = &stats.Throughput
 				}
 
-				var ttftMs *float64
-				if stats.TTFTMs > 0 {
-					value := stats.TTFTMs
-					ttftMs = &value
-				}
-
 				response = append(response, &ChannelPerformanceStat{
-					Date:         dateStr,
-					ChannelID:    fmt.Sprintf("%d", chID),
-					ChannelName:  channelName,
-					Throughput:   throughput,
-					TtftMs:       ttftMs,
-					RequestCount: stats.RequestCount,
+					Date:                  dateStr,
+					ChannelID:             fmt.Sprintf("%d", chID),
+					ChannelName:           channelName,
+					Throughput:            throughput,
+					TtftMs:                stats.TTFTMs,
+					RequestCount:          stats.RequestCount,
+					SpeedSampleCount:      stats.SpeedSampleCount,
+					FirstTokenSampleCount: stats.FirstTokenSampleCount,
 				})
 			}
 		}
@@ -242,13 +236,15 @@ func (r *queryResolver) buildChannelPerformanceStatsFromExecutions(ctx context.C
 	defer func() { _ = rows.Close() }()
 
 	type rawStat struct {
-		Date         string
-		ChannelID    int
-		TokensCount  int64
-		LatencyMs    int64
-		FirstTokenMs *float64
-		RequestCount int64
-		Throughput   *float64
+		Date                  string
+		ChannelID             int
+		TokensCount           int64
+		LatencyMs             int64
+		FirstTokenMs          *float64
+		RequestCount          int64
+		Throughput            *float64
+		SpeedSampleCount      int64
+		FirstTokenSampleCount int64
 	}
 
 	statsMap := make(map[string]map[int]*rawStat)
@@ -268,6 +264,8 @@ func (r *queryResolver) buildChannelPerformanceStatsFromExecutions(ctx context.C
 			&stat.FirstTokenMs,
 			&stat.RequestCount,
 			&stat.Throughput,
+			&stat.SpeedSampleCount,
+			&stat.FirstTokenSampleCount,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan channel performance stats: %w", err)
 		}
@@ -342,18 +340,20 @@ func (r *queryResolver) buildChannelPerformanceStatsFromExecutions(ctx context.C
 				}
 
 				var ttftMs *float64
-				if stats.FirstTokenMs != nil && *stats.FirstTokenMs > 0 {
+				if stats.FirstTokenMs != nil && *stats.FirstTokenMs >= 0 {
 					value := *stats.FirstTokenMs
 					ttftMs = &value
 				}
 
 				response = append(response, &ChannelPerformanceStat{
-					Date:         dateStr,
-					ChannelID:    fmt.Sprintf("%d", chID),
-					ChannelName:  channelName,
-					Throughput:   throughput,
-					TtftMs:       ttftMs,
-					RequestCount: safeIntFromInt64(stats.RequestCount),
+					Date:                  dateStr,
+					ChannelID:             fmt.Sprintf("%d", chID),
+					ChannelName:           channelName,
+					Throughput:            throughput,
+					TtftMs:                ttftMs,
+					RequestCount:          safeIntFromInt64(stats.RequestCount),
+					SpeedSampleCount:      safeIntFromInt64(stats.SpeedSampleCount),
+					FirstTokenSampleCount: safeIntFromInt64(stats.FirstTokenSampleCount),
 				})
 			}
 		}

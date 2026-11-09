@@ -16,6 +16,7 @@ import { ConsumptionTable } from './components/consumption-table';
 import { ConsumptionDateFilter } from './components/date-filter';
 import {
   useConsumption,
+  useConsumptionGroupOptions,
   useConsumptionProjects,
   type ConsumptionDateRange,
   type ConsumptionDimension,
@@ -48,7 +49,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   };
   const { data, isLoading, isFetching, error, refetch } = useConsumption(filter, view, selectedProjectID);
   const projects = useConsumptionProjects(isLeaderboard);
-  const groupOptions = useConsumption(
+  const groupOptions = useConsumptionGroupOptions(
     { ...filter, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined },
     view,
     selectedProjectID,
@@ -152,7 +153,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value='all'>{t('consumption.allGroups')}</SelectItem>
-                    {groupOptions.data?.entries.map((entry) => (
+                    {groupOptions.data?.map((entry) => (
                       <SelectItem key={entry.id} value={String(extractNumberID(entry.id))}>
                         {entry.name}
                       </SelectItem>
@@ -220,7 +221,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
             <span>
               {dimension === 'MODEL'
                 ? t(metric === 'CACHE' ? 'consumption.modelCacheNote' : 'consumption.modelCostNote')
-                : t(metric === 'CACHE' ? 'consumption.cacheNote' : 'consumption.costNote')}
+                : t(metric === 'CACHE' ? 'consumption.cacheNote' : dimension === 'CHANNEL' ? 'consumption.channelCostNote' : 'consumption.costNote')}
               {dimension === 'CHANNEL' && <span className='ml-2'>{t('consumption.cacheCoefficientNote')}</span>}
             </span>
             {data && (

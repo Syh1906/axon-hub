@@ -17,7 +17,7 @@ type UsageArchive struct{ ent.Schema }
 
 func (UsageArchive) Fields() []ent.Field {
 	fields := []ent.Field{
-		field.Enum("kind").Values("request", "usage").Immutable(),
+		field.Enum("kind").Values("request", "usage", "execution").Immutable(),
 		field.Int("source_id").Immutable(),
 		field.Int("request_id").Immutable(),
 		field.Int("project_id").Immutable(),

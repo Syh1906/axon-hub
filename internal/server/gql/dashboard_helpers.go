@@ -98,15 +98,17 @@ func buildProbeQuerySelects(s *sql.Selector, dateExpr string) []string {
 	avgTokensCol := fmt.Sprintf("CASE WHEN %s = %d THEN %s END", s.C(channelprobe.FieldSpeedVersion), usageanalytics.OutputSpeedVersion, s.C(channelprobe.FieldAvgTokensPerSecond))
 	totalRequestsCol := s.C(channelprobe.FieldTotalRequestCount)
 	avgTTFTCol := s.C(channelprobe.FieldAvgTimeToFirstTokenMs)
+	speedSamples := s.C(channelprobe.FieldSpeedSampleCount)
+	firstSamples := s.C(channelprobe.FieldFirstTokenSampleCount)
 	channelIDCol := s.C(channelprobe.FieldChannelID)
 
 	throughputExpr := fmt.Sprintf(
 		"SUM(CASE WHEN %s IS NOT NULL THEN %s * %s ELSE 0 END) / NULLIF(SUM(CASE WHEN %s IS NOT NULL THEN %s ELSE 0 END), 0)",
-		avgTokensCol, avgTokensCol, totalRequestsCol, avgTokensCol, totalRequestsCol,
+		avgTokensCol, avgTokensCol, speedSamples, avgTokensCol, speedSamples,
 	)
 	ttftExpr := fmt.Sprintf(
 		"SUM(CASE WHEN %s IS NOT NULL THEN %s * %s ELSE 0 END) / NULLIF(SUM(CASE WHEN %s IS NOT NULL THEN %s ELSE 0 END), 0)",
-		avgTTFTCol, avgTTFTCol, totalRequestsCol, avgTTFTCol, totalRequestsCol,
+		avgTTFTCol, avgTTFTCol, firstSamples, avgTTFTCol, firstSamples,
 	)
 
 	return []string{
@@ -114,7 +116,9 @@ func buildProbeQuerySelects(s *sql.Selector, dateExpr string) []string {
 		sql.As(channelIDCol, "channel_id"),
 		sql.As(sql.Sum(totalRequestsCol), "request_count"),
 		sql.As("COALESCE("+throughputExpr+", 0)", "throughput"),
-		sql.As("COALESCE("+ttftExpr+", 0)", "ttft_ms"),
+		sql.As(ttftExpr, "ttft_ms"),
+		sql.As("SUM(CASE WHEN "+avgTokensCol+" IS NOT NULL THEN "+speedSamples+" ELSE 0 END)", "speed_sample_count"),
+		sql.As("SUM(CASE WHEN "+avgTTFTCol+" IS NOT NULL THEN "+firstSamples+" ELSE 0 END)", "first_token_sample_count"),
 	}
 }
 
@@ -421,10 +425,11 @@ func (r *queryResolver) channelSuccessRates(ctx context.Context, timeWindow *str
 	// Step 1: Get success/failure counts from request_execution
 	err := r.client.RequestExecution.Query().
 		Modify(func(s *sql.Selector) {
+			outcome := usageanalytics.ChannelOutcomeSQL(s.C("status"), s.C("selection"), s.C("response_status_code"), s.C("error_message"), s.Dialect())
 			s.Select(
 				requestexecution.FieldChannelID,
-				sql.As("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)", "success_count"),
-				sql.As("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END)", "failed_count"),
+				sql.As("COALESCE(SUM("+outcome+"),0)", "success_count"),
+				sql.As("COUNT("+outcome+")-COALESCE(SUM("+outcome+"),0)", "failed_count"),
 			).
 				Where(sql.NotNull(requestexecution.FieldChannelID))
 
@@ -818,13 +823,15 @@ func (r *queryResolver) modelPerformanceStats(ctx context.Context) ([]*ModelPerf
 	defer func() { _ = rows.Close() }()
 
 	type rawStat struct {
-		Date         string
-		ModelID      string
-		TokensCount  int64
-		LatencyMs    int64
-		FirstTokenMs *float64
-		RequestCount int64
-		Throughput   *float64
+		Date                  string
+		ModelID               string
+		TokensCount           int64
+		LatencyMs             int64
+		FirstTokenMs          *float64
+		RequestCount          int64
+		Throughput            *float64
+		SpeedSampleCount      int64
+		FirstTokenSampleCount int64
 	}
 
 	// ModelStatsBucket holds aggregated statistics for a single model.
@@ -849,6 +856,8 @@ func (r *queryResolver) modelPerformanceStats(ctx context.Context) ([]*ModelPerf
 			&stat.FirstTokenMs,
 			&stat.RequestCount,
 			&stat.Throughput,
+			&stat.SpeedSampleCount,
+			&stat.FirstTokenSampleCount,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan model performance stats: %w", err)
 		}
@@ -863,16 +872,18 @@ func (r *queryResolver) modelPerformanceStats(ctx context.Context) ([]*ModelPerf
 
 	for _, raw := range rawResults {
 		var ttftMs *float64
-		if raw.FirstTokenMs != nil && *raw.FirstTokenMs > 0 {
+		if raw.FirstTokenMs != nil && *raw.FirstTokenMs >= 0 {
 			ttftMs = raw.FirstTokenMs
 		}
 
 		stat := &ModelPerformanceStat{
-			Date:         raw.Date,
-			ModelID:      raw.ModelID,
-			Throughput:   raw.Throughput,
-			TtftMs:       ttftMs,
-			RequestCount: safeIntFromInt64(raw.RequestCount),
+			Date:                  raw.Date,
+			ModelID:               raw.ModelID,
+			Throughput:            raw.Throughput,
+			TtftMs:                ttftMs,
+			RequestCount:          safeIntFromInt64(raw.RequestCount),
+			SpeedSampleCount:      safeIntFromInt64(raw.SpeedSampleCount),
+			FirstTokenSampleCount: safeIntFromInt64(raw.FirstTokenSampleCount),
 		}
 
 		if modelStats[raw.ModelID] == nil {

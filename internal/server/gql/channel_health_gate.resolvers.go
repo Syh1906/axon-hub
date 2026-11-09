@@ -17,6 +17,14 @@ func (r *channelResolver) HealthGate(ctx context.Context, obj *ent.Channel) (*Ch
 	if !canReadChannelHealthGate(ctx) {
 		return nil, nil
 	}
+	if cache, ok := ctx.Value(channelHealthGateCacheKey{}).(*channelHealthGateCache); ok {
+		cache.RLock()
+		status, found := cache.values[obj.ID]
+		cache.RUnlock()
+		if found {
+			return status, nil
+		}
+	}
 	return channelHealthGateStatus(ctx, r.channelService.HealthGate(), r.healthGatePolicy(ctx), obj, r.healthGateConfigResolver(ctx, obj.ID))
 }
 

@@ -61,5 +61,6 @@ func protectReferencedArchive(s *sql.Selector) {
 		sql.ColumnsEQ(r.C("id"), s.C("request_id")), sql.ColumnsEQ(r.C("project_id"), s.C("project_id"))))
 	liveUsage := sql.Dialect(s.Dialect()).Select(u.C("id")).From(u).Where(sql.And(
 		sql.ColumnsEQ(u.C("request_id"), s.C("request_id")), sql.ColumnsEQ(u.C("project_id"), s.C("project_id"))))
-	s.Where(sql.Or(sql.NEQ(s.C("kind"), string(usagearchive.KindRequest)), sql.And(sql.Not(sql.Exists(liveRequest)), sql.Not(sql.Exists(liveUsage)))))
+	s.Where(sql.Or(sql.NotIn(s.C("kind"), string(usagearchive.KindRequest), string(usagearchive.KindExecution)),
+		sql.And(sql.Not(sql.Exists(liveRequest)), sql.Not(sql.Exists(liveUsage)))))
 }

@@ -475,6 +475,8 @@ var (
 		{Name: "total_request_count", Type: field.TypeInt},
 		{Name: "success_request_count", Type: field.TypeInt},
 		{Name: "avg_tokens_per_second", Type: field.TypeFloat64, Nullable: true},
+		{Name: "speed_sample_count", Type: field.TypeInt64, Default: 0},
+		{Name: "first_token_sample_count", Type: field.TypeInt64, Default: 0},
 		{Name: "speed_version", Type: field.TypeInt, Default: 0},
 		{Name: "avg_time_to_first_token_ms", Type: field.TypeFloat64, Nullable: true},
 		{Name: "timestamp", Type: field.TypeInt64},
@@ -488,7 +490,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_probes_channels_channel_probes",
-				Columns:    []*schema.Column{ChannelProbesColumns[7]},
+				Columns:    []*schema.Column{ChannelProbesColumns[9]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -497,7 +499,7 @@ var (
 			{
 				Name:    "channel_probes_by_channel_id_timestamp",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelProbesColumns[7], ChannelProbesColumns[6]},
+				Columns: []*schema.Column{ChannelProbesColumns[9], ChannelProbesColumns[8]},
 			},
 		},
 	}
@@ -1191,7 +1193,7 @@ var (
 	// UsageArchivesColumns holds the columns for the "usage_archives" table.
 	UsageArchivesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"request", "usage"}},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"request", "usage", "execution"}},
 		{Name: "source_id", Type: field.TypeInt},
 		{Name: "request_id", Type: field.TypeInt},
 		{Name: "project_id", Type: field.TypeInt},

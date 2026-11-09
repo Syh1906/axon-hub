@@ -16,9 +16,11 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
+	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/scopes"
+	"golang.org/x/sync/singleflight"
 )
 
 type ConsumptionService struct {
@@ -26,24 +28,33 @@ type ConsumptionService struct {
 	client *ent.Client
 	system *SystemService
 	cache  xcache.Cache[*ConsumptionResult]
+	flight *singleflight.Group
 }
 
 func NewConsumptionService(client *ent.Client, system *SystemService, config xcache.Config) *ConsumptionService {
-	return &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config)}
+	return &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config), flight: &singleflight.Group{}}
 }
 
 func (s *ConsumptionService) Leaderboard(ctx context.Context, input ConsumptionFilter) (*ConsumptionResult, error) {
-	if err := requireLeaderboardReader(ctx); err != nil {
+	projectID, err := leaderboardProjectID(ctx, input)
+	if err != nil {
 		return nil, err
+	}
+	return s.query(ctx, input, "leaderboard", projectID)
+}
+
+func leaderboardProjectID(ctx context.Context, input ConsumptionFilter) (int, error) {
+	if err := requireLeaderboardReader(ctx); err != nil {
+		return 0, err
 	}
 	projectID := 0
 	if input.ProjectID != nil {
 		if input.ProjectID.Type != ent.TypeProject || input.ProjectID.ID <= 0 {
-			return nil, fmt.Errorf("invalid project ID")
+			return 0, fmt.Errorf("invalid project ID")
 		}
 		projectID = input.ProjectID.ID
 	}
-	return s.query(ctx, input, "leaderboard", projectID)
+	return projectID, nil
 }
 
 func requireLeaderboardReader(ctx context.Context) error {
@@ -73,24 +84,32 @@ func (s *ConsumptionService) Projects(ctx context.Context) ([]*ConsumptionProjec
 
 // UsageStatistics reports only the current project for authorized request readers.
 func (s *ConsumptionService) UsageStatistics(ctx context.Context, input ConsumptionFilter) (*ConsumptionResult, error) {
+	projectID, err := usageStatisticsProjectID(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return s.query(ctx, input, "usage", projectID)
+}
+
+func usageStatisticsProjectID(ctx context.Context, input ConsumptionFilter) (int, error) {
 	user, ok := contexts.GetUser(ctx)
 	if !ok || user == nil {
-		return nil, fmt.Errorf("usage statistics requires an authenticated user")
+		return 0, fmt.Errorf("usage statistics requires an authenticated user")
 	}
 	projectID, ok := contexts.GetProjectID(ctx)
 	if !ok || projectID <= 0 {
-		return nil, fmt.Errorf("project context is required")
+		return 0, fmt.Errorf("project context is required")
 	}
 	if err := authz.RequireScope(ctx, scopes.ScopeReadRequests); err != nil {
-		return nil, err
+		return 0, err
 	}
 	if input.Dimension == ConsumptionDimensionChannel || input.Metric != ConsumptionMetricCost {
-		return nil, fmt.Errorf("usage statistics supports user, API key, API key group and model cost summaries")
+		return 0, fmt.Errorf("usage statistics supports user, API key, API key group and model cost summaries")
 	}
 	if input.ProjectID != nil && (input.ProjectID.Type != ent.TypeProject || input.ProjectID.ID != projectID) {
-		return nil, fmt.Errorf("usage statistics project must match the current project")
+		return 0, fmt.Errorf("usage statistics project must match the current project")
 	}
-	return s.query(ctx, input, "usage", projectID)
+	return projectID, nil
 }
 
 func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter, view string, projectID int) (*ConsumptionResult, error) {
@@ -149,70 +168,100 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("consumption:v4:%x:%s", sha256.Sum256(keyInput), keyRevision)
+		key := fmt.Sprintf("consumption:v5:%x:%s", sha256.Sum256(keyInput), keyRevision)
 		if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
 			return result, nil
 		}
-		rows, err := s.queryGroups(ctx, projectID, input, start, end)
-		if err != nil {
-			return nil, err
-		}
-		entries := make([]*ConsumptionEntry, 0)
-		modelEntries := make([]*ConsumptionModel, 0)
-		if input.Dimension == ConsumptionDimensionModel {
-			for _, row := range rows {
-				modelEntries = append(modelEntries, &ConsumptionModel{Model: row.Model, Metrics: row.metrics()})
+		compute := func(ctx context.Context) (*ConsumptionResult, error) {
+			if cached, err := s.cache.Get(ctx, key); err == nil && cached != nil {
+				return cached, nil
 			}
-			sortConsumptionModels(modelEntries, input)
-		} else {
-			entries = consumptionEntries(rows, input)
-		}
-		if input.Dimension == ConsumptionDimensionAPIKeyGroup && projectID == 0 && len(entries) > 0 {
-			ids := make([]int, 0, len(entries))
-			for _, entry := range entries {
-				ids = append(ids, entry.ID.ID)
-			}
-			groups, err := s.client.APIKeyGroup.Query().Where(apikeygroup.IDIn(ids...)).
-				WithProject(func(q *ent.ProjectQuery) { q.Select(project.FieldName) }).All(ctx)
+			rows, err := s.queryGroups(ctx, projectID, input, start, end)
 			if err != nil {
 				return nil, err
 			}
-			labels := make(map[int]string, len(groups))
-			for _, group := range groups {
-				labels[group.ID] = group.Name + " · " + group.Edges.Project.Name
+			entries := make([]*ConsumptionEntry, 0)
+			modelEntries := make([]*ConsumptionModel, 0)
+			if input.Dimension == ConsumptionDimensionModel {
+				for _, row := range rows {
+					modelEntries = append(modelEntries, &ConsumptionModel{Model: row.Model, Metrics: row.metrics()})
+				}
+				sortConsumptionModels(modelEntries, input)
+			} else {
+				entries = consumptionEntries(rows, input)
 			}
-			for _, entry := range entries {
-				entry.Name = labels[entry.ID.ID]
-			}
-		}
-		if input.Dimension == ConsumptionDimensionAPIKey {
-			ids := make([]int, 0, len(entries))
-			for _, entry := range entries {
-				ids = append(ids, entry.ID.ID)
-			}
-			if len(ids) > 0 {
-				keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).
-					Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(schematype.SkipSoftDelete(ctx))
+			if input.Dimension == ConsumptionDimensionAPIKeyGroup && projectID == 0 && len(entries) > 0 {
+				ids := make([]int, 0, len(entries))
+				for _, entry := range entries {
+					ids = append(ids, entry.ID.ID)
+				}
+				groups, err := s.client.APIKeyGroup.Query().Where(apikeygroup.IDIn(ids...)).
+					WithProject(func(q *ent.ProjectQuery) { q.Select(project.FieldName) }).All(ctx)
 				if err != nil {
 					return nil, err
 				}
-				labels, err := APIKeyLabels(ctx, s.client, keys)
-				if err != nil {
-					return nil, err
+				labels := make(map[int]string, len(groups))
+				for _, group := range groups {
+					labels[group.ID] = group.Name + " · " + group.Edges.Project.Name
 				}
 				for _, entry := range entries {
 					entry.Name = labels[entry.ID.ID]
 				}
 			}
-		}
-		if input.Dimension == ConsumptionDimensionChannel {
-			if err := s.attachCacheCoefficients(ctx, projectID, start, end, entries); err != nil {
-				return nil, err
+			if input.Dimension == ConsumptionDimensionAPIKey {
+				ids := make([]int, 0, len(entries))
+				for _, entry := range entries {
+					ids = append(ids, entry.ID.ID)
+				}
+				if len(ids) > 0 {
+					keys, err := s.client.APIKey.Query().Where(apikey.IDIn(ids...)).
+						Select(apikey.FieldID, apikey.FieldName, apikey.FieldUserID, apikey.FieldProjectID, apikey.FieldGroupRef).All(schematype.SkipSoftDelete(ctx))
+					if err != nil {
+						return nil, err
+					}
+					labels, err := APIKeyLabels(ctx, s.client, keys)
+					if err != nil {
+						return nil, err
+					}
+					for _, entry := range entries {
+						entry.Name = labels[entry.ID.ID]
+					}
+				}
 			}
+			if input.Dimension == ConsumptionDimensionChannel {
+				if err := s.attachCacheCoefficients(ctx, projectID, start, end, entries); err != nil {
+					return nil, err
+				}
+			}
+			sortConsumptionEntries(entries, input)
+			result := &ConsumptionResult{Entries: entries, ModelEntries: modelEntries, GeneratedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
+			_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
+			return result, nil
 		}
-		sortConsumptionEntries(entries, input)
-		result := &ConsumptionResult{Entries: entries, ModelEntries: modelEntries, GeneratedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
-		_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
-		return result, nil
+		return s.sharedQuery(ctx, key, compute)
 	})
+}
+
+// 调用方取消仅结束自己的等待；共享计算独立限时，供其余页面复用。
+func (s *ConsumptionService) sharedQuery(ctx context.Context, key string, compute func(context.Context) (*ConsumptionResult, error)) (*ConsumptionResult, error) {
+	result := s.flight.DoChan(key, func() (value any, err error) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				log.Error(ctx, "consumption query panicked", log.Any("panic", recovered))
+				err = fmt.Errorf("compute consumption: %v", recovered)
+			}
+		}()
+		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		return compute(sharedCtx)
+	})
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case value := <-result:
+		if value.Err != nil {
+			return nil, value.Err
+		}
+		return value.Val.(*ConsumptionResult), nil
+	}
 }

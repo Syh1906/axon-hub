@@ -73,6 +73,16 @@ func AvgTokensPerSecond(v float64) predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldEQ(FieldAvgTokensPerSecond, v))
 }
 
+// SpeedSampleCount applies equality check predicate on the "speed_sample_count" field. It's identical to SpeedSampleCountEQ.
+func SpeedSampleCount(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldSpeedSampleCount, v))
+}
+
+// FirstTokenSampleCount applies equality check predicate on the "first_token_sample_count" field. It's identical to FirstTokenSampleCountEQ.
+func FirstTokenSampleCount(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldFirstTokenSampleCount, v))
+}
+
 // SpeedVersion applies equality check predicate on the "speed_version" field. It's identical to SpeedVersionEQ.
 func SpeedVersion(v int) predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldEQ(FieldSpeedVersion, v))
@@ -236,6 +246,86 @@ func AvgTokensPerSecondIsNil() predicate.ChannelProbe {
 // AvgTokensPerSecondNotNil applies the NotNil predicate on the "avg_tokens_per_second" field.
 func AvgTokensPerSecondNotNil() predicate.ChannelProbe {
 	return predicate.ChannelProbe(sql.FieldNotNull(FieldAvgTokensPerSecond))
+}
+
+// SpeedSampleCountEQ applies the EQ predicate on the "speed_sample_count" field.
+func SpeedSampleCountEQ(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldSpeedSampleCount, v))
+}
+
+// SpeedSampleCountNEQ applies the NEQ predicate on the "speed_sample_count" field.
+func SpeedSampleCountNEQ(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNEQ(FieldSpeedSampleCount, v))
+}
+
+// SpeedSampleCountIn applies the In predicate on the "speed_sample_count" field.
+func SpeedSampleCountIn(vs ...int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldIn(FieldSpeedSampleCount, vs...))
+}
+
+// SpeedSampleCountNotIn applies the NotIn predicate on the "speed_sample_count" field.
+func SpeedSampleCountNotIn(vs ...int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNotIn(FieldSpeedSampleCount, vs...))
+}
+
+// SpeedSampleCountGT applies the GT predicate on the "speed_sample_count" field.
+func SpeedSampleCountGT(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGT(FieldSpeedSampleCount, v))
+}
+
+// SpeedSampleCountGTE applies the GTE predicate on the "speed_sample_count" field.
+func SpeedSampleCountGTE(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGTE(FieldSpeedSampleCount, v))
+}
+
+// SpeedSampleCountLT applies the LT predicate on the "speed_sample_count" field.
+func SpeedSampleCountLT(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLT(FieldSpeedSampleCount, v))
+}
+
+// SpeedSampleCountLTE applies the LTE predicate on the "speed_sample_count" field.
+func SpeedSampleCountLTE(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLTE(FieldSpeedSampleCount, v))
+}
+
+// FirstTokenSampleCountEQ applies the EQ predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountEQ(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldEQ(FieldFirstTokenSampleCount, v))
+}
+
+// FirstTokenSampleCountNEQ applies the NEQ predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountNEQ(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNEQ(FieldFirstTokenSampleCount, v))
+}
+
+// FirstTokenSampleCountIn applies the In predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountIn(vs ...int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldIn(FieldFirstTokenSampleCount, vs...))
+}
+
+// FirstTokenSampleCountNotIn applies the NotIn predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountNotIn(vs ...int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldNotIn(FieldFirstTokenSampleCount, vs...))
+}
+
+// FirstTokenSampleCountGT applies the GT predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountGT(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGT(FieldFirstTokenSampleCount, v))
+}
+
+// FirstTokenSampleCountGTE applies the GTE predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountGTE(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldGTE(FieldFirstTokenSampleCount, v))
+}
+
+// FirstTokenSampleCountLT applies the LT predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountLT(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLT(FieldFirstTokenSampleCount, v))
+}
+
+// FirstTokenSampleCountLTE applies the LTE predicate on the "first_token_sample_count" field.
+func FirstTokenSampleCountLTE(v int64) predicate.ChannelProbe {
+	return predicate.ChannelProbe(sql.FieldLTE(FieldFirstTokenSampleCount, v))
 }
 
 // SpeedVersionEQ applies the EQ predicate on the "speed_version" field.

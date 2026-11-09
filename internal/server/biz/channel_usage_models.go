@@ -84,22 +84,6 @@ func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Clien
 				models[req.Model] = total
 			}
 			total.RequestCount++
-			if req.Terminal {
-				if req.Outcome != nil {
-					total.performance.SuccessCount += int64(*req.Outcome)
-					total.performance.OutcomeCount++
-				}
-				if req.FirstToken != nil {
-					total.performance.FirstTokenSum += *req.FirstToken
-					total.performance.FirstTokenCount++
-				}
-				// Legacy usage rows cannot be uniquely matched to an attempt when
-				// there is more than one. Match the consumption statistics rule.
-				if len(requestRows) == 1 && req.Speed != nil {
-					total.performance.SpeedSum += *req.Speed
-					total.performance.SpeedCount++
-				}
-			}
 			seen, unpriced, standardMissing := false, false, false
 			var requestCost float64
 			var requestTokens int64
@@ -143,6 +127,18 @@ func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Clien
 		if requestCount < channelUsageBatchSize {
 			break
 		}
+	}
+	attempts, err := queryChannelAttemptGroups(ctx, client, 0, ConsumptionFilter{}, []int{id}, &start, end)
+	if err != nil {
+		return nil, err
+	}
+	for _, attempt := range attempts {
+		total := models[attempt.Model]
+		if total == nil {
+			total = &modelTotals{ChannelTodayModelUsage: objects.ChannelTodayModelUsage{Model: attempt.Model}}
+			models[attempt.Model] = total
+		}
+		total.performance = attempt
 	}
 	result := make([]*objects.ChannelTodayModelUsage, 0, len(models))
 	for _, total := range models {

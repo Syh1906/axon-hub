@@ -2359,43 +2359,7 @@ export function useSelectedChannelTags(channelIDs: string[], options?: { enabled
   });
 }
 
-const CHANNEL_PROBE_DATA_QUERY = `
-  query GetChannelProbeData($input: GetChannelProbeDataInput!) {
-    channelProbeData(input: $input) {
-      channelID
-      points {
-        timestamp
-        totalRequestCount
-        successRequestCount
-        avgTokensPerSecond
-        avgTimeToFirstTokenMs
-      }
-    }
-  }
-`;
-
-export function useChannelProbeData(channelIDs: string[], options?: { enabled?: boolean }) {
-  const { handleError } = useErrorHandler();
-  const { t } = useTranslation();
-
-  return useQuery({
-    queryKey: ['channelProbeData', channelIDs],
-    gcTime: 0,
-    queryFn: async ({ signal }) => {
-      try {
-        const data = await graphqlRequest<{ channelProbeData: any[] }>(CHANNEL_PROBE_DATA_QUERY, {
-          input: { channelIDs },
-        }, undefined, { signal });
-        return data.channelProbeData || [];
-      } catch (error) {
-        handleError(error, t('common.errors.internalServerError'));
-        return [];
-      }
-    },
-    enabled: channelIDs.length > 0 && options?.enabled !== false,
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
-}
+export { useChannelProbeData } from './channel-probe';
 
 // Channel Disabled API Keys Hooks
 export function useChannelDisabledAPIKeys(channelId: string, options?: { enabled?: boolean }) {

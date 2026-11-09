@@ -48,7 +48,7 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 		// Audio is excluded; first-byte and first-token wait are different measurements.
 		{completionTokens: 100, reasoningTokens: 20, audioTokens: 30, latencyMs: 2500, firstTokenMs: 500, firstByteMs: 500},
 		{completionTokens: 100, latencyMs: 2500, firstTokenMs: 1500, firstByteMs: 500},
-		// Buffered output still uses the full request duration.
+		// 首字节与结束同刻的缓冲样本缺少输出窗口，不纳入速度。
 		{completionTokens: 50, latencyMs: 2500, firstTokenMs: 2500, firstByteMs: 2500},
 	} {
 		req, createErr := client.Request.Create().
@@ -87,7 +87,7 @@ func TestAnalyticsDimensionStatsIncludesPerformanceMetrics(t *testing.T) {
 	}
 
 	// Both text samples use their full 2.5-second duration; audio remains excluded.
-	expectedTokensPerSecond := (100.0/2.5 + 50.0/2.5) / 2
+	expectedTokensPerSecond := 100.0 / 2
 	expectedTTFTMs := 1500.0
 
 	scans := countUsageLogGroupedScans(client)
@@ -157,14 +157,10 @@ func TestAnalyticsDimensionPerformanceKeepsUsageAndFinalExecution(t *testing.T) 
 			require.Equal(t, count, rows[0].RequestCount)
 			require.Equal(t, 220*count, rows[0].TotalTokens)
 			require.Equal(t, float64(count), rows[0].Cost)
-			if scenario == "failed" || scenario == "canceled" || scenario == "missing_first_byte" || scenario == "short_stream" {
+			if scenario == "failed" || scenario == "canceled" {
 				require.NotNil(t, rows[0].TokensPerSecond)
-				duration := 2.1
-				if scenario == "short_stream" {
-					duration = 0.15
-				}
-				require.InDelta(t, 200.0/duration, *rows[0].TokensPerSecond, 1e-9, "the final execution's full duration determines speed")
-				require.Nil(t, rows[0].TtftMs, "TTFT retains completed-stream samples only")
+				require.InDelta(t, 100, *rows[0].TokensPerSecond, 1e-9)
+				require.Equal(t, 1500.0, *rows[0].TtftMs, "保留真实已到达内容的首字样本")
 			} else {
 				require.Nil(t, rows[0].TokensPerSecond)
 			}

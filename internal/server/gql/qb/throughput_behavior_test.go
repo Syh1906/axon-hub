@@ -2,6 +2,7 @@ package qb
 
 import (
 	"database/sql"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,10 @@ INSERT INTO request_executions VALUES
 (9,9,1,'canceled',1,'openai/chat_completions',2000,1500,1000,'2026-11-01 01:00:00');
 INSERT INTO usage_logs(request_id,channel_id,completion_tokens) VALUES(1,1,100),(2,1,1500),(3,1,4000),(4,1,4000),(5,1,4000),(6,1,4000),(7,1,4000),(7,1,4000),(8,1,4000),(9,1,300);
 UPDATE usage_logs SET cost_snapshot='{"images":[{"source":"file"}]}' WHERE request_id=6;
-UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;`)
+UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;
+ALTER TABLE request_executions ADD COLUMN project_id INTEGER DEFAULT 1;
+ALTER TABLE usage_logs ADD COLUMN project_id INTEGER DEFAULT 1;
+CREATE TABLE budget_charges(execution_id INTEGER, project_id INTEGER, request_id INTEGER, usage_log_id INTEGER);`)
 	require.NoError(t, err)
 	for _, mode := range []ThroughputQueryMode{ThroughputModeRowNumber, ThroughputModeMaxID} {
 		for _, query := range []string{
@@ -60,10 +64,27 @@ UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;`)
 			require.NoError(t, rows.Scan(destinations...))
 			for i, column := range columns {
 				if column == "throughput" {
-					require.Equal(t, (50.0+375.0+2000.0+150.0)/4, values[i])
+					require.Equal(t, (100.0+500.0+300.0)/3, values[i])
 				}
 				if column == "request_count" {
-					require.EqualValues(t, 4, values[i])
+					count := 3
+					if strings.Contains(query, "speed_sample_count") {
+						count = 9
+						if strings.Contains(query, "se.channel_id as id") {
+							count = 10
+						}
+					}
+					require.EqualValues(t, count, values[i])
+				}
+				if column == "speed_sample_count" {
+					require.EqualValues(t, 3, values[i])
+				}
+				if column == "first_token_sample_count" {
+					count := 7
+					if strings.Contains(query, "se.channel_id as id") {
+						count = 8
+					}
+					require.EqualValues(t, count, values[i])
 				}
 			}
 			require.False(t, rows.Next())

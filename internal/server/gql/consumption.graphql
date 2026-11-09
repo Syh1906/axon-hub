@@ -36,6 +36,11 @@ type ConsumptionProject {
   name: String!
 }
 
+type ConsumptionGroupOption {
+  id: ID!
+  name: String!
+}
+
 type ConsumptionMetrics {
   requestCount: Int!
   totalTokens: Int!
@@ -81,6 +86,8 @@ type ConsumptionResult {
 
 extend type Query {
   consumptionProjects: [ConsumptionProject!]!
+  consumptionGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!
+  usageGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!
   consumptionLeaderboard(input: ConsumptionFilter!): ConsumptionResult!
   usageStatistics(input: ConsumptionFilter!): ConsumptionResult!
 }

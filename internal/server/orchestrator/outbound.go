@@ -472,24 +472,7 @@ func (ts *OutboundPersistentStream) persistFailureChunks(ctx context.Context) {
 // failureLatencyMetrics captures the latency metrics collected before the stream failed,
 // so a failed execution still records its time-to-first-token and total latency.
 func (ts *OutboundPersistentStream) failureLatencyMetrics() *biz.LatencyMetrics {
-	if ts.perf == nil || ts.perf.StartTime.IsZero() {
-		return nil
-	}
-
-	endTime := ts.perf.EndTime
-	if endTime.IsZero() {
-		endTime = time.Now()
-	}
-
-	latencyMs := biz.ClampLatency(endTime.Sub(ts.perf.StartTime).Milliseconds())
-	metrics := &biz.LatencyMetrics{LatencyMs: &latencyMs, FirstByteLatencyMs: ts.perf.FirstByteLatencyMs()}
-
-	if ts.perf.Stream && ts.perf.FirstTokenTime != nil {
-		firstTokenLatencyMs := biz.ClampLatency(ts.perf.FirstTokenTime.Sub(ts.perf.StartTime).Milliseconds())
-		metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
-	}
-
-	return metrics
+	return ts.perf.LatencyMetrics()
 }
 
 // persistExecutionFailure marks the execution failed (or canceled) with a classified
@@ -540,20 +523,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 			log.Int("execution_id", ts.requestExec.ID), log.String("reason", accountingUnavailableReason(meta, sourceEnd)))
 	}
 
-	// Build latency metrics from performance record
-	var metrics *biz.LatencyMetrics
-
-	if ts.perf != nil {
-		firstTokenLatencyMs, requestLatencyMs, _ := ts.perf.Calculate()
-
-		metrics = &biz.LatencyMetrics{
-			LatencyMs:          &requestLatencyMs,
-			FirstByteLatencyMs: ts.perf.FirstByteLatencyMs(),
-		}
-		if ts.perf.Stream && ts.perf.FirstTokenTime != nil {
-			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
-		}
-	}
+	metrics := ts.perf.LatencyMetrics()
 
 	status := ts.terminalState.executionStatus()
 	err := ts.RequestService.UpdateRequestExecutionFinalized(

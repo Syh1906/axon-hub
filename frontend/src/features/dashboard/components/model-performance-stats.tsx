@@ -18,6 +18,8 @@ export function ModelPerformanceStats({ onTotalRequestsChange }: ModelPerformanc
       throughput: stat.throughput,
       ttftMs: stat.ttftMs,
       requestCount: stat.requestCount,
+      speedSampleCount: stat.speedSampleCount,
+      firstTokenSampleCount: stat.firstTokenSampleCount,
       date: stat.date,
     })),
     [performanceStats]

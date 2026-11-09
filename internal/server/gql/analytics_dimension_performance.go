@@ -2,9 +2,7 @@ package gql
 
 import (
 	"entgo.io/ent/dialect/sql"
-	"fmt"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
-	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
@@ -14,23 +12,17 @@ func appendAnalyticsPerformance(s *sql.Selector) {
 	execution := sql.Table(requestexecution.Table).As("analytics_execution")
 	latest := sql.Table(requestexecution.Table).As("latest_analytics_execution")
 	finalID := sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
-		Where(sql.ColumnsEQ(latest.C("request_id"), s.C("request_id")))
-	sameUsage := sql.Table(usagelog.Table).As("same_analytics_usage")
-	usageCount := sql.Dialect(s.Dialect()).Select(sql.Count("*")).From(sameUsage).
-		Where(sql.And(sql.ColumnsEQ(sameUsage.C("request_id"), s.C("request_id")),
-			sql.ColumnsEQ(sameUsage.C("channel_id"), s.C("channel_id")),
-			sql.ColumnsEQ(sameUsage.C("project_id"), s.C("project_id"))))
-	usageCountSQL, _ := usageCount.Query()
+		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("request_id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id"))))
 	s.LeftJoin(execution).OnP(sql.And(
 		sql.EQ(execution.C("id"), finalID),
 		sql.ColumnsEQ(execution.C("channel_id"), s.C("channel_id")),
 		sql.ColumnsEQ(execution.C("project_id"), s.C("project_id")),
 		sql.In(execution.C("status"), "completed", "failed", "canceled"),
-		sql.ExprP("("+usageCountSQL+") = 1"),
+		sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"), s.C("id"))),
 	))
 	tokens := usageanalytics.TextTokensSQL(s.C("completion_tokens"), s.C("cost_snapshot"), s.C("completion_audio_tokens"), s.Dialect())
-	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("format"))
-	firstToken := execution.C("metrics_first_token_latency_ms")
+	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+	firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
 	s.AppendSelect(sql.As("AVG("+speed+")", "tokens_per_second"),
-		sql.As(fmt.Sprintf("AVG(CASE WHEN %s = 'completed' AND %s AND %s > 0 THEN %s END)", execution.C("status"), execution.C("stream"), firstToken, firstToken), "ttft_ms"))
+		sql.As("AVG("+firstToken+")", "ttft_ms"))
 }

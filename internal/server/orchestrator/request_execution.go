@@ -268,42 +268,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundLlmResponse(ctx context.Co
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	// Build latency metrics from performance record
-	var metrics *biz.LatencyMetrics
-
-	if state.Perf != nil && !state.Perf.StartTime.IsZero() {
-		var (
-			firstTokenLatencyMs int64
-			requestLatencyMs    int64
-		)
-
-		if state.Perf.RequestCompleted && !state.Perf.EndTime.IsZero() {
-			firstTokenLatencyMs, requestLatencyMs, _ = state.Perf.Calculate()
-		} else {
-			requestLatencyMs = time.Since(state.Perf.StartTime).Milliseconds()
-			if state.Perf.Stream && state.Perf.FirstTokenTime != nil {
-				firstTokenLatencyMs = state.Perf.FirstTokenTime.Sub(state.Perf.StartTime).Milliseconds()
-			}
-
-			requestLatencyMs = biz.ClampLatency(requestLatencyMs)
-			firstTokenLatencyMs = biz.ClampLatency(firstTokenLatencyMs)
-		}
-
-		metrics = &biz.LatencyMetrics{
-			LatencyMs:          &requestLatencyMs,
-			FirstByteLatencyMs: state.Perf.FirstByteLatencyMs(),
-		}
-		if state.Perf.Stream && state.Perf.FirstTokenTime != nil {
-			metrics.FirstTokenLatencyMs = &firstTokenLatencyMs
-		}
-
-		if state.Perf.Stream {
-			reasoningDurationMs := state.Perf.CalculateReasoningDurationMs()
-			if reasoningDurationMs > 0 {
-				metrics.ReasoningDurationMs = &reasoningDurationMs
-			}
-		}
-	}
+	metrics := state.Perf.LatencyMetrics()
 
 	// Audio responses (binary TTS / non-JSON STT) must be converted to JSON-safe payloads
 	// before persisting into the JSON response_body column.
@@ -363,11 +328,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	var metrics *biz.LatencyMetrics
-	if state.Perf != nil && !state.Perf.StartTime.IsZero() {
-		_, latency, _ := state.Perf.Calculate()
-		metrics = &biz.LatencyMetrics{LatencyMs: &latency, FirstByteLatencyMs: state.Perf.FirstByteLatencyMs()}
-	}
+	metrics := state.Perf.LatencyMetrics()
 	// Classify with the original request context before detaching persistence.
 	// The first failure snapshot is retained by RequestService during finalization.
 	updateErr := persistRequestExecutionFailure(persistCtx, state.RequestService, state.RequestExec.ID, classifyRequestFailure(ctx, err), metrics, m.rawResponse, modelname.FromResponse(m.rawResponse, llm.APIFormat(state.RequestExec.Format)))

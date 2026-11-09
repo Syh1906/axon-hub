@@ -38,6 +38,9 @@ func (r *queryResolver) RequestContinuations(ctx context.Context, requestID obje
 		for _, edge := range page.Edges {
 			records = append(records, edge.Node)
 		}
+		if err := cacheRequestChannels(ctx, r.client, records); err != nil {
+			return nil, err
+		}
 		cacheRequestChannelSessions(ctx, r.client, records, true)
 	}
 	return cacheRequestSpeeds(ctx, r.client, page, err)
@@ -105,6 +108,9 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 		requests := make([]*ent.Request, 0, len(page.Edges))
 		for _, edge := range page.Edges {
 			requests = append(requests, edge.Node)
+		}
+		if err := cacheRequestChannels(ctx, r.client, requests); err != nil {
+			return nil, err
 		}
 		cacheRequestChannelSessions(ctx, r.client, requests, true)
 		if err := cacheRequestContinuationCounts(ctx, r.client, requests); err != nil {

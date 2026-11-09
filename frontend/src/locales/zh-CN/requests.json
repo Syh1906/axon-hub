@@ -311,5 +311,7 @@
   "requests.tooltips.upstreamModelRequestFailed": "请求未成功，模型一致性无法作为成功结论；请查看失败原因",
   "requests.tooltips.upstreamModelPartial": "仅部分执行可审计：已比较 {{compared}} 次，未知 {{unknown}} 次",
   "requests.detail.routedModel": "渠道模型",
-  "requests.detail.upstreamModels": "上游自报模型"
+  "requests.detail.upstreamModels": "上游自报模型",
+  "requests.duration.outputRate": "输出",
+  "requests.duration.firstTokenHelp": "首字为本次执行发送后到首个有效文本、推理内容或工具参数的时间；上游先发的状态帧不算首字。"
 }

@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/data-table-column-header';
 import { useChannels } from '../context/channels-context';
+import { useChannelControlData } from '../context/channel-controls-context';
 import { useTestChannel } from '../data/channels';
 import { CHANNEL_CONFIGS, getProvider } from '../data/config_channels';
 import { Channel } from '../data/schema';
@@ -92,7 +93,7 @@ const quotaColor = (remaining: number) => {
 
 // Status Switch Cell Component to handle status toggle with confirmation dialog
 const StatusSwitchCell = memo(({ row }: { row: Row<Channel> }) => {
-  const channel = row.original;
+  const channel = useChannelControlData(row.original, ['status']);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { channelPermissions } = usePermissions();
 
@@ -122,7 +123,7 @@ StatusSwitchCell.displayName = 'StatusSwitchCell';
 // Action Cell Component to handle hooks properly
 const ActionCell = memo(({ row }: { row: Row<Channel> }) => {
   const { t } = useTranslation();
-  const channel = row.original;
+  const channel = useChannelControlData(row.original, ['status', 'errorMessage', 'disabledAPIKeys']);
   const { setOpen, setCurrentRow } = useChannels();
   const { channelPermissions } = usePermissions();
   const testChannel = useTestChannel();
@@ -394,7 +395,7 @@ function getProxyURLSummary(proxyURL: string): { label: string; detail?: string 
 // Memoized cell components to avoid recreating on every render
 const NameCell = memo(({ row, globalDefaultMode }: { row: Row<Channel>; globalDefaultMode?: QuotaRoutingMode }) => {
   const { t } = useTranslation();
-  const channel = row.original;
+  const channel = useChannelControlData(row.original, ['healthGate', 'errorMessage', 'disabledAPIKeys', 'providerQuotaStatus']);
   const { setOpen, setCurrentRow } = useChannels();
   const gate = channel.healthGate;
   const hasError = channel.errorMessage != null;
@@ -544,7 +545,7 @@ ProviderCell.displayName = 'ProviderCell';
 const QuotaCell = memo(({ row }: { row: Row<Channel> }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
-  const channel = row.original;
+  const channel = useChannelControlData(row.original, ['providerQuotaStatus']);
 
   if (!channel.providerQuotaStatus) {
     return (
@@ -1016,14 +1017,7 @@ export const createColumns = (
       id: 'health',
       accessorKey: 'health',
       header: ({ column }) => <DataTableColumnHeader fitContent column={column} title={t('channels.columns.health')} className='justify-center' />,
-      cell: ({ row }: { row: Row<Channel> }) => {
-        const probePoints = (row.original as any).probePoints || [];
-        return (
-          <div className='flex flex-col items-center gap-1'>
-            <ChannelHealthCell points={probePoints} />
-          </div>
-        );
-      },
+      cell: ({ row }: { row: Row<Channel> }) => <ChannelHealthCell channel={row.original} />,
       meta: {
         className: 'w-32 min-w-32 text-center',
       },

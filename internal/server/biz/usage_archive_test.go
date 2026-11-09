@@ -32,7 +32,7 @@ func TestUsageArchivePreservesStatisticsAndAvoidsDoubleCounting(t *testing.T) {
 	require.Equal(t, before, after)
 	// Archiving the same completed request twice is idempotent.
 	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, []int{req.ID}))
-	require.Equal(t, 1+len(usage), f.client.UsageArchive.Query().CountX(f.ctx))
+	require.Equal(t, 2+len(usage), f.client.UsageArchive.Query().CountX(f.ctx))
 	periods := xtime.GetCalendarPeriods(time.UTC)
 	result, err := QueryDashboardCosts(f.viewer(t, f.project.ID, string(scopes.ScopeReadDashboard)), f.client, periods, "UTC")
 	require.NoError(t, err)

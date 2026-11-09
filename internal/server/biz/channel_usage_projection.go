@@ -11,7 +11,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/shopspring/decimal"
 )
 
@@ -68,10 +67,6 @@ type channelUsageRow struct {
 	UsageRequestID   int                   `json:"usage_request_id"`
 	Model            string                `json:"model"`
 	RequestCreatedAt time.Time             `json:"request_created_at"`
-	Terminal         bool                  `json:"terminal"`
-	FirstToken       *float64              `json:"first_token"`
-	Outcome          *float64              `json:"outcome"`
-	Speed            *float64              `json:"speed"`
 }
 
 // Use the channel/day index and a stable (created_at, id) cursor. Read the
@@ -88,13 +83,8 @@ func channelUsageBatchQuery(db string, id int, start, end, afterTime time.Time, 
 	execution := joinLatestConsumptionExecution(q)
 	u := sql.Table(usagelog.Table).As("usage_log")
 	q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("id"), u.C("request_id")), sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id"))))
-	outcome := consumptionOutcome(execution)
-	speed := usageanalytics.OutputSpeedSQL(usageanalytics.TextTokensSQL(u.C("completion_tokens"), u.C("cost_snapshot"), u.C("completion_audio_tokens"), db),
-		execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("format"))
 	q.Select(sql.As(q.C("id"), "usage_request_id"), sql.As(q.C("created_at"), "request_created_at"),
-		sql.As("COALESCE(NULLIF(TRIM("+execution.C("model_id")+"), ''), "+q.C("model_id")+")", "model"),
-		sql.As(q.C("status")+" IN ('completed', 'failed', 'canceled')", "terminal"),
-		sql.As(execution.C("metrics_first_token_latency_ms"), "first_token"), sql.As(outcome, "outcome"), sql.As(speed, "speed"))
+		sql.As("COALESCE(NULLIF(TRIM("+execution.C("model_id")+"), ''), "+q.C("model_id")+")", "model"))
 	for _, field := range []string{usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldProjectID, usagelog.FieldCreatedAt,
 		usagelog.FieldTotalCost, usagelog.FieldCostItems, usagelog.FieldCostPriceReferenceID, usagelog.FieldPromptTokens,
 		usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens,

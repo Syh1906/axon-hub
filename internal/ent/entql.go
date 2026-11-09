@@ -381,6 +381,8 @@ var schemaGraph = func() *sqlgraph.Schema {
 			channelprobe.FieldTotalRequestCount:     {Type: field.TypeInt, Column: channelprobe.FieldTotalRequestCount},
 			channelprobe.FieldSuccessRequestCount:   {Type: field.TypeInt, Column: channelprobe.FieldSuccessRequestCount},
 			channelprobe.FieldAvgTokensPerSecond:    {Type: field.TypeFloat64, Column: channelprobe.FieldAvgTokensPerSecond},
+			channelprobe.FieldSpeedSampleCount:      {Type: field.TypeInt64, Column: channelprobe.FieldSpeedSampleCount},
+			channelprobe.FieldFirstTokenSampleCount: {Type: field.TypeInt64, Column: channelprobe.FieldFirstTokenSampleCount},
 			channelprobe.FieldSpeedVersion:          {Type: field.TypeInt, Column: channelprobe.FieldSpeedVersion},
 			channelprobe.FieldAvgTimeToFirstTokenMs: {Type: field.TypeFloat64, Column: channelprobe.FieldAvgTimeToFirstTokenMs},
 			channelprobe.FieldTimestamp:             {Type: field.TypeInt64, Column: channelprobe.FieldTimestamp},
@@ -3296,6 +3298,16 @@ func (f *ChannelProbeFilter) WhereSuccessRequestCount(p entql.IntP) {
 // WhereAvgTokensPerSecond applies the entql float64 predicate on the avg_tokens_per_second field.
 func (f *ChannelProbeFilter) WhereAvgTokensPerSecond(p entql.Float64P) {
 	f.Where(p.Field(channelprobe.FieldAvgTokensPerSecond))
+}
+
+// WhereSpeedSampleCount applies the entql int64 predicate on the speed_sample_count field.
+func (f *ChannelProbeFilter) WhereSpeedSampleCount(p entql.Int64P) {
+	f.Where(p.Field(channelprobe.FieldSpeedSampleCount))
+}
+
+// WhereFirstTokenSampleCount applies the entql int64 predicate on the first_token_sample_count field.
+func (f *ChannelProbeFilter) WhereFirstTokenSampleCount(p entql.Int64P) {
+	f.Where(p.Field(channelprobe.FieldFirstTokenSampleCount))
 }
 
 // WhereSpeedVersion applies the entql int predicate on the speed_version field.

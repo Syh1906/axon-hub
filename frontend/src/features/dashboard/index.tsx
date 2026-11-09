@@ -138,7 +138,7 @@ export default function DashboardPage() {
   }, [t, modelTotalRequests]);
 
   const channelPerformanceDescription = useMemo(() => {
-    return t('dashboard.charts.performanceDescription', { count: formatNumber(channelTotalRequests) });
+    return t('dashboard.charts.channelPerformanceDescription', { count: formatNumber(channelTotalRequests) });
   }, [t, channelTotalRequests]);
 
   return (

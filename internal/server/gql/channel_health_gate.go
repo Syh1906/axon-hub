@@ -43,6 +43,10 @@ func channelHealthGateStatus(ctx context.Context, gate *biz.HealthGate, policy b
 	if err != nil {
 		return nil, err
 	}
+	return healthGateStatusFromSnapshots(cfg, snapshots), nil
+}
+
+func healthGateStatusFromSnapshots(cfg biz.HealthGateConfig, snapshots []biz.HealthGateModelSnapshot) *ChannelHealthGateStatus {
 	status := &ChannelHealthGateStatus{
 		Disabled:              cfg.Disabled(),
 		FailureThreshold:      cfg.FailureThreshold,
@@ -73,7 +77,7 @@ func channelHealthGateStatus(ctx context.Context, gate *biz.HealthGate, policy b
 		}
 		status.Models = append(status.Models, model)
 	}
-	return status, nil
+	return status
 }
 
 func (r *mutationResolver) resetChannelHealthGate(ctx context.Context, channelID objects.GUID, actualModel *string) (bool, error) {

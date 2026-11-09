@@ -183,8 +183,9 @@ type Kind string
 
 // Kind values.
 const (
-	KindRequest Kind = "request"
-	KindUsage   Kind = "usage"
+	KindRequest   Kind = "request"
+	KindUsage     Kind = "usage"
+	KindExecution Kind = "execution"
 )
 
 func (k Kind) String() string {
@@ -194,7 +195,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindRequest, KindUsage:
+	case KindRequest, KindUsage, KindExecution:
 		return nil
 	default:
 		return fmt.Errorf("usagearchive: invalid enum value for kind field: %q", k)

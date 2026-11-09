@@ -54,6 +54,34 @@ func (_c *ChannelProbeCreate) SetNillableAvgTokensPerSecond(v *float64) *Channel
 	return _c
 }
 
+// SetSpeedSampleCount sets the "speed_sample_count" field.
+func (_c *ChannelProbeCreate) SetSpeedSampleCount(v int64) *ChannelProbeCreate {
+	_c.mutation.SetSpeedSampleCount(v)
+	return _c
+}
+
+// SetNillableSpeedSampleCount sets the "speed_sample_count" field if the given value is not nil.
+func (_c *ChannelProbeCreate) SetNillableSpeedSampleCount(v *int64) *ChannelProbeCreate {
+	if v != nil {
+		_c.SetSpeedSampleCount(*v)
+	}
+	return _c
+}
+
+// SetFirstTokenSampleCount sets the "first_token_sample_count" field.
+func (_c *ChannelProbeCreate) SetFirstTokenSampleCount(v int64) *ChannelProbeCreate {
+	_c.mutation.SetFirstTokenSampleCount(v)
+	return _c
+}
+
+// SetNillableFirstTokenSampleCount sets the "first_token_sample_count" field if the given value is not nil.
+func (_c *ChannelProbeCreate) SetNillableFirstTokenSampleCount(v *int64) *ChannelProbeCreate {
+	if v != nil {
+		_c.SetFirstTokenSampleCount(*v)
+	}
+	return _c
+}
+
 // SetSpeedVersion sets the "speed_version" field.
 func (_c *ChannelProbeCreate) SetSpeedVersion(v int) *ChannelProbeCreate {
 	_c.mutation.SetSpeedVersion(v)
@@ -128,6 +156,14 @@ func (_c *ChannelProbeCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ChannelProbeCreate) defaults() {
+	if _, ok := _c.mutation.SpeedSampleCount(); !ok {
+		v := channelprobe.DefaultSpeedSampleCount
+		_c.mutation.SetSpeedSampleCount(v)
+	}
+	if _, ok := _c.mutation.FirstTokenSampleCount(); !ok {
+		v := channelprobe.DefaultFirstTokenSampleCount
+		_c.mutation.SetFirstTokenSampleCount(v)
+	}
 	if _, ok := _c.mutation.SpeedVersion(); !ok {
 		v := channelprobe.DefaultSpeedVersion
 		_c.mutation.SetSpeedVersion(v)
@@ -144,6 +180,12 @@ func (_c *ChannelProbeCreate) check() error {
 	}
 	if _, ok := _c.mutation.SuccessRequestCount(); !ok {
 		return &ValidationError{Name: "success_request_count", err: errors.New(`ent: missing required field "ChannelProbe.success_request_count"`)}
+	}
+	if _, ok := _c.mutation.SpeedSampleCount(); !ok {
+		return &ValidationError{Name: "speed_sample_count", err: errors.New(`ent: missing required field "ChannelProbe.speed_sample_count"`)}
+	}
+	if _, ok := _c.mutation.FirstTokenSampleCount(); !ok {
+		return &ValidationError{Name: "first_token_sample_count", err: errors.New(`ent: missing required field "ChannelProbe.first_token_sample_count"`)}
 	}
 	if _, ok := _c.mutation.SpeedVersion(); !ok {
 		return &ValidationError{Name: "speed_version", err: errors.New(`ent: missing required field "ChannelProbe.speed_version"`)}
@@ -192,6 +234,14 @@ func (_c *ChannelProbeCreate) createSpec() (*ChannelProbe, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.AvgTokensPerSecond(); ok {
 		_spec.SetField(channelprobe.FieldAvgTokensPerSecond, field.TypeFloat64, value)
 		_node.AvgTokensPerSecond = &value
+	}
+	if value, ok := _c.mutation.SpeedSampleCount(); ok {
+		_spec.SetField(channelprobe.FieldSpeedSampleCount, field.TypeInt64, value)
+		_node.SpeedSampleCount = value
+	}
+	if value, ok := _c.mutation.FirstTokenSampleCount(); ok {
+		_spec.SetField(channelprobe.FieldFirstTokenSampleCount, field.TypeInt64, value)
+		_node.FirstTokenSampleCount = value
 	}
 	if value, ok := _c.mutation.SpeedVersion(); ok {
 		_spec.SetField(channelprobe.FieldSpeedVersion, field.TypeInt, value)
@@ -296,6 +346,12 @@ func (u *ChannelProbeUpsertOne) UpdateNewValues() *ChannelProbeUpsertOne {
 		}
 		if _, exists := u.create.mutation.AvgTokensPerSecond(); exists {
 			s.SetIgnore(channelprobe.FieldAvgTokensPerSecond)
+		}
+		if _, exists := u.create.mutation.SpeedSampleCount(); exists {
+			s.SetIgnore(channelprobe.FieldSpeedSampleCount)
+		}
+		if _, exists := u.create.mutation.FirstTokenSampleCount(); exists {
+			s.SetIgnore(channelprobe.FieldFirstTokenSampleCount)
 		}
 		if _, exists := u.create.mutation.SpeedVersion(); exists {
 			s.SetIgnore(channelprobe.FieldSpeedVersion)
@@ -524,6 +580,12 @@ func (u *ChannelProbeUpsertBulk) UpdateNewValues() *ChannelProbeUpsertBulk {
 			}
 			if _, exists := b.mutation.AvgTokensPerSecond(); exists {
 				s.SetIgnore(channelprobe.FieldAvgTokensPerSecond)
+			}
+			if _, exists := b.mutation.SpeedSampleCount(); exists {
+				s.SetIgnore(channelprobe.FieldSpeedSampleCount)
+			}
+			if _, exists := b.mutation.FirstTokenSampleCount(); exists {
+				s.SetIgnore(channelprobe.FieldFirstTokenSampleCount)
 			}
 			if _, exists := b.mutation.SpeedVersion(); exists {
 				s.SetIgnore(channelprobe.FieldSpeedVersion)

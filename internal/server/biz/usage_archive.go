@@ -76,6 +76,9 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 	if len(requestIDs) == 0 {
 		return nil
 	}
+	if err := archiveExecutionStatistics(ctx, client, requestIDs); err != nil {
+		return err
+	}
 	var rows []archivedRequestFacts
 	err := client.Request.Query().Where(request.IDIn(requestIDs...)).Modify(func(q *sql.Selector) {
 		excludeArchivedRequests(q)
@@ -83,7 +86,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 		// Restrict the usage aggregation itself, not only its outer join.
 		u.Where(sql.InInts(sql.Table(usagelog.Table).As("ul").C("request_id"), requestIDs...))
 		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
-		firstToken := execution.C("metrics_first_token_latency_ms")
+		firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"
 		q.Select(q.C("id"), q.C("project_id"), q.C("created_at"),
 			sql.As(q.C("model_id"), "request_model"), sql.As(q.C("status"), "request_status"), sql.As(q.C("source"), "request_source"),

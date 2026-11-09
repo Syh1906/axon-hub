@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
@@ -15,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/stretchr/testify/require"
 )
@@ -150,6 +152,61 @@ func TestCleanupTasksKeepUsageSelectableAfterRequestDeletion(t *testing.T) {
 	require.Equal(t, 1, client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindUsage)).CountX(ctx))
 	run(TriggerGcCleanupInput{UsageArchiveCleanupDays: 365})
 	require.Zero(t, client.UsageArchive.Query().CountX(ctx))
+}
+
+func TestCleanupTasksKeepExecutionStatisticsWhileRequestRetained(t *testing.T) {
+	w, ctx, client, proj := setupBodyCleanupWorker(t)
+	ctx = contexts.WithUser(ctx, &ent.User{ID: 1, IsOwner: true})
+	old := time.Now().UTC().AddDate(0, 0, -400)
+	ch := client.Channel.Create().SetType("openai").SetName("retained-statistics").
+		SetSupportedModels([]string{"gpt-4"}).SetDefaultTestModel("gpt-4").SetCredentials(objects.ChannelCredentials{}).SaveX(ctx)
+	req := createBodyTestRequest(t, ctx, client, proj.ID, old, objects.JSONRawMessage(`{}`), objects.JSONRawMessage(`{}`))
+	client.Request.UpdateOne(req).SetChannelID(ch.ID).ExecX(ctx)
+	for _, status := range []string{"failed", "completed"} {
+		create := client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(proj.ID).
+			SetCreatedAt(old).SetModelID("gpt-4").SetRequestBody([]byte(`{}`)).SetStatus("completed").SetChannelID(ch.ID).SetStream(true).
+			SetMetricsLatencyMs(1200).SetMetricsFirstByteLatencyMs(200).SetMetricsFirstTokenLatencyMs(700)
+		if status == "failed" {
+			create.SetStatus("failed").SetResponseStatusCode(500)
+		}
+		create.SaveX(ctx)
+	}
+	client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(proj.ID).SetChannelID(ch.ID).
+		SetModelID("gpt-4").SetCreatedAt(old).SetCompletionTokens(100).SetTotalTokens(100).SetTotalCost(2).SaveX(ctx)
+	statistics := func() biz.ConsumptionMetrics {
+		service := biz.NewConsumptionService(client, w.SystemService, xcache.Config{})
+		result, err := service.Leaderboard(ctx, biz.ConsumptionFilter{
+			Dimension: biz.ConsumptionDimensionChannel, Metric: biz.ConsumptionMetricCost, Period: biz.ConsumptionPeriodAll,
+		})
+		require.NoError(t, err)
+		require.Len(t, result.Entries, 1)
+		return result.Entries[0].Metrics
+	}
+	before := statistics()
+	require.Equal(t, 0.5, *before.SuccessRate)
+	require.Equal(t, 100.0, *before.AvgTokensPerSecond)
+	run := func(input TriggerGcCleanupInput) {
+		task, err := w.StartCleanup(ctx, input, false)
+		require.NoError(t, err)
+		task = claimTestTask(t, w, ctx, task)
+		for range 12 {
+			if task.Status == TaskCompleted {
+				break
+			}
+			task, err = w.runTaskBatch(ctx, task.ID, task.Owner)
+			require.NoError(t, err)
+		}
+		require.Equal(t, TaskCompleted, task.Status)
+	}
+	run(TriggerGcCleanupInput{UsageLogsCleanupDays: 60})
+	require.Zero(t, client.UsageLog.Query().CountX(ctx))
+	run(TriggerGcCleanupInput{UsageArchiveCleanupDays: 365})
+	require.Equal(t, 1, client.Request.Query().CountX(ctx))
+	require.Equal(t, 2, client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindExecution)).CountX(ctx))
+	require.Equal(t, before, statistics(), "retained requests must not lose archived speed evidence after usage cleanup")
+	run(TriggerGcCleanupInput{RequestsCleanupDays: 60})
+	run(TriggerGcCleanupInput{UsageArchiveCleanupDays: 365})
+	require.Zero(t, client.UsageArchive.Query().CountX(ctx), "expired execution facts become removable once their sources are gone")
 }
 
 func TestCleanupTaskExpiredOwnerResumesFromCommittedCheckpoint(t *testing.T) {

@@ -1,3 +1,4 @@
+import { useChannelControlData } from '../context/channel-controls-context';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -8,7 +9,8 @@ interface ChannelLimiterCellProps {
   channel: Channel;
 }
 
-export const ChannelLimiterCell = memo(({ channel }: ChannelLimiterCellProps) => {
+export const ChannelLimiterCell = memo(({ channel: source }: ChannelLimiterCellProps) => {
+  const channel = useChannelControlData(source, ['liveUsage', 'liveLimiterStats']);
   const { t, i18n } = useTranslation();
   const usage = channel.liveUsage;
   const limits = channel.settings?.rateLimit;

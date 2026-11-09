@@ -16,6 +16,16 @@ func (r *queryResolver) ConsumptionProjects(ctx context.Context) ([]*biz.Consump
 	return r.consumptionService.Projects(ctx)
 }
 
+// ConsumptionGroupOptions is the resolver for the consumptionGroupOptions field.
+func (r *queryResolver) ConsumptionGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error) {
+	return r.consumptionService.LeaderboardGroupOptions(ctx, input)
+}
+
+// UsageGroupOptions is the resolver for the usageGroupOptions field.
+func (r *queryResolver) UsageGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error) {
+	return r.consumptionService.UsageGroupOptions(ctx, input)
+}
+
 // ConsumptionLeaderboard is the resolver for the consumptionLeaderboard field.
 func (r *queryResolver) ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error) {
 	return r.consumptionService.Leaderboard(ctx, input)

@@ -378,7 +378,7 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 				"completion_tokens",
 				"* 1000.0",
 				"se.metrics_latency_ms",
-				"/ se.metrics_latency_ms",
+				"/ NULLIF((se.metrics_latency_ms - se.metrics_first_byte_latency_ms), 0)",
 			},
 		},
 		{
@@ -387,7 +387,7 @@ func TestBuildDailyThroughputQuery_TokPerSecondCalculation(t *testing.T) {
 			wantContains: []string{
 				"completion_tokens",
 				"* 1000.0",
-				"/ se.metrics_latency_ms",
+				"/ NULLIF((se.metrics_latency_ms - se.metrics_first_byte_latency_ms), 0)",
 			},
 		},
 	}
@@ -473,7 +473,7 @@ func TestBuildDailyThroughputQuery_StreamingLatencyHandling(t *testing.T) {
 	assert.Contains(t, got, "CASE WHEN se.stream")
 	assert.Contains(t, got, "AVG(")
 	assert.Contains(t, got, "se.metrics_latency_ms > 0")
-	assert.NotContains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms")
+	assert.Contains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms")
 }
 
 func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
@@ -505,8 +505,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 				"ORDER BY date DESC, throughput DESC",
 			},
 			wantNotContains: []string{},
@@ -527,8 +527,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 				"ORDER BY date DESC, throughput DESC",
 			},
 			wantNotContains: []string{
@@ -554,8 +554,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 			},
 		},
 		{
@@ -573,8 +573,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 			},
 			wantNotContains: []string{
 				"JOIN requests r ON se.request_id = r.id",
@@ -596,8 +596,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 			},
 		},
 		{
@@ -614,8 +614,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 			},
 			wantNotContains: []string{
 				"JOIN requests r ON se.request_id = r.id",
@@ -673,8 +673,8 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 				"NULLIF(",
 				", 0)",
 				"GROUP BY exec_date",
-				"WHERE daily.throughput IS NOT NULL",
-				"AND daily.throughput > 0",
+				"WHERE daily.speed_sample_count > 0",
+				"OR daily.first_token_sample_count > 0",
 				"ORDER BY date DESC, throughput DESC",
 			},
 			wantNotContains: []string{
@@ -685,7 +685,7 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 			},
 		},
 		{
-			name:          "channel query with mysql and DISTINCT ON mode falls back to ROW_NUMBER",
+			name:          "channel query keeps all attempts in every mode",
 			dialect:       "mysql",
 			timezone:      "UTC",
 			offsetSeconds: 0,
@@ -694,11 +694,11 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 			mode:          ThroughputModeDistinctOn,
 			wantContains: []string{
 				"WITH successful_execs AS",
-				"ROW_NUMBER() OVER (PARTITION BY se.request_id ORDER BY se.created_at DESC, se.id DESC)",
-				"WHERE se.rn = 1",
 				"GROUP BY exec_date",
 			},
 			wantNotContains: []string{
+				"ROW_NUMBER() OVER",
+				"WHERE se.rn = 1",
 				"DISTINCT ON",
 				"JOIN requests r ON se.request_id = r.id",
 			},
@@ -723,10 +723,9 @@ func TestBuildDailyPerformanceStatsQuery(t *testing.T) {
 func TestBuildDailyPerformanceStatsQuery_TTFTCalculation(t *testing.T) {
 	got := BuildDailyPerformanceStatsQuery("postgres", "UTC", 0, DailyThroughputByModel, "$1", ThroughputModeRowNumber)
 
-	assert.Contains(t, got, "NULLIF(", "should use NULLIF for TTFT denominator")
-	assert.Contains(t, got, ", 0)", "should have NULLIF(..., 0) pattern")
+	assert.Contains(t, got, "AVG(CASE WHEN se.stream", "missing timings must not become zero-valued samples")
 	assert.Contains(t, got, "metrics_first_token_latency_ms", "should reference first token latency")
-	assert.Contains(t, got, "SUM(CASE", "should use CASE for TTFT calculation")
+	assert.Contains(t, got, "se.metrics_latency_ms >= se.metrics_first_token_latency_ms", "reject impossible timing")
 }
 
 func TestBuildDailyPerformanceStatsQuery_GroupByBehavior(t *testing.T) {
@@ -761,8 +760,8 @@ func TestBuildDailyPerformanceStatsQuery_GroupByBehavior(t *testing.T) {
 func TestBuildDailyPerformanceStatsQuery_PostFilter(t *testing.T) {
 	got := BuildDailyPerformanceStatsQuery("postgres", "UTC", 0, DailyThroughputByModel, "$1", ThroughputModeRowNumber)
 
-	assert.Contains(t, got, "WHERE daily.throughput IS NOT NULL", "should filter null throughput")
-	assert.Contains(t, got, "AND daily.throughput > 0", "should filter zero/negative throughput")
+	assert.Contains(t, got, "WHERE daily.speed_sample_count > 0", "keep a valid speed or first-token sample")
+	assert.Contains(t, got, "OR daily.first_token_sample_count > 0", "first-token-only dates remain available")
 }
 
 func TestBuildDailyPerformanceStatsQuery_ConditionalJoinRequests(t *testing.T) {
@@ -842,7 +841,7 @@ func TestBuildDailyThroughputQuery_DistinctOn(t *testing.T) {
 		assert.Contains(t, got, "JOIN requests r ON se.request_id = r.id", "model queries must keep the requests join")
 		assert.Contains(t, got, "NULLIF(", "TTFT denominator must be retained")
 		assert.Contains(t, got, "GROUP BY exec_date, se.model_id", "day-level grouping must be retained")
-		assert.Contains(t, got, "WHERE daily.throughput IS NOT NULL", "positive-throughput post filter must be retained")
+		assert.Contains(t, got, "WHERE daily.speed_sample_count > 0", "independent metric samples remain available")
 		assert.NotContains(t, got, "ROW_NUMBER() OVER (PARTITION BY se.request_id", "request-level window dedup must be replaced")
 		assert.NotContains(t, got, "WHERE se.rn = 1", "request-level rn filter must be removed")
 	})

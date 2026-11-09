@@ -33,7 +33,7 @@ type QueryChannelsInput struct {
 func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannelsInput) (*ent.ChannelConnection, error) {
 	// Build the base query
 	var (
-		query = svc.entFromContext(ctx).Channel.Query().WithProviderQuotaStatus()
+		query = svc.entFromContext(ctx).Channel.Query()
 		err   error
 	)
 
@@ -92,7 +92,7 @@ func (svc *ChannelService) QueryChannels(ctx context.Context, input QueryChannel
 		RestoreZeroCursorValue(input.After, order.Field.Value)
 		RestoreZeroCursorValue(input.Before, order.Field.Value)
 	}
-	return query.Paginate(ctx, input.After, input.First, input.Before, input.Last,
+	return query.WithProviderQuotaStatus().Paginate(ctx, input.After, input.First, input.Before, input.Last,
 		ent.WithChannelOrder(input.OrderBy),
 	)
 }

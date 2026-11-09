@@ -142,6 +142,8 @@ type ModelPerformanceStat {
   throughput: Float
   ttftMs: Float
   requestCount: Int!
+  speedSampleCount: Int!
+  firstTokenSampleCount: Int!
 }
 
 """
@@ -154,6 +156,8 @@ type ChannelPerformanceStat {
   throughput: Float
   ttftMs: Float
   requestCount: Int!
+  speedSampleCount: Int!
+  firstTokenSampleCount: Int!
 }
 
 input FastestChannelsInput {

@@ -57,11 +57,11 @@ func TestChannelTodayUsagePerformanceUsesValidFinalSamples(t *testing.T) {
 		switch row.Model {
 		case "measured":
 			require.Equal(t, 4, row.RequestCount)
-			require.InDelta(t, 2.0/3, *row.SuccessRate, 1e-9)
+			require.InDelta(t, 2.0/4, *row.SuccessRate, 1e-9)
 			require.Equal(t, 200.0, *row.AvgFirstTokenMs)
-			require.InDelta(t, (100.0/1.2+300.0/2.2)/2, *row.AvgTokensPerSecond, 1e-9)
+			require.InDelta(t, (100.0/1+300.0/2)/2, *row.AvgTokensPerSecond, 1e-9)
 		case "forwarded":
-			require.InDelta(t, 100.0/1.2, *row.AvgTokensPerSecond, 1e-9)
+			require.Nil(t, row.AvgTokensPerSecond, "不足100毫秒的生成窗口不计入速度")
 		case "in-progress":
 			require.Nil(t, row.SuccessRate)
 			require.Nil(t, row.AvgFirstTokenMs)
@@ -194,7 +194,7 @@ func TestChannelTodayUsageKeepsAllUsageRowsBeforePaging(t *testing.T) {
 	require.Equal(t, 2, rows[0].RequestCount)
 	require.Equal(t, int64((channelUsageBatchSize+2)*110), rows[0].TotalTokens)
 	require.Equal(t, float64(channelUsageBatchSize+3), rows[0].TotalCost)
-	require.InDelta(t, 10.0/1.2, *rows[0].AvgTokensPerSecond, 1e-9)
+	require.Nil(t, rows[0].AvgTokensPerSecond, "没有首字节证据的记录不推算速度")
 }
 
 func TestChannelTodayUsageDetailsPermissionsAndEmpty(t *testing.T) {

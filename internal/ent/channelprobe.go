@@ -25,6 +25,10 @@ type ChannelProbe struct {
 	SuccessRequestCount int `json:"success_request_count,omitempty"`
 	// AvgTokensPerSecond holds the value of the "avg_tokens_per_second" field.
 	AvgTokensPerSecond *float64 `json:"avg_tokens_per_second,omitempty"`
+	// SpeedSampleCount holds the value of the "speed_sample_count" field.
+	SpeedSampleCount int64 `json:"speed_sample_count,omitempty"`
+	// FirstTokenSampleCount holds the value of the "first_token_sample_count" field.
+	FirstTokenSampleCount int64 `json:"first_token_sample_count,omitempty"`
 	// SpeedVersion holds the value of the "speed_version" field.
 	SpeedVersion int `json:"speed_version,omitempty"`
 	// AvgTimeToFirstTokenMs holds the value of the "avg_time_to_first_token_ms" field.
@@ -66,7 +70,7 @@ func (*ChannelProbe) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case channelprobe.FieldAvgTokensPerSecond, channelprobe.FieldAvgTimeToFirstTokenMs:
 			values[i] = new(sql.NullFloat64)
-		case channelprobe.FieldID, channelprobe.FieldChannelID, channelprobe.FieldTotalRequestCount, channelprobe.FieldSuccessRequestCount, channelprobe.FieldSpeedVersion, channelprobe.FieldTimestamp:
+		case channelprobe.FieldID, channelprobe.FieldChannelID, channelprobe.FieldTotalRequestCount, channelprobe.FieldSuccessRequestCount, channelprobe.FieldSpeedSampleCount, channelprobe.FieldFirstTokenSampleCount, channelprobe.FieldSpeedVersion, channelprobe.FieldTimestamp:
 			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -113,6 +117,18 @@ func (_m *ChannelProbe) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AvgTokensPerSecond = new(float64)
 				*_m.AvgTokensPerSecond = value.Float64
+			}
+		case channelprobe.FieldSpeedSampleCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field speed_sample_count", values[i])
+			} else if value.Valid {
+				_m.SpeedSampleCount = value.Int64
+			}
+		case channelprobe.FieldFirstTokenSampleCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field first_token_sample_count", values[i])
+			} else if value.Valid {
+				_m.FirstTokenSampleCount = value.Int64
 			}
 		case channelprobe.FieldSpeedVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -187,6 +203,12 @@ func (_m *ChannelProbe) String() string {
 		builder.WriteString("avg_tokens_per_second=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("speed_sample_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SpeedSampleCount))
+	builder.WriteString(", ")
+	builder.WriteString("first_token_sample_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FirstTokenSampleCount))
 	builder.WriteString(", ")
 	builder.WriteString("speed_version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SpeedVersion))

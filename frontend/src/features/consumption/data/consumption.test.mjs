@@ -19,8 +19,20 @@ const source = compile(readFileSync(join(import.meta.dirname, 'consumption.ts'),
   .replaceAll("import { useAuthStore } from '@/stores/authStore';", 'let userID = "viewer"; export const setTestUserID = (id) => { userID = id; }; const useAuthStore = (select) => select({ auth: { user: { id: userID } } });')
   .replaceAll("'@/lib/utils'", JSON.stringify(moduleURL(utils)))
   .replaceAll("'zod'", JSON.stringify(import.meta.resolve('zod')));
-const { useConsumption, setTestUserID } = await import(moduleURL(source));
+const { useConsumption, useConsumptionGroupOptions, setTestUserID } = await import(moduleURL(source));
 const input = { period: 'YESTERDAY', dimension: 'API_KEY_GROUP', metric: 'COST' };
+
+test('分组选项使用轻量查询且隔离用户、视图和项目', () => {
+  const options = useConsumptionGroupOptions(input, 'usage', 'project-1');
+  const filtered = useConsumptionGroupOptions({ ...input, dimension: 'API_KEY', groupRef: 2, search: 'test' }, 'usage', 'project-1');
+  assert.deepEqual(options.queryKey, filtered.queryKey);
+  assert.notDeepEqual(options.queryKey, useConsumptionGroupOptions(input, 'usage', 'project-2').queryKey);
+  assert.notDeepEqual(options.queryKey, useConsumptionGroupOptions(input, 'leaderboard', 'project-1').queryKey);
+  assert.equal(useConsumptionGroupOptions(input, 'usage', null).enabled, false);
+  assert.equal(useConsumptionGroupOptions(input, 'usage', 'project-1', false).enabled, false);
+  assert.match(options.queryFn.toString(), /ConsumptionGroupOptions/);
+  assert.doesNotMatch(options.queryFn.toString(), /consumptionLeaderboard|usageStatistics/);
+});
 const data = {
   entries: [
     { id: 'gid://axonhub/APIKeyGroup/1', name: '开发组', models: [{ model: 'model-a' }], metrics: { totalCost: 7.3 } },

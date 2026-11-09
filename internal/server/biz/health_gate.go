@@ -473,6 +473,10 @@ func (g *HealthGate) Snapshot(ctx context.Context, channelID int, resolve Health
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.snapshotLocked(channelID, cfg, current), nil
+}
+
+func (g *HealthGate) snapshotLocked(channelID int, cfg HealthGateConfig, current bool) []HealthGateModelSnapshot {
 	now := g.now()
 	var snapshots []HealthGateModelSnapshot
 	for key := range g.entries {
@@ -510,7 +514,7 @@ func (g *HealthGate) Snapshot(ctx context.Context, channelID int, resolve Health
 		snapshots = append(snapshots, snapshot)
 	}
 	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].ActualModel < snapshots[j].ActualModel })
-	return snapshots, nil
+	return snapshots
 }
 
 func (g *HealthGate) Reset(channelID int, actualModel string) {

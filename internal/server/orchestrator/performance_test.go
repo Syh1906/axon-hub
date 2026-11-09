@@ -448,3 +448,22 @@ func (s *responseSliceStream) Err() error {
 func (s *responseSliceStream) Close() error {
 	return nil
 }
+
+func TestFirstTokenIgnoresEmptyToolAndReasoningMetadata(t *testing.T) {
+	for _, message := range []*llm.Message{
+		{Content: llm.MessageContent{MultipleContent: []llm.MessageContentPart{{Type: "text", Text: lo.ToPtr("")}}}},
+		{ToolCalls: []llm.ToolCall{{ID: "call", Function: llm.FunctionCall{Name: "tool"}}}},
+		{ReasoningItems: []llm.ReasoningItem{{ID: "reasoning", Signature: "opaque"}}},
+		{Audio: &llm.OutputAudio{ID: "audio"}},
+	} {
+		require.False(t, hasMeaningfulStreamOutput(&llm.Response{Choices: []llm.Choice{{Delta: message}}}))
+	}
+	for _, message := range []*llm.Message{
+		{Content: llm.MessageContent{MultipleContent: []llm.MessageContentPart{{Type: "text", Text: lo.ToPtr("answer")}}}},
+		{ToolCalls: []llm.ToolCall{{Function: llm.FunctionCall{Arguments: "{"}}}},
+		{ReasoningItems: []llm.ReasoningItem{{Content: "thinking"}}},
+		{Content: llm.MessageContent{Content: lo.ToPtr("answer")}},
+	} {
+		require.True(t, hasMeaningfulStreamOutput(&llm.Response{Choices: []llm.Choice{{Delta: message}}}))
+	}
+}

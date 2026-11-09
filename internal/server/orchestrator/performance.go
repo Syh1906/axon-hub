@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
@@ -213,13 +214,17 @@ func hasMeaningfulStreamOutput(event *llm.Response) bool {
 		}
 
 		if delta.Content.Content != nil && *delta.Content.Content != "" ||
-			len(delta.Content.MultipleContent) > 0 ||
-			len(delta.ToolCalls) > 0 ||
+			slices.ContainsFunc(delta.Content.MultipleContent, func(part llm.MessageContentPart) bool {
+				return part.Type != "text" || part.Text != nil && *part.Text != ""
+			}) ||
+			slices.ContainsFunc(delta.ToolCalls, func(call llm.ToolCall) bool {
+				return call.Function.Arguments != "" || call.ResponseCustomToolCall != nil && call.ResponseCustomToolCall.Input != ""
+			}) ||
 			delta.ReasoningContent != nil && *delta.ReasoningContent != "" ||
 			delta.Reasoning != nil && *delta.Reasoning != "" ||
-			len(delta.ReasoningItems) > 0 ||
+			slices.ContainsFunc(delta.ReasoningItems, func(item llm.ReasoningItem) bool { return item.Content != "" }) ||
 			len(delta.InlineToolResults) > 0 ||
-			delta.Audio != nil ||
+			delta.Audio != nil && (delta.Audio.Data != "" || delta.Audio.Transcript != "") ||
 			delta.Refusal != "" {
 			return true
 		}

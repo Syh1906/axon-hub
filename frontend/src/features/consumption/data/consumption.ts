@@ -167,3 +167,25 @@ export function useConsumptionProjects(enabled: boolean) {
     staleTime: 60_000,
   });
 }
+
+export function useConsumptionGroupOptions(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
+  const userID = useAuthStore((state) => state.auth.user?.id);
+  const projectID = view === 'usage' ? currentProjectID : undefined;
+  const queryInput = { ...input, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined };
+  return useQuery({
+    queryKey: ['consumptionGroupOptions', view, projectID, userID, queryInput],
+    queryFn: async ({ signal }) => {
+      const field = view === 'usage' ? 'usageGroupOptions' : 'consumptionGroupOptions';
+      const data = await graphqlRequest<Record<string, unknown>>(
+        `query ConsumptionGroupOptions($input: ConsumptionFilter!) { ${field}(input: $input) { id name } }`,
+        { input: queryInput }, projectID ? { 'X-Project-ID': projectID } : undefined, { signal }
+      );
+      return z.array(z.object({ id: z.string(), name: z.string() })).parse(data[field]);
+    },
+    enabled: enabled && !!userID && (view === 'leaderboard' || !!projectID),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
+}

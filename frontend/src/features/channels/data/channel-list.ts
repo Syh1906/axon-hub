@@ -4,14 +4,13 @@ import { useCursorList } from '@/hooks/use-cursor-list';
 import { buildQueryChannelsQuery, type useQueryChannels } from './channels';
 import { channelConnectionSchema, type ChannelConnection } from './schema';
 
-export function useInfiniteChannels(variables: NonNullable<Parameters<typeof useQueryChannels>[0]>, enabled: boolean, atTop: boolean) {
+export function useInfiniteChannels(variables: NonNullable<Parameters<typeof useQueryChannels>[0]>, enabled: boolean) {
   const { columnVisibility, ...input } = variables;
   const query = useCursorList({
     queryKey: ['channels', 'infinite', input, columnVisibility],
-    gcTime: 60_000,
+    gcTime: 5 * 60_000,
     maxPages: 8,
     enabled,
-    interval: atTop ? 5000 : false,
     fetchPage: async (after, signal) => {
       const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(
         buildQueryChannelsQuery(columnVisibility),

@@ -80,3 +80,31 @@ func TestSessionOwnerCanceledWaitDoesNotUpdate(t *testing.T) {
 		return SessionOwner{ChannelID: 1}, true
 	})
 }
+
+func TestHealthGateBatchSnapshotReadsConfigurationOnceAndReleasesLocks(t *testing.T) {
+	gate, _, cfg, key := testHealthGate(t)
+	finishHealthGate(t, gate, key, cfg, HealthGateOutcomeFailure)
+	reads := 0
+	views, _, err := gate.SnapshotChannels(t.Context(), []int{key.ChannelID + 1, key.ChannelID, key.ChannelID}, func() (map[int]HealthGateConfig, error) {
+		reads++
+		// Configuration is read only after every involved observation lock is held.
+		require.False(t, gate.observationLock(key.ChannelID).TryAcquire(1))
+		require.False(t, gate.observationLock(key.ChannelID+1).TryAcquire(1))
+		return map[int]HealthGateConfig{key.ChannelID: cfg, key.ChannelID + 1: cfg}, nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, reads)
+	require.Len(t, views, 2)
+	require.Equal(t, 1, views[key.ChannelID][0].ConsecutiveFailures)
+	for _, id := range []int{key.ChannelID, key.ChannelID + 1} {
+		require.True(t, gate.observationLock(id).TryAcquire(1))
+		gate.observationLock(id).Release(1)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	_, _, err = gate.SnapshotChannels(ctx, []int{key.ChannelID}, func() (map[int]HealthGateConfig, error) {
+		cancel()
+		return map[int]HealthGateConfig{key.ChannelID: {}}, nil
+	})
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 1, healthGateSnapshot(t, gate, key.ChannelID, healthGateTestResolver(cfg))[0].ConsecutiveFailures)
+}

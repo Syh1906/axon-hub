@@ -20,6 +20,7 @@
   "dashboard.charts.modelPerformance": "Models Performance",
   "dashboard.charts.channelPerformance": "Channels Performance",
   "dashboard.charts.performanceDescription": "Shows tokens/second and time to first token over the last 30 days across {{count}} requests.",
+  "dashboard.charts.channelPerformanceDescription": "Shows tokens/second and time to first token over the last 30 days across {{count}} channel attempts.",
   "dashboard.charts.errorLoadingChart": "Error loading chart data:",
   "dashboard.charts.errorLoadingTopProjects": "Error loading top projects:",
   "dashboard.charts.errorLoadingChannelData": "Error loading channel data:",

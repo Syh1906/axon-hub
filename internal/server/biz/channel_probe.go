@@ -107,13 +107,15 @@ func getIntervalMinutesFromFrequency(frequency ProbeFrequency) int {
 type channelProbeStats struct {
 	total                 int
 	success               int
+	speedSampleCount      int64
+	firstTokenSampleCount int64
 	avgTokensPerSecond    *float64
 	avgTimeToFirstTokenMs *float64
 }
 
 // computeAllChannelProbeStats computes probe stats for all channels in a single batch query.
-// Uses CTE with ROW_NUMBER to get only successful execution per request, includes all token types,
-// and applies different TPS formulas for streaming vs non-streaming.
+// Counts dispatched channel attempts and keeps independent denominators for
+// meaningful first-token timings and eligible streaming text output speeds.
 func (svc *ChannelProbeService) computeAllChannelProbeStats(
 	ctx context.Context,
 	channelIDs []int,
@@ -201,18 +203,20 @@ func (svc *ChannelProbeService) computeAllChannelProbeStats(
 		}
 
 		stats := &channelProbeStats{
-			total:   r.TotalCount,
-			success: r.SuccessCount,
+			total:                 r.TotalCount,
+			success:               r.SuccessCount,
+			speedSampleCount:      r.SpeedCount,
+			firstTokenSampleCount: int64(r.StreamingRequestCount),
 		}
 
-		// Average valid per-request text speeds over the full execution duration.
+		// Average eligible per-attempt text output speeds.
 		if r.SpeedCount > 0 {
 			tps := r.SpeedSum / float64(r.SpeedCount)
 			stats.avgTokensPerSecond = &tps
 		}
 
 		// Calculate avg time to first token (only for streaming requests)
-		if r.TotalFirstTokenLatency > 0 && r.StreamingRequestCount > 0 {
+		if r.StreamingRequestCount > 0 {
 			avgTTFT := float64(r.TotalFirstTokenLatency) / float64(r.StreamingRequestCount)
 			stats.avgTimeToFirstTokenMs = &avgTTFT
 		}
@@ -312,6 +316,8 @@ func (svc *ChannelProbeService) runProbe(ctx context.Context) {
 			SetSuccessRequestCount(stats.success).
 			SetNillableAvgTokensPerSecond(stats.avgTokensPerSecond).
 			SetSpeedVersion(usageanalytics.OutputSpeedVersion).
+			SetSpeedSampleCount(stats.speedSampleCount).
+			SetFirstTokenSampleCount(stats.firstTokenSampleCount).
 			SetNillableAvgTimeToFirstTokenMs(stats.avgTimeToFirstTokenMs).
 			SetTimestamp(timestamp),
 		)

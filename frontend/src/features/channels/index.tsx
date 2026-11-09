@@ -17,9 +17,8 @@ import { ChannelsTable } from './components/channels-table';
 import { ChannelsTypeTabs } from './components/channels-type-tabs';
 import ChannelsProvider, { useChannels } from './context/channels-context';
 import { useInfiniteChannels } from './data/channel-list';
-import { useChannelUpstreamStates, useRefreshUpstreamOnPage } from './data/channel-upstream';
-import { useChannelTodayUsage } from './data/channel-usage';
-import { DEFAULT_CHANNEL_COLUMN_VISIBILITY, useAllChannelSummarys, parseChannelColumnVisibility, useChannelTypes, useErrorChannelsCount, useChannelProbeData, type ChannelListColumnVisibility } from './data/channels';
+import { ChannelControlsProvider } from './context/channel-controls-context';
+import { DEFAULT_CHANNEL_COLUMN_VISIBILITY, useAllChannelSummarys, parseChannelColumnVisibility, useChannelTypes, useErrorChannelsCount, type ChannelListColumnVisibility } from './data/channels';
 import { CHANNEL_TYPE_TO_PROVIDER } from './data/config_channels';
 import { readDefaultChannelSort } from './utils/channel-sort';
 import { readDefaultProvider, resolveChannelProviderSelection } from './utils/default-provider';
@@ -191,7 +190,6 @@ function ChannelsContent() {
     }
   }, [sorting]);
 
-  const [atTop, setAtTop] = useState(true);
   const query = useInfiniteChannels(
     {
       first: pageSize,
@@ -208,8 +206,7 @@ function ChannelsContent() {
       healthGateAbnormal: showHealthGateAbnormal || undefined,
       columnVisibility,
     },
-    !tagQueryBlocked,
-    atTop
+    !tagQueryBlocked
   );
   const { data: queryData, isLoading, isPlaceholderData } = query;
   const filtersPending = nameFilter !== debouncedNameFilter;
@@ -219,27 +216,7 @@ function ChannelsContent() {
     return data?.edges?.map((edge) => edge.node.id) || [];
   }, [data?.edges]);
 
-  const { data: probeData } = useChannelProbeData(channelIDs, { enabled: columnVisibility.health !== false });
-  const upstreamQuery = useChannelUpstreamStates(channelIDs);
-  const todayUsageQuery = useChannelTodayUsage(channelIDs);
-  useRefreshUpstreamOnPage(channelIDs, channelPermissions.canWrite && upstreamQuery.isSuccess);
-
-  const channelsWithProbeData = useMemo(() => {
-    if (!data?.edges) return [];
-
-    const probeMap = new Map(probeData?.map((probe) => [probe.channelID, probe.points]) || []);
-    const upstreamMap = new Map(upstreamQuery.data?.map((state) => [state.channelId, state]));
-    const usageMap = new Map(todayUsageQuery.data?.map((usage) => [usage.channelId, usage]));
-
-    return data.edges.map((edge) => ({
-      ...edge.node,
-      probePoints: probeMap.get(edge.node.id) || [],
-      upstreamState: upstreamMap.get(edge.node.id),
-      upstreamLoadError: upstreamQuery.isError,
-      todayUsage: usageMap.get(edge.node.id),
-      todayUsageError: todayUsageQuery.isError,
-    }));
-  }, [data?.edges, probeData, upstreamQuery.data, upstreamQuery.isError, todayUsageQuery.data, todayUsageQuery.isError]);
+  const channels = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data?.edges]);
 
   const scroll = {
     resetKey: query.resetKey,
@@ -253,7 +230,6 @@ function ChannelsContent() {
     onLoadPrevious: query.loadPrevious,
     onReset: query.resetToTop,
     onAtTopChange: (value: boolean) => {
-      setAtTop(value);
       if (!value) query.pauseRefresh();
     },
   };
@@ -369,9 +345,10 @@ function ChannelsContent() {
           </AlertDescription>
         </Alert>
       )}
+      <ChannelControlsProvider ids={channelIDs} visibility={columnVisibility} canWrite={channelPermissions.canWrite}>
       <ChannelsTable
         loading={isLoading || isPlaceholderData || filtersPending || (tagFilter.length > 1 && tagChannels.isLoading)}
-        data={channelsWithProbeData}
+        data={channels}
         columns={columns}
         pageSize={pageSize}
         totalCount={data?.totalCount}
@@ -403,6 +380,7 @@ function ChannelsContent() {
         onColumnVisibilityChange={setColumnVisibility}
         canWrite={channelPermissions.canWrite}
       />
+      </ChannelControlsProvider>
     </div>
   );
 }

@@ -191,6 +191,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 	gqlSrv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
 		if graphql.GetOperationContext(ctx).Operation.Operation == ast.Query {
 			ctx = biz.WithModelAssociationQueryCache(ctx)
+			ctx = withChannelHealthGateCache(withChannelReadCache(ctx))
 		}
 		ctx = withRequestChannelSessionCache(ctx)
 		ctx = withRequestContinuationCache(ctx)
@@ -281,20 +282,37 @@ func getNilableChannel(ctx context.Context, client *ent.Client, channelID int) (
 	if channelID == 0 {
 		return nil, nil
 	}
+	cache, _ := ctx.Value(channelReadCacheKey{}).(*channelReadCache)
+	if cache != nil {
+		cache.Lock()
+		defer cache.Unlock()
+		if ch, found := cache.values[channelID]; found {
+			return ch, nil
+		}
+	}
 
 	ch, err := client.Channel.Query().Where(channel.ID(channelID)).First(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
+			if cache != nil {
+				cache.values[channelID] = nil
+			}
 			return nil, nil
 		}
 
 		if errors.Is(err, privacy.Deny) {
+			if cache != nil {
+				cache.values[channelID] = nil
+			}
 			return nil, nil
 		}
 
 		return nil, fmt.Errorf("failed to load channel: %w", err)
 	}
 
+	if cache != nil {
+		cache.values[channelID] = ch
+	}
 	return ch, nil
 }
 

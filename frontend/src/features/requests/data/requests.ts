@@ -406,7 +406,7 @@ export function useRequestContinuations(requestID: string, count: number, after:
     },
     structuralSharing: shareRequestList,
     staleTime: 60_000,
-    gcTime: 60_000,
+    gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     retry: false,
   });
@@ -418,7 +418,7 @@ export function useInfiniteRequests(where: Record<string, any> | undefined, page
   return useCursorList({
     enabled,
     structuralSharing: shareRequestList,
-    gcTime: 60_000,
+    gcTime: 5 * 60_000,
     maxPages: 8,
     queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId],
     fetchPage: async (after, signal) => {
@@ -521,7 +521,7 @@ export function useRequests(
         : undefined;
     },
     structuralSharing: shareRequestList,
-    gcTime: 60_000,
+    gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
 }

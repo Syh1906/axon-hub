@@ -13,6 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
@@ -50,7 +51,11 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 		return nil, fmt.Errorf("provide one non-negative pagination size")
 	}
 	tag := lo.FromPtr(input.HasTag)
-	channels, err := query.All(ctx)
+	fields := []string{channel.FieldID, channel.FieldSettings, channel.FieldTags, channel.FieldSupportedModels}
+	if order.Field == objects.ChannelRoutingOrderCostMultiplier {
+		fields = append(fields, channel.FieldBaseURL, channel.FieldCredentials, channel.FieldDisabledAPIKeys, channel.FieldUpstreamCredentials)
+	}
+	channels, err := query.Clone().Select(fields...).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -171,14 +176,28 @@ func (svc *ChannelService) queryChannelsByRoutingOrder(ctx context.Context, quer
 	}
 	connection.PageInfo.HasPreviousPage = start > 0
 	connection.PageInfo.HasNextPage = end < len(rows)
+	ids := make([]int, 0, end-start)
 	for _, row := range rows[start:end] {
+		ids = append(ids, row.channel.ID)
+	}
+	pageChannels, err := query.Clone().Where(channel.IDIn(ids...)).WithProviderQuotaStatus().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pageByID := lo.SliceToMap(pageChannels, func(ch *ent.Channel) (int, *ent.Channel) { return ch.ID, ch })
+	for _, row := range rows[start:end] {
+		ch, exists := pageByID[row.channel.ID]
+		if !exists {
+			// A channel can be removed or stop matching between the two reads.
+			continue
+		}
 		value := channelRoutingCursorValue{Field: order.Field, Tag: tag, Direction: order.Direction, Value: row.value}
 		encoded, err := json.Marshal(value)
 		if err != nil {
 			return nil, err
 		}
 		connection.Edges = append(connection.Edges, &ent.ChannelEdge{
-			Node: row.channel, Cursor: ent.Cursor{ID: row.channel.ID, Value: string(encoded)},
+			Node: ch, Cursor: ent.Cursor{ID: row.channel.ID, Value: string(encoded)},
 		})
 	}
 	if len(connection.Edges) > 0 {
