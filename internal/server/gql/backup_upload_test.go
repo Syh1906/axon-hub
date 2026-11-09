@@ -86,7 +86,8 @@ func TestAdminGraphqlRestoreAcceptsLargeMultipartUpload(t *testing.T) {
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	})
-	engine.POST("/admin/graphql", func(c *gin.Context) { handler.Graphql.ServeHTTP(c.Writer, c.Request) })
+	httpHandler := WithRequestTimeout(handler.Graphql, 5*time.Second, 5*time.Second, 5*time.Second)
+	engine.POST("/admin/graphql", func(c *gin.Context) { httpHandler.ServeHTTP(c.Writer, c.Request) })
 
 	server := httptest.NewServer(engine)
 	t.Cleanup(server.Close)

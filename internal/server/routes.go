@@ -167,8 +167,10 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		middleware.WithProjectID(),
 	)
 	{
-		adminGraphqlGroup.POST("/graphql", middleware.WithTimeout(server.Config.RequestTimeout), func(c *gin.Context) {
-			handlers.Graphql.Graphql.ServeHTTP(c.Writer, c.Request)
+		adminGraphqlHandler := gql.WithRequestTimeout(handlers.Graphql.Graphql, server.Config.RequestTimeout, server.Config.ReadTimeout,
+			max(server.Config.RequestTimeout, server.Config.LLMRequestTimeout, server.Config.ChannelTestTimeout))
+		adminGraphqlGroup.POST("/graphql", func(c *gin.Context) {
+			adminGraphqlHandler.ServeHTTP(c.Writer, c.Request)
 		})
 	}
 

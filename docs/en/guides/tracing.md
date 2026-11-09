@@ -233,6 +233,16 @@ Thread (User Session)
 - **Missing thread linkage** – Provide `AH-Thread-Id` or create threads via the API before sending requests.
 - **Unexpected trace IDs** – Check for upstream reverse proxies overriding headers.
 
+#### Admin pages fail to load
+
+The admin entry checks system status, account information, and project membership. A failed initial read shows the affected check and a specific reason; a network failure does not mean the login session has expired. Retry repeats the read. Previously loaded data remains available after a failed background refresh, while initial account and permission checks remain required.
+
+When an error response arrives, the page can display the request ID from `AH-Request-Id`. The admin `GraphQL request failed` log includes `admin_request_id` for correlation and a `phase`: `request_body`, `decode`, `validation`, or `execution`. `body_bytes_read`, `content_length`, `body_read_duration`, and `processing_duration` describe the received size, declared length, and application receive/processing durations. Diagnostics never retain request bodies or credentials; read errors use safe categories instead of raw decode input. JSON decode failures, multipart read failures, and the existing upload size limit have explicit categories. Other multipart form syntax errors retain the parser response and are not assumed to be read timeouts. Variable validation failures remain in the validation phase; execution is recorded only when operation handling starts.
+
+The admin `/admin/graphql` route has separate receive and processing budgets. Receiving uses `server.read_timeout`, or `server.request_timeout` when no read timeout is configured. The processing timeout begins only after the complete request has been received and parsed. During receive, the response write deadline includes the receive budget; when execution begins, it is reset to the original write budget so a slow upload cannot consume the response deadline. A connection read deadline terminates a stalled body read; canceling a query context alone does not unblock that read. Existing gqlgen body reading and upload temporary-file handling are reused without copying the full body. Client cancellation, transaction semantics, service-account read-only restrictions, and independent channel-test timeouts remain in place. This behavior is implemented in application code and does not require Nginx changes.
+
+If additional receive isolation is needed at Nginx, evaluate `proxy_request_buffering on` specifically for `/admin/graphql`, including upload limits and temporary disk capacity. Request buffering is distinct from response buffering and must not be applied broadly to inference or streaming routes. Proxy changes require separate deployment. A currently healthy page or endpoint does not establish that a historical network or VPN fault has been eliminated.
+
 ### Related Documentation
 - [Request Processing Guide](../getting-started/request-processing.md)
 - [Load Balancing Guide](load-balance.md)
