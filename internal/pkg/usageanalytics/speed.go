@@ -5,7 +5,8 @@ import "fmt"
 // OutputSpeedVersion identifies the formula persisted in usage archives.
 const OutputSpeedVersion = 3
 
-// OutputSpeedSQL 与 CCH 一致：扣除本次执行等待首字节的时间。
+// OutputSpeedSQL 基础公式参考 CCH：扣除本次执行等待首字节的时间。
+// 计时边界、参与平均的执行与过滤条件遵循本项目规则，并非全部对齐。
 // 缺失计时、过短窗口及明显缓冲后集中交付的样本不用于单次值或平均值。
 // Arguments are trusted SQL column expressions, never request values.
 func OutputSpeedSQL(tokens, duration, firstByte, stream, format string) string {

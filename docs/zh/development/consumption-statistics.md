@@ -2,7 +2,7 @@
 
 项目的「用量统计」提供密钥分组、模型、密钥、用户四个维度；管理区的「消耗排行榜」另有渠道维度，并提供消耗榜、缓存命中率榜。密钥指 AxonHub 签发给调用方的 API Key。界面不读取完整 Key。
 
-这项 fork 功能的字段和算法移植自 `claude-code-hub` 的 `0c508eaa`。来源是该版本的 `src/repository/leaderboard.ts`、`src/repository/provider-cache-effectiveness.ts`、`src/lib/request-outcome.ts`、`src/lib/cache-effectiveness/{gate,service}.ts` 和 `src/app/v1/_lib/proxy/affinity/fingerprint.ts`。原项目 MIT 许可保存在 [LICENSE.cch](../../../internal/pkg/usageanalytics/LICENSE.cch)。CCH 没有独立密钥榜，本实现将其用户榜语义扩展到 Key。
+这项 fork 功能参考并适配了以下来源，不能理解为所有统计口径完全相同。字段和部分算法移植自 `claude-code-hub` 的 `0c508eaa`。来源是该版本的 `src/repository/leaderboard.ts`、`src/repository/provider-cache-effectiveness.ts`、`src/lib/request-outcome.ts`、`src/lib/cache-effectiveness/{gate,service}.ts` 和 `src/app/v1/_lib/proxy/affinity/fingerprint.ts`。原项目 MIT 许可保存在 [LICENSE.cch](../../../internal/pkg/usageanalytics/LICENSE.cch)。CCH 没有独立密钥榜，本实现将其用户榜语义扩展到 Key。
 
 ## 范围与权限
 
@@ -66,6 +66,19 @@
 - 仪表板日性能及跨日图例也传递并使用这两个独立样本数；某日只有首字而没有可用速度或用量时仍保留首字。真实 0 毫秒参与平均，未知值保持空值并显示「—」。渠道性能按每次执行统计，无健康采样时也不只取请求的最后一次；模型性能继续取每个请求的最终执行。
 
 消耗榜默认按成本降序。用户／密钥／密钥分组缓存榜按命中率、请求数降序；渠道缓存榜先按缓存系数，再按命中率、请求数降序。缺失值置后，平局以实体 ID 或模型名保持稳定顺序。
+
+## 与 CCH 的对齐边界
+
+对照本地 CCH `0c508eaa`：基础公式同为输出 Token ÷（总耗时－首字节等待），不是扣首个有效内容等待，也不是仅计算可见文字。OpenAI的上游completion_tokens及Gemini的候选＋思考Token均未额外扣除推理Token。扣除等待会使同一请求的数值高于旧版全耗时速度，不代表供应商提速或用户少等了时间。
+
+- CCH单条速率只要求窗口大于零，界面另隐藏窗口不足总耗时10%且超过5000tok/s的值；CCH排行榜要求至少100ms，但没有相同的极端值过滤。Axon统一要求流式文本、至少100ms，并过滤该极端缓冲值。
+- CCH排行榜按最终供应商的请求账目求有效速率算术平均；Axon渠道按实际执行求平均，有真实用量的失败／取消也可能贡献速度，日志与模型维度取最终执行。两者样本和分母可能不同。CCH公共状态另有仅成功样本及中位数路径，不能与Axon渠道健康均值直接视为一致。
+- Axon每次执行观察上游正文首次读取字节，遇流终态固定结束计时；CCH流路径在最终统计收尾时取总耗时，门禁未运行时还可能以首个块补首字节。尾部处理和首字节采集差异可能改变结果。
+- Axon使用速度版本3及统计缓存v5，不把缺少依据的旧归档／健康桶混入新口径；CCH榜缓存版本及刷新策略不同。因此不能用两边不同时间窗口或不同样本的均值证明算法数值完全一致。
+
+2026-11-09泉哥实际请求#63964：输出185Token、总耗时8646ms、首字节4734ms、首内容8541ms。旧公式为21.40tok/s，新公式为47.29tok/s，页面取整显示47；若误扣首内容会得到1761.90tok/s，但当前实现未这样计算。另两条样本#63960为8.83→11.13、#63951为16.01→20.63tok/s。此为同一历史事实的公式对照，不是压测或供应商提速证明。
+
+来源：CCH `src/lib/utils/performance-formatter.ts`、`src/repository/leaderboard.ts`、`src/lib/public-status/aggregation.ts`、`src/app/v1/_lib/proxy/{session,response-handler}.ts`；本项目 `internal/pkg/usageanalytics/speed.go`、`internal/server/biz/channel_attempt_statistics.go`、`internal/server/orchestrator/{performance,outbound}.go`。
 
 ## 缓存系数
 

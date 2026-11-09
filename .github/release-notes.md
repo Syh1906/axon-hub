@@ -33,5 +33,6 @@
 
 - 各阶段定向Go／前端测试、SQLite升级与幂等检查、本地真实HTTP/TCP及GraphQL、后台页面联调和独立 `gpt-6.1-sol / max` 复审已完成；后台补验覆盖真实写入期限、慢上传、停滞、取消、multipart超限与33MiB导入。
 - 账号入口失败状态定向注入后，解除注入并点击重试，经真实SQLite后端回读账号和项目成功；故障状态注入不冒充历史公网故障复现。
-- 发布工作流另行核对双架构产物和临时PostgreSQL启动，两台生产升级及后台回读以最终部署记录为准。
+- 同源码149bbe14的Test／Build／Lint／Govulncheck、双架构产物和临时PostgreSQL启动均通过；云悠、泉哥已依次升级，数据库字段／版本、健康与原配置核对通过。云悠关键后台正常；泉哥账号和渠道列表首次超时，重试后恢复，实际日志仍捕获正文0字节的接收超时／中断，不能据此认定网络故障已根除。
+- 速度仅基础公式对齐CCH，计时终点、样本与过滤存在差别；新版数值升高可能来自扣除首字节等待，不代表供应商提速。完整对照见[统计说明](https://github.com/Syh1906/axon-hub/blob/release/v1.0.x/docs/zh/development/consumption-statistics.md#与-cch-的对齐边界)。
 - MySQL实库、外部Redis、真实供应商账单、长期并发及历史网络停滞的具体节点仍未验证。小范围性能采样不代表全站提速保证。详见 [Fork维护台账](https://github.com/Syh1906/axon-hub/blob/v1.0.0-beta12-fork.4/docs/fork-maintenance.md)。
