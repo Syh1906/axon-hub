@@ -36,6 +36,10 @@ INSERT INTO usage_logs(request_id,channel_id,completion_tokens) VALUES(1,1,100),
 UPDATE usage_logs SET cost_snapshot='{"images":[{"source":"file"}]}' WHERE request_id=6;
 UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;
 ALTER TABLE request_executions ADD COLUMN project_id INTEGER DEFAULT 1;
+ALTER TABLE requests ADD COLUMN result_execution_id INTEGER;
+ALTER TABLE requests ADD COLUMN channel_id INTEGER;
+ALTER TABLE requests ADD COLUMN status TEXT DEFAULT 'completed';
+ALTER TABLE requests ADD COLUMN failure TEXT;
 ALTER TABLE usage_logs ADD COLUMN project_id INTEGER DEFAULT 1;
 CREATE TABLE budget_charges(execution_id INTEGER, project_id INTEGER, request_id INTEGER, usage_log_id INTEGER);`)
 	require.NoError(t, err)

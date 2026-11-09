@@ -816,6 +816,7 @@ type ComplexityRoot struct {
 		AvgTokensPerSecond      func(childComplexity int) int
 		CacheHitRate            func(childComplexity int) int
 		Model                   func(childComplexity int) int
+		PricedCount             func(childComplexity int) int
 		RequestCount            func(childComplexity int) int
 		StandardCost            func(childComplexity int) int
 		StandardUnpricedCount   func(childComplexity int) int
@@ -829,6 +830,7 @@ type ComplexityRoot struct {
 	ChannelTodayUsage struct {
 		ChannelID     func(childComplexity int) int
 		CurrencyCode  func(childComplexity int) int
+		PricedCount   func(childComplexity int) int
 		RequestCount  func(childComplexity int) int
 		Timezone      func(childComplexity int) int
 		TotalCost     func(childComplexity int) int
@@ -2028,6 +2030,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		APIKeyBudget                    func(childComplexity int, kind string, ownerID int) int
+		APIKeyBudgetSummaries           func(childComplexity int, ownerIDs []int, includeGroups bool) int
 		APIKeyGroupOptions              func(childComplexity int) int
 		APIKeyProfileTemplates          func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.APIKeyProfileTemplateOrder, where *ent.APIKeyProfileTemplateWhereInput) int
 		APIKeyQuotaUsages               func(childComplexity int, apiKeyID objects.GUID) int
@@ -2205,6 +2208,7 @@ type ComplexityRoot struct {
 		ResponseBody               func(childComplexity int) int
 		ResponseChunks             func(childComplexity int) int
 		ResponseHeaders            func(childComplexity int) int
+		ResultExecution            func(childComplexity int) int
 		RoutingDecision            func(childComplexity int) int
 		SessionExecution           func(childComplexity int) int
 		Source                     func(childComplexity int) int
@@ -2214,6 +2218,7 @@ type ComplexityRoot struct {
 		TraceID                    func(childComplexity int) int
 		UpdatedAt                  func(childComplexity int) int
 		UsageLogs                  func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
+		UsageSummary               func(childComplexity int) int
 		UserAgent                  func(childComplexity int) int
 	}
 
@@ -2327,6 +2332,11 @@ type ComplexityRoot struct {
 		TotalTokens  func(childComplexity int) int
 	}
 
+	RequestResultExecution struct {
+		ID                 func(childComplexity int) int
+		ResponseStatusCode func(childComplexity int) int
+	}
+
 	RequestRoutingCandidate struct {
 		ChannelID    func(childComplexity int) int
 		ChannelName  func(childComplexity int) int
@@ -2373,6 +2383,27 @@ type ComplexityRoot struct {
 	RequestStatsByModel struct {
 		Count   func(childComplexity int) int
 		ModelID func(childComplexity int) int
+	}
+
+	RequestUsageSummary struct {
+		ArchivedRecords                    func(childComplexity int) int
+		CompletionAcceptedPredictionTokens func(childComplexity int) int
+		CompletionAudioTokens              func(childComplexity int) int
+		CompletionReasoningTokens          func(childComplexity int) int
+		CompletionRejectedPredictionTokens func(childComplexity int) int
+		CompletionTokens                   func(childComplexity int) int
+		CostItems                          func(childComplexity int) int
+		CostPriceMultiplier                func(childComplexity int) int
+		PromptAudioTokens                  func(childComplexity int) int
+		PromptCachedTokens                 func(childComplexity int) int
+		PromptTokens                       func(childComplexity int) int
+		PromptWriteCachedTokens            func(childComplexity int) int
+		PromptWriteCachedTokens1h          func(childComplexity int) int
+		PromptWriteCachedTokens5m          func(childComplexity int) int
+		TotalCost                          func(childComplexity int) int
+		TotalTokens                        func(childComplexity int) int
+		UnpricedRecords                    func(childComplexity int) int
+		UsageRecords                       func(childComplexity int) int
 	}
 
 	RestorePayload struct {
@@ -3598,6 +3629,7 @@ type QueryResolver interface {
 	KeyManagementResults(ctx context.Context, operationID string) ([]*biz.KeyManagementResult, error)
 	PreviewAPIKeyBudgetReset(ctx context.Context, kind string, ownerID int, input biz.BudgetResetInput) (*biz.BudgetView, error)
 	APIKeyBudget(ctx context.Context, kind string, ownerID int) (*biz.BudgetView, error)
+	APIKeyBudgetSummaries(ctx context.Context, ownerIDs []int, includeGroups bool) ([]*biz.BudgetView, error)
 }
 type RequestResolver interface {
 	ID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
@@ -3619,8 +3651,10 @@ type RequestResolver interface {
 
 	ContinuationCount(ctx context.Context, obj *ent.Request) (int, error)
 	SessionExecution(ctx context.Context, obj *ent.Request) (*RequestSessionExecution, error)
+	ResultExecution(ctx context.Context, obj *ent.Request) (*RequestResultExecution, error)
 	OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error)
 	CostRecalculationPreview(ctx context.Context, obj *ent.Request) (*biz.CostRecalculationPreview, error)
+	UsageSummary(ctx context.Context, obj *ent.Request) (*biz.RequestUsageSummary, error)
 }
 type RequestExecutionResolver interface {
 	ID(ctx context.Context, obj *ent.RequestExecution) (*objects.GUID, error)
@@ -6592,6 +6626,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayModelUsage.Model(childComplexity), true
+	case "ChannelTodayModelUsage.pricedCount":
+		if e.complexity.ChannelTodayModelUsage.PricedCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayModelUsage.PricedCount(childComplexity), true
 	case "ChannelTodayModelUsage.requestCount":
 		if e.complexity.ChannelTodayModelUsage.RequestCount == nil {
 			break
@@ -6653,6 +6693,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayUsage.CurrencyCode(childComplexity), true
+	case "ChannelTodayUsage.pricedCount":
+		if e.complexity.ChannelTodayUsage.PricedCount == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.PricedCount(childComplexity), true
 	case "ChannelTodayUsage.requestCount":
 		if e.complexity.ChannelTodayUsage.RequestCount == nil {
 			break
@@ -12287,6 +12333,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.APIKeyBudget(childComplexity, args["kind"].(string), args["ownerID"].(int)), true
+	case "Query.apiKeyBudgetSummaries":
+		if e.complexity.Query.APIKeyBudgetSummaries == nil {
+			break
+		}
+
+		args, err := ec.field_Query_apiKeyBudgetSummaries_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.APIKeyBudgetSummaries(childComplexity, args["ownerIDs"].([]int), args["includeGroups"].(bool)), true
 	case "Query.apiKeyGroupOptions":
 		if e.complexity.Query.APIKeyGroupOptions == nil {
 			break
@@ -13624,6 +13681,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ResponseHeaders(childComplexity), true
+	case "Request.resultExecution":
+		if e.complexity.Request.ResultExecution == nil {
+			break
+		}
+
+		return e.complexity.Request.ResultExecution(childComplexity), true
 	case "Request.routingDecision":
 		if e.complexity.Request.RoutingDecision == nil {
 			break
@@ -13683,6 +13746,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
+	case "Request.usageSummary":
+		if e.complexity.Request.UsageSummary == nil {
+			break
+		}
+
+		return e.complexity.Request.UsageSummary(childComplexity), true
 	case "Request.userAgent":
 		if e.complexity.Request.UserAgent == nil {
 			break
@@ -14163,6 +14232,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RequestMetadata.TotalTokens(childComplexity), true
 
+	case "RequestResultExecution.id":
+		if e.complexity.RequestResultExecution.ID == nil {
+			break
+		}
+
+		return e.complexity.RequestResultExecution.ID(childComplexity), true
+	case "RequestResultExecution.responseStatusCode":
+		if e.complexity.RequestResultExecution.ResponseStatusCode == nil {
+			break
+		}
+
+		return e.complexity.RequestResultExecution.ResponseStatusCode(childComplexity), true
+
 	case "RequestRoutingCandidate.channelID":
 		if e.complexity.RequestRoutingCandidate.ChannelID == nil {
 			break
@@ -14331,6 +14413,115 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestStatsByModel.ModelID(childComplexity), true
+
+	case "RequestUsageSummary.archivedRecords":
+		if e.complexity.RequestUsageSummary.ArchivedRecords == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.ArchivedRecords(childComplexity), true
+	case "RequestUsageSummary.completionAcceptedPredictionTokens":
+		if e.complexity.RequestUsageSummary.CompletionAcceptedPredictionTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CompletionAcceptedPredictionTokens(childComplexity), true
+	case "RequestUsageSummary.completionAudioTokens":
+		if e.complexity.RequestUsageSummary.CompletionAudioTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CompletionAudioTokens(childComplexity), true
+	case "RequestUsageSummary.completionReasoningTokens":
+		if e.complexity.RequestUsageSummary.CompletionReasoningTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CompletionReasoningTokens(childComplexity), true
+	case "RequestUsageSummary.completionRejectedPredictionTokens":
+		if e.complexity.RequestUsageSummary.CompletionRejectedPredictionTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CompletionRejectedPredictionTokens(childComplexity), true
+	case "RequestUsageSummary.completionTokens":
+		if e.complexity.RequestUsageSummary.CompletionTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CompletionTokens(childComplexity), true
+	case "RequestUsageSummary.costItems":
+		if e.complexity.RequestUsageSummary.CostItems == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CostItems(childComplexity), true
+	case "RequestUsageSummary.costPriceMultiplier":
+		if e.complexity.RequestUsageSummary.CostPriceMultiplier == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.CostPriceMultiplier(childComplexity), true
+	case "RequestUsageSummary.promptAudioTokens":
+		if e.complexity.RequestUsageSummary.PromptAudioTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptAudioTokens(childComplexity), true
+	case "RequestUsageSummary.promptCachedTokens":
+		if e.complexity.RequestUsageSummary.PromptCachedTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptCachedTokens(childComplexity), true
+	case "RequestUsageSummary.promptTokens":
+		if e.complexity.RequestUsageSummary.PromptTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptTokens(childComplexity), true
+	case "RequestUsageSummary.promptWriteCachedTokens":
+		if e.complexity.RequestUsageSummary.PromptWriteCachedTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptWriteCachedTokens(childComplexity), true
+	case "RequestUsageSummary.promptWriteCachedTokens1h":
+		if e.complexity.RequestUsageSummary.PromptWriteCachedTokens1h == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptWriteCachedTokens1h(childComplexity), true
+	case "RequestUsageSummary.promptWriteCachedTokens5m":
+		if e.complexity.RequestUsageSummary.PromptWriteCachedTokens5m == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.PromptWriteCachedTokens5m(childComplexity), true
+	case "RequestUsageSummary.totalCost":
+		if e.complexity.RequestUsageSummary.TotalCost == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.TotalCost(childComplexity), true
+	case "RequestUsageSummary.totalTokens":
+		if e.complexity.RequestUsageSummary.TotalTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.TotalTokens(childComplexity), true
+	case "RequestUsageSummary.unpricedRecords":
+		if e.complexity.RequestUsageSummary.UnpricedRecords == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.UnpricedRecords(childComplexity), true
+	case "RequestUsageSummary.usageRecords":
+		if e.complexity.RequestUsageSummary.UsageRecords == nil {
+			break
+		}
+
+		return e.complexity.RequestUsageSummary.UsageRecords(childComplexity), true
 
 	case "RestorePayload.message":
 		if e.complexity.RestorePayload.Message == nil {
@@ -18083,7 +18274,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
+//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -18115,6 +18306,7 @@ var sources = []*ast.Source{
 	{Name: "request_routing.graphql", Input: sourceData("request_routing.graphql"), BuiltIn: false},
 	{Name: "request_diagnostics.graphql", Input: sourceData("request_diagnostics.graphql"), BuiltIn: false},
 	{Name: "request_speed.graphql", Input: sourceData("request_speed.graphql"), BuiltIn: false},
+	{Name: "request_usage.graphql", Input: sourceData("request_usage.graphql"), BuiltIn: false},
 	{Name: "managed_group_usage.graphql", Input: sourceData("managed_group_usage.graphql"), BuiltIn: false},
 	{Name: "prompt.graphql", Input: sourceData("prompt.graphql"), BuiltIn: false},
 	{Name: "prompt_protection_rule.graphql", Input: sourceData("prompt_protection_rule.graphql"), BuiltIn: false},
@@ -20768,6 +20960,22 @@ func (ec *executionContext) field_Query_analyticsOverview_args(ctx context.Conte
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_apiKeyBudgetSummaries_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ownerIDs", ec.unmarshalNInt2ᚕintᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ownerIDs"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "includeGroups", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["includeGroups"] = arg1
 	return args, nil
 }
 
@@ -37531,6 +37739,35 @@ func (ec *executionContext) fieldContext_ChannelTodayModelUsage_unpricedCount(_ 
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelTodayModelUsage_pricedCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayModelUsage_pricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.PricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayModelUsage_pricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayModelUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelTodayModelUsage_totalTokens(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayModelUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -37908,6 +38145,35 @@ func (ec *executionContext) fieldContext_ChannelTodayUsage_unpricedCount(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelTodayUsage_pricedCount(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_pricedCount,
+		func(ctx context.Context) (any, error) {
+			return obj.PricedCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_pricedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelTodayUsage_totalCost(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -38112,6 +38378,8 @@ func (ec *executionContext) fieldContext_ChannelTodayUsageDetails_models(_ conte
 				return ec.fieldContext_ChannelTodayModelUsage_requestCount(ctx, field)
 			case "unpricedCount":
 				return ec.fieldContext_ChannelTodayModelUsage_unpricedCount(ctx, field)
+			case "pricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_pricedCount(ctx, field)
 			case "totalTokens":
 				return ec.fieldContext_ChannelTodayModelUsage_totalTokens(ctx, field)
 			case "totalCost":
@@ -70526,6 +70794,8 @@ func (ec *executionContext) fieldContext_Query_channelTodayUsage(ctx context.Con
 				return ec.fieldContext_ChannelTodayUsage_requestCount(ctx, field)
 			case "unpricedCount":
 				return ec.fieldContext_ChannelTodayUsage_unpricedCount(ctx, field)
+			case "pricedCount":
+				return ec.fieldContext_ChannelTodayUsage_pricedCount(ctx, field)
 			case "totalCost":
 				return ec.fieldContext_ChannelTodayUsage_totalCost(ctx, field)
 			case "timezone":
@@ -71944,6 +72214,69 @@ func (ec *executionContext) fieldContext_Query_apiKeyBudget(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_apiKeyBudget_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_apiKeyBudgetSummaries(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_apiKeyBudgetSummaries,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().APIKeyBudgetSummaries(ctx, fc.Args["ownerIDs"].([]int), fc.Args["includeGroups"].(bool))
+		},
+		nil,
+		ec.marshalNBudgetView2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetViewᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_apiKeyBudgetSummaries(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ownerKind":
+				return ec.fieldContext_BudgetView_ownerKind(ctx, field)
+			case "ownerID":
+				return ec.fieldContext_BudgetView_ownerID(ctx, field)
+			case "revision":
+				return ec.fieldContext_BudgetView_revision(ctx, field)
+			case "timezone":
+				return ec.fieldContext_BudgetView_timezone(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_BudgetView_expiresAt(ctx, field)
+			case "accountingStartedAt":
+				return ec.fieldContext_BudgetView_accountingStartedAt(ctx, field)
+			case "serverTime":
+				return ec.fieldContext_BudgetView_serverTime(ctx, field)
+			case "hasLimits":
+				return ec.fieldContext_BudgetView_hasLimits(ctx, field)
+			case "expired":
+				return ec.fieldContext_BudgetView_expired(ctx, field)
+			case "windows":
+				return ec.fieldContext_BudgetView_windows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BudgetView", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_apiKeyBudgetSummaries_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -73810,6 +74143,41 @@ func (ec *executionContext) fieldContext_Request_sessionExecution(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_resultExecution(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_resultExecution,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().ResultExecution(ctx, obj)
+		},
+		nil,
+		ec.marshalORequestResultExecution2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestResultExecution,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_resultExecution(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RequestResultExecution_id(ctx, field)
+			case "responseStatusCode":
+				return ec.fieldContext_RequestResultExecution_responseStatusCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestResultExecution", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_outputTokensPerSecond(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -73875,6 +74243,73 @@ func (ec *executionContext) fieldContext_Request_costRecalculationPreview(_ cont
 				return ec.fieldContext_CostRecalculationPreview_images(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CostRecalculationPreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Request_usageSummary(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_usageSummary,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().UsageSummary(ctx, obj)
+		},
+		nil,
+		ec.marshalORequestUsageSummary2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestUsageSummary,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_usageSummary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "usageRecords":
+				return ec.fieldContext_RequestUsageSummary_usageRecords(ctx, field)
+			case "archivedRecords":
+				return ec.fieldContext_RequestUsageSummary_archivedRecords(ctx, field)
+			case "unpricedRecords":
+				return ec.fieldContext_RequestUsageSummary_unpricedRecords(ctx, field)
+			case "promptTokens":
+				return ec.fieldContext_RequestUsageSummary_promptTokens(ctx, field)
+			case "completionTokens":
+				return ec.fieldContext_RequestUsageSummary_completionTokens(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_RequestUsageSummary_totalTokens(ctx, field)
+			case "promptCachedTokens":
+				return ec.fieldContext_RequestUsageSummary_promptCachedTokens(ctx, field)
+			case "promptWriteCachedTokens":
+				return ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens(ctx, field)
+			case "completionReasoningTokens":
+				return ec.fieldContext_RequestUsageSummary_completionReasoningTokens(ctx, field)
+			case "promptAudioTokens":
+				return ec.fieldContext_RequestUsageSummary_promptAudioTokens(ctx, field)
+			case "promptWriteCachedTokens5m":
+				return ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens5m(ctx, field)
+			case "promptWriteCachedTokens1h":
+				return ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens1h(ctx, field)
+			case "completionAudioTokens":
+				return ec.fieldContext_RequestUsageSummary_completionAudioTokens(ctx, field)
+			case "completionAcceptedPredictionTokens":
+				return ec.fieldContext_RequestUsageSummary_completionAcceptedPredictionTokens(ctx, field)
+			case "completionRejectedPredictionTokens":
+				return ec.fieldContext_RequestUsageSummary_completionRejectedPredictionTokens(ctx, field)
+			case "totalCost":
+				return ec.fieldContext_RequestUsageSummary_totalCost(ctx, field)
+			case "costItems":
+				return ec.fieldContext_RequestUsageSummary_costItems(ctx, field)
+			case "costPriceMultiplier":
+				return ec.fieldContext_RequestUsageSummary_costPriceMultiplier(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestUsageSummary", field.Name)
 		},
 	}
 	return fc, nil
@@ -74244,10 +74679,14 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_continuationCount(ctx, field)
 			case "sessionExecution":
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
+			case "resultExecution":
+				return ec.fieldContext_Request_resultExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
 				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
+			case "usageSummary":
+				return ec.fieldContext_Request_usageSummary(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -75366,10 +75805,14 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_continuationCount(ctx, field)
 			case "sessionExecution":
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
+			case "resultExecution":
+				return ec.fieldContext_Request_resultExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
 				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
+			case "usageSummary":
+				return ec.fieldContext_Request_usageSummary(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -76561,6 +77004,64 @@ func (ec *executionContext) fieldContext_RequestMetadata_cachedTokens(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestResultExecution_id(ctx context.Context, field graphql.CollectedField, obj *RequestResultExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestResultExecution_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestResultExecution_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestResultExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestResultExecution_responseStatusCode(ctx context.Context, field graphql.CollectedField, obj *RequestResultExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestResultExecution_responseStatusCode,
+		func(ctx context.Context) (any, error) {
+			return obj.ResponseStatusCode, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestResultExecution_responseStatusCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestResultExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestRoutingCandidate_channelID(ctx context.Context, field graphql.CollectedField, obj *objects.RequestRoutingCandidate) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -77479,6 +77980,550 @@ func (ec *executionContext) fieldContext_RequestStatsByModel_count(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_usageRecords(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_usageRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UsageRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_usageRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_archivedRecords(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_archivedRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.ArchivedRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_archivedRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_unpricedRecords(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_unpricedRecords,
+		func(ctx context.Context) (any, error) {
+			return obj.UnpricedRecords, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_unpricedRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_completionTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_completionTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_completionTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_totalTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_totalTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_totalTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptCachedTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptCachedTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptCachedTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptCachedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptWriteCachedTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptWriteCachedTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptWriteCachedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_completionReasoningTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_completionReasoningTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionReasoningTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_completionReasoningTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptAudioTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptAudioTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptAudioTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptAudioTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptWriteCachedTokens5m(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens5m,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptWriteCachedTokens5m, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptWriteCachedTokens5m(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_promptWriteCachedTokens1h(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_promptWriteCachedTokens1h,
+		func(ctx context.Context) (any, error) {
+			return obj.PromptWriteCachedTokens1h, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_promptWriteCachedTokens1h(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_completionAudioTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_completionAudioTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionAudioTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_completionAudioTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_completionAcceptedPredictionTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_completionAcceptedPredictionTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionAcceptedPredictionTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_completionAcceptedPredictionTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_completionRejectedPredictionTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_completionRejectedPredictionTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionRejectedPredictionTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_completionRejectedPredictionTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_totalCost(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_totalCost,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCost, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_totalCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_costItems(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_costItems,
+		func(ctx context.Context) (any, error) {
+			return obj.CostItems, nil
+		},
+		nil,
+		ec.marshalOCostItem2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCostItemᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_costItems(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "pricingEvidence":
+				return ec.fieldContext_CostItem_pricingEvidence(ctx, field)
+			case "image":
+				return ec.fieldContext_CostItem_image(ctx, field)
+			case "imageRule":
+				return ec.fieldContext_CostItem_imageRule(ctx, field)
+			case "unpriced":
+				return ec.fieldContext_CostItem_unpriced(ctx, field)
+			case "unpricedReason":
+				return ec.fieldContext_CostItem_unpricedReason(ctx, field)
+			case "itemCode":
+				return ec.fieldContext_CostItem_itemCode(ctx, field)
+			case "promptWriteCacheVariantCode":
+				return ec.fieldContext_CostItem_promptWriteCacheVariantCode(ctx, field)
+			case "quantity":
+				return ec.fieldContext_CostItem_quantity(ctx, field)
+			case "tierBreakdown":
+				return ec.fieldContext_CostItem_tierBreakdown(ctx, field)
+			case "subtotal":
+				return ec.fieldContext_CostItem_subtotal(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CostItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestUsageSummary_costPriceMultiplier(ctx context.Context, field graphql.CollectedField, obj *biz.RequestUsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestUsageSummary_costPriceMultiplier,
+		func(ctx context.Context) (any, error) {
+			return obj.CostPriceMultiplier, nil
+		},
+		nil,
+		ec.marshalODecimal2ᚖgithubᚗcomᚋshopspringᚋdecimalᚐDecimal,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestUsageSummary_costPriceMultiplier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestUsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Decimal does not have child fields")
 		},
 	}
 	return fc, nil
@@ -91422,10 +92467,14 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_continuationCount(ctx, field)
 			case "sessionExecution":
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
+			case "resultExecution":
+				return ec.fieldContext_Request_resultExecution(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_Request_outputTokensPerSecond(ctx, field)
 			case "costRecalculationPreview":
 				return ec.fieldContext_Request_costRecalculationPreview(ctx, field)
+			case "usageSummary":
+				return ec.fieldContext_Request_usageSummary(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -133146,6 +134195,11 @@ func (ec *executionContext) _ChannelTodayModelUsage(ctx context.Context, sel ast
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "pricedCount":
+			out.Values[i] = ec._ChannelTodayModelUsage_pricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "totalTokens":
 			out.Values[i] = ec._ChannelTodayModelUsage_totalTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -133224,6 +134278,11 @@ func (ec *executionContext) _ChannelTodayUsage(ctx context.Context, sel ast.Sele
 			}
 		case "unpricedCount":
 			out.Values[i] = ec._ChannelTodayUsage_unpricedCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pricedCount":
+			out.Values[i] = ec._ChannelTodayUsage_pricedCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -145220,6 +146279,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "apiKeyBudgetSummaries":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_apiKeyBudgetSummaries(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -146131,6 +147212,39 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "resultExecution":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_resultExecution(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "outputTokensPerSecond":
 			field := field
 
@@ -146177,6 +147291,39 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "usageSummary":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_usageSummary(ctx, field, obj)
 				return res
 			}
 
@@ -147289,6 +148436,47 @@ func (ec *executionContext) _RequestMetadata(ctx context.Context, sel ast.Select
 	return out
 }
 
+var requestResultExecutionImplementors = []string{"RequestResultExecution"}
+
+func (ec *executionContext) _RequestResultExecution(ctx context.Context, sel ast.SelectionSet, obj *RequestResultExecution) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestResultExecutionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestResultExecution")
+		case "id":
+			out.Values[i] = ec._RequestResultExecution_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "responseStatusCode":
+			out.Values[i] = ec._RequestResultExecution_responseStatusCode(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var requestRoutingCandidateImplementors = []string{"RequestRoutingCandidate"}
 
 func (ec *executionContext) _RequestRoutingCandidate(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestRoutingCandidate) graphql.Marshaler {
@@ -147624,6 +148812,103 @@ func (ec *executionContext) _RequestStatsByModel(ctx context.Context, sel ast.Se
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestUsageSummaryImplementors = []string{"RequestUsageSummary"}
+
+func (ec *executionContext) _RequestUsageSummary(ctx context.Context, sel ast.SelectionSet, obj *biz.RequestUsageSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestUsageSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestUsageSummary")
+		case "usageRecords":
+			out.Values[i] = ec._RequestUsageSummary_usageRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "archivedRecords":
+			out.Values[i] = ec._RequestUsageSummary_archivedRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpricedRecords":
+			out.Values[i] = ec._RequestUsageSummary_unpricedRecords(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptTokens":
+			out.Values[i] = ec._RequestUsageSummary_promptTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completionTokens":
+			out.Values[i] = ec._RequestUsageSummary_completionTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalTokens":
+			out.Values[i] = ec._RequestUsageSummary_totalTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptCachedTokens":
+			out.Values[i] = ec._RequestUsageSummary_promptCachedTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptWriteCachedTokens":
+			out.Values[i] = ec._RequestUsageSummary_promptWriteCachedTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completionReasoningTokens":
+			out.Values[i] = ec._RequestUsageSummary_completionReasoningTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptAudioTokens":
+			out.Values[i] = ec._RequestUsageSummary_promptAudioTokens(ctx, field, obj)
+		case "promptWriteCachedTokens5m":
+			out.Values[i] = ec._RequestUsageSummary_promptWriteCachedTokens5m(ctx, field, obj)
+		case "promptWriteCachedTokens1h":
+			out.Values[i] = ec._RequestUsageSummary_promptWriteCachedTokens1h(ctx, field, obj)
+		case "completionAudioTokens":
+			out.Values[i] = ec._RequestUsageSummary_completionAudioTokens(ctx, field, obj)
+		case "completionAcceptedPredictionTokens":
+			out.Values[i] = ec._RequestUsageSummary_completionAcceptedPredictionTokens(ctx, field, obj)
+		case "completionRejectedPredictionTokens":
+			out.Values[i] = ec._RequestUsageSummary_completionRejectedPredictionTokens(ctx, field, obj)
+		case "totalCost":
+			out.Values[i] = ec._RequestUsageSummary_totalCost(ctx, field, obj)
+		case "costItems":
+			out.Values[i] = ec._RequestUsageSummary_costItems(ctx, field, obj)
+		case "costPriceMultiplier":
+			out.Values[i] = ec._RequestUsageSummary_costPriceMultiplier(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -156532,6 +157817,50 @@ func (ec *executionContext) unmarshalNBudgetSettingsInput2githubᚗcomᚋlooplj�
 
 func (ec *executionContext) marshalNBudgetView2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView(ctx context.Context, sel ast.SelectionSet, v biz.BudgetView) graphql.Marshaler {
 	return ec._BudgetView(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBudgetView2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetViewᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.BudgetView) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNBudgetView2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNBudgetView2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐBudgetView(ctx context.Context, sel ast.SelectionSet, v *biz.BudgetView) graphql.Marshaler {
@@ -170625,6 +171954,13 @@ func (ec *executionContext) unmarshalORequestOrder2ᚖgithubᚗcomᚋloopljᚋax
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalORequestResultExecution2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestResultExecution(ctx context.Context, sel ast.SelectionSet, v *RequestResultExecution) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestResultExecution(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalORequestRoutingDecision2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestRoutingDecision(ctx context.Context, sel ast.SelectionSet, v *objects.RequestRoutingDecision) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -170799,6 +172135,13 @@ func (ec *executionContext) marshalORequestStatus2ᚖgithubᚗcomᚋloopljᚋaxo
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalORequestUsageSummary2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestUsageSummary(ctx context.Context, sel ast.SelectionSet, v *biz.RequestUsageSummary) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestUsageSummary(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalORequestWhereInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐRequestWhereInputᚄ(ctx context.Context, v any) ([]*ent.RequestWhereInput, error) {

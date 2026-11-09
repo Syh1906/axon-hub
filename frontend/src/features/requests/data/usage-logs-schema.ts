@@ -55,6 +55,19 @@ export const usageLogSchema = z.object({
 });
 export type UsageLog = z.infer<typeof usageLogSchema>;
 
+export const requestUsageSummarySchema = usageLogSchema.pick({
+  promptTokens: true, completionTokens: true, totalTokens: true,
+  promptAudioTokens: true, promptCachedTokens: true, promptWriteCachedTokens: true,
+  promptWriteCachedTokens5m: true, promptWriteCachedTokens1h: true,
+  completionAudioTokens: true, completionReasoningTokens: true,
+  completionAcceptedPredictionTokens: true, completionRejectedPredictionTokens: true,
+  totalCost: true, costItems: true, costPriceMultiplier: true,
+}).extend({
+  usageRecords: z.number().int().nonnegative(),
+  archivedRecords: z.number().int().nonnegative(),
+  unpricedRecords: z.number().int().nonnegative(),
+});
+
 // Usage Log Connection schema for GraphQL pagination
 export const usageLogEdgeSchema = z.object({
   node: usageLogSchema,

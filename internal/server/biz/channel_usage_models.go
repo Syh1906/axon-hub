@@ -59,7 +59,7 @@ func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Clien
 		}
 		logs := make([]*ent.UsageLog, 0, len(selected))
 		for i := range selected {
-			if selected[i].ID == 0 {
+			if selected[i].ID == 0 || selected[i].Archived {
 				continue
 			}
 			selected[i].UsageLog.CostItems = selected[i].CostItems
@@ -68,22 +68,27 @@ func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Clien
 		if err := loadStandardCostVersionsInto(ctx, client, logs, versions, loadedVersions); err != nil {
 			return nil, err
 		}
-		requestCount := 0
+		requestCount, lastRequest := 0, 0
 		for begin := 0; begin < len(selected); {
 			req := selected[begin]
 			endRow := begin + 1
-			for endRow < len(selected) && selected[endRow].UsageRequestID == req.UsageRequestID {
+			for endRow < len(selected) && selected[endRow].UsageRequestID == req.UsageRequestID && selected[endRow].Model == req.Model {
 				endRow++
 			}
 			requestRows := selected[begin:endRow]
-			requestCount++
+			if req.UsageRequestID != lastRequest {
+				requestCount++
+				lastRequest = req.UsageRequestID
+			}
 			begin = endRow
 			total := models[req.Model]
 			if total == nil {
 				total = &modelTotals{ChannelTodayModelUsage: objects.ChannelTodayModelUsage{Model: req.Model}}
 				models[req.Model] = total
 			}
-			total.RequestCount++
+			if req.LogicalRequest {
+				total.RequestCount++
+			}
 			seen, unpriced, standardMissing := false, false, false
 			var requestCost float64
 			var requestTokens int64
@@ -113,10 +118,13 @@ func queryChannelTodayUsageModelsSnapshot(ctx context.Context, client *ent.Clien
 			}
 			if !seen || unpriced {
 				total.UnpricedCount++
-			} else if requestTokens > 0 {
-				total.pricedCost += requestCost
-				total.pricedTokens += requestTokens
-				total.TokenPricedRequestCount++
+			} else {
+				total.PricedCount++
+				if requestTokens > 0 {
+					total.pricedCost += requestCost
+					total.pricedTokens += requestTokens
+					total.TokenPricedRequestCount++
+				}
 			}
 			if !seen || standardMissing {
 				total.StandardUnpricedCount++

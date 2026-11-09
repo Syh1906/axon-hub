@@ -474,6 +474,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
 			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs,
 			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
+			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure,
 		).Order(request.ByCreatedAt(sql.OrderDesc()), request.ByID(sql.OrderDesc())).
 			Limit(pageSize).Offset((page - 1) * pageSize).All(ctx)
 		if err != nil {

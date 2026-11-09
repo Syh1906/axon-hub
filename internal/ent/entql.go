@@ -620,6 +620,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldResponseBody:               {Type: field.TypeJSON, Column: request.FieldResponseBody},
 			request.FieldResponseChunks:             {Type: field.TypeJSON, Column: request.FieldResponseChunks},
 			request.FieldChannelID:                  {Type: field.TypeInt, Column: request.FieldChannelID},
+			request.FieldResultExecutionID:          {Type: field.TypeInt, Column: request.FieldResultExecutionID},
 			request.FieldRoutingDecision:            {Type: field.TypeJSON, Column: request.FieldRoutingDecision},
 			request.FieldExternalID:                 {Type: field.TypeString, Column: request.FieldExternalID},
 			request.FieldStatus:                     {Type: field.TypeEnum, Column: request.FieldStatus},
@@ -814,6 +815,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagearchive.FieldSpeedSum:                  {Type: field.TypeFloat64, Column: usagearchive.FieldSpeedSum},
 			usagearchive.FieldPricingComplete:           {Type: field.TypeBool, Column: usagearchive.FieldPricingComplete},
 			usagearchive.FieldSpeedVersion:              {Type: field.TypeInt, Column: usagearchive.FieldSpeedVersion},
+			usagearchive.FieldBillingVersion:            {Type: field.TypeInt, Column: usagearchive.FieldBillingVersion},
 			usagearchive.FieldPromptTokens:              {Type: field.TypeInt64, Column: usagearchive.FieldPromptTokens},
 			usagearchive.FieldCompletionTokens:          {Type: field.TypeInt64, Column: usagearchive.FieldCompletionTokens},
 			usagearchive.FieldTotalTokens:               {Type: field.TypeInt64, Column: usagearchive.FieldTotalTokens},
@@ -4525,6 +4527,11 @@ func (f *RequestFilter) WhereChannelID(p entql.IntP) {
 	f.Where(p.Field(request.FieldChannelID))
 }
 
+// WhereResultExecutionID applies the entql int predicate on the result_execution_id field.
+func (f *RequestFilter) WhereResultExecutionID(p entql.IntP) {
+	f.Where(p.Field(request.FieldResultExecutionID))
+}
+
 // WhereRoutingDecision applies the entql json.RawMessage predicate on the routing_decision field.
 func (f *RequestFilter) WhereRoutingDecision(p entql.BytesP) {
 	f.Where(p.Field(request.FieldRoutingDecision))
@@ -5570,6 +5577,11 @@ func (f *UsageArchiveFilter) WherePricingComplete(p entql.BoolP) {
 // WhereSpeedVersion applies the entql int predicate on the speed_version field.
 func (f *UsageArchiveFilter) WhereSpeedVersion(p entql.IntP) {
 	f.Where(p.Field(usagearchive.FieldSpeedVersion))
+}
+
+// WhereBillingVersion applies the entql int predicate on the billing_version field.
+func (f *UsageArchiveFilter) WhereBillingVersion(p entql.IntP) {
+	f.Where(p.Field(usagearchive.FieldBillingVersion))
 }
 
 // WherePromptTokens applies the entql int64 predicate on the prompt_tokens field.

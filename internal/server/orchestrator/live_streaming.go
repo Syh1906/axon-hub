@@ -34,9 +34,6 @@ func (m *livePreviewMiddleware) Name() string {
 }
 
 func (m *livePreviewMiddleware) OnInboundLlmRequest(ctx context.Context, request *llm.Request) (*llm.Request, error) {
-	if m.state != nil && m.state.hedge != nil {
-		return request, nil
-	}
 	if m.liveStreamRegistry == nil {
 		m.enabled = false
 		return request, nil
@@ -56,14 +53,11 @@ func (m *livePreviewMiddleware) OnInboundLlmRequest(ctx context.Context, request
 }
 
 func (m *livePreviewMiddleware) OnOutboundRawRequest(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
-	if m.state != nil && m.state.hedge != nil {
-		m.enabled = false
-	}
 	if !m.enabled {
 		return request, nil
 	}
 
-	if m.state.Request != nil && m.liveStreamRegistry.GetRequestBuffer(m.state.Request.ID) == nil {
+	if m.state.publishesRequest() && m.state.Request != nil && m.liveStreamRegistry.GetRequestBuffer(m.state.Request.ID) == nil {
 		m.liveStreamRegistry.RegisterRequest(m.state.Request.ID, chunkbuffer.New())
 	}
 
@@ -86,7 +80,7 @@ func (m *livePreviewMiddleware) OnOutboundRawError(ctx context.Context, err erro
 		}
 	}
 
-	if m.state.Request != nil {
+	if m.state.publishesRequest() && m.state.Request != nil {
 		if buffer := m.liveStreamRegistry.GetRequestBuffer(m.state.Request.ID); buffer != nil {
 			buffer.Close()
 			m.liveStreamRegistry.UnregisterRequest(m.state.Request.ID)
@@ -124,6 +118,11 @@ func (m *livePreviewMiddleware) OnInboundRawStream(ctx context.Context, stream s
 	if m.state == nil || m.state.Request == nil {
 		return stream, nil
 	}
+	if !m.state.publishesRequest() {
+		// Concurrent attempts keep separate execution previews. The logical
+		// request preview is attached only after the winning stream is adopted.
+		return stream, nil
+	}
 
 	buffer := m.liveStreamRegistry.GetRequestBuffer(m.state.Request.ID)
 	if buffer == nil {
@@ -136,6 +135,18 @@ func (m *livePreviewMiddleware) OnInboundRawStream(ctx context.Context, stream s
 		liveStreamRegistry: m.liveStreamRegistry,
 		requestID:          m.state.Request.ID,
 	}), nil
+}
+
+func withTitleWinnerPreview(ctx context.Context, state *PersistenceState, registry *biz.LiveStreamRegistry, stream streams.Stream[*httpclient.StreamEvent]) streams.Stream[*httpclient.StreamEvent] {
+	if registry == nil || !state.SystemService.StoragePolicyOrDefault(ctx).LivePreview {
+		return stream
+	}
+	buffer := chunkbuffer.New()
+	registry.RegisterRequest(state.Request.ID, buffer)
+	preview := preserveDeliveryCapabilities(stream, &liveRequestStream{
+		stream: stream, buffer: buffer, liveStreamRegistry: registry, requestID: state.Request.ID,
+	})
+	return httpclient.WithResponseHeaders(preview, httpclient.GetResponseHeaders(stream))
 }
 
 type liveRequestExecutionStream struct {

@@ -196,7 +196,7 @@ func NewGraphqlHandlers(deps Dependencies) *GraphqlHandler {
 		}
 		ctx = withRequestChannelSessionCache(ctx)
 		ctx = withRequestContinuationCache(ctx)
-		return next(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent))))
+		return next(withRequestUsageCache(withRequestSpeedCache(withKeyIdentityCache(withUsagePriceLoader(ctx, deps.Ent)))))
 	})
 	gqlSrv.AroundOperations(apiKeyReadOnly)
 	gqlSrv.Use(transactioner{entgql.Transactioner{

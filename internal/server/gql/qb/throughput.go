@@ -136,6 +136,7 @@ WITH successful_execs AS (
         ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC, id DESC) as rn
     FROM request_executions
     WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
+      AND ` + resultExecutionFilterSQL("request_executions", placeholder) + `
 )
 SELECT
     ` + config.SelectColumns + `
@@ -179,6 +180,7 @@ WHERE se.status IN ('completed', 'failed', 'canceled')
             AND re2.status IN ('completed', 'failed', 'canceled')
             AND re2.metrics_latency_ms > 0
             AND re2.created_at >= ` + placeholder + `
+            AND ` + resultExecutionFilterSQL("re2", placeholder) + `
     )
 GROUP BY ` + config.GroupBy + `
 HAVING COUNT(` + outputSpeedSQL("se", placeholder) + `) > 0
@@ -207,6 +209,7 @@ WITH successful_execs AS (
         stream, format, status
     FROM request_executions
     WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= ` + placeholder + `
+      AND ` + resultExecutionFilterSQL("request_executions", placeholder) + `
     ORDER BY request_id, created_at DESC, id DESC
 )
 SELECT

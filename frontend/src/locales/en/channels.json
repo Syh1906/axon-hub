@@ -1278,7 +1278,7 @@
   "channels.todayUsage.model": "Model",
   "channels.todayUsage.avgFirstToken": "Avg. first token",
   "channels.todayUsage.avgOutput": "Avg. output",
-  "channels.todayUsage.performanceHelp": "Channel success rate counts dispatched attempts; success on another channel does not erase this channel’s failure. First-token latency and speed use their own valid sample counts; unavailable values show —.",
+  "channels.todayUsage.performanceHelp": "Costs include all saved usage on this channel, while request counts use final attribution. A retry channel may have cost and zero final requests. Success rates count actual attempts; latency and speed use their own valid samples, otherwise —.",
   "channels.todayUsage.detailsFor": "View today's model usage for {{name}}",
   "channels.todayUsage.actualTotal": "Actual total cost",
   "channels.todayUsage.standardTotal": "Standard total cost (1×)",

@@ -83,21 +83,15 @@ export function UsageRequestTable({ items, meta }: { items: UsageRequest[]; meta
               <TableCell>
                 <RequestCacheCell
                   request={{
-                    usageLogs:
+                    usageSummary:
                       item.usageRecords === 0
                         ? null
                         : {
-                            edges: [
-                              {
-                                node: {
-                                  promptTokens: item.inputTokens,
-                                  promptCachedTokens: item.cacheReadTokens,
-                                  promptWriteCachedTokens: item.cacheWriteTokens,
-                                  promptWriteCachedTokens5m: item.cacheWriteTokens5m,
-                                  promptWriteCachedTokens1h: item.cacheWriteTokens1h,
-                                },
-                              },
-                            ],
+                            promptTokens: item.inputTokens,
+                            promptCachedTokens: item.cacheReadTokens,
+                            promptWriteCachedTokens: item.cacheWriteTokens,
+                            promptWriteCachedTokens5m: item.cacheWriteTokens5m,
+                            promptWriteCachedTokens1h: item.cacheWriteTokens1h,
                           },
                   }}
                 />

@@ -30,3 +30,8 @@ func (r *queryResolver) PreviewAPIKeyBudgetReset(ctx context.Context, kind strin
 func (r *queryResolver) APIKeyBudget(ctx context.Context, kind string, ownerID int) (*biz.BudgetView, error) {
 	return r.apiKeyService.Budget(ctx, kind, ownerID)
 }
+
+// APIKeyBudgetSummaries is the resolver for the apiKeyBudgetSummaries field.
+func (r *queryResolver) APIKeyBudgetSummaries(ctx context.Context, ownerIDs []int, includeGroups bool) ([]*biz.BudgetView, error) {
+	return r.apiKeyService.KeyBudgetSummaries(ctx, ownerIDs, includeGroups)
+}

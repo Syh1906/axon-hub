@@ -1,6 +1,5 @@
 import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { extractNumberID } from '@/lib/utils';
 import { currencyFractionDigits } from '@/utils/currency-display';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { BudgetTime } from '@/features/budgets/budget-table';
-import { useBudget } from '@/features/budgets/data';
+import type { BudgetView } from '@/features/budgets/data';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { Credential } from './credential';
 import type { Member } from './data';
@@ -18,6 +17,7 @@ import { QuickEdit, QuickToggle } from './quick-edit';
 
 export function MemberRow({
   member,
+  budget,
   selecting,
   selected,
   onSelect,
@@ -29,6 +29,7 @@ export function MemberRow({
   writable,
 }: {
   member: Member;
+  budget: { data?: BudgetView; isError: boolean; refetch: () => Promise<unknown> };
   selecting: boolean;
   selected: boolean;
   onSelect: (checked: boolean) => void;
@@ -42,7 +43,6 @@ export function MemberRow({
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
   const { data: settings } = useGeneralSettings();
-  const budget = useBudget({ kind: 'key', ownerID: Number(extractNumberID(member.id)), name: member.name });
   const target = { ...keyQuickTarget(member), budget: budget.data };
   const currency = (value: string) =>
     t('currencies.format', {

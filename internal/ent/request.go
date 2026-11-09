@@ -60,6 +60,8 @@ type Request struct {
 	ResponseChunks []objects.JSONRawMessage `json:"response_chunks,omitempty"`
 	// ChannelID holds the value of the "channel_id" field.
 	ChannelID int `json:"channel_id,omitempty"`
+	// Execution adopted as the logical request result; never the speculative loser
+	ResultExecutionID *int `json:"result_execution_id,omitempty"`
 	// RoutingDecision holds the value of the "routing_decision" field.
 	RoutingDecision *objects.RequestRoutingDecision `json:"routing_decision,omitempty"`
 	// ExternalID holds the value of the "external_id" field.
@@ -204,7 +206,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case request.FieldStream, request.FieldContentSaved:
 			values[i] = new(sql.NullBool)
-		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
+		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldResultExecutionID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
 			values[i] = new(sql.NullInt64)
 		case request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
 			values[i] = new(sql.NullString)
@@ -349,6 +351,13 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field channel_id", values[i])
 			} else if value.Valid {
 				_m.ChannelID = int(value.Int64)
+			}
+		case request.FieldResultExecutionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field result_execution_id", values[i])
+			} else if value.Valid {
+				_m.ResultExecutionID = new(int)
+				*_m.ResultExecutionID = int(value.Int64)
 			}
 		case request.FieldRoutingDecision:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -577,6 +586,11 @@ func (_m *Request) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("channel_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChannelID))
+	builder.WriteString(", ")
+	if v := _m.ResultExecutionID; v != nil {
+		builder.WriteString("result_execution_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("routing_decision=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RoutingDecision))

@@ -106,36 +106,11 @@ func (r *queryResolver) RequestStats(ctx context.Context) (*RequestStats, error)
 	loc := r.systemService.TimeLocation(ctx)
 	period := xtime.GetCalendarPeriods(loc)
 
-	if requestsToday, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
-		Where(usagelog.CreatedAtGTE(period.Today.Start)).
-		Count(ctx); err != nil {
-		log.Warn(ctx, "failed to count today's requests", log.Cause(err))
+	counts, err := r.calendarRequestStats(ctx, period)
+	if err != nil {
+		log.Warn(ctx, "failed to count requests by calendar period", log.Cause(err))
 	} else {
-		stats.RequestsToday = requestsToday
-	}
-
-	if requestsThisWeek, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
-		Where(usagelog.CreatedAtGTE(period.ThisWeek.Start)).
-		Count(ctx); err != nil {
-		log.Warn(ctx, "failed to count this week's requests", log.Cause(err))
-	} else {
-		stats.RequestsThisWeek = requestsThisWeek
-	}
-
-	if requestsLastWeek, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
-		Where(usagelog.CreatedAtGTE(period.LastWeek.Start), usagelog.CreatedAtLT(period.LastWeek.End)).
-		Count(ctx); err != nil {
-		log.Warn(ctx, "failed to count last week's requests", log.Cause(err))
-	} else {
-		stats.RequestsLastWeek = requestsLastWeek
-	}
-
-	if requestsThisMonth, err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
-		Where(usagelog.CreatedAtGTE(period.ThisMonth.Start)).
-		Count(ctx); err != nil {
-		log.Warn(ctx, "failed to count this month's requests", log.Cause(err))
-	} else {
-		stats.RequestsThisMonth = requestsThisMonth
+		stats = counts
 	}
 
 	return stats, nil
@@ -416,6 +391,9 @@ func (r *queryResolver) TopRequestsProjects(ctx context.Context) ([]*TopRequests
 // Note: Uses usage_logs table for token consumption statistics (today, this week, this month).
 // Provides result-only token metrics aggregated by calendar periods.
 func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
+	if err := authz.RequireScope(ctx, scopes.ScopeReadDashboard); err != nil {
+		return nil, err
+	}
 	ctx = authz.WithScopeDecision(ctx, scopes.ScopeReadDashboard)
 
 	// This resolver tolerates partial failures and reports some failures via
@@ -437,69 +415,20 @@ func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
 	loc := r.systemService.TimeLocation(ctx)
 	period := xtime.GetCalendarPeriods(loc)
 
-	// Helper function to get token sums for a specific time period
-	getTokenSums := func(since time.Time) (input, output, cached int) {
-		type tokenSums struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
-			CachedTokens int `json:"cached_tokens"`
-		}
-
-		var records []tokenSums
-
-		err := r.client.UsageLog.Query().Modify(biz.IncludeArchivedUsage).
-			Where(usagelog.CreatedAtGTE(since)).
-			Modify(func(s *sql.Selector) {
-				s.Select(
-					sql.As(sql.Sum(usagelog.FieldPromptTokens), "input_tokens"),
-					sql.As(sql.Sum(usagelog.FieldCompletionTokens), "output_tokens"),
-					sql.As(fmt.Sprintf("COALESCE(SUM(%s), 0)", s.C(usagelog.FieldPromptCachedTokens)), "cached_tokens"),
-				)
-			}).
-			Scan(ctx, &records)
-		if err != nil || len(records) == 0 {
-			log.Warn(ctx, "failed to aggregate token stats", log.Cause(err))
-			return 0, 0, 0
-		}
-
-		inputVal := records[0].InputTokens
-		outputVal := records[0].OutputTokens
-		cachedVal := records[0].CachedTokens
-
-		if log.DebugEnabled(ctx) {
-			log.Debug(ctx, "token stats query result",
-				log.String("since", since.Format("2006-01-02 15:04:05")),
-				log.Int("input", inputVal),
-				log.Int("output", outputVal),
-				log.Int("cached", cachedVal))
-		}
-
-		return inputVal, outputVal, cachedVal
+	periodStats, err := r.calendarTokenStats(ctx, period)
+	if err != nil {
+		log.Warn(ctx, "failed to aggregate calendar token stats", log.Cause(err))
+	} else {
+		stats = periodStats
 	}
-
-	// Get token stats for today
-	input, output, cached := getTokenSums(period.Today.Start)
-	stats.TotalInputTokensToday = input
-	stats.TotalOutputTokensToday = output
-	stats.TotalCachedTokensToday = cached
-
-	// Get token stats for this week (calendar week from Monday)
-	input, output, cached = getTokenSums(period.ThisWeek.Start)
-	stats.TotalInputTokensThisWeek = input
-	stats.TotalOutputTokensThisWeek = output
-	stats.TotalCachedTokensThisWeek = cached
-
-	// Get token stats for this month (calendar month from 1st)
-	input, output, cached = getTokenSums(period.ThisMonth.Start)
-	stats.TotalInputTokensThisMonth = input
-	stats.TotalOutputTokensThisMonth = output
-	stats.TotalCachedTokensThisMonth = cached
 
 	// Get all-time token stats with stale-while-revalidate caching
 	allTimeCacheMu.RLock()
-	cacheAge := time.Since(allTimeCacheTime)
-	cacheExists := allTimeCache != nil
+	cachedStats, lastUpdated := allTimeCache, allTimeCacheTime
+	softExpiry, hardExpiry := softTTL, hardTTL
 	allTimeCacheMu.RUnlock()
+	cacheAge := time.Since(lastUpdated)
+	cacheExists := cachedStats != nil
 
 	// Helper function to refresh cache data
 	// Returns the stats, the cache timestamp, and any error
@@ -559,30 +488,31 @@ func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
 	}
 
 	// Stale-while-revalidate logic
-	if cacheExists && cacheAge < hardTTL {
-		// Cache is valid (within hard TTL)
-		// Capture all cache data under a single read lock to prevent race conditions
-		allTimeCacheMu.RLock()
-		cachedStats := allTimeCache
-		lastUpdated := allTimeCacheTime
-		allTimeCacheMu.RUnlock()
-
-		// Safe to access cachedStats here since we have a local copy
+	if cacheExists && cacheAge < hardExpiry {
+		// The snapshot remains valid if another caller invalidates the cache.
 		stats.TotalInputTokensAllTime = cachedStats.TotalInputTokensAllTime
 		stats.TotalOutputTokensAllTime = cachedStats.TotalOutputTokensAllTime
 		stats.TotalCachedTokensAllTime = cachedStats.TotalCachedTokensAllTime
 		stats.LastUpdated = &lastUpdated
 
 		// If cache is stale (exceeded soft TTL), trigger async refresh
-		if cacheAge >= softTTL {
+		if cacheAge >= softExpiry {
 			go func() {
-				bgCtx := context.Background()
+				defer func() {
+					if rec := recover(); rec != nil {
+						log.Error(ctx, "all-time token stats refresh panicked", log.Any("panic", rec))
+					}
+				}()
+				// Keep the authorized read scope after the browser request ends,
+				// matching the bounded refresh policy of the other dashboard caches.
+				bgCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+				defer cancel()
 				if _, _, err := refreshCache(bgCtx); err != nil {
 					log.Error(bgCtx, "async all-time token stats cache refresh failed",
 						log.Cause(err),
 						log.Duration("cache_age", cacheAge),
-						log.Duration("soft_ttl", softTTL),
-						log.Duration("hard_ttl", hardTTL),
+						log.Duration("soft_ttl", softExpiry),
+						log.Duration("hard_ttl", hardExpiry),
 					)
 				}
 			}()
@@ -595,7 +525,7 @@ func (r *queryResolver) TokenStats(ctx context.Context) (*TokenStats, error) {
 				log.Cause(err),
 				log.Bool("cache_exists", cacheExists),
 				log.Duration("cache_age", cacheAge),
-				log.Duration("hard_ttl", hardTTL),
+				log.Duration("hard_ttl", hardExpiry),
 			)
 			graphql.AddError(ctx, &gqlerror.Error{
 				Path:    graphql.GetPath(ctx),

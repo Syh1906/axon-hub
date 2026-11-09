@@ -93,14 +93,6 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
     },
     { projectId, enabled: activeTab === 'executions' }
   );
-  const { data: usageLogs } = useUsageLogs(
-    {
-      first: 1,
-      where: { requestID: requestId },
-      orderBy: { field: 'CREATED_AT', direction: 'DESC' },
-    },
-    { projectId, enabled: true }
-  );
   const { data: oneHourPromptCacheUsageLogs } = useUsageLogs(
     { first: 1, where: { requestID: requestId, promptWriteCachedTokens1hGT: 0 } },
     { projectId, enabled: true }
@@ -512,7 +504,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
         </Card>
       )}
 
-      {usageLogs?.edges.length === 0 && request.status === 'completed' && (
+      {request.usageSummary?.usageRecords === 0 && request.status === 'completed' && (
         <Card className='border-0 shadow-sm'>
           <CardHeader>
             <CardTitle className='text-base'>{t('requests.detail.tabs.usage')}</CardTitle>
@@ -533,10 +525,10 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           </CardContent>
         </Card>
       )}
-      {usageLogs &&
-        usageLogs.edges.length > 0 &&
+      {request.usageSummary &&
+        request.usageSummary.usageRecords > 0 &&
         (() => {
-          const usage = usageLogs.edges[0].node;
+          const usage = request.usageSummary;
           const promptTokens = usage.promptTokens || 0;
           const cachedTokens = usage.promptCachedTokens || 0;
           const writeCachedTokens = usage.promptWriteCachedTokens || 0;
@@ -546,12 +538,11 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
           const cacheHitRate = hasReadCache ? ((cachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const writeCacheRate = hasWriteCache ? ((writeCachedTokens / promptTokens) * 100).toFixed(1) : '0.0';
           const cost = usage.totalCost ?? 0;
-          // Cost resolved from the model library price because the channel had no
-          // explicit price for this model (see computeUsageCost fallback).
-
-
           const promptCost = inputCostSubtotal(usage.costItems);
-          const completionCost = usage.costItems?.find((i: any) => !i.image && i.itemCode === 'completion_tokens')?.subtotal;
+          const completionItems = usage.costItems?.filter((item) => !item.image && item.itemCode === 'completion_tokens');
+          const completionCost = completionItems?.length && !completionItems.some((item) => item.unpriced)
+            ? completionItems.reduce((sum, item) => sum + item.subtotal, 0)
+            : null;
           const cacheReadCost = inputCostSubtotal(usage.costItems, true);
           const cacheWriteItems = usage.costItems?.filter((item) => item.itemCode === 'prompt_write_cached_tokens');
           const cacheWriteCost = cacheWriteItems?.length && !cacheWriteItems.some((item) => item.unpriced)
@@ -589,12 +580,14 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       </Badge>
                     )}
                     <Badge className='bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' variant='secondary'>
-                      {t(`usageLogs.source.${usage.source}`)}
+                      {t(`usageLogs.source.${request.source}`)}
                     </Badge>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <p className='text-muted-foreground mb-2 text-xs'>{t('requests.usageSummary.allRecords', { count: usage.usageRecords })}</p>
+                {usage.archivedRecords > 0 && <p className='text-muted-foreground mb-2 text-xs'>{t('requests.usageSummary.archived', { count: usage.archivedRecords })}</p>}
                 {usage.totalCost == null && (
                   <CostRecalculationPreview requestId={requestId} projectId={projectId} formatCurrency={formatCurrency} />
                 )}
@@ -683,7 +676,7 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                       <CostCell
                         total={usage.totalCost ?? null}
                         currencyCode={settings?.currencyCode ?? 'USD'}
-                        breakdown={{
+                        breakdown={usage.costItems ? {
                           cacheWriteTokens5m: usage.promptWriteCachedTokens5m,
                           cacheWriteTokens1h: usage.promptWriteCachedTokens1h,
                           items: (usage.costItems ?? []).map((item) => ({
@@ -692,7 +685,8 @@ export function RequestDetailContent({ requestId, projectId, previewRequest, isP
                             tiers: item.tierBreakdown ?? [],
                           })),
                           multiplier: usage.costPriceMultiplier ?? 'mixed',
-                        }}
+                          unpricedRecords: usage.unpricedRecords,
+                        } : null}
                       />
                     </div>
                   </div>

@@ -25485,6 +25485,8 @@ type RequestMutation struct {
 	appendresponse_body               objects.JSONRawMessage
 	response_chunks                   *[]objects.JSONRawMessage
 	appendresponse_chunks             []objects.JSONRawMessage
+	result_execution_id               *int
+	addresult_execution_id            *int
 	routing_decision                  **objects.RequestRoutingDecision
 	external_id                       *string
 	status                            *request.Status
@@ -26514,6 +26516,76 @@ func (m *RequestMutation) ChannelIDCleared() bool {
 func (m *RequestMutation) ResetChannelID() {
 	m.channel = nil
 	delete(m.clearedFields, request.FieldChannelID)
+}
+
+// SetResultExecutionID sets the "result_execution_id" field.
+func (m *RequestMutation) SetResultExecutionID(i int) {
+	m.result_execution_id = &i
+	m.addresult_execution_id = nil
+}
+
+// ResultExecutionID returns the value of the "result_execution_id" field in the mutation.
+func (m *RequestMutation) ResultExecutionID() (r int, exists bool) {
+	v := m.result_execution_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResultExecutionID returns the old "result_execution_id" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldResultExecutionID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResultExecutionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResultExecutionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResultExecutionID: %w", err)
+	}
+	return oldValue.ResultExecutionID, nil
+}
+
+// AddResultExecutionID adds i to the "result_execution_id" field.
+func (m *RequestMutation) AddResultExecutionID(i int) {
+	if m.addresult_execution_id != nil {
+		*m.addresult_execution_id += i
+	} else {
+		m.addresult_execution_id = &i
+	}
+}
+
+// AddedResultExecutionID returns the value that was added to the "result_execution_id" field in this mutation.
+func (m *RequestMutation) AddedResultExecutionID() (r int, exists bool) {
+	v := m.addresult_execution_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (m *RequestMutation) ClearResultExecutionID() {
+	m.result_execution_id = nil
+	m.addresult_execution_id = nil
+	m.clearedFields[request.FieldResultExecutionID] = struct{}{}
+}
+
+// ResultExecutionIDCleared returns if the "result_execution_id" field was cleared in this mutation.
+func (m *RequestMutation) ResultExecutionIDCleared() bool {
+	_, ok := m.clearedFields[request.FieldResultExecutionID]
+	return ok
+}
+
+// ResetResultExecutionID resets all changes to the "result_execution_id" field.
+func (m *RequestMutation) ResetResultExecutionID() {
+	m.result_execution_id = nil
+	m.addresult_execution_id = nil
+	delete(m.clearedFields, request.FieldResultExecutionID)
 }
 
 // SetRoutingDecision sets the "routing_decision" field.
@@ -27568,7 +27640,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 34)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -27622,6 +27694,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m.channel != nil {
 		fields = append(fields, request.FieldChannelID)
+	}
+	if m.result_execution_id != nil {
+		fields = append(fields, request.FieldResultExecutionID)
 	}
 	if m.routing_decision != nil {
 		fields = append(fields, request.FieldRoutingDecision)
@@ -27712,6 +27787,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ResponseChunks()
 	case request.FieldChannelID:
 		return m.ChannelID()
+	case request.FieldResultExecutionID:
+		return m.ResultExecutionID()
 	case request.FieldRoutingDecision:
 		return m.RoutingDecision()
 	case request.FieldExternalID:
@@ -27787,6 +27864,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldResponseChunks(ctx)
 	case request.FieldChannelID:
 		return m.OldChannelID(ctx)
+	case request.FieldResultExecutionID:
+		return m.OldResultExecutionID(ctx)
 	case request.FieldRoutingDecision:
 		return m.OldRoutingDecision(ctx)
 	case request.FieldExternalID:
@@ -27952,6 +28031,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetChannelID(v)
 		return nil
+	case request.FieldResultExecutionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResultExecutionID(v)
+		return nil
 	case request.FieldRoutingDecision:
 		v, ok := value.(*objects.RequestRoutingDecision)
 		if !ok {
@@ -28068,6 +28154,9 @@ func (m *RequestMutation) AddedFields() []string {
 	if m.adduser_id != nil {
 		fields = append(fields, request.FieldUserID)
 	}
+	if m.addresult_execution_id != nil {
+		fields = append(fields, request.FieldResultExecutionID)
+	}
 	if m.addclient_status_code != nil {
 		fields = append(fields, request.FieldClientStatusCode)
 	}
@@ -28093,6 +28182,8 @@ func (m *RequestMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case request.FieldUserID:
 		return m.AddedUserID()
+	case request.FieldResultExecutionID:
+		return m.AddedResultExecutionID()
 	case request.FieldClientStatusCode:
 		return m.AddedClientStatusCode()
 	case request.FieldMetricsLatencyMs:
@@ -28118,6 +28209,13 @@ func (m *RequestMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUserID(v)
+		return nil
+	case request.FieldResultExecutionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResultExecutionID(v)
 		return nil
 	case request.FieldClientStatusCode:
 		v, ok := value.(int)
@@ -28195,6 +28293,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldChannelID) {
 		fields = append(fields, request.FieldChannelID)
 	}
+	if m.FieldCleared(request.FieldResultExecutionID) {
+		fields = append(fields, request.FieldResultExecutionID)
+	}
 	if m.FieldCleared(request.FieldRoutingDecision) {
 		fields = append(fields, request.FieldRoutingDecision)
 	}
@@ -28271,6 +28372,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldChannelID:
 		m.ClearChannelID()
+		return nil
+	case request.FieldResultExecutionID:
+		m.ClearResultExecutionID()
 		return nil
 	case request.FieldRoutingDecision:
 		m.ClearRoutingDecision()
@@ -28363,6 +28467,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldChannelID:
 		m.ResetChannelID()
+		return nil
+	case request.FieldResultExecutionID:
+		m.ResetResultExecutionID()
 		return nil
 	case request.FieldRoutingDecision:
 		m.ResetRoutingDecision()
@@ -35985,6 +36092,8 @@ type UsageArchiveMutation struct {
 	pricing_complete               *bool
 	speed_version                  *int
 	addspeed_version               *int
+	billing_version                *int
+	addbilling_version             *int
 	prompt_tokens                  *int64
 	addprompt_tokens               *int64
 	completion_tokens              *int64
@@ -36952,6 +37061,62 @@ func (m *UsageArchiveMutation) ResetSpeedVersion() {
 	m.addspeed_version = nil
 }
 
+// SetBillingVersion sets the "billing_version" field.
+func (m *UsageArchiveMutation) SetBillingVersion(i int) {
+	m.billing_version = &i
+	m.addbilling_version = nil
+}
+
+// BillingVersion returns the value of the "billing_version" field in the mutation.
+func (m *UsageArchiveMutation) BillingVersion() (r int, exists bool) {
+	v := m.billing_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingVersion returns the old "billing_version" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldBillingVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingVersion: %w", err)
+	}
+	return oldValue.BillingVersion, nil
+}
+
+// AddBillingVersion adds i to the "billing_version" field.
+func (m *UsageArchiveMutation) AddBillingVersion(i int) {
+	if m.addbilling_version != nil {
+		*m.addbilling_version += i
+	} else {
+		m.addbilling_version = &i
+	}
+}
+
+// AddedBillingVersion returns the value that was added to the "billing_version" field in this mutation.
+func (m *UsageArchiveMutation) AddedBillingVersion() (r int, exists bool) {
+	v := m.addbilling_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBillingVersion resets all changes to the "billing_version" field.
+func (m *UsageArchiveMutation) ResetBillingVersion() {
+	m.billing_version = nil
+	m.addbilling_version = nil
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (m *UsageArchiveMutation) SetPromptTokens(i int64) {
 	m.prompt_tokens = &i
@@ -37658,7 +37823,7 @@ func (m *UsageArchiveMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageArchiveMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 30)
 	if m.kind != nil {
 		fields = append(fields, usagearchive.FieldKind)
 	}
@@ -37709,6 +37874,9 @@ func (m *UsageArchiveMutation) Fields() []string {
 	}
 	if m.speed_version != nil {
 		fields = append(fields, usagearchive.FieldSpeedVersion)
+	}
+	if m.billing_version != nil {
+		fields = append(fields, usagearchive.FieldBillingVersion)
 	}
 	if m.prompt_tokens != nil {
 		fields = append(fields, usagearchive.FieldPromptTokens)
@@ -37788,6 +37956,8 @@ func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
 		return m.PricingComplete()
 	case usagearchive.FieldSpeedVersion:
 		return m.SpeedVersion()
+	case usagearchive.FieldBillingVersion:
+		return m.BillingVersion()
 	case usagearchive.FieldPromptTokens:
 		return m.PromptTokens()
 	case usagearchive.FieldCompletionTokens:
@@ -37855,6 +38025,8 @@ func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldPricingComplete(ctx)
 	case usagearchive.FieldSpeedVersion:
 		return m.OldSpeedVersion(ctx)
+	case usagearchive.FieldBillingVersion:
+		return m.OldBillingVersion(ctx)
 	case usagearchive.FieldPromptTokens:
 		return m.OldPromptTokens(ctx)
 	case usagearchive.FieldCompletionTokens:
@@ -38007,6 +38179,13 @@ func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSpeedVersion(v)
 		return nil
+	case usagearchive.FieldBillingVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingVersion(v)
+		return nil
 	case usagearchive.FieldPromptTokens:
 		v, ok := value.(int64)
 		if !ok {
@@ -38129,6 +38308,9 @@ func (m *UsageArchiveMutation) AddedFields() []string {
 	if m.addspeed_version != nil {
 		fields = append(fields, usagearchive.FieldSpeedVersion)
 	}
+	if m.addbilling_version != nil {
+		fields = append(fields, usagearchive.FieldBillingVersion)
+	}
 	if m.addprompt_tokens != nil {
 		fields = append(fields, usagearchive.FieldPromptTokens)
 	}
@@ -38193,6 +38375,8 @@ func (m *UsageArchiveMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSpeedSum()
 	case usagearchive.FieldSpeedVersion:
 		return m.AddedSpeedVersion()
+	case usagearchive.FieldBillingVersion:
+		return m.AddedBillingVersion()
 	case usagearchive.FieldPromptTokens:
 		return m.AddedPromptTokens()
 	case usagearchive.FieldCompletionTokens:
@@ -38295,6 +38479,13 @@ func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSpeedVersion(v)
+		return nil
+	case usagearchive.FieldBillingVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBillingVersion(v)
 		return nil
 	case usagearchive.FieldPromptTokens:
 		v, ok := value.(int64)
@@ -38472,6 +38663,9 @@ func (m *UsageArchiveMutation) ResetField(name string) error {
 		return nil
 	case usagearchive.FieldSpeedVersion:
 		m.ResetSpeedVersion()
+		return nil
+	case usagearchive.FieldBillingVersion:
+		m.ResetBillingVersion()
 		return nil
 	case usagearchive.FieldPromptTokens:
 		m.ResetPromptTokens()

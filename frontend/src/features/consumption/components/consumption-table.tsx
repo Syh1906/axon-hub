@@ -163,7 +163,7 @@ export function ConsumptionTable({
       >
         {child && column.hideInModel ? (
           '—'
-        ) : column.key === 'totalCost' && metrics.requestCount > 0 && metrics.unpricedRequestCount === metrics.requestCount && metrics.totalCost === 0 ? (
+        ) : column.key === 'totalCost' && metrics.unpricedRequestCount > 0 && metrics.pricedRequestCount === 0 && metrics.totalCost === 0 ? (
           '—'
         ) : (
           formatMetric(metrics[column.key], column)

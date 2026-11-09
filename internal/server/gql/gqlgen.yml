@@ -22,6 +22,7 @@ schema:
   - request_routing.graphql
   - request_diagnostics.graphql
   - request_speed.graphql
+  - request_usage.graphql
   - managed_group_usage.graphql
   - prompt.graphql
   - prompt_protection_rule.graphql
@@ -91,6 +92,9 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  RequestUsageSummary:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.RequestUsageSummary
   CacheWriteBilling:
     model: github.com/looplj/axonhub/internal/objects.CacheWriteBilling
   CostRecalculationPreview:

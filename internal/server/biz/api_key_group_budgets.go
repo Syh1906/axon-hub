@@ -17,6 +17,10 @@ import (
 // The caller has already selected authorized project groups. Read account
 // states in bulk and aggregate missing/rolling counters in bounded SQL batches.
 func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, groupIDs []int, now time.Time) (map[int]*BudgetView, error) {
+	return s.budgetSummaryViews(ctx, projectID, budgetaccount.OwnerKindGroup, groupIDs, now)
+}
+
+func (s *APIKeyService) budgetSummaryViews(ctx context.Context, projectID int, kind budgetaccount.OwnerKind, groupIDs []int, now time.Time) (map[int]*BudgetView, error) {
 	views := map[int]*BudgetView{}
 	if len(groupIDs) == 0 {
 		return views, nil
@@ -30,7 +34,7 @@ func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, gro
 			end = len(groupIDs)
 		}
 		ids := groupIDs[start:end]
-		accounts, err := db.BudgetAccount.Query().Where(budgetaccount.ProjectIDEQ(projectID), budgetaccount.OwnerKindEQ(budgetaccount.OwnerKindGroup), budgetaccount.OwnerIDIn(ids...)).All(ctx)
+		accounts, err := db.BudgetAccount.Query().Where(budgetaccount.ProjectIDEQ(projectID), budgetaccount.OwnerKindEQ(kind), budgetaccount.OwnerIDIn(ids...)).All(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +46,7 @@ func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, gro
 			if byGroup[id] == nil {
 				state := budget.NewState()
 				state.Policy.Rules = initialBudgetRules()
-				byGroup[id] = &ent.BudgetAccount{ProjectID: projectID, OwnerID: id, OwnerKind: budgetaccount.OwnerKindGroup, State: state}
+				byGroup[id] = &ent.BudgetAccount{ProjectID: projectID, OwnerID: id, OwnerKind: kind, State: state}
 			}
 			if byGroup[id].Revision == 0 {
 				byGroup[id].State.Policy.Timezone = zone
@@ -55,6 +59,7 @@ func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, gro
 			rolling   bool
 		}
 		terms := map[budget.Period][]term{}
+		var earliest *time.Time
 		usages := map[int]map[budget.Period]budget.Usage{}
 		accountToGroup := map[int]int{}
 		queryIDs := []int{}
@@ -87,6 +92,9 @@ func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, gro
 							w.StartExclusive = false
 						}
 						terms[rule.Period] = append(terms[rule.Period], term{a.ID, w, clock.ResetVersion, rule.Mode == budget.Rolling})
+						if earliest == nil || w.Start.Before(*earliest) {
+							earliest = w.Start
+						}
 						needsQuery = true
 					}
 				}
@@ -106,7 +114,11 @@ func (s *APIKeyService) groupBudgetViews(ctx context.Context, projectID int, gro
 				U3        int64 `json:"u3"`
 				U4        int64 `json:"u4"`
 			}
-			err := db.BudgetPosting.Query().Where(budgetposting.ProjectIDEQ(projectID), budgetposting.AccountIDIn(queryIDs...)).Modify(func(q *sql.Selector) {
+			query := db.BudgetPosting.Query().Where(budgetposting.ProjectIDEQ(projectID), budgetposting.AccountIDIn(queryIDs...))
+			if earliest != nil {
+				query.Where(budgetposting.SettledAtGTE(*earliest))
+			}
+			err := query.Modify(func(q *sql.Selector) {
 				exprs := []sql.Querier{sql.ExprFunc(func(b *sql.Builder) { b.Ident(q.C(budgetposting.FieldAccountID)) })}
 				for i, period := range budget.Periods {
 					items := terms[period]

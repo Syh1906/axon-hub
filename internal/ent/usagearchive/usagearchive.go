@@ -50,6 +50,8 @@ const (
 	FieldPricingComplete = "pricing_complete"
 	// FieldSpeedVersion holds the string denoting the speed_version field in the database.
 	FieldSpeedVersion = "speed_version"
+	// FieldBillingVersion holds the string denoting the billing_version field in the database.
+	FieldBillingVersion = "billing_version"
 	// FieldPromptTokens holds the string denoting the prompt_tokens field in the database.
 	FieldPromptTokens = "prompt_tokens"
 	// FieldCompletionTokens holds the string denoting the completion_tokens field in the database.
@@ -98,6 +100,7 @@ var Columns = []string{
 	FieldSpeedSum,
 	FieldPricingComplete,
 	FieldSpeedVersion,
+	FieldBillingVersion,
 	FieldPromptTokens,
 	FieldCompletionTokens,
 	FieldTotalTokens,
@@ -152,6 +155,8 @@ var (
 	DefaultSpeedSum float64
 	// DefaultSpeedVersion holds the default value on creation for the "speed_version" field.
 	DefaultSpeedVersion int
+	// DefaultBillingVersion holds the default value on creation for the "billing_version" field.
+	DefaultBillingVersion int
 	// DefaultPromptTokens holds the default value on creation for the "prompt_tokens" field.
 	DefaultPromptTokens int64
 	// DefaultCompletionTokens holds the default value on creation for the "completion_tokens" field.
@@ -293,6 +298,11 @@ func ByPricingComplete(opts ...sql.OrderTermOption) OrderOption {
 // BySpeedVersion orders the results by the speed_version field.
 func BySpeedVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSpeedVersion, opts...).ToFunc()
+}
+
+// ByBillingVersion orders the results by the billing_version field.
+func ByBillingVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingVersion, opts...).ToFunc()
 }
 
 // ByPromptTokens orders the results by the prompt_tokens field.

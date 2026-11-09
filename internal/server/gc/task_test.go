@@ -203,6 +203,7 @@ func TestCleanupTasksKeepExecutionStatisticsWhileRequestRetained(t *testing.T) {
 	run(TriggerGcCleanupInput{UsageArchiveCleanupDays: 365})
 	require.Equal(t, 1, client.Request.Query().CountX(ctx))
 	require.Equal(t, 2, client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindExecution)).CountX(ctx))
+	require.Equal(t, 1, client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindUsage)).CountX(ctx), "retained requests keep all numeric billing facts")
 	require.Equal(t, before, statistics(), "retained requests must not lose archived speed evidence after usage cleanup")
 	run(TriggerGcCleanupInput{RequestsCleanupDays: 60})
 	run(TriggerGcCleanupInput{UsageArchiveCleanupDays: 365})

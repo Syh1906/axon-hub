@@ -115,6 +115,11 @@ func ChannelID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldChannelID, v))
 }
 
+// ResultExecutionID applies equality check predicate on the "result_execution_id" field. It's identical to ResultExecutionIDEQ.
+func ResultExecutionID(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldResultExecutionID, v))
+}
+
 // ExternalID applies equality check predicate on the "external_id" field. It's identical to ExternalIDEQ.
 func ExternalID(v string) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldExternalID, v))
@@ -783,6 +788,56 @@ func ChannelIDIsNil() predicate.Request {
 // ChannelIDNotNil applies the NotNil predicate on the "channel_id" field.
 func ChannelIDNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldChannelID))
+}
+
+// ResultExecutionIDEQ applies the EQ predicate on the "result_execution_id" field.
+func ResultExecutionIDEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDNEQ applies the NEQ predicate on the "result_execution_id" field.
+func ResultExecutionIDNEQ(v int) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDIn applies the In predicate on the "result_execution_id" field.
+func ResultExecutionIDIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldResultExecutionID, vs...))
+}
+
+// ResultExecutionIDNotIn applies the NotIn predicate on the "result_execution_id" field.
+func ResultExecutionIDNotIn(vs ...int) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldResultExecutionID, vs...))
+}
+
+// ResultExecutionIDGT applies the GT predicate on the "result_execution_id" field.
+func ResultExecutionIDGT(v int) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDGTE applies the GTE predicate on the "result_execution_id" field.
+func ResultExecutionIDGTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDLT applies the LT predicate on the "result_execution_id" field.
+func ResultExecutionIDLT(v int) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDLTE applies the LTE predicate on the "result_execution_id" field.
+func ResultExecutionIDLTE(v int) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldResultExecutionID, v))
+}
+
+// ResultExecutionIDIsNil applies the IsNil predicate on the "result_execution_id" field.
+func ResultExecutionIDIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldResultExecutionID))
+}
+
+// ResultExecutionIDNotNil applies the NotNil predicate on the "result_execution_id" field.
+func ResultExecutionIDNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldResultExecutionID))
 }
 
 // RoutingDecisionIsNil applies the IsNil predicate on the "routing_decision" field.

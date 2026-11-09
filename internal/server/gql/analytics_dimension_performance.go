@@ -12,7 +12,8 @@ func appendAnalyticsPerformance(s *sql.Selector) {
 	execution := sql.Table(requestexecution.Table).As("analytics_execution")
 	latest := sql.Table(requestexecution.Table).As("latest_analytics_execution")
 	finalID := sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
-		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("request_id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id"))))
+		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("request_id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")),
+			sql.ExprP(usageanalytics.ResultExecutionFilterSQL("latest_analytics_execution", s.Dialect()))))
 	s.LeftJoin(execution).OnP(sql.And(
 		sql.EQ(execution.C("id"), finalID),
 		sql.ColumnsEQ(execution.C("channel_id"), s.C("channel_id")),

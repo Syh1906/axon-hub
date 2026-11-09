@@ -1,19 +1,32 @@
+import { createContext, useContext, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { currencyFractionDigits } from '@/utils/currency-display';
 import { BudgetTime } from './budget-table';
-import { useBudget, type BudgetTarget } from './data';
+import { useBudget, useBudgetSummaries, type BudgetTarget } from './data';
+
+const BudgetSummariesContext = createContext<ReturnType<typeof useBudgetSummaries> | null>(null);
+
+export function BudgetSummariesProvider({ ownerIDs, children }: { ownerIDs: number[]; children: ReactNode }) {
+  const summaries = useBudgetSummaries(ownerIDs, true);
+  return <BudgetSummariesContext.Provider value={summaries}>{children}</BudgetSummariesContext.Provider>;
+}
 
 export function BudgetSummary({ target }: { target: BudgetTarget }) {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
-  const own = useBudget(target);
-  const group = useBudget({ kind: 'group', ownerID: target.groupID ?? 0, name: '' }, !!target.groupID);
+  const summaries = useContext(BudgetSummariesContext);
+  const own = useBudget(target, !summaries);
+  const group = useBudget({ kind: 'group', ownerID: target.groupID ?? 0, name: '' }, !summaries && !!target.groupID);
   const { data: settings } = useGeneralSettings();
-  if (own.isPending || (target.groupID && group.isPending)) return <span>{t('budgets.loading')}</span>;
-  if (own.error || group.error) return <span className='text-destructive'>{t('budgets.reload')}</span>;
-  const views = [own.data, group.data].filter((v) => v !== undefined);
+  if (summaries ? summaries.isPending : own.isPending || (target.groupID && group.isPending)) return <span>{t('budgets.loading')}</span>;
+  if (summaries ? summaries.error : own.error || group.error) return <span className='text-destructive'>{t('budgets.reload')}</span>;
+  const views = summaries
+    ? (summaries.data ?? []).filter(
+        (view) => (view.ownerKind === target.kind && view.ownerID === target.ownerID) || (view.ownerKind === 'group' && view.ownerID === target.groupID)
+      )
+    : [own.data, group.data].filter((v) => v !== undefined);
   const expired = views.find((v) => v.expired);
   const limited = views
     .flatMap((v) => v.windows.filter((w) => Number(w.limit) > 0).map((w) => ({ view: v, window: w })))

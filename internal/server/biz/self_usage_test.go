@@ -320,6 +320,36 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	require.Equal(t, 1, stats.Daily[6].Usage.SuccessRequests)
 }
 
+func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprint(legacy), func(t *testing.T) {
+			f := newSelfUsageFixture(t, "UTC")
+			ctx := authz.WithTestBypass(f.ctx)
+			at := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+			req := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "public")
+			channels := make([]*ent.Channel, 2)
+			for i := range channels {
+				channels[i] = f.client.Channel.Create().SetType("openai").SetName(fmt.Sprint(i)).SetCredentials(objects.ChannelCredentials{}).
+					SetSupportedModels([]string{"model"}).SetDefaultTestModel("model").SaveX(ctx)
+			}
+			f.client.Request.UpdateOne(req).SetChannelID(channels[0].ID).ExecX(ctx)
+			winner := f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[0].ID).
+				SetModelID("adopted").SetStatus("completed").SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+			f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[1].ID).
+				SetModelID("backup").SetStatus("failed").SetResponseStatusCode(500).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+			if !legacy {
+				f.client.Request.UpdateOne(req).SetResultExecutionID(winner.ID).ExecX(ctx)
+			}
+			page, err := f.service.Requests(f.ctx, "2026-11-05", "2026-11-05", nil, "", 1, 20)
+			require.NoError(t, err)
+			require.Len(t, page.Items, 1)
+			require.Equal(t, 200, *page.Items[0].ClientStatusCode)
+			require.Equal(t, 1, page.Items[0].RetryCount)
+			require.ElementsMatch(t, []string{"adopted", "backup"}, page.Items[0].ExecutedModels)
+		})
+	}
+}
+
 func TestSelfUsageMetaUsesSystemCurrencyDecimals(t *testing.T) {
 	f := newSelfUsageFixture(t, "UTC")
 	for _, decimals := range []*int{nil, lo.ToPtr(0), lo.ToPtr(4), lo.ToPtr(8)} {

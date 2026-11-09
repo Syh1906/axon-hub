@@ -80,12 +80,13 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 	} else {
 		q.Order(ent.Asc(apikeygroup.FieldCreatedAt), ent.Asc(apikeygroup.FieldID))
 	}
-	total, err := q.Clone().Count(ctx)
-	if err != nil {
-		return nil, err
-	}
 	derivedFilter := status == "expired" || status == "exhausted" || status == "enabled"
+	var total int
 	if !derivedFilter {
+		total, err = q.Clone().Count(ctx)
+		if err != nil {
+			return nil, err
+		}
 		q.Offset(offset).Limit(limit)
 	}
 	groups, err := q.All(ctx)
@@ -95,20 +96,6 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 	ids := make([]int, 0, len(groups))
 	for _, group := range groups {
 		ids = append(ids, group.ID)
-	}
-	var counts []struct {
-		GroupRef int `json:"group_ref"`
-		Count    int `json:"count"`
-	}
-	if len(ids) > 0 {
-		err = db.APIKey.Query().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefIn(ids...), apikey.StatusNEQ(apikey.StatusArchived), apikey.TypeNEQ(apikey.TypeNoauth)).GroupBy(apikey.FieldGroupRef).Aggregate(ent.Count()).Scan(ctx, &counts)
-		if err != nil {
-			return nil, err
-		}
-	}
-	countByID := map[int]int{}
-	for _, row := range counts {
-		countByID[row.GroupRef] = row.Count
 	}
 	ungrouped, err := db.APIKey.Query().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefIsNil(), apikey.StatusNEQ(apikey.StatusArchived), apikey.TypeNEQ(apikey.TypeNoauth)).Count(ctx)
 	if err != nil {
@@ -138,7 +125,7 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 		if status == "exhausted" && !exhausted {
 			continue
 		}
-		items = append(items, &ManagedKeyGroup{ID: group.ID, Name: group.Name, Note: group.Note, Enabled: group.Enabled, Revision: group.Revision, CreatedAt: group.CreatedAt, KeyCount: countByID[group.ID], Budget: view})
+		items = append(items, &ManagedKeyGroup{ID: group.ID, Name: group.Name, Note: group.Note, Enabled: group.Enabled, Revision: group.Revision, CreatedAt: group.CreatedAt, Budget: view})
 	}
 	if derivedFilter {
 		total = len(items)
@@ -150,6 +137,29 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 				end = total
 			}
 			items = items[offset:end]
+		}
+	}
+	// Derived filters still inspect every candidate's budget, but member counts
+	// are needed only for the final page, not all matching project groups.
+	pageIDs := make([]int, 0, len(items))
+	for _, item := range items {
+		pageIDs = append(pageIDs, item.ID)
+	}
+	if len(pageIDs) > 0 {
+		var counts []struct {
+			GroupRef int `json:"group_ref"`
+			Count    int `json:"count"`
+		}
+		err = db.APIKey.Query().Where(apikey.ProjectIDEQ(projectID), apikey.GroupRefIn(pageIDs...), apikey.StatusNEQ(apikey.StatusArchived), apikey.TypeNEQ(apikey.TypeNoauth)).GroupBy(apikey.FieldGroupRef).Aggregate(ent.Count()).Scan(ctx, &counts)
+		if err != nil {
+			return nil, err
+		}
+		countByID := map[int]int{}
+		for _, row := range counts {
+			countByID[row.GroupRef] = row.Count
+		}
+		for _, item := range items {
+			item.KeyCount = countByID[item.ID]
 		}
 	}
 	return &ManagedKeyGroups{Items: items, Total: total, UngroupedCount: ungrouped}, nil

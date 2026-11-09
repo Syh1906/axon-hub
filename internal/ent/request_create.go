@@ -234,6 +234,20 @@ func (_c *RequestCreate) SetNillableChannelID(v *int) *RequestCreate {
 	return _c
 }
 
+// SetResultExecutionID sets the "result_execution_id" field.
+func (_c *RequestCreate) SetResultExecutionID(v int) *RequestCreate {
+	_c.mutation.SetResultExecutionID(v)
+	return _c
+}
+
+// SetNillableResultExecutionID sets the "result_execution_id" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableResultExecutionID(v *int) *RequestCreate {
+	if v != nil {
+		_c.SetResultExecutionID(*v)
+	}
+	return _c
+}
+
 // SetRoutingDecision sets the "routing_decision" field.
 func (_c *RequestCreate) SetRoutingDecision(v *objects.RequestRoutingDecision) *RequestCreate {
 	_c.mutation.SetRoutingDecision(v)
@@ -691,6 +705,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 		_spec.SetField(request.FieldResponseChunks, field.TypeJSON, value)
 		_node.ResponseChunks = value
 	}
+	if value, ok := _c.mutation.ResultExecutionID(); ok {
+		_spec.SetField(request.FieldResultExecutionID, field.TypeInt, value)
+		_node.ResultExecutionID = &value
+	}
 	if value, ok := _c.mutation.RoutingDecision(); ok {
 		_spec.SetField(request.FieldRoutingDecision, field.TypeJSON, value)
 		_node.RoutingDecision = value
@@ -1037,6 +1055,30 @@ func (u *RequestUpsert) UpdateChannelID() *RequestUpsert {
 // ClearChannelID clears the value of the "channel_id" field.
 func (u *RequestUpsert) ClearChannelID() *RequestUpsert {
 	u.SetNull(request.FieldChannelID)
+	return u
+}
+
+// SetResultExecutionID sets the "result_execution_id" field.
+func (u *RequestUpsert) SetResultExecutionID(v int) *RequestUpsert {
+	u.Set(request.FieldResultExecutionID, v)
+	return u
+}
+
+// UpdateResultExecutionID sets the "result_execution_id" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateResultExecutionID() *RequestUpsert {
+	u.SetExcluded(request.FieldResultExecutionID)
+	return u
+}
+
+// AddResultExecutionID adds v to the "result_execution_id" field.
+func (u *RequestUpsert) AddResultExecutionID(v int) *RequestUpsert {
+	u.Add(request.FieldResultExecutionID, v)
+	return u
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (u *RequestUpsert) ClearResultExecutionID() *RequestUpsert {
+	u.SetNull(request.FieldResultExecutionID)
 	return u
 }
 
@@ -1495,6 +1537,34 @@ func (u *RequestUpsertOne) UpdateChannelID() *RequestUpsertOne {
 func (u *RequestUpsertOne) ClearChannelID() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearChannelID()
+	})
+}
+
+// SetResultExecutionID sets the "result_execution_id" field.
+func (u *RequestUpsertOne) SetResultExecutionID(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetResultExecutionID(v)
+	})
+}
+
+// AddResultExecutionID adds v to the "result_execution_id" field.
+func (u *RequestUpsertOne) AddResultExecutionID(v int) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddResultExecutionID(v)
+	})
+}
+
+// UpdateResultExecutionID sets the "result_execution_id" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateResultExecutionID() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateResultExecutionID()
+	})
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (u *RequestUpsertOne) ClearResultExecutionID() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearResultExecutionID()
 	})
 }
 
@@ -2158,6 +2228,34 @@ func (u *RequestUpsertBulk) UpdateChannelID() *RequestUpsertBulk {
 func (u *RequestUpsertBulk) ClearChannelID() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearChannelID()
+	})
+}
+
+// SetResultExecutionID sets the "result_execution_id" field.
+func (u *RequestUpsertBulk) SetResultExecutionID(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetResultExecutionID(v)
+	})
+}
+
+// AddResultExecutionID adds v to the "result_execution_id" field.
+func (u *RequestUpsertBulk) AddResultExecutionID(v int) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.AddResultExecutionID(v)
+	})
+}
+
+// UpdateResultExecutionID sets the "result_execution_id" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateResultExecutionID() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateResultExecutionID()
+	})
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (u *RequestUpsertBulk) ClearResultExecutionID() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearResultExecutionID()
 	})
 }
 

@@ -86,7 +86,7 @@ func (r *queryResolver) requestLogQuery(ctx context.Context, filter *RequestLogF
 
 func writeRequestLogChannel(b *sql.Builder, q *sql.Selector) {
 	req := q.Table()
-	attempt := finalSessionAttempt(sql.Dialect(q.Dialect()), req, requestexecution.FieldChannelID).
+	attempt := finalSessionAttempt(q.Dialect(), req, requestexecution.FieldChannelID).
 		Where(sessionRequestFinished(req))
 	b.WriteString("COALESCE").Wrap(func(b *sql.Builder) {
 		b.Wrap(func(b *sql.Builder) { b.Join(attempt) }).Comma().Ident(q.C(request.FieldChannelID))

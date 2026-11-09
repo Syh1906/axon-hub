@@ -134,6 +134,11 @@ func SpeedVersion(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldSpeedVersion, v))
 }
 
+// BillingVersion applies equality check predicate on the "billing_version" field. It's identical to BillingVersionEQ.
+func BillingVersion(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingVersion, v))
+}
+
 // PromptTokens applies equality check predicate on the "prompt_tokens" field. It's identical to PromptTokensEQ.
 func PromptTokens(v int64) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldPromptTokens, v))
@@ -942,6 +947,46 @@ func SpeedVersionLT(v int) predicate.UsageArchive {
 // SpeedVersionLTE applies the LTE predicate on the "speed_version" field.
 func SpeedVersionLTE(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldLTE(FieldSpeedVersion, v))
+}
+
+// BillingVersionEQ applies the EQ predicate on the "billing_version" field.
+func BillingVersionEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldBillingVersion, v))
+}
+
+// BillingVersionNEQ applies the NEQ predicate on the "billing_version" field.
+func BillingVersionNEQ(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldBillingVersion, v))
+}
+
+// BillingVersionIn applies the In predicate on the "billing_version" field.
+func BillingVersionIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldBillingVersion, vs...))
+}
+
+// BillingVersionNotIn applies the NotIn predicate on the "billing_version" field.
+func BillingVersionNotIn(vs ...int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldBillingVersion, vs...))
+}
+
+// BillingVersionGT applies the GT predicate on the "billing_version" field.
+func BillingVersionGT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldBillingVersion, v))
+}
+
+// BillingVersionGTE applies the GTE predicate on the "billing_version" field.
+func BillingVersionGTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldBillingVersion, v))
+}
+
+// BillingVersionLT applies the LT predicate on the "billing_version" field.
+func BillingVersionLT(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldBillingVersion, v))
+}
+
+// BillingVersionLTE applies the LTE predicate on the "billing_version" field.
+func BillingVersionLTE(v int) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldBillingVersion, v))
 }
 
 // PromptTokensEQ applies the EQ predicate on the "prompt_tokens" field.

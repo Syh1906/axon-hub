@@ -67,11 +67,18 @@ type RequestSessionExecution {
   costSnapshot: RequestCostSnapshot
 }
 
+type RequestResultExecution {
+  id: ID!
+  responseStatusCode: Int
+}
+
 extend type Request {
   "Number of canceled requests immediately preceding this request in the same explicit client turn."
   continuationCount: Int! @goField(forceResolver: true)
   "Last execution dispatched for the session history of a finished request."
   sessionExecution: RequestSessionExecution @goField(forceResolver: true)
+  "Identifiable result execution. Its HTTP status is separate from the recorded client status."
+  resultExecution: RequestResultExecution @goField(forceResolver: true)
 }
 
 extend type Query {

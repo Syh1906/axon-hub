@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
@@ -36,9 +37,10 @@ func withRequestChannelSessionCache(ctx context.Context) context.Context {
 
 func cacheRequestChannelSessions(ctx context.Context, client *ent.Client, requests []*ent.Request, connection bool) {
 	cache, ok := ctx.Value(requestChannelSessionCacheKey{}).(*requestChannelSessionCache)
-	if !ok || len(requests) == 0 || !authz.HasScope(ctx, scopes.ScopeReadChannels) {
+	if !ok || len(requests) == 0 {
 		return
 	}
+	canReadChannels := authz.HasScope(ctx, scopes.ScopeReadChannels)
 	op := graphql.GetOperationContext(ctx)
 	fields := graphql.CollectFieldsCtx(ctx, []string{"Node", "Request", "RequestConnection"})
 	if connection {
@@ -48,12 +50,15 @@ func cacheRequestChannelSessions(ctx context.Context, client *ent.Client, reques
 	var loadFinal bool
 	var loadFinalState bool
 	for _, field := range fields {
-		if field.Name == "sessionExecution" {
+		if field.Name == "resultExecution" {
+			loadFinal = true
+		}
+		if field.Name == "sessionExecution" && canReadChannels {
 			loadFinal = true
 			loadFinalState = loadFinalState || slices.ContainsFunc(graphql.CollectFields(op, field.Selections, nil),
 				func(child graphql.CollectedField) bool { return child.Name == "selection" })
 		}
-		if field.Name != "executions" {
+		if field.Name != "executions" || !canReadChannels {
 			continue
 		}
 		executions := graphql.CollectFields(op, field.Selections, nil)
@@ -144,12 +149,17 @@ func sessionDispatchEligible(dialect *sql.DialectBuilder, req *sql.SelectTable, 
 	))
 }
 
-func finalSessionAttempt(dialect *sql.DialectBuilder, req *sql.SelectTable, field string) *sql.Selector {
+func finalSessionAttempt(db string, req *sql.SelectTable, field string) *sql.Selector {
+	dialect := sql.Dialect(db)
 	attempt := sql.Table(requestexecution.Table).As("session_attempt")
+	req.SetDialect(db)
+	attempt.SetDialect(db)
 	return dialect.Select(attempt.C(field)).From(attempt).Where(sql.And(
 		sql.ColumnsEQ(attempt.C(requestexecution.FieldRequestID), req.C(request.FieldID)),
-		sessionDispatchEligible(dialect, req, attempt.C(requestexecution.FieldID),
-			attempt.C(requestexecution.FieldChannelID), attempt.C(requestexecution.FieldSelection)),
+		sql.ExprP(usageanalytics.RequestResultMatchSQL(req.C, attempt.C, db)),
+		sql.Or(sql.ColumnsEQ(attempt.C(requestexecution.FieldID), req.C(request.FieldResultExecutionID)),
+			sessionDispatchEligible(dialect, req, attempt.C(requestexecution.FieldID),
+				attempt.C(requestexecution.FieldChannelID), attempt.C(requestexecution.FieldSelection))),
 	)).OrderBy(sql.Desc(attempt.C(requestexecution.FieldID))).Limit(1)
 }
 
@@ -168,13 +178,17 @@ func loadRequestSessionExecutions(ctx context.Context, client *ent.Client, ids [
 	for _, id := range ids {
 		finals[id] = nil
 	}
-	executions, err := client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...), func(q *sql.Selector) {
+	query := client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...), func(q *sql.Selector) {
 		req := sql.Table(request.Table).As("session_request")
 		q.Join(req).On(q.C(requestexecution.FieldRequestID), req.C(request.FieldID)).
 			Where(sql.And(sessionRequestFinished(req),
-				sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(sql.Dialect(q.Dialect()), req, requestexecution.FieldID))))
+				sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), req, requestexecution.FieldID))))
 	}).Select(requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldSelection,
-		requestexecution.FieldCostSnapshot).WithChannel().All(ctx)
+		requestexecution.FieldCostSnapshot, requestexecution.FieldResponseStatusCode)
+	if authz.HasScope(ctx, scopes.ScopeReadChannels) {
+		query.WithChannel()
+	}
+	executions, err := query.All(ctx)
 	if err != nil {
 		log.Warn(ctx, "Failed to read final session attempts", log.Cause(err))
 		return finals

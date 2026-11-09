@@ -29,7 +29,7 @@ export function RequestLogStatusCell({
   continuationExpanded = false,
   continued = false,
 }: {
-  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'stream' | 'continuationCount'> & {
+  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'resultExecution' | 'stream' | 'continuationCount'> & {
     executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount?: number };
   };
   onOpen?: (tab: RequestDiagnosticTab) => void;
@@ -38,8 +38,7 @@ export function RequestLogStatusCell({
   continued?: boolean;
 }) {
   const { t } = useTranslation();
-  const execution = request.executions?.edges[0]?.node;
-  const status = request.clientStatusCode ?? execution?.responseStatusCode;
+  const status = request.clientStatusCode ?? request.resultExecution?.responseStatusCode;
   const retries = Math.max((request.executions?.totalCount ?? 0) - 1, 0);
   return (
     <div className='flex min-w-0 flex-col gap-1.5'>
@@ -104,7 +103,7 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   const state = selection?.sessionState;
   const sessionLabel = isRequestChannelSessionState(state) ? t(`requests.diagnostics.sessions.${state}`) : undefined;
   const provider = requestProvider(request);
-  const usage = request.usageLogs?.edges?.[0]?.node;
+  const usage = request.usageSummary;
   const multiplier = execution?.costSnapshot
     ? usage?.totalCost != null
       ? (usage.costPriceMultiplier ?? 'mixed')
@@ -177,9 +176,12 @@ export function RequestChannelCell({ request, onOpen }: { request: Request; onOp
   );
 }
 
-export function RequestCacheCell({ request }: { request: Pick<Request, 'usageLogs'> }) {
+type RequestCacheUsage = Pick<NonNullable<Request['usageSummary']>,
+  'promptTokens' | 'promptCachedTokens' | 'promptWriteCachedTokens' | 'promptWriteCachedTokens5m' | 'promptWriteCachedTokens1h'>;
+
+export function RequestCacheCell({ request }: { request: { usageSummary?: RequestCacheUsage | null } }) {
   const { t } = useTranslation();
-  const usage = request.usageLogs?.edges?.[0]?.node;
+  const usage = request.usageSummary;
   if (!usage) return <span className='text-muted-foreground'>—</span>;
   const read = usage.promptCachedTokens ?? 0,
     write = usage.promptWriteCachedTokens ?? 0,
@@ -204,10 +206,10 @@ export function RequestCacheCell({ request }: { request: Pick<Request, 'usageLog
             {t('requests.columns.writeCache')}: {write.toLocaleString()}
           </p>
           <p>
-            {t('requests.diagnostics.cache5m')}: {(usage.promptWriteCachedTokens5m ?? 0).toLocaleString()}
+            {t('requests.diagnostics.cache5m')}: {usage.promptWriteCachedTokens5m?.toLocaleString() ?? '—'}
           </p>
           <p>
-            {t('requests.diagnostics.cache1h')}: {(usage.promptWriteCachedTokens1h ?? 0).toLocaleString()}
+            {t('requests.diagnostics.cache1h')}: {usage.promptWriteCachedTokens1h?.toLocaleString() ?? '—'}
           </p>
           <p>{t('requests.diagnostics.hitRateFormula')}</p>
         </div>

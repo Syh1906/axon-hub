@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/ent/usagearchive"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/imagebilling"
@@ -29,7 +30,7 @@ type CostRecalculationPreview struct {
 
 func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) (*CostRecalculationPreview, error) {
 	result := &CostRecalculationPreview{Images: []objects.ImageOutput{}}
-	req, err := client.Request.Query().Where(request.IDEQ(requestID)).Select(request.FieldID, request.FieldProjectID, request.FieldChannelID, request.FieldStatus).Only(ctx)
+	req, err := client.Request.Query().Where(request.IDEQ(requestID)).Select(request.FieldID, request.FieldProjectID, request.FieldChannelID, request.FieldStatus, request.FieldResultExecutionID).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,11 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 		result.Reason = "request_not_completed"
 		return result, nil
 	}
-	execution, err := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(req.ID), requestexecution.ProjectIDEQ(req.ProjectID), requestexecution.ChannelIDEQ(req.ChannelID)).
+	executions := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(req.ID), requestexecution.ProjectIDEQ(req.ProjectID), requestexecution.ChannelIDEQ(req.ChannelID))
+	if req.ResultExecutionID != nil {
+		executions.Where(requestexecution.IDEQ(*req.ResultExecutionID))
+	}
+	execution, err := executions.
 		Select(requestexecution.FieldID, requestexecution.FieldStatus, requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseBody, requestexecution.FieldModelID).
 		Order(ent.Desc(requestexecution.FieldID)).First(ctx)
 	if ent.IsNotFound(err) {
@@ -51,11 +56,19 @@ func PreviewRequestCost(ctx context.Context, client *ent.Client, requestID int) 
 		result.Reason = "request_not_completed"
 		return result, nil
 	}
-	logs, err := client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID), usagelog.ProjectIDEQ(req.ProjectID), usagelog.ChannelIDEQ(req.ChannelID)).All(ctx)
+	archived, err := client.UsageArchive.Query().Where(usagearchive.KindEQ(usagearchive.KindUsage), usagearchive.RequestIDEQ(req.ID), usagearchive.ProjectIDEQ(req.ProjectID)).Exist(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(logs) > 1 {
+	if archived {
+		result.Reason = "historical_price_missing"
+		return result, nil
+	}
+	logs, err := client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID), usagelog.ProjectIDEQ(req.ProjectID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(logs) > 1 || len(logs) == 1 && logs[0].ChannelID != req.ChannelID {
 		result.Reason = "ambiguous_usage"
 		return result, nil
 	}

@@ -6,6 +6,8 @@ import { type DateTimeRangeValue } from '@/utils/date-range';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
+import { extractNumberID } from '@/lib/utils';
+import { BudgetSummariesProvider } from '@/features/budgets/budget-summary';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
@@ -241,30 +243,32 @@ function ApiKeysContent() {
         </TabsList>
       </Tabs>
       <div className='mt-6 flex min-h-0 flex-1 flex-col overflow-hidden'>
-        <ApiKeysTable
-          data={tableData}
-          loading={isLoading}
-          columns={columns}
-          pageInfo={data?.pageInfo}
-          pageSize={pageSize}
-          totalCount={data?.totalCount}
-          searchFilter={searchFilter}
-          statusFilter={statusFilter}
-          userFilter={userFilter}
-          dateRange={dateRange}
-          sorting={sorting}
-          onNextPage={handleNextPage}
-          onPreviousPage={handlePreviousPage}
-          onPageSizeChange={handlePageSizeChange}
-          onSearchFilterChange={setSearchFilter}
-          onStatusFilterChange={setStatusFilter}
-          onUserFilterChange={handleUserFilterChange}
-          onDateRangeChange={setDateRange}
-          onSortingChange={handleSortingChange}
-          onResetFilters={handleResetFilters}
-          canWrite={apiKeyPermissions.canWrite}
-          canViewCreators={canViewCreators}
-        />
+        <BudgetSummariesProvider ownerIDs={tableData.map((key) => Number(extractNumberID(key.id)))}>
+          <ApiKeysTable
+            data={tableData}
+            loading={isLoading}
+            columns={columns}
+            pageInfo={data?.pageInfo}
+            pageSize={pageSize}
+            totalCount={data?.totalCount}
+            searchFilter={searchFilter}
+            statusFilter={statusFilter}
+            userFilter={userFilter}
+            dateRange={dateRange}
+            sorting={sorting}
+            onNextPage={handleNextPage}
+            onPreviousPage={handlePreviousPage}
+            onPageSizeChange={handlePageSizeChange}
+            onSearchFilterChange={setSearchFilter}
+            onStatusFilterChange={setStatusFilter}
+            onUserFilterChange={handleUserFilterChange}
+            onDateRangeChange={setDateRange}
+            onSortingChange={handleSortingChange}
+            onResetFilters={handleResetFilters}
+            canWrite={apiKeyPermissions.canWrite}
+            canViewCreators={canViewCreators}
+          />
+        </BudgetSummariesProvider>
       </div>
     </div>
   );

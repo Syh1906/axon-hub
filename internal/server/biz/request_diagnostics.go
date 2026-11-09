@@ -46,6 +46,20 @@ func (s *RequestService) SetExecutionRetryDecision(ctx context.Context, executio
 	return s.entFromContext(ctx).RequestExecution.UpdateOneID(executionID).SetRetryDecision(decision).Exec(ctx)
 }
 
+// AdoptRequestExecution publishes the winner and its channel together. The
+// caller owns this request; losing lanes never call this method.
+func (s *RequestService) AdoptRequestExecution(ctx context.Context, execution *ent.RequestExecution, sticky bool) error {
+	record, err := s.entFromContext(ctx).Request.UpdateOneID(execution.RequestID).
+		SetChannelID(execution.ChannelID).SetResultExecutionID(execution.ID).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if sticky {
+		s.cachePreviousChannelForRequest(ctx, record)
+	}
+	return nil
+}
+
 // MarkExecutionHedgeLost runs after the losing attempt's stream has finalized.
 // Preserve genuine provider failures; a canceled speculative attempt is a
 // gateway decision, not evidence that the user canceled the logical request.

@@ -33,6 +33,25 @@ export type BudgetView = {
 };
 export type BudgetTarget = { kind: 'key' | 'group'; ownerID: number; name: string; groupID?: number };
 export const budgetFields = `ownerKind ownerID revision timezone expiresAt accountingStartedAt serverTime hasLimits expired windows { period mode minute limit settled reserved available windowStart windowEnd nextReleaseAt resetAt canResetCycle effectiveSchedule timezone pendingRule { period mode minute limit } pendingAt }`;
+export function useBudgetSummaries(ownerIDs: number[], includeGroups = false) {
+  const project = useSelectedProjectId();
+  const { user } = usePermissions();
+  return useQuery({
+    queryKey: ['keyBudgets', user?.id, project, 'summaries', ownerIDs, includeGroups],
+    enabled: !!project && !!user && ownerIDs.length > 0,
+    staleTime: 30_000,
+    queryFn: async ({ signal }) =>
+      (
+        await graphqlRequest<{ apiKeyBudgetSummaries: BudgetView[] }>(
+          `query BudgetSummaries($ownerIDs: [Int!]!, $includeGroups: Boolean!) { apiKeyBudgetSummaries(ownerIDs: $ownerIDs, includeGroups: $includeGroups) { ${budgetFields} } }`,
+          { ownerIDs, includeGroups },
+          { 'X-Project-ID': project! },
+          { signal }
+        )
+      ).apiKeyBudgetSummaries,
+  });
+}
+
 export function useBudget(target: BudgetTarget, enabled = true, projectId?: string) {
   const selectedProject = useSelectedProjectId();
   const project = projectId ?? selectedProject;

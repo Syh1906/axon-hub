@@ -307,18 +307,18 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		result, err = outcome.result, outcome.err
 		continuation = state.ResponsesContinuation
 		if err == nil && state.RequestExec != nil {
-			if state.RoutingPolicy.LoadBalancerStrategy == biz.LoadBalancerStrategyHealthGated {
-				err = state.RequestService.UpdateRequestChannelIDWithoutSticky(ctx, state.Request.ID, state.RequestExec.ChannelID)
-			} else {
-				err = state.RequestService.UpdateRequestChannelID(ctx, state.Request.ID, state.RequestExec.ChannelID)
-			}
+			err = state.RequestService.AdoptRequestExecution(ctx, state.RequestExec,
+				state.RoutingPolicy.LoadBalancerStrategy != biz.LoadBalancerStrategyHealthGated)
 			state.Request.ChannelID = state.RequestExec.ChannelID
+			state.Request.ResultExecutionID = &state.RequestExec.ID
 		}
 		if result != nil && result.EventStream != nil {
 			source := result.EventStream
 			result.EventStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, &titleOwnedStream{Stream: source, owner: lifecycleOwner}), httpclient.GetResponseHeaders(source))
 			if err != nil {
 				_ = result.EventStream.Close()
+			} else {
+				result.EventStream = withTitleWinnerPreview(ctx, state, processor.LiveStreamRegistry, result.EventStream)
 			}
 		} else if outcome.lifecycle != nil {
 			outcome.lifecycle.Close()

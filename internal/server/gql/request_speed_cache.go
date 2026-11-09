@@ -25,6 +25,9 @@ func withRequestSpeedCache(ctx context.Context) context.Context {
 }
 
 func cacheRequestSpeeds(ctx context.Context, client *ent.Client, page *ent.RequestConnection, err error) (*ent.RequestConnection, error) {
+	if err == nil {
+		err = cacheRequestUsageSummaries(ctx, client, page)
+	}
 	cache, ok := ctx.Value(requestSpeedCacheKey{}).(*requestSpeedCache)
 	if err != nil || !ok || page == nil || len(page.Edges) == 0 || !slices.Contains(graphql.CollectAllFields(ctx), "edges") {
 		return page, err

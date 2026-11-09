@@ -233,6 +233,10 @@ Thread (User Session)
 - **Missing thread linkage** – Provide `AH-Thread-Id` or create threads via the API before sending requests.
 - **Unexpected trace IDs** – Check for upstream reverse proxies overriding headers.
 
+#### Request-row and execution status codes
+
+The request row prefers the recorded client delivery status code. Without that record, it uses the response code of the adopted execution. When an original title attempt returns 200 and a later backup returns 500, routing and error details retain the backup failure without labeling the successful request row with its 500. Request readers can access this result summary; channel names, credential indices and routing details still require channel-read permission.
+
 #### Admin pages fail to load
 
 The admin entry checks system status, account information, and project membership. A failed initial read shows the affected check and a specific reason; a network failure does not mean the login session has expired. Retry repeats the read. Previously loaded data remains available after a failed background refresh, while initial account and permission checks remain required.

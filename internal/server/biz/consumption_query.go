@@ -18,47 +18,52 @@ import (
 )
 
 type consumptionGroup struct {
-	EntityID            int     `json:"entity_id"`
-	Name                string  `json:"name"`
-	FirstName           string  `json:"first_name"`
-	LastName            string  `json:"last_name"`
-	Email               string  `json:"email"`
-	Model               string  `json:"model"`
-	Requests            int     `json:"requests"`
-	Tokens              int64   `json:"tokens"`
-	Cost                float64 `json:"cost"`
-	UnpricedRequests    int     `json:"unpriced_requests"`
-	PricedRequests      int     `json:"priced_requests"`
-	PricedCost          float64 `json:"priced_cost"`
-	TokenPricedRequests int     `json:"token_priced_requests"`
-	TokenPricedCost     float64 `json:"token_priced_cost"`
-	PricedTokens        int64   `json:"priced_tokens"`
-	CacheRequests       int     `json:"cache_requests"`
-	CacheRead           int64   `json:"cache_read"`
-	CacheInput          int64   `json:"cache_input"`
-	CacheCreationCost   float64 `json:"cache_creation_cost"`
-	SuccessCount        int64   `json:"success_count"`
-	OutcomeCount        int64   `json:"outcome_count"`
-	FirstTokenSum       float64 `json:"first_token_sum"`
-	FirstTokenCount     int64   `json:"first_token_count"`
-	SpeedSum            float64 `json:"speed_sum"`
-	SpeedCount          int64   `json:"speed_count"`
+	// Channel totals use one billing sample per request/channel, even when a
+	// retried request has charges for several models on that channel.
+	ChannelTotal        *consumptionBillingTotals `json:"-"`
+	EntityID            int                       `json:"entity_id"`
+	Name                string                    `json:"name"`
+	FirstName           string                    `json:"first_name"`
+	LastName            string                    `json:"last_name"`
+	Email               string                    `json:"email"`
+	Model               string                    `json:"model"`
+	Requests            int                       `json:"requests"`
+	Tokens              int64                     `json:"tokens"`
+	Cost                float64                   `json:"cost"`
+	UnpricedRequests    int                       `json:"unpriced_requests"`
+	PricedRequests      int                       `json:"priced_requests"`
+	PricedCost          float64                   `json:"priced_cost"`
+	TokenPricedRequests int                       `json:"token_priced_requests"`
+	TokenPricedCost     float64                   `json:"token_priced_cost"`
+	PricedTokens        int64                     `json:"priced_tokens"`
+	CacheRequests       int                       `json:"cache_requests"`
+	CacheRead           int64                     `json:"cache_read"`
+	CacheInput          int64                     `json:"cache_input"`
+	CacheCreationCost   float64                   `json:"cache_creation_cost"`
+	SuccessCount        int64                     `json:"success_count"`
+	OutcomeCount        int64                     `json:"outcome_count"`
+	FirstTokenSum       float64                   `json:"first_token_sum"`
+	FirstTokenCount     int64                     `json:"first_token_count"`
+	SpeedSum            float64                   `json:"speed_sum"`
+	SpeedCount          int64                     `json:"speed_count"`
 }
 
 // usageForConsumption collapses usage rows before joining attempts, so neither
 // retries nor a multi-row usage join can multiply request counts or token sums.
-func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time, channelIDs ...int) *sql.Selector {
-	table := sql.Table(usagelog.Table).As("ul")
-	query := sql.Dialect(dialect).Select(table.C("request_id"), table.C("channel_id"), table.C("project_id")).From(table).
-		GroupBy(table.C("request_id"), table.C("channel_id"), table.C("project_id"))
+func usageForConsumption(projectID int, dialect string, start *time.Time, end time.Time, byChannel bool, channelIDs ...int) *sql.Selector {
+	table := usageHistory(dialect).As("ul")
+	keys := []string{table.C("request_id"), table.C("project_id")}
+	if byChannel {
+		keys = append(keys, table.C("channel_id"))
+	}
+	query := sql.Dialect(dialect).Select(keys...).From(table).GroupBy(keys...)
 	if projectID > 0 {
 		query.Where(sql.EQ(table.C("project_id"), projectID))
 	}
-	requests := sql.Table(request.Table).As("usage_request")
+	requests := requestHistory(dialect).As("usage_request")
 	boundedRequests := sql.Dialect(dialect).Select(requests.C("id")).From(requests).Where(sql.LT(requests.C("created_at"), end))
 	if len(channelIDs) > 0 {
 		query.Where(sql.InInts(table.C("channel_id"), channelIDs...))
-		boundedRequests.Where(sql.InInts(requests.C("channel_id"), channelIDs...))
 	}
 	if start != nil {
 		boundedRequests.Where(sql.GTE(requests.C("created_at"), *start))
@@ -76,36 +81,46 @@ func usageForConsumption(projectID int, dialect string, start *time.Time, end ti
 }
 
 func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
-	u, execution := joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+	u, execution := joinConsumptionUsage(s, projectID, start, end, false), joinLatestConsumptionExecution(s)
 	joinExecutionUsage(s, execution)
 	return u, execution
 }
 
-func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) {
+func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) *sql.SelectTable {
 	u := sql.Table(usagelog.Table).As("execution_usage")
 	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(u.C("request_id"), execution.C("request_id")),
 		sql.ColumnsEQ(u.C("channel_id"), execution.C("channel_id")), sql.ColumnsEQ(u.C("project_id"), execution.C("project_id")),
 		sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"), u.C("id")))))
+	return u
 }
 
-func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time) *sql.Selector {
-	u := usageForConsumption(projectID, s.Dialect(), start, end)
-	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(s.C("id"), u.C("request_id")), sql.ColumnsEQ(s.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(s.C("project_id"), u.C("project_id"))))
+func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end time.Time, byChannel bool) *sql.Selector {
+	u := usageForConsumption(projectID, s.Dialect(), start, end, byChannel)
+	match := sql.And(sql.ColumnsEQ(s.C("id"), u.C("request_id")), sql.ColumnsEQ(s.C("project_id"), u.C("project_id")))
+	if byChannel {
+		match = sql.And(match, sql.ColumnsEQ(s.C("channel_id"), u.C("channel_id")))
+	}
+	s.LeftJoin(u).OnP(match)
 	return u
 }
 
 // PostgreSQL can select each request's final execution and its metrics together.
 // Keep bounded detail/archive reads on the indexed per-request lookup instead.
-func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable) {
+func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable, consumptionPerformanceSQL) {
 	// Search and group filters can select very few requests. Keep their indexed
 	// lookup instead of sorting executions from the entire time range.
 	if s.Dialect() != dialect.Postgres || input.GroupRef != nil || (input.Search != nil && *input.Search != "") {
+		u, execution := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel), joinLatestConsumptionExecution(s)
 		if input.Dimension == ConsumptionDimensionChannel {
-			return joinConsumptionUsage(s, projectID, start, end), joinLatestConsumptionExecution(s)
+			return u, execution, consumptionPerformanceSQL{}
 		}
-		return joinConsumption(s, projectID, start, end)
+		if s.Dialect() == dialect.Postgres {
+			return u, execution, projectConsumptionPerformance(s, execution)
+		}
+		joinExecutionUsage(s, execution)
+		return u, execution, consumptionPerformanceExpressions(u, execution)
 	}
-	u := joinConsumptionUsage(s, projectID, start, end)
+	u := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel)
 	r := sql.Table(request.Table).As("execution_request")
 	bounded := sql.Dialect(s.Dialect()).Select(r.C("id")).From(r).Where(sql.LT(r.C("created_at"), end))
 	if start != nil {
@@ -122,21 +137,26 @@ func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilt
 	final := sql.Dialect(s.Dialect()).SelectExpr(sql.ExprFunc(func(b *sql.Builder) {
 		b.WriteString("DISTINCT ON ").Wrap(func(b *sql.Builder) { b.IdentComma(keys...) }).Pad().IdentComma(columns...)
 	})).From(e).Where(sql.In(e.C("request_id"), bounded)).
+		Where(sql.ExprP(usageanalytics.ResultExecutionFilterSQL("candidate_execution", s.Dialect()))).
 		OrderBy(append(keys, sql.Desc(e.C("id")))...).As("execution")
 	s.LeftJoin(final).OnP(sql.And(sql.ColumnsEQ(s.C("id"), final.C("request_id")),
 		sql.ColumnsEQ(s.C("project_id"), final.C("project_id")), sql.ColumnsEQ(s.C("channel_id"), final.C("channel_id"))))
 	execution := sql.Table(requestexecution.Table).As("execution")
+	// This table represents the derived selector above, so it is not attached
+	// through Join. Set its dialect before embedding C() results in raw SQL.
+	execution.SetDialect(s.Dialect())
 	if input.Dimension != ConsumptionDimensionChannel {
-		joinExecutionUsage(s, execution)
+		return u, execution, projectConsumptionPerformance(s, execution)
 	}
-	return u, execution
+	return u, execution, consumptionPerformanceSQL{}
 }
 
 func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 	execution := sql.Table(requestexecution.Table).As("execution")
 	latest := sql.Table(requestexecution.Table).As("latest")
 	s.LeftJoin(execution).OnP(sql.EQ(execution.C("id"), sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
-		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id"))))))
+		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id")),
+			sql.ExprP(usageanalytics.RequestResultMatchSQL(s.C, latest.C, s.Dialect()))))))
 	return execution
 }
 
@@ -168,7 +188,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
 		excludeArchivedRequests(q)
-		u, execution := joinConsumptionGroups(q, projectID, input, start, end)
+		u, execution, performance := joinConsumptionGroups(q, projectID, input, start, end)
 		model := "COALESCE(NULLIF(TRIM(" + execution.C("model_id") + "), ''), " + q.C("model_id") + ")"
 		selectConsumptionEntity(q, input, model)
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"
@@ -194,8 +214,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 		// Channel performance is computed from all attempts below; avoid calculating
 		// final-request performance that would immediately be discarded.
 		if input.Dimension != ConsumptionDimensionChannel {
-			outcome, speed := consumptionOutcomeAndSpeed(u, execution)
-			firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
+			outcome, firstToken, speed := performance.outcome, performance.firstToken, performance.speed
 			q.AppendSelect(
 				sql.As("COALESCE(SUM("+outcome+"), 0)", "success_count"),
 				sql.As("COUNT("+outcome+")", "outcome_count"),
@@ -215,11 +234,36 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 	}
 	rows = mergeConsumptionGroups(rows, archived)
 	if input.Dimension == ConsumptionDimensionChannel {
+		parents := make(map[int]*consumptionBillingTotals)
+		for _, row := range rows {
+			if parents[row.EntityID] == nil {
+				parents[row.EntityID] = &consumptionBillingTotals{}
+			}
+			parents[row.EntityID].add(row)
+		}
+		additionalTotals, err := queryAdditionalChannelBilling(ctx, s.client, projectID, input, nil, start, end, true, false)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range additionalTotals {
+			if parents[row.EntityID] == nil {
+				parents[row.EntityID] = &consumptionBillingTotals{}
+			}
+			parents[row.EntityID].add(row)
+		}
+		additional, err := queryAdditionalChannelBilling(ctx, s.client, projectID, input, nil, start, end, true, true)
+		if err != nil {
+			return nil, err
+		}
+		rows = mergeConsumptionGroups(rows, additional)
 		attempts, err := queryChannelAttemptGroups(ctx, s.client, projectID, input, nil, start, end)
 		if err != nil {
 			return nil, err
 		}
 		rows = replaceChannelPerformance(rows, attempts, input.Metric != ConsumptionMetricCache)
+		for i := range rows {
+			rows[i].ChannelTotal = parents[rows[i].EntityID]
+		}
 	}
 	return rows, nil
 }

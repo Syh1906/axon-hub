@@ -2,6 +2,7 @@ type ChannelTodayUsage {
   channelId: ID!
   requestCount: Int!
   unpricedCount: Int!
+  pricedCount: Int!
   totalCost: Float!
   timezone: String!
   currencyCode: String!
@@ -23,6 +24,7 @@ type ChannelTodayModelUsage {
   model: String!
   requestCount: Int!
   unpricedCount: Int!
+  pricedCount: Int!
   totalTokens: Int!
   totalCost: Float!
   cacheHitRate: Float

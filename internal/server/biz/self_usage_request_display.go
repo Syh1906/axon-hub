@@ -16,8 +16,10 @@ import (
 func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []*ent.Request) (map[int]*SelfUsageRequest, error) {
 	ids := make([]int, 0, len(requests))
 	result := make(map[int]*SelfUsageRequest, len(requests))
+	owners := make(map[int]*ent.Request, len(requests))
 	for _, req := range requests {
 		ids = append(ids, req.ID)
+		owners[req.ID] = req
 		result[req.ID] = &SelfUsageRequest{
 			ExecutedModels: []string{},
 			Format:         req.Format, ClientStatusCode: req.ClientStatusCode,
@@ -28,6 +30,7 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 	}
 	executions, err := s.client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...)).
 		Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldModelID,
+			requestexecution.FieldChannelID,
 			requestexecution.FieldReasoningEffort, requestexecution.FieldFormat,
 			requestexecution.FieldResponseStatusCode, requestexecution.FieldPassThroughApplied).
 		Order(requestexecution.ByCreatedAt(sql.OrderDesc()), requestexecution.ByID(sql.OrderDesc())).All(ctx)
@@ -35,9 +38,16 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 		return nil, fmt.Errorf("query self usage execution display: %w", err)
 	}
 	counts := make(map[int]int, len(requests))
+	adopted := make(map[int]bool, len(requests))
 	for _, execution := range executions {
 		row := result[execution.RequestID]
-		if counts[execution.RequestID] == 0 {
+		owner := owners[execution.RequestID]
+		eligible := owner.ResultExecutionID == nil || *owner.ResultExecutionID == execution.ID
+		if owner.ResultExecutionID == nil && (owner.Status == "completed" || owner.Failure != nil && owner.Failure.Code == "stream_delivery_canceled") && owner.ChannelID > 0 {
+			eligible = owner.ChannelID == execution.ChannelID
+		}
+		if eligible && !adopted[execution.RequestID] {
+			adopted[execution.RequestID] = true
 			row.OutboundFormat = &execution.Format
 			if execution.ReasoningEffort != nil {
 				row.ReasoningEffort = execution.ReasoningEffort

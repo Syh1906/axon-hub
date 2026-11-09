@@ -578,6 +578,11 @@ type RequestLogTimeRangeInput struct {
 	End   *string `json:"end,omitempty"`
 }
 
+type RequestResultExecution struct {
+	ID                 objects.GUID `json:"id"`
+	ResponseStatusCode *int         `json:"responseStatusCode,omitempty"`
+}
+
 type RequestSessionExecution struct {
 	ID           objects.GUID                       `json:"id"`
 	Channel      *ent.Channel                       `json:"channel,omitempty"`

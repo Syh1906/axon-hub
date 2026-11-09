@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { pageInfoSchema } from '@/gql/pagination';
 import { apiKeySchema } from '@/features/apikeys/data/schema';
 import { channelSchema } from '@/features/channels/data';
-import { usageLogSchema } from './usage-logs-schema';
+import { requestUsageSummarySchema, usageLogSchema } from './usage-logs-schema';
 
 // Request Status
 export const requestStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed', 'canceled']);
@@ -122,6 +122,7 @@ export const requestRoutingDecisionSchema = z.object({
 export const requestSchema = z.object({
   continuationCount: z.number().int().nonnegative().optional(),
   outputTokensPerSecond: z.number().nullable().optional(),
+  usageSummary: requestUsageSummarySchema.nullable().optional(),
   id: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -151,6 +152,7 @@ export const requestSchema = z.object({
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
   metricsReasoningDurationMs: z.number().nullable().optional(),
   sessionExecution: requestExecutionSchema.pick({ id: true, channel: true, selection: true, costSnapshot: true }).nullable().optional(),
+  resultExecution: requestExecutionSchema.pick({ id: true, responseStatusCode: true }).nullable().optional(),
   executions: z
     .object({
       edges: z.array(

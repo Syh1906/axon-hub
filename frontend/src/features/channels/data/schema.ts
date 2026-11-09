@@ -617,6 +617,7 @@ export const channelTodayUsageSchema = z.object({
   channelId: z.string(),
   requestCount: z.number(),
   unpricedCount: z.number(),
+  pricedCount: z.number(),
   totalCost: z.number(),
   timezone: z.string(),
   currencyCode: z.string(),

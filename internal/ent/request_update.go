@@ -152,6 +152,33 @@ func (_u *RequestUpdate) ClearChannelID() *RequestUpdate {
 	return _u
 }
 
+// SetResultExecutionID sets the "result_execution_id" field.
+func (_u *RequestUpdate) SetResultExecutionID(v int) *RequestUpdate {
+	_u.mutation.ResetResultExecutionID()
+	_u.mutation.SetResultExecutionID(v)
+	return _u
+}
+
+// SetNillableResultExecutionID sets the "result_execution_id" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableResultExecutionID(v *int) *RequestUpdate {
+	if v != nil {
+		_u.SetResultExecutionID(*v)
+	}
+	return _u
+}
+
+// AddResultExecutionID adds value to the "result_execution_id" field.
+func (_u *RequestUpdate) AddResultExecutionID(v int) *RequestUpdate {
+	_u.mutation.AddResultExecutionID(v)
+	return _u
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (_u *RequestUpdate) ClearResultExecutionID() *RequestUpdate {
+	_u.mutation.ClearResultExecutionID()
+	return _u
+}
+
 // SetRoutingDecision sets the "routing_decision" field.
 func (_u *RequestUpdate) SetRoutingDecision(v *objects.RequestRoutingDecision) *RequestUpdate {
 	_u.mutation.SetRoutingDecision(v)
@@ -629,6 +656,15 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ResponseChunksCleared() {
 		_spec.ClearField(request.FieldResponseChunks, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ResultExecutionID(); ok {
+		_spec.SetField(request.FieldResultExecutionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResultExecutionID(); ok {
+		_spec.AddField(request.FieldResultExecutionID, field.TypeInt, value)
+	}
+	if _u.mutation.ResultExecutionIDCleared() {
+		_spec.ClearField(request.FieldResultExecutionID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.RoutingDecision(); ok {
 		_spec.SetField(request.FieldRoutingDecision, field.TypeJSON, value)
 	}
@@ -966,6 +1002,33 @@ func (_u *RequestUpdateOne) SetNillableChannelID(v *int) *RequestUpdateOne {
 // ClearChannelID clears the value of the "channel_id" field.
 func (_u *RequestUpdateOne) ClearChannelID() *RequestUpdateOne {
 	_u.mutation.ClearChannelID()
+	return _u
+}
+
+// SetResultExecutionID sets the "result_execution_id" field.
+func (_u *RequestUpdateOne) SetResultExecutionID(v int) *RequestUpdateOne {
+	_u.mutation.ResetResultExecutionID()
+	_u.mutation.SetResultExecutionID(v)
+	return _u
+}
+
+// SetNillableResultExecutionID sets the "result_execution_id" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableResultExecutionID(v *int) *RequestUpdateOne {
+	if v != nil {
+		_u.SetResultExecutionID(*v)
+	}
+	return _u
+}
+
+// AddResultExecutionID adds value to the "result_execution_id" field.
+func (_u *RequestUpdateOne) AddResultExecutionID(v int) *RequestUpdateOne {
+	_u.mutation.AddResultExecutionID(v)
+	return _u
+}
+
+// ClearResultExecutionID clears the value of the "result_execution_id" field.
+func (_u *RequestUpdateOne) ClearResultExecutionID() *RequestUpdateOne {
+	_u.mutation.ClearResultExecutionID()
 	return _u
 }
 
@@ -1475,6 +1538,15 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if _u.mutation.ResponseChunksCleared() {
 		_spec.ClearField(request.FieldResponseChunks, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ResultExecutionID(); ok {
+		_spec.SetField(request.FieldResultExecutionID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResultExecutionID(); ok {
+		_spec.AddField(request.FieldResultExecutionID, field.TypeInt, value)
+	}
+	if _u.mutation.ResultExecutionIDCleared() {
+		_spec.ClearField(request.FieldResultExecutionID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RoutingDecision(); ok {
 		_spec.SetField(request.FieldRoutingDecision, field.TypeJSON, value)

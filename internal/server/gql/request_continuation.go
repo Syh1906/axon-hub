@@ -9,11 +9,13 @@ import (
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
+	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
 
 const (
@@ -46,13 +48,16 @@ func joinContinuationFinalExecution(q *sql.Selector, previous *sql.SelectTable) 
 	execution := sql.Table(requestexecution.Table).As("continuation_execution")
 	last := sql.Table(requestexecution.Table).As("continuation_last_execution")
 	finalID := sql.Dialect(q.Dialect()).Select(sql.Max(last.C(requestexecution.FieldID))).From(last).
-		Where(sql.ColumnsEQ(last.C(requestexecution.FieldRequestID), previous.C(request.FieldID)))
+		Where(sql.And(sql.ColumnsEQ(last.C(requestexecution.FieldRequestID), previous.C(request.FieldID)),
+			sql.ExprP(usageanalytics.RequestResultMatchSQL(previous.C, last.C, q.Dialect()))))
 	q.Join(execution).OnP(sql.EQ(execution.C(requestexecution.FieldID), finalID))
 	return execution
 }
 
-// A canceled request is folded only after a measured final canceled execution
-// and a closely following request. Execution creation is slightly later than
+// A canceled request is folded only after a measured execution and a closely
+// following request. Explicit client delivery cancellation may follow an already
+// completed upstream execution; other failures must remain independent.
+// Execution creation is slightly later than
 // the performance clock's start; ambiguous overlap stays visible independently.
 func validRequestContinuation(db string, previous, next, execution *sql.SelectTable) *sql.Predicate {
 	start, finish := execution.C(requestexecution.FieldCreatedAt), next.C(request.FieldCreatedAt)
@@ -73,13 +78,20 @@ func validRequestContinuation(db string, previous, next, execution *sql.SelectTa
 	latency := execution.C(requestexecution.FieldMetricsLatencyMs)
 	return sql.And(
 		sql.EQ(previous.C(request.FieldStatus), request.StatusCanceled),
-		sql.IsNull(previous.C(request.FieldFailure)),
+		sql.Or(
+			sql.And(sql.IsNull(previous.C(request.FieldFailure)), sql.EQ(execution.C(requestexecution.FieldStatus), requestexecution.StatusCanceled)),
+			sql.And(
+				sqljson.ValueEQ(previous.C(request.FieldFailure), "delivery", sqljson.Path("stage")),
+				sqljson.ValueEQ(previous.C(request.FieldFailure), "gateway_error", sqljson.Path("type")),
+				sqljson.ValueEQ(previous.C(request.FieldFailure), "stream_delivery_canceled", sqljson.Path("code")),
+				sql.In(execution.C(requestexecution.FieldStatus), requestexecution.StatusCanceled, requestexecution.StatusCompleted),
+			),
+		),
 		sql.GT(previous.C(request.FieldTraceID), 0), sql.GT(previous.C(request.FieldAPIKeyID), 0),
 		sql.NEQ(previous.C(request.FieldContinuationKey), ""),
 		sql.EQ(previous.C(request.FieldSource), request.SourceAPI), sql.EQ(previous.C(request.FieldStream), true),
 		sql.EQ(next.C(request.FieldSource), request.SourceAPI), sql.EQ(next.C(request.FieldStream), true),
 		sql.ColumnsEQ(execution.C(requestexecution.FieldProjectID), previous.C(request.FieldProjectID)),
-		sql.EQ(execution.C(requestexecution.FieldStatus), requestexecution.StatusCanceled),
 		sql.GT(latency, 0),
 		sql.ExprP("("+elapsed+") >= "+latency),
 		sql.P(func(b *sql.Builder) {

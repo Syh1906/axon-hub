@@ -262,6 +262,12 @@ func TestTitleHedgeKeepsPrimaryAndHonorsModelMappings(t *testing.T) {
 			require.Equal(t, test.calls, client.RequestExecution.Query().CountX(ctx))
 			stored := client.Request.GetX(ctx, result.RequestID)
 			require.Equal(t, "completed", string(stored.Status), "loser cleanup cannot replace the winner")
+			if !test.single && !test.ordinary && !test.disabled {
+				require.NotNil(t, stored.ResultExecutionID)
+				adopted := client.RequestExecution.GetX(ctx, *stored.ResultExecutionID)
+				require.Equal(t, stored.ChannelID, adopted.ChannelID)
+				require.Equal(t, result.Route.Model, adopted.ModelID)
+			}
 			require.Equal(t, result.Route.ChannelID, stored.ChannelID)
 			require.Equal(t, winner, result.Route.Model)
 			if test.startError != nil {
@@ -314,6 +320,44 @@ func TestNonRacingTitlesKeepOrdinaryReasoningStreamBehavior(t *testing.T) {
 			require.EqualValues(t, 1, executor.requestCalls.Load())
 		})
 	}
+}
+
+func TestTitleHedgePreservesLivePreview(t *testing.T) {
+	executor := &titleTestExecutor{delays: map[string]time.Duration{
+		"mapped-primary": 70 * time.Millisecond, "entirely-different-model": 200 * time.Millisecond,
+	}}
+	ctx, processor, client, _, _ := titleGatewayWithBackup(t, executor)
+	registry := biz.NewLiveStreamRegistry()
+	processor.LiveStreamRegistry = registry
+	policy := processor.SystemService.StoragePolicyOrDefault(ctx)
+	policy.LivePreview = true
+	require.NoError(t, processor.SystemService.SetStoragePolicy(ctx, policy))
+	result, err := processor.processWithTitleHedgeDelay(ctx, &httpclient.Request{Method: "POST",
+		Headers: http.Header{"X-Codex-Turn-Metadata": {`{"thread_source":"thread_title"}`}},
+		Body: []byte(`{"model":"gpt-6-luna","stream":true,"input":"title"}`)}, 25*time.Millisecond)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = result.ChatCompletionStream.Close() })
+	stored := client.Request.GetX(ctx, result.RequestID)
+	require.NotNil(t, stored.ResultExecutionID)
+	buffer := registry.GetRequestBuffer(result.RequestID)
+	require.NotNil(t, buffer, "the adopted title stream must remain visible in the request preview")
+	require.NotNil(t, registry.GetExecutionBuffer(*stored.ResultExecutionID), "attempt previews must not be globally disabled by a title race")
+	for result.ChatCompletionStream.Next() {
+		_ = result.ChatCompletionStream.Current()
+	}
+	require.NoError(t, result.ChatCompletionStream.Err())
+	require.Positive(t, buffer.Len())
+	result.ChatCompletionStream.(streams.DeliveryAcknowledger).AcknowledgeDelivery()
+	require.NoError(t, result.ChatCompletionStream.Close())
+	require.Nil(t, registry.GetRequestBuffer(result.RequestID))
+	require.Eventually(t, func() bool {
+		for _, execution := range client.RequestExecution.Query().AllX(ctx) {
+			if registry.GetExecutionBuffer(execution.ID) != nil {
+				return false
+			}
+		}
+		return true
+	}, time.Second, time.Millisecond)
 }
 
 func TestTitleHedgeScope(t *testing.T) {

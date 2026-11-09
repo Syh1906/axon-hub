@@ -20,14 +20,15 @@ func requestSessionHistoryPostgresQuery(q *sql.Selector) {
 	q.Join(current).On(q.C(requestexecution.FieldRequestID), current.C(request.FieldID)).
 		LeftJoin(currentTrace).On(current.C(request.FieldTraceID), currentTrace.C(trace.FieldID))
 	q.Where(sql.And(sessionRequestFinished(current),
-		sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(dialect, current, requestexecution.FieldID)),
+		sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), current, requestexecution.FieldID)),
 	))
 	sameSession := sql.Or(
 		sql.ColumnsEQ(priorTrace.C(trace.FieldID), current.C(request.FieldTraceID)),
 		sql.And(sql.GT(currentTrace.C(trace.FieldThreadID), 0), sql.ColumnsEQ(priorTrace.C(trace.FieldThreadID), currentTrace.C(trace.FieldThreadID))),
 	)
-	finalPriorChannel := finalSessionAttempt(dialect, prior, requestexecution.FieldChannelID)
-	boundedHistory := dialect.Select(prior.C(request.FieldID), prior.C(request.FieldChannelID)).From(prior).
+	finalPriorChannel := finalSessionAttempt(q.Dialect(), prior, requestexecution.FieldChannelID)
+	boundedHistory := dialect.Select(prior.Columns(request.FieldID, request.FieldChannelID,
+		request.FieldResultExecutionID, request.FieldStatus, request.FieldFailure)...).From(prior).
 		Join(priorTrace).On(prior.C(request.FieldTraceID), priorTrace.C(trace.FieldID)).Where(sql.And(
 		sql.ColumnsEQ(prior.C(request.FieldProjectID), current.C(request.FieldProjectID)),
 		sql.ColumnsLT(prior.C(request.FieldID), current.C(request.FieldID)),

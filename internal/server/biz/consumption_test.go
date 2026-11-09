@@ -39,8 +39,12 @@ func TestConsumptionExecutionLookupScope(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			q := sql.Dialect(tc.dialect).Select().From(sql.Table(request.Table))
-			joinConsumptionGroups(q, 1, tc.filter, nil, time.Now())
+			_, _, performance := joinConsumptionGroups(q, 1, tc.filter, nil, time.Now())
+			q.SelectExpr(sql.Expr(performance.outcome), sql.Expr(performance.speed))
 			query, _ := q.Query()
+			if tc.dialect == dialect.Postgres {
+				require.NotContains(t, query, "`", "PostgreSQL identifiers must never contain MySQL quoting")
+			}
 			if tc.batch {
 				require.Contains(t, query, "DISTINCT ON")
 			} else {

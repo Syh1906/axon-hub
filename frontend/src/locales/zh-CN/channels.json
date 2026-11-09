@@ -1278,7 +1278,7 @@
   "channels.todayUsage.model": "模型",
   "channels.todayUsage.avgFirstToken": "平均首字",
   "channels.todayUsage.avgOutput": "平均输出",
-  "channels.todayUsage.performanceHelp": "渠道成功率按实际发送的执行尝试计算，换渠道成功不会抹去本渠道失败。首字和速度分别按有效样本数取平均；无依据显示 —。",
+  "channels.todayUsage.performanceHelp": "费用包含本渠道全部已保存用量，请求数只计最终归属，重试渠道可能有费用但请求数为 0。成功率按实际尝试计算；首字和速度各按有效样本取平均，无依据显示 —。",
   "channels.todayUsage.detailsFor": "查看渠道 {{name}} 今日各模型用量",
   "channels.todayUsage.actualTotal": "实际总成本",
   "channels.todayUsage.standardTotal": "标准总成本（1×）",

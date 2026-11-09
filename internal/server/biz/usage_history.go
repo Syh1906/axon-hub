@@ -7,14 +7,20 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 )
 
-// IncludeArchivedUsage is for numeric analytics only. Detail and pricing views
-// continue using the retained usage logs. Both sources retain the outer query's
+// IncludeArchivedUsage merges numeric facts only; price breakdowns still need
+// retained usage logs. Both sources retain the outer query's
 // authorization and time predicates; the archive insert and delete are atomic.
 func IncludeArchivedUsage(s *sql.Selector) {
+	s.From(usageHistory(s.Dialect()).As(usagelog.Table))
+}
+
+func usageHistory(db string) *sql.Selector {
 	fields := []string{"id", "request_id", "project_id", "api_key_id", "channel_id", "model_id", "created_at",
 		"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "completion_reasoning_tokens", "total_cost"}
 	live := sql.Table(usagelog.Table)
 	archive := sql.Table(usagearchive.Table).As("history_archive")
+	live.SetDialect(db)
+	archive.SetDialect(db)
 	liveCols, archivedCols := make([]string, len(fields)), make([]string, len(fields))
 	for i, field := range fields {
 		liveCols[i] = live.C(field)
@@ -32,20 +38,27 @@ func IncludeArchivedUsage(s *sql.Selector) {
 			archivedCols[i] = sql.As("NULLIF("+archive.C(archivedField)+", 0)", field)
 		}
 	}
-	union := sql.Dialect(s.Dialect()).Select(liveCols...).From(live).
-		UnionAll(sql.Dialect(s.Dialect()).Select(archivedCols...).From(archive).Where(sql.EQ(archive.C("kind"), string(usagearchive.KindUsage))))
-	s.From(union.As(usagelog.Table))
+	return sql.Dialect(db).Select(liveCols...).From(live).
+		UnionAll(sql.Dialect(db).Select(archivedCols...).From(archive).Where(sql.EQ(archive.C("kind"), string(usagearchive.KindUsage))))
 }
 
 func requestHistory(dialect string) *sql.Selector {
-	fields := []string{"id", "project_id", "api_key_id", "channel_id", "model_id", "created_at", "status", "source"}
+	fields := []string{"id", "project_id", "api_key_id", "channel_id", "model_id", "created_at", "status", "source", "failure", "result_execution_id", "attribution_model_id"}
 	live := sql.Table(request.Table)
 	archive := sql.Table(usagearchive.Table).As("history_request_archive")
+	live.SetDialect(dialect)
+	archive.SetDialect(dialect)
 	liveCols, archivedCols := make([]string, len(fields)), make([]string, len(fields))
 	for i, field := range fields {
 		liveCols[i] = live.C(field)
 		column := field
 		switch field {
+		case "attribution_model_id":
+			liveCols[i] = sql.As(live.C("model_id"), field)
+			column = "model_id"
+		case "failure", "result_execution_id":
+			archivedCols[i] = "NULL AS " + field
+			continue
 		case "id":
 			column = "request_id"
 		case "model_id":

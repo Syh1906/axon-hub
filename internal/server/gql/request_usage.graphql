@@ -1,0 +1,25 @@
+"本次请求全部已保存用量；包含重试及并发备用。全部缺价时 totalCost 为 null。"
+type RequestUsageSummary {
+  usageRecords: Int!
+  archivedRecords: Int!
+  unpricedRecords: Int!
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+  promptCachedTokens: Int!
+  promptWriteCachedTokens: Int!
+  completionReasoningTokens: Int!
+  promptAudioTokens: Int
+  promptWriteCachedTokens5m: Int
+  promptWriteCachedTokens1h: Int
+  completionAudioTokens: Int
+  completionAcceptedPredictionTokens: Int
+  completionRejectedPredictionTokens: Int
+  totalCost: Float
+  costItems: [CostItem!]
+  costPriceMultiplier: Decimal
+}
+
+extend type Request {
+  usageSummary: RequestUsageSummary @goField(forceResolver: true)
+}

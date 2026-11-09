@@ -163,6 +163,14 @@ func throughputCalculationSQL(alias, placeholder string) string {
 var throughputUsageJoin = `JOIN usage_logs ul ON se.request_id = ul.request_id AND se.channel_id = ul.channel_id AND se.project_id = ul.project_id
  AND ` + usageanalytics.ExecutionUsageMatchSQL("se.id", "se.request_id", "se.channel_id", "se.project_id", "ul.id")
 
+func resultExecutionFilterSQL(alias, placeholder string) string {
+	dialect := "sqlite3"
+	if strings.HasPrefix(placeholder, "$") {
+		dialect = "postgres"
+	}
+	return usageanalytics.ResultExecutionFilterSQL(alias, dialect)
+}
+
 // buildDailyRowNumberQuery constructs a daily throughput query using ROW_NUMBER().
 // Applies date filtering and per-day limit using ROW_NUMBER() window partitioned by date.
 func buildDailyRowNumberQuery(dateExpr string, config DailyQueryFragmentConfig, limit int, startDatePlaceholder string) string {
@@ -178,6 +186,7 @@ func buildDailyRowNumberQuery(dateExpr string, config DailyQueryFragmentConfig, 
 		"        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC, id DESC) as rn\n" +
 		"    FROM request_executions\n" +
 		"    WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= " + startDatePlaceholder + "\n" +
+		"        AND " + resultExecutionFilterSQL("request_executions", startDatePlaceholder) + "\n" +
 		"),\n" +
 		"daily_stats AS (\n" +
 		"    SELECT\n" +
@@ -218,6 +227,7 @@ func buildDailyDistinctOnQuery(dateExpr string, config DailyQueryFragmentConfig,
 
 		"    FROM request_executions\n" +
 		"    WHERE status IN ('completed', 'failed', 'canceled') AND metrics_latency_ms > 0 AND created_at >= " + startDatePlaceholder + "\n" +
+		"        AND " + resultExecutionFilterSQL("request_executions", startDatePlaceholder) + "\n" +
 		"    ORDER BY request_id, created_at DESC, id DESC\n" +
 		"),\n" +
 		"daily_stats AS (\n" +
@@ -266,6 +276,7 @@ func buildDailyMaxIDQuery(dateExpr string, config DailyQueryFragmentConfig, limi
 		"            WHERE re2.request_id = se.request_id\n" +
 		"                AND re2.status IN ('completed', 'failed', 'canceled')\n" +
 		"                AND re2.metrics_latency_ms > 0\n" +
+		"                AND " + resultExecutionFilterSQL("re2", startDatePlaceholder) + "\n" +
 		"        )\n" +
 		"    GROUP BY " + dateExpr + ", " + config.GroupByFields + "\n" +
 		"    HAVING COUNT(" + outputSpeedSQL("se", startDatePlaceholder) + ") > 0\n" +
@@ -326,10 +337,12 @@ func buildDailyPerformanceStatsRowNumberQuery(dateExpr string, config DailyQuery
 	channelColumn := ""
 	rankingColumn := ""
 	latestFilter := ""
+	resultFilter := ""
 	if queryType == DailyThroughputByModel {
 		channelColumn = "        se.channel_id,\n"
 		rankingColumn = ",\n        ROW_NUMBER() OVER (PARTITION BY se.request_id ORDER BY se.created_at DESC, se.id DESC) as rn"
 		latestFilter = "    WHERE se.rn = 1\n"
+		resultFilter = "        AND " + resultExecutionFilterSQL("se", placeholder) + "\n"
 	}
 
 	return "WITH successful_execs AS (\n" +
@@ -346,6 +359,7 @@ func buildDailyPerformanceStatsRowNumberQuery(dateExpr string, config DailyQuery
 		"    WHERE se.status IN ('completed', 'failed', 'canceled')\n" +
 		"        AND se.metrics_latency_ms > 0\n" +
 		"        AND se.created_at >= " + placeholder + "\n" +
+		resultFilter +
 		"),\n" +
 		"daily AS (\n" +
 		"    SELECT\n" +
@@ -394,6 +408,7 @@ func buildDailyPerformanceStatsDistinctOnQuery(dateExpr string, config DailyQuer
 		"    WHERE se.status IN ('completed', 'failed', 'canceled')\n" +
 		"        AND se.metrics_latency_ms > 0\n" +
 		"        AND se.created_at >= " + placeholder + "\n" +
+		"        AND " + resultExecutionFilterSQL("se", placeholder) + "\n" +
 		"    ORDER BY se.request_id, se.created_at DESC, se.id DESC\n" +
 		"),\n" +
 		"daily AS (\n" +
@@ -444,6 +459,7 @@ func buildDailyPerformanceStatsMaxIDQuery(dateExpr string, config DailyQueryFrag
 		"            WHERE se2.request_id = se.request_id\n" +
 		"                AND se2.status IN ('completed', 'failed', 'canceled')\n" +
 		"                AND se2.metrics_latency_ms > 0\n" +
+		"                AND " + resultExecutionFilterSQL("se2", placeholder) + "\n" +
 		"        )\n" +
 		"),\n" +
 		"daily AS (\n" +

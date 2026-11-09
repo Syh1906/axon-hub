@@ -159,6 +159,27 @@ func (_u *UsageArchiveUpdate) AddSpeedVersion(v int) *UsageArchiveUpdate {
 	return _u
 }
 
+// SetBillingVersion sets the "billing_version" field.
+func (_u *UsageArchiveUpdate) SetBillingVersion(v int) *UsageArchiveUpdate {
+	_u.mutation.ResetBillingVersion()
+	_u.mutation.SetBillingVersion(v)
+	return _u
+}
+
+// SetNillableBillingVersion sets the "billing_version" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableBillingVersion(v *int) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetBillingVersion(*v)
+	}
+	return _u
+}
+
+// AddBillingVersion adds value to the "billing_version" field.
+func (_u *UsageArchiveUpdate) AddBillingVersion(v int) *UsageArchiveUpdate {
+	_u.mutation.AddBillingVersion(v)
+	return _u
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (_u *UsageArchiveUpdate) SetPromptTokens(v int64) *UsageArchiveUpdate {
 	_u.mutation.ResetPromptTokens()
@@ -497,6 +518,12 @@ func (_u *UsageArchiveUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.AddedSpeedVersion(); ok {
 		_spec.AddField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.BillingVersion(); ok {
+		_spec.SetField(usagearchive.FieldBillingVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingVersion(); ok {
+		_spec.AddField(usagearchive.FieldBillingVersion, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)
 	}
@@ -719,6 +746,27 @@ func (_u *UsageArchiveUpdateOne) SetNillableSpeedVersion(v *int) *UsageArchiveUp
 // AddSpeedVersion adds value to the "speed_version" field.
 func (_u *UsageArchiveUpdateOne) AddSpeedVersion(v int) *UsageArchiveUpdateOne {
 	_u.mutation.AddSpeedVersion(v)
+	return _u
+}
+
+// SetBillingVersion sets the "billing_version" field.
+func (_u *UsageArchiveUpdateOne) SetBillingVersion(v int) *UsageArchiveUpdateOne {
+	_u.mutation.ResetBillingVersion()
+	_u.mutation.SetBillingVersion(v)
+	return _u
+}
+
+// SetNillableBillingVersion sets the "billing_version" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableBillingVersion(v *int) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetBillingVersion(*v)
+	}
+	return _u
+}
+
+// AddBillingVersion adds value to the "billing_version" field.
+func (_u *UsageArchiveUpdateOne) AddBillingVersion(v int) *UsageArchiveUpdateOne {
+	_u.mutation.AddBillingVersion(v)
 	return _u
 }
 
@@ -1089,6 +1137,12 @@ func (_u *UsageArchiveUpdateOne) sqlSave(ctx context.Context) (_node *UsageArchi
 	}
 	if value, ok := _u.mutation.AddedSpeedVersion(); ok {
 		_spec.AddField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.BillingVersion(); ok {
+		_spec.SetField(usagearchive.FieldBillingVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBillingVersion(); ok {
+		_spec.AddField(usagearchive.FieldBillingVersion, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)

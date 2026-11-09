@@ -13,6 +13,7 @@ func consumptionEntries(rows []consumptionGroup, input ConsumptionFilter) []*Con
 	entries := make([]*ConsumptionEntry, 0)
 	byID := make(map[int]*ConsumptionEntry)
 	totals := make(map[int]*consumptionGroup)
+	channelTotals := make(map[int]*consumptionBillingTotals)
 	entityType := ent.TypeUser
 	if input.Dimension == ConsumptionDimensionAPIKeyGroup {
 		entityType = "APIKeyGroup"
@@ -40,32 +41,48 @@ func consumptionEntries(rows []consumptionGroup, input ConsumptionFilter) []*Con
 		if row.Model != "" {
 			entry.Models = append(entry.Models, &ConsumptionModel{Model: row.Model, Metrics: row.metrics()})
 		}
+		if row.ChannelTotal != nil {
+			channelTotals[row.EntityID] = row.ChannelTotal
+		}
 		total := totals[row.EntityID]
-		total.Requests += row.Requests
-		total.Tokens += row.Tokens
-		total.Cost += row.Cost
-		total.UnpricedRequests += row.UnpricedRequests
-		total.PricedRequests += row.PricedRequests
-		total.PricedCost += row.PricedCost
-		total.TokenPricedRequests += row.TokenPricedRequests
-		total.TokenPricedCost += row.TokenPricedCost
-		total.PricedTokens += row.PricedTokens
-		total.CacheRequests += row.CacheRequests
-		total.CacheRead += row.CacheRead
-		total.CacheInput += row.CacheInput
-		total.CacheCreationCost += row.CacheCreationCost
-		total.SuccessCount += row.SuccessCount
-		total.OutcomeCount += row.OutcomeCount
-		total.FirstTokenSum += row.FirstTokenSum
-		total.FirstTokenCount += row.FirstTokenCount
-		total.SpeedSum += row.SpeedSum
-		total.SpeedCount += row.SpeedCount
+		total.add(row)
 	}
 	for _, entry := range entries {
-		entry.Metrics = totals[entry.ID.ID].metrics()
+		total := *totals[entry.ID.ID]
+		if billing := channelTotals[entry.ID.ID]; billing != nil {
+			// Performance remains the sum of actual execution samples; only
+			// billing sample counts and averages require request-level totals.
+			total.PricedRequests, total.PricedCost = billing.PricedRequests, billing.PricedCost
+			total.TokenPricedRequests, total.TokenPricedCost = billing.TokenPricedRequests, billing.TokenPricedCost
+			total.PricedTokens, total.UnpricedRequests = billing.PricedTokens, billing.UnpricedRequests
+			total.CacheRequests = billing.CacheRequests
+		}
+		entry.Metrics = total.metrics()
 		sortConsumptionModels(entry.Models, input)
 	}
 	return entries
+}
+
+func (total *consumptionGroup) add(row consumptionGroup) {
+	total.Requests += row.Requests
+	total.Tokens += row.Tokens
+	total.Cost += row.Cost
+	total.UnpricedRequests += row.UnpricedRequests
+	total.PricedRequests += row.PricedRequests
+	total.PricedCost += row.PricedCost
+	total.TokenPricedRequests += row.TokenPricedRequests
+	total.TokenPricedCost += row.TokenPricedCost
+	total.PricedTokens += row.PricedTokens
+	total.CacheRequests += row.CacheRequests
+	total.CacheRead += row.CacheRead
+	total.CacheInput += row.CacheInput
+	total.CacheCreationCost += row.CacheCreationCost
+	total.SuccessCount += row.SuccessCount
+	total.OutcomeCount += row.OutcomeCount
+	total.FirstTokenSum += row.FirstTokenSum
+	total.FirstTokenCount += row.FirstTokenCount
+	total.SpeedSum += row.SpeedSum
+	total.SpeedCount += row.SpeedCount
 }
 
 func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) {

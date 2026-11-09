@@ -256,7 +256,11 @@ func seedParityFixture(t *testing.T, db *sql.DB, dialect string) {
 		)`,
 		`CREATE TABLE requests (
 			id INT PRIMARY KEY,
-			model_id TEXT NOT NULL
+			model_id TEXT NOT NULL,
+			result_execution_id BIGINT,
+			channel_id INT,
+			status TEXT NOT NULL DEFAULT 'completed',
+			failure TEXT
 		)`,
 		`CREATE TABLE request_executions (
 			id BIGINT PRIMARY KEY,

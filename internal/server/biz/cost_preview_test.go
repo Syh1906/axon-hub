@@ -115,3 +115,20 @@ func TestHistoricalPreviewPreservesCacheVariantUsage(t *testing.T) {
 	require.Equal(t, 2.5, *preview.ProposedCost)
 	require.Equal(t, 2.5, *f.client.UsageLog.GetX(f.ctx, log.ID).TotalCost)
 }
+
+func TestHistoricalPreviewDoesNotPresentOneAttemptAsRequestTotal(t *testing.T) {
+	f := newConsumptionFixture(t)
+	req, _ := addCrossChannelBilling(t, f, nil)
+	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(req.ID)).ClearTotalCost().ExecX(f.ctx)
+	preview, err := PreviewRequestCost(f.ctx, f.client, req.ID)
+	require.NoError(t, err)
+	require.Equal(t, "ambiguous_usage", preview.Reason)
+	require.Nil(t, preview.ProposedCost)
+	logs := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(req.ID)).Select(ArchivedUsageFields...).AllX(f.ctx)
+	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
+	f.client.UsageLog.Delete().Where(usagelog.RequestIDEQ(req.ID)).ExecX(f.ctx)
+	preview, err = PreviewRequestCost(f.ctx, f.client, req.ID)
+	require.NoError(t, err)
+	require.Equal(t, "historical_price_missing", preview.Reason)
+	require.Nil(t, preview.ProposedCost)
+}

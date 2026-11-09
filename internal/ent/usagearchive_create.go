@@ -212,6 +212,20 @@ func (_c *UsageArchiveCreate) SetNillableSpeedVersion(v *int) *UsageArchiveCreat
 	return _c
 }
 
+// SetBillingVersion sets the "billing_version" field.
+func (_c *UsageArchiveCreate) SetBillingVersion(v int) *UsageArchiveCreate {
+	_c.mutation.SetBillingVersion(v)
+	return _c
+}
+
+// SetNillableBillingVersion sets the "billing_version" field if the given value is not nil.
+func (_c *UsageArchiveCreate) SetNillableBillingVersion(v *int) *UsageArchiveCreate {
+	if v != nil {
+		_c.SetBillingVersion(*v)
+	}
+	return _c
+}
+
 // SetPromptTokens sets the "prompt_tokens" field.
 func (_c *UsageArchiveCreate) SetPromptTokens(v int64) *UsageArchiveCreate {
 	_c.mutation.SetPromptTokens(v)
@@ -453,6 +467,10 @@ func (_c *UsageArchiveCreate) defaults() error {
 		v := usagearchive.DefaultSpeedVersion
 		_c.mutation.SetSpeedVersion(v)
 	}
+	if _, ok := _c.mutation.BillingVersion(); !ok {
+		v := usagearchive.DefaultBillingVersion
+		_c.mutation.SetBillingVersion(v)
+	}
 	if _, ok := _c.mutation.PromptTokens(); !ok {
 		v := usagearchive.DefaultPromptTokens
 		_c.mutation.SetPromptTokens(v)
@@ -565,6 +583,9 @@ func (_c *UsageArchiveCreate) check() error {
 	}
 	if _, ok := _c.mutation.SpeedVersion(); !ok {
 		return &ValidationError{Name: "speed_version", err: errors.New(`ent: missing required field "UsageArchive.speed_version"`)}
+	}
+	if _, ok := _c.mutation.BillingVersion(); !ok {
+		return &ValidationError{Name: "billing_version", err: errors.New(`ent: missing required field "UsageArchive.billing_version"`)}
 	}
 	if _, ok := _c.mutation.PromptTokens(); !ok {
 		return &ValidationError{Name: "prompt_tokens", err: errors.New(`ent: missing required field "UsageArchive.prompt_tokens"`)}
@@ -696,6 +717,10 @@ func (_c *UsageArchiveCreate) createSpec() (*UsageArchive, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SpeedVersion(); ok {
 		_spec.SetField(usagearchive.FieldSpeedVersion, field.TypeInt, value)
 		_node.SpeedVersion = value
+	}
+	if value, ok := _c.mutation.BillingVersion(); ok {
+		_spec.SetField(usagearchive.FieldBillingVersion, field.TypeInt, value)
+		_node.BillingVersion = value
 	}
 	if value, ok := _c.mutation.PromptTokens(); ok {
 		_spec.SetField(usagearchive.FieldPromptTokens, field.TypeInt64, value)
@@ -908,6 +933,24 @@ func (u *UsageArchiveUpsert) UpdateSpeedVersion() *UsageArchiveUpsert {
 // AddSpeedVersion adds v to the "speed_version" field.
 func (u *UsageArchiveUpsert) AddSpeedVersion(v int) *UsageArchiveUpsert {
 	u.Add(usagearchive.FieldSpeedVersion, v)
+	return u
+}
+
+// SetBillingVersion sets the "billing_version" field.
+func (u *UsageArchiveUpsert) SetBillingVersion(v int) *UsageArchiveUpsert {
+	u.Set(usagearchive.FieldBillingVersion, v)
+	return u
+}
+
+// UpdateBillingVersion sets the "billing_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsert) UpdateBillingVersion() *UsageArchiveUpsert {
+	u.SetExcluded(usagearchive.FieldBillingVersion)
+	return u
+}
+
+// AddBillingVersion adds v to the "billing_version" field.
+func (u *UsageArchiveUpsert) AddBillingVersion(v int) *UsageArchiveUpsert {
+	u.Add(usagearchive.FieldBillingVersion, v)
 	return u
 }
 
@@ -1332,6 +1375,27 @@ func (u *UsageArchiveUpsertOne) AddSpeedVersion(v int) *UsageArchiveUpsertOne {
 func (u *UsageArchiveUpsertOne) UpdateSpeedVersion() *UsageArchiveUpsertOne {
 	return u.Update(func(s *UsageArchiveUpsert) {
 		s.UpdateSpeedVersion()
+	})
+}
+
+// SetBillingVersion sets the "billing_version" field.
+func (u *UsageArchiveUpsertOne) SetBillingVersion(v int) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetBillingVersion(v)
+	})
+}
+
+// AddBillingVersion adds v to the "billing_version" field.
+func (u *UsageArchiveUpsertOne) AddBillingVersion(v int) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.AddBillingVersion(v)
+	})
+}
+
+// UpdateBillingVersion sets the "billing_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsertOne) UpdateBillingVersion() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateBillingVersion()
 	})
 }
 
@@ -1958,6 +2022,27 @@ func (u *UsageArchiveUpsertBulk) AddSpeedVersion(v int) *UsageArchiveUpsertBulk 
 func (u *UsageArchiveUpsertBulk) UpdateSpeedVersion() *UsageArchiveUpsertBulk {
 	return u.Update(func(s *UsageArchiveUpsert) {
 		s.UpdateSpeedVersion()
+	})
+}
+
+// SetBillingVersion sets the "billing_version" field.
+func (u *UsageArchiveUpsertBulk) SetBillingVersion(v int) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetBillingVersion(v)
+	})
+}
+
+// AddBillingVersion adds v to the "billing_version" field.
+func (u *UsageArchiveUpsertBulk) AddBillingVersion(v int) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.AddBillingVersion(v)
+	})
+}
+
+// UpdateBillingVersion sets the "billing_version" field to the value that was provided on create.
+func (u *UsageArchiveUpsertBulk) UpdateBillingVersion() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateBillingVersion()
 	})
 }
 

@@ -127,6 +127,9 @@ func TestAnalyticsDimensionPerformanceKeepsUsageAndFinalExecution(t *testing.T) 
 				final.SetStatus(requestexecution.StatusCanceled)
 			case "different_channel":
 				final.SetChannelID(other.ID)
+				// Serial retry publication moves the logical request to that
+				// channel; an earlier channel's usage cannot time the final attempt.
+				client.Request.UpdateOne(req).SetChannelID(other.ID).ExecX(ctx)
 			case "missing_first_byte":
 				final.Mutation().ResetMetricsFirstByteLatencyMs()
 			case "short_stream":
@@ -164,6 +167,27 @@ func TestAnalyticsDimensionPerformanceKeepsUsageAndFinalExecution(t *testing.T) 
 			} else {
 				require.Nil(t, rows[0].TokensPerSecond)
 			}
+		})
+	}
+}
+
+func TestAnalyticsModelBillsFailedAndCanceledAttemptsOnce(t *testing.T) {
+	for _, status := range []requestexecution.Status{requestexecution.StatusFailed, requestexecution.StatusCanceled, requestexecution.StatusCompleted} {
+		t.Run(string(status), func(t *testing.T) {
+			r, ctx := newDashboardUsageTestResolver(t)
+			ch := createDashboardUsageChannel(t, ctx, r.client, "billed")
+			req := r.client.Request.Create().SetModelID("billed-model").SetChannelID(ch.ID).SetStatus("failed").SetRequestBody([]byte(`{}`)).SaveX(ctx)
+			for range 2 {
+				r.client.RequestExecution.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("billed-model").
+					SetStatus(status).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+				r.client.UsageLog.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("billed-model").
+					SetPromptTokens(100).SetTotalTokens(100).SetTotalCost(0.02).SaveX(ctx)
+			}
+			rows, err := r.queryAnalyticsModelStats(ctx, nil)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			require.InDelta(t, 0.04, rows[0].Cost, 1e-12)
+			require.Equal(t, 200, rows[0].TotalTokens)
 		})
 	}
 }

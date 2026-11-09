@@ -54,6 +54,8 @@ const (
 	FieldResponseChunks = "response_chunks"
 	// FieldChannelID holds the string denoting the channel_id field in the database.
 	FieldChannelID = "channel_id"
+	// FieldResultExecutionID holds the string denoting the result_execution_id field in the database.
+	FieldResultExecutionID = "result_execution_id"
 	// FieldRoutingDecision holds the string denoting the routing_decision field in the database.
 	FieldRoutingDecision = "routing_decision"
 	// FieldExternalID holds the string denoting the external_id field in the database.
@@ -172,6 +174,7 @@ var Columns = []string{
 	FieldResponseBody,
 	FieldResponseChunks,
 	FieldChannelID,
+	FieldResultExecutionID,
 	FieldRoutingDecision,
 	FieldExternalID,
 	FieldStatus,
@@ -355,6 +358,11 @@ func ByFormat(opts ...sql.OrderTermOption) OrderOption {
 // ByChannelID orders the results by the channel_id field.
 func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
+}
+
+// ByResultExecutionID orders the results by the result_execution_id field.
+func ByResultExecutionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResultExecutionID, opts...).ToFunc()
 }
 
 // ByExternalID orders the results by the external_id field.

@@ -17,13 +17,20 @@ function loadModule(path, dependencies) {
 }
 
 const pagination = loadModule('../../../gql/pagination.ts', { zod: { z } });
+const pricingEvidence = loadModule('../../../components/cost-pricing-evidence.ts', { zod: { z } });
+const usageSchemas = loadModule('./usage-logs-schema.ts', {
+  zod: { z },
+  '@/gql/pagination': pagination,
+  '@/features/channels/data': { channelSchema: z.object({}) },
+  '@/components/cost-pricing-evidence': pricingEvidence,
+});
 // 执行真实执行记录与分页校验；本用例不涉及关联实体的内部字段。
 const schemas = loadModule('./schema.ts', {
   zod: { z },
   '@/gql/pagination': pagination,
   '@/features/apikeys/data/schema': { apiKeySchema: z.object({}) },
   '@/features/channels/data': { channelSchema: z.object({}) },
-  './usage-logs-schema': { usageLogSchema: z.object({}) },
+  './usage-logs-schema': usageSchemas,
 });
 
 const execution = {
@@ -34,6 +41,20 @@ const execution = {
   errorMessage: null,
   status: 'completed',
 };
+
+test('请求汇总保留多笔费用、缺价与归档的未知细分', () => {
+  for (const amount of [0.05, 0, null]) {
+    const summary = usageSchemas.requestUsageSummarySchema.parse({
+      usageRecords: 2, archivedRecords: 1, unpricedRecords: amount === null ? 2 : 0,
+      promptTokens: 1500, completionTokens: 150, totalTokens: 1650,
+      totalCost: amount, costPriceMultiplier: null, costItems: null,
+      promptWriteCachedTokens5m: null, promptWriteCachedTokens1h: null,
+    });
+    assert.equal(summary.totalCost, amount);
+    assert.equal(summary.promptWriteCachedTokens5m, null);
+    assert.equal(summary.usageRecords, 2);
+  }
+});
 function connection(nodes = [execution]) {
   return {
     edges: nodes.map((node) => ({ node, cursor: node.id })),
@@ -47,6 +68,19 @@ test('非空轻量执行记录不需要请求正文和响应正文', () => {
   assert.equal(result.edges[0].node.id, execution.id);
   assert.equal(Object.hasOwn(result.edges[0].node, 'requestBody'), false);
   assert.equal(Object.hasOwn(result.edges[0].node, 'responseBody'), false);
+});
+
+test('请求结果保留采用执行的状态码，允许缺少客户端交付状态', () => {
+  const result = schemas.requestSchema.parse({
+    id: 'request-1', createdAt: execution.createdAt, updatedAt: execution.updatedAt,
+    source: 'api', modelID: 'test-model', status: 'completed', stream: true,
+    clientStatusCode: null,
+    resultExecution: { id: execution.id, responseStatusCode: 200 },
+    executions: { edges: [{ node: { ...execution, id: 'loser', responseStatusCode: 500 }, cursor: 'loser' }] },
+  });
+  assert.equal(result.clientStatusCode, null);
+  assert.equal(result.resultExecution.responseStatusCode, 200);
+  assert.equal(result.executions.edges[0].node.responseStatusCode, 500);
 });
 
 test('完整详情保留 JSON、null 正文和响应分片', () => {

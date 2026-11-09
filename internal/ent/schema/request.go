@@ -109,6 +109,11 @@ func (Request) Fields() []ent.Field {
 			entgql.Directives(forceResolver()),
 		),
 		field.Int("channel_id").Optional(),
+		// The execution actually adopted by a concurrent title request. Older
+		// and sequential requests retain their established dispatch-based lookup.
+		field.Int("result_execution_id").Optional().Nillable().
+			Annotations(entgql.Skip()).
+			Comment("Execution adopted as the logical request result; never the speculative loser"),
 		field.JSON("routing_decision", &objects.RequestRoutingDecision{}).
 			Optional().
 			Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)),

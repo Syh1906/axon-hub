@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
+	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
@@ -72,6 +73,22 @@ func TestChannelTodayUsageLargeDay(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, queries.Load())
 	require.Equal(t, count, warm[0].RequestCount)
+	// Retention moves numeric billing into the archive while requests remain.
+	// The same channel/day read must stay bounded and preserve all amounts.
+	logs := f.client.UsageLog.Query().Where(usagelog.ChannelIDEQ(f.channel.ID)).Select(ArchivedUsageFields...).AllX(f.ctx)
+	require.NoError(t, ArchiveUsageStatistics(f.ctx, f.client, logs))
+	f.client.UsageLog.Delete().Where(usagelog.ChannelIDEQ(f.channel.ID)).ExecX(f.ctx)
+	queries.Store(0)
+	began = time.Now()
+	archived, err := queryChannelTodayUsageModels(f.ctx, counted, f.channel.ID, start, start.AddDate(0, 0, 1))
+	t.Logf("archived requests=%d queries=%d elapsed=%s", count, queries.Load(), time.Since(began))
+	require.NoError(t, err)
+	require.Len(t, archived, 1)
+	require.Equal(t, count, archived[0].RequestCount)
+	require.Equal(t, float64(count)/4, archived[0].TotalCost)
+	require.Equal(t, int64(count*110), archived[0].TotalTokens)
+	require.Nil(t, archived[0].StandardCost, "numeric archives cannot invent deleted price evidence")
+	require.EqualValues(t, count/channelUsageBatchSize+3, queries.Load(), "archived bills must not query deleted price snapshots per page")
 }
 
 func TestChannelTodayUsageSharedRefreshSurvivesCanceledHover(t *testing.T) {

@@ -114,7 +114,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 			SetPromptTokens(row.PromptTokens).SetCompletionTokens(row.CompletionTokens).SetTotalTokens(row.TotalTokens).
 			SetPromptCachedTokens(row.CacheRead).SetPromptWriteCachedTokens(row.CacheWrite).SetCacheInput(row.PromptTokens).
 			SetTotalCost(row.Cost).SetCacheCreationCost(row.CacheCreationCost).SetCacheRequests(row.CacheRequests).
-			SetPricingComplete(row.UnpricedRequests == 0).SetSpeedVersion(usageanalytics.OutputSpeedVersion).
+			SetPricingComplete(row.UnpricedRequests == 0).SetBillingVersion(requestBillingVersion).SetSpeedVersion(usageanalytics.OutputSpeedVersion).
 			SetSuccessCount(row.SuccessCount).SetOutcomeCount(row.OutcomeCount).
 			SetFirstTokenSum(row.FirstTokenSum).SetFirstTokenCount(row.FirstTokenCount).SetSpeedSum(row.SpeedSum).SetSpeedCount(row.SpeedCount).
 			OnConflict(sql.ConflictColumns(usagearchive.FieldKind, usagearchive.FieldSourceID)).DoNothing().Exec(ctx)

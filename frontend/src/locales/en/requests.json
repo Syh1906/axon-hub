@@ -315,5 +315,7 @@
   "requests.detail.routedModel": "Channel model",
   "requests.detail.upstreamModels": "Upstream-reported model",
   "requests.duration.outputRate": "Output",
-  "requests.duration.firstTokenHelp": "Time from sending this attempt to its first text, reasoning content or tool arguments. Initial status frames do not count."
+  "requests.duration.firstTokenHelp": "Time from sending this attempt to its first text, reasoning content or tool arguments. Initial status frames do not count.",
+  "requests.usageSummary.allRecords": "Totals include all {{count}} saved usage records, including retries and concurrent backups.",
+  "requests.usageSummary.archived": "{{count}} records are archived; only their numeric totals remain."
 }

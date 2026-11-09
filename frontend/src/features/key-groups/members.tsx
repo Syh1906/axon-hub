@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BudgetDialog } from '@/features/budgets/budget-dialog';
+import { useBudgetSummaries } from '@/features/budgets/data';
 import { useManagedMembers, type Member } from './data';
 import { periods } from './editors';
 import { KeySettingsDialog } from './key-settings-dialog';
@@ -39,6 +40,7 @@ export function Members({
   const [budget, setBudget] = useState<Member | null>(null);
   const query = useManagedMembers(groupRef, offset);
   const items = query.data?.items ?? [];
+  const summaries = useBudgetSummaries(items.map((member) => Number(extractNumberID(member.id))));
   useEffect(() => {
     if (query.data && offset > 0 && offset >= query.data.total) {
       setOffset(Math.max(0, Math.ceil(query.data.total / 10) - 1) * 10);
@@ -99,6 +101,11 @@ export function Members({
               <MemberRow
                 key={member.id}
                 member={member}
+                budget={{
+                  data: summaries.data?.find((view) => view.ownerID === Number(extractNumberID(member.id))),
+                  isError: summaries.isError,
+                  refetch: summaries.refetch,
+                }}
                 selecting={selecting}
                 selected={selected.has(member.id)}
                 onSelect={(checked) => onSelect([member], checked)}

@@ -16,7 +16,7 @@ export function ChannelTodayUsageCell({ channel: source }: { channel: Channel })
   const usage = channel.todayUsage;
   if (!usage)
     return <span className='text-muted-foreground text-xs'>{channel.todayUsageError ? t('channels.todayUsage.loadFailed') : '…'}</span>;
-  const allUnpriced = usage.requestCount > 0 && usage.unpricedCount === usage.requestCount && usage.totalCost === 0;
+  const allUnpriced = usage.unpricedCount > 0 && usage.pricedCount === 0 && usage.totalCost === 0;
   return (
     <HoverCard open={open} onOpenChange={setOpen} openDelay={250} closeDelay={150}>
       <HoverCardTrigger asChild>
@@ -73,10 +73,11 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
       actual: total.actual + model.totalCost,
       requests: total.requests + model.requestCount,
       unpriced: total.unpriced + model.unpricedCount,
+      priced: total.priced + model.pricedCount,
       standard: total.standard + (model.standardCost ?? 0),
       standardKnown: total.standardKnown || model.standardCost !== null,
     }),
-    { actual: 0, requests: 0, unpriced: 0, standard: 0, standardKnown: false }
+    { actual: 0, requests: 0, unpriced: 0, priced: 0, standard: 0, standardKnown: false }
   );
   const money = (value: number) =>
     t('currencies.format', { val: value, currency: data.currencyCode, locale, ...currencyFractionDigits(currencyDisplayDecimals, 6) });
@@ -86,7 +87,7 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
         <div>
           <p className='text-muted-foreground'>{t('channels.todayUsage.actualTotal')}</p>
           <p className='mt-1 font-medium tabular-nums'>
-            {totals.unpriced === totals.requests && totals.actual === 0 ? '—' : money(totals.actual)}
+            {totals.unpriced > 0 && totals.priced === 0 && totals.actual === 0 ? '—' : money(totals.actual)}
           </p>
         </div>
         <div>
@@ -140,7 +141,7 @@ function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
                   {formatNumber(model.totalTokens)}
                 </td>
                 <td className='px-2 py-2 text-right tabular-nums'>
-                  {model.unpricedCount === model.requestCount && model.totalCost === 0 ? '—' : money(model.totalCost)}
+                  {model.unpricedCount > 0 && model.pricedCount === 0 && model.totalCost === 0 ? '—' : money(model.totalCost)}
                 </td>
                 <td className='px-2 py-2 text-right tabular-nums'>
                   {model.avgCostPerMillionTokens === null ? '—' : money(model.avgCostPerMillionTokens)}

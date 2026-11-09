@@ -246,7 +246,7 @@ func TestChannelTodayUsageBoundsAggregation(t *testing.T) {
 	start := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
 	for _, db := range []string{dialect.SQLite, dialect.Postgres, dialect.MySQL} {
 		t.Run(db, func(t *testing.T) {
-			query, args := usageForConsumption(0, db, &start, start.AddDate(0, 0, 1), 17, 23).Query()
+			query, args := usageForConsumption(0, db, &start, start.AddDate(0, 0, 1), true, 17, 23).Query()
 			require.GreaterOrEqual(t, strings.Count(query, "channel_id"), 4)
 			counts := map[int]int{}
 			for _, arg := range args {
@@ -254,9 +254,9 @@ func TestChannelTodayUsageBoundsAggregation(t *testing.T) {
 					counts[value]++
 				}
 			}
-			// 请求范围与用量聚合各自约束相同的目标渠道。
-			require.Equal(t, 2, counts[17])
-			require.Equal(t, 2, counts[23])
+			// 仅账目约束目标渠道；请求可能最终转到其他渠道，仍须保留本渠道实际费用。
+			require.Equal(t, 1, counts[17])
+			require.Equal(t, 1, counts[23])
 		})
 	}
 }

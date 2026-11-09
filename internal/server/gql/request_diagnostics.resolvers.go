@@ -149,3 +149,14 @@ func (r *requestResolver) SessionExecution(ctx context.Context, obj *ent.Request
 	}
 	return result, nil
 }
+
+// ResultExecution is the resolver for the resultExecution field.
+func (r *requestResolver) ResultExecution(ctx context.Context, obj *ent.Request) (*RequestResultExecution, error) {
+	execution := requestSessionExecution(ctx, r.client, obj.ID)
+	if execution == nil {
+		return nil, nil
+	}
+	return &RequestResultExecution{
+		ID: objects.GUID{Type: ent.TypeRequestExecution, ID: execution.ID}, ResponseStatusCode: execution.ResponseStatusCode,
+	}, nil
+}

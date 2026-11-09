@@ -51,6 +51,8 @@ type UsageArchive struct {
 	PricingComplete *bool `json:"pricing_complete,omitempty"`
 	// SpeedVersion holds the value of the "speed_version" field.
 	SpeedVersion int `json:"speed_version,omitempty"`
+	// BillingVersion holds the value of the "billing_version" field.
+	BillingVersion int `json:"billing_version,omitempty"`
 	// PromptTokens holds the value of the "prompt_tokens" field.
 	PromptTokens int64 `json:"prompt_tokens,omitempty"`
 	// CompletionTokens holds the value of the "completion_tokens" field.
@@ -87,7 +89,7 @@ func (*UsageArchive) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case usagearchive.FieldTotalCost, usagearchive.FieldCacheCreationCost, usagearchive.FieldFirstTokenSum, usagearchive.FieldSpeedSum:
 			values[i] = new(sql.NullFloat64)
-		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldSpeedVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
+		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldSpeedVersion, usagearchive.FieldBillingVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
 			values[i] = new(sql.NullInt64)
 		case usagearchive.FieldKind, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
 			values[i] = new(sql.NullString)
@@ -217,6 +219,12 @@ func (_m *UsageArchive) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field speed_version", values[i])
 			} else if value.Valid {
 				_m.SpeedVersion = int(value.Int64)
+			}
+		case usagearchive.FieldBillingVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_version", values[i])
+			} else if value.Valid {
+				_m.BillingVersion = int(value.Int64)
 			}
 		case usagearchive.FieldPromptTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -380,6 +388,9 @@ func (_m *UsageArchive) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("speed_version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SpeedVersion))
+	builder.WriteString(", ")
+	builder.WriteString("billing_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingVersion))
 	builder.WriteString(", ")
 	builder.WriteString("prompt_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PromptTokens))

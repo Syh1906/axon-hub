@@ -11,6 +11,17 @@ import { shareRequestList } from './request-list-cache';
 import { requestLogVariables } from './request-log-variables';
 import { Request, RequestConnection, RequestExecutionConnection, requestConnectionSchema, requestExecutionConnectionSchema, requestSchema } from './schema';
 
+const REQUEST_USAGE_SUMMARY_SELECTION = `
+  usageSummary {
+    usageRecords archivedRecords unpricedRecords
+    promptTokens completionTokens completionReasoningTokens totalTokens
+    promptAudioTokens completionAudioTokens completionAcceptedPredictionTokens completionRejectedPredictionTokens
+    promptCachedTokens promptWriteCachedTokens promptWriteCachedTokens5m promptWriteCachedTokens1h
+    totalCost costPriceMultiplier
+    costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
+  }
+`;
+
 // Requests expose their reporting timezone without granting system settings access.
 export function useRequestLogTimezone() {
   const projectId = useSelectedProjectId();
@@ -99,8 +110,10 @@ function buildRequestsQuery(
             status
             clientIP
             clientStatusCode
+            resultExecution { id responseStatusCode }
             failure { stage code type message }
             outputTokensPerSecond
+            ${REQUEST_USAGE_SUMMARY_SELECTION}
             userAgent
             metricsLatencyMs
             metricsFirstTokenLatencyMs
@@ -136,25 +149,7 @@ function buildRequestsQuery(
             oneHourPromptCacheUsageLogs: usageLogs(first: 1, where: { promptWriteCachedTokens1hGT: 0 }) {
               totalCount
             }
-            usageLogs(first: 1) {
-              edges {
-                node {
-                  id
-                  promptTokens
-                  completionTokens
-                  completionReasoningTokens
-                  totalTokens
-                  promptCachedTokens
-                  promptWriteCachedTokens
-                  promptWriteCachedTokens5m
-                  promptWriteCachedTokens1h
-                  totalCost
-                  costPriceMultiplier
-                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
-                  costPriceReferenceID
-                }
-              }
-            }
+
           }
           cursor
         }
@@ -225,6 +220,7 @@ function buildRequestDetailQuery(
           stream
           clientIP
           clientStatusCode
+          resultExecution { id responseStatusCode }
           failure { stage code type message }
           projectID
           dataStorageID
@@ -237,25 +233,8 @@ function buildRequestDetailQuery(
           ${REQUEST_ROUTING_DECISION_SELECTION}
           metricsReasoningDurationMs
           outputTokensPerSecond
-          usageLogs(first: 1) {
-            edges {
-              node {
-                  id
-                  promptTokens
-                  completionTokens
-                  completionReasoningTokens
-                  totalTokens
-                  promptCachedTokens
-                  promptWriteCachedTokens
-                  promptWriteCachedTokens5m
-                  promptWriteCachedTokens1h
-                  totalCost
-                  costPriceMultiplier
-                  costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } }
-                  costPriceReferenceID
-                }
-            }
-          }
+          ${REQUEST_USAGE_SUMMARY_SELECTION}
+
         }
       }
     }
@@ -304,6 +283,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           stream
           clientIP
           clientStatusCode
+          resultExecution { id responseStatusCode }
           failure { stage code type message }
           projectID
           dataStorageID
@@ -315,6 +295,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           ${REQUEST_ROUTING_DECISION_SELECTION}
           metricsReasoningDurationMs
           outputTokensPerSecond
+          ${REQUEST_USAGE_SUMMARY_SELECTION}
         }
       }
     }
@@ -589,7 +570,6 @@ export function useRequest(
           responseBody: previousRequest?.responseBody,
           responseChunks: previousRequest?.responseChunks,
           routingDecision: parsedRequest.routingDecision ?? previousRequest?.routingDecision,
-          usageLogs: previousRequest?.usageLogs,
         });
       } catch (error) {
         if (signal.aborted) throw error;

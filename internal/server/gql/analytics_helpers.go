@@ -415,12 +415,8 @@ func (r *queryResolver) queryAnalyticsModelStats(
 					s.C(requestexecution.FieldModelID),
 					usageTable.C(usagelog.FieldModelID),
 				),
-				sql.EQ(
-					s.C(requestexecution.FieldStatus),
-					requestexecution.StatusCompleted,
-				),
 				sql.ColumnsEQ(s.C("project_id"), usageTable.C("project_id")),
-				sql.ExprP(s.C("id")+" = (SELECT MAX(model_final.id) FROM request_executions model_final WHERE model_final.request_id = "+s.C("request_id")+" AND model_final.channel_id = "+s.C("channel_id")+" AND model_final.project_id = "+s.C("project_id")+" AND model_final.model_id = "+s.C("model_id")+" AND model_final.status = 'completed')"),
+				sql.ExprP(s.C("id")+" = (SELECT MAX(model_final.id) FROM request_executions model_final WHERE model_final.request_id = "+s.C("request_id")+" AND model_final.channel_id = "+s.C("channel_id")+" AND model_final.project_id = "+s.C("project_id")+" AND model_final.model_id = "+s.C("model_id")+")"),
 			))
 			s.Join(channelTable).On(
 				s.C(requestexecution.FieldChannelID),

@@ -315,5 +315,7 @@
   "requests.detail.routedModel": "渠道模型",
   "requests.detail.upstreamModels": "上游自报模型",
   "requests.duration.outputRate": "输出",
-  "requests.duration.firstTokenHelp": "首字为本次执行发送后到首个有效文本、推理内容或工具参数的时间；上游先发的状态帧不算首字。"
+  "requests.duration.firstTokenHelp": "首字为本次执行发送后到首个有效文本、推理内容或工具参数的时间；上游先发的状态帧不算首字。",
+  "requests.usageSummary.allRecords": "汇总本次请求全部 {{count}} 笔已保存用量，包含重试与并发备用。",
+  "requests.usageSummary.archived": "其中 {{count}} 笔已归档，仅保留汇总数值。"
 }

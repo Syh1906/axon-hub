@@ -270,12 +270,12 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       {
         id: 'tokens',
         accessorFn: (row) => {
-          const usageLog = row.usageLogs?.edges?.[0]?.node;
+          const usageLog = row.usageSummary;
           return (usageLog?.promptTokens || 0) + (usageLog?.completionTokens || 0);
         },
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.tokens')} />,
         cell: ({ row }) => {
-          const log = row.original.usageLogs?.edges?.[0]?.node;
+          const log = row.original.usageSummary;
           return log ? (
             <TokensCell
               prompt={log.promptTokens || 0}
@@ -292,17 +292,17 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         enableHiding: true,
         sortingFn: (rowA, rowB) => {
           const a =
-            (rowA.original.usageLogs?.edges?.[0]?.node?.promptTokens || 0) +
-            (rowA.original.usageLogs?.edges?.[0]?.node?.completionTokens || 0);
+            (rowA.original.usageSummary?.promptTokens || 0) +
+            (rowA.original.usageSummary?.completionTokens || 0);
           const b =
-            (rowB.original.usageLogs?.edges?.[0]?.node?.promptTokens || 0) +
-            (rowB.original.usageLogs?.edges?.[0]?.node?.completionTokens || 0);
+            (rowB.original.usageSummary?.promptTokens || 0) +
+            (rowB.original.usageSummary?.completionTokens || 0);
           return a - b;
         },
       },
       {
         id: 'cache',
-        accessorFn: (row) => row.usageLogs?.edges?.[0]?.node?.promptCachedTokens ?? null,
+        accessorFn: (row) => row.usageSummary?.promptCachedTokens ?? null,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.cache')} />,
         cell: ({ row }) => <RequestCacheCell request={row.original} />,
         enableSorting: true,
@@ -310,18 +310,18 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       },
       {
         id: 'cost',
-        accessorFn: (row) => row.usageLogs?.edges?.[0]?.node?.totalCost ?? null,
+        accessorFn: (row) => row.usageSummary?.totalCost ?? null,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.cost')} />,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
-          const log = row.original.usageLogs?.edges?.[0]?.node;
+          const log = row.original.usageSummary;
           return (
             <CostCell
               total={log?.totalCost ?? null}
               currencyCode={settings?.currencyCode ?? 'USD'}
               breakdown={
-                log
+                log?.costItems
                   ? {
                       cacheWriteTokens5m: log.promptWriteCachedTokens5m,
                       cacheWriteTokens1h: log.promptWriteCachedTokens1h,
@@ -338,6 +338,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
                         tiers: item.tierBreakdown ?? [],
                       })),
                       multiplier: log.costPriceMultiplier ?? 'mixed',
+                      unpricedRecords: log.unpricedRecords,
                     }
                   : null
               }

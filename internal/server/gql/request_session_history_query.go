@@ -40,7 +40,7 @@ func requestSessionHistoryQuery(q *sql.Selector, ids []int) {
 		sql.ExprP(traceKey(historicalTrace)+" = "+scope.C("session_trace")),
 		sql.ColumnsLTE(historical.C(request.FieldID), scope.C("last_request_id")),
 	)).
-		Join(final).OnP(sql.EQ(final.C(requestexecution.FieldID), finalSessionAttempt(d, historical, requestexecution.FieldID))).
+		Join(final).OnP(sql.EQ(final.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), historical, requestexecution.FieldID))).
 		Where(sessionRequestFinished(historical)).
 		AppendSelectAs(historical.C(request.FieldID), "request_id").
 		AppendSelectAs(final.C(requestexecution.FieldID), "execution_id").
@@ -56,7 +56,7 @@ func requestSessionHistoryQuery(q *sql.Selector, ids []int) {
 		Join(current).On(q.C(requestexecution.FieldRequestID), current.C(request.FieldID)).
 		LeftJoin(window).On(q.C(requestexecution.FieldID), window.C("execution_id")).
 		Where(sql.And(sessionRequestFinished(current),
-			sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(d, current, requestexecution.FieldID)))).
+			sessionAttemptMatches(q.C(requestexecution.FieldID), finalSessionAttempt(q.Dialect(), current, requestexecution.FieldID)))).
 		Select(q.C(requestexecution.FieldID), sql.As(q.C(requestexecution.FieldChannelID), "channel"), window.C("previous_channel")).
 		AppendSelectAs("CASE WHEN "+window.C("first_use_id")+" < "+current.C(request.FieldID)+" THEN TRUE ELSE FALSE END", "used_before")
 }

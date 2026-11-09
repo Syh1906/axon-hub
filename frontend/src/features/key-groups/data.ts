@@ -113,7 +113,9 @@ export function useManagementAPI() {
             const matches = (query: { queryKey: readonly unknown[] }) =>
               key === 'managedGroupKeys'
                 ? query.queryKey[2] === project && query.queryKey[3] === verifyKey.groupRef
-                : query.queryKey[2] === project && query.queryKey[3] === 'key' && query.queryKey[4] === verifyKey.ownerID;
+                : query.queryKey[2] === project &&
+                  ((query.queryKey[3] === 'key' && query.queryKey[4] === verifyKey.ownerID) ||
+                    (query.queryKey[3] === 'summaries' && Array.isArray(query.queryKey[4]) && query.queryKey[4].includes(verifyKey.ownerID)));
             return Promise.all([
               cache.invalidateQueries({ queryKey: [key], predicate: matches }, { throwOnError: true }),
               cache.invalidateQueries({ queryKey: [key], predicate: (query) => !matches(query) }),
