@@ -237,11 +237,17 @@ Thread (用户会话)
 
 后台首次进入时需要读取系统状态、账号和项目资料。读取失败时页面显示具体对象与原因；网络失败不等同于登录过期。点击重试会重新读取，已经成功加载的资料不会因一次后台刷新失败被丢弃；首次账号资料未取得时仍保持权限检查。
 
+<<<<<<< HEAD
 如果错误响应已经到达，页面可显示 `AH-Request-Id` 对应的请求编号。管理端 `GraphQL request failed` 日志中的 `admin_request_id` 用于关联该请求，`phase` 区分 `request_body`（接收）、`decode`（解码）、`validation`（校验）和 `execution`（执行）。`body_bytes_read`、`content_length`、`body_read_duration`、`processing_duration` 分别记录应用接收字节数、声明长度和两个阶段的耗时。诊断不保存正文或凭据；读取错误保留安全的分类，不输出原始解码输入。JSON 解码失败、multipart 读取失败及原有大小限制均有分类；普通 multipart 表单语法错误继续沿用原解析器响应，不推断为读取超时。变量校验未通过时记录 `validation`，实际进入操作处理后才记录 `execution`。
 
 后台 `/admin/graphql` 将接收和查询执行分开计时：接收正文使用 `server.read_timeout`，未设置时沿用 `server.request_timeout`；收到并解析完整请求后，才开始 `server.request_timeout` 的查询处理预算。响应写入期限在接收阶段包含接收预算，进入执行时重新按原写入预算计时，避免查询虽得到新期限、响应却被旧期限截断。读取阻塞通过连接读取截止时间终止，不只取消查询上下文。沿用 gqlgen 的正文读取和上传临时文件管理，不复制完整正文；客户端断开仍会取消执行，原事务、服务账号只读限制和渠道测试独立超时保持。该行为由应用代码实现，不要求修改 Nginx。
 
 如后续需要在 Nginx 进一步隔离接收等待，应仅评估 `/admin/graphql` 的 `proxy_request_buffering on`，并核对同入口文件导入的大小限制和临时磁盘空间；请求缓冲与响应缓冲不同，不应批量更改推理／流式接口。代理配置须独立安排部署。当前恢复可用和健康检查成功，都不能证明历史网络或 VPN 故障已经根治。
+=======
+如果错误响应已经到达，页面可显示 `AH-Request-Id` 对应的请求编号。管理端 `GraphQL request failed` 日志中的 `admin_request_id` 用于关联该请求，`phase` 区分 `request_body`（接收）、`decode`（解码）、`validation`（校验）和 `execution`（执行）。`body_bytes_read`、`content_length`、`body_read_duration`、`processing_duration` 分别记录应用接收字节数、声明长度和两个阶段的耗时。诊断不保存正文或凭据；读取错误保留安全的分类，不输出原始解码输入。
+
+使用 Nginx 时，可以仅为 `/admin/graphql` 开启 `proxy_request_buffering on`，完整接收后再送给应用，避免客户端上传等待耗尽后台处理时间。该配置不等同于响应缓冲，不应批量修改模型推理／流式接口。评估同入口文件导入的大小限制和临时磁盘空间；同时在现有访问日志记录请求总耗时与上游耗时。应用更新不会自动修改代理配置，接收超时也不能单凭健康检查归因于数据库或 VPN。
+>>>>>>> origin/release/v1.0.x
 
 ### 相关文档
 - [请求处理流程指南](../getting-started/request-processing.md)

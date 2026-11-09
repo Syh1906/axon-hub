@@ -10,9 +10,12 @@ import (
 	"strings"
 	"testing"
 
+<<<<<<< HEAD
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+=======
+>>>>>>> origin/release/v1.0.x
 	"github.com/stretchr/testify/require"
 )
 
@@ -102,6 +105,7 @@ func TestGraphQLRequestDiagnosticsCountBytesWithoutKeepingBody(t *testing.T) {
 	require.False(t, observed.readEnded.Before(observed.started))
 	require.Nil(t, observed.readErr)
 }
+<<<<<<< HEAD
 
 func TestGraphQLVariableValidationKeepsValidationPhase(t *testing.T) {
 	var diagnostics *requestDiagnostics
@@ -174,3 +178,5 @@ func TestGraphQLMultipartStreamingLimitIsClassified(t *testing.T) {
 	require.True(t, observed.failed)
 	require.Equal(t, "REQUEST_BODY_TOO_LARGE", observed.code)
 }
+=======
+>>>>>>> origin/release/v1.0.x

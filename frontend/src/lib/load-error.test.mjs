@@ -14,7 +14,10 @@ test('入口区分网络、接收超时、处理超时和权限失败', () => {
     [{ status: 403 }, 'forbidden'],
     [{ status: 400 }, 'invalid'],
     [{ status: 500 }, 'server'],
+<<<<<<< HEAD
     [{ status: 422, extensions: { code: 'INTERNAL_SERVER_ERROR' } }, 'server'],
+=======
+>>>>>>> origin/release/v1.0.x
     [{ extensions: { code: 'INTERNAL_SERVER_ERROR' } }, 'server'],
   ];
   for (const [error, kind] of cases) assert.equal(loadErrorKey(error), `common.loadFailure.${kind}`);
