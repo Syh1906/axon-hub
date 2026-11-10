@@ -109,6 +109,19 @@ test('真实源码差异拒绝 schema、schema migration 和 data migration，�
   }
 });
 
+test('提高发布下限后仍允许历史旧 tag，同时拒绝低于下限或落后的基线', () => {
+  const f = fixture();
+  const config = JSON.parse(readFileSync(join(f.root, 'release.config.json'), 'utf8'));
+  config.minimumReleaseNumber = 5;
+  const commit = f.commitFile('release.config.json', JSON.stringify(config));
+  f.git('tag', 'v1.0.0-beta12-fork.5', commit);
+  f.git('update-ref', `refs/remotes/origin/${branch}`, commit);
+  assert.doesNotThrow(() => f.prepare({ commit, baseVersion: 'v1.0.0-beta12-fork.5' }));
+  assert.throws(() => f.prepare({ commit }), /发布编号必须不小于 5/);
+  f.git('tag', 'v1.0.0-beta12-fork.6', commit);
+  assert.throws(() => f.prepare({ commit, baseVersion: 'v1.0.0-beta12-fork.5' }), /新基线/);
+});
+
 test('命令行向 Actions 输出固定参数，并从同一准备结果生成部署清单', () => {
   const f = fixture();
   const output = join(f.root, 'outputs.txt');

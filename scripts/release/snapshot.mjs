@@ -24,8 +24,10 @@ export function prepareSnapshot(root, repository, commit, baseVersion, runID, ru
 
   // 已包含更晚正式编号的源码不能再标为旧基线的快照。
   const prefix = config.upstreamRepository === 'ChouUn/axon-hub' ? `${config.upstreamTag}.syh.` : `${config.upstreamTag}-fork.`;
+  // 历史编号可以早于当前发布下限；下限已在上面对所选基线检查。
+  const historyConfig = { ...config, minimumReleaseNumber: 1 };
   for (const tag of git('tag', '--merged', commit, '--list', `${prefix}*`).split('\n').filter(Boolean)) {
-    if (validateTag(tag, config) > baseNumber) throw new Error(`源码已包含 ${tag}，请使用对应的新基线`);
+    if (validateTag(tag, historyConfig) > baseNumber) throw new Error(`源码已包含 ${tag}，请使用对应的新基线`);
   }
   const migrationChanges = git('diff', '--name-only', baseCommit, commit, '--',
     'internal/ent/schema', 'internal/ent/migrate');

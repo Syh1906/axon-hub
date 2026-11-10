@@ -179,6 +179,9 @@ the source history, and rejects changes under `internal/ent/schema/` or
 rollback compatibility separately; incompatible changes require a dedicated upgrade
 plan rather than this ordinary snapshot path.
 
+The minimum release number applies to the selected base, not to older tags already
+in its history. Historical tags are still checked for a version newer than the base.
+
 Tests and both native architecture builds use the exact source commit. After startup,
 version and revision-label checks against temporary PostgreSQL, the workflow uploads
 `snapshot.json`. The application version is
