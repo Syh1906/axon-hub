@@ -6,13 +6,18 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-10）：最新正式版为 `v1.0.0-beta12-fork.5`，固定源码 `6aec4906`，发布及双机部署记录见本文末尾。原始 rc1 已由 `b309f9ec` 合并到同步分支，目标 `rc1-fork.1` 正在准备首次正式发布；本地检查不代表生产已更新。历史网络正文接收超时的排查边界仍保留。
+发布状态总览（2026-11-10）：最新正式版为 `v1.0.0-rc1-fork.1`，源码 `d9e08799`；原始 rc1 合并、WS 优化、精简发版和双机基础部署验收已完成。旧快照全部保留。自然流量出现一条跨机上游加密消息兼容失败，未宣称全部业务无异常，详情见下节；历史网络正文接收超时的排查边界仍保留。
 
-## v1.0.0-rc1 整合（目标 rc1-fork.1，待发布）
+## v1.0.0-rc1 整合与首次正式发布（rc1-fork.1）
 
-- 发布检查收尾：PR #5 已以 `746f3d20` 合入维护分支；首次云端 Test／Build／Govulncheck 通过，Lint 报告的 10 项格式、测试错误比较与 pprof context 问题做局部修正，等待最终源码的完整检查。pprof 保持仅回环地址及显式启用，不修改生产诊断配置。
+- [正式 Release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.1) / [精简发版 42832075745](https://github.com/Syh1906/axon-hub/actions/runs/42832075745) 成功；正式/latest，amd64/arm64 镜像及唯一附件 release.json。源码 `d9e0879915a8dc270c6b9e85acaf9116b7972727`，清单 SHA-256 `d1f3815ae54bd9e328736c5992f66eb6d8671e74acaac0f9ef48853f612d1aa4`，镜像摘要 `sha256:42069c614157976a43d12f6a226bfc93cf38513da317784df70d367757b60456`。
+- 云悠/泉哥于新加坡时间 22:25:21 / 22:27:54 通过基础部署验收，重建及健康等待 7.291 / 7.455 秒。内外健康、版本/提交、初始化、33 项首页资源、匿名 401、新插件表与追踪字段/索引、回填完成及关键编号集合保持通过；数据库和其他容器未重建，配置仅更换镜像。本轮配置副本已删除，未创建数据库备份，旧快照和旧正式镜像全部保留、不退役。
+- 自然流量样本分别为云悠 44 完成/2取消/1失败/2处理中，泉哥 8完成/1失败/2处理中。两机失败属于同一跨机请求链：泉哥上游尝试返回 `unsupported_encrypted_agent_message`，后续最终 400；云悠先 500/502 后 400。未读取请求正文、未调整渠道；该兼容失败未解决，未认定与升级无关。未复测登录后全量页面、WS真实供应商端到端、收费账单或长期负载。不能用基础健康代替完整业务验收。
+- [本轮完整记录](../.agent/summary/release-rc1-fork1-20261110.md)为本地资料；双机私有证据记录在运维仓库 `release-rc1-fork1-20261110.json`。旧应用迁移可能删除未知结构，镜像保留不等于可无损回退数据库。
+
+- 发布检查收尾：PR #5 已以 `746f3d20` 合入维护分支；首次 Lint 的 10 项格式、测试错误比较与 pprof context 问题由 `d9e08799` 局部修正。最终 Test 42830942831／Build 42830942664／Lint 42830942665／Govulncheck 42830942669 全部成功。pprof 保持仅回环地址及显式启用，未修改生产诊断配置。
 - 发布比较起点为 `v1.0.0-beta12-fork.5` / `6aec4906`；其后的 Page 兼容 `48d0aaa7`、快照编号修复 `f75f1049` 及 WS 同流续接均纳入本版正式说明。合并起点为本 fork `d672328cc1b552e4ca2b24486b169614aab5d69d`，原始上游 `v1.0.0-rc1` / `d2935453d23cb1886350a3d1b15f777038af3230`。继承 ChouUn 来源保持独立记录。
-- 当前状态：隔离分支 `codex/sync-original-rc1` 已完成原始 rc1 合并提交 `b309f9ec`；WS 同流续接及三项独立审查修复已验收，准备合入维护分支并首次发布。.github/release-notes.md 覆盖上次正式版至本版的完整范围。详细实施与验证记录位于 `.agent/summary/rc1-fork1-implementation-20261110.md`（本地，不随 Git 分发）。
+- 当前状态：隔离分支 `codex/sync-original-rc1` 已完成原始 rc1 合并提交 `b309f9ec`；WS 同流续接及三项独立审查修复已验收，并已合入维护分支、发布及完成双机基础部署验收。.github/release-notes.md 覆盖上次正式版至本版的完整范围。详细实施与验证记录位于 `.agent/summary/rc1-fork1-implementation-20261110.md`（本地，不随 Git 分发）。
 - 已确认取舍：管理／项目／插件导航保留二开入口；公共目录按需加载并保留手动刷新及最近成功结果；无 Retry-After 的 429 不加固定冷却；402／520 默认更快切渠道但显式重试优先；插件纳入 JSON 备份，恢复停用且清授权；历史追踪回填最后请求时间，缺明细显示未知。
 - 性能：系统页签按需加载；渠道模型候选使用可取消共享查询，30 秒新鲜期，随渠道修改失效。列表每批 20 条和虚拟行渲染保持；插件菜单只读轻量 UI 目录。客户端取消公共目录等待不终止其他调用者共享的有界拉取。
 - 核对范围：上游 schema／data migration 与现有 fork topics。生成文件来自整合后的 schema；无已发布迁移修改。新增 `v1.0.0-rc1-fork.1` 按 256 个追踪分批回填，版本位于 beta12-fork.5 之后、rc2 之前；SQLite／PostgreSQL 16／MySQL 8.4 均通过。
@@ -258,11 +263,11 @@ fork 改动，由用户决定。
 
 - WS 中断与 HTTP 续聊修复（2026-11-02，已随 `.syh.13` 发布）：接入本机 Codex `0.166.0-alpha.5.1` 实际发送的 `response.interrupt`，按连接／响应确认并在完整输出项边界停止上游调用，支持显式丢弃未完成项目、迟到中断和多流隔离。中断快照在取消后保留已完成的推理／工具项，供 HTTP 续聊恢复；落盘仍受正文存储开关与 Key／项目隔离约束，不把普通失败保留为完整历史。不改渠道 WS 能力选择、握手回退或发送后禁止重放的边界，无数据库迁移。验收包含原错误回归、真实 HTTPS/SSE 的未启用 WS 与握手拒绝两条路径、原生 WS、本机真实 Codex 的追加输入至完成流程、续聊快照与重启回读；未调用收费上游或部署生产。详见[实现与验收记录](../.agent/summary/ws-http-interrupt-20261102.md)。
 
-- 状态：已实现并完成本地验收及独立复核，待发布。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。
+- 状态：已实现并完成本地验收及独立复核，现已纳入 rc1-fork.1 发布部署。真实供应商验收限制见本文顶部。使用说明见 [Codex 集成指南](zh/guides/codex-integration.md)，页面证据见 [渠道配置](../output/implementation/axon-catalog-ws-20261031/channel-options.png)及 [WS 回退诊断](../output/implementation/axon-catalog-ws-20261031/ws-fallback.png)。
 - 新增 `/codex/models`，保留 `/v1/models`；目录元数据来自渠道可信 URL 或完整 JSON，按项目、Key、公开模型与别名筛选。缓存不绕过权限，不凭名称补造能力，多路由仅公布共同能力。
-- 2026-11-10 WS 同流续接恢复（基于原始 rc1，本地实现，未发布）：修复主动中断后历史已保存但当前流查不到响应 ID 的断点；原生 WS 和 HTTP 桥接统一登记可恢复历史。原生请求按不可变轮次段共享先前历史，正常续接保留同一连接、原 ID 与增量；网关发送前已确认连接失效时，只有完整历史才展开为无旧 ID 的新请求。现有 64 MiB 连接预算计入段／索引开销，超限不阻塞仍有效的原生增量；缺失 ID 不再触发无效新握手。保留插件与渠道处理、实际执行正文、租户／连接／流隔离和发送后未知结果禁重放。无 schema/data migration，不含跨流分叉或 `response.steer`。同步上游时核对 `responses_attempt.go`、`responses_capture.go`、`responses_origin.go`、`responses_lane.go`、`responses_snapshot.go` 和 WS executor；验收与性能限制见[实施记录](../.agent/summary/ws-continuation-rc1-20261110.md)。 独立 `gpt-6.1-sol / max` 审查发现并修复：完整历史仍被旧凭据绑定拦截、晚恢复仍被执行来源门禁拦截、非 Responses 转换中断误认证空历史；凭据只解析一次，严格绑定仅在同流完整历史实际展开后解除，转换协议不新增续接能力。
+- 2026-11-10 WS 同流续接恢复（基于原始 rc1，已随 rc1-fork.1 发布部署）：修复主动中断后历史已保存但当前流查不到响应 ID 的断点；原生 WS 和 HTTP 桥接统一登记可恢复历史。原生请求按不可变轮次段共享先前历史，正常续接保留同一连接、原 ID 与增量；网关发送前已确认连接失效时，只有完整历史才展开为无旧 ID 的新请求。现有 64 MiB 连接预算计入段／索引开销，超限不阻塞仍有效的原生增量；缺失 ID 不再触发无效新握手。保留插件与渠道处理、实际执行正文、租户／连接／流隔离和发送后未知结果禁重放。无 schema/data migration，不含跨流分叉或 `response.steer`。同步上游时核对 `responses_attempt.go`、`responses_capture.go`、`responses_origin.go`、`responses_lane.go`、`responses_snapshot.go` 和 WS executor；验收与性能限制见[实施记录](../.agent/summary/ws-continuation-rc1-20261110.md)。 独立 `gpt-6.1-sol / max` 审查发现并修复：完整历史仍被旧凭据绑定拦截、晚恢复仍被执行来源门禁拦截、非 Responses 转换中断误认证空历史；凭据只解析一次，严格绑定仅在同流完整历史实际展开后解除，转换协议不新增续接能力。
 - 渠道新增 `supportsWebSockets` 能力声明，客户端 HTTP 始终走 HTTP；客户端 WS 可走 WS 或桥接 HTTP。仅发送前的安全握手失败可降级；续聊恢复完整历史，缺失历史明确报错；发送后的未知结果禁止自动重放，包括超时和解码错误转换。
-- 普通 Responses 开关回读修正（2026-11-10，本地验收及独立审查通过，待发布）：主编辑窗口和接口编辑器同时识别独立 `openai/responses-ws` 与已发布的能力字段；取消勾选会移除独立 WS 接口，明确草稿优先于旧默认 WS，保留 HTTP 的地址、路径、目录及其他接口。页面明确发送前回退与发送后结果未知的区别；补充 `1013: no available account` 不重放回归。安全回退继续沿用同一请求／执行记录及同连接 HTTP 降级，不把账号暂不可用解释为不支持 WS，不自动改写渠道能力。无数据库迁移。
+- 普通 Responses 开关回读修正（2026-11-10，本地验收及独立审查通过，已随 rc1-fork.1 发布）：主编辑窗口和接口编辑器同时识别独立 `openai/responses-ws` 与已发布的能力字段；取消勾选会移除独立 WS 接口，明确草稿优先于旧默认 WS，保留 HTTP 的地址、路径、目录及其他接口。页面明确发送前回退与发送后结果未知的区别；补充 `1013: no available account` 不重放回归。安全回退继续沿用同一请求／执行记录及同连接 HTTP 降级，不把账号暂不可用解释为不支持 WS，不自动改写渠道能力。无数据库迁移。
 - 请求诊断记录客户端协议、实际上游协议及回退原因；列表默认顺序改为 ID、渠道、模型、服务商，旧列配置只交换相关两列，保留其余排序。
 - 数据影响：仅扩展现有 endpoint/selection JSON 和 GraphQL 字段，无新 schema/data migration；兼容读取已发布的 `transport` 与 WS URL，显式新布尔值优先，新保存清空旧 transport。
 - 验证：相关六个 Go 包、25 项定向前端测试、真实 Codex 0.159.2 目录解析、本地 HTTP/WS 双轮联调和浏览器操作通过。最终全库 TypeScript 基线与工作区均为 170 条诊断，本次新增为 0。未接入生产、真实收费上游或外部数据库；未执行 lint/build。
@@ -1240,7 +1245,7 @@ fork 改动，由用户决定。
 
 ### GitHub 独立发布与两层上游追溯
 
-- 最新正式版及双机更新见[beta12-fork.4记录](#beta12-fork4-正式发布与双机更新2026-11-09)；下方旧版本条目保留历史，不代表当前部署。
+- 最新正式版及双机更新见本文顶部 rc1-fork.1 条目；以下保留历史。旧 beta12-fork.4记录见[历史记录](#beta12-fork4-正式发布与双机更新2026-11-09)；下方旧版本条目保留历史，不代表当前部署。
 
 - 第三版发布（2026-11-08）：[`v1.0.0-beta12-fork.3`](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.3)，源码 `8f984fe5a53861a4a8a2c15133112955fff8a7f3`；沿用 looplj beta12 与 ChouUn 继承来源，`prerelease=false`、`publishBinaries=false`，新加坡时间 19:17:28 正式发布并设为最新版本。[本版更新日志](../.github/release-notes.md)说明新增字段、索引、幂等回填与回退限制。
   同提交 [Test 42474088065](https://github.com/Syh1906/axon-hub/actions/runs/42474088065)、[Build 42474088206](https://github.com/Syh1906/axon-hub/actions/runs/42474088206)、[Lint 42474088158](https://github.com/Syh1906/axon-hub/actions/runs/42474088158)、[Govulncheck 42474088134](https://github.com/Syh1906/axon-hub/actions/runs/42474088134) 均成功。[精简发布 42474580388](https://github.com/Syh1906/axon-hub/actions/runs/42474580388)复用该 Test，完成双架构构建、合成和临时 PostgreSQL 启动检查。唯一附件 release.json 为 847 字节，SHA-256 `68ef9f4b0c59ff2dbb85c52ccd3acde0195573d79e122d4f67b844107a4728a1` 与下载内容一致。
