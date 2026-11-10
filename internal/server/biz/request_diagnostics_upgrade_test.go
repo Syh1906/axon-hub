@@ -45,5 +45,9 @@ func TestRequestDiagnosticsSchemaUpgradeKeepsLegacyData(t *testing.T) {
 	require.Nil(t, client.Request.Query().OnlyX(ctx).ClientStatusCode)
 	require.Empty(t, client.Channel.Query().OnlyX(ctx).WebsiteURL)
 	_, err = db.ExecContext(ctx, `INSERT INTO channels (type,name,credentials,supported_models,default_test_model) VALUES ('anthropic','legacy','{}','["model"]','model')`)
-	require.Error(t, err, "channel names remain globally unique")
+	require.NoError(t, err, "upgraded channels allow duplicate names")
+	channels := client.Channel.Query().AllX(ctx)
+	require.Len(t, channels, 2)
+	require.NotEqual(t, channels[0].ID, channels[1].ID)
+	require.Equal(t, channels[0].Name, channels[1].Name)
 }
