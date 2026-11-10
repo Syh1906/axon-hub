@@ -11,7 +11,7 @@
     "tag": "v1.0.0-beta12",
     "commit": "2b1a0f9321a4f783a4cceb2b4eb3a8303074487e"
   },
-  "minimumReleaseNumber": 1,
+  "minimumReleaseNumber": 5,
   "notesFile": ".github/release-notes.md",
   "inheritedFork": {
     "repository": "ChouUn/axon-hub",

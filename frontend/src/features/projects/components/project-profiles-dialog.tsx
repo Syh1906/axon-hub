@@ -3,13 +3,13 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { extractNumberID } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChannelMultiSelect } from '@/features/channels/components/channel-multi-select';
 import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
 import { updateProjectProfilesInputSchemaFactory, type ProjectProfile, type UpdateProjectProfilesInput } from '../data/schema';
@@ -191,23 +191,11 @@ export function ProjectProfilesDialog({ open, onOpenChange, onSubmit, loading = 
                       render={({ field }) => (
                         <FormItem>
                           <FormControl>
-                            <TagsAutocompleteInput
-                              value={(field.value || []).map((id) => {
-                                const channel = channelsData?.edges?.find((edge) => parseInt(extractNumberID(edge.node.id), 10) === id);
-                                return channel?.node.name || id.toString();
-                              })}
-                              onChange={(tags) => {
-                                const ids = tags
-                                  .map((tag) => {
-                                    const channel = channelsData?.edges?.find((edge) => edge.node.name === tag);
-                                    return channel ? parseInt(extractNumberID(channel.node.id), 10) : parseInt(tag);
-                                  })
-                                  .filter((id) => !isNaN(id));
-                                field.onChange(ids);
-                              }}
+                            <ChannelMultiSelect
+                              value={field.value || []}
+                              onChange={field.onChange}
+                              channels={channelsData?.edges?.map((edge) => edge.node) ?? []}
                               placeholder={t('projects.profiles.allowedChannels')}
-                              suggestions={channelsData?.edges?.map((edge) => edge.node.name) || []}
-                              className='h-auto min-h-9 py-1'
                             />
                           </FormControl>
                           <FormMessage />

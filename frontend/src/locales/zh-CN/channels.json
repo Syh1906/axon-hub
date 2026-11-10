@@ -1,4 +1,6 @@
 {
+  "channels.selector.search": "搜索名称、标签或 ID",
+  "channels.selector.remove": "移除 {{name}}",
   "copilot_device.copy_code": "复制代码",
   "copilot_device.step_1": "点击上方按钮打开 GitHub",
   "copilot_device.step_2": "输入上方的代码",

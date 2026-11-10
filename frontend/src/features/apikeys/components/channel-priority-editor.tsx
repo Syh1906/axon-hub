@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { extractNumberIDAsNumber } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { buildChannelSelectOptions } from '@/features/channels/utils/channel-select-options';
 import { type ChannelPriority } from '../data/schema';
 
 type Props = {
@@ -18,6 +20,7 @@ type Props = {
 export function ChannelPriorityEditor({ value, onChange, channels, allowedChannelIDs, channelTags, channelTagsMatchMode }: Props) {
   const { t } = useTranslation();
   const entries = value ?? [];
+  const labels = useMemo(() => new Map(buildChannelSelectOptions(channels).map((option) => [option.id, option.label])), [channels]);
   const options = channels.map((channel) => ({ ...channel, numericID: extractNumberIDAsNumber(channel.id) }));
   const allowed = options.filter((channel) => {
     if (allowedChannelIDs?.length && !allowedChannelIDs.includes(channel.numericID)) return false;
@@ -40,20 +43,19 @@ export function ChannelPriorityEditor({ value, onChange, channels, allowedChanne
       </div>
       <p className='text-muted-foreground text-xs'>{t('apikeys.priorities.description')}</p>
       {entries.map((entry, index) => {
-        const selected = options.find((channel) => channel.numericID === entry.channelId);
         const inScope = allowed.some((channel) => channel.numericID === entry.channelId);
         return (
           <div key={entry.channelId} className='space-y-1'>
             <div className='flex items-center gap-2'>
               <div className='min-w-0 flex-1 truncate rounded-md border px-3 py-2 text-sm'>
-                {selected?.name ?? t('apikeys.priorities.channelId', { id: entry.channelId })}
+                {labels.get(entry.channelId) ?? t('apikeys.priorities.channelId', { id: entry.channelId })}
               </div>
               <Input
                 type='number'
                 step='1'
                 className='w-24'
                 value={entry.priority}
-                aria-label={t('apikeys.priorities.value', { channel: selected?.name ?? entry.channelId })}
+                aria-label={t('apikeys.priorities.value', { channel: labels.get(entry.channelId) ?? entry.channelId })}
                 onChange={(event) =>
                   onChange(entries.map((item, position) => (position === index ? { ...item, priority: Number(event.target.value) } : item)))
                 }
@@ -88,7 +90,7 @@ export function ChannelPriorityEditor({ value, onChange, channels, allowedChanne
         <SelectContent>
           {available.map((channel) => (
             <SelectItem key={channel.id} value={String(channel.numericID)}>
-              {channel.name}
+              {labels.get(channel.numericID)}
             </SelectItem>
           ))}
         </SelectContent>

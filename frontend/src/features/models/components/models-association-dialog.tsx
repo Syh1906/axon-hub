@@ -18,6 +18,8 @@ import { Switch } from '@/components/ui/switch';
 import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AutoComplete } from '@/components/auto-complete';
+import { ChannelMultiSelect } from '@/features/channels/components/channel-multi-select';
+import { buildChannelSelectOptions } from '@/features/channels/utils/channel-select-options';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import {
   FilterBuilder,
@@ -787,9 +789,10 @@ export function ModelsAssociationDialog() {
   // Build channel options for select
   const channelOptions = useMemo((): ChannelOption[] => {
     if (!channelsData?.edges) return [];
+    const labels = new Map(buildChannelSelectOptions(channelsData.edges.map((edge) => edge.node)).map((option) => [option.id, option.label]));
     return channelsData.edges.map((edge) => ({
       value: extractNumberIDAsNumber(edge.node.id),
-      label: edge.node.name,
+      label: labels.get(extractNumberIDAsNumber(edge.node.id))!,
       type: edge.node.type,
       status: edge.node.status,
       tags: edge.node.tags || [],
@@ -1984,23 +1987,11 @@ function AssociationRow({
                   <FormItem className='space-y-1'>
                     <FormLabel className='text-xs'>{t('models.dialogs.association.excludeChannelIds')}</FormLabel>
                     <FormControl>
-                      <TagsAutocompleteInput
-                        value={(field.value || []).map((id: number) => {
-                          const channel = channelOptions.find((opt) => opt.value === id);
-                          return channel?.label || id.toString();
-                        })}
-                        onChange={(tags) => {
-                          const ids = tags
-                            .map((tag) => {
-                              const channel = channelOptions.find((opt) => opt.label === tag);
-                              return channel ? channel.value : parseInt(tag);
-                            })
-                            .filter((id) => !isNaN(id));
-                          field.onChange(ids);
-                        }}
+                      <ChannelMultiSelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        channels={channelOptions.map((option) => ({ id: option.value, name: option.label, tags: option.tags, type: option.type }))}
                         placeholder={t('models.dialogs.association.excludeChannelIds')}
-                        suggestions={channelOptions.map((opt) => opt.label)}
-                        className='h-auto min-h-10 py-1 sm:min-h-9'
                       />
                     </FormControl>
                     <FormMessage />

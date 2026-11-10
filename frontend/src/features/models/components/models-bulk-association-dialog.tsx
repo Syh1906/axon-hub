@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AutoComplete } from '@/components/auto-complete';
 import { useAllChannelSummarys } from '@/features/channels/data/channels';
+import { buildChannelSelectOptions } from '@/features/channels/utils/channel-select-options';
 import { useModels } from '../context/models-context';
 import { appendModelAssociations, queryModelChannelConnections } from '../data/models';
 import type { ModelAssociation } from '../data/schema';
@@ -45,9 +46,13 @@ export function ModelsBulkAssociationDialog() {
   const [results, setResults] = useState<Record<string, string>>({});
   const [models] = useState(selectedModels);
   const nodes = channels.data?.edges.map((edge) => edge.node) ?? [];
+  const channelLabels = useMemo(
+    () => new Map(buildChannelSelectOptions(channels.data?.edges.map((edge) => edge.node) ?? []).map((option) => [option.id, option.label])),
+    [channels.data]
+  );
   const options =
     mode === 'channels'
-      ? nodes.map((node) => ({ id: node.id, name: node.name }))
+      ? nodes.map((node) => ({ id: node.id, name: channelLabels.get(extractNumberIDAsNumber(node.id))! }))
       : [...new Set(nodes.flatMap((node) => node.tags ?? []))].sort().map((tag) => ({ id: tag, name: tag }));
   const drafts = useMemo(
     () =>

@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+计划发布 **v1.0.0-beta12-fork.5**（2026-11-10），沿用正式精简发布，仅发布双架构镜像及清单。包含 fork.4 后后台、费用、同名渠道与配置、分组自助用量、模型版本优先及审查修复；三个新增字段和渠道索引调整详见[更新说明](../../../.github/release-notes.md)。当前等待云端检查、发布及两台生产升级，实际完成状态在此回填。
+
 当前正式版为 [v1.0.0-beta12-fork.4](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.4)（2026-11-09），固定源码 `149bbe146563ea2bf373ee3f669ff835001955e8`。同提交 Test／Build／Lint／Govulncheck 与[精简发布](https://github.com/Syh1906/axon-hub/actions/runs/42588574729)均通过，发布 amd64／arm64 镜像及唯一附件 release.json；保持 `prerelease=false`、`publishBinaries=false`，版本号由tag写入产物。
 
 本版包含后台请求分段期限与诊断、渠道刷新／执行统计、流式收尾、历史偏好过期和标题延迟并发。新增两个采样计数字段及execution归档类别，无新必填配置，升级及回退限制见[更新说明](../../../.github/release-notes.md)。云悠、泉哥已依次更新；数据库版本和新增字段、配置／系统设置摘要、健康与静态资源均通过，数据库及其他容器保持。本轮配置副本已清理，未备份数据库，最近旧镜像保留。

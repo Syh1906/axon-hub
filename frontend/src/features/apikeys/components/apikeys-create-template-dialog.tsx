@@ -7,13 +7,13 @@ import { useQueryModels } from '@/gql/models';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSelectedProjectId } from '@/stores/projectStore';
-import { extractNumberID } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { ChannelMultiSelect } from '@/features/channels/components/channel-multi-select';
 import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
 import { Textarea } from '@/components/ui/textarea';
 import { AutoComplete } from '@/components/auto-complete';
@@ -334,23 +334,11 @@ export function ApiKeyCreateTemplateDialog({ open, onOpenChange }: ApiKeyCreateT
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <TagsAutocompleteInput
-                          value={(field.value || []).map((id) => {
-                            const channel = channelsData?.edges?.find((edge) => parseInt(extractNumberID(edge.node.id), 10) === id);
-                            return channel?.node.name || id.toString();
-                          })}
-                          onChange={(tags) => {
-                            const ids = tags
-                              .map((tag) => {
-                                const channel = channelsData?.edges?.find((edge) => edge.node.name === tag);
-                                return channel ? parseInt(extractNumberID(channel.node.id), 10) : parseInt(tag);
-                              })
-                              .filter((id) => !isNaN(id));
-                            field.onChange(ids);
-                          }}
+                        <ChannelMultiSelect
+                          value={field.value || []}
+                          onChange={field.onChange}
+                          channels={channelsData?.edges?.map((edge) => edge.node) ?? []}
                           placeholder={t('apikeys.profiles.allowedChannels')}
-                          suggestions={channelsData?.edges?.map((edge) => edge.node.name) || []}
-                          className='h-auto min-h-9 py-1'
                         />
                       </FormControl>
                       <FormMessage />

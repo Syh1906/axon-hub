@@ -21,8 +21,19 @@ func TestBackupUpstreamConfigurationAndCostSnapshot(t *testing.T) {
 	data, err := svc.Backup(ctx, BackupOptions{IncludeChannels: true})
 	require.NoError(t, err)
 	ch.Update().ClearUpstreamCredentials().SaveX(ctx)
+	// Version 1.7 creates a new channel unless an existing target is explicit.
 	require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{IncludeChannels: true, ChannelConflictStrategy: ConflictStrategyOverwrite}))
+	require.Nil(t, db.Channel.GetX(ctx, ch.ID).UpstreamCredentials)
+	copy := db.Channel.Query().Where(channel.IDNEQ(ch.ID)).OnlyX(ctx)
+	require.NotNil(t, copy.UpstreamCredentials)
+	require.Equal(t, 17, copy.UpstreamCredentials.Accounts[0].AccountID)
+	require.NoError(t, svc.Restore(ctx, bytesreader.NewReader(data), RestoreOptions{
+		IncludeChannels: true, ChannelConflictStrategy: ConflictStrategyOverwrite,
+		ChannelMappings: []*ChannelRestoreMapping{{SourceID: ch.ID, TargetID: ch.ID}},
+	}))
 	stored := db.Channel.GetX(ctx, ch.ID)
+	require.NotNil(t, stored.UpstreamCredentials)
+	require.Equal(t, 2, db.Channel.Query().CountX(ctx))
 	require.Equal(t, 17, stored.UpstreamCredentials.Accounts[0].AccountID)
 	require.Equal(t, "fixture-account", stored.UpstreamCredentials.Accounts[0].AccountToken)
 	require.Empty(t, stored.UpstreamCredentials.AccountToken)
