@@ -26,6 +26,7 @@ interface Props {
 // Form schema: reasoningEffortMapping is a list of {from, to} entries, validated for
 // uniqueness of `from` (duplicate from values would make the result order-dependent).
 const transformOptionsFormSchema = z.object({
+  codexPageContextCompatibility: z.boolean().optional(),
   forceArrayInstructions: z.boolean().optional(),
   forceArrayInputs: z.boolean().optional(),
   replaceDeveloperRoleWithSystem: z.boolean().optional(),
@@ -57,6 +58,7 @@ export function ChannelsTransformOptionsDialog({ open, onOpenChange, currentRow 
   const form = useForm<TransformOptionsFormValues>({
     resolver: zodResolver(transformOptionsFormSchema),
     defaultValues: {
+      codexPageContextCompatibility: currentRow.settings?.transformOptions?.codexPageContextCompatibility ?? false,
       forceArrayInstructions: currentRow.settings?.transformOptions?.forceArrayInstructions || false,
       forceArrayInputs: currentRow.settings?.transformOptions?.forceArrayInputs || false,
       replaceDeveloperRoleWithSystem: currentRow.settings?.transformOptions?.replaceDeveloperRoleWithSystem || false,
@@ -71,6 +73,7 @@ export function ChannelsTransformOptionsDialog({ open, onOpenChange, currentRow 
   useEffect(() => {
     if (open) {
       form.reset({
+        codexPageContextCompatibility: currentRow.settings?.transformOptions?.codexPageContextCompatibility ?? false,
         forceArrayInstructions: currentRow.settings?.transformOptions?.forceArrayInstructions || false,
         forceArrayInputs: currentRow.settings?.transformOptions?.forceArrayInputs || false,
         replaceDeveloperRoleWithSystem: currentRow.settings?.transformOptions?.replaceDeveloperRoleWithSystem || false,
@@ -105,6 +108,7 @@ export function ChannelsTransformOptionsDialog({ open, onOpenChange, currentRow 
   const onSubmit = async (values: TransformOptionsFormValues) => {
     try {
       const transformOptions: TransformOptions = {
+        codexPageContextCompatibility: values.codexPageContextCompatibility,
         forceArrayInstructions: values.forceArrayInstructions,
         forceArrayInputs: values.forceArrayInputs,
         replaceDeveloperRoleWithSystem: values.replaceDeveloperRoleWithSystem,
@@ -154,6 +158,27 @@ export function ChannelsTransformOptionsDialog({ open, onOpenChange, currentRow 
             <CardContent className='space-y-4'>
               <Form {...form}>
                 <form className='space-y-4'>
+                  <FormField
+                    control={form.control}
+                    name='codexPageContextCompatibility'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center gap-2'>
+                        <FormControl>
+                          <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <div className='flex flex-col gap-0.5'>
+                          <FormLabel className='cursor-pointer text-sm font-normal'>
+                            {t('channels.dialogs.fields.transformOptions.codexPageContextCompatibility.label')}
+                          </FormLabel>
+                          <p className='text-muted-foreground text-xs'>
+                            {t('channels.dialogs.fields.transformOptions.codexPageContextCompatibility.description')}
+                          </p>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name='forceArrayInstructions'

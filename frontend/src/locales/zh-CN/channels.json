@@ -411,6 +411,8 @@
   "channels.dialogs.fields.remark.label": "备注",
   "channels.dialogs.fields.remark.placeholder": "为此渠道输入备注或说明...",
   "channels.dialogs.fields.remark.description": "添加关于此渠道的备注或说明以供参考",
+  "channels.dialogs.fields.transformOptions.codexPageContextCompatibility.label": "兼容 Codex 页面上下文",
+  "channels.dialogs.fields.transformOptions.codexPageContextCompatibility.description": "当此渠道因 Codex 页面状态缺少 call_id 而返回 400 时启用。保留页面内容与顺序，以不可信外部资料发送；仅对本渠道的 Responses 请求生效。",
   "channels.dialogs.fields.transformOptions.forceArrayInstructions.label": "强制数组指令",
   "channels.dialogs.fields.transformOptions.forceArrayInstructions.description": "强制渠道接受数组格式的指令",
   "channels.dialogs.fields.transformOptions.forceArrayInputs.label": "强制数组输入",

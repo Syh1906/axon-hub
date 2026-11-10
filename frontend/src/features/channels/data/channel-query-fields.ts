@@ -86,6 +86,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
               disableConnectionReuse
             }
             transformOptions {
+              codexPageContextCompatibility
               forceArrayInstructions
               forceArrayInputs
               replaceDeveloperRoleWithSystem

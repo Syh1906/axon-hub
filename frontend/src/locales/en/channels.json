@@ -414,6 +414,8 @@
   "channels.dialogs.fields.remark.label": "Remark",
   "channels.dialogs.fields.remark.placeholder": "Enter a note or remark for this channel...",
   "channels.dialogs.fields.remark.description": "Add notes or remarks about this channel for reference",
+  "channels.dialogs.fields.transformOptions.codexPageContextCompatibility.label": "Codex Page context compatibility",
+  "channels.dialogs.fields.transformOptions.codexPageContextCompatibility.description": "Enable when this channel rejects Codex Page snapshots with a missing call_id (HTTP 400). Preserves their content and order as untrusted external context. Applies only to this channel's Responses requests.",
   "channels.dialogs.fields.transformOptions.forceArrayInstructions.label": "Force Array Instructions",
   "channels.dialogs.fields.transformOptions.forceArrayInstructions.description": "Force the channel to accept array format for instructions",
   "channels.dialogs.fields.transformOptions.forceArrayInputs.label": "Force Array Inputs",

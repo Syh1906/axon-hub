@@ -360,6 +360,7 @@ export const reasoningEffortMappingSchema = z.object({
 export type ReasoningEffortMapping = z.infer<typeof reasoningEffortMappingSchema>;
 
 export const transformOptionsSchema = z.object({
+  codexPageContextCompatibility: z.boolean().optional(),
   forceArrayInstructions: z.boolean().optional(),
   forceArrayInputs: z.boolean().optional(),
   replaceDeveloperRoleWithSystem: z.boolean().optional(),

@@ -93,6 +93,9 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 		applyUpstreamAddress(outbound),
 		verifyResponsesAttempt(outbound),
 		finalizeTransportRequest(outbound),
+		// Adapt only the selected channel's final Responses body, including restored
+		// history and pass-through, before recording or sending the attempt.
+		applyCodexPageContextCompatibility(outbound),
 
 		// Unified performance tracking middleware.
 		withoutResponsesRecoveryPenalty(withPerformanceRecording(outbound)),

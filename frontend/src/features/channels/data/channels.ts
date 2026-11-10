@@ -74,6 +74,7 @@ const CREATE_CHANNEL_MUTATION = `
           disableConnectionReuse
         }
         transformOptions {
+          codexPageContextCompatibility
           forceArrayInstructions
           forceArrayInputs
           replaceDeveloperRoleWithSystem
@@ -189,6 +190,7 @@ const DUPLICATE_CHANNEL_MUTATION = `
           disableConnectionReuse
         }
         transformOptions {
+          codexPageContextCompatibility
           forceArrayInstructions
           forceArrayInputs
           replaceDeveloperRoleWithSystem
@@ -304,6 +306,7 @@ const BULK_CREATE_CHANNELS_MUTATION = `
           disableConnectionReuse
         }
         transformOptions {
+          codexPageContextCompatibility
           forceArrayInstructions
           forceArrayInputs
           replaceDeveloperRoleWithSystem
@@ -418,6 +421,7 @@ const CHANNEL_FIELDS_FRAGMENT = `
           disableConnectionReuse
         }
         transformOptions {
+          codexPageContextCompatibility
           forceArrayInstructions
           forceArrayInputs
           replaceDeveloperRoleWithSystem
@@ -687,6 +691,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           lowercaseModelId
           quotaRoutingMode
           transformOptions {
+            codexPageContextCompatibility
             forceArrayInstructions
             forceArrayInputs
             replaceDeveloperRoleWithSystem
@@ -939,6 +944,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           lowercaseModelId
           quotaRoutingMode
           transformOptions {
+            codexPageContextCompatibility
             forceArrayInstructions
             forceArrayInputs
             replaceDeveloperRoleWithSystem

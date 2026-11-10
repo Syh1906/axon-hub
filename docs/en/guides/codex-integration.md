@@ -303,6 +303,14 @@ Responses-to-Responses conversion preserves the original tool-output `type`, `id
 
 This does not require enabling WebSocket on the client. Direct HTTPS and safe WSS-to-HTTPS fallback before sending share these conversions. The upstream must still support standalone tool outputs. For a missing-`call_id` error, first compare these fields in the inbound and outbound requests, then check upstream support. Switching transport does not establish field compatibility, and ordinary HTTP parameter errors do not trigger protocol fallback.
 
+### Per-channel Page context compatibility
+
+Codex Desktop may attach standalone `agent.codex_apps_open_page` and `agent.codex_apps_selected_page_part_N_of_M` outputs when submitting a message. Even without an open Page, it sends `page_id: null` to clear earlier Page state. These notifications do not answer a model-issued tool call and have no `call_id`, so a new chat can still receive HTTP 400 from a provider that requires one.
+
+For a Responses channel with this confirmed incompatibility, enable **Channels → Transform Options → Codex Page context compatibility**. It defaults to off and is stored as `settings.transformOptions.codexPageContextCompatibility`. Matching standalone Page outputs are represented as user-role text explicitly marked as untrusted external data, retaining the original notification fields, content, ordering, fragments, and null state. They are not user instructions, are never promoted to system/developer messages, and receive no fabricated call IDs.
+
+Ordinary tool results, cross-thread deliveries, and unrecognized inputs retain their existing behavior. Adaptation runs immediately before dispatch for this channel, covering body pass-through, reconstructed requests, and restored continuation history. A fallback channel with the option off still receives the original input. Execution details record the adapted body actually sent. Turning the option off restores the original forwarding behavior without a client transport change or database migration.
+
 ### Complete Continuation History and Mode Billing
 
 Restoration follows `previous_response_id` through every ancestor until a complete starting request or cached ancestor is available. Each lookup retains the current key and project scope. The 1 MiB limit controls cache admission, not usable history size: larger records can be used directly for the current request. Missing, cyclic, or malformed ancestors never produce partial input.

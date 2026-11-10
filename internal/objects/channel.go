@@ -124,6 +124,10 @@ func HeaderEntriesToOverrideOperations(headers []HeaderEntry) []OverrideOperatio
 }
 
 type TransformOptions struct {
+	// CodexPageContextCompatibility adapts standalone Page snapshots for Responses
+	// providers that require call IDs on every tool output. Disabled by default.
+	CodexPageContextCompatibility bool `json:"codexPageContextCompatibility,omitempty"`
+
 	// ForceArrayInstructions forces the channel to accept array format for instructions.
 	ForceArrayInstructions bool `json:"forceArrayInstructions"`
 
