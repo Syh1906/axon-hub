@@ -217,7 +217,9 @@ fork 改动，由用户决定。
 
 ### Codex 目录与客户端传输选择
 
-- Page 上下文按渠道兼容（2026-11-10，本地实现，未发布）：新增默认关闭的 `settings.transformOptions.codexPageContextCompatibility`，在具体 Responses 渠道出站前，将已识别的 `agent.codex_apps_open_page`／`codex_apps_selected_page_part_N_of_M` 独立通知表达为明确标注不可信来源的文本，保留原字段、内容、顺序、分片及空状态清除含义。普通工具与跨聊天投递保持；不造调用编号、不自动更换传输。透传、重建、历史重放及重试隔离共用该边界，执行记录保存实际发送正文。同步上游时核对中间件顺序、GraphQL 设置输入/输出和渠道表单读写链，不能恢复为全局改写或只修重建路径。无数据库迁移，旧配置默认为关闭；使用方式见 [Page 兼容说明](zh/guides/codex-integration.md#page-上下文的渠道兼容)。
+- Page 上下文按渠道兼容（2026-11-10，已发布快照并部署双机）：新增默认关闭的 `settings.transformOptions.codexPageContextCompatibility`，在具体 Responses 渠道出站前，将已识别的 `agent.codex_apps_open_page`／`codex_apps_selected_page_part_N_of_M` 独立通知表达为明确标注不可信来源的文本，保留原字段、内容、顺序、分片及空状态清除含义。普通工具与跨聊天投递保持；不造调用编号、不自动更换传输。透传、重建、历史重放及重试隔离共用该边界，执行记录保存实际发送正文。同步上游时核对中间件顺序、GraphQL 设置输入/输出和渠道表单读写链，不能恢复为全局改写或只修重建路径。无数据库迁移，旧配置默认为关闭；使用方式见 [Page 兼容说明](zh/guides/codex-integration.md#page-上下文的渠道兼容)。
+
+- 部署验收：快照 `snapshot-f75f10494a40-42771143170-1`，源码 `f75f10494a40e04f4bec663cb7dc4a402ceabf99`，[构建任务](https://github.com/Syh1906/axon-hub/actions/runs/42771143170) 的源码测试、双架构构建和启动检查全部通过；[固定镜像清单](../output/implementation/snapshot-page-context-20261110/snapshot.json)。云悠、泉哥依次更新并通过健康/版本/资源检查，两台圆圆通过管理页面开启且刷新回读保持，其他设置摘要一致。泉哥自然请求执行 #74734、#74746 含兼容转换标记并完成；未额外重放收费请求，不表示所有模型/计费均已验证。下载期间出现分发连接低速与同步命令超时，改为一次性任务按收据接续；没有变更镜像来源或生产网络配置。本轮配置副本和拉取日志已清理，旧镜像保留。
 
 - 本次快照准备修正（2026-11-10）：发布编号下限升至 5 后，历史 `fork.1` 被 `snapshot.mjs` 的遍历校验误拒绝。现在下限只约束所选基线，历史仍按原格式验证并检查更晚编号；不降低正式发布/快照基线的要求。新增真实 Git 历史回归，快照脚本 8 项通过。没有变更镜像身份、迁移限制或正式 tag。
 
