@@ -6,7 +6,7 @@ The [release notes](../../../.github/release-notes.md) cover the complete interv
 
 Cloud and Quan passed basic deployment checks at 22:25:21 and 22:27:54 Singapore time. Both use `sha256:42069c614157976a43d12f6a226bfc93cf38513da317784df70d367757b60456`. Recreation and health waits took 7.291/7.455 seconds, not measured per-request downtime. Local/public health, version/commit, initialization, 33 homepage assets and anonymous authorization passed. System version, two plugin tables, trace field/index and historical backfill were verified; channel/model/project/key ID sets were preserved.
 
-Only the application image changed. Database and other containers were not recreated; environment, resources, mounts, proxy and other configuration digests were preserved. Temporary configuration copies were removed and no database backup was created. **All old snapshot and stable images remain retained for separate retirement.** Old startup migrations may remove unknown schema, so retained images do not guarantee lossless database rollback.
+Only the application image changed. Database and other containers were not recreated; environment, resources, mounts, proxy and other configuration digests were preserved. Temporary configuration copies were removed and no database backup was created. The old snapshots retained during deployment were retired under subsequent authorization on 2026-11-10; old stable images remain. See the [retirement receipt](https://github.com/Syh1906/axon-hub/actions/runs/42836652913). Old startup migrations may remove unknown schema, so retained images do not guarantee lossless database rollback.
 
 A read-only natural traffic sample showed Cloud: 44 completed, 2 canceled, 1 failed, 2 processing; Quan: 8 completed, 1 failed, 2 processing. Both failures belong to one cross-host request chain: a Quan upstream attempt returned `unsupported_encrypted_agent_message`, followed by a final 400; Cloud observed 500/502 before the corresponding 400. This provider compatibility failure remains unresolved and is not established as unrelated to the upgrade. Basic deployment checks do not prove every business request succeeds. Authenticated pages, real-provider WS end-to-end behavior, paid billing and sustained load were not retested; existing zero-body timeout and external Redis limitations remain. See the ledger and local release record for evidence.
 
@@ -221,6 +221,7 @@ personal-token scopes. It deletes only package versions for the old manifest's t
 exact tags and that run's manifest and `.dockerbuild` artifacts. Shared tags or a
 replacement digest block deletion. Preserve workflow history and retirement receipts;
 record completed operations and stop on partial failure without automatic retries.
+The replacement release validator accepts current `-fork.N` and historical `.syh.N` versions.
 
 Snapshots use the same version format and provenance rules as releases: the base tag must include both the original upstream and inherited fork. A commit containing a later fork.N tag cannot produce a snapshot from an older base. Historical ChouUn configurations retain their .syh.N snapshot validation.
 
