@@ -13,9 +13,11 @@ import (
 // ModelChannelConnection represents a channel and its matched model entries.
 // This is used to return association match results.
 type ModelChannelConnection struct {
-	Channel  *ent.Channel        `json:"channel"`
-	Models   []ChannelModelEntry `json:"models"`
-	Priority int                 `json:"priority"`
+	UnrankedModelIDs    []string            `json:"unrankedModelIDs,omitempty"`
+	PreferLatestVersion bool                `json:"preferLatestVersion"`
+	Channel             *ent.Channel        `json:"channel"`
+	Models              []ChannelModelEntry `json:"models"`
+	Priority            int                 `json:"priority"`
 }
 
 // AssociationMatch groups the connections produced by a single association.
@@ -199,9 +201,10 @@ func matchChannelModel(assoc *objects.ModelAssociation, channels []*Channel, tra
 
 	return []*ModelChannelConnection{
 		{
-			Channel:  ch.Channel,
-			Models:   []ChannelModelEntry{entry},
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              []ChannelModelEntry{entry},
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		},
 	}
 }
@@ -221,16 +224,7 @@ func matchChannelRegex(assoc *objects.ModelAssociation, channels []*Channel, tra
 
 	entries := ch.GetModelEntries()
 
-	var models []ChannelModelEntry
-
-	for modelID, entry := range entries {
-		if xregexp.MatchString(assoc.ChannelRegex.Pattern, modelID) {
-			// Check deduplication
-			if tracker.Add(ch.ID, modelID) {
-				models = append(models, entry)
-			}
-		}
-	}
+	models := matchVersionedEntries(assoc, assoc.ChannelRegex.Pattern, entries, tracker, ch.ID)
 
 	if len(models) == 0 {
 		return nil
@@ -238,9 +232,10 @@ func matchChannelRegex(assoc *objects.ModelAssociation, channels []*Channel, tra
 
 	return []*ModelChannelConnection{
 		{
-			Channel:  ch.Channel,
-			Models:   models,
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              models,
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		},
 	}
 }
@@ -261,25 +256,17 @@ func matchRegex(assoc *objects.ModelAssociation, channels []*Channel, tracker *D
 
 		entries := ch.GetModelEntries()
 
-		var models []ChannelModelEntry
-
-		for modelID, entry := range entries {
-			if xregexp.MatchString(assoc.Regex.Pattern, modelID) {
-				// Check deduplication
-				if tracker.Add(ch.ID, modelID) {
-					models = append(models, entry)
-				}
-			}
-		}
+		models := matchVersionedEntries(assoc, assoc.Regex.Pattern, entries, tracker, ch.ID)
 
 		if len(models) == 0 {
 			continue
 		}
 
 		connections = append(connections, &ModelChannelConnection{
-			Channel:  ch.Channel,
-			Models:   models,
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              models,
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		})
 	}
 
@@ -314,9 +301,10 @@ func matchModel(assoc *objects.ModelAssociation, channels []*Channel, tracker *D
 		}
 
 		connections = append(connections, &ModelChannelConnection{
-			Channel:  ch.Channel,
-			Models:   []ChannelModelEntry{entry},
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              []ChannelModelEntry{entry},
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		})
 	}
 
@@ -400,9 +388,10 @@ func matchChannelTagsModel(assoc *objects.ModelAssociation, channels []*Channel,
 		}
 
 		connections = append(connections, &ModelChannelConnection{
-			Channel:  ch.Channel,
-			Models:   []ChannelModelEntry{entry},
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              []ChannelModelEntry{entry},
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		})
 	}
 
@@ -439,25 +428,17 @@ func matchChannelTagsRegex(assoc *objects.ModelAssociation, channels []*Channel,
 
 		entries := ch.GetModelEntries()
 
-		var models []ChannelModelEntry
-
-		for modelID, entry := range entries {
-			if xregexp.MatchString(assoc.ChannelTagsRegex.Pattern, modelID) {
-				// Check deduplication
-				if tracker.Add(ch.ID, modelID) {
-					models = append(models, entry)
-				}
-			}
-		}
+		models := matchVersionedEntries(assoc, assoc.ChannelTagsRegex.Pattern, entries, tracker, ch.ID)
 
 		if len(models) == 0 {
 			continue
 		}
 
 		connections = append(connections, &ModelChannelConnection{
-			Channel:  ch.Channel,
-			Models:   models,
-			Priority: assoc.Priority,
+			Channel:             ch.Channel,
+			Models:              models,
+			Priority:            assoc.Priority,
+			PreferLatestVersion: assoc.PreferLatestVersion,
 		})
 	}
 

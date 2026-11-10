@@ -5,6 +5,10 @@ import { groupChannelModels } from '../utils/group-channel-models';
 
 interface ChannelModel {
   requestModel: string;
+  actualModel?: string;
+  priority?: number;
+  rank?: number;
+  ordered?: boolean;
 }
 
 interface Channel {
@@ -18,13 +22,36 @@ interface ChannelModelsListProps {
   channels: Array<{
     channel: Channel;
     models: ChannelModel[];
+    priority?: number;
+    preferLatestVersion?: boolean;
+    unrankedModelIDs?: string[];
   }>;
   emptyMessage?: string;
 }
 
 export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListProps) {
   const { t } = useTranslation();
-  const groupedChannels = useMemo(() => groupChannelModels(channels), [channels]);
+  const groupedChannels = useMemo(
+    () =>
+      groupChannelModels(
+        channels.map((conn) => ({
+          ...conn,
+          models: conn.models.map((model, rank) => ({ ...model, rank, priority: conn.priority, ordered: conn.preferLatestVersion })),
+        }))
+      ),
+    [channels]
+  );
+
+  const warnings = useMemo(() => {
+    const result = new Map<string | number, Set<string>>();
+    for (const connection of channels) {
+      if (!connection.unrankedModelIDs?.length) continue;
+      const ids = result.get(connection.channel.id) ?? new Set<string>();
+      for (const id of connection.unrankedModelIDs) ids.add(id);
+      result.set(connection.channel.id, ids);
+    }
+    return result;
+  }, [channels]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,10 +98,28 @@ export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListP
               </Badge>
             </div>
           </div>
+          {warnings.has(conn.channel.id) && (
+            <p role='status' className='text-muted-foreground mb-2 text-xs'>
+              {t('models.dialogs.association.versionOrder.excluded', { ids: [...warnings.get(conn.channel.id)!].join(', ') })}
+            </p>
+          )}
           <div className='space-y-1'>
             {conn.models.map((model) => (
               <div key={model.requestModel} className='bg-muted rounded px-2 py-1 text-xs'>
+                {model.priority !== undefined && (
+                  <span className='text-muted-foreground mr-2'>
+                    {t('models.dialogs.association.versionOrder.priority')} {model.priority}
+                  </span>
+                )}
                 {model.requestModel}
+                {model.actualModel && model.actualModel !== model.requestModel && (
+                  <span className='text-muted-foreground'> → {model.actualModel}</span>
+                )}
+                {model.ordered && (
+                  <Badge variant='secondary' className='ml-2 text-[10px]'>
+                    {t(`models.dialogs.association.versionOrder.${model.rank === 0 ? 'first' : 'fallback'}`)}
+                  </Badge>
+                )}
               </div>
             ))}
           </div>

@@ -361,5 +361,17 @@
   "models.dialogs.association.conditions.fields.reasoning_effort": "Reasoning effort",
   "models.dialogs.association.conditions.placeholders.reasoning_effort": "e.g. high, xhigh, max",
   "models.dialogs.association.conditions.formatOptions.openai/decisions": "OpenAI (Decisions)",
-  "models.modelCard.reasoningEfforts": "Thinking Levels"
+  "models.modelCard.reasoningEfforts": "Thinking Levels",
+  "models.dialogs.association.versionOrder.label": "Prefer newer versions",
+  "models.dialogs.association.versionOrder.scope": "Within each channel",
+  "models.dialogs.association.versionOrder.summary": "Orders models within this rule without changing channel priorities.",
+  "models.dialogs.association.versionOrder.help": "Usage",
+  "models.dialogs.association.versionOrder.capture": "Mark the numeric version with (?<version>...) to sort newest first.",
+  "models.dialogs.association.versionOrder.family": "The -sol suffix limits the family; 6.10 ranks ahead of 6.9.",
+  "models.dialogs.association.versionOrder.catalog": "New versions must appear in the channel model list. IDs without numeric versions are excluded.",
+  "models.dialogs.association.versionOrder.retry": "Trying fallback models depends on the existing retry policy.",
+  "models.dialogs.association.versionOrder.priority": "Priority",
+  "models.dialogs.association.versionOrder.first": "First in this rule",
+  "models.dialogs.association.versionOrder.fallback": "Fallback",
+  "models.dialogs.association.versionOrder.excluded": "Excluded from this rule because no numeric version was captured: {{ids}}"
 }

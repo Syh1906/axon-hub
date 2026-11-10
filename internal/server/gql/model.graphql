@@ -47,6 +47,7 @@ type ModelSettings {
 }
 
 type ModelAssociation {
+  preferLatestVersion: Boolean!
   type: String!
   priority: Int!
   disabled: Boolean!
@@ -160,6 +161,7 @@ input ModelContextSettingsInput {
 }
 
 input ModelAssociationInput {
+  preferLatestVersion: Boolean
   type: String!
   priority: Int
   disabled: Boolean
@@ -219,6 +221,8 @@ input ChannelTagsRegexAssociationInput {
 }
 
 type ModelChannelConnection {
+  unrankedModelIDs: [String!]!
+  preferLatestVersion: Boolean!
   channel: Channel!
   models: [ChannelModelEntry!]!
   priority: Int!

@@ -91,6 +91,10 @@ func validateModelSettings(settings *objects.ModelSettings) error {
 			return fmt.Errorf("channel_request association requires a channel")
 		}
 
+		if err := validateAssociationVersionOrder(assoc); err != nil {
+			return err
+		}
+
 		if err := validateModelAssociationWhen(assoc.When); err != nil {
 			return fmt.Errorf("invalid when condition: %w", err)
 		}
@@ -672,6 +676,12 @@ func (svc *ModelService) QueryModelChannelConnectionsForModel(ctx context.Contex
 		return []*ModelChannelConnection{}, nil
 	}
 
+	for _, assoc := range associations {
+		if err := validateAssociationVersionOrder(assoc); err != nil {
+			return nil, err
+		}
+	}
+
 	// Query all enabled/disabled channels
 	channels, err := svc.entFromContext(ctx).Channel.Query().
 		Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).
@@ -685,10 +695,10 @@ func (svc *ModelService) QueryModelChannelConnectionsForModel(ctx context.Contex
 		return []*ModelChannelConnection{}, nil
 	}
 
+	wrappedChannels := lo.Map(channels, func(ch *ent.Channel, _ int) *Channel { return &Channel{Channel: ch} })
+
 	// Use the shared MatchAssociations function
-	return MatchConnectionsForModel(associations, lo.Map(channels, func(ch *ent.Channel, _ int) *Channel {
-		return &Channel{Channel: ch}
-	}), requestModelID), nil
+	return appendVersionPreviewWarnings(MatchConnectionsForModel(associations, wrappedChannels, requestModelID), associations, wrappedChannels), nil
 }
 
 // GetModelByModelID retrieves a model by its modelId and status.

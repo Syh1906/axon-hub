@@ -15,11 +15,13 @@ import { appendModelAssociations, queryModelChannelConnections } from '../data/m
 import type { ModelAssociation } from '../data/schema';
 import {
   associationTypeLabels,
+  filterAssociationsByMatchedChannels,
   buildBulkAssociations,
   appendAssociations,
   MAX_ASSOCIATION_PRIORITY,
   clampAssociationPriority,
 } from '../utils/bulk-associations';
+import { VersionOrderEditor } from './version-order-editor';
 
 export function ModelsBulkAssociationDialog() {
   const { t } = useTranslation();
@@ -30,6 +32,7 @@ export function ModelsBulkAssociationDialog() {
   const [type, setType] = useState<ModelAssociation['type']>('channel_model');
   const mode = type.startsWith('channel_tags_') ? 'tags' : type.startsWith('channel_') ? 'channels' : 'global';
   const isPattern = type.includes('regex');
+  const [preferLatestVersion, setPreferLatestVersion] = useState(false);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [targets, setTargets] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -57,9 +60,13 @@ export function ModelsBulkAssociationDialog() {
           value,
           priority
         );
-        return { model, modelID: value, proposed: candidates };
+        return {
+          model,
+          modelID: value,
+          proposed: candidates.map((candidate) => ({ ...candidate, preferLatestVersion: isPattern && preferLatestVersion })),
+        };
       }),
-    [models, type, mode, targets, names, priority, isPattern]
+    [models, type, mode, targets, names, priority, isPattern, preferLatestVersion]
   );
   const draftSignature = JSON.stringify(drafts.map((row) => row.proposed));
   const debouncedSignature = useDebounce(draftSignature, 350);
@@ -82,14 +89,21 @@ export function ModelsBulkAssociationDialog() {
     const matches =
       type === 'channel_request'
         ? row.proposed
-        : !checking && !error && preview.data?.length
-          ? row.proposed.filter((candidate) => {
-              const channelId = candidate.channelModel?.channelId ?? candidate.channelRegex?.channelId;
-              return channelId == null || preview.data.some((connection) => extractNumberIDAsNumber(connection.channel.id) === channelId);
-            })
+        : !checking && !error
+          ? filterAssociationsByMatchedChannels(
+              row.proposed,
+              preview.data?.map((connection) => extractNumberIDAsNumber(connection.channel.id)) ?? []
+            )
           : [];
     const candidates = appendAssociations(row.model.settings.associations, matches).slice(row.model.settings.associations.length);
-    return { ...row, candidates, checking, error, duplicates: matches.length - candidates.length };
+    return {
+      ...row,
+      candidates,
+      checking,
+      error,
+      unrankedModelIDs: previewReady ? (preview?.data?.flatMap((connection) => connection.unrankedModelIDs ?? []) ?? []) : [],
+      duplicates: matches.length - candidates.length,
+    };
   });
   const modelOptions = [
     ...new Set(
@@ -266,7 +280,9 @@ export function ModelsBulkAssociationDialog() {
                             (row.checking
                               ? label('checking')
                               : row.error
-                                ? label('previewFailed')
+                                ? row.error instanceof Error
+                                  ? row.error.message
+                                  : label('previewFailed')
                                 : row.candidates.length
                                   ? t('models.bulk.newCount', { count: row.candidates.length })
                                   : row.duplicates
@@ -274,6 +290,11 @@ export function ModelsBulkAssociationDialog() {
                                     : row.modelID
                                       ? label('unmatched')
                                       : label('enterModel'))}
+                        {row.unrankedModelIDs.length > 0 && (
+                          <p className='text-muted-foreground text-xs'>
+                            {t('models.dialogs.association.versionOrder.excluded', { ids: [...new Set(row.unrankedModelIDs)].join(', ') })}
+                          </p>
+                        )}
                         {row.duplicates > 0 && (
                           <div className='text-muted-foreground text-xs'>{t('models.bulk.duplicates', { count: row.duplicates })}</div>
                         )}
@@ -283,6 +304,7 @@ export function ModelsBulkAssociationDialog() {
               </tbody>
             </table>
           </div>
+          {isPattern && <VersionOrderEditor checked={preferLatestVersion} onChange={setPreferLatestVersion} />}
         </fieldset>
         <p className='text-muted-foreground shrink-0 text-sm'>
           {t('models.bulk.summary', {

@@ -8,6 +8,7 @@ export function clampAssociationPriority(value: number) {
 export function sameAssociation(a: ModelAssociation, b: ModelAssociation) {
   if (a.disabled || a.when?.enabled) return false;
   if (a.type !== b.type) return false;
+  if (Boolean(a.preferLatestVersion) !== Boolean(b.preferLatestVersion)) return false;
   const excludes = a.regex?.exclude ?? a.modelId?.exclude;
   if (excludes?.some((item) => item.channelIds?.length || item.channelTags?.length || item.channelNamePattern)) return false;
   if (a.type === 'channel_request') return a.channelRequest?.channelId === b.channelRequest?.channelId;
@@ -72,4 +73,15 @@ export function buildBulkAssociations(
     case 'regex':
       return [{ ...base, regex: { pattern: text } }];
   }
+}
+
+// Version rules may intentionally target models that will become available later.
+export function filterAssociationsByMatchedChannels(candidates: ModelAssociation[], channelIds: number[]) {
+  const matched = new Set(channelIds);
+  return candidates.filter((candidate) => {
+    if (candidate.type === 'channel_request' || (candidate.preferLatestVersion && candidate.type.includes('regex'))) return true;
+    if (!matched.size) return false;
+    const channelId = candidate.channelModel?.channelId ?? candidate.channelRegex?.channelId;
+    return channelId == null || matched.has(channelId);
+  });
 }

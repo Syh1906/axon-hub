@@ -1403,17 +1403,18 @@ type ComplexityRoot struct {
 	}
 
 	ModelAssociation struct {
-		ChannelModel     func(childComplexity int) int
-		ChannelRegex     func(childComplexity int) int
-		ChannelRequest   func(childComplexity int) int
-		ChannelTagsModel func(childComplexity int) int
-		ChannelTagsRegex func(childComplexity int) int
-		Disabled         func(childComplexity int) int
-		ModelID          func(childComplexity int) int
-		Priority         func(childComplexity int) int
-		Regex            func(childComplexity int) int
-		Type             func(childComplexity int) int
-		When             func(childComplexity int) int
+		ChannelModel        func(childComplexity int) int
+		ChannelRegex        func(childComplexity int) int
+		ChannelRequest      func(childComplexity int) int
+		ChannelTagsModel    func(childComplexity int) int
+		ChannelTagsRegex    func(childComplexity int) int
+		Disabled            func(childComplexity int) int
+		ModelID             func(childComplexity int) int
+		PreferLatestVersion func(childComplexity int) int
+		Priority            func(childComplexity int) int
+		Regex               func(childComplexity int) int
+		Type                func(childComplexity int) int
+		When                func(childComplexity int) int
 	}
 
 	ModelAssociationWhen struct {
@@ -1459,9 +1460,11 @@ type ComplexityRoot struct {
 	}
 
 	ModelChannelConnection struct {
-		Channel  func(childComplexity int) int
-		Models   func(childComplexity int) int
-		Priority func(childComplexity int) int
+		Channel             func(childComplexity int) int
+		Models              func(childComplexity int) int
+		PreferLatestVersion func(childComplexity int) int
+		Priority            func(childComplexity int) int
+		UnrankedModelIDs    func(childComplexity int) int
 	}
 
 	ModelConnection struct {
@@ -8988,6 +8991,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelAssociation.ModelID(childComplexity), true
+	case "ModelAssociation.preferLatestVersion":
+		if e.complexity.ModelAssociation.PreferLatestVersion == nil {
+			break
+		}
+
+		return e.complexity.ModelAssociation.PreferLatestVersion(childComplexity), true
 	case "ModelAssociation.priority":
 		if e.complexity.ModelAssociation.Priority == nil {
 			break
@@ -9175,12 +9184,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelChannelConnection.Models(childComplexity), true
+	case "ModelChannelConnection.preferLatestVersion":
+		if e.complexity.ModelChannelConnection.PreferLatestVersion == nil {
+			break
+		}
+
+		return e.complexity.ModelChannelConnection.PreferLatestVersion(childComplexity), true
 	case "ModelChannelConnection.priority":
 		if e.complexity.ModelChannelConnection.Priority == nil {
 			break
 		}
 
 		return e.complexity.ModelChannelConnection.Priority(childComplexity), true
+	case "ModelChannelConnection.unrankedModelIDs":
+		if e.complexity.ModelChannelConnection.UnrankedModelIDs == nil {
+			break
+		}
+
+		return e.complexity.ModelChannelConnection.UnrankedModelIDs(childComplexity), true
 
 	case "ModelConnection.edges":
 		if e.complexity.ModelConnection.Edges == nil {
@@ -45643,6 +45664,8 @@ func (ec *executionContext) fieldContext_DeveloperModelSettings_associations(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "preferLatestVersion":
+				return ec.fieldContext_ModelAssociation_preferLatestVersion(ctx, field)
 			case "type":
 				return ec.fieldContext_ModelAssociation_type(ctx, field)
 			case "priority":
@@ -49567,6 +49590,35 @@ func (ec *executionContext) fieldContext_Model_associatedChannelCount(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelAssociation_preferLatestVersion(ctx context.Context, field graphql.CollectedField, obj *objects.ModelAssociation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelAssociation_preferLatestVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.PreferLatestVersion, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelAssociation_preferLatestVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelAssociation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ModelAssociation_type(ctx context.Context, field graphql.CollectedField, obj *objects.ModelAssociation) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -50672,6 +50724,64 @@ func (ec *executionContext) _ModelCardReasoning_default(ctx context.Context, fie
 func (ec *executionContext) fieldContext_ModelCardReasoning_default(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ModelCardReasoning",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModelChannelConnection_unrankedModelIDs(ctx context.Context, field graphql.CollectedField, obj *biz.ModelChannelConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelChannelConnection_unrankedModelIDs,
+		func(ctx context.Context) (any, error) {
+			return obj.UnrankedModelIDs, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelChannelConnection_unrankedModelIDs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelChannelConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModelChannelConnection_preferLatestVersion(ctx context.Context, field graphql.CollectedField, obj *biz.ModelChannelConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelChannelConnection_preferLatestVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.PreferLatestVersion, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelChannelConnection_preferLatestVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelChannelConnection",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -52190,6 +52300,8 @@ func (ec *executionContext) fieldContext_ModelSettings_associations(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "preferLatestVersion":
+				return ec.fieldContext_ModelAssociation_preferLatestVersion(ctx, field)
 			case "type":
 				return ec.fieldContext_ModelAssociation_type(ctx, field)
 			case "priority":
@@ -70823,6 +70935,10 @@ func (ec *executionContext) fieldContext_Query_queryModelChannelConnections(ctx 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "unrankedModelIDs":
+				return ec.fieldContext_ModelChannelConnection_unrankedModelIDs(ctx, field)
+			case "preferLatestVersion":
+				return ec.fieldContext_ModelChannelConnection_preferLatestVersion(ctx, field)
 			case "channel":
 				return ec.fieldContext_ModelChannelConnection_channel(ctx, field)
 			case "models":
@@ -109350,13 +109466,20 @@ func (ec *executionContext) unmarshalInputModelAssociationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"type", "priority", "disabled", "when", "channelModel", "channelRegex", "regex", "modelId", "channelTagsModel", "channelTagsRegex", "channelRequest"}
+	fieldsInOrder := [...]string{"preferLatestVersion", "type", "priority", "disabled", "when", "channelModel", "channelRegex", "regex", "modelId", "channelTagsModel", "channelTagsRegex", "channelRequest"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "preferLatestVersion":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("preferLatestVersion"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PreferLatestVersion = data
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -139449,6 +139572,11 @@ func (ec *executionContext) _ModelAssociation(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ModelAssociation")
+		case "preferLatestVersion":
+			out.Values[i] = ec._ModelAssociation_preferLatestVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "type":
 			out.Values[i] = ec._ModelAssociation_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -139811,6 +139939,16 @@ func (ec *executionContext) _ModelChannelConnection(ctx context.Context, sel ast
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ModelChannelConnection")
+		case "unrankedModelIDs":
+			out.Values[i] = ec._ModelChannelConnection_unrankedModelIDs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "preferLatestVersion":
+			out.Values[i] = ec._ModelChannelConnection_preferLatestVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channel":
 			out.Values[i] = ec._ModelChannelConnection_channel(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

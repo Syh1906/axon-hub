@@ -361,5 +361,17 @@
   "models.dialogs.association.conditions.fields.reasoning_effort": "推理强度",
   "models.dialogs.association.conditions.placeholders.reasoning_effort": "例如 high、xhigh、max",
   "models.dialogs.association.conditions.formatOptions.openai/decisions": "OpenAI（决策 API）",
-  "models.modelCard.reasoningEfforts": "思考等级"
+  "models.modelCard.reasoningEfforts": "思考等级",
+  "models.dialogs.association.versionOrder.label": "版本较新优先",
+  "models.dialogs.association.versionOrder.scope": "同一渠道内",
+  "models.dialogs.association.versionOrder.summary": "只调整当前规则内的模型顺序，渠道优先级保持不变。",
+  "models.dialogs.association.versionOrder.help": "使用说明",
+  "models.dialogs.association.versionOrder.capture": "用 (?<version>...) 标出版本数字，按数字从大到小排序。",
+  "models.dialogs.association.versionOrder.family": "末尾 -sol 限定模型家族；6.10 排在 6.9 前。",
+  "models.dialogs.association.versionOrder.catalog": "新版本需先加入渠道支持列表；未识别版本的 ID 不参与此规则。",
+  "models.dialogs.association.versionOrder.retry": "后备模型是否会被尝试，取决于现有重试设置。",
+  "models.dialogs.association.versionOrder.priority": "优先级",
+  "models.dialogs.association.versionOrder.first": "本规则首选",
+  "models.dialogs.association.versionOrder.fallback": "后备",
+  "models.dialogs.association.versionOrder.excluded": "以下 ID 未识别到数字版本，已从本规则排除：{{ids}}"
 }

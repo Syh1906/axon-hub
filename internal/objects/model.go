@@ -166,6 +166,7 @@ const (
 )
 
 type ModelAssociation struct {
+	PreferLatestVersion bool `json:"preferLatestVersion,omitempty"`
 	// channel_model: the specified model id in the specified channel
 	// channel_regex: the specified pattern in the specified channel
 	// regex: the pattern for all channels

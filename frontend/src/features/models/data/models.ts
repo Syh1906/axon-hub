@@ -62,6 +62,7 @@ const MODELS_QUERY = `
             loadBalancerStrategy
             traceStickyMode
             associations {
+              preferLatestVersion
               type
               priority
               disabled
@@ -192,6 +193,7 @@ const CREATE_MODEL_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          preferLatestVersion
           type
           priority
           disabled
@@ -297,6 +299,7 @@ const BULK_CREATE_MODELS_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          preferLatestVersion
           type
           priority
           disabled
@@ -402,6 +405,7 @@ const UPDATE_MODEL_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          preferLatestVersion
           type
           priority
           disabled
@@ -773,6 +777,7 @@ export interface UnassociatedChannel {
 }
 
 export interface ModelAssociationInput {
+  preferLatestVersion?: boolean;
   type: 'channel_request' | 'channel_model' | 'channel_regex' | 'regex' | 'model' | 'channel_tags_model' | 'channel_tags_regex';
   priority?: number;
   disabled?: boolean;
@@ -829,6 +834,9 @@ export interface ChannelModelEntry {
 }
 
 export interface ModelChannelConnection {
+  unrankedModelIDs?: string[];
+  priority: number;
+  preferLatestVersion: boolean;
   channel: {
     id: string;
     name: string;
@@ -852,6 +860,9 @@ export function useQueryUnassociatedChannels() {
 const MODEL_CHANNEL_CONNECTIONS_QUERY = `
   query QueryModelChannelConnections($associations: [ModelAssociationInput!]!, $requestModelID: String) {
     queryModelChannelConnections(associations: $associations, requestModelID: $requestModelID) {
+      unrankedModelIDs
+      priority
+      preferLatestVersion
       channel {
         id
         name

@@ -1689,3 +1689,10 @@ fork 改动，由用户决定。
   `v1.0.0-beta9_test.go` 重名（`7fdbd2ae`）。
 - 测试：
   `internal/ent/migrate/datamigrate/v1.0.0-beta7-fork.1_test.go`。
+
+## 正则关联版本优先（2026-11-10，未发布）
+
+- 新增 `ModelAssociation.preferLatestVersion`，沿用 settings JSON，无新增数据库迁移。三种正则关联按 `version` 数字段在单渠道单规则内排序；保持旧配置默认关闭和既有权限、重试、续聊约束。
+- 归属：`internal/server/biz/model_association_order.go`、`internal/pkg/xregexp/match.go`、`internal/server/orchestrator/candidates.go`、GraphQL 模型定义及前端模型关联编辑器。同步上游时核对字段读写、匹配引擎及关联缓存标识。
+- 固定目标的正则注册模型可以复用关联缓存；`channel_request` 继续按请求解析。新增字段纳入缓存标识，不建立按任意请求 ID 增长的缓存。
+- 已有定向验证覆盖排序、无效版本、缓存复用与失效、请求 ID 隔离和设置保存回读；独立审查修复局部告警、批量零匹配保存与错误详情三项 P2；真实本地前后端完整弹窗保存回读、批量保存和390×844窄屏验收通过，未调用真实供应商。详见[复审记录](../.agent/summary/model-version-priority-review-20261110.md)。

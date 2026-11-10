@@ -856,6 +856,7 @@ const MODEL_SETTINGS_QUERY = `
       developerSettings {
         developer
         associations {
+              preferLatestVersion
           type
           priority
           disabled

@@ -147,3 +147,33 @@ func splitInlineModifier(pattern string) (string, string) {
 
 	return modifier, body
 }
+
+// NamedCapture uses the same compiled, anchored expression as MatchString.
+func NamedCapture(pattern, value, name string) (string, bool) {
+	cached := getOrCreatePattern(pattern)
+	if cached.regex == nil || cached.compileErr {
+		return "", false
+	}
+	match, err := cached.regex.FindStringMatch(value)
+	if err != nil || match == nil {
+		return "", false
+	}
+	group := match.GroupByName(name)
+	if group == nil || len(group.Captures) == 0 {
+		return "", false
+	}
+	return group.String(), true
+}
+
+func HasNamedGroup(pattern, name string) bool {
+	cached := getOrCreatePattern(pattern)
+	if cached.regex == nil || cached.compileErr {
+		return false
+	}
+	for _, group := range cached.regex.GetGroupNames() {
+		if group == name {
+			return true
+		}
+	}
+	return false
+}

@@ -222,7 +222,7 @@ func (s *DefaultSelector) resolveAssociations(
 
 func (s *DefaultSelector) resolveAssociationsForRequest(ctx context.Context, model *ent.Model, associations []*objects.ModelAssociation, requestModelID string) ([]*resolvedAssociationCandidate, error) {
 	// Dynamic targets belong to this request, never to the shared model cache.
-	dynamic := (model.MatchType != "" && model.MatchType != objects.ModelMatchExact) || lo.ContainsBy(associations, func(a *objects.ModelAssociation) bool { return a != nil && !a.Disabled && a.Type == "channel_request" })
+	dynamic := lo.ContainsBy(associations, func(a *objects.ModelAssociation) bool { return a != nil && !a.Disabled && a.Type == "channel_request" })
 	// Read version before channels to avoid storing an older channel snapshot with
 	// a newer cache version if the enabled-channels cache swaps between the reads.
 	// The inverse interleaving only causes a conservative cache miss.
@@ -390,6 +390,7 @@ func writeAssociationSignature(h hash.Hash64, assoc *objects.ModelAssociation) {
 	writeSignatureString(h, assoc.Type)
 	writeSignatureInt(h, assoc.Priority)
 	writeSignatureBool(h, assoc.Disabled)
+	writeSignatureBool(h, assoc.PreferLatestVersion)
 	writeAssociationWhenSignature(h, assoc.When)
 	if assoc.ChannelRequest != nil {
 		writeSignatureString(h, "channelRequest")

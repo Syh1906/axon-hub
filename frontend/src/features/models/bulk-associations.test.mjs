@@ -6,7 +6,7 @@ import ts from 'typescript';
 const source = ts.transpileModule(readFileSync(new URL('./utils/bulk-associations.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { appendAssociations, clampAssociationPriority, MAX_ASSOCIATION_PRIORITY, buildBulkAssociations } = await import(
+const { filterAssociationsByMatchedChannels, appendAssociations, clampAssociationPriority, MAX_ASSOCIATION_PRIORITY, buildBulkAssociations } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
 );
 const rule = (channelId, modelId) => ({ type: 'channel_model', priority: 0, disabled: false, channelModel: { channelId, modelId } });
@@ -119,4 +119,23 @@ test('all bulk rule types deduplicate but preserve exclusions and conditional ru
   }
   const limited = { type: 'regex', priority: 0, disabled: false, regex: { pattern: '^gpt-', exclude: [{ channelIds: [3] }] } };
   assert.equal(appendAssociations([limited], buildBulkAssociations('regex', [], [], '^gpt-', 0)).length, 2);
+});
+
+test('version preference participates in bulk duplicate detection', () => {
+ const plain = {type:'regex', regex:{pattern:'(?<version>.*)'}};
+ const ordered = {...plain, preferLatestVersion:true};
+ assert.equal(appendAssociations([plain], [ordered]).length, 2);
+ assert.equal(appendAssociations([ordered], [{...ordered}]).length, 1);
+ assert.equal(appendAssociations([plain], [{...plain,preferLatestVersion:false}]).length, 1);
+});
+
+test('version regex rules can be saved before models become available', () => {
+ const ordered={type:'channel_regex',preferLatestVersion:true,channelRegex:{channelId:7,pattern:'(?<version>.+)'}};
+ assert.deepEqual(filterAssociationsByMatchedChannels([ordered],[]),[ordered]);
+ assert.deepEqual(filterAssociationsByMatchedChannels([{...ordered,preferLatestVersion:false}],[]),[]);
+ assert.deepEqual(filterAssociationsByMatchedChannels([rule(1,'a'),rule(2,'b')],[2]),[rule(2,'b')]);
+ for(const type of ['regex','channel_tags_regex']) {
+  const future={type,preferLatestVersion:true};
+  assert.deepEqual(filterAssociationsByMatchedChannels([future],[]),[future]);
+ }
 });

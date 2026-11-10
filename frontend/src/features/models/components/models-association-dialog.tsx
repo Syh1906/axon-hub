@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconPlus, IconTrash, IconChevronDown, IconChevronUp, IconInfoCircle } from '@tabler/icons-react';
 import { useQueryModels } from '@/gql/models';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { extractNumberIDAsNumber } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,19 +19,29 @@ import { TagsAutocompleteInput } from '@/components/ui/tags-autocomplete-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AutoComplete } from '@/components/auto-complete';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
-import { FilterBuilder, type FilterBuilderCondition, type FilterBuilderField, type FilterBuilderGroupListValue } from '@/components/filter-builder';
+import {
+  FilterBuilder,
+  type FilterBuilderCondition,
+  type FilterBuilderField,
+  type FilterBuilderGroupListValue,
+} from '@/components/filter-builder';
 import { useAllChannelSummarys, useAllChannelTags } from '@/features/channels/data/channels';
 import { useModelSettings, useUpdateModelSettings } from '@/features/system/data/system';
 import { useModels } from '../context/models-context';
+import {
+  MAX_ASSOCIATION_PRIORITY,
+  associationPrioritySchema,
+  hasInvalidAssociationPriority,
+  nextAssociationPriority,
+} from '../data/association-priority';
 import { normalizeModelDeveloper } from '../data/developer';
 import { useQueryModelChannelConnections, ModelAssociationInput, ModelChannelConnection } from '../data/models';
 import { useUpdateModel } from '../data/models';
 import { ModelAssociation, normalizeModelRoutingPolicyValue } from '../data/schema';
-import { MAX_ASSOCIATION_PRIORITY, associationPrioritySchema, hasInvalidAssociationPriority, nextAssociationPriority } from '../data/association-priority';
-
 import { AssociationBulkPicker } from './association-bulk-picker';
 import { ChannelModelsList } from './channel-models-list';
 import { ModelMatchTest } from './models-match-fields';
+import { VersionOrderEditor } from './version-order-editor';
 
 const requestFormatConditionOptions = [
   'openai/chat_completions',
@@ -397,6 +406,7 @@ const associationFormSchema = z.object({
         channelTags: z.array(z.string()).optional(),
         modelId: z.string().optional(),
         pattern: z.string().optional(),
+        preferLatestVersion: z.boolean().default(false),
         excludeChannelNamePattern: z.string().optional(),
         excludeChannelIds: z.array(z.number()).optional(),
         excludeChannelTags: z.array(z.string()).optional(),
@@ -527,6 +537,7 @@ function formAssociationToInput(assoc: AssociationFormRow, inheritedModelID?: st
   const base = {
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: buildAssociationWhen(assoc.whenEnabled, assoc.whenCondition) || undefined,
   };
 
@@ -605,6 +616,7 @@ function formAssociationToModelAssociation(assoc: AssociationFormRow): ModelAsso
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: input?.when ? { enabled: Boolean(input.when.enabled), condition: input.when.condition ?? null } : null,
     channelRequest: input?.channelRequest || null,
     channelModel: input?.channelModel || null,
@@ -640,6 +652,7 @@ function modelAssociationToInput(assoc: ModelAssociation, inheritedModelID?: str
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: assoc.when
       ? {
           enabled: assoc.when.enabled,
@@ -663,6 +676,7 @@ function modelAssociationToFormRow(assoc: ModelAssociation, inheritModel = false
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     inheritModel,
     whenEnabled: promptTokensCondition.enabled,
     whenCondition:
@@ -694,6 +708,8 @@ function buildDeveloperChannelPreview(associations: AssociationFormRow[], channe
 
     seen.add(channel.value);
     connections.push({
+      priority: 0,
+      preferLatestVersion: false,
       channel: {
         id: channel.value.toString(),
         name: channel.label,
@@ -739,6 +755,7 @@ export function ModelsAssociationDialog() {
   const debouncedRequestModelID = useDebounce(requestModelID, 350);
   const { mutateAsync: queryConnections } = useQueryModelChannelConnections(debouncedRequestModelID || undefined);
   const [connections, setConnections] = useState<ModelChannelConnection[]>([]);
+  const [previewError, setPreviewError] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
@@ -823,10 +840,7 @@ export function ModelsAssociationDialog() {
   // Serialize to string for stable comparison in debounce
   const associationsString = JSON.stringify(watchedAssociations);
   const debouncedAssociationsString = useDebounce(associationsString, 500);
-  const debouncedPriorities = useDebounce(
-    JSON.stringify(watchedAssociations.map((assoc) => assoc.priority ?? null)),
-    500
-  );
+  const debouncedPriorities = useDebounce(JSON.stringify(watchedAssociations.map((assoc) => assoc.priority ?? null)), 500);
   const debouncedAssociations = useMemo(() => {
     try {
       const rows: AssociationFormRow[] = JSON.parse(debouncedAssociationsString) || [];
@@ -853,6 +867,7 @@ export function ModelsAssociationDialog() {
 
     let active = true;
     const fetchConnections = async () => {
+      setPreviewError('');
       try {
         if (isDeveloperMode) {
           setConnections(buildDeveloperChannelPreview(rows, channelOptions));
@@ -875,7 +890,7 @@ export function ModelsAssociationDialog() {
         }
       } catch (error) {
         if (active) {
-          toast.error(t('common.errors.loadFailed'));
+          setPreviewError(error instanceof Error ? error.message : t('common.errors.loadFailed'));
           setConnections([]);
         }
       }
@@ -971,6 +986,7 @@ export function ModelsAssociationDialog() {
     const currentAssociations = form.getValues('associations') || [];
 
     append({
+      preferLatestVersion: false,
       type: 'channel_model',
       priority: nextAssociationPriority(currentAssociations.map((a) => a.priority)),
       disabled: false,
@@ -1004,7 +1020,7 @@ export function ModelsAssociationDialog() {
           }
         }}
         ref={dialogContentRef}
-        className='flex h-[90vh] max-h-[800px] w-full max-w-full overflow-hidden flex-col sm:max-w-6xl'
+        className='flex h-[90vh] max-h-[800px] w-full max-w-full flex-col overflow-hidden sm:max-w-6xl'
       >
         <DialogHeader className='shrink-0 text-left'>
           <DialogTitle className='text-lg sm:text-xl'>
@@ -1256,6 +1272,11 @@ export function ModelsAssociationDialog() {
               />
             </div>
             <div className='flex-1 overflow-y-auto sm:min-h-0'>
+              {previewError && (
+                <p role='alert' className='text-destructive mb-2 text-sm'>
+                  {previewError}
+                </p>
+              )}
               <ChannelModelsList
                 channels={filteredConnections}
                 emptyMessage={
@@ -1557,7 +1578,7 @@ function AssociationRow({
                     // The form only validates on submit, but Save is disabled while invalid, so surface the error now.
                     void form.trigger(field.name);
                   }}
-                  className='h-10 sm:h-9 text-center [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-inner-spin-button]:appearance-none'
+                  className='h-10 text-center [-moz-appearance:textfield] sm:h-9 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-inner-spin-button]:appearance-none'
                   placeholder='0'
                 />
               </FormControl>
@@ -1765,6 +1786,16 @@ function AssociationRow({
                 {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
               </FormItem>
             )}
+          />
+        </div>
+      )}
+
+      {showPattern && (
+        <div className='ml-0 sm:ml-[6.25rem]'>
+          <FormField
+            control={form.control}
+            name={`associations.${index}.preferLatestVersion`}
+            render={({ field }) => <VersionOrderEditor checked={field.value} onChange={field.onChange} />}
           />
         </div>
       )}

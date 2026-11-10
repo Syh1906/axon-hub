@@ -129,6 +129,7 @@ export const modelAssociationWhenSchema = z.object({
 export type ModelAssociationWhen = z.infer<typeof modelAssociationWhenSchema>;
 
 export const modelAssociationSchema = z.object({
+  preferLatestVersion: z.boolean().optional(),
   type: z.enum(['channel_request', 'channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
   priority: z.number().int().min(0).max(10).optional().default(0),
   disabled: z.boolean().optional().default(false),
