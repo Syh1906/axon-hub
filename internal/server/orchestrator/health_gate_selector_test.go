@@ -45,7 +45,7 @@ func healthGateSelectorFixture(now *time.Time, candidates []*ChannelModelsCandid
 	if previous != nil {
 		previous = healthGateLegacySessionProvider{previous}
 	}
-	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(provider, nil).WithHealthGate(gate), provider, previous)
+	selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(nil, nil).WithHealthGate(gate), provider, previous)
 	return selector, gate, policy
 }
 
@@ -286,7 +286,7 @@ func TestHealthGateSelector_UsesCurrentChannelThreshold(t *testing.T) {
 	updatedChannel := *candidate.Channel.Channel
 	updatedChannel.Settings = &objects.ChannelSettings{HealthGateFailureThreshold: &disabled}
 	service.SetEnabledChannelsForTest([]*biz.Channel{{Channel: &updatedChannel}})
-	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: []*ChannelModelsCandidate{candidate}}, NewLoadBalancer(provider, service).WithHealthGate(gate), provider, nil)
+	selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: []*ChannelModelsCandidate{candidate}}, NewLoadBalancer(service, service).WithHealthGate(gate), provider, nil)
 	ctx := context.Background()
 	result, err := selector.Select(ctx, &llm.Request{Model: "alias"})
 	require.NoError(t, err)
@@ -301,4 +301,10 @@ func TestHealthGateSelector_UsesCurrentChannelThreshold(t *testing.T) {
 	tracker.OnOutboundRawError(ctx, healthGateServerError())
 	require.Error(t, tracker.finalize(ctx, healthGateServerError(), false))
 	require.Empty(t, healthGateSnapshot(t, gate, candidate.Channel.ID, healthGateResolver(biz.ResolveHealthGateConfig(policy.HealthGateOrDefault(), &biz.Channel{Channel: &updatedChannel}))))
+}
+
+func newLivePolicyTestSelector(wrapped CandidateSelector, lb *LoadBalancer, provider RetryPolicyProvider, previous PreviousChannelProvider) *LoadBalancedSelector {
+	selector := WithTraceStickyLoadBalancedSelector(wrapped, lb, provider.RetryPolicyOrDefault(context.Background()), previous)
+	selector.policy = provider
+	return selector
 }

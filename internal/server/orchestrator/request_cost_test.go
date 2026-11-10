@@ -47,7 +47,7 @@ func TestMatchedModelPriceReachesPersistedExecution(t *testing.T) {
 	req := client.Request.Create().SetProjectID(1).SetModelID("gpt-6-astra").SetStatus("processing").
 		SetFormat(string(llm.APIFormatOpenAIChatCompletion)).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 	state := &PersistenceState{
-		Request: req, RequestService: requestService, SystemService: system,
+		Request: req, RequestService: requestService, Settings: (&ChatCompletionOrchestrator{SystemService: system}).loadRequestSettings(ctx),
 		ChannelModelsCandidates: candidates, CurrentCandidate: candidates[0],
 	}
 	wrapped, err := openai.NewOutboundTransformer("https://example.com", "fixture")
@@ -188,7 +188,6 @@ func setupUsageCostMiddleware(t *testing.T, format, modelID string) (*persistReq
 	require.NoError(t, err)
 	channelService.PreloadModelPricesForTest(ctx, built)
 	channelService.SetEnabledChannelsForTest([]*biz.Channel{built})
-	require.NoError(t, systemService.SetInjectUsageCostEnabled(ctx, true))
 
 	state := &PersistenceState{
 		Request: &ent.Request{
@@ -205,7 +204,7 @@ func setupUsageCostMiddleware(t *testing.T, format, modelID string) (*persistReq
 			ModelID:   modelID,
 		},
 		UsageLogService: biz.NewUsageLogService(client, systemService, channelService),
-		SystemService:   systemService,
+		Settings:        &RequestSettings{InjectUsageCost: true},
 	}
 
 	return &persistRequestMiddleware{
@@ -255,7 +254,7 @@ func TestPersistRequestMiddleware_SkipsInjectionWhenDisabled(t *testing.T) {
 	t.Parallel()
 
 	middleware, ctx, _ := setupUsageCostMiddleware(t, string(llm.APIFormatOpenAIChatCompletion), "m1")
-	require.NoError(t, middleware.inbound.state.SystemService.SetInjectUsageCostEnabled(ctx, false))
+	middleware.inbound.state.Settings.InjectUsageCost = false
 
 	result, err := middleware.OnOutboundLlmResponse(ctx, &llm.Response{
 		ID: "resp-1",

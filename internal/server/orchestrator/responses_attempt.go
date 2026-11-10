@@ -23,6 +23,7 @@ type responsesContinuation struct {
 	snapshotBody   []byte
 	previous       string
 	input          []json.RawMessage
+	parent         *shared.ResponsesSnapshot
 	complete       bool
 	retain         bool
 	retentionBytes int
@@ -51,6 +52,8 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 	c.capture = &responsesCompletion{}
 	c.releaseRetention()
 	c.snapshotBody = nil
+	c.parent = nil
+	c.lane = shared.GetResponsesLane(ctx)
 	body := c.original
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -69,26 +72,21 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 		} else if c.store != nil {
 			c.owner = loadResponsesContinuationOwner(ctx, c)
 		}
-		if c.owner != nil && c.owner.Snapshot != nil {
-			size := rawResponseSessionValuesSize(c.owner.Snapshot.Input) + rawResponseSessionValuesSize(c.owner.Snapshot.Output) + len(payload["input"])
-			if size > 128<<20 {
-				return nil, shared.ResponsesRecoveryError()
-			}
-			items := make([]json.RawMessage, 0, len(c.owner.Snapshot.Input)+len(c.owner.Snapshot.Output)+1)
-			items = append(items, c.owner.Snapshot.Input...)
-			items = append(items, c.owner.Snapshot.Output...)
-			items = append(items, responseSessionInputItems(payload["input"])...)
-			encoded, err := json.Marshal(items)
-			if err != nil {
-				return nil, fmt.Errorf("encode complete Responses input: %w", err)
-			}
-			payload["input"] = encoded
-			delete(payload, "previous_response_id")
-			c.complete = true
-			body, err = json.Marshal(payload)
+		nativeContinuation := c.owner != nil && target.forwardsID &&
+			target.origin.Format == string(llm.APIFormatOpenAIResponseWebSocket) &&
+			originMatches(c.owner.Origin, target.origin) && c.lane != nil && c.lane.CanContinue(*c.owner)
+		if nativeContinuation {
+			c.parent = c.owner.Snapshot
+		} else if c.owner != nil && c.owner.Snapshot != nil {
+			var err error
+			body, err = expandResponsesSnapshot(body, c.owner.Snapshot)
 			if err != nil {
 				return nil, err
 			}
+			if err := json.Unmarshal(body, &payload); err != nil {
+				return nil, err
+			}
+			c.complete = true
 		} else {
 			switch {
 			case c.owner != nil:
@@ -120,7 +118,10 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 		c.snapshotBody = encoded
 	}
 	c.input = nil
-	c.retain = c.complete && !native && len(payload["input"]) <= 64<<20
+	// Only Responses carries lossless input/output items for this recovery
+	// contract. Converted providers must not certify missing native input.
+	c.retain = responses.IsResponsesFormat(llm.APIFormat(target.origin.Format)) &&
+		(c.complete || c.parent != nil) && len(payload["input"]) <= 64<<20
 	if c.retain {
 		if lane := shared.GetResponsesLane(ctx); lane != nil {
 			c.lane = lane
@@ -130,11 +131,13 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 			}
 		}
 	}
-	if c.retain {
+	// Lane snapshots capture the final input after plugins/overrides. Avoid
+	// decoding and copying the same (potentially large) input a second time.
+	if c.retain && c.lane == nil {
 		c.input = responseSessionInputItems(payload["input"])
 	}
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
-		c.capture.metadataOnly = native || !c.retain
+		c.capture.metadataOnly = !c.retain
 		if !c.capture.metadataOnly {
 			c.capture.budget = lane.Budget()
 		}
@@ -162,7 +165,7 @@ func loadResponsesContinuationOwner(ctx context.Context, c *responsesContinuatio
 	}
 	owner := &shared.ResponsesRecord{ID: c.previous, Origin: record.origin}
 	if record.complete {
-		owner.Snapshot = &shared.ResponsesSnapshot{Input: record.input, Output: record.output}
+		owner.Snapshot = shared.NewResponsesSnapshot(nil, record.input, record.output)
 	}
 	return owner
 }
@@ -175,8 +178,14 @@ func selectResponsesContinuationCandidate(ctx context.Context, p *PersistentOutb
 	if c.owner == nil {
 		c.owner = loadResponsesContinuationOwner(ctx, c)
 	}
-	if c.owner == nil || c.owner.Snapshot != nil {
+	if c.owner == nil {
 		return nil
+	}
+	if c.owner.Snapshot != nil {
+		lane := shared.GetResponsesLane(ctx)
+		if lane == nil || !lane.CanContinue(*c.owner) {
+			return nil
+		}
 	}
 
 	for index := p.state.CurrentCandidateIndex; index < len(p.state.ChannelModelsCandidates); index++ {
@@ -224,7 +233,7 @@ func forwardsResponsesID(outbound transformer.Outbound) bool {
 	return outbound.APIFormat() == llm.APIFormatOpenAIResponseWebSocket
 }
 
-func prepareResponsesAttempt(ctx context.Context, p *PersistentOutboundTransformer, request *llm.Request) (*llm.Request, error) {
+func prepareResponsesAttempt(ctx context.Context, p *PersistentOutboundTransformer, request *llm.Request, credentialUnavailable bool) (*llm.Request, error) {
 	if p.state.ResponsesContinuation == nil {
 		return request, nil
 	}
@@ -235,9 +244,29 @@ func prepareResponsesAttempt(ctx context.Context, p *PersistentOutboundTransform
 	if p.state.CurrentCandidate.APIFormat != "" {
 		origin.Format = p.state.CurrentCandidate.APIFormat
 	}
-	body, err := prepareResponsesAttemptBodyWithRequest(ctx, p, request, responsesAttemptTarget{origin: origin, forwardsID: forwardsResponsesID(p.wrapped)})
+	c := p.state.ResponsesContinuation
+	lane := shared.GetResponsesLane(ctx)
+	candidate := p.state.CurrentCandidate
+	forwardsID := forwardsResponsesID(p.wrapped)
+	credentialChanged := false
+	if lane != nil && c.owner != nil && c.owner.Snapshot != nil && candidate.continuationStrict {
+		// A live socket may still carry a credential removed from the channel.
+		// Restore before transformation/hooks, rather than sending its old ID or
+		// failing later after the complete lane history was already recovered.
+		credentialChanged = credentialUnavailable
+		forwardsID = forwardsID && !credentialChanged
+	}
+	body, err := prepareResponsesAttemptBodyWithRequest(ctx, p, request, responsesAttemptTarget{origin: origin, forwardsID: forwardsID})
 	if err != nil {
 		return nil, err
+	}
+	if lane != nil && c.complete && c.owner != nil && c.owner.Snapshot != nil {
+		// Candidate selection already enforced model/project/key permissions.
+		// Only the verified, fully expanded request can release the old key binding.
+		candidate.continuationStrict = false
+		if credentialChanged {
+			lane.RetireLeases()
+		}
 	}
 	if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
 		attempt.SetOrigin(origin)
@@ -315,15 +344,42 @@ func verifyResponsesAttempt(p *PersistentOutboundTransformer) pipeline.Middlewar
 			origin.Model = model
 		}
 		if c.previous != "" && !c.complete {
-			if gjson.GetBytes(request.Body, "previous_response_id").String() != c.previous || !forwardsResponsesID(p.wrapped) || (c.owner != nil && !originMatches(c.owner.Origin, origin)) || (c.firstOrigin != nil && !originMatches(*c.firstOrigin, origin)) {
+			if gjson.GetBytes(request.Body, "previous_response_id").String() != c.previous || !forwardsResponsesID(p.wrapped) {
+				return nil, shared.ResponsesRecoveryError()
+			}
+			changedOrigin := c.owner != nil && !originMatches(c.owner.Origin, origin)
+			lostSocket := c.owner != nil && c.lane != nil && origin.Format == string(llm.APIFormatOpenAIResponseWebSocket) && !c.lane.CanContinue(*c.owner)
+			if changedOrigin || lostSocket {
+				if c.owner == nil || c.owner.Snapshot == nil {
+					return nil, shared.ResponsesRecoveryError()
+				}
+				body, err := expandResponsesSnapshot(request.Body, c.owner.Snapshot)
+				if err != nil {
+					return nil, err
+				}
+				request.Body = body
+				c.complete, c.parent = true, nil
+				c.effective = body
+				if c.lane != nil {
+					// Late recovery (after plugin/header overrides) must release
+					// the same old-ID binding as recovery during preparation.
+					// The execution gate still protects requests that retain an ID.
+					p.state.CurrentCandidate.continuationStrict = false
+				}
+			} else if c.firstOrigin != nil && !originMatches(*c.firstOrigin, origin) {
 				return nil, shared.ResponsesRecoveryError()
 			}
 		}
 		if c.firstOrigin == nil {
 			c.firstOrigin = &origin
 		}
-		if c.complete && !gjson.GetBytes(request.Body, "previous_response_id").Exists() && responses.IsResponsesFormat(llm.APIFormat(request.APIFormat)) {
-			c.snapshotBody = request.Body
+		if responses.IsResponsesFormat(llm.APIFormat(request.APIFormat)) {
+			if c.complete && !gjson.GetBytes(request.Body, "previous_response_id").Exists() {
+				c.snapshotBody = request.Body
+			}
+			// Capture the final, plugin/override-adjusted input once. A live native
+			// continuation keeps only this turn; recovery starts a new complete root.
+			c.effective = request.Body
 			if c.retain {
 				input := gjson.GetBytes(request.Body, "input")
 				if c.lane != nil && !c.lane.Budget().Replace(c.retentionBytes, len(input.Raw)) {

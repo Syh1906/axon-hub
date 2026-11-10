@@ -134,7 +134,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 		return nil, fmt.Errorf("failed to query AxonHub Model: %w", err)
 	}
 
-	systemSettings := s.SystemService.ModelSettingsOrDefault(ctx)
+	systemSettings := s.modelSettings(ctx)
 	developerAssociationCount, modelAssociationCount, developerInheritanceDisabled := effectiveAssociationSourceCounts(systemSettings, model)
 	associations := biz.EffectiveModelAssociationsForRequest(systemSettings, model, req.Model)
 	if log.DebugEnabled(ctx) {
@@ -642,11 +642,16 @@ func (s *SelectedChannelsSelector) Select(ctx context.Context, req *llm.Request)
 }
 
 // LoadBalancedSelector is a decorator that sorts candidates using load balancing strategies.
+type RetryPolicyProvider interface {
+	RetryPolicyOrDefault(context.Context) *biz.RetryPolicy
+}
+
 type LoadBalancedSelector struct {
+	policy                  RetryPolicyProvider
 	wrapped                 CandidateSelector
 	loadBalancer            *LoadBalancer
 	loadBalancers           map[string]*LoadBalancer
-	policy                  RetryPolicyProvider
+	retryPolicy             *biz.RetryPolicy
 	previousChannelProvider PreviousChannelProvider
 	apiKey                  *ent.APIKey
 	effectiveRoutingPolicy  *EffectiveRoutingPolicy
@@ -654,12 +659,12 @@ type LoadBalancedSelector struct {
 }
 
 // WithLoadBalancedSelector creates a selector that applies load balancing to sort candidates.
-// The policy is used to determine the retry policy for early stopping.
-func WithLoadBalancedSelector(wrapped CandidateSelector, loadBalancer *LoadBalancer, policy RetryPolicyProvider) *LoadBalancedSelector {
+// The retry policy determines the trace sticky mode and how many candidates to keep.
+func WithLoadBalancedSelector(wrapped CandidateSelector, loadBalancer *LoadBalancer, retryPolicy *biz.RetryPolicy) *LoadBalancedSelector {
 	return &LoadBalancedSelector{
 		wrapped:      wrapped,
 		loadBalancer: loadBalancer,
-		policy:       policy,
+		retryPolicy:  retryPolicy,
 	}
 }
 
@@ -669,13 +674,13 @@ func WithLoadBalancedSelector(wrapped CandidateSelector, loadBalancer *LoadBalan
 func WithTraceStickyLoadBalancedSelector(
 	wrapped CandidateSelector,
 	loadBalancer *LoadBalancer,
-	policy RetryPolicyProvider,
+	retryPolicy *biz.RetryPolicy,
 	previousChannelProvider PreviousChannelProvider,
 ) *LoadBalancedSelector {
 	return &LoadBalancedSelector{
 		wrapped:                 wrapped,
 		loadBalancer:            loadBalancer,
-		policy:                  policy,
+		retryPolicy:             retryPolicy,
 		previousChannelProvider: previousChannelProvider,
 	}
 }
@@ -685,7 +690,7 @@ func WithTraceStickyLoadBalancedSelector(
 func WithRoutingPolicyLoadBalancedSelector(
 	wrapped CandidateSelector,
 	loadBalancers map[string]*LoadBalancer,
-	policy RetryPolicyProvider,
+	retryPolicy *biz.RetryPolicy,
 	previousChannelProvider PreviousChannelProvider,
 	apiKey *ent.APIKey,
 	effectiveRoutingPolicy *EffectiveRoutingPolicy,
@@ -694,7 +699,7 @@ func WithRoutingPolicyLoadBalancedSelector(
 	return &LoadBalancedSelector{
 		wrapped:                 wrapped,
 		loadBalancers:           loadBalancers,
-		policy:                  policy,
+		retryPolicy:             retryPolicy,
 		previousChannelProvider: previousChannelProvider,
 		apiKey:                  apiKey,
 		effectiveRoutingPolicy:  effectiveRoutingPolicy,
@@ -708,8 +713,12 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		return nil, err
 	}
 
-	// Get retry policy to determine the required number of candidates
-	retryPolicy := s.policy.RetryPolicyOrDefault(ctx)
+	retryPolicy := s.retryPolicy
+	if settings := requestSettingsFromContext(ctx); settings != nil {
+		retryPolicy = &settings.RetryPolicy
+	} else if s.policy != nil {
+		retryPolicy = s.policy.RetryPolicyOrDefault(ctx)
+	}
 	loadBalancer := s.loadBalancer
 	traceStickyMode := retryPolicy.TraceStickyMode
 	if s.effectiveRoutingPolicy != nil {
@@ -753,11 +762,11 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 			requiredCount += retryPolicy.MaxChannelRetries
 		}
 		if len(selected) > 0 && selected[0].continuationBound {
-			fallbacks := s.sortCandidates(ctx, loadBalancer, selected[1:], req, max(requiredCount-1, 0), false)
+			fallbacks := s.sortCandidates(ctx, loadBalancer, selected[1:], req, max(requiredCount-1, 0), requiredCount, false)
 			loadBalancer.TrackSelection(selected[0])
 			return append(selected[:1:1], fallbacks...), nil
 		}
-		return s.sortCandidates(ctx, loadBalancer, selected, req, requiredCount, true), nil
+		return s.sortCandidates(ctx, loadBalancer, selected, req, requiredCount, requiredCount, true), nil
 	}
 	if selected != nil {
 		// Complete opaque history still needs a compatible protocol when its
@@ -781,7 +790,7 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 			stickyCandidate.TraceSticky = true
 
 			fallbackCount := max(requiredCount-1, 0)
-			fallbackCandidates := s.sortCandidates(ctx, loadBalancer, remainingCandidates, req, fallbackCount, false)
+			fallbackCandidates := s.sortCandidates(ctx, loadBalancer, remainingCandidates, req, fallbackCount, requiredCount, false)
 			result := append([]*ChannelModelsCandidate{stickyCandidate}, fallbackCandidates...)
 
 			if loadBalancer != nil {
@@ -792,7 +801,7 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		}
 	}
 
-	return s.sortCandidates(ctx, loadBalancer, candidates, req, requiredCount, true), nil
+	return s.sortCandidates(ctx, loadBalancer, candidates, req, requiredCount, requiredCount, true), nil
 }
 
 func resolveLoadBalancer(loadBalancers map[string]*LoadBalancer, strategy string) (*LoadBalancer, string) {
@@ -890,6 +899,9 @@ func (s *LoadBalancedSelector) sortCandidates(
 	candidates []*ChannelModelsCandidate,
 	req *llm.Request,
 	requiredCount int,
+	// sortTopK stays the retry-policy size even when fewer candidates are
+	// required: the partial sort orders tied scores differently for each k.
+	sortTopK int,
 	trackSelection bool,
 ) []*ChannelModelsCandidate {
 	if requiredCount <= 0 {
@@ -928,7 +940,7 @@ func (s *LoadBalancedSelector) sortCandidates(
 		if loadBalancer == nil {
 			sortedCandidates = group
 		} else {
-			sortedCandidates = loadBalancer.SortWithoutTracking(ctx, group, req.Model, useStream)
+			sortedCandidates = loadBalancer.SortWithoutTracking(ctx, group, req.Model, useStream, sortTopK)
 		}
 
 		// Add candidates, but stop if we have enough
@@ -1039,8 +1051,8 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 		return nil, fmt.Errorf("model %s not supported in channel %s", req.Model, channel.Name)
 	}
 
-	endpoints := applyForcedAPIFormatsForRequest(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, channel.ResolveEndpoints())
-	apiFormat := SelectAPIFormat(endpoints, req)
+	endpoints, forced := applyForcedAPIFormatsForRequest(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, channel.ResolveEndpoints())
+	apiFormat := selectEndpointAPIFormat(endpoints, req, forced)
 	if apiFormat == "" && requiresResponsesToolProtocol(req) {
 		return nil, fmt.Errorf("channel %s has no compatible endpoint for Responses custom tools", channel.Name)
 	}
@@ -1056,4 +1068,11 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 	}
 
 	return []*ChannelModelsCandidate{candidate}, nil
+}
+
+func (s *DefaultSelector) modelSettings(ctx context.Context) *biz.SystemModelSettings {
+	if settings := requestSettingsFromContext(ctx); settings != nil {
+		return &settings.ModelSettings
+	}
+	return s.SystemService.ModelSettingsOrDefault(ctx)
 }

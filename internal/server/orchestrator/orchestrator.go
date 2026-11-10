@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/events"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -38,6 +39,7 @@ func NewChatCompletionOrchestrator(
 	liveStreamRegistry *biz.LiveStreamRegistry,
 	channelLimiterManager *ChannelLimiterManager,
 	quotaProvider ProviderQuotaStatusProvider,
+	plugins PluginIntegration,
 ) *ChatCompletionOrchestrator {
 	// All protocol entry points share the channel's usage and rate-limit window.
 	rateLimitTracker := channelLimiterManager.requestTracker
@@ -55,27 +57,29 @@ func NewChatCompletionOrchestrator(
 
 	rateLimitStrategy := NewRateLimitAwareStrategy(rateLimitTracker, channelLimiterManager)
 
-	adaptiveLoadBalancer := NewLoadBalancer(systemService, channelService,
-		NewErrorAwareStrategy(channelService),
-		NewWeightRoundRobinStrategy(channelService),
-		NewLatencyAwareStrategy(channelService),
+	adaptiveLoadBalancer := NewLoadBalancer(channelService, channelService,
+		NewErrorAwareStrategy(),
+		NewWeightRoundRobinStrategy(),
+		NewLatencyAwareStrategy(),
 		rateLimitStrategy,
 	)
 
-	failoverLoadBalancer := NewLoadBalancer(systemService, channelService,
+	// Failover and circuit-breaker strategies never read channel metrics, so
+	// these load balancers skip the per-candidate metrics fetch.
+	failoverLoadBalancer := NewLoadBalancer(nil, channelService,
 		NewWeightStrategy(), NewRandomStrategy(), rateLimitStrategy)
 
-	circuitBreakerLoadBalancer := NewLoadBalancer(systemService, channelService,
+	circuitBreakerLoadBalancer := NewLoadBalancer(nil, channelService,
 		NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(modelCircuitBreaker), rateLimitStrategy)
-	healthGatedLoadBalancer := NewLoadBalancer(systemService, channelService,
-		NewWeightRoundRobinStrategy(channelService),
-		NewLatencyAwareStrategy(channelService),
+	healthGatedLoadBalancer := NewLoadBalancer(channelService, channelService,
+		NewWeightRoundRobinStrategy(),
+		NewLatencyAwareStrategy(),
 		rateLimitStrategy,
 	).WithHealthGate(channelService.HealthGate())
 
-	roundRobinHealthFilter := NewRoundRobinHealthStrategy(channelService)
-	roundRobinLoadBalancer := NewLoadBalancer(systemService, channelService,
-		NewRoundRobinStrategy(channelService),
+	roundRobinHealthFilter := NewRoundRobinHealthStrategy()
+	roundRobinLoadBalancer := NewLoadBalancer(channelService, channelService,
+		NewRoundRobinStrategy(),
 		rateLimitStrategy,
 	).WithStableTieOrder().WithRoundRobinHealthFilter(roundRobinHealthFilter)
 
@@ -109,8 +113,10 @@ func NewChatCompletionOrchestrator(
 		roundRobinLoadBalancer:     roundRobinLoadBalancer,
 		modelCircuitBreaker:        modelCircuitBreaker,
 		quotaProvider:              quotaProvider,
+		Plugins:                    plugins,
 		proxy:                      nil,
 		responsesSessions:          sessions,
+		EventBus:                   channelService.EventBus,
 	}
 }
 
@@ -151,11 +157,18 @@ type ChatCompletionOrchestrator struct {
 	// The provider quota status provider for quota-aware load balancing and selection.
 	quotaProvider ProviderQuotaStatusProvider
 
+	// Plugins carries request hooks. A zero value adds no middleware.
+	Plugins PluginIntegration
+
 	// proxy is the proxy configuration for testing
 	// If set, it will override the channel's default proxy configuration
 	proxy *httpclient.ProxyConfig
 
 	responsesSessions *responsesSessionStore
+
+	// EventBus publishes plugin events. Nil skips publication. FX threads the
+	// process bus through ChannelService, and the constructor copies it here.
+	EventBus *events.Bus
 }
 
 func (processor *ChatCompletionOrchestrator) WithChannelSelector(selector CandidateSelector) *ChatCompletionOrchestrator {
@@ -175,6 +188,15 @@ func (processor *ChatCompletionOrchestrator) WithAllowedChannels(allowedChannelI
 func (processor *ChatCompletionOrchestrator) WithProxy(proxy *httpclient.ProxyConfig) *ChatCompletionOrchestrator {
 	c := *processor
 	c.proxy = proxy
+
+	return &c
+}
+
+// WithEventBus returns a copy that publishes plugin events to bus.
+// A nil bus skips publication. The bus is passed on the orchestrator, not on context.
+func (processor *ChatCompletionOrchestrator) WithEventBus(bus *events.Bus) *ChatCompletionOrchestrator {
+	c := *processor
+	c.EventBus = bus
 
 	return &c
 }
@@ -225,8 +247,9 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 
 	apiKey, _ := contexts.GetAPIKey(ctx)
 
-	// Get retry policy from system settings
-	retryPolicy := processor.SystemService.RetryPolicyOrDefault(ctx)
+	settings := processor.loadRequestSettings(ctx)
+	ctx = withRequestSettings(ctx, settings)
+	retryPolicy := &settings.RetryPolicy
 	var healthGateDecision *healthGateRequestDecision
 	ctx = context.WithValue(ctx, healthGateDecisionContextKey{}, &healthGateDecision)
 
@@ -242,11 +265,9 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		APIKey:                apiKey,
 		RequestService:        processor.RequestService,
 		UsageLogService:       processor.UsageLogService,
-		SystemService:         processor.SystemService,
 		ChannelService:        processor.ChannelService,
 		PromptProvider:        processor.PromptProvider,
 		PromptProtecter:       processor.PromptProtecter,
-		RetryPolicyProvider:   processor.SystemService,
 		CandidateSelector:     processor.channelSelector,
 		LoadBalancers: map[string]*LoadBalancer{
 			biz.LoadBalancerStrategyAdaptive:       processor.adaptiveLoadBalancer,
@@ -256,14 +277,18 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 			biz.LoadBalancerStrategyHealthGated:    processor.healthGatedLoadBalancer,
 		},
 		RoutingPolicy:         deriveRoutingPolicy(retryPolicy, apiKey, nil),
+		Settings:              settings,
+		RetryPolicyProvider:   processor.SystemService,
 		ModelMapper:           processor.ModelMapper,
 		Proxy:                 processor.proxy,
 		CurrentCandidateIndex: 0,
+		EventBus:              processor.EventBus,
 	}
 	defer func() {
 		if processErr != nil && state.Request != nil {
 			completion.RequestID = state.Request.ID
 			persistRequestFailure(ctx, state, processErr)
+			publishRequestFailed(ctx, state, processErr)
 		}
 	}()
 	if shared.IsResponsesAPI(ctx) && request != nil {
@@ -297,6 +322,12 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		state.ResponsesContinuation = continuation
 	}
 
+	hooks, err := processor.Plugins.RequestHooks(ctx)
+	if err != nil {
+		lifecycleOwner.Close()
+		return ChatCompletionResult{}, err
+	}
+	state.PluginHooks = hooks
 	pipe, outbound, healthGateTracker := processor.requestPipeline(state, retryPolicy)
 
 	prepared, err := pipe.Prepare(ctx, request)
@@ -341,16 +372,18 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, time.Second*10)
 		defer cancel()
 
-		// Update the last request execution status based on error if it exists
-		// This ensures that when retry fails completely, the last execution is properly marked
-		if requestExec := outbound.GetRequestExecution(); requestExec != nil {
+		// Finish the failed execution, unless plugin admission stopped this attempt
+		// before persistence ran: this attempt has no execution record.
+		if requestExec := outbound.GetRequestExecution(); requestExec != nil && !isPluginOverloaded(err) {
 			if updateErr := persistRequestExecutionFailure(
 				persistCtx,
 				processor.RequestService,
-				requestExec.ID,
+				requestExec,
 				err,
 				nil,
 				nil,
+				"",
+				state.executionResponseHeaders(requestExec.ID),
 			); updateErr != nil {
 				log.Warn(persistCtx, "Failed to update request execution status from error", log.Cause(updateErr))
 			}
@@ -382,6 +415,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	if continuation != nil && shared.IsResponsesWebSocket(ctx) {
 		preparedResponsesBody = continuation.snapshotBody
 	}
+	retainedContinuation := continuation
 	if result.Stream && continuation != nil {
 		source := result.EventStream
 		accepted := &responsesAcceptedStream{Stream: source, ctx: ctx, continuation: continuation}
@@ -391,7 +425,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		continuation.accept(ctx)
 	}
 	source := result.EventStream
-	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result)
+	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result, retainedContinuation)
 	if result.Stream && completion.ChatCompletionStream != nil {
 		completion.ChatCompletionStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, completion.ChatCompletionStream), httpclient.GetResponseHeaders(source))
 	} else {
@@ -407,7 +441,7 @@ func maybeEvaluateChannelAPIKeyRulesOnFailure(
 	outbound *PersistentOutboundTransformer,
 	rawErr error,
 ) {
-	if biz.IsBudgetDenied(rawErr) || isChannelCooldownError(rawErr) {
+	if isLocalAdmissionError(rawErr) {
 		return
 	}
 	if outbound == nil || outbound.state == nil || outbound.state.ChannelService == nil {

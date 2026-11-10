@@ -34,7 +34,7 @@ func TestDeliveryCancellationContinuation(t *testing.T) {
 				f.db.RequestExecution.UpdateOne(execution).SetStatus(requestexecution.Status(state)).ExecX(f.ctx)
 				service := biz.NewRequestService(f.db, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil, nil)
 				failure := &objects.RequestFailure{Stage: "delivery", Type: "gateway_error", Code: code}
-				require.NoError(t, service.UpdateRequestStatusFromError(f.ctx, previous.ID, context.Canceled, failure))
+				require.NoError(t, service.UpdateRequestStatusFromError(f.ctx, previous, context.Canceled, failure))
 				next := f.add(f.at.Add(2*time.Second), "completed", "same-turn")
 				folded := code == "stream_delivery_canceled" && state != "failed"
 				want := 0

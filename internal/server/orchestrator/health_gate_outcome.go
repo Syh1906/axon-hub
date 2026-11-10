@@ -18,7 +18,20 @@ func healthGatePipelineTimeout(ctx context.Context) bool {
 }
 
 func healthGateClientCanceled(ctx context.Context) bool {
-	return ctx != nil && ctx.Err() != nil && !healthGatePipelineTimeout(ctx)
+	if ctx == nil || ctx.Err() == nil || healthGatePipelineTimeout(ctx) {
+		return false
+	}
+	if owner := streamLifecycleFromContext(ctx); owner != nil {
+		owner.mu.Lock()
+		cleanup := owner.closed && owner.downstream.Err() == nil && (owner.shutdown == nil || owner.shutdown.Err() == nil)
+		owner.mu.Unlock()
+		// Finalizing an unread/incomplete stream cancels its execution locally.
+		// It must not turn an observed upstream disconnect into client cancellation.
+		if cleanup {
+			return false
+		}
+	}
+	return true
 }
 
 func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOutcome {
@@ -32,7 +45,7 @@ func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOut
 		return biz.HealthGateOutcomeNeutral
 	}
 	if errors.Is(err, errSkipCandidateByCircuitBreaker) || errors.Is(err, errSkipCandidateByHealthGate) ||
-		isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
+		isLocalAdmissionError(err) {
 		return biz.HealthGateOutcomeNeutral
 	}
 	if healthGatePipelineTimeout(ctx) {

@@ -132,8 +132,9 @@ func TestImageGenerationToolBeforeStreamPreference(t *testing.T) {
 	state := &PersistenceState{CandidateSelector: &staticChannelSelector{candidates: []*ChannelModelsCandidate{blocked, allowed}}}
 	_, db := setupTest(t)
 	system := newTestSystemService(db)
+	state.Settings = (&ChatCompletionOrchestrator{SystemService: system}).loadRequestSettings(context.Background())
 	req := &llm.Request{Model: "gpt-4", APIFormat: llm.APIFormatOpenAIResponse, RequestType: llm.RequestTypeChat, Stream: lo.ToPtr(false), Tools: []llm.Tool{{Type: llm.ToolTypeImageGeneration}}}
-	_, err := selectCandidates(&PersistentInboundTransformer{state: state}, nil, system).OnInboundLlmRequest(context.Background(), req)
+	_, err := selectCandidates(&PersistentInboundTransformer{state: state}, nil).OnInboundLlmRequest(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, []*ChannelModelsCandidate{allowed}, state.ChannelModelsCandidates, "a disabled native candidate must not hide the eligible streaming fallback")
 }

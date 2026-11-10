@@ -122,7 +122,7 @@ export function useRefreshProvidersCatalog() {
     },
     onSuccess: (catalog) => {
       queryClient.setQueryData(['providers-catalog', true], catalog);
-      queryClient.invalidateQueries({ queryKey: ['providers-catalog'] });
+      queryClient.invalidateQueries({ queryKey: ['providers-catalog', false] });
       toast.success(i18n.t('models.catalog.refreshSuccess'));
     },
     onError: () => {

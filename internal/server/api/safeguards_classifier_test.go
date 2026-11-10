@@ -125,8 +125,17 @@ func TestSafeguardsFallbackUsesClassifierPipeline(t *testing.T) {
 		ClassifierModel: "unavailable-reviewer", FallbackModels: []string{"gpt-test"},
 	}, classify)
 	require.NoError(t, err)
-	results := evaluator.Evaluate(f.ctx, []safeguards.ToolUse{{ID: "tool1", Name: "Bash", Input: json.RawMessage(`{"command":"rm -rf /tmp/data"}`)}})
-	require.Equal(t, "flagged", results[0].Status.ToolUses["tool1"].Outcome)
+	// The fixture's channel selector accepts any model. Restrict access so the
+	// primary really fails before calling upstream and only the fallback is billed.
+	projectID, _ := contexts.GetProjectID(f.ctx)
+	key := f.client.APIKey.Create().SetName("fallback-classifier").SetKey("fallback-fixture").SetProjectID(projectID).SetUserID(31).SetType("user").SaveX(f.ctx)
+	key.Profiles = &objects.APIKeyProfiles{
+		ActiveProfile: "reviewer",
+		Profiles:      []objects.APIKeyProfile{{Name: "reviewer", ModelIDs: []string{"gpt-test"}}},
+	}
+	ctx := contexts.WithAPIKey(f.ctx, key)
+	results := evaluator.Evaluate(ctx, []safeguards.ToolUse{{ID: "tool1", Name: "Bash", Input: json.RawMessage(`{"command":"rm -rf /tmp/data"}`)}})
+	require.Equal(t, "flagged", results[0].Status.ToolUses["tool1"].Outcome, "review results: %+v", results)
 	usage, err := f.client.UsageLog.Query().Only(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, "gpt-test", usage.ModelID)

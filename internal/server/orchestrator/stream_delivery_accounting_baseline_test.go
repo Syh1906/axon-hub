@@ -97,7 +97,7 @@ func TestStreamDeliveryFailurePreservesCompletedExecution(t *testing.T) {
 					} else {
 						manager.Shutdown(tc.stopCause)
 					}
-					<-owner.done
+					<-streamCtx.Done()
 					err := stream.Deliver(downstream, func() (bool, error) {
 						t.Error("terminal write ran after deadline or shutdown")
 						return true, nil
@@ -105,7 +105,7 @@ func TestStreamDeliveryFailurePreservesCompletedExecution(t *testing.T) {
 					require.ErrorIs(t, err, tc.stopCause)
 				}
 				if tc.prior {
-					require.NoError(t, service.UpdateRequestStatusFromError(ctx, req.ID, errors.New("origin persistence failed"), &objects.RequestFailure{
+					require.NoError(t, service.UpdateRequestStatusFromError(ctx, req, errors.New("origin persistence failed"), &objects.RequestFailure{
 						Stage: "origin_persistence", Type: "gateway_error", Code: tc.wantCode, Message: "original failure",
 					}))
 				}

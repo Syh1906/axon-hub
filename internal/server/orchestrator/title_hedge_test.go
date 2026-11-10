@@ -334,7 +334,7 @@ func TestTitleHedgePreservesLivePreview(t *testing.T) {
 	require.NoError(t, processor.SystemService.SetStoragePolicy(ctx, policy))
 	result, err := processor.processWithTitleHedgeDelay(ctx, &httpclient.Request{Method: "POST",
 		Headers: http.Header{"X-Codex-Turn-Metadata": {`{"thread_source":"thread_title"}`}},
-		Body: []byte(`{"model":"gpt-6-luna","stream":true,"input":"title"}`)}, 25*time.Millisecond)
+		Body:    []byte(`{"model":"gpt-6-luna","stream":true,"input":"title"}`)}, 25*time.Millisecond)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = result.ChatCompletionStream.Close() })
 	stored := client.Request.GetX(ctx, result.RequestID)
@@ -376,4 +376,142 @@ func TestTitleHealthPreservesFailureDuringConcurrentWinnerCleanup(t *testing.T) 
 	require.Equal(t, biz.HealthGateOutcomeNeutral, classifyHealthGateOutcome(attempt, context.Canceled))
 	cancelClient()
 	require.Equal(t, biz.HealthGateOutcomeNeutral, classifyHealthGateOutcome(attempt, healthGateServerError()))
+}
+
+// Request hook sessions are released when each lane finishes pipeline setup;
+// the optional lane owns a separate session even if it never starts.
+type titleHookProbe struct {
+	pipeline.DummyMiddleware
+	requests atomic.Int32
+	attempts atomic.Int32
+	releases atomic.Int32
+}
+
+func (p *titleHookProbe) OnInboundLlmRequest(_ context.Context, req *llm.Request) (*llm.Request, error) {
+	p.requests.Add(1)
+	return req, nil
+}
+func (p *titleHookProbe) OnOutboundRawRequest(_ context.Context, req *httpclient.Request) (*httpclient.Request, error) {
+	p.attempts.Add(1)
+	return req, nil
+}
+func (p *titleHookProbe) OnProcessEnd() { p.releases.Add(1) }
+
+type titleHookProvider struct{ primary, backup *titleHookProbe }
+
+func (p *titleHookProvider) PassThroughApplied(context.Context, int) {}
+func (p *titleHookProvider) Middleware(context.Context) (RequestHooks, error) {
+	return RequestHooks{
+		Request: p.primary,
+		Attempt: pipeline.OnRawRequest("title-primary-hook", p.primary.OnOutboundRawRequest),
+		ForkForHedge: func() (RequestHooks, error) {
+			return RequestHooks{Request: p.backup, Attempt: pipeline.OnRawRequest("title-backup-hook", p.backup.OnOutboundRawRequest)}, nil
+		},
+	}, nil
+}
+func TestTitleHedgeOwnsIndependentHookSessions(t *testing.T) {
+	for _, primaryFast := range []bool{true, false} {
+		t.Run(fmt.Sprint("primaryFast=", primaryFast), func(t *testing.T) {
+			primaryDelay := 200 * time.Millisecond
+			if primaryFast {
+				primaryDelay = time.Millisecond
+			}
+			executor := &titleTestExecutor{delays: map[string]time.Duration{"mapped-primary": primaryDelay, "entirely-different-model": time.Millisecond}}
+			ctx, processor, client, _, _ := titleGatewayWithBackup(t, executor)
+			hooks := &titleHookProvider{primary: &titleHookProbe{}, backup: &titleHookProbe{}}
+			processor.Plugins = PluginIntegration{Hooks: hooks}
+			req := &httpclient.Request{Method: "POST", Headers: http.Header{"X-Codex-Turn-Metadata": {`{"thread_source":"thread_title"}`}}, Body: []byte(`{"model":"gpt-6-luna","stream":true,"input":"Give this chat a title"}`)}
+			result, err := processor.processWithTitleHedgeDelay(ctx, req, 25*time.Millisecond)
+			require.NoError(t, err)
+			for result.ChatCompletionStream.Next() {
+				_ = result.ChatCompletionStream.Current()
+			}
+			if ack, ok := result.ChatCompletionStream.(streams.DeliveryAcknowledger); ok {
+				ack.AcknowledgeDelivery()
+			}
+			require.NoError(t, result.ChatCompletionStream.Close())
+			require.Equal(t, int32(1), hooks.primary.requests.Load())
+			require.Equal(t, int32(1), hooks.primary.releases.Load())
+			require.Eventually(t, func() bool { return hooks.backup.releases.Load() == 1 }, time.Second, time.Millisecond)
+			wantBackup := int32(1)
+			if primaryFast {
+				wantBackup = 0
+			}
+			require.Equal(t, wantBackup, hooks.backup.requests.Load())
+			// Each hook participates in its request stage and its attempt stage.
+			require.Equal(t, int32(2), hooks.primary.attempts.Load())
+			require.Equal(t, wantBackup*2, hooks.backup.attempts.Load())
+			require.Equal(t, 1, client.Request.Query().CountX(ctx))
+		})
+	}
+}
+
+func TestTitleHedgePluginOverload(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		overloadAt   int32
+		primaryFails bool
+	}{
+		{name: "primary refuses before backup", overloadAt: 1},
+		{name: "backup refuses while primary succeeds", overloadAt: 2},
+		{name: "backup refusal stops further primary dispatch", overloadAt: 2, primaryFails: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			executor := &titleTestExecutor{
+				delays:       map[string]time.Duration{"mapped-primary": 100 * time.Millisecond},
+				streamErrors: map[string]error{},
+			}
+			if tc.primaryFails {
+				executor.streamErrors["mapped-primary"] = healthGateServerError()
+			}
+			ctx, processor, client, first, _ := titleGatewayWithBackup(t, executor)
+			first.Models = append(first.Models, biz.ChannelModelEntry{RequestModel: "gpt-6-luna", ActualModel: "never-dispatch"})
+			policy := processor.SystemService.RetryPolicyOrDefault(ctx)
+			policy.MaxSingleChannelRetries = 1
+			require.NoError(t, processor.SystemService.SetRetryPolicy(ctx, policy))
+			var hookCalls atomic.Int32
+			overloaded := NewPluginOverloadedError(&llm.ResponseError{
+				StatusCode: http.StatusTooManyRequests,
+				Detail:     llm.ErrorDetail{Code: "plugin_overloaded", Type: "rate_limit_error", Message: "fixture runtime pool is busy"},
+			})
+			processor.Plugins = PluginIntegration{Hooks: hookProvider{middleware: pipeline.OnRawRequest("title-plugin-capacity", func(_ context.Context, req *httpclient.Request) (*httpclient.Request, error) {
+				if hookCalls.Add(1) == tc.overloadAt {
+					return nil, overloaded
+				}
+				return req, nil
+			})}}
+			delay := time.Second
+			if tc.overloadAt == 2 {
+				delay = 25 * time.Millisecond
+			}
+			result, err := processor.processWithTitleHedgeDelay(ctx, &httpclient.Request{
+				Method: "POST", Headers: http.Header{"X-Codex-Turn-Metadata": {`{"thread_source":"thread_title"}`}},
+				Body: []byte(`{"model":"gpt-6-luna","stream":true,"input":"Give this chat a title"}`),
+			}, delay)
+			if result.ChatCompletionStream != nil {
+				for result.ChatCompletionStream.Next() {
+					_ = result.ChatCompletionStream.Current()
+				}
+				result.ChatCompletionStream.(streams.DeliveryAcknowledger).AcknowledgeDelivery()
+				require.NoError(t, result.ChatCompletionStream.Close())
+			}
+			if tc.overloadAt == 2 && !tc.primaryFails {
+				require.NoError(t, err, "optional backup refusal must not interrupt the already dispatched primary")
+				require.Equal(t, first.Channel.ID, result.Route.ChannelID)
+			} else {
+				require.ErrorIs(t, err, overloaded)
+			}
+			require.Equal(t, tc.overloadAt, hookCalls.Load(), "no hook retry after overload")
+			executor.mu.Lock()
+			models := append([]string(nil), executor.models...)
+			executor.mu.Unlock()
+			if tc.overloadAt == 1 {
+				require.Empty(t, models)
+				require.Zero(t, client.RequestExecution.Query().CountX(ctx))
+			} else {
+				require.Equal(t, []string{"mapped-primary"}, models)
+				require.Equal(t, 1, client.RequestExecution.Query().CountX(ctx))
+			}
+		})
+	}
 }

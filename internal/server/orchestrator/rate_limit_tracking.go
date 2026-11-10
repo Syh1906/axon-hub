@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/looplj/axonhub/internal/server/biz"
 	"time"
 
 	"github.com/looplj/axonhub/internal/log"
@@ -79,7 +78,7 @@ func (m *rateLimitTracking) OnOutboundRawError(ctx context.Context, err error) {
 	}
 
 	// Local admission rejections never reached upstream — they must not trigger cooldown.
-	if isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
+	if isLocalAdmissionError(err) {
 		return
 	}
 

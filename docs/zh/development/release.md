@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+本次准备发布 `v1.0.0-rc1-fork.1`：上一正式基线为 `v1.0.0-beta12-fork.5` / `6aec4906`，过渡 Page 快照为 `f75f1049`，原始 rc1 合并提交为 `b309f9ec`。发布说明覆盖这一完整区间及 WS 同流续接审查修复；保持正式级别、仅双架构镜像与清单。生产更新按同一固定摘要逐台验收，旧快照本轮保留、不退役。下段记录为此前正式版历史，发布及双机更新完成后回填新收据。
+
 当前正式版为 [v1.0.0-beta12-fork.5](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.5)（2026-11-10），固定源码 `6aec4906ae2baa014b5f1615e2b3b02b1fe1aa2e`。同提交 Test／Build／Lint／Govulncheck 与[精简发布](https://github.com/Syh1906/axon-hub/actions/runs/42749047517)均成功，发布 amd64／arm64 镜像及唯一附件 `release.json`，保持 `prerelease=false`、`publishBinaries=false`。
 
 本版包含 fork.4 后的后台与费用修复、渠道同名和配置、筛选、自助用量分组及模型版本优先，并修复同名渠道误选和备份多笔用量丢失。新增三个字段并调整渠道名称索引，无新 data migration；数据与回退限制见[更新说明](../../../.github/release-notes.md)。
@@ -52,7 +54,7 @@ release.config.json 保存仓库、发布分支、直接上游 tag/提交、原�
 publishBinaries 为 false 时跳过 GoReleaser 及其前端依赖安装、各平台下载包、校验和与配置 schema 附件，仅保留镜像和 release.json；true 时仍走原完整下载包流程。选择在打新 tag 前写入配置，不能通过重跑修改已公开的版本。
 镜像发布仍执行测试、双架构构建与临时 PostgreSQL 启动检查。构建和推送都在 GitHub 云端进行，不在本地打包，也不导出镜像 tar；Docker 构建上下文排除设计图、验收目录和本地演示数据。
 仅镜像版本不支持原生二进制下载升级，安装脚本不会获得对应包；此类用户应保留原版或等待明确启用下载包的新版本。GitHub 自动生成源码归档不属于重复构建产物。
-当前原始基线是 looplj 的 v1.0.0-beta12，对应 2b1a0f93；
+当前工作分支的原始基线是 looplj 的 v1.0.0-rc1，对应 d2935453（rc1-fork.1 待发布）；
 历史继承 fork 基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；beta10 原始基线为 939b2bc0。
 
 beta12 之后自己的版本采用 <原始上游 tag>-fork.N：

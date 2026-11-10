@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+The next stable release is `v1.0.0-rc1-fork.1`, compared against `v1.0.0-beta12-fork.5` / `6aec4906`. It includes the intervening Page snapshot (`f75f1049`), original rc1 merge (`b309f9ec`), and reviewed WS continuation fixes. The complete interval is covered by the release notes. Publishing remains image-only for amd64/arm64 plus the manifest; deployment proceeds one host at a time using the same digest, retaining old snapshot images. The following paragraphs describe the preceding stable deployment; new receipts will be recorded after successful publication and deployment.
+
 The current stable release is [v1.0.0-beta12-fork.5](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.5) (2026-11-10), pinned to `6aec4906ae2baa014b5f1615e2b3b02b1fe1aa2e`. Test, Build, Lint, Govulncheck and the [streamlined release](https://github.com/Syh1906/axon-hub/actions/runs/42749047517) succeeded. It publishes amd64/arm64 images and only `release.json`, with `prerelease=false` and `publishBinaries=false`.
 
 This release includes post-fork.4 admin/billing fixes, duplicate-channel configuration, filtering, self-usage group controls, model version preference, stable channel selection and complete multi-entry usage restoration. Three fields and a non-unique channel-name index are added without a new data migration. See the [release notes](../../../.github/release-notes.md) for upgrade and rollback limits.
@@ -57,7 +59,7 @@ with `gh repo set-default Syh1906/axon-hub`. Publishing explicitly targets this 
 
 release.config.json records the publishing repository and branch, direct upstream
 tag/commit, original upstream tag/commit, inherited fork provenance, and an explicit prerelease boolean.
-The current baseline is v1.0.0-beta12 at 2b1a0f93. The inherited fork remains
+The working branch baseline is v1.0.0-rc1 at d2935453 (rc1-fork.1 is not yet released). The inherited fork remains
 ChouUn v1.0.0-beta10-fork.7 at b205ae8e, originally based on beta10 at 939b2bc0.
 
 After beta12, your tags use <original-upstream-tag>-fork.N:

@@ -1,6 +1,7 @@
 package datatransfer
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -21,6 +22,7 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/db"
+	runtimeplugin "github.com/looplj/axonhub/internal/server/plugin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,6 +96,32 @@ func TestPostgresFullTransferAndDuplicateProtection(t *testing.T) {
 	source.client.System.Create().SetKey(biz.SystemKeySecretKey).SetValue("source-fixture-secret").SaveX(ctx)
 	source.client.System.Create().SetKey(biz.SystemKeyAutoBackupSettings).SetValue(`{"enabled":true}`).SaveX(ctx)
 	source.client.System.Create().SetKey("maintenance_cleanup_task_v1").SetValue(`{"status":"running"}`).SaveX(ctx)
+	// The rc1 plugin package and its installation-bound storage must survive
+	// the same native export/import path as the rest of the deployment.
+	var pluginArchive bytes.Buffer
+	writer := zip.NewWriter(&pluginArchive)
+	for name, body := range map[string]string{
+		"manifest.json": `{"schemaVersion":1,"id":"fixture.transfer","name":"Transfer fixture","version":"1.0.0","axonhubVersion":"^1.0.0","pluginApiVersion":1,"ui":{"pages":[{"key":"home","title":"Fixture","entry":"ui/index.html"}]}}`,
+		"ui/index.html": "<html><body>transfer fixture</body></html>",
+	} {
+		file, err := writer.Create(name)
+		require.NoError(t, err)
+		_, err = file.Write([]byte(body))
+		require.NoError(t, err)
+	}
+	require.NoError(t, writer.Close())
+	parsed, err := runtimeplugin.ParsePackage(pluginArchive.Bytes())
+	require.NoError(t, err)
+	installed := source.client.Plugin.Create().
+		SetPluginID("fixture.transfer").SetName("Transfer fixture").SetVersion("1.0.0").
+		SetManifest(parsed.Manifest).SetPackage(pluginArchive.Bytes()).SetPackageSha256(parsed.SHA256).
+		SetConfig(map[string]any{"label": "迁移验证"}).SetPriority(17).
+		SetGrantedPermissions([]string{"read_channels"}).
+		SetGrantedNetwork([]string{"https://fixture.example.invalid"}).SaveX(ctx)
+	storageExpiry := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
+	stored := source.client.PluginStorage.Create().SetInstallationID(installed.ID).
+		SetNamespace("transfer").SetKey("state").SetValue(`{"count":7}`).
+		SetExpiresAt(storageExpiry).SaveX(ctx)
 	conn, err := source.connect(ctx, "")
 	require.NoError(t, err)
 	_, err = conn.Exec(ctx, "CREATE TABLE transfer_fixture (id bigserial PRIMARY KEY, value text NOT NULL); INSERT INTO transfer_fixture(value) SELECT '模型数据-' || i FROM generate_series(1,2000) i")
@@ -177,7 +205,25 @@ func TestPostgresFullTransferAndDuplicateProtection(t *testing.T) {
 	require.NoError(t, err)
 	u.Path = "/" + target
 	upgraded := db.NewEntClient(db.Config{Dialect: "postgres", DSN: u.String(), MaxOpenConns: 2})
-	upgraded.Close()
+	defer upgraded.Close()
+	restoredPlugin := upgraded.Plugin.GetX(ctx, installed.ID)
+	require.Equal(t, installed.PluginID, restoredPlugin.PluginID)
+	require.Equal(t, installed.Version, restoredPlugin.Version)
+	require.Equal(t, installed.Manifest, restoredPlugin.Manifest)
+	require.Equal(t, installed.Package, restoredPlugin.Package)
+	require.Equal(t, installed.PackageSha256, restoredPlugin.PackageSha256)
+	require.Equal(t, installed.Config, restoredPlugin.Config)
+	require.Equal(t, installed.Priority, restoredPlugin.Priority)
+	require.Equal(t, installed.Enabled, restoredPlugin.Enabled)
+	require.Equal(t, installed.GrantedPermissions, restoredPlugin.GrantedPermissions)
+	require.Equal(t, installed.GrantedNetwork, restoredPlugin.GrantedNetwork)
+	restoredStorage := upgraded.PluginStorage.GetX(ctx, stored.ID)
+	require.Equal(t, installed.ID, restoredStorage.InstallationID)
+	require.Equal(t, stored.Namespace, restoredStorage.Namespace)
+	require.Equal(t, stored.Key, restoredStorage.Key)
+	require.Equal(t, stored.Value, restoredStorage.Value)
+	require.NotNil(t, restoredStorage.ExpiresAt)
+	require.True(t, storageExpiry.Equal(*restoredStorage.ExpiresAt))
 }
 
 func TestPostgresLostOwnerCannotOverwriteRecovery(t *testing.T) {

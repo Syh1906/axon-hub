@@ -59,6 +59,11 @@ func channelRetriesOn429(ch *biz.Channel) bool {
 	return slices.Contains(ch.Settings.RetryableStatusCodes, http.StatusTooManyRequests)
 }
 
+func channelExplicitlyRetries(ch *biz.Channel, err error) bool {
+	return ch != nil && ch.Channel != nil && ch.Settings != nil &&
+		(slices.Contains(ch.Settings.RetryableStatusCodes, ExtractStatusCodeFromError(err)) || matchesRetryableErrorPattern(err, ch.Settings.RetryableErrorPatterns))
+}
+
 func matchesRetryableErrorPattern(err error, patterns []objects.RetryableErrorPattern) bool {
 	if err == nil || len(patterns) == 0 {
 		return false

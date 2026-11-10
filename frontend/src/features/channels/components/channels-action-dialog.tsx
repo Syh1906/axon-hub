@@ -1,11 +1,14 @@
 import { AutoComplete } from '@/components/auto-complete';
 import { isSuggestedModel } from '../../models/data/model-suggestions';
+import { ANTIGRAVITY_BASE_URLS } from '../data/antigravity';
 import { ApiKeyStrategyFields } from './channel-api-key-strategy';
 import type { ChannelQuotaRoutingMode } from '../data/schema';
 import { formatMaxSingleChannelRetries, recallQuotaRoutingMode } from '../utils/channel-dialog';
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { FetchedModelItem, SupportedModelItem } from './channel-model-items';
+import { ChannelRequestPolicyFields } from './channel-request-policy-fields';
 import { X, RefreshCw, Search, ChevronLeft, ChevronRight, PanelLeft, Plus, Trash2, Eye, EyeOff, Copy, Play, Info, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -38,83 +41,12 @@ import { ProxyType } from './channels-proxy-dialog';
 import { CopilotDeviceFlow } from './copilot-device-flow';
 import { ManualModelBadge } from './manual-model-badge';
 
-const FetchedModelItem = memo(
-  ({
-    model,
-    isAdded,
-    isSelected,
-    onToggle,
-    addedLabel,
-    willRemoveLabel,
-  }: {
-    model: string;
-    isAdded: boolean;
-    isSelected: boolean;
-    onToggle: () => void;
-    addedLabel: string;
-    willRemoveLabel: string;
-  }) => (
-    <div
-      className={`flex items-center gap-2 rounded-md p-2 text-sm transition-colors ${
-        isAdded && !isSelected
-          ? 'bg-muted/50 text-muted-foreground'
-          : isSelected
-            ? 'bg-primary/10 border-primary/30 border'
-            : 'hover:bg-accent cursor-pointer'
-      }`}
-    >
-      <Checkbox checked={isSelected} onCheckedChange={onToggle} />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className='flex-1 cursor-pointer truncate' onClick={onToggle}>
-            {model}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className='max-w-xs break-all'>{model}</p>
-        </TooltipContent>
-      </Tooltip>
-      {isAdded && !isSelected && (
-        <Badge variant='secondary' className='shrink-0 text-xs'>
-          {addedLabel}
-        </Badge>
-      )}
-      {isAdded && isSelected && (
-        <Badge variant='destructive' className='shrink-0 text-xs'>
-          {willRemoveLabel}
-        </Badge>
-      )}
-    </div>
-  )
-);
-
-FetchedModelItem.displayName = 'FetchedModelItem';
-
-const SupportedModelItem = memo(({ model, isManual, onRemove }: { model: string; isManual: boolean; onRemove: () => void }) => (
-  <div className='hover:bg-accent flex items-center gap-2 rounded-md p-2 text-sm'>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className='w-0 flex-1 cursor-help truncate'>{model}</span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p className='max-w-xs break-all'>{model}</p>
-      </TooltipContent>
-    </Tooltip>
-    <ManualModelBadge isManual={isManual} />
-    <Button type='button' variant='ghost' size='sm' className='hover:text-destructive h-6 w-6 shrink-0 p-0' onClick={onRemove}>
-      <X className='h-3 w-3' />
-    </Button>
-  </div>
-));
-
-SupportedModelItem.displayName = 'SupportedModelItem';
-
 export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpenChange, showModelsPanel = false }: Props) {
+  const dialog = useChannelActionDialog({ currentRow, duplicateFromRow, open, onOpenChange, showModelsPanel });
   const {
     quotaRoutingSettings,
     quotaRoutingMode,
     setQuotaRoutingMode,
-    maxSingleChannelRetriesText,
     setMaxSingleChannelRetriesText,
     apiKeyStrategy,
     setApiKeyStrategy,
@@ -125,8 +57,6 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     isOllamaType,
     showOllamaAuthCookie,
     setShowOllamaAuthCookie,
-    userAgentInheritLabel,
-    passThroughInheritLabel,
     codexThirdPartyBaseURLRef,
     addModel,
     addSelectedDefaultModels,
@@ -200,8 +130,6 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     modelPermissions,
     newModel,
     onSubmit,
-    passThroughBody,
-    passThroughUserAgent,
     patternError,
     providerRefs,
     proxyPassword,
@@ -215,8 +143,6 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     removeModel,
     renderOAuthSection,
     responsesTransport,
-    retryableErrorPatternsText,
-    retryableStatusCodesText,
     savedAPIKeySet,
     selectAllFilteredModels,
     selectedApiFormat,
@@ -296,7 +222,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
     wrapUnsupported,
     xaiOAuth,
     xaiSSOToken,
-  } = useChannelActionDialog({ currentRow, duplicateFromRow, open, onOpenChange, showModelsPanel });
+  } = dialog;
   const [showAddressesPanel, setShowAddressesPanel] = useState(false);
   const addresses = form.watch('settings.upstreamAddresses') ?? [];
   const addressFailover = form.watch('settings.addressFailover') ?? true;
@@ -861,6 +787,18 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                               {t('channels.dialogs.fields.baseURL.label')}
                             </FormLabel>
                             <div className='space-y-1 md:col-span-6'>
+                              {selectedProvider === 'antigravity' ? (
+                                <SelectDropdown
+                                  defaultValue={field.value || getDefaultBaseURL('antigravity')}
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    if (addresses.length) form.setValue('settings.upstreamAddresses', addresses.map((address, index) => index === 0 ? { ...address, url: value } : address), { shouldDirty: true });
+                                  }}
+                                  items={ANTIGRAVITY_BASE_URLS.some((item) => item.value === field.value) || !field.value ? ANTIGRAVITY_BASE_URLS : [...ANTIGRAVITY_BASE_URLS, { label: field.value, value: field.value }]}
+                                  isControlled
+                                  data-testid='channel-base-url-select'
+                                />
+                              ) : (
                               <Input
                                 placeholder={baseURLPlaceholder}
                                 autoComplete='new-password'
@@ -870,8 +808,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 disabled={
                                   (isCodexType && authMode !== 'third-party') ||
                                   (isClaudeCodeType && authMode === 'official') ||
-                                  isXAISubscriptionType ||
-                                  selectedProvider === 'antigravity'
+                                  isXAISubscriptionType
                                 }
                                 {...field}
                                 onChange={(event) => {
@@ -884,6 +821,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                     );
                                 }}
                               />
+                              )}
                               {!(
                                 (isCodexType && authMode !== 'third-party') ||
                                 (isClaudeCodeType && authMode === 'official') ||
@@ -1621,183 +1559,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                         )}
                       />
 
-                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                        <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                          {t('channels.dialogs.userAgentPassThrough.label')}
-                        </FormLabel>
-                        <div className='space-y-1 md:col-span-6'>
-                          <Select
-                            value={passThroughUserAgent === null ? 'inherit' : passThroughUserAgent ? 'enabled' : 'disabled'}
-                            onValueChange={(value) => setPassThroughUserAgent(value === 'inherit' ? null : value === 'enabled')}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t('channels.dialogs.userAgentPassThrough.inherit')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value='inherit'>{userAgentInheritLabel}</SelectItem>
-                              <SelectItem value='enabled'>{t('channels.dialogs.userAgentPassThrough.enabled')}</SelectItem>
-                              <SelectItem value='disabled'>{t('channels.dialogs.userAgentPassThrough.disabled')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </FormItem>
-
-                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                        <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                          {t('channels.dialogs.bodyPassThrough.label')}
-                        </FormLabel>
-                        <div className='space-y-2 md:col-span-6'>
-                          <Select
-                            value={passThroughBody === null ? 'inherit' : passThroughBody ? 'enabled' : 'disabled'}
-                            onValueChange={(value) => setPassThroughBody(value === 'inherit' ? null : value === 'enabled')}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t('channels.dialogs.bodyPassThrough.inherit')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value='inherit'>{passThroughInheritLabel}</SelectItem>
-                              <SelectItem value='enabled'>{t('channels.dialogs.bodyPassThrough.enabled')}</SelectItem>
-                              <SelectItem value='disabled'>{t('channels.dialogs.bodyPassThrough.disabled')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {passThroughBody === true && (
-                            <p className='text-xs text-amber-600 dark:text-amber-400'>{t('channels.dialogs.bodyPassThrough.warning')}</p>
-                          )}
-                        </div>
-                      </FormItem>
-
-                      <FormField
-                        control={form.control}
-                        name='settings.forceOneHourPromptCache'
-                        render={({ field }) => (
-                          <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                            <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                              {t('channels.dialogs.forceOneHourPromptCache.label')}
-                            </FormLabel>
-                            <div className='space-y-1 md:col-span-6'>
-                              <FormControl>
-                                <Checkbox checked={field.value ?? false} onCheckedChange={(checked) => field.onChange(checked === true)} />
-                              </FormControl>
-                              <FormDescription>{t('channels.dialogs.forceOneHourPromptCache.description')}</FormDescription>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name='settings.healthGateFailureThreshold'
-                        render={({ field }) => (
-                          <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                            <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>
-                              {t('channels.dialogs.healthGate.failureThreshold')}
-                            </FormLabel>
-                            <div className='space-y-1 md:col-span-6'>
-                              <FormControl>
-                                <Input
-                                  type='number'
-                                  min='0'
-                                  step='1'
-                                  value={field.value ?? ''}
-                                  onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
-                                  placeholder={t('channels.dialogs.healthGate.inherit')}
-                                />
-                              </FormControl>
-                              <FormDescription>{t('channels.dialogs.healthGate.overrideDescription')}</FormDescription>
-                              <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                        <div className='flex items-center gap-1.5 pt-2 md:col-span-2 md:justify-start'>
-                          <FormLabel className='font-medium whitespace-nowrap'>
-                            {t('channels.dialogs.maxSingleChannelRetries.label')}
-                          </FormLabel>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type='button'
-                                className='text-muted-foreground hover:text-foreground inline-flex items-center'
-                                aria-label={t('channels.dialogs.maxSingleChannelRetries.tooltip')}
-                              >
-                                <Info className='h-3.5 w-3.5' />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className='max-w-sm'>
-                              <p>{t('channels.dialogs.maxSingleChannelRetries.tooltip')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className='md:col-span-6'>
-                          <Input
-                            value={maxSingleChannelRetriesText}
-                            onChange={(event) => setMaxSingleChannelRetriesText(event.target.value)}
-                            placeholder={t('channels.dialogs.maxSingleChannelRetries.placeholder')}
-                            className='font-mono text-sm'
-                          />
-                        </div>
-                      </FormItem>
-
-                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                        <div className='flex items-center gap-1.5 pt-2 md:col-span-2 md:justify-start'>
-                          <FormLabel className='font-medium'>{t('channels.dialogs.retryableStatusCodes.label')}</FormLabel>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type='button'
-                                className='text-muted-foreground hover:text-foreground inline-flex items-center'
-                                aria-label={t('channels.dialogs.retryableStatusCodes.tooltip')}
-                              >
-                                <Info className='h-3.5 w-3.5' />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className='max-w-sm'>
-                              <p>{t('channels.dialogs.retryableStatusCodes.tooltip')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className='md:col-span-6'>
-                          <Input
-                            value={retryableStatusCodesText}
-                            onChange={(event) => setRetryableStatusCodesText(event.target.value)}
-                            placeholder={t('channels.dialogs.retryableStatusCodes.placeholder')}
-                            className='font-mono text-sm'
-                          />
-                        </div>
-                      </FormItem>
-
-                      <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
-                        <div className='flex items-center gap-1.5 pt-2 md:col-span-2 md:justify-start'>
-                          <FormLabel className='font-medium'>{t('channels.dialogs.retryableErrorPatterns.label')}</FormLabel>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type='button'
-                                className='text-muted-foreground hover:text-foreground inline-flex items-center'
-                                aria-label={t('channels.dialogs.retryableErrorPatterns.description')}
-                              >
-                                <Info className='h-3.5 w-3.5' />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className='max-w-sm'>
-                              <p>{t('channels.dialogs.retryableErrorPatterns.description')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className='md:col-span-6'>
-                          <Textarea
-                            value={retryableErrorPatternsText}
-                            onChange={(event) => setRetryableErrorPatternsText(event.target.value)}
-                            placeholder={t('channels.dialogs.retryableErrorPatterns.placeholder')}
-                            className='min-h-[88px] resize-y font-mono text-sm'
-                          />
-                        </div>
-                      </FormItem>
-
-
+                      <ChannelRequestPolicyFields dialog={dialog} />
 
                       <FormField
                         control={form.control}

@@ -421,12 +421,10 @@ type ProvidersCatalog {
 
 type CatalogSettings {
   upstreamURL: String!
-  refreshSeconds: Int!
 }
 
 input UpdateCatalogSettingsInput {
   upstreamURL: String
-  refreshSeconds: Int
 }
 
 type CodexCompatibilitySettings {

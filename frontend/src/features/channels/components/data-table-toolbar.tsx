@@ -1,8 +1,8 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import { IconChevronsDown, IconChevronsUp, IconSearch } from '@tabler/icons-react';
 import { Table } from '@tanstack/react-table';
-import { useQueryModels } from '@/gql/models';
+import { useChannelModelFilterOptions } from '@/gql/models';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,7 +11,6 @@ import { DataTableFacetedFilter } from '@/components/data-table-faceted-filter';
 import { useHorizontalScroll } from '@/hooks/use-horizontal-scroll';
 import { useAllChannelTags } from '../data/channels';
 import { useChannels } from '../context/channels-context';
-import { CHANNEL_CONFIGS } from '../data/config_channels';
 import { DataTableViewOptions } from './data-table-view-options';
 
 interface DataTableToolbarProps<TData> {
@@ -28,8 +27,6 @@ interface DataTableToolbarProps<TData> {
 export function DataTableToolbar<TData>({
   table,
   isFiltered: externalIsFiltered,
-  selectedCount: externalSelectedCount,
-  selectedTypeTab = 'all',
   showErrorOnly,
   showHealthGateAbnormal,
   onHealthGateAbnormalChange,
@@ -44,18 +41,7 @@ export function DataTableToolbar<TData>({
   // Get all channel tags from GraphQL
   const { data: allTags = [] } = useAllChannelTags();
 
-  // Fetch models using the models query
-  const { mutate: fetchModels, data: modelsData } = useQueryModels();
-
-  // Fetch models on component mount
-  useEffect(() => {
-    fetchModels({
-      statusIn: ['enabled', 'disabled'],
-      includeMapping: true,
-      includePrefix: true,
-      includeAllChannelModels: true,
-    });
-  }, [fetchModels]);
+  const { data: modelsData } = useChannelModelFilterOptions();
 
   const tagOptions = useMemo(
     () =>
@@ -73,16 +59,6 @@ export function DataTableToolbar<TData>({
       label: model.id,
     }));
   }, [modelsData]);
-
-  // Generate channel types from CHANNEL_CONFIGS
-  const channelTypes = useMemo(
-    () =>
-      Object.values(CHANNEL_CONFIGS).map((config) => ({
-        value: config.channelType,
-        label: t(`channels.types.${config.channelType}`),
-      })),
-    [t]
-  );
 
   const channelStatuses = useMemo(
     () => [

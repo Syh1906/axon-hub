@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
 import { Main } from '@/components/layout/main';
-import { useProvidersData } from '@/features/models/data/providers';
 import { PageHeader } from '@/components/layout/page-header';
 import { createColumns } from './components/channels-columns';
 import { ChannelsErrorBanner } from './components/channels-error-banner';
@@ -38,7 +37,6 @@ const EMPTY_CHANNEL_PAGE = {
 
 function ChannelsContent() {
   const { t } = useTranslation();
-  useProvidersData();
   const { channelPermissions, hasSystemScope } = usePermissions();
   const { data: quotaRoutingSettings } = useQuotaRoutingSettings();
   const queryClient = useQueryClient();

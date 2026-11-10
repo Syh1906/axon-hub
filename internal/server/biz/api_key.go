@@ -196,7 +196,7 @@ func GenerateAPIKey(prefix string) (string, error) {
 // Concurrent name operations in one project are serialized, including operations
 // by the same creator. SQLite serializes writers itself, so the lock is a no-op.
 //
-// The project row is read with a system bypass because some write callers (e.g.
+// The project row is read as a host operation because some write callers (e.g.
 // the OpenAPI service-account principal) may lack project read scope, and it runs
 // on the transaction's connection so the lock is held for the rest of the tx.
 func (s *APIKeyService) lockProjectForAPIKeyName(ctx context.Context, projectID int) error {
@@ -208,16 +208,16 @@ func (s *APIKeyService) lockProjectForAPIKeyName(ctx context.Context, projectID 
 		return nil
 	}
 
-	bypassCtx := authz.WithSystemBypass(ctx, "api key name uniqueness lock")
-
-	var ids []int
-
-	err := client.Project.Query().
-		Where(project.IDEQ(projectID)).
-		Modify(func(s *sql.Selector) {
-			s.Select(s.C(project.FieldID)).ForUpdate()
-		}).
-		Scan(bypassCtx, &ids)
+	_, err := authz.RunAsHost(ctx, client, "api key name uniqueness lock", func(hostCtx context.Context) (struct{}, error) {
+		var ids []int
+		err := client.Project.Query().
+			Where(project.IDEQ(projectID)).
+			Modify(func(s *sql.Selector) {
+				s.Select(s.C(project.FieldID)).ForUpdate()
+			}).
+			Scan(hostCtx, &ids)
+		return struct{}{}, err
+	})
 	if err != nil {
 		return fmt.Errorf("failed to lock project for api key name uniqueness: %w", err)
 	}
@@ -279,15 +279,10 @@ func (s *APIKeyService) CreateLLMAPIKey(ctx context.Context, owner *ent.APIKey, 
 		// soft delete. With the project row lock above held, a concurrent same-name
 		// create cannot interleave: it blocks until this transaction commits and then
 		// observes this row, so the check is race-safe on multi-writer backends too.
-		bypassCtx := authz.WithSystemBypass(ctx, "api key name uniqueness")
+		dupCount, err := authz.RunAsHost(ctx, client, "api key name uniqueness", func(hostCtx context.Context) (int, error) {
+			return client.APIKey.Query().Where(apikey.NameEQ(name), apikey.ProjectIDEQ(owner.ProjectID), apikey.GroupRefIsNil()).Count(hostCtx)
+		})
 
-		dupCount, err := client.APIKey.Query().
-			Where(
-				apikey.NameEQ(name),
-				apikey.ProjectIDEQ(owner.ProjectID),
-				apikey.GroupRefIsNil(),
-			).
-			Count(bypassCtx)
 		if err != nil {
 			return fmt.Errorf("failed to check api key name uniqueness: %w", err)
 		}
@@ -414,9 +409,10 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 // loadUserPermissions reloads the user together with the edges the permission
 // validator needs. The JWT middleware already loads them, but the API key
 // services are also reachable from tests and internal callers, so reload under
-// a system bypass instead of relying on the shape of the context user.
+// a host context instead of relying on the shape of the context user. Authorization
+// still runs on the caller context, whose delegated user view remains pinned.
 func (s *APIKeyService) loadUserPermissions(ctx context.Context, userID int) (*ent.User, error) {
-	return authz.RunWithSystemBypass(ctx, "api-key-scope-permission", func(bypassCtx context.Context) (*ent.User, error) {
+	return authz.RunAsHost(ctx, s.entFromContext(ctx), "api-key-scope-permission", func(bypassCtx context.Context) (*ent.User, error) {
 		return s.entFromContext(bypassCtx).User.Query().
 			Where(user.IDEQ(userID)).
 			WithRoles().
@@ -673,34 +669,34 @@ func (s *APIKeyService) updatePersonalAPIKeyStatusByUser(
 	toStatus apikey.Status,
 	action string,
 ) error {
-	ctx = authz.WithSystemBypass(ctx, "update-user-personal-api-key-status")
 	client := s.entFromContext(ctx)
-	predicate := apikey.And(
-		apikey.UserIDEQ(userID),
-		apikey.TypeEQ(apikey.TypePersonal),
-		apikey.StatusIn(fromStatuses...),
-	)
-
-	apiKeys, err := client.APIKey.Query().
-		Where(predicate).
-		All(ctx)
+	// The user mutation was authorized by its own policy. Maintain only that
+	// user's personal keys using the same transaction client.
+	keys, err := authz.RunAsHost(ctx, client, "update-user-personal-api-key-status", func(hostCtx context.Context) ([]string, error) {
+		predicate := apikey.And(
+			apikey.UserIDEQ(userID),
+			apikey.TypeEQ(apikey.TypePersonal),
+			apikey.StatusIn(fromStatuses...),
+		)
+		apiKeys, err := client.APIKey.Query().Where(predicate).All(hostCtx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query user personal API keys: %w", err)
+		}
+		if len(apiKeys) == 0 {
+			return nil, nil
+		}
+		if _, err := client.APIKey.Update().Where(predicate).SetStatus(toStatus).Save(hostCtx); err != nil {
+			return nil, fmt.Errorf("failed to %s user personal API keys: %w", action, err)
+		}
+		return lo.Map(apiKeys, func(apiKey *ent.APIKey, _ int) string { return apiKey.Key }), nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to query user personal API keys: %w", err)
+		return err
 	}
-
-	if len(apiKeys) == 0 {
+	if len(keys) == 0 {
 		return nil
 	}
-
-	_, err = client.APIKey.Update().
-		Where(predicate).
-		SetStatus(toStatus).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to %s user personal API keys: %w", action, err)
-	}
-
-	keys := lo.Map(apiKeys, func(apiKey *ent.APIKey, _ int) string { return apiKey.Key })
+	// Keep transaction hooks on the original context; RunAsHost does not carry them.
 	runAfterCommit(ctx, func(ctx context.Context) {
 		for _, key := range keys {
 			s.APIKeyCache.Invalidate(buildAPIKeyCacheKey(key))

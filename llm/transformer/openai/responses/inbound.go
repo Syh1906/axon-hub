@@ -1221,6 +1221,10 @@ func convertToResponsesAPIResponse(chatResp *llm.Response) *Response {
 				resp.Status = lo.ToPtr("completed")
 			case "length":
 				resp.Status = lo.ToPtr("incomplete")
+				resp.IncompleteDetails = &ResponseIncompleteDetails{Reason: "max_output_tokens"}
+			case "content_filter":
+				resp.Status = lo.ToPtr("incomplete")
+				resp.IncompleteDetails = &ResponseIncompleteDetails{Reason: "content_filter"}
 			case "tool_calls":
 				resp.Status = lo.ToPtr("completed")
 			case "error":

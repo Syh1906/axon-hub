@@ -8,6 +8,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/looplj/axonhub/internal/authz/identity"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
@@ -31,7 +32,7 @@ func (svc *BackupService) Backup(ctx context.Context, opts BackupOptions) ([]byt
 		return nil, fmt.Errorf("user not found in context")
 	}
 
-	if !user.IsOwner {
+	if !user.IsOwner || identity.IsPlugin(ctx) {
 		return nil, fmt.Errorf("only owners can perform backup operations")
 	}
 
@@ -83,6 +84,9 @@ func (svc *BackupService) writeBackupToWriter(ctx context.Context, opts BackupOp
 		return err
 	}
 
+	if err := svc.streamPlugins(ctx, o, opts); err != nil {
+		return err
+	}
 	if err := svc.streamSystemConfigs(ctx, o, opts); err != nil {
 		return err
 	}

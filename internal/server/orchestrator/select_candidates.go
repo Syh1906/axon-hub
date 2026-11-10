@@ -15,7 +15,7 @@ import (
 // selectCandidates creates a middleware that selects available channel model candidates for the model.
 // This is the second step in the inbound pipeline, moved from outbound transformer.
 // If no valid candidates are found, it returns ErrInvalidModel to fail fast.
-func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider ProviderQuotaStatusProvider, systemService biz.QuotaRoutingSettingsProvider) pipeline.Middleware {
+func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider ProviderQuotaStatusProvider) pipeline.Middleware {
 	return pipeline.OnLlmRequest("select-candidates", func(ctx context.Context, llmRequest *llm.Request) (*llm.Request, error) {
 		inbound.state.FailureStage = "routing"
 		// Only select candidates once
@@ -70,18 +70,21 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 		selector = WithImageGenerationToolSelector(selector)
 		selector = WithStreamPolicySelector(selector)
 
-		gate := NewQuotaRoutingGate(quotaProvider, systemService.QuotaRoutingSettingsOrDefault(ctx))
+		settings := inbound.state.settings()
+		gate := NewQuotaRoutingGate(quotaProvider, settings.QuotaRouting)
 
 		if len(inbound.state.LoadBalancers) > 0 {
-			selector = WithRoutingPolicyLoadBalancedSelector(
+			balanced := WithRoutingPolicyLoadBalancedSelector(
 				selector,
 				inbound.state.LoadBalancers,
-				inbound.state.RetryPolicyProvider,
+				&settings.RetryPolicy,
 				inbound.state.RequestService,
 				inbound.state.APIKey,
 				&inbound.state.RoutingPolicy,
 				gate,
 			)
+			balanced.policy = inbound.state.RetryPolicyProvider
+			selector = balanced
 		} else {
 			selector = WithQuotaRoutingSelector(selector, gate)
 		}

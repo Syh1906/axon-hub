@@ -136,16 +136,8 @@ func (m *persistRequestMiddleware) injectUsageCost(ctx context.Context, resp *ll
 		return
 	}
 
-	if state.SystemService != nil {
-		enabled, err := state.SystemService.InjectUsageCostEnabled(ctx)
-		if err != nil {
-			log.Warn(ctx, "failed to get inject usage cost setting", log.Cause(err))
-			return
-		}
-
-		if !enabled {
-			return
-		}
+	if !state.settings().InjectUsageCost {
+		return
 	}
 
 	state.UsageLogService.InjectUsageCost(ctx, state.RequestExec.ChannelID, state.RequestExec.ModelID, resp.Usage, state.RequestExec.CostSnapshot)
@@ -198,7 +190,7 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 	if llmResp.RequestType == llm.RequestTypeVideo {
 		err := state.RequestService.UpdateRequestStatusExternalIDAndResponseBody(
 			persistCtx,
-			state.Request.ID,
+			state.Request,
 			request.StatusProcessing,
 			llmResp.ID,
 			httpResp.Body,
@@ -222,7 +214,7 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 
 		err := state.RequestService.UpdateRequestCompletedWithAudio(
 			persistCtx,
-			state.Request.ID,
+			state.Request,
 			llmResp.ID,
 			placeholder,
 			httpResp.Body,
@@ -233,6 +225,7 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 			log.Warn(persistCtx, "Failed to update speech request status to completed", log.Cause(err))
 		}
 
+		publishRequestCompleted(persistCtx, state, llmResp.Usage, false, metrics)
 		return httpResp, nil
 	}
 
@@ -243,17 +236,18 @@ func (m *persistRequestMiddleware) OnInboundRawResponse(ctx context.Context, htt
 		if errors.Is(state.ResponseTerminalError, context.Canceled) {
 			status = request.StatusCanceled
 		}
-		if err := state.RequestService.UpdateRequestStatusExternalIDAndResponseBody(persistCtx, state.Request.ID, status, llmResp.ID, respBody, metrics); err != nil {
+		if err := state.RequestService.UpdateRequestStatusExternalIDAndResponseBody(persistCtx, state.Request, status, llmResp.ID, respBody, metrics); err != nil {
 			log.Warn(persistCtx, "Failed to persist provider response outcome", log.Cause(err))
 		}
 		return httpResp, nil
 	}
 
-	err := state.RequestService.UpdateRequestFinalized(persistCtx, state.Request.ID, request.StatusCompleted, llmResp.ID, respBody, metrics)
+	err := state.RequestService.UpdateRequestFinalized(persistCtx, state.Request, request.StatusCompleted, llmResp.ID, respBody, metrics)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to update request status to completed", log.Cause(err))
 	}
 
+	publishRequestCompleted(persistCtx, state, llmResp.Usage, false, metrics)
 	return httpResp, nil
 }
 

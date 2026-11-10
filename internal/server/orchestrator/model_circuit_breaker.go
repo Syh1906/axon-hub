@@ -88,6 +88,10 @@ func (m *modelCircuitBreakerTracker) OnOutboundLlmResponse(ctx context.Context, 
 }
 
 func (m *modelCircuitBreakerTracker) OnOutboundRawError(ctx context.Context, err error) {
+	if isLocalAdmissionError(err) {
+		m.releaseProbeLease()
+		return
+	}
 	if !m.shouldTrack() {
 		return
 	}

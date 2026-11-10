@@ -82,7 +82,7 @@ func TestChannelPriorityGlobalFallback(t *testing.T) {
 
 func TestChannelPriorityWeightTiersPrecedeStrategyScores(t *testing.T) {
 	for _, debug := range []bool{false, true} {
-		lb := newTestLoadBalancer(t, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3}, &channelBasedStrategy{
+		lb := newTestLoadBalancer(t, nil, &channelBasedStrategy{
 			name: "scores", scores: map[int]float64{1: 1000, 2: 1, 3: 500, 4: rateLimitExhaustedScore},
 		})
 		lb.debug = debug
@@ -93,7 +93,7 @@ func TestChannelPriorityWeightTiersPrecedeStrategyScores(t *testing.T) {
 		for i, weight := range []int{0, 20, 20, 100} {
 			candidates[i].Channel.OrderingWeight = weight
 		}
-		result := lb.Sort(context.Background(), candidates, "model", false)
+		result := lb.Sort(context.Background(), candidates, "model", false, len(candidates))
 		require.Equal(t, []int{3, 2, 1, 4}, lo.Map(result, func(candidate *ChannelModelsCandidate, _ int) int { return candidate.Channel.ID }))
 	}
 }
@@ -110,21 +110,21 @@ func TestChannelPriorityWeightTiersRespectFailureRecovery(t *testing.T) {
 				1: {LastFailureAt: &now}, 2: {},
 			}}
 			metrics.metrics[1].ConsecutiveFailures = 3
-			lb := newTestLoadBalancer(t, &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 2}, NewErrorAwareStrategy(metrics))
+			lb := newTestLoadBalancer(t, metrics, NewErrorAwareStrategy())
 			lb.debug = debug
 			candidates := []*ChannelModelsCandidate{high, low}
-			require.Equal(t, 2, lb.Sort(context.Background(), candidates, "model", false)[0].Channel.ID)
+			require.Equal(t, 2, lb.Sort(context.Background(), candidates, "model", false, len(candidates))[0].Channel.ID)
 			metrics.metrics[1] = &biz.AggregatedMetrics{}
-			require.Equal(t, 1, lb.Sort(context.Background(), candidates, "model", false)[0].Channel.ID)
+			require.Equal(t, 1, lb.Sort(context.Background(), candidates, "model", false, len(candidates))[0].Channel.ID)
 
 			breaker := biz.NewModelCircuitBreaker()
 			lb.strategies = []LoadBalanceStrategy{NewModelAwareCircuitBreakerStrategy(breaker)}
 			for range 3 {
 				breaker.RecordError(context.Background(), 1, "model", false)
 			}
-			require.Equal(t, 2, lb.Sort(context.Background(), candidates, "model", false)[0].Channel.ID)
+			require.Equal(t, 2, lb.Sort(context.Background(), candidates, "model", false, len(candidates))[0].Channel.ID)
 			breaker.RecordSuccess(context.Background(), 1, "model")
-			require.Equal(t, 1, lb.Sort(context.Background(), candidates, "model", false)[0].Channel.ID)
+			require.Equal(t, 1, lb.Sort(context.Background(), candidates, "model", false, len(candidates))[0].Channel.ID)
 		})
 	}
 }

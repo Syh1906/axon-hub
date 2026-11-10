@@ -4,14 +4,14 @@
   "prerelease": false,
   "publishBinaries": false,
   "upstreamRepository": "looplj/axonhub",
-  "upstreamTag": "v1.0.0-beta12",
-  "upstreamCommit": "2b1a0f9321a4f783a4cceb2b4eb3a8303074487e",
+  "upstreamTag": "v1.0.0-rc1",
+  "upstreamCommit": "d2935453d23cb1886350a3d1b15f777038af3230",
   "originalUpstream": {
     "repository": "looplj/axonhub",
-    "tag": "v1.0.0-beta12",
-    "commit": "2b1a0f9321a4f783a4cceb2b4eb3a8303074487e"
+    "tag": "v1.0.0-rc1",
+    "commit": "d2935453d23cb1886350a3d1b15f777038af3230"
   },
-  "minimumReleaseNumber": 5,
+  "minimumReleaseNumber": 1,
   "notesFile": ".github/release-notes.md",
   "inheritedFork": {
     "repository": "ChouUn/axon-hub",

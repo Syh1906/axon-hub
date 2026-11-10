@@ -11,6 +11,8 @@ import (
 )
 
 type BackupData struct {
+	Plugins            []*ent.Plugin              `json:"plugins,omitempty"`
+	PluginStorage      []*ent.PluginStorage       `json:"plugin_storage,omitempty"`
 	ChannelReferences  []*ChannelReference        `json:"channel_references,omitempty"`
 	BudgetAccounts     []*BackupBudgetAccount     `json:"budget_accounts,omitempty"`
 	BudgetCharges      []*ent.BudgetCharge        `json:"budget_charges,omitempty"`
@@ -220,7 +222,8 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 }
 
 const (
-	BackupVersion   = "1.7"
+	BackupVersion   = "1.8"
+	BackupVersionV8 = "1.7"
 	BackupVersionV7 = "1.6"
 	BackupVersionV6 = "1.5"
 	BackupVersionV5 = "1.4"

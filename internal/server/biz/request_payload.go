@@ -138,8 +138,11 @@ func (s *RequestService) debugResponsePayload(ctx context.Context, body any) obj
 }
 
 func (s *RequestService) debugStreamPayload(ctx context.Context, chunks []*httpclient.StreamEvent) []objects.JSONRawMessage {
+	if len(chunks) == 0 {
+		return nil
+	}
 	enabled, err := s.SystemService.StoreChunks(ctx)
-	if err != nil || !enabled || len(chunks) == 0 {
+	if err != nil || !enabled {
 		return nil
 	}
 	var stored []objects.JSONRawMessage

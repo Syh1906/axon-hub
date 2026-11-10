@@ -59,7 +59,7 @@ func healthGateOrchestratorFixture(t *testing.T, ctx context.Context, client *en
 		PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(),
 		channelLimiterManager:   NewChannelLimiterManager(),
 		Middlewares:             []pipeline.Middleware{stream.EnsureUsage()},
-		healthGatedLoadBalancer: NewLoadBalancer(systemService, channelService).WithHealthGate(gate),
+		healthGatedLoadBalancer: NewLoadBalancer(channelService, channelService).WithHealthGate(gate),
 	}
 	return ctx, processor, gate
 }

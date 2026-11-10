@@ -120,7 +120,7 @@ func (s *responsesOriginStream) Close() error {
 	return s.closeErr
 }
 
-func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context.Context, state *PersistenceState, request *httpclient.Request, preparedResponsesBody []byte, result *pipeline.Result) (ChatCompletionResult, error) {
+func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context.Context, state *PersistenceState, request *httpclient.Request, preparedResponsesBody []byte, result *pipeline.Result, continuation *responsesContinuation) (ChatCompletionResult, error) {
 	requestID := 0
 	if state.Request != nil {
 		requestID = state.Request.ID
@@ -139,19 +139,23 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 		}
 		var retainContinuation func([]byte) error
 		if preparedResponsesBody != nil {
-			// Full history remains restorable even when optional affinity is unavailable.
+			// HTTP/restart history retains its existing persistence contract.
 			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
-			if shared.IsResponsesWebSocket(ctx) {
-				saveContext := processor.responsesSessions.continuationRecorder(ctx, preparedResponsesBody)
-				retainContinuation = func(body []byte) error {
-					if recordOrigin != nil {
-						if err := recordOrigin(body); err != nil {
-							return err
-						}
+		}
+		if shared.IsResponsesWebSocket(ctx) && continuation != nil {
+			retainContinuation = func(body []byte) error {
+				continuation.acceptInterrupted(ctx, body)
+				if recordOrigin != nil {
+					if err := recordOrigin(body); err != nil {
+						return err
 					}
-					saveContext(body)
-					return nil
 				}
+				// Persist the actual turn without flattening native history. The
+				// connection-local snapshot is independent of payload storage.
+				if processor.responsesSessions != nil {
+					processor.responsesSessions.continuationRecorder(ctx, continuation.effective)(body)
+				}
+				return nil
 			}
 		}
 		return ChatCompletionResult{

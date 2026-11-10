@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 
+	"github.com/looplj/axonhub/internal/authz/identity"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
@@ -36,7 +37,7 @@ func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts Rest
 		return fmt.Errorf("user not found in context")
 	}
 
-	if !user.IsOwner {
+	if !user.IsOwner || identity.IsPlugin(ctx) {
 		return fmt.Errorf("only owners can perform restore operations")
 	}
 
@@ -53,7 +54,7 @@ func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts Rest
 		return fmt.Errorf("unexpected trailing data after backup")
 	}
 
-	if !lo.Contains([]string{BackupVersion, BackupVersionV7, BackupVersionV6, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
+	if !lo.Contains([]string{BackupVersion, BackupVersionV8, BackupVersionV7, BackupVersionV6, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
 		log.Warn(ctx, "backup version mismatch",
 			log.String("expected", BackupVersion),
 			log.String("got", backupData.Version))
@@ -95,6 +96,11 @@ func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts Rest
 
 func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupData BackupData, opts RestoreOptions) error {
 	if opts.IncludeSystemConfigs {
+		if err := svc.restorePlugins(ctx, db, backupData); err != nil {
+			return err
+		}
+	}
+	if opts.IncludeSystemConfigs {
 		if err := svc.restoreSystemConfigs(ctx, db, backupData.SystemConfigs); err != nil {
 			return err
 		}
@@ -105,7 +111,7 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 		return err
 	}
 	if opts.IncludeChannels {
-		if err := svc.restoreChannels(ctx, db, backupData.Channels, opts, channels, backupData.Version != BackupVersion); err != nil {
+		if err := svc.restoreChannels(ctx, db, backupData.Channels, opts, channels, backupData.Version != BackupVersion && backupData.Version != BackupVersionV8); err != nil {
 			return err
 		}
 	}

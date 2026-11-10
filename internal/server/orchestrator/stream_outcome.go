@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"context"
 	"errors"
+
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 // streamOutcome is the single monotonic view of a stream's terminal facts.
@@ -11,6 +13,7 @@ import (
 // when aggregation provides explicit completion evidence.
 type streamOutcome struct {
 	terminalState          streamTerminalState
+	terminalCause          error
 	providerTerminal       bool
 	aggregatedCompleted    bool
 	validatedCompleted     bool
@@ -70,6 +73,19 @@ func (o *streamOutcome) observeTerminal(state streamTerminalState) {
 
 	o.providerTerminal = true
 	o.terminalState = state
+	if state != streamTerminalCompleted {
+		o.terminalCause = errors.New(string(state))
+	}
+}
+
+func (o *streamOutcome) observeTerminalEvent(state streamTerminalState, event *httpclient.StreamEvent) {
+	if o.providerTerminal || state == streamTerminalNone {
+		return
+	}
+	o.observeTerminal(state)
+	if state != streamTerminalCompleted {
+		o.terminalCause = errors.New(streamTerminalErrorMessage(event, state))
+	}
 }
 
 func (o *streamOutcome) observeAggregatedCompletion(completed bool) {
@@ -115,7 +131,7 @@ func (o streamOutcome) finalDecision() streamOutcomeDecision {
 		return streamOutcomeDecision{state: streamTerminalFailed, cause: o.contextErr}
 	}
 	if o.providerTerminal {
-		return streamOutcomeDecision{state: o.terminalState}
+		return streamOutcomeDecision{state: o.terminalState, cause: o.terminalCause}
 	}
 	if o.validatedCompleted {
 		return streamOutcomeDecision{state: streamTerminalCompleted}

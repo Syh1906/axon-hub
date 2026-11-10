@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"sync"
 	"time"
 
 	"github.com/looplj/axonhub/llm"
@@ -186,6 +187,7 @@ func (f *Factory) Pipeline(
 
 // pipeline implements the main pipeline logic with retry capabilities.
 type pipeline struct {
+	cleanupOnce             sync.Once
 	Executor                Executor
 	Inbound                 transformer.Inbound
 	Outbound                transformer.Outbound
@@ -327,7 +329,16 @@ func (p *pipeline) applyLlmStreamMiddlewares(ctx context.Context, stream streams
 	return stream, nil
 }
 
+func (p *pipeline) finishProcess() {
+	p.cleanupOnce.Do(func() {
+		for _, middleware := range p.middlewares {
+			defer middleware.OnProcessEnd()
+		}
+	})
+}
+
 func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*Result, error) {
+	defer p.finishProcess()
 	llmRequest, err := p.Prepare(ctx, request)
 	if err != nil {
 		return nil, err
@@ -338,6 +349,12 @@ func (p *pipeline) Process(ctx context.Context, request *httpclient.Request) (*R
 // Prepare validates and selects candidates once before dispatch. Callers that
 // schedule independent attempts must give each attempt its own pipeline/state.
 func (p *pipeline) Prepare(ctx context.Context, request *httpclient.Request) (*llm.Request, error) {
+	prepared := false
+	defer func() {
+		if !prepared {
+			p.finishProcess()
+		}
+	}()
 	// Step 1: Transform httpclient.Request to llm.Request using inbound transformer
 	llmRequest, err := p.Inbound.TransformRequest(ctx, request)
 	if err != nil {
@@ -353,11 +370,13 @@ func (p *pipeline) Prepare(ctx context.Context, request *httpclient.Request) (*l
 		return nil, err
 	}
 
+	prepared = true
 	return llmRequest, nil
 }
 
 // ProcessPrepared runs the ordinary retry policy for an already prepared request.
 func (p *pipeline) ProcessPrepared(ctx context.Context, llmRequest *llm.Request, options ...Option) (*Result, error) {
+	defer p.finishProcess()
 	for _, option := range options {
 		option(p)
 	}

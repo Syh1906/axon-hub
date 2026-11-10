@@ -74,7 +74,7 @@ export function useDeviceFlow(
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
-  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingTimeoutRef = useRef<number | null>(null);
   const currentIntervalRef = useRef<number>(5);
   const onSuccessRef = useRef(onSuccess);
 

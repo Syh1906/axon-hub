@@ -118,7 +118,7 @@ func (s *LoadBalancedSelector) selectHealthGated(
 		if candidate.continuationBound {
 			preferred := candidate
 			remaining := append(append([]*ChannelModelsCandidate{}, filtered[:index]...), filtered[index+1:]...)
-			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), false)
+			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), requiredCount, false)
 			lb.TrackSelection(preferred)
 			return append([]*ChannelModelsCandidate{preferred}, fallbacks...), nil
 		}
@@ -126,12 +126,12 @@ func (s *LoadBalancedSelector) selectHealthGated(
 	if decision.sticky && decision.found && ownerAllowed {
 		if sticky, remaining := extractStickyCandidate(filtered, decision.owner.ChannelID); sticky != nil {
 			sticky.TraceSticky = true
-			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), false)
+			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), requiredCount, false)
 			lb.TrackSelection(sticky)
 			return append([]*ChannelModelsCandidate{sticky}, fallbacks...), nil
 		}
 	}
-	return s.sortCandidates(ctx, lb, filtered, req, requiredCount, true), nil
+	return s.sortCandidates(ctx, lb, filtered, req, requiredCount, requiredCount, true), nil
 }
 
 func healthGateLastResortBefore(a, b biz.HealthGateView) bool {

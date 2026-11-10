@@ -69,7 +69,8 @@ func TestResponsesCaptureRetainsFullSnapshotAtAggregateLimit(t *testing.T) {
 	body := []byte(`{"id":"provider_id","status":"completed","output":[{"type":"message"}]}`)
 	input := []json.RawMessage{json.RawMessage(`{"type":"message","content":"input"}`)}
 	inputBytes := len(input[0])
-	budget := shared.NewResponsesBudget(inputBytes + len(body))
+	snapshotBytes := shared.NewResponsesSnapshot(nil, input, []json.RawMessage{json.RawMessage(`{"type":"message"}`)}).Size()
+	budget := shared.NewResponsesBudget(max(inputBytes+len(body), snapshotBytes))
 	lane := shared.NewResponsesLane("lane", budget)
 	t.Cleanup(lane.Close)
 	continuation := newResponsesContinuation(nil, []byte(`{"input":[]}`))
@@ -100,7 +101,8 @@ func TestResponsesCaptureSharedBudgetRetainsMultipleLanes(t *testing.T) {
 	input := []json.RawMessage{json.RawMessage(`{"type":"message","content":"input"}`)}
 	inputBytes := len(input[0])
 	reservation := inputBytes + len(body)
-	budget := shared.NewResponsesBudget(2 * reservation)
+	snapshotBytes := shared.NewResponsesSnapshot(nil, input, []json.RawMessage{json.RawMessage(`{"type":"message"}`)}).Size()
+	budget := shared.NewResponsesBudget(2 * max(reservation, snapshotBytes))
 	lanes := []*shared.ResponsesLane{
 		shared.NewResponsesLane("lane-1", budget),
 		shared.NewResponsesLane("lane-2", budget),
@@ -178,4 +180,29 @@ func TestResponsesCaptureCloseReleasesReservationsOnce(t *testing.T) {
 	// Then
 	require.True(t, budget.Replace(0, inputBytes+len(body)))
 	require.True(t, budget.Replace(inputBytes+len(body), 0))
+}
+
+func TestResponsesInterruptedSnapshotPreservesCompletedItems(t *testing.T) {
+	// Given an existing tool turn followed by an intentionally interrupted response.
+	lane := shared.NewResponsesLane("interrupted", shared.NewResponsesBudget(64<<20))
+	t.Cleanup(lane.Close)
+	ctx := shared.WithResponsesAttempt(shared.WithResponsesLane(t.Context(), lane), &shared.ResponsesAttempt{})
+	shared.GetResponsesAttempt(ctx).SetOrigin(shared.ResponsesOrigin{Format: "openai/responses-ws", Generation: 7})
+	parent := shared.NewResponsesSnapshot(nil, []json.RawMessage{json.RawMessage(`{"role":"user","content":"root"}`)}, []json.RawMessage{json.RawMessage(`{"type":"function_call","call_id":"call1","arguments":"{}"}`)})
+	c := newResponsesContinuation(nil, nil)
+	c.parent = parent
+	c.retain = true
+	c.input = []json.RawMessage{json.RawMessage(`{"type":"function_call_output","call_id":"call1","output":"result"}`)}
+	body := []byte(`{"id":"interrupted","status":"incomplete","incomplete_details":{"reason":"interrupted"},"output":[{"type":"reasoning","id":"rs1","encrypted_content":"opaque-complete-item","summary":[]}]}`)
+	// When the API supplies only completed items at its interruption boundary.
+	c.acceptInterrupted(ctx, body)
+	// Then the entire prior lineage and the completed reasoning survive, without a live old socket.
+	record := lane.Record()
+	require.Equal(t, "interrupted", record.ID)
+	require.Zero(t, record.Origin.Generation)
+	require.Len(t, record.Snapshot.Items(), 4)
+	require.Contains(t, string(record.Snapshot.Items()[3]), "opaque-complete-item")
+	require.False(t, lane.CanContinue(record))
+	c.releaseRetention()
+	c.releaseCapture()
 }

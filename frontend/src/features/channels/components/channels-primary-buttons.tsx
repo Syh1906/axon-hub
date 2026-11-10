@@ -19,7 +19,11 @@ export function ChannelsPrimaryButtons() {
     <div ref={scrollRef} onFocusCapture={revealFocusedHorizontalButton} data-testid='channel-actions-scroller' className='flex min-w-0 max-w-full gap-2 overflow-x-auto p-1'>
       <PermissionGuard requiredSystemScope='read_settings'>
         {/* Load Balancing Strategy - navigate to system retry configuration */}
-        <Button variant='outline' className='shrink-0 space-x-1' onClick={() => navigate({ to: '/system', search: { tab: 'retry' } })}>
+        <Button
+          variant='outline'
+          className='shrink-0 space-x-1'
+          onClick={() => navigate({ to: '/system/$section', params: { section: 'requests' }, search: { tab: 'retry' } })}
+        >
           <span>{t('channels.loadBalancingStrategy')}</span> <IconScale size={18} />
         </Button>
       </PermissionGuard>
