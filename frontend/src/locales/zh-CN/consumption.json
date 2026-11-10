@@ -1,4 +1,8 @@
 {
+  "consumption.channelDetails": "查看渠道“{{name}}”的完整信息",
+  "consumption.channelDetailsShort": "渠道详情",
+
+  "consumption.searchChannel": "搜索名称、标签或服务商",
   "scopes.read_leaderboard": "查看消耗排行榜",
   "consumption.title": "消耗排行榜",
   "consumption.description": "按渠道、密钥分组、模型、密钥或用户统计 Token 消耗与成本，支持多维度对比。",

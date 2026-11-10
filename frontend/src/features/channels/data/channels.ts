@@ -2,49 +2,17 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
-import { pageInfoSchema } from '@/gql/pagination';
 import { MODEL_PRICE_FIELDS } from '@/gql/prices';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { mergeChannelSettingsForUpdate } from '../utils/merge';
+import { invalidateChannelIdentityQueries } from './channel-identity-cache';
 import { shouldNotifyChannelQueryError } from './channel-query-error';
 import { CHANNEL_QUERY_FULL_NODE_SELECTION, CHANNEL_QUERY_LIST_NODE_BASE_SELECTION, CHANNEL_QUERY_SUPPORTED_MODELS_SELECTION, CHANNEL_QUERY_TAGS_SELECTION, CHANNEL_QUERY_PROXY_SELECTION, CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION, CHANNEL_QUERY_LOAD_SELECTION, CHANNEL_QUERY_QUOTA_SELECTION } from './channel-query-fields';
 import { cacheWriteBillingSchema, type CacheWriteBilling, type ServiceTierSettings } from './schema';
 import { Channel, ChannelConnection, ChannelSummaryConnection, CreateChannelInput, UpdateChannelInput, channelConnectionSchema, channelSchema, channelHealthGateStatusSchema, disabledAPIKeySchema, channelEndpointsResponseSchema, BulkImportChannelsInput, BulkImportChannelsResult, bulkImportChannelsResultSchema, BulkUpdateChannelOrderingInput, BulkUpdateChannelOrderingResult, bulkUpdateChannelOrderingResultSchema, BulkUpdateChannelAutoDisableInput, BulkUpdateChannelAutoDisablePayload, bulkUpdateChannelAutoDisablePayloadSchema, ChannelAutoDisableCopySource, channelAutoDisableCopySourceSchema, channelSummaryConnectionSchema, ChannelSettings, ProxyConfig, ChannelPolicies, ChannelModelPrice, SaveChannelModelPriceInput, channelModelPriceSchema, saveChannelModelPriceInputSchema, channelSettingsInputSchema, TestChannelAPIKeysPayload, testChannelAPIKeysPayloadSchema, TestAPIKeyResult, testAPIKeyResultSchema, DetectedChannelEndpoint, detectedChannelEndpointSchema } from './schema';
-
-const QUERY_CHANNEL_NAMES_QUERY = `
-  query QueryChannelNames($input: QueryChannelInput!) {
-    queryChannels(input: $input) {
-      edges {
-        node {
-          name
-        }
-        cursor
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-  }
-`;
-
-const channelNamesConnectionSchema = z.object({
-  edges: z.array(
-    z.object({
-      node: z.object({
-        name: z.string(),
-      }),
-      cursor: z.string(),
-    })
-  ),
-  pageInfo: pageInfoSchema.pick({
-    hasNextPage: true,
-    endCursor: true,
-  }),
-});
 
 const CREATE_CHANNEL_MUTATION = `
   mutation CreateChannel($input: CreateChannelInput!) {
@@ -1388,49 +1356,6 @@ export function useChannelDetails(channelID?: string, options?: { enabled?: bool
   });
 }
 
-export function useAllChannelNames(options?: { enabled?: boolean }) {
-  const { handleError } = useErrorHandler();
-  const { t } = useTranslation();
-
-  return useQuery({
-    enabled: options?.enabled ?? true,
-    queryKey: ['channels', 'names'],
-    queryFn: async ({ signal }) => {
-      try {
-        const names: string[] = [];
-        let after: string | undefined;
-
-        for (;;) {
-          const data = await graphqlRequest<{ queryChannels: unknown }>(QUERY_CHANNEL_NAMES_QUERY, {
-            input: {
-              first: 200,
-              after,
-              where: {
-                statusIn: ['enabled', 'disabled', 'archived'],
-              },
-            },
-          }, undefined, { signal });
-
-          const parsed = channelNamesConnectionSchema.parse(data?.queryChannels);
-          names.push(...parsed.edges.map((e) => e.node.name));
-
-          if (!parsed.pageInfo.hasNextPage || !parsed.pageInfo.endCursor) {
-            break;
-          }
-
-          after = parsed.pageInfo.endCursor;
-        }
-
-        return names;
-      } catch (error) {
-        handleError(error, t('common.errors.internalServerError'));
-        throw error;
-      }
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
 // Mutation hooks
 export function useCreateChannel() {
   const queryClient = useQueryClient();
@@ -1446,6 +1371,7 @@ export function useCreateChannel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       toast.success(t('channels.messages.createSuccess'));
     },
     onError: (error) => {
@@ -1469,6 +1395,7 @@ export function useDuplicateChannel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       toast.success(t('common.success.duplicated'));
     },
     onError: (error) => {
@@ -1511,6 +1438,7 @@ export function useBulkCreateChannels() {
     },
     onSuccess: (channels) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       toast.success(t('channels.messages.batchCreateSuccess', { count: channels.length }));
     },
   });
@@ -1575,7 +1503,10 @@ export function useUpdateChannel() {
     mutationFn: async ({ id, input }: { id: string; input: UpdateChannelInput }) => {
       return updateChannelRequest(id, input);
     },
-    onSuccess: (data) => {
+    onSuccess: (data, { input }) => {
+      if (input.name !== undefined || input.tags !== undefined || input.type !== undefined || input.remark !== undefined) {
+        invalidateChannelIdentityQueries(queryClient);
+      }
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['channel', data.id] });
       toast.success(t('channels.messages.updateSuccess'));
@@ -1880,6 +1811,7 @@ export function useDeleteChannel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       toast.success(t('channels.messages.deleteSuccess'));
     },
   });
@@ -1902,6 +1834,7 @@ export function useBulkDeleteChannels() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       toast.success(t('channels.messages.bulkDeleteSuccess', { count: variables.length }));
     },
   });
@@ -1928,6 +1861,7 @@ export function useBulkManageChannelTags() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['allChannelSummarys'] });
       queryClient.invalidateQueries({ queryKey: ['allChannelTags'] });
       queryClient.invalidateQueries({ queryKey: ['selectedChannelTags'] });
@@ -2044,6 +1978,7 @@ export function useBulkImportChannels() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      invalidateChannelIdentityQueries(queryClient);
 
       if (data.success) {
         toast.success(

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipProps } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from 'recharts';
 import { Loader2 } from 'lucide-react';
 import { formatNumber } from '@/utils/format-number';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,13 +45,13 @@ export function RequestsByChannelChart({ timePeriod }: RequestsByChannelChartPro
   const { chartData, totalRequests, totalCost } = useMemo(() => {
     if (!channelData) return { chartData: [], totalRequests: 0, totalCost: 0 };
 
-    const costMap = new Map((costData ?? []).map((item) => [item.channelName, item.cost]));
+    const costMap = new Map((costData ?? []).map((item) => [item.channelId, item.cost]));
 
     const data = channelData
       .map((item) => ({
         name: item.channelName,
         requests: item.count,
-        cost: costMap.get(item.channelName) ?? 0,
+        cost: costMap.get(item.channelId) ?? 0,
       }))
       .sort((a, b) => b.requests - a.requests)
       .slice(0, 10);
@@ -80,17 +80,7 @@ export function RequestsByChannelChart({ timePeriod }: RequestsByChannelChartPro
     secondaryValue: formatCurrency(item.cost, 4),
   }));
 
-  type CombinedTooltipProps = TooltipProps<number, string> & {
-    payload?: Array<{
-      name?: string;
-      value?: number;
-      payload?: {
-        name: string;
-        requests: number;
-        cost: number;
-      };
-    }>;
-  };
+  type CombinedTooltipProps = Pick<TooltipContentProps, 'active' | 'payload'>;
 
   const tooltipContent = (props: CombinedTooltipProps) => {
     const payload = props.payload;

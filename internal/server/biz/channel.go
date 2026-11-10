@@ -696,20 +696,8 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 
 // CreateChannel creates a new channel with the provided input.
 func (svc *ChannelService) CreateChannel(ctx context.Context, input ent.CreateChannelInput) (*ent.Channel, error) {
-	// Check if a channel with the same name already exists
-	existing, err := svc.entFromContext(ctx).Channel.Query().
-		Where(channel.Name(input.Name)).
-		First(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to check channel name: %w", err)
-	}
-
-	if existing != nil {
-		return nil, xerrors.DuplicateNameError("channel", input.Name)
-	}
-
 	var created *ent.Channel
-	err = svc.RunInTransaction(ctx, func(ctx context.Context) error {
+	err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
 		channel, err := svc.createChannel(ctx, input)
 		if err != nil {
 			return err
@@ -1004,23 +992,6 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		}
 	}
 
-	// Check if name is being updated and if it conflicts with existing channels
-	if input.Name != nil {
-		existing, err := svc.entFromContext(ctx).Channel.Query().
-			Where(
-				channel.Name(*input.Name),
-				channel.IDNEQ(id),
-			).
-			First(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to check channel name: %w", err)
-		}
-
-		if existing != nil {
-			return nil, xerrors.DuplicateNameError("channel", *input.Name)
-		}
-	}
-
 	// Synchronize overrides even for callers that have write_channels without
 	// read_channels. The scoped decision permits only this internal read required
 	// to preserve the write invariant; it does not expose channel data to callers.
@@ -1149,6 +1120,13 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 				guardUpdatedAt = *expectedUpdatedAt
 			}
 			mut.Where(channel.UpdatedAtEQ(guardUpdatedAt))
+			// A guarded write must consume its version even when the clock has
+			// not advanced. Use a millisecond step for database time precision.
+			updatedAt := time.Now().UTC()
+			if minimum := guardUpdatedAt.Add(time.Millisecond); updatedAt.Before(minimum) {
+				updatedAt = minimum
+			}
+			mut.SetUpdatedAt(updatedAt)
 		}
 
 		if input.SupportedModels != nil {

@@ -23,6 +23,7 @@ import {
 } from '../data/system';
 import { useDataStorages } from '@/features/data-storages/data/data-storages';
 import { extractNumberID } from '@/lib/utils';
+import { RestoreChannelMapping } from './restore-channel-mapping';
 import { DatabaseTransferSettings } from './database-transfer-settings';
 
 export function BackupSettings() {
@@ -122,6 +123,7 @@ export function BackupSettings() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setRestoreOptions((previous) => ({ ...previous, channelMappings: [] }));
     }
   };
 
@@ -261,6 +263,13 @@ export function BackupSettings() {
               </div>
             )}
           </div>
+          {selectedFile && <RestoreChannelMapping
+            key={`${selectedFile.name}-${selectedFile.lastModified}`}
+            file={selectedFile}
+            includeChannels={restoreOptions.includeChannels}
+            value={restoreOptions.channelMappings ?? []}
+            onChange={(channelMappings) => setRestoreOptions((previous) => ({ ...previous, channelMappings }))}
+          />}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="flex flex-1 items-center justify-between">
@@ -279,7 +288,7 @@ export function BackupSettings() {
                 <Switch
                   id="restore-include-channels"
                   checked={restoreOptions.includeChannels}
-                  onCheckedChange={(checked) => setRestoreOptions({ ...restoreOptions, includeChannels: checked })}
+                  onCheckedChange={(checked) => setRestoreOptions({ ...restoreOptions, includeChannels: checked, channelMappings: checked ? restoreOptions.channelMappings : restoreOptions.channelMappings?.filter((mapping) => mapping.targetID > 0) })}
                   disabled={!selectedFile}
                 />
               </div>

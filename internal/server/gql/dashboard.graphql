@@ -15,6 +15,7 @@ type RequestStats {
 }
 
 type RequestStatsByChannel {
+  channelId: ID!
   channelName: String!
   count: Int!
 }
@@ -194,6 +195,7 @@ type TokenStatsByModel {
 Cost statistics grouped by channel
 """
 type CostStatsByChannel {
+  channelId: ID!
   channelName: String!
   cost: Float!
 }

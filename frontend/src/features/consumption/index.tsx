@@ -169,8 +169,8 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className='pl-9'
-                placeholder={t('consumption.search')}
-                aria-label={t('consumption.search')}
+                placeholder={t(dimension === 'CHANNEL' ? 'consumption.searchChannel' : 'consumption.search')}
+                aria-label={t(dimension === 'CHANNEL' ? 'consumption.searchChannel' : 'consumption.search')}
               />
             </div>
           </div>

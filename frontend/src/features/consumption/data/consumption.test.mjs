@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import ts from 'typescript';
+import i18next from 'i18next';
+
+await i18next.init({ lng: 'zh-CN', fallbackLng: 'en', resources: Object.fromEntries(['zh-CN', 'en'].map((lang) => [lang, { translation: JSON.parse(readFileSync(join(import.meta.dirname, '../../../locales', lang, 'channels.json'), 'utf8')) }])) });
 
 const compile = (source) => ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 },
@@ -14,6 +17,7 @@ const utils = compile(readFileSync(join(import.meta.dirname, '../../../lib/utils
   .replaceAll("'tailwind-merge'", JSON.stringify(import.meta.resolve('tailwind-merge')));
 const source = compile(readFileSync(join(import.meta.dirname, 'consumption.ts'), 'utf8'))
   .replaceAll("import { useCallback } from 'react';", 'const useCallback = (fn) => fn;')
+  .replaceAll("import { useTranslation } from 'react-i18next';", `import i18next from ${JSON.stringify(import.meta.resolve('i18next'))}; const useTranslation = () => ({ t: i18next.getFixedT(i18next.language) });`)
   .replaceAll("import { useQuery } from '@tanstack/react-query';", 'const useQuery = (options) => options;')
   .replaceAll("import { graphqlRequest } from '@/gql/graphql';", 'const graphqlRequest = () => { throw new Error("unexpected network"); };')
   .replaceAll("import { useAuthStore } from '@/stores/authStore';", 'let userID = "viewer"; export const setTestUserID = (id) => { userID = id; }; const useAuthStore = (select) => select({ auth: { user: { id: userID } } });')
@@ -21,6 +25,26 @@ const source = compile(readFileSync(join(import.meta.dirname, 'consumption.ts'),
   .replaceAll("'zod'", JSON.stringify(import.meta.resolve('zod')));
 const { useConsumption, useConsumptionGroupOptions, setTestUserID } = await import(moduleURL(source));
 const input = { period: 'YESTERDAY', dimension: 'API_KEY_GROUP', metric: 'COST' };
+
+test('同名渠道按标签搜索后保留辨认信息并复用完整统计缓存', async () => {
+  const channels = {
+    ...data,
+    entries: [
+      { ...data.entries[0], name: 'same', channelProvider: 'codex', channelTags: ['小为'], duplicateName: true },
+      { ...data.entries[1], name: 'same', channelProvider: 'codex', channelTags: ['裂魂'], duplicateName: true },
+      { ...data.entries[1], id: 'unique', name: 'unique', channelProvider: 'openai', channelTags: ['备用'], duplicateName: false },
+    ],
+  };
+  const filter = { ...input, dimension: 'CHANNEL' };
+  const base = useConsumption(filter, 'leaderboard', null);
+  const selected = useConsumption({ ...filter, search: '小为' }, 'leaderboard', null);
+  assert.deepEqual(selected.queryKey, base.queryKey);
+  assert.deepEqual(selected.select(channels).entries, [channels.entries[0]]);
+  assert.equal(selected.select(channels).entries[0].duplicateName, true);
+  assert.equal(useConsumption({ ...filter, search: 'CODEX' }, 'leaderboard', null).select(channels).entries.length, 2);
+  assert.equal(useConsumption({ ...filter, search: '备用' }, 'leaderboard', null).select(channels).entries[0].duplicateName, false);
+  assert.equal(channels.entries.length, 3);
+});
 
 test('分组选项使用轻量查询且隔离用户、视图和项目', () => {
   const options = useConsumptionGroupOptions(input, 'usage', 'project-1');
@@ -162,4 +186,24 @@ test('a successful response crossing midnight refreshes promptly without acceler
   assert.equal(options.refetchInterval(query), 1_000);
   query.state.error = new Error('read timed out');
   assert.equal(options.refetchInterval(query), 300_000);
+});
+
+test('服务商搜索匹配中文名和带空格名称，切换语言仍复用查询缓存', async () => {
+  const result = { ...data, entries: [
+    { ...data.entries[0], name: 'provider-one', channelProvider: 'zhipu', channelTags: [], duplicateName: true },
+    { ...data.entries[1], name: 'provider-two', channelProvider: 'claudecode', channelTags: [], duplicateName: true },
+  ] };
+  const filter = { ...input, dimension: 'CHANNEL' };
+  const base = useConsumption(filter, 'leaderboard', null);
+  for (const [search, index] of [['智谱', 0], ['Claude Code', 1], ['ZHIPU', 0]]) {
+    const selected = useConsumption({ ...filter, search }, 'leaderboard', null);
+    assert.deepEqual(selected.queryKey, base.queryKey);
+    assert.deepEqual(selected.select(result).entries, [result.entries[index]]);
+  }
+  await i18next.changeLanguage('en');
+  try {
+    const selected = useConsumption({ ...filter, search: i18next.t('channels.providers.zhipu') }, 'leaderboard', null);
+    assert.deepEqual(selected.queryKey, base.queryKey);
+    assert.deepEqual(selected.select(result).entries, [result.entries[0]]);
+  } finally { await i18next.changeLanguage('zh-CN'); }
 });

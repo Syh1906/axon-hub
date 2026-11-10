@@ -168,9 +168,9 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("consumption:v6:%x:%s", sha256.Sum256(keyInput), keyRevision)
+		key := fmt.Sprintf("consumption:v7:%x:%s", sha256.Sum256(keyInput), keyRevision)
 		if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
-			return result, nil
+			return s.withChannelIdentity(ctx, input, result)
 		}
 		compute := func(ctx context.Context) (*ConsumptionResult, error) {
 			if cached, err := s.cache.Get(ctx, key); err == nil && cached != nil {
@@ -238,7 +238,11 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 			_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
 			return result, nil
 		}
-		return s.sharedQuery(ctx, key, compute)
+		result, err := s.sharedQuery(ctx, key, compute)
+		if err != nil {
+			return nil, err
+		}
+		return s.withChannelIdentity(ctx, input, result)
 	})
 }
 

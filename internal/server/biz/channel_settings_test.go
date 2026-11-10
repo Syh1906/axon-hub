@@ -225,3 +225,20 @@ func TestChannelService_UpdateChannelSettingsVersionGuard(t *testing.T) {
 	_, err = svc.UpdateChannel(withChannelExpectedVersion(ctx, stale), created.ID, &ent.UpdateChannelInput{Name: lo.ToPtr("Renamed")})
 	require.ErrorIs(t, err, ErrChannelUpdatedConcurrently)
 }
+
+func TestChannelService_UpdateChannelVersionAdvancesWithinClockTick(t *testing.T) {
+	svc, client := setupTestChannelService(t)
+	defer client.Close()
+	ctx := channelAutoPriceTestContext(client)
+	created, err := svc.CreateChannel(ctx, ent.CreateChannelInput{Type: channel.TypeOpenai, Name: "same clock tick", BaseURL: lo.ToPtr("https://example.test"), Credentials: objects.ChannelCredentials{APIKey: "fixture"}, SupportedModels: []string{"model"}})
+	require.NoError(t, err)
+	created = client.Channel.UpdateOne(created).SetUpdatedAt(created.UpdatedAt.Add(time.Hour)).SaveX(ctx)
+	clock := channel.UpdateDefaultUpdatedAt
+	channel.UpdateDefaultUpdatedAt = func() time.Time { return created.UpdatedAt }
+	defer func() { channel.UpdateDefaultUpdatedAt = clock }()
+	updated, err := svc.UpdateChannel(withChannelExpectedVersion(ctx, created.UpdatedAt), created.ID, &ent.UpdateChannelInput{Name: lo.ToPtr("first update")})
+	require.NoError(t, err)
+	require.True(t, updated.UpdatedAt.After(created.UpdatedAt), "a successful guarded write must consume its version even within one clock tick")
+	_, err = svc.UpdateChannel(withChannelExpectedVersion(ctx, created.UpdatedAt), created.ID, &ent.UpdateChannelInput{Name: lo.ToPtr("stale update")})
+	require.ErrorIs(t, err, ErrChannelUpdatedConcurrently)
+}

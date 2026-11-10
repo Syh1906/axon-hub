@@ -16,7 +16,7 @@ import { useProxyPresets, useSaveProxyPreset, usePassThroughSettings, useQuotaRo
 import { ProxyType } from '../components/channels-proxy-dialog';
 import { antigravityOAuthExchange, antigravityOAuthStart } from '../data/antigravity';
 import { useRefreshChannelUpstreams } from '../data/channel-upstream';
-import { useCreateChannel, useDuplicateChannel, useUpdateChannelSettings, useFetchModels, useAllChannelNames, useAllChannelTags, useChannelDisabledAPIKeys, useDisableChannelAPIKey, useEnableChannelAPIKey, useSyncChannelModels } from '../data/channels';
+import { useCreateChannel, useDuplicateChannel, useUpdateChannelSettings, useFetchModels, useAllChannelTags, useChannelDisabledAPIKeys, useDisableChannelAPIKey, useEnableChannelAPIKey, useSyncChannelModels } from '../data/channels';
 import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecode';
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
 import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
@@ -25,7 +25,7 @@ import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, getCodexRe
 import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
-import { recallQuotaRoutingMode, quotaRoutingModeSettingsPatch, formatMaxSingleChannelRetries, parseMaxSingleChannelRetriesInput, isVertexChannelType, emptyVertexAPIKey, getInitialBaseURL, parseOauthToken, getCodexThirdPartySubmitCredentials, getFetchModelsApiKey, getCodexThirdPartyCredentialError, ApiFormatOption, MAX_MODELS_DISPLAY, OPENAI_RESPONSES_WEBSOCKET, Props, ResponsesTransport, alwaysOAuthProviderKeys, baseURLMatchesResponsesTransport, extractCodexAuthJSONText, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getNextDuplicateName, getResponsesTransportBaseURLError, getResponsesTransportFromChannel, getResponsesWebSocketBaseURL, isOfficialClaudeCodeChannel, isOfficialCodexChannel, parseRetryableErrorPatternsInput, parseRetryableStatusCodesInput } from '../utils/channel-dialog';
+import { recallQuotaRoutingMode, quotaRoutingModeSettingsPatch, formatMaxSingleChannelRetries, parseMaxSingleChannelRetriesInput, isVertexChannelType, emptyVertexAPIKey, getInitialBaseURL, parseOauthToken, getCodexThirdPartySubmitCredentials, getFetchModelsApiKey, getCodexThirdPartyCredentialError, ApiFormatOption, MAX_MODELS_DISPLAY, OPENAI_RESPONSES_WEBSOCKET, Props, ResponsesTransport, alwaysOAuthProviderKeys, baseURLMatchesResponsesTransport, extractCodexAuthJSONText, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getResponsesTransportBaseURLError, getResponsesTransportFromChannel, getResponsesWebSocketBaseURL, isOfficialClaudeCodeChannel, isOfficialCodexChannel, parseRetryableErrorPatternsInput, parseRetryableStatusCodesInput } from '../utils/channel-dialog';
 import { mergeChannelSettingsForUpdate } from '../utils/merge';
 import { isSuggestedModel } from '../../models/data/model-suggestions';
 import { matchesModelPattern } from '../utils/pattern';
@@ -57,7 +57,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const updateChannelSettings = useUpdateChannelSettings();
   const fetchModels = useFetchModels();
   const syncChannelModels = useSyncChannelModels();
-  const { data: allChannelNames = [], isSuccess: allChannelNamesLoaded } = useAllChannelNames({ enabled: open && isDuplicate });
   const { data: allTags = [], isLoading: isLoadingTags } = useAllChannelTags(undefined, open);
   const { data: proxyPresets = [] } = useProxyPresets(open);
   const saveProxyPreset = useSaveProxyPreset();
@@ -87,7 +86,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const [supportedModelsExpanded, setSupportedModelsExpanded] = useState(false);
   const [showClearAllPopover, setShowClearAllPopover] = useState(false);
   const [applyPatternFilter, setApplyPatternFilter] = useState(false);
-  const hasAutoSetDuplicateNameRef = useRef(false);
   const codexThirdPartyBaseURLRef = useRef('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showCommandCodeAuthCookie, setShowCommandCodeAuthCookie] = useState(false);
@@ -283,7 +281,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
 
   useEffect(() => {
     if (!open) {
-      hasAutoSetDuplicateNameRef.current = false;
       resetCodexOAuth();
       resetClaudecodeOAuth();
       resetAntigravityOAuth();
@@ -542,20 +539,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
   const disableAPIKey = useDisableChannelAPIKey();
   const enableAPIKey = useEnableChannelAPIKey();
 
-  useEffect(() => {
-    if (!open || !isDuplicate || !duplicateFromRow) return;
-    if (!allChannelNamesLoaded) return;
-    if (hasAutoSetDuplicateNameRef.current) return;
-
-    const currentName = form.getValues('name');
-    if (currentName !== duplicateFromRow.name) {
-      return;
-    }
-
-    const nextName = getNextDuplicateName(duplicateFromRow.name, new Set(allChannelNames));
-    form.setValue('name', nextName);
-    hasAutoSetDuplicateNameRef.current = true;
-  }, [open, isDuplicate, duplicateFromRow, allChannelNamesLoaded, allChannelNames, form]);
   const selectedType = form.watch('type') as ChannelType | undefined;
   const isGeminiVertex = (selectedType || derivedChannelType) === 'gemini_vertex';
   const watchedAutoSync = form.watch('autoSyncSupportedModels');

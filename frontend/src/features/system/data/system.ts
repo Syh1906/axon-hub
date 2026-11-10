@@ -1284,6 +1284,7 @@ export interface BackupPayload {
 }
 
 export interface RestoreOptionsInput {
+  channelMappings?: { sourceID: number; sourceName?: string; targetID: number }[];
   includeSystemConfigs: boolean;
   includeChannels: boolean;
   includeModelPrices: boolean;

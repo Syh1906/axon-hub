@@ -133,6 +133,7 @@ func (r *queryResolver) RequestStatsByChannel(ctx context.Context, timeWindow *s
 
 	return lo.Map(top, func(item dashboardUsageAggregate, _ int) *RequestStatsByChannel {
 		return &RequestStatsByChannel{
+			ChannelID:   objects.GUID{Type: "Channel", ID: item.ID},
 			ChannelName: item.Name,
 			Count:       item.RequestCount,
 		}
@@ -699,6 +700,7 @@ func (r *queryResolver) CostStatsByChannel(ctx context.Context, timeWindow *stri
 
 	return lo.Map(top, func(item dashboardUsageAggregate, _ int) *CostStatsByChannel {
 		return &CostStatsByChannel{
+			ChannelID:   objects.GUID{Type: "Channel", ID: item.ID},
 			ChannelName: item.Name,
 			Cost:        item.TotalCost,
 		}

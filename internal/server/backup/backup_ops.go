@@ -62,6 +62,15 @@ func (svc *BackupService) writeBackupToWriter(ctx context.Context, opts BackupOp
 		return err
 	}
 
+	// Keep the credential-free manifest on the first line so the restore UI
+	// can read channel choices without loading historical usage into memory.
+	if err := svc.streamChannelReferences(ctx, o, opts); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte("\n")); err != nil {
+		return err
+	}
+
 	if b, err := json.Marshal(BackupVersion); err != nil {
 		return err
 	} else if err := o.rawField("version", b); err != nil {
@@ -256,6 +265,7 @@ func (svc *BackupService) streamChannelModelPrices(ctx context.Context, o *objWr
 			}
 			b, err := json.Marshal(&BackupChannelModelPrice{
 				ChannelName: p.Edges.Channel.Name,
+				ChannelID:   p.ChannelID,
 				ModelID:     p.ModelID,
 				Price:       p.Price,
 				ReferenceID: p.ReferenceID,

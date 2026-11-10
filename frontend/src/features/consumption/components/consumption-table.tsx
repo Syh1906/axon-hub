@@ -7,6 +7,7 @@ import { formatNumber } from '@/utils/format-number';
 import { currencyFractionDigits } from '@/utils/currency-display';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { Button } from '@/components/ui/button';
+import { ChannelIdentity } from './channel-identity';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExpandableTableRow } from '@/components/expandable-table-row';
 import type { ConsumptionDimension, ConsumptionEntry, ConsumptionMetric, ConsumptionMetrics } from '../data/consumption';
@@ -286,7 +287,7 @@ export function ConsumptionTable({
                   <div className='px-14'>
                     <Button
                       variant='ghost'
-                      className='relative h-auto max-w-full justify-center px-0 py-1'
+                      className={cn('relative h-auto max-w-full justify-center px-0', entry.duplicateName ? 'py-0' : 'py-1')}
                       aria-expanded={isExpanded}
                       aria-label={t(isExpanded ? 'consumption.collapseEntity' : 'consumption.expandEntity', { name: entry.name })}
                       onClick={() => toggle(entry.id)}
@@ -307,6 +308,7 @@ export function ConsumptionTable({
                     {entry.name || '—'}
                   </span>
                 )}
+                {dimension === 'CHANNEL' && entry.duplicateName && <ChannelIdentity entry={entry} />}
               </TableCell>
               {metricCells(entry.metrics)}
             </ExpandableTableRow>

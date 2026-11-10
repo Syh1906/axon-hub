@@ -985,10 +985,14 @@ type ComplexityRoot struct {
 	}
 
 	ConsumptionEntry struct {
-		ID      func(childComplexity int) int
-		Metrics func(childComplexity int) int
-		Models  func(childComplexity int) int
-		Name    func(childComplexity int) int
+		ChannelProvider func(childComplexity int) int
+		ChannelRemark   func(childComplexity int) int
+		ChannelTags     func(childComplexity int) int
+		DuplicateName   func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Metrics         func(childComplexity int) int
+		Models          func(childComplexity int) int
+		Name            func(childComplexity int) int
 	}
 
 	ConsumptionGroupOption struct {
@@ -1090,6 +1094,7 @@ type ComplexityRoot struct {
 	}
 
 	CostStatsByChannel struct {
+		ChannelID   func(childComplexity int) int
 		ChannelName func(childComplexity int) int
 		Cost        func(childComplexity int) int
 	}
@@ -2377,6 +2382,7 @@ type ComplexityRoot struct {
 	}
 
 	RequestStatsByChannel struct {
+		ChannelID   func(childComplexity int) int
 		ChannelName func(childComplexity int) int
 		Count       func(childComplexity int) int
 	}
@@ -7323,6 +7329,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CommandCodeQuotaSettings.AuthCookie(childComplexity), true
 
+	case "ConsumptionEntry.channelProvider":
+		if e.complexity.ConsumptionEntry.ChannelProvider == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionEntry.ChannelProvider(childComplexity), true
+	case "ConsumptionEntry.channelRemark":
+		if e.complexity.ConsumptionEntry.ChannelRemark == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionEntry.ChannelRemark(childComplexity), true
+	case "ConsumptionEntry.channelTags":
+		if e.complexity.ConsumptionEntry.ChannelTags == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionEntry.ChannelTags(childComplexity), true
+	case "ConsumptionEntry.duplicateName":
+		if e.complexity.ConsumptionEntry.DuplicateName == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionEntry.DuplicateName(childComplexity), true
 	case "ConsumptionEntry.id":
 		if e.complexity.ConsumptionEntry.ID == nil {
 			break
@@ -7766,6 +7796,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CostStatsByAPIKey.Cost(childComplexity), true
 
+	case "CostStatsByChannel.channelId":
+		if e.complexity.CostStatsByChannel.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.CostStatsByChannel.ChannelID(childComplexity), true
 	case "CostStatsByChannel.channelName":
 		if e.complexity.CostStatsByChannel.ChannelName == nil {
 			break
@@ -14417,6 +14453,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RequestStatsByAPIKey.Count(childComplexity), true
 
+	case "RequestStatsByChannel.channelId":
+		if e.complexity.RequestStatsByChannel.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.RequestStatsByChannel.ChannelID(childComplexity), true
 	case "RequestStatsByChannel.channelName":
 		if e.complexity.RequestStatsByChannel.ChannelName == nil {
 			break
@@ -18101,6 +18143,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelRateLimitInput,
 		ec.unmarshalInputChannelRegexAssociationInput,
 		ec.unmarshalInputChannelRequestAssociationInput,
+		ec.unmarshalInputChannelRestoreMappingInput,
 		ec.unmarshalInputChannelRoutingOrder,
 		ec.unmarshalInputChannelSettingsInput,
 		ec.unmarshalInputChannelTagPriorityInput,
@@ -41375,6 +41418,122 @@ func (ec *executionContext) fieldContext_CommandCodeQuotaSettings_authCookie(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionEntry_channelRemark(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionEntry_channelRemark,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelRemark, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionEntry_channelRemark(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionEntry_channelProvider(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionEntry_channelProvider,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelProvider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionEntry_channelProvider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionEntry_channelTags(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionEntry_channelTags,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelTags, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionEntry_channelTags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionEntry_duplicateName(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionEntry_duplicateName,
+		func(ctx context.Context) (any, error) {
+			return obj.DuplicateName, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionEntry_duplicateName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionEntry_id(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -42293,6 +42452,14 @@ func (ec *executionContext) fieldContext_ConsumptionResult_entries(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "channelRemark":
+				return ec.fieldContext_ConsumptionEntry_channelRemark(ctx, field)
+			case "channelProvider":
+				return ec.fieldContext_ConsumptionEntry_channelProvider(ctx, field)
+			case "channelTags":
+				return ec.fieldContext_ConsumptionEntry_channelTags(ctx, field)
+			case "duplicateName":
+				return ec.fieldContext_ConsumptionEntry_duplicateName(ctx, field)
 			case "id":
 				return ec.fieldContext_ConsumptionEntry_id(ctx, field)
 			case "name":
@@ -43682,6 +43849,35 @@ func (ec *executionContext) fieldContext_CostStatsByAPIKey_cost(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CostStatsByChannel_channelId(ctx context.Context, field graphql.CollectedField, obj *CostStatsByChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CostStatsByChannel_channelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CostStatsByChannel_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CostStatsByChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -68120,6 +68316,8 @@ func (ec *executionContext) fieldContext_Query_requestStatsByChannel(ctx context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "channelId":
+				return ec.fieldContext_RequestStatsByChannel_channelId(ctx, field)
 			case "channelName":
 				return ec.fieldContext_RequestStatsByChannel_channelName(ctx, field)
 			case "count":
@@ -68889,6 +69087,8 @@ func (ec *executionContext) fieldContext_Query_costStatsByChannel(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "channelId":
+				return ec.fieldContext_CostStatsByChannel_channelId(ctx, field)
 			case "channelName":
 				return ec.fieldContext_CostStatsByChannel_channelName(ctx, field)
 			case "cost":
@@ -78024,6 +78224,35 @@ func (ec *executionContext) fieldContext_RequestStatsByAPIKey_count(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStatsByChannel_channelId(ctx context.Context, field graphql.CollectedField, obj *RequestStatsByChannel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStatsByChannel_channelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStatsByChannel_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStatsByChannel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -103579,6 +103808,47 @@ func (ec *executionContext) unmarshalInputChannelRequestAssociationInput(ctx con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChannelRestoreMappingInput(ctx context.Context, obj any) (backup.ChannelRestoreMapping, error) {
+	var it backup.ChannelRestoreMapping
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"sourceID", "sourceName", "targetID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "sourceID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceID"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceID = data
+		case "sourceName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceName = data
+		case "targetID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetID"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputChannelRoutingOrder(ctx context.Context, obj any) (biz.ChannelRoutingOrder, error) {
 	var it biz.ChannelRoutingOrder
 	asMap := map[string]any{}
@@ -118882,13 +119152,20 @@ func (ec *executionContext) unmarshalInputRestoreOptionsInput(ctx context.Contex
 		asMap["includeRequestLogs"] = false
 	}
 
-	fieldsInOrder := [...]string{"includeSystemConfigs", "includeChannels", "includeModelPrices", "includeModels", "includeAPIKeys", "includeUsageStats", "includeRequestLogs", "channelConflictStrategy", "modelConflictStrategy", "modelPriceConflictStrategy", "apiKeyConflictStrategy"}
+	fieldsInOrder := [...]string{"channelMappings", "includeSystemConfigs", "includeChannels", "includeModelPrices", "includeModels", "includeAPIKeys", "includeUsageStats", "includeRequestLogs", "channelConflictStrategy", "modelConflictStrategy", "modelPriceConflictStrategy", "apiKeyConflictStrategy"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "channelMappings":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelMappings"))
+			data, err := ec.unmarshalOChannelRestoreMappingInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐChannelRestoreMappingᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelMappings = data
 		case "includeSystemConfigs":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("includeSystemConfigs"))
 			data, err := ec.unmarshalNBoolean2bool(ctx, v)
@@ -136048,6 +136325,26 @@ func (ec *executionContext) _ConsumptionEntry(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ConsumptionEntry")
+		case "channelRemark":
+			out.Values[i] = ec._ConsumptionEntry_channelRemark(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelProvider":
+			out.Values[i] = ec._ConsumptionEntry_channelProvider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelTags":
+			out.Values[i] = ec._ConsumptionEntry_channelTags(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "duplicateName":
+			out.Values[i] = ec._ConsumptionEntry_duplicateName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._ConsumptionEntry_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -136738,6 +137035,11 @@ func (ec *executionContext) _CostStatsByChannel(ctx context.Context, sel ast.Sel
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("CostStatsByChannel")
+		case "channelId":
+			out.Values[i] = ec._CostStatsByChannel_channelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelName":
 			out.Values[i] = ec._CostStatsByChannel_channelName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -149435,6 +149737,11 @@ func (ec *executionContext) _RequestStatsByChannel(ctx context.Context, sel ast.
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RequestStatsByChannel")
+		case "channelId":
+			out.Values[i] = ec._RequestStatsByChannel_channelId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelName":
 			out.Values[i] = ec._RequestStatsByChannel_channelName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -159606,6 +159913,11 @@ func (ec *executionContext) unmarshalNChannelProbeWhereInput2ᚖgithubᚗcomᚋl
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNChannelRestoreMappingInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐChannelRestoreMapping(ctx context.Context, v any) (*backup.ChannelRestoreMapping, error) {
+	res, err := ec.unmarshalInputChannelRestoreMappingInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNChannelRoutingOrderField2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelRoutingOrderField(ctx context.Context, v any) (objects.ChannelRoutingOrderField, error) {
 	var res objects.ChannelRoutingOrderField
 	err := res.UnmarshalGQL(v)
@@ -168750,6 +169062,24 @@ func (ec *executionContext) unmarshalOChannelRequestAssociationInput2ᚖgithub�
 	}
 	res, err := ec.unmarshalInputChannelRequestAssociationInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOChannelRestoreMappingInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐChannelRestoreMappingᚄ(ctx context.Context, v any) ([]*backup.ChannelRestoreMapping, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*backup.ChannelRestoreMapping, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNChannelRestoreMappingInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐChannelRestoreMapping(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOChannelRoutingOrder2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelRoutingOrder(ctx context.Context, v any) (*biz.ChannelRoutingOrder, error) {

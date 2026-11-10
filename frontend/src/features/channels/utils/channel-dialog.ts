@@ -12,7 +12,6 @@ export interface Props {
 
 export const MAX_MODELS_DISPLAY = 2;
 
-const duplicateNameRegex = /^(.*) \((\d+)\)$/;
 
 export type ApiFormatOption = ApiFormat;
 
@@ -117,26 +116,6 @@ export function getResponsesWebSocketBaseURL(channelType: ChannelType): string |
   if (channelType === 'codex') return CODEX_RESPONSES_WEBSOCKET_BASE_URL;
   if (channelType === 'openai_responses') return OPENAI_RESPONSES_WEBSOCKET_BASE_URL;
   return undefined;
-}
-
-function getDuplicateBaseName(name: string) {
-  const match = name.match(duplicateNameRegex);
-  if (match?.[1]) {
-    return match[1];
-  }
-  return name;
-}
-
-export function getNextDuplicateName(name: string, existingNames: Set<string>) {
-  const baseName = getDuplicateBaseName(name);
-  let i = 1;
-  for (;;) {
-    const candidate = `${baseName} (${i})`;
-    if (!existingNames.has(candidate)) {
-      return candidate;
-    }
-    i++;
-  }
 }
 
 export const alwaysOAuthProviderKeys = ['antigravity', 'github_copilot', 'xai_subscription'];

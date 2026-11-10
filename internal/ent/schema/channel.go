@@ -27,8 +27,7 @@ func (Channel) Mixin() []ent.Mixin {
 func (Channel) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("name", "deleted_at").
-			StorageKey("channels_by_name").
-			Unique(),
+			StorageKey("channels_by_name"),
 	}
 }
 

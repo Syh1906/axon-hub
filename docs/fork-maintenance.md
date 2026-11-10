@@ -404,7 +404,18 @@ fork 改动，由用户决定。
 - 验证：业务与请求测试覆盖地址顺序、停用过滤、认证错误不切换、请求内容与 Key 保持、超时与重试次数；前端用例覆盖版本补全、显式路径和默认接口合并。真实上游故障切换与 MySQL／PostgreSQL 实例升级仍待联调。
 - 同步上游注意：核对请求转换、认证选择、同渠道重试及流式提交边界；不能通过独立重试循环叠加次数。保留专用接口地址和供应商固定地址约束。
 
+### 渠道同名与稳定关联
+
+- 状态：2026-11-10，未发布。渠道创建、改名、复制、批量创建和导入允许同名；复用既有 ID，标签变化不改变历史归属。取消排重查询和自动编号。
+- 排行榜仅同名渠道显示「标签＋服务商」副行，保留 280px 渠道列和 64px 行高；最多两个标签，点击查看完整信息，搜索过滤后保留同名状态，服务商搜索同时匹配原始键与当前语言显示名。当前元信息一次批量读取并附加到统计结果副本，避免修改共享缓存；渠道编辑仅刷新渠道维度，仪表盘按 ID 对应费用。
+- 备份格式升级到 1.7，增加无凭据渠道索引、价格来源 ID 和显式目标选择；新渠道保留实际分配的 ID 对应关系，价格、用量、模型绑定、密钥渠道优先级与待结算任务共用映射。旧格式仍支持唯一名称匹配；旧纯价格备份从价格条目提取名称来源并支持显式目标。缺少实际渠道配置的部分备份不能新建，服务端拒绝无法兑现的映射；仅恢复部分内容不被未使用的同名渠道阻塞。
+- Schema：Ent 将 `channels_by_name` 改为普通索引，无新 data migration；生成 `internal/ent/migrate/schema.go`。已有 ID 不变；产生同名数据后不能直接回退旧唯一索引版本。同步上游需核对其名称约束、导入和备份格式。
+- 主要路径：`internal/ent/schema/channel.go`、`internal/server/biz/channel*.go`、`internal/server/biz/consumption_channel_identity.go`、`internal/server/backup/channel_identity.go`、`internal/server/backup/restore.go`、`frontend/src/features/consumption/`、`frontend/src/features/system/components/restore-channel-mapping.tsx`。使用说明见[渠道配置指南](zh/guides/channel-management.md#同名渠道与标签)。
+- 验证：定向用例覆盖同名生命周期、SQLite 旧索引升级、缓存快照隔离与单次元信息查询、备份往返及部分恢复的歧义处理；真实本地页面验证普通单行、同名副行、搜索、模型展开和恢复目标选择。PostgreSQL／MySQL 实例升级未验证（本机 Docker 引擎未运行）。
+
 ### 标签优先级、渠道快捷设置与表单增强
+
+- 并发设置保存补充（2026-11-10，未发布）：定向测试发现同一时钟刻度可能让两次保存复用 `updated_at` 版本。受版本保护的写入现在至少推进 1 毫秒，保证后续旧快照失败并重新合并，避免并发设置互相覆盖。局部修改 `ChannelService.UpdateChannel`，无 schema/data migration；固定时钟回归、旧版本拒绝和四个字段并发保存连续 5 轮通过。
 
 - 2026-11-07 渠道表头修复（已随 beta12-fork.1 发布）：共享 `DataTableColumnHeader` 的 `fitContent` 仅在渠道列启用，减少排序按钮重复间距并完整显示短标题；其他页面默认行为保留。真实页面确认状态／优先级／权重完整且排序入口可用；无接口或数据库变化。
 

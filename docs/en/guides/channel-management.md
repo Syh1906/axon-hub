@@ -2,6 +2,22 @@
 
 This guide explains how to configure AI provider channels (like OpenAI, Anthropic, DeepSeek) in AxonHub.
 
+## Duplicate channel names and tags
+
+Channel names may repeat. The existing channel ID remains the stable identity; names, providers and tags are display and classification fields. Creation, duplication and bulk import preserve the requested name. Creating separate channels for multiple API keys also keeps that name without automatically numbering it. Renaming or retagging a channel does not merge its requests, costs or bindings. Tag-based routing still responds to tag changes.
+
+The consumption leaderboard keeps its column width, row height and model expansion. Only duplicate names receive a second line with tags and provider. It shows at most two tags, prioritizing tags shared by fewer same-named channels, and a `+N` count for the rest. Click this line for all tags, the remark and ID. Unique names stay on one line. Search covers names, tags and providers; filtering down to one result does not remove its duplicate-name context. Historical periods also display current tags.
+
+Display fields are fetched in one batch, never per row. Channel edits refresh only the channel leaderboard. Current channel labels are attached separately from cached usage aggregates, so retagging does not recompute historical costs. Dashboard costs are matched by channel ID, keeping same-named channels separate.
+
+### Restoring same-named channels
+
+JSON backup format 1.7 includes a credential-free channel manifest, also for price-only, model-only, key-configuration-only and usage-only backups. New-format channel restores create new records with new target database IDs by default. Under **System settings → Backup → Choose channel restore targets**, select source and target channels by name and tags, then select skip, overwrite or error for conflicts. Overwriting or reusing an existing channel requires an explicit target. Multiple source channels cannot share one target. Partial backups without channel configuration offer existing targets only; the server also rejects attempts to create channels without restorable configuration. Older price-only backups expose source names from their price entries, allowing an explicit choice between same-named targets.
+
+The actual source-to-target ID mapping is reused for prices, requests, usage, model associations, API-key channel priorities and pending budget tasks. Older formats still match unique names; ambiguous names require a target instead of selecting the first match. Older configuration backups without sufficient channel references require a channel backup or explicit targets; IDs from another database are never assumed to identify the same channel.
+
+Ent upgrades the channel-name index from unique to non-unique while preserving channel IDs and data. Once duplicate names exist, the old unique constraint cannot represent them. Resolve duplicate names or restore a pre-upgrade backup before downgrading.
+
 The channel list loads in batches and renders only rows near the viewport, measuring expanded details at their actual height. Trailing batches are released after upward scrolling stops. The back-to-top button occupies space in the footer instead of covering its text. Appended batches check upstream refresh state only for new channels; today's usage aggregation is restricted to the requested channels before grouping.
 
 Hover, focus or click **Today's usage** to see requests, tokens, historical cost and cache-hit rate by actual model. Hit rate divides cache-read tokens by all input tokens; no input displays an em dash. Missing execution models fall back to request models, and missing prices remain marked. Details query only the selected channel's current reporting day when opened, reuse cached results for 30 seconds, stop polling when closed, and release inactive cache entries after 60 seconds.

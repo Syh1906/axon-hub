@@ -16,7 +16,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/budgetchange"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/ent/budgetposting"
-	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 )
@@ -140,7 +139,7 @@ func (svc *BackupService) streamBudgets(ctx context.Context, o *objWriter, opts 
 	})
 }
 
-func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, data BackupData) error {
+func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, data BackupData, channels *channelRestoreState) error {
 	accounts := map[int]*ent.BudgetAccount{}
 	if err := validateBudgetBackup(data); err != nil {
 		return err
@@ -231,17 +230,15 @@ func (svc *BackupService) restoreBudgets(ctx context.Context, db *ent.Client, da
 		nextExecution--
 		if source.AsyncTask != nil {
 			task := *source.AsyncTask
-			task.ChannelID = 0
-			if task.ChannelName != "" {
-				ch, err := db.Channel.Query().Where(channel.NameEQ(task.ChannelName)).Only(ctx)
-				needsPoll := source.Actual == nil && source.Status != budgetcharge.StatusSettled && source.Status != budgetcharge.StatusReleased
-				if err != nil && (!ent.IsNotFound(err) || needsPoll) {
-					return fmt.Errorf("restore pending budget task requires channel %q: %w", task.ChannelName, err)
-				}
-				if ch != nil {
-					task.ChannelID = ch.ID
-				}
+			channelID, err := channels.resolve(task.ChannelID, task.ChannelName)
+			if err != nil {
+				return err
 			}
+			needsPoll := source.Actual == nil && source.Status != budgetcharge.StatusSettled && source.Status != budgetcharge.StatusReleased
+			if channelID == 0 && needsPoll {
+				return fmt.Errorf("restore pending budget task requires channel %q", task.ChannelName)
+			}
+			task.ChannelID = channelID
 			create.SetAsyncTask(&task)
 		}
 		if source.Usage != nil {

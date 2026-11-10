@@ -1,4 +1,13 @@
 {
+  "system.restore.channelMapping.title": "指定渠道恢复目标",
+  "system.restore.channelMapping.help": "新备份默认恢复为新渠道；要覆盖或复用已有渠道，请在这里指定目标，再选择下方的冲突处理方式。旧备份仅在名称唯一时自动匹配。只恢复价格或用量时，同名渠道也需要指定目标。",
+  "system.restore.channelMapping.newChannel": "创建新渠道",
+  "system.restore.channelMapping.source": "备份中的渠道（可搜索名称、标签）",
+  "system.restore.channelMapping.target": "恢复到哪个渠道（可搜索名称、标签）",
+  "system.restore.channelMapping.assign": "保存对应关系",
+  "system.restore.channelMapping.remove": "移除",
+  "system.restore.channelMapping.readError": "无法读取渠道列表。请检查备份文件或网络连接后重新打开。",
+
   "system.title": "系统设置",
   "system.description": "配置全局系统行为、安全规则、重试策略和存储。",
   "system.tabs.general": "常规",
@@ -324,7 +333,7 @@
   "system.restore.restoring": "恢复中...",
   "system.restore.success": "备份恢复成功",
   "system.restore.failed": "备份恢复失败",
-  "system.restore.warning": "警告：从备份恢复将覆盖现有数据。此操作无法撤销。",
+  "system.restore.warning": "恢复会写入所选数据，并按指定的渠道目标与冲突处理方式更新已有内容。请确认备份文件和恢复选项。",
   "system.autoBackup.title": "自动备份",
   "system.autoBackup.description": "配置自动备份到外部存储",
   "system.autoBackup.enabled.label": "启用自动备份",

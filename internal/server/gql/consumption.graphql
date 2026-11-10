@@ -68,6 +68,10 @@ type ConsumptionModel {
 }
 
 type ConsumptionEntry {
+  channelRemark: String!
+  channelProvider: String!
+  channelTags: [String!]!
+  duplicateName: Boolean!
   id: ID!
   name: String!
   metrics: ConsumptionMetrics!

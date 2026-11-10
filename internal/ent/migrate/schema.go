@@ -370,7 +370,7 @@ var (
 		Indexes: []*schema.Index{
 			{
 				Name:    "channels_by_name",
-				Unique:  true,
+				Unique:  false,
 				Columns: []*schema.Column{ChannelsColumns[7], ChannelsColumns[3]},
 			},
 		},

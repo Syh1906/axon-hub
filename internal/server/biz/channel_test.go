@@ -371,7 +371,7 @@ func TestChannelService_CreateChannel(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "fail to create channel with duplicate name",
+			name: "create channel with duplicate name",
 			input: ent.CreateChannelInput{
 				Type:    channel.TypeOpenai,
 				Name:    "Duplicate Channel Name",
@@ -382,7 +382,7 @@ func TestChannelService_CreateChannel(t *testing.T) {
 				SupportedModels:  []string{"gpt-4"},
 				DefaultTestModel: "gpt-4",
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -518,12 +518,12 @@ func TestChannelService_UpdateChannel(t *testing.T) {
 			},
 		},
 		{
-			name: "fail to update channel with duplicate name from other channel",
+			name: "update channel with duplicate name from other channel",
 			id:   ch1.ID,
 			input: &ent.UpdateChannelInput{
 				Name: lo.ToPtr("Second Channel"),
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "update channel keeping same name",
@@ -963,7 +963,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 3,
-			wantChannelNames: []string{"Test Channel - (1)", "Test Channel - (2)", "Test Channel - (3)"},
+			wantChannelNames: []string{"Test Channel", "Test Channel", "Test Channel"},
 			wantTags:         []string{"Test Channel"},
 		},
 		{
@@ -986,7 +986,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 2,
-			wantChannelNames: []string{"Existing Channel - (1)", "Existing Channel - (2)"},
+			wantChannelNames: []string{"Existing Channel", "Existing Channel"},
 			wantTags:         []string{"Existing Channel"},
 		},
 		{
@@ -1017,7 +1017,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 3,
-			wantChannelNames: []string{"Test - (2)", "Test - (3)", "Test - (4)"},
+			wantChannelNames: []string{"Test", "Test", "Test"},
 			wantTags:         []string{"Test"},
 		},
 		{
@@ -1052,7 +1052,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 1,
-			wantChannelNames: []string{"Single Channel - (1)"},
+			wantChannelNames: []string{"Single Channel"},
 			wantTags:         []string{"Single Channel"},
 		},
 		{
@@ -1075,11 +1075,11 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 1,
-			wantChannelNames: []string{"Conflict - (2)"},
+			wantChannelNames: []string{"Conflict"},
 			wantTags:         []string{"Conflict"},
 		},
 		{
-			name: "create channels with gaps in numbering",
+			name: "preserve name regardless of existing numbering",
 			existingChannels: []*ent.Channel{
 				{
 					Type:             channel.TypeOpenai,
@@ -1106,7 +1106,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 2,
-			wantChannelNames: []string{"Gap Test - (1)", "Gap Test - (3)"},
+			wantChannelNames: []string{"Gap Test", "Gap Test"},
 			wantTags:         []string{"Gap Test"},
 		},
 		{
@@ -1130,7 +1130,7 @@ func TestChannelService_BulkCreateChannels(t *testing.T) {
 			defaultTestModel: "gpt-4",
 			wantErr:          false,
 			wantCreatedCount: 2,
-			wantChannelNames: []string{"Settings Test - (1)", "Settings Test - (2)"},
+			wantChannelNames: []string{"Settings Test", "Settings Test"},
 			wantTags:         []string{"Settings Test"},
 		},
 	}

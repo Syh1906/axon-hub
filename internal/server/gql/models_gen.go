@@ -386,8 +386,9 @@ type CostStatsByAPIKey struct {
 
 // Cost statistics grouped by channel
 type CostStatsByChannel struct {
-	ChannelName string  `json:"channelName"`
-	Cost        float64 `json:"cost"`
+	ChannelID   objects.GUID `json:"channelId"`
+	ChannelName string       `json:"channelName"`
+	Cost        float64      `json:"cost"`
 }
 
 // Cost statistics grouped by model
@@ -604,8 +605,9 @@ type RequestStatsByAPIKey struct {
 }
 
 type RequestStatsByChannel struct {
-	ChannelName string `json:"channelName"`
-	Count       int    `json:"count"`
+	ChannelID   objects.GUID `json:"channelId"`
+	ChannelName string       `json:"channelName"`
+	Count       int          `json:"count"`
 }
 
 type RequestStatsByModel struct {

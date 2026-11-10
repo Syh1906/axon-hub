@@ -11,6 +11,7 @@ import (
 )
 
 type BackupData struct {
+	ChannelReferences  []*ChannelReference        `json:"channel_references,omitempty"`
 	BudgetAccounts     []*BackupBudgetAccount     `json:"budget_accounts,omitempty"`
 	BudgetCharges      []*ent.BudgetCharge        `json:"budget_charges,omitempty"`
 	BudgetPostings     []*ent.BudgetPosting       `json:"budget_postings,omitempty"`
@@ -67,6 +68,7 @@ type BackupAPIKeyGroup struct {
 }
 
 type BackupChannelModelPrice struct {
+	ChannelID   int                `json:"channel_id,omitempty"`
 	ChannelName string             `json:"channel_name"`
 	ModelID     string             `json:"model_id"`
 	Price       objects.ModelPrice `json:"price"`
@@ -218,7 +220,8 @@ func (l BackupUsageLog) MarshalJSON() ([]byte, error) {
 }
 
 const (
-	BackupVersion   = "1.6"
+	BackupVersion   = "1.7"
+	BackupVersionV7 = "1.6"
 	BackupVersionV6 = "1.5"
 	BackupVersionV5 = "1.4"
 	BackupVersionV4 = "1.3"
@@ -247,6 +250,7 @@ const (
 )
 
 type RestoreOptions struct {
+	ChannelMappings            []*ChannelRestoreMapping
 	IncludeSystemConfigs       bool
 	IncludeProjects            bool
 	IncludeChannels            bool

@@ -519,6 +519,9 @@ models:
   BackupOptionsInput:
     model:
       - github.com/looplj/axonhub/internal/server/backup.BackupOptions
+  ChannelRestoreMappingInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/backup.ChannelRestoreMapping
   RestoreOptionsInput:
     model:
       - github.com/looplj/axonhub/internal/server/backup.RestoreOptions

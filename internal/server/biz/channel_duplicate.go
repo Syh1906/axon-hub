@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/channelmodelprice"
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/internal/pkg/xerrors"
 )
 
 // DuplicateChannel creates a new channel from input, inherits the source custom
@@ -44,17 +42,6 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 			settings.CacheWriteBilling = source.Settings.CacheWriteBilling
 		}
 		input.Settings = &settings
-
-		existing, err := db.Channel.Query().
-			Where(channel.Name(input.Name)).
-			First(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return fmt.Errorf("failed to check channel name: %w", err)
-		}
-
-		if existing != nil {
-			return xerrors.DuplicateNameError("channel", input.Name)
-		}
 
 		ch, err := svc.createChannel(ctx, input)
 		if err != nil {

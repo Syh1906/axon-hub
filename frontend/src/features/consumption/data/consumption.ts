@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
@@ -39,6 +40,10 @@ const metricsSchema = z.object({
 });
 
 const entrySchema = z.object({
+  channelRemark: z.string().optional(),
+  channelProvider: z.string().optional(),
+  channelTags: z.array(z.string()).optional(),
+  duplicateName: z.boolean().optional(),
   id: z.string(),
   name: z.string(),
   metrics: metricsSchema,
@@ -67,7 +72,7 @@ const METRIC_FIELDS = `
   cacheHitRate successRate avgFirstTokenMs avgTokensPerSecond avgCostPerRequest avgCostPerMillionTokens cacheCoefficient
 `;
 const RESULT_FIELDS = `
-  entries { id name metrics { ${METRIC_FIELDS} } models { model metrics { ${METRIC_FIELDS} } } }
+  entries { id name channelRemark channelProvider channelTags duplicateName metrics { ${METRIC_FIELDS} } models { model metrics { ${METRIC_FIELDS} } } }
   generatedAt rangeStart rangeEnd timezone currencyCode
 `;
 const MODEL_RESULT_FIELDS = `
@@ -96,6 +101,7 @@ function timeUntilReportingDayChanges(result: ConsumptionResult, from: number, m
 }
 
 export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | 'usage', currentProjectID?: string | null, enabled = true) {
+  const { t } = useTranslation();
   const userID = useAuthStore((state) => state.auth.user?.id);
   const projectID = view === 'usage' ? currentProjectID : undefined;
   // These summaries already contain every matching entity. Keep the complete
@@ -112,14 +118,23 @@ export function useConsumption(input: ConsumptionFilter, view: 'leaderboard' | '
   const groupRef = localGroup ? input.groupRef : undefined;
   const select = useCallback((result: ConsumptionResult) => {
     if (!search && groupRef == null) return result;
+    const providerNames = new Map<string, string>();
     return {
       ...result,
-      entries: result.entries.filter((entry) =>
-        (!search || entry.name.toLowerCase().includes(search)) &&
-        (groupRef == null || Number(extractNumberID(entry.id)) === groupRef)
-      ),
+      entries: result.entries.filter((entry) => {
+        if (groupRef != null && Number(extractNumberID(entry.id)) !== groupRef) return false;
+        if (!search || entry.name.toLowerCase().includes(search)) return true;
+        if (input.dimension !== 'CHANNEL') return false;
+        const provider = entry.channelProvider ?? '';
+        if (provider.toLowerCase().includes(search)) return true;
+        if (provider && !providerNames.has(provider)) {
+          providerNames.set(provider, t(`channels.providers.${provider}`, { defaultValue: provider }).toLowerCase());
+        }
+        return Boolean(providerNames.get(provider)?.includes(search)) ||
+          (entry.channelTags ?? []).some((tag) => tag.toLowerCase().includes(search));
+      }),
     };
-  }, [search, groupRef]);
+  }, [search, groupRef, input.dimension, t]);
   const refreshInterval = input.period === 'YESTERDAY' || input.period === 'CUSTOM' ? 5 * 60_000 : 60_000;
   const relativeRange = input.period !== 'CUSTOM' && input.period !== 'ALL';
   return useQuery({

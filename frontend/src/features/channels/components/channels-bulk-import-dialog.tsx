@@ -19,10 +19,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { useAllChannelNames, useBulkImportChannels } from '../data/channels';
+import { useBulkImportChannels } from '../data/channels';
 import {
   type BulkImportChannelItem,
   bulkImportChannelItemSchema,
@@ -44,7 +44,6 @@ export function ChannelsBulkImportDialog({ isOpen, onClose }: ChannelsBulkImport
   const [hasPreviewedCurrent, setHasPreviewedCurrent] = useState(false);
 
   const bulkImportMutation = useBulkImportChannels();
-  const { data: existingChannelNames = [], isLoading: isLoadingChannelNames } = useAllChannelNames();
 
   const form = useForm<BulkImportText>({
     resolver: zodResolver(bulkImportTextSchema),
@@ -67,10 +66,6 @@ export function ChannelsBulkImportDialog({ isOpen, onClose }: ChannelsBulkImport
       .filter((line) => line.trim());
     const channels: BulkImportChannelItem[] = [];
     const errors: string[] = [];
-    const nameSet = new Set<string>();
-
-    existingChannelNames.forEach((name) => nameSet.add(name.toLowerCase()));
-
     lines.forEach((line, index) => {
       const parts = line.split(',').map((part) => part.trim());
 
@@ -113,21 +108,6 @@ export function ChannelsBulkImportDialog({ isOpen, onClose }: ChannelsBulkImport
         supportedModels,
         defaultTestModel: defaultTestModel || supportedModels[0] || '',
       };
-
-      const lowerCaseName = channelName.toLowerCase();
-      if (nameSet.has(lowerCaseName)) {
-        const isDuplicateWithExisting = existingChannelNames.some(
-          (existingName) => existingName.toLowerCase() === lowerCaseName
-        );
-
-        if (isDuplicateWithExisting) {
-          errors.push(t('channels.dialogs.bulkImport.duplicateNameWithExisting', { line: index + 1, name: channelName }));
-        } else {
-          errors.push(t('channels.dialogs.bulkImport.duplicateName', { line: index + 1, name: channelName }));
-        }
-        return;
-      }
-      nameSet.add(lowerCaseName);
 
       const result = bulkImportChannelItemSchema.safeParse(channelItem);
       if (!result.success) {
@@ -253,17 +233,8 @@ deepseek_anthropic,DeepSeek Anthropic,https://api.deepseek.com/anthropic,sk-xxx,
                           />
                         </FormControl>
                         <FormDescription className='flex items-center gap-2 text-xs'>
-                          {isLoadingChannelNames ? (
-                            <>
-                              <Loader2 className='h-3 w-3 animate-spin' />
-                              {t('channels.dialogs.bulkImport.loadingChannelNames')}
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className='text-primary h-3 w-3' />
-                              {t('channels.dialogs.bulkImport.supportedTypes')}
-                            </>
-                          )}
+                          <Sparkles className='text-primary h-3 w-3' />
+                          {t('channels.dialogs.bulkImport.supportedTypes')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -429,8 +400,7 @@ deepseek_anthropic,DeepSeek Anthropic,https://api.deepseek.com/anthropic,sk-xxx,
             {t('common.buttons.cancel')}
           </Button>
           {!hasPreviewedCurrent ? (
-            <Button onClick={handlePreview} disabled={!textValue?.trim() || isLoadingChannelNames} className='min-w-[100px]'>
-              {isLoadingChannelNames && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+            <Button onClick={handlePreview} disabled={!textValue?.trim()} className='min-w-[100px]'>
               {t('channels.dialogs.bulkImport.previewButton')}
             </Button>
           ) : (

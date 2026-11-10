@@ -78,10 +78,14 @@ type ConsumptionModel struct {
 }
 
 type ConsumptionEntry struct {
-	ID      objects.GUID        `json:"id"`
-	Name    string              `json:"name"`
-	Metrics ConsumptionMetrics  `json:"metrics"`
-	Models  []*ConsumptionModel `json:"models"`
+	ChannelRemark   string              `json:"channelRemark"`
+	ChannelProvider string              `json:"channelProvider"`
+	ChannelTags     []string            `json:"channelTags"`
+	DuplicateName   bool                `json:"duplicateName"`
+	ID              objects.GUID        `json:"id"`
+	Name            string              `json:"name"`
+	Metrics         ConsumptionMetrics  `json:"metrics"`
+	Models          []*ConsumptionModel `json:"models"`
 }
 
 type ConsumptionResult struct {

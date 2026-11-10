@@ -81,6 +81,7 @@ func TestBackupService_Restore(t *testing.T) {
 		IncludeModels:           true,
 		IncludeModelPrices:      true,
 		ChannelConflictStrategy: ConflictStrategyOverwrite,
+		ChannelMappings:         []*ChannelRestoreMapping{{SourceID: ch1.ID, TargetID: ch1.ID}},
 		ModelConflictStrategy:   ConflictStrategyOverwrite,
 	})
 	require.NoError(t, err)
@@ -459,7 +460,7 @@ func TestBackupService_Restore_UpdateExisting(t *testing.T) {
 	autoSync := false
 
 	backupData := BackupData{
-		Version: BackupVersion,
+		Version: BackupVersionV7,
 		Channels: []*BackupChannel{
 			{
 				Channel: ent.Channel{

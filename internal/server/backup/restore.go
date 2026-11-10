@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/internal/contexts"
@@ -53,7 +54,7 @@ func (svc *BackupService) Restore(ctx context.Context, data io.Reader, opts Rest
 		return fmt.Errorf("unexpected trailing data after backup")
 	}
 
-	if !lo.Contains([]string{BackupVersion, BackupVersionV6, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
+	if !lo.Contains([]string{BackupVersion, BackupVersionV7, BackupVersionV6, BackupVersionV5, BackupVersionV4, BackupVersionV3, BackupVersionV2, BackupVersionV1}, backupData.Version) {
 		log.Warn(ctx, "backup version mismatch",
 			log.String("expected", BackupVersion),
 			log.String("got", backupData.Version))
@@ -100,16 +101,16 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 		}
 	}
 
-	if opts.IncludeChannels {
-		if err := svc.restoreChannels(ctx, db, backupData.Channels, opts); err != nil {
-			return err
-		}
-	}
-
-	channelIDMap, err := svc.buildChannelIDMap(ctx, db, backupData.Channels)
+	channels, err := newChannelRestoreState(ctx, db, backupData, opts)
 	if err != nil {
 		return err
 	}
+	if opts.IncludeChannels {
+		if err := svc.restoreChannels(ctx, db, backupData.Channels, opts, channels, backupData.Version != BackupVersion); err != nil {
+			return err
+		}
+	}
+	channelIDMap := channels.ids
 	if opts.IncludeSystemConfigs {
 		if err := svc.restoreLegacyQuotaRouting(ctx, db, backupData.SystemConfigs, channelIDMap, opts.IncludeChannels); err != nil {
 			return err
@@ -117,27 +118,19 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 	}
 
 	if opts.IncludeModelPrices {
-		if err := svc.restoreChannelModelPrices(ctx, db, backupData.ChannelModelPrices, opts); err != nil {
+		if err := svc.restoreChannelModelPrices(ctx, db, backupData.ChannelModelPrices, opts, channels); err != nil {
 			return err
 		}
 	}
 
 	if opts.IncludeModels {
-		if err := svc.restoreModels(ctx, db, backupData.Models, opts, channelIDMap); err != nil {
+		if err := svc.restoreModels(ctx, db, backupData.Models, opts, channels); err != nil {
 			return err
 		}
 	}
 
 	if opts.IncludeProjects {
-		for _, projData := range backupData.Projects {
-			if projData == nil {
-				continue
-			}
-
-			remapProjectProfilesChannelIDs(projData.Profiles, channelIDMap)
-		}
-
-		if err := svc.restoreProjects(ctx, db, backupData.Projects, opts); err != nil {
+		if err := svc.restoreProjects(ctx, db, backupData.Projects, opts, channels); err != nil {
 			return err
 		}
 	}
@@ -146,18 +139,18 @@ func (svc *BackupService) restore(ctx context.Context, db *ent.Client, backupDat
 		if err := svc.restoreAPIKeyGroups(ctx, db, backupData.APIKeyGroups, opts.APIKeyConflictStrategy); err != nil {
 			return err
 		}
-		if err := svc.restoreAPIKeys(ctx, db, backupData.APIKeys, opts, channelIDMap); err != nil {
+		if err := svc.restoreAPIKeys(ctx, db, backupData.APIKeys, opts, channels); err != nil {
 			return err
 		}
 	}
 
 	if opts.IncludeAPIKeys {
-		if err := svc.restoreBudgets(ctx, db, backupData); err != nil {
+		if err := svc.restoreBudgets(ctx, db, backupData, channels); err != nil {
 			return err
 		}
 	}
 	if opts.IncludeUsageStats || opts.IncludeRequestLogs {
-		if err := svc.restoreUsageData(ctx, db, backupData.UsageRequests, backupData.UsageLogs, opts); err != nil {
+		if err := svc.restoreUsageData(ctx, db, backupData.UsageRequests, backupData.UsageLogs, opts, channels); err != nil {
 			return err
 		}
 	}
@@ -276,71 +269,16 @@ func decodeLegacyQuotaEnforcementSettings(configs []*BackupSystemConfig) (legacy
 	return legacyQuotaEnforcementSettings{}, false
 }
 
-func (svc *BackupService) buildChannelIDMap(ctx context.Context, db *ent.Client, channels []*BackupChannel) (map[int]int, error) {
-	idMap := map[int]int{}
-	if len(channels) == 0 {
-		return idMap, nil
-	}
-
-	// Collect all channel names and create a map from name to old ID
-	nameToOldID := make(map[string]int)
-	names := make([]string, 0, len(channels))
-
-	for _, chData := range channels {
-		if chData == nil {
-			continue
-		}
-
-		oldID := chData.ID
-		if oldID == 0 || chData.Name == "" {
-			continue
-		}
-
-		nameToOldID[chData.Name] = oldID
-		names = append(names, chData.Name)
-	}
-
-	if len(names) == 0 {
-		return idMap, nil
-	}
-
-	// Batch query all channels by names, only select needed fields (id, name)
-	existingChannels, err := db.Channel.Query().
-		Where(channel.NameIn(names...)).
-		Select(channel.FieldID, channel.FieldName).
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the ID mapping
-	for _, ch := range existingChannels {
-		if oldID, ok := nameToOldID[ch.Name]; ok {
-			idMap[oldID] = ch.ID
-		}
-	}
-
-	return idMap, nil
-}
-
 type usageRestoreResolver struct {
 	projectNames map[string]int
 	projectIDs   map[int]struct{}
-	channelNames map[string]int
-	channelIDs   map[int]struct{}
+	channels     *channelRestoreState
 	apiKeyKeys   map[string]int
 }
 
-func newUsageRestoreResolver(ctx context.Context, db *ent.Client) (*usageRestoreResolver, error) {
+func newUsageRestoreResolver(ctx context.Context, db *ent.Client, channels *channelRestoreState) (*usageRestoreResolver, error) {
 	projects, err := db.Project.Query().
 		Select(project.FieldID, project.FieldName).
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	channels, err := db.Channel.Query().
-		Select(channel.FieldID, channel.FieldName).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -356,19 +294,13 @@ func newUsageRestoreResolver(ctx context.Context, db *ent.Client) (*usageRestore
 	resolver := &usageRestoreResolver{
 		projectNames: make(map[string]int, len(projects)),
 		projectIDs:   make(map[int]struct{}, len(projects)),
-		channelNames: make(map[string]int, len(channels)),
-		channelIDs:   make(map[int]struct{}, len(channels)),
+		channels:     channels,
 		apiKeyKeys:   make(map[string]int, len(apiKeys)),
 	}
 
 	for _, proj := range projects {
 		resolver.projectIDs[proj.ID] = struct{}{}
 		resolver.projectNames[proj.Name] = proj.ID
-	}
-
-	for _, ch := range channels {
-		resolver.channelIDs[ch.ID] = struct{}{}
-		resolver.channelNames[ch.Name] = ch.ID
 	}
 
 	for _, ak := range apiKeys {
@@ -392,18 +324,8 @@ func (r *usageRestoreResolver) resolveProjectID(projectID int, projectName strin
 	return projectID, ok
 }
 
-func (r *usageRestoreResolver) resolveChannelID(channelID int, channelName string) (int, bool) {
-	if channelName != "" {
-		id, ok := r.channelNames[channelName]
-		return id, ok
-	}
-
-	if channelID == 0 {
-		return 0, false
-	}
-
-	_, ok := r.channelIDs[channelID]
-	return channelID, ok
+func (r *usageRestoreResolver) resolveChannelID(channelID int, channelName string) (int, error) {
+	return r.channels.resolve(channelID, channelName)
 }
 
 func (r *usageRestoreResolver) resolveAPIKeyID(apiKeyKey string) (int, bool) {
@@ -428,6 +350,12 @@ func remapModelSettingsChannelIDs(settings *objects.ModelSettings, channelIDMap 
 		if assoc.ChannelModel != nil {
 			if newID, ok := channelIDMap[assoc.ChannelModel.ChannelID]; ok {
 				assoc.ChannelModel.ChannelID = newID
+			}
+		}
+
+		if assoc.ChannelRequest != nil {
+			if newID, ok := channelIDMap[assoc.ChannelRequest.ChannelID]; ok {
+				assoc.ChannelRequest.ChannelID = newID
 			}
 		}
 
@@ -468,10 +396,12 @@ func remapAPIKeyProfilesChannelIDs(profiles *objects.APIKeyProfiles, channelIDMa
 
 	for i := range profiles.Profiles {
 		profile := &profiles.Profiles[i]
-		if len(profile.ChannelIDs) == 0 {
-			continue
-		}
 
+		for j := range profile.ChannelPriorities {
+			if newID, ok := channelIDMap[profile.ChannelPriorities[j].ChannelID]; ok {
+				profile.ChannelPriorities[j].ChannelID = newID
+			}
+		}
 		for j, oldID := range profile.ChannelIDs {
 			if newID, ok := channelIDMap[oldID]; ok {
 				profile.ChannelIDs[j] = newID
@@ -499,7 +429,7 @@ func remapProjectProfilesChannelIDs(profiles *objects.ProjectProfiles, channelID
 	}
 }
 
-func (svc *BackupService) restoreProjects(ctx context.Context, db *ent.Client, projectsData []*BackupProject, opts RestoreOptions) error {
+func (svc *BackupService) restoreProjects(ctx context.Context, db *ent.Client, projectsData []*BackupProject, opts RestoreOptions, channels *channelRestoreState) error {
 	if len(projectsData) == 0 {
 		return nil
 	}
@@ -516,6 +446,12 @@ func (svc *BackupService) restoreProjects(ctx context.Context, db *ent.Client, p
 			return err
 		}
 
+		if existing == nil || opts.ProjectConflictStrategy == ConflictStrategyOverwrite {
+			if err := channels.resolveConfigurationReferences(BackupData{Projects: []*BackupProject{projData}}, RestoreOptions{IncludeProjects: true}); err != nil {
+				return err
+			}
+			remapProjectProfilesChannelIDs(projData.Profiles, channels.ids)
+		}
 		if existing != nil {
 			switch opts.ProjectConflictStrategy {
 			case ConflictStrategySkip:
@@ -558,36 +494,35 @@ func (svc *BackupService) restoreChannelModelPrices(
 	db *ent.Client,
 	prices []*BackupChannelModelPrice,
 	opts RestoreOptions,
+	channels *channelRestoreState,
 ) error {
 	if len(prices) == 0 {
 		return nil
 	}
 
-	now := time.Now()
-	channelCache := map[string]*ent.Channel{}
-	updatedChannels := map[int]struct{}{}
-
-	getChannel := func(name string) (*ent.Channel, error) {
-		if ch, ok := channelCache[name]; ok {
-			return ch, nil
+	referenceOwners := map[string]*ent.ChannelModelPrice{}
+	references := make([]string, 0, len(prices))
+	seenReferences := map[string]bool{}
+	for _, price := range prices {
+		if price != nil && price.ReferenceID != "" && !seenReferences[price.ReferenceID] {
+			references = append(references, price.ReferenceID)
+			seenReferences[price.ReferenceID] = true
 		}
-
-		ch, err := db.Channel.Query().
-			Where(channel.Name(name)).
-			First(ctx)
-		if err != nil {
-			if ent.IsNotFound(err) {
-				channelCache[name] = nil
-				return nil, nil
-			}
-
-			return nil, err
-		}
-
-		channelCache[name] = ch
-
-		return ch, nil
 	}
+	for start := 0; start < len(references); start += backupBatchSize {
+		end := min(start+backupBatchSize, len(references))
+		owners, err := db.ChannelModelPrice.Query().Where(channelmodelprice.ReferenceIDIn(references[start:end]...)).
+			Select(channelmodelprice.FieldReferenceID, channelmodelprice.FieldChannelID, channelmodelprice.FieldModelID).All(schematype.SkipSoftDelete(ctx))
+		if err != nil {
+			return err
+		}
+		for _, owner := range owners {
+			referenceOwners[owner.ReferenceID] = owner
+		}
+	}
+
+	now := time.Now()
+	updatedChannels := map[int]struct{}{}
 
 	for _, pData := range prices {
 		if pData == nil {
@@ -598,12 +533,12 @@ func (svc *BackupService) restoreChannelModelPrices(
 			return fmt.Errorf("invalid channel model price: channel=%s model_id=%s: %w", pData.ChannelName, pData.ModelID, err)
 		}
 
-		ch, err := getChannel(pData.ChannelName)
+		channelID, err := channels.resolve(pData.ChannelID, pData.ChannelName)
 		if err != nil {
 			return err
 		}
 
-		if ch == nil {
+		if channelID == 0 {
 			log.Warn(ctx, "channel not found for restoring channel model price, skipping",
 				log.String("channel", pData.ChannelName),
 				log.String("model_id", pData.ModelID),
@@ -614,7 +549,7 @@ func (svc *BackupService) restoreChannelModelPrices(
 
 		existing, err := db.ChannelModelPrice.Query().
 			Where(
-				channelmodelprice.ChannelID(ch.ID),
+				channelmodelprice.ChannelID(channelID),
 				channelmodelprice.ModelID(pData.ModelID),
 			).
 			First(ctx)
@@ -625,6 +560,13 @@ func (svc *BackupService) restoreChannelModelPrices(
 		refID := pData.ReferenceID
 		if refID == "" {
 			return fmt.Errorf("channel model price reference ID is empty: channel=%s model_id=%s", pData.ChannelName, pData.ModelID)
+		}
+
+		// Restoring as a new channel in the same instance must not reuse another
+		// channel's globally unique current-price reference.
+		owner := referenceOwners[refID]
+		if owner != nil && (owner.ChannelID != channelID || owner.ModelID != pData.ModelID) {
+			refID = uuid.NewString()
 		}
 
 		if existing != nil {
@@ -660,7 +602,7 @@ func (svc *BackupService) restoreChannelModelPrices(
 
 				// Create new version
 				_, err = db.ChannelModelPriceVersion.Create().
-					SetChannelID(ch.ID).
+					SetChannelID(channelID).
 					SetModelID(pData.ModelID).
 					SetChannelModelPriceID(existing.ID).
 					SetPrice(pData.Price).
@@ -672,14 +614,14 @@ func (svc *BackupService) restoreChannelModelPrices(
 					return fmt.Errorf("failed to create channel model price version: %w", err)
 				}
 
-				updatedChannels[ch.ID] = struct{}{}
+				updatedChannels[channelID] = struct{}{}
 			}
 
 			continue
 		}
 
 		entity, err := db.ChannelModelPrice.Create().
-			SetChannelID(ch.ID).
+			SetChannelID(channelID).
 			SetModelID(pData.ModelID).
 			SetPrice(pData.Price).
 			SetReferenceID(refID).
@@ -690,7 +632,7 @@ func (svc *BackupService) restoreChannelModelPrices(
 
 		// Create new version
 		_, err = db.ChannelModelPriceVersion.Create().
-			SetChannelID(ch.ID).
+			SetChannelID(channelID).
 			SetModelID(pData.ModelID).
 			SetChannelModelPriceID(entity.ID).
 			SetPrice(pData.Price).
@@ -702,7 +644,8 @@ func (svc *BackupService) restoreChannelModelPrices(
 			return fmt.Errorf("failed to create channel model price version: %w", err)
 		}
 
-		updatedChannels[ch.ID] = struct{}{}
+		referenceOwners[refID] = entity
+		updatedChannels[channelID] = struct{}{}
 	}
 
 	// Force update channel updated_at to trigger reload cache.
@@ -717,17 +660,24 @@ func (svc *BackupService) restoreChannelModelPrices(
 	return nil
 }
 
-func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, channels []*BackupChannel, opts RestoreOptions) error {
+func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, channels []*BackupChannel, opts RestoreOptions, state *channelRestoreState, legacy bool) error {
 	for _, chData := range channels {
+		if chData == nil {
+			continue
+		}
 		if chData.Settings != nil && chData.Settings.ModelPriceMultiplier != nil && chData.Settings.ModelPriceMultiplier.IsNegative() {
 			return fmt.Errorf("channel model price multiplier must be non-negative: channel=%s", chData.Name)
 		}
-		existing, err := db.Channel.Query().
-			Where(channel.Name(chData.Name)).
-			First(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return err
+		targetID := state.ids[chData.ID]
+		if legacy && !state.explicit[chData.ID] {
+			var err error
+			targetID, err = state.resolve(chData.ID, chData.Name)
+			if err != nil {
+				return err
+			}
 		}
+		existing := state.targets[targetID]
+		state.ids[chData.ID] = targetID
 
 		credentials := chData.Credentials
 		// Check if credentials are empty (no API key and no OAuth)
@@ -752,6 +702,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 				return fmt.Errorf("channel %s already exists", chData.Name)
 			case ConflictStrategyOverwrite:
 				update := db.Channel.UpdateOneID(existing.ID).
+					SetName(chData.Name).SetType(chData.Type).
 					SetNillableBaseURL(baseURL).
 					SetWebsiteURL(chData.WebsiteURL).
 					SetStatus(chData.Status).
@@ -808,12 +759,19 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 				create.SetRemark(*chData.Remark)
 			}
 
-			if _, err := create.Save(ctx); err != nil {
+			created, err := create.Save(ctx)
+			if err != nil {
 				log.Error(ctx, "failed to create channel",
 					log.String("channel", chData.Name),
 					log.Cause(err))
 
 				return fmt.Errorf("failed to create channel %s: %w", chData.Name, err)
+			}
+			if err := state.assign(chData.ID, created.ID); err != nil {
+				return err
+			}
+			if chData.ID == 0 {
+				state.targetNames[chData.Name] = append(state.targetNames[chData.Name], created.ID)
 			}
 		}
 	}
@@ -821,7 +779,7 @@ func (svc *BackupService) restoreChannels(ctx context.Context, db *ent.Client, c
 	return nil
 }
 
-func (svc *BackupService) restoreModels(ctx context.Context, db *ent.Client, models []*BackupModel, opts RestoreOptions, channelIDMap map[int]int) error {
+func (svc *BackupService) restoreModels(ctx context.Context, db *ent.Client, models []*BackupModel, opts RestoreOptions, channels *channelRestoreState) error {
 	for _, modelData := range models {
 		if modelData == nil {
 			continue
@@ -829,8 +787,6 @@ func (svc *BackupService) restoreModels(ctx context.Context, db *ent.Client, mod
 		if modelData.ModelCard != nil && modelData.ModelCard.Price != nil && modelData.ModelCard.Price.Multiplier != nil {
 			return fmt.Errorf("standard model prices cannot include a channel multiplier: model_id=%s", modelData.ModelID)
 		}
-
-		remapModelSettingsChannelIDs(modelData.Settings, channelIDMap)
 
 		existing, err := db.Model.Query().
 			Where(
@@ -842,6 +798,12 @@ func (svc *BackupService) restoreModels(ctx context.Context, db *ent.Client, mod
 			return err
 		}
 
+		if existing == nil || opts.ModelConflictStrategy == ConflictStrategyOverwrite {
+			if err := channels.resolveConfigurationReferences(BackupData{Models: []*BackupModel{modelData}}, RestoreOptions{IncludeModels: true}); err != nil {
+				return err
+			}
+			remapModelSettingsChannelIDs(modelData.Settings, channels.ids)
+		}
 		if existing != nil {
 			switch opts.ModelConflictStrategy {
 			case ConflictStrategySkip:
@@ -904,7 +866,7 @@ func (svc *BackupService) restoreModels(ctx context.Context, db *ent.Client, mod
 	return nil
 }
 
-func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, apiKeys []*BackupAPIKey, opts RestoreOptions, channelIDMap map[int]int) error {
+func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, apiKeys []*BackupAPIKey, opts RestoreOptions, channels *channelRestoreState) error {
 	user, ok := contexts.GetUser(ctx)
 	if !ok || user == nil {
 		return fmt.Errorf("user not found in context for restoring API keys")
@@ -914,8 +876,6 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 		if akData == nil {
 			continue
 		}
-
-		remapAPIKeyProfilesChannelIDs(akData.Profiles, channelIDMap)
 
 		existing, err := db.APIKey.Query().
 			Where(apikey.Key(akData.Key)).
@@ -938,6 +898,10 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				if existing.DeletedAt != 0 {
 					continue
 				} // Deletion records are immutable.
+				if err := channels.resolveConfigurationReferences(BackupData{APIKeys: []*BackupAPIKey{akData}}, RestoreOptions{IncludeAPIKeys: true}); err != nil {
+					return err
+				}
+				remapAPIKeyProfilesChannelIDs(akData.Profiles, channels.ids)
 				groupID, err := restoreKeyGroup(ctx, db, existing.ProjectID, akData.GroupName)
 				if err != nil {
 					return err
@@ -979,6 +943,10 @@ func (svc *BackupService) restoreAPIKeys(ctx context.Context, db *ent.Client, ap
 				return err
 			}
 
+			if err := channels.resolveConfigurationReferences(BackupData{APIKeys: []*BackupAPIKey{akData}}, RestoreOptions{IncludeAPIKeys: true}); err != nil {
+				return err
+			}
+			remapAPIKeyProfilesChannelIDs(akData.Profiles, channels.ids)
 			groupID, err := restoreKeyGroup(ctx, db, proj.ID, akData.GroupName)
 			if err != nil {
 				return err
@@ -1013,8 +981,9 @@ func (svc *BackupService) restoreUsageData(
 	requestsData []*BackupUsageRequest,
 	usageLogs []*BackupUsageLog,
 	opts RestoreOptions,
+	channels *channelRestoreState,
 ) error {
-	resolver, err := newUsageRestoreResolver(ctx, db)
+	resolver, err := newUsageRestoreResolver(ctx, db, channels)
 	if err != nil {
 		return err
 	}
@@ -1069,8 +1038,11 @@ func (svc *BackupService) restoreUsageRequests(
 			continue
 		}
 
-		channelID, ok := resolver.resolveChannelID(reqData.ChannelID, reqData.ChannelName)
-		if !ok && hasBackupChannelRef(reqData.ChannelID, reqData.ChannelName) {
+		channelID, resolveErr := resolver.resolveChannelID(reqData.ChannelID, reqData.ChannelName)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		if channelID == 0 && hasBackupChannelRef(reqData.ChannelID, reqData.ChannelName) {
 			log.Warn(ctx, "channel not found for restoring usage request, restoring with null channel",
 				log.Int("request_id", oldID),
 				log.Int("channel_id", reqData.ChannelID),
@@ -1091,7 +1063,7 @@ func (svc *BackupService) restoreUsageRequests(
 				continue
 			}
 		}
-		if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(reqData)]; ok {
+		if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(reqData, channelID)]; ok {
 			idMap[oldID] = existing.ID
 			continue
 		}
@@ -1215,7 +1187,7 @@ func addExistingUsageRequest(lookup *existingUsageRequestLookup, req *ent.Reques
 	lookup.byFingerprint[usageRequestExistingFingerprint(req, false)] = req
 }
 
-func usageRequestBackupFingerprint(req *BackupUsageRequest) string {
+func usageRequestBackupFingerprint(req *BackupUsageRequest, channelID int) string {
 	return usageRequestFingerprint(
 		req.CreatedAt,
 		req.ModelID,
@@ -1227,7 +1199,7 @@ func usageRequestBackupFingerprint(req *BackupUsageRequest) string {
 		req.ExternalID,
 		req.ReasoningEffort,
 		req.ProjectName,
-		req.ChannelName,
+		fmt.Sprint(channelID),
 		req.APIKeyKey,
 	)
 }
@@ -1236,11 +1208,6 @@ func usageRequestExistingFingerprint(req *ent.Request, includeAPIKey bool) strin
 	projectName := ""
 	if req.Edges.Project != nil {
 		projectName = req.Edges.Project.Name
-	}
-
-	channelName := ""
-	if req.Edges.Channel != nil {
-		channelName = req.Edges.Channel.Name
 	}
 
 	apiKeyKey := ""
@@ -1259,7 +1226,7 @@ func usageRequestExistingFingerprint(req *ent.Request, includeAPIKey bool) strin
 		req.ExternalID,
 		req.ReasoningEffort,
 		projectName,
-		channelName,
+		fmt.Sprint(req.ChannelID),
 		apiKeyKey,
 	)
 }
@@ -1404,8 +1371,11 @@ func (svc *BackupService) restoreUsageLogs(
 			continue
 		}
 
-		channelID, ok := resolver.resolveChannelID(usageData.ChannelID, usageData.ChannelName)
-		if !ok && hasBackupChannelRef(usageData.ChannelID, usageData.ChannelName) {
+		channelID, resolveErr := resolver.resolveChannelID(usageData.ChannelID, usageData.ChannelName)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if channelID == 0 && hasBackupChannelRef(usageData.ChannelID, usageData.ChannelName) {
 			log.Warn(ctx, "channel not found for restoring usage log, restoring with null channel",
 				log.Int("usage_log_id", usageData.ID),
 				log.Int("channel_id", usageData.ChannelID),
@@ -1485,8 +1455,11 @@ func (svc *BackupService) ensureUsageLogRequests(
 			continue
 		}
 
-		channelID, ok := resolver.resolveChannelID(usageData.ChannelID, usageData.ChannelName)
-		if !ok && hasBackupChannelRef(usageData.ChannelID, usageData.ChannelName) {
+		channelID, resolveErr := resolver.resolveChannelID(usageData.ChannelID, usageData.ChannelName)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if channelID == 0 && hasBackupChannelRef(usageData.ChannelID, usageData.ChannelName) {
 			log.Warn(ctx, "channel not found for restoring usage log request shell, restoring with null channel",
 				log.Int("usage_log_id", usageData.ID),
 				log.Int("channel_id", usageData.ChannelID),
@@ -1508,13 +1481,13 @@ func (svc *BackupService) ensureUsageLogRequests(
 				continue
 			}
 		}
-		if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(shellData)]; ok {
+		if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(shellData, channelID)]; ok {
 			requestIDMap[usageData.RequestID] = existing.ID
 			continue
 		}
 		if apiKeyID == 0 {
 			shellData.APIKeyKey = ""
-			if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(shellData)]; ok {
+			if existing, ok := existingRequests.byFingerprint[usageRequestBackupFingerprint(shellData, channelID)]; ok {
 				requestIDMap[usageData.RequestID] = existing.ID
 				continue
 			}

@@ -26,6 +26,7 @@ export const dashboardStatsSchema = z.object({
 });
 
 export const requestsByChannelSchema = z.object({
+  channelId: z.string(),
   channelName: z.string(),
   count: z.number(),
 });
@@ -71,6 +72,7 @@ export const tokensByModelSchema = z.object({
 });
 
 export const costByChannelSchema = z.object({
+  channelId: z.string(),
   channelName: z.string(),
   cost: z.number(),
 });
@@ -193,6 +195,7 @@ const DASHBOARD_STATS_QUERY = `
 const REQUESTS_BY_CHANNEL_QUERY = `
   query GetRequestsByChannel($timeWindow: String) {
     requestStatsByChannel(timeWindow: $timeWindow) {
+      channelId
       channelName
       count
     }
@@ -262,6 +265,7 @@ const TOKENS_BY_MODEL_QUERY = `
 const COST_BY_CHANNEL_QUERY = `
   query GetCostByChannel($timeWindow: String) {
     costStatsByChannel(timeWindow: $timeWindow) {
+      channelId
       channelName
       cost
     }

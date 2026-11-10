@@ -82,6 +82,27 @@ func createDashboardUsageLog(
 // TestDashboardUsageAggregatesShareOneGroupedScan verifies that the request,
 // cost and token widgets for the same dimension all derive their data from the
 // same grouped rows and preserve their own ranking/limit behavior.
+func TestDashboardDuplicateChannelNamesKeepSeparateIDs(t *testing.T) {
+	resolver, ctx := newDashboardUsageTestResolver(t)
+	a := createDashboardUsageChannel(t, ctx, resolver.client, "same")
+	b := createDashboardUsageChannel(t, ctx, resolver.client, "same")
+	costA, costB := 0.5, 2.0
+	createDashboardUsageLog(t, ctx, resolver.client, a.ID, "model", 100, 10, &costA, nil)
+	createDashboardUsageLog(t, ctx, resolver.client, a.ID, "model", 100, 10, &costA, nil)
+	createDashboardUsageLog(t, ctx, resolver.client, b.ID, "model", 100, 10, &costB, nil)
+	requests, err := resolver.RequestStatsByChannel(ctx, nil)
+	require.NoError(t, err)
+	costs, err := resolver.CostStatsByChannel(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, requests, 2)
+	require.Len(t, costs, 2)
+	require.Equal(t, a.ID, requests[0].ChannelID.ID)
+	require.Equal(t, b.ID, costs[0].ChannelID.ID)
+	require.Equal(t, requests[0].ChannelName, requests[1].ChannelName)
+	require.Equal(t, 2.0, costs[0].Cost)
+	require.Equal(t, 1.0, costs[1].Cost)
+}
+
 func TestDashboardUsageAggregatesShareOneGroupedScan(t *testing.T) {
 	resolver, ctx := newDashboardUsageTestResolver(t)
 	client := resolver.client

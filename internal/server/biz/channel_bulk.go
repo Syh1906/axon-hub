@@ -79,36 +79,14 @@ func (svc *ChannelService) BulkCreateChannels(ctx context.Context, input BulkCre
 
 	var createdChannels []*ent.Channel
 
-	// Get all existing channel names to check for conflicts
-	existingChannels, err := svc.entFromContext(ctx).Channel.Query().Select(channel.FieldName).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query existing channels: %w", err)
-	}
-
-	existingNames := lo.SliceToMap(existingChannels, func(ch *ent.Channel) (string, bool) {
-		return ch.Name, true
-	})
-
-	// All channels use numbered format: "base - (1)", "base - (2)", etc.
-	counter := 1
-
 	tagsToUse := input.Tags
 	if len(tagsToUse) == 0 {
 		tagsToUse = []string{input.Name} // Use base name as tag (backward compatible)
 	}
 
-	err = svc.RunInTransaction(ctx, func(ctx context.Context) error {
+	err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
 		for _, apiKey := range input.APIKeys {
-			// Generate unique channel name with numbering
-			channelName := fmt.Sprintf("%s - (%d)", input.Name, counter)
-			// Find next available counter
-			for existingNames[channelName] {
-				counter++
-				channelName = fmt.Sprintf("%s - (%d)", input.Name, counter)
-			}
-
-			counter++
-			existingNames[channelName] = true
+			channelName := input.Name
 
 			// Create channel input
 			createInput := ent.CreateChannelInput{

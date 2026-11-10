@@ -16,7 +16,14 @@ input BackupOptionsInput {
   includeRequestLogs: Boolean! = false
 }
 
+input ChannelRestoreMappingInput {
+  sourceID: Int!
+  sourceName: String
+  targetID: Int!
+}
+
 input RestoreOptionsInput {
+  channelMappings: [ChannelRestoreMappingInput!]
   includeSystemConfigs: Boolean! = false
   includeChannels: Boolean!
   includeModelPrices: Boolean! = true

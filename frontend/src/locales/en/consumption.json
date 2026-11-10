@@ -1,4 +1,8 @@
 {
+  "consumption.channelDetails": "View full details for {{name}}",
+  "consumption.channelDetailsShort": "Channel details",
+
+  "consumption.searchChannel": "Search name, tags or provider",
   "scopes.read_leaderboard": "View consumption leaderboard",
   "consumption.title": "Consumption leaderboard",
   "consumption.description": "Compare token usage and costs by channel, key group, model, API key, or user.",

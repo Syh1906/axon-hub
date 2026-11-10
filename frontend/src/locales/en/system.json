@@ -1,4 +1,13 @@
 {
+  "system.restore.channelMapping.title": "Choose channel restore targets",
+  "system.restore.channelMapping.help": "New backups create new channels by default. To overwrite or reuse an existing channel, select its target here and choose a conflict strategy below. Older backups match only unique names. Price-only and usage-only restores also need targets for duplicate names.",
+  "system.restore.channelMapping.newChannel": "Create a new channel",
+  "system.restore.channelMapping.source": "Source channel (search name or tags)",
+  "system.restore.channelMapping.target": "Target channel (search name or tags)",
+  "system.restore.channelMapping.assign": "Save mapping",
+  "system.restore.channelMapping.remove": "Remove",
+  "system.restore.channelMapping.readError": "Unable to read channels. Check the backup file or network connection and reopen.",
+
   "system.title": "System Settings",
   "system.description": "Configure global system behavior, security rules, retry policies, and storage.",
   "system.tabs.general": "General",
@@ -324,7 +333,7 @@
   "system.restore.restoring": "Restoring...",
   "system.restore.success": "Backup restored successfully",
   "system.restore.failed": "Failed to restore backup",
-  "system.restore.warning": "Warning: Restoring from a backup will overwrite existing data. This action cannot be undone.",
+  "system.restore.warning": "Restore writes the selected data and updates existing content according to your channel targets and conflict strategies. Check the backup file and restore options.",
   "system.autoBackup.title": "Auto Backup",
   "system.autoBackup.description": "Configure automatic backups to external storage",
   "system.autoBackup.enabled.label": "Enable Auto Backup",
