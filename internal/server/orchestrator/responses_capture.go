@@ -114,7 +114,16 @@ func (c *responsesContinuation) accept(ctx context.Context) {
 	c.capture.mu.Lock()
 	defer c.capture.mu.Unlock()
 	body := c.capture.body
-	if len(body) == 0 || !json.Valid(body) || gjson.GetBytes(body, "status").String() != "completed" {
+	if gjson.GetBytes(body, "status").String() != "completed" {
+		return
+	}
+	c.remember(ctx, body)
+}
+
+// remember is called with capture.mu held and only with a completed response or
+// the API's intentional interruption containing exclusively completed items.
+func (c *responsesContinuation) remember(ctx context.Context, body []byte) {
+	if len(body) == 0 || !json.Valid(body) {
 		return
 	}
 	id := gjson.GetBytes(body, "id").String()
@@ -128,7 +137,7 @@ func (c *responsesContinuation) accept(ctx context.Context) {
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
 		c.lane = lane
 		record := shared.ResponsesRecord{ID: id, Origin: origin}
-		if origin.Format != "openai/responses-ws" && c.retain && !c.capture.overflow {
+		if c.retain && !c.capture.overflow {
 			retained := c.capture.retained == 0 || c.capture.retained == len(body)
 			if c.capture.retained == len(body) {
 				c.retentionBytes += c.capture.retained
@@ -138,7 +147,7 @@ func (c *responsesContinuation) accept(ctx context.Context) {
 				Output []json.RawMessage `json:"output"`
 			}
 			if retained && json.Unmarshal(body, &response) == nil {
-				record.Snapshot = &shared.ResponsesSnapshot{Input: c.input, Output: response.Output}
+				record.Snapshot = shared.NewResponsesSnapshot(c.parent, c.input, response.Output)
 			}
 		}
 		c.releaseRetention()
@@ -162,6 +171,27 @@ func (c *responsesContinuation) accept(ctx context.Context) {
 		}
 	}
 	c.capture.body = nil
+}
+
+func (c *responsesContinuation) acceptInterrupted(ctx context.Context, body []byte) {
+	c.capture.mu.Lock()
+	defer c.capture.mu.Unlock()
+	if gjson.GetBytes(body, "incomplete_details.reason").String() != "interrupted" {
+		return
+	}
+	// The synthetic response is built from completed downstream items, not from
+	// an unfinished provider terminal. Do not reuse its closed upstream ID.
+	if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
+		origin := attempt.Origin()
+		origin.Generation = 0
+		attempt.SetOrigin(origin)
+	}
+	if c.capture.budget != nil {
+		c.capture.budget.Replace(c.capture.retained, 0)
+		c.capture.retained = 0
+	}
+	c.capture.overflow = len(body) > responsesSessionMaxResponse
+	c.remember(ctx, body)
 }
 
 func (c *responsesContinuation) releaseCapture() {

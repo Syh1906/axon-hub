@@ -109,7 +109,7 @@ func TestResponsesHTTPNativeIDStaysOnOrigin(t *testing.T) {
 	require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
 }
 
-func TestResponsesNativeLaneHasNoAdapterSnapshot(t *testing.T) {
+func TestResponsesNativeLaneRetainsRecoverySnapshot(t *testing.T) {
 	// Given
 	lane := shared.NewResponsesLane("native", shared.NewResponsesBudget(64<<20))
 	t.Cleanup(lane.Close)
@@ -123,5 +123,5 @@ func TestResponsesNativeLaneHasNoAdapterSnapshot(t *testing.T) {
 	c.accept(ctx)
 	// Then
 	require.Equal(t, "native_id", lane.Record().ID)
-	require.Nil(t, lane.Record().Snapshot)
+	require.NotNil(t, lane.Record().Snapshot)
 }

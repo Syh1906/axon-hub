@@ -45,7 +45,7 @@ func TestResponsesAdapterBudgetsTranscriptOverflowDropsEligibility(t *testing.T)
 	lane := shared.NewResponsesLane("lane", budget)
 	budget.Replace(0, (64<<20)-2)
 	// When
-	lane.Remember(shared.ResponsesRecord{ID: "successful_id", Snapshot: &shared.ResponsesSnapshot{Input: []json.RawMessage{json.RawMessage(`{"canary":true}`)}}})
+	lane.Remember(shared.ResponsesRecord{ID: "successful_id", Snapshot: shared.NewResponsesSnapshot(nil, []json.RawMessage{json.RawMessage(`{"canary":true}`)}, nil)})
 	// Then
 	require.Equal(t, "successful_id", lane.Record().ID)
 	require.Nil(t, lane.Record().Snapshot)

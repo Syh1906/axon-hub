@@ -704,9 +704,20 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		log.String("api_format", candidate.APIFormat),
 	)
 
+	// Resolve the historical credential once, before deciding whether the
+	// native ID is usable. Keep the result local to this attempt; no extra
+	// credential scan or lookup is added to healthy incremental turns.
+	var continuationKey string
+	var continuationCredentialErr error
+	if candidate.continuationKeyRef != "" || candidate.continuationKeyHint != "" {
+		continuationKey, continuationCredentialErr = continuationCredential(candidate.Channel, biz.ResponsesContinuationRoute{
+			KeyRef:  candidate.continuationKeyRef,
+			KeyHint: candidate.continuationKeyHint,
+		})
+	}
 	llmRequest.Model = entry.ActualModel
 	var continuationErr error
-	llmRequest, continuationErr = prepareResponsesAttempt(ctx, p, llmRequest)
+	llmRequest, continuationErr = prepareResponsesAttempt(ctx, p, llmRequest, continuationCredentialErr != nil)
 	if continuationErr != nil {
 		return nil, continuationErr
 	}
@@ -764,20 +775,16 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		ctx = biz.WithFixedChannelAPIKey(ctx, p.addressAPIKey)
 	}
 	if candidate.continuationKeyRef != "" || candidate.continuationKeyHint != "" {
-		key, err := continuationCredential(candidate.Channel, biz.ResponsesContinuationRoute{
-			KeyRef:  candidate.continuationKeyRef,
-			KeyHint: candidate.continuationKeyHint,
-		})
-		if err != nil && candidate.continuationStrict {
-			return nil, err
+		if continuationCredentialErr != nil && candidate.continuationStrict {
+			return nil, continuationCredentialErr
 		}
-		if err != nil {
+		if continuationCredentialErr != nil {
 			// Self-contained history can use another enabled credential.
 			candidate.continuationKeyRef, candidate.continuationKeyHint = "", ""
 			candidate.continuationUpstreamRef = ""
 		}
-		if key != "" {
-			ctx = biz.WithFixedChannelAPIKey(ctx, key)
+		if continuationKey != "" {
+			ctx = biz.WithFixedChannelAPIKey(ctx, continuationKey)
 		}
 	}
 	httpRequest, err := p.wrapped.TransformRequest(ctx, llmRequest)

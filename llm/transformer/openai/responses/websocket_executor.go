@@ -360,7 +360,13 @@ type webSocketLease struct {
 
 func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
 	originalPayload := clonePayloadMap(payload)
-	lease, err := e.acquire(ctx, request, wsURL, headers)
+	var lease *webSocketLease
+	var err error
+	if id := explicitPreviousResponseID(payload); id != "" {
+		lease, err = e.acquireContinuation(ctx, request, wsURL, headers, id)
+	} else {
+		lease, err = e.acquire(ctx, request, wsURL, headers)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +403,9 @@ func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *h
 			lease.pooled.mu.Lock()
 			lease.pooled.lane, lease.pooled.origin = lane, origin
 			lease.pooled.mu.Unlock()
-			if !lane.RegisterLease(origin, func() { e.evict(lease.pooled) }) {
+			if !lane.RegisterLease(origin, func(id string) bool {
+				return lease.pooled.canContinue(id, lease.generation, time.Now(), e.idleTTL, e.maxLifetime)
+			}, func() { e.evict(lease.pooled) }) {
 				lease.release(true)
 				return nil, shared.ResponsesRecoveryError()
 			}

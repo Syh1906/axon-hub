@@ -415,6 +415,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	if continuation != nil && shared.IsResponsesWebSocket(ctx) {
 		preparedResponsesBody = continuation.snapshotBody
 	}
+	retainedContinuation := continuation
 	if result.Stream && continuation != nil {
 		source := result.EventStream
 		accepted := &responsesAcceptedStream{Stream: source, ctx: ctx, continuation: continuation}
@@ -424,7 +425,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		continuation.accept(ctx)
 	}
 	source := result.EventStream
-	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result)
+	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result, retainedContinuation)
 	if result.Stream && completion.ChatCompletionStream != nil {
 		completion.ChatCompletionStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, completion.ChatCompletionStream), httpclient.GetResponseHeaders(source))
 	} else {

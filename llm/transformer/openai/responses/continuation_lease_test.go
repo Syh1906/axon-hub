@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,9 @@ import (
 
 func TestResponsesContinuationMissingHistoryFailsBeforeDispatch(t *testing.T) {
 	// Given: an explicit old ID without a live owning connection.
-	var writes atomic.Int32
+	var writes, handshakes atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handshakes.Add(1)
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -41,6 +43,7 @@ func TestResponsesContinuationMissingHistoryFailsBeforeDispatch(t *testing.T) {
 	// Then
 	require.Error(t, err)
 	require.Zero(t, writes.Load())
+	require.Zero(t, handshakes.Load(), "an unavailable old ID must not dial a replacement socket")
 }
 
 func TestResponsesNativeContinuationSurvivesRetentionLimit(t *testing.T) {
@@ -96,4 +99,41 @@ func TestResponsesNativeContinuationSurvivesRetentionLimit(t *testing.T) {
 		_, id := pc.previousTurn()
 		require.Equal(t, "resp_2", id)
 	}
+}
+
+func TestResponsesExpiredConnectionDoesNotDialForOldID(t *testing.T) {
+	var upgrades atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		upgrades.Add(1)
+		defer conn.Close()
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":{"id":"old","status":"completed","output":[]}}`))
+		_, _, _ = conn.ReadMessage()
+	}))
+	t.Cleanup(server.Close)
+	executor := NewWebSocketExecutor(nil)
+	t.Cleanup(func() { require.NoError(t, executor.Close()) })
+	ctx := shared.WithSessionID(webSocketTestContext(), "expiry")
+	stream, err := executor.DoStream(ctx, &httpclient.Request{URL: server.URL, Body: []byte(`{"input":"root"}`)})
+	require.NoError(t, err)
+	for stream.Next() {
+	}
+	require.NoError(t, stream.Err())
+	require.NoError(t, stream.Close())
+	executor.mu.Lock()
+	for _, pc := range executor.pool {
+		pc.mu.Lock()
+		pc.createdAt = time.Now().Add(-time.Hour)
+		pc.mu.Unlock()
+	}
+	executor.mu.Unlock()
+	_, err = executor.DoStream(ctx, &httpclient.Request{URL: server.URL, Body: []byte(`{"previous_response_id":"old","input":"new"}`)})
+	require.ErrorIs(t, err, shared.ErrResponsesContinuationUnavailable)
+	require.Equal(t, int32(1), upgrades.Load())
 }

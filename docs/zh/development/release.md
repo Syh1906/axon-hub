@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+本次准备发布 `v1.0.0-rc1-fork.1`：上一正式基线为 `v1.0.0-beta12-fork.5` / `6aec4906`，过渡 Page 快照为 `f75f1049`，原始 rc1 合并提交为 `b309f9ec`。发布说明覆盖这一完整区间及 WS 同流续接审查修复；保持正式级别、仅双架构镜像与清单。生产更新按同一固定摘要逐台验收，旧快照本轮保留、不退役。下段记录为此前正式版历史，发布及双机更新完成后回填新收据。
+
 当前正式版为 [v1.0.0-beta12-fork.5](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-beta12-fork.5)（2026-11-10），固定源码 `6aec4906ae2baa014b5f1615e2b3b02b1fe1aa2e`。同提交 Test／Build／Lint／Govulncheck 与[精简发布](https://github.com/Syh1906/axon-hub/actions/runs/42749047517)均成功，发布 amd64／arm64 镜像及唯一附件 `release.json`，保持 `prerelease=false`、`publishBinaries=false`。
 
 本版包含 fork.4 后的后台与费用修复、渠道同名和配置、筛选、自助用量分组及模型版本优先，并修复同名渠道误选和备份多笔用量丢失。新增三个字段并调整渠道名称索引，无新 data migration；数据与回退限制见[更新说明](../../../.github/release-notes.md)。
