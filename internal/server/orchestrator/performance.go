@@ -133,7 +133,7 @@ func (m *performanceRecording) OnOutboundLlmStream(ctx context.Context, stream s
 }
 
 func (m *performanceRecording) OnOutboundRawError(ctx context.Context, err error) {
-	if isChannelCooldownError(err) || biz.IsBudgetDenied(err) {
+	if isLocalAdmissionError(err) {
 		return
 	}
 	// Record performance metrics for failed requests

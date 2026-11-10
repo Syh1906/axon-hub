@@ -40,7 +40,7 @@ func TestResponsesContinuationRouting(t *testing.T) {
 	provider := &continuationRouteFixture{route: biz.ResponsesContinuationRoute{ChannelID: 2, KeyRef: "key-reference"}, found: true}
 	policy := &mockRetryPolicyProvider{policy: &biz.RetryPolicy{Enabled: true, MaxChannelRetries: 3, TraceStickyMode: biz.TraceStickyDisabled}}
 	candidates := []*ChannelModelsCandidate{stickyTestCandidate(1, 0), stickyTestCandidate(2, 9)}
-	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(policy, nil), policy, provider)
+	selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(nil, nil), policy, provider)
 	req := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, Model: "gpt-test", Messages: []llm.Message{{ReasoningSignature: lo.ToPtr("opaque-test-value")}}}
 	selected, err := selector.Select(t.Context(), req)
 	require.NoError(t, err)

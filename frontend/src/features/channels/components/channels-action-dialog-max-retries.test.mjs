@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 // Pin the channel-level "max single channel retries" override: it must reach the
 // dialog helpers, the GraphQL selection, and the submitted settings patch.
-const dialogSource = readFileSync(new URL('./channels-action-dialog.tsx', import.meta.url), 'utf8');
+const dialogSource = readFileSync(new URL('./channel-request-policy-fields.tsx', import.meta.url), 'utf8');
 const hookSource = readFileSync(new URL('../hooks/use-channel-action-dialog.tsx', import.meta.url), 'utf8');
 const helpersSource = readFileSync(new URL('../utils/channel-dialog.ts', import.meta.url), 'utf8');
 const dialogAst = ts.createSourceFile('channel-dialog.ts', helpersSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

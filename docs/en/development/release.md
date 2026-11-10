@@ -57,7 +57,7 @@ with `gh repo set-default Syh1906/axon-hub`. Publishing explicitly targets this 
 
 release.config.json records the publishing repository and branch, direct upstream
 tag/commit, original upstream tag/commit, inherited fork provenance, and an explicit prerelease boolean.
-The current baseline is v1.0.0-beta12 at 2b1a0f93. The inherited fork remains
+The working branch baseline is v1.0.0-rc1 at d2935453 (rc1-fork.1 is not yet released). The inherited fork remains
 ChouUn v1.0.0-beta10-fork.7 at b205ae8e, originally based on beta10 at 939b2bc0.
 
 After beta12, your tags use <original-upstream-tag>-fork.N:

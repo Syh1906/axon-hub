@@ -652,11 +652,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         if (!isEdit) {
           setFetchedModels([]);
           setUseFetchedModels(false);
-          // Set default Base URL only if empty
-          const baseURL = getDefaultBaseURL('antigravity');
-          const currentURL = form.getValues('baseURL');
-          if (baseURL && !isDuplicate && (!currentURL || currentURL === '')) {
-            form.setValue('baseURL', baseURL);
+          if (!isDuplicate) {
+            const baseURL = getDefaultBaseURL('antigravity');
+            if (baseURL) form.resetField('baseURL', { defaultValue: baseURL });
           }
         }
         return;

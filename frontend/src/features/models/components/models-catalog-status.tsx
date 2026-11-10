@@ -1,3 +1,4 @@
+import { usePermissions } from '@/hooks/usePermissions';
 import { useSystemTime } from '@/hooks/use-system-time';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +8,7 @@ import { useDevelopersData, useRefreshProvidersCatalog } from '../data/providers
 export function ModelsCatalogStatus() {
   const { format: formatTime } = useSystemTime();
   const { t } = useTranslation();
+  const { hasSystemScope } = usePermissions();
   const catalog = useDevelopersData();
   const refreshCatalog = useRefreshProvidersCatalog();
   const source = catalog.data ? catalog.source : 'fallback';
@@ -21,7 +23,7 @@ export function ModelsCatalogStatus() {
         {t('models.catalog.sourceLabel')}: {t(`models.catalog.source.${source}`, { defaultValue: source })}
       </span>
       {formattedFetchedAt ? <span>{t('models.catalog.updatedAt', { time: formattedFetchedAt })}</span> : null}
-      <Button
+      {hasSystemScope('write_settings') && <Button
         type='button'
         variant='ghost'
         size='sm'
@@ -31,7 +33,7 @@ export function ModelsCatalogStatus() {
       >
         <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshCatalog.isPending ? 'animate-spin' : ''}`} />
         {t('models.catalog.refreshNow')}
-      </Button>
+      </Button>}
     </div>
   );
 }

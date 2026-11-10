@@ -842,6 +842,7 @@ export interface ModelChannelConnection {
     name: string;
     type: string;
     status: string;
+    orderingWeight: number;
   };
   models: ChannelModelEntry[];
 }
@@ -868,6 +869,7 @@ const MODEL_CHANNEL_CONNECTIONS_QUERY = `
         name
         type
         status
+        orderingWeight
       }
       models {
         requestModel

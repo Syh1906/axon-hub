@@ -26,7 +26,6 @@ func apiKeyNameGroup(groupID *int) predicate.APIKey {
 // the transaction holding lockProjectForAPIKeyName. Hidden personal keys also
 // reserve names; return only a conflict, never another owner's credential.
 func (s *APIKeyService) checkAPIKeyName(ctx context.Context, projectID int, groupID *int, name string, exceptID int) error {
-	checkCtx := authz.WithSystemBypass(ctx, "api-key-name-scope")
 	client := s.entFromContext(ctx)
 	query := client.APIKey.Query().Where(
 		apikey.ProjectIDEQ(projectID), apiKeyNameGroup(groupID), apikey.NameEQ(name), apikey.IDNEQ(exceptID),
@@ -36,7 +35,7 @@ func (s *APIKeyService) checkAPIKeyName(ctx context.Context, projectID int, grou
 	if client.Driver().Dialect() != dialect.SQLite {
 		query.Unique(false).Modify(func(q *sql.Selector) { q.ForUpdate() })
 	}
-	conflicts, err := query.All(checkCtx)
+	conflicts, err := authz.RunAsHost(ctx, client, "api-key-name-scope", func(hostCtx context.Context) ([]*ent.APIKey, error) { return query.All(hostCtx) })
 	if err != nil {
 		return fmt.Errorf("failed to check API key name in target group: %w", err)
 	}

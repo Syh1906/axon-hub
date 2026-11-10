@@ -53,8 +53,8 @@ func newHealthGateSessionFixture(t *testing.T) *healthGateSessionFixture {
 	}
 	require.NoError(t, system.SetRetryPolicy(ctx, policy))
 	gate := biz.NewHealthGate(nil)
-	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates},
-		NewLoadBalancer(system, nil).WithHealthGate(gate), system, requests)
+	selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: candidates},
+		NewLoadBalancer(nil, nil).WithHealthGate(gate), system, requests)
 	return &healthGateSessionFixture{ctx: ctx, client: client, projectID: project.ID, request: requests, selector: selector, gate: gate, policy: policy, candidates: candidates}
 }
 

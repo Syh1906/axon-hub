@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/datatransfer"
 	"github.com/looplj/axonhub/internal/server/dependencies"
+	"github.com/looplj/axonhub/internal/server/events"
 	"github.com/looplj/axonhub/internal/server/gc"
 	"github.com/looplj/axonhub/internal/server/gql"
 	"github.com/looplj/axonhub/internal/server/gql/openapi"
@@ -23,6 +24,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/lifecycle"
 	"github.com/looplj/axonhub/internal/server/middleware"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
+	"github.com/looplj/axonhub/internal/server/plugin"
 	"github.com/looplj/axonhub/internal/server/safeguards"
 	"github.com/looplj/axonhub/internal/server/scheduler"
 	"github.com/looplj/axonhub/internal/server/video_storage"
@@ -128,6 +130,8 @@ func Run(opts ...fx.Option) {
 			scheduler.Module,
 			biz.Module,
 			orchestrator.Module,
+			events.Module,
+			plugin.Module,
 			backup.Module,
 			datatransfer.Module,
 			video_storage.Module,
@@ -164,6 +168,7 @@ func Run(opts ...fx.Option) {
 				})
 			}),
 			fx.Invoke(SetupRoutes),
+			fx.Invoke(registerPprof),
 		}, opts...)...,
 	)
 	app.Run()

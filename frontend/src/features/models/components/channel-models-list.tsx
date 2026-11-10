@@ -16,6 +16,7 @@ interface Channel {
   name: string;
   type: string;
   status: string;
+  orderingWeight?: number;
 }
 
 interface ChannelModelsListProps {
@@ -98,6 +99,11 @@ export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListP
               </Badge>
             </div>
           </div>
+          {conn.channel.orderingWeight !== undefined && (
+            <Badge variant="secondary" className="mb-2 font-normal">
+              {t("models.dialogs.association.channelWeight")}: {conn.channel.orderingWeight}
+            </Badge>
+          )}
           {warnings.has(conn.channel.id) && (
             <p role='status' className='text-muted-foreground mb-2 text-xs'>
               {t('models.dialogs.association.versionOrder.excluded', { ids: [...warnings.get(conn.channel.id)!].join(', ') })}

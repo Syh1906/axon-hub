@@ -445,7 +445,8 @@ func TestChatCompletionOrchestrator_Process_Streaming(t *testing.T) {
 	}
 
 	executor := &mockExecutor{
-		streamEvents: streamEvents,
+		streamEvents:  streamEvents,
+		streamHeaders: http.Header{"X-Upstream-Id": {"up-1"}, "Authorization": {"Bearer secret"}},
 	}
 
 	// Create outbound transformer
@@ -490,6 +491,12 @@ func TestChatCompletionOrchestrator_Process_Streaming(t *testing.T) {
 	assert.Nil(t, result.ChatCompletion)
 	assert.NotNil(t, result.ChatCompletionStream)
 
+	// Headers wait for terminal persistence. The fork records the selected channel
+	// during dispatch for live routing diagnostics and sticky history.
+	inFlightExecution := client.RequestExecution.Query().OnlyX(ctx)
+	assert.Empty(t, inFlightExecution.ResponseHeaders)
+	assert.Equal(t, ch.ID, client.Request.Query().OnlyX(ctx).ChannelID)
+
 	// Consume the stream
 	var chunks []*httpclient.StreamEvent
 	for result.ChatCompletionStream.Next() {
@@ -510,6 +517,7 @@ func TestChatCompletionOrchestrator_Process_Streaming(t *testing.T) {
 	dbRequest := requests[0]
 	assert.Equal(t, "gpt-4", dbRequest.ModelID)
 	assert.Equal(t, project.ID, dbRequest.ProjectID)
+	assert.Equal(t, ch.ID, dbRequest.ChannelID)
 
 	// Verify request execution was created
 	executions, err := client.RequestExecution.Query().All(ctx)
@@ -519,6 +527,7 @@ func TestChatCompletionOrchestrator_Process_Streaming(t *testing.T) {
 	dbExec := executions[0]
 	assert.Equal(t, ch.ID, dbExec.ChannelID)
 	assert.Equal(t, dbRequest.ID, dbExec.RequestID)
+	assert.JSONEq(t, `{"X-Upstream-Id":["up-1"],"Authorization":["******"]}`, string(dbExec.ResponseHeaders))
 }
 
 // TestChatCompletionOrchestrator_Process_StreamingError tests that mid-stream errors

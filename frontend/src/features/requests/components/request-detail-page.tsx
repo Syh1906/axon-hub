@@ -209,9 +209,10 @@ export default function RequestDetailPage() {
       return;
     }
 
+    const previewProjectId = selectedProjectId;
     const controller = new AbortController();
     let isDisposed = false;
-    let reconnectTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let reconnectTimer: number | null = null;
     let reconnectAttempt = 0;
 
     previewCompletedRef.current = false;
@@ -263,7 +264,7 @@ export default function RequestDetailPage() {
         const response = await fetch(`/admin/requests/${encodeURIComponent(requestIdNumber)}/preview`, {
           headers: {
             Authorization: `Bearer ${currentToken}`,
-            'X-Project-ID': selectedProjectId,
+            'X-Project-ID': previewProjectId,
           },
           signal: controller.signal,
         });

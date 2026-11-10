@@ -23,7 +23,7 @@ var errStreamDeliveryUnconfirmed = errors.New("stream terminal delivery was not 
 func (ts *InboundPersistentStream) persistStreamFailure(ctx context.Context, cause error) error {
 	if !errors.Is(cause, errStreamDeliveryUnconfirmed) &&
 		(ts.outcome.deliveryErr == nil || !errors.Is(cause, ts.outcome.deliveryErr)) {
-		return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request.ID, cause)
+		return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request, cause, nil, ts.responseChunks...)
 	}
 	failure := &objects.RequestFailure{
 		Stage: "delivery", Type: "gateway_error", Code: "stream_delivery_failed",
@@ -42,7 +42,7 @@ func (ts *InboundPersistentStream) persistStreamFailure(ctx context.Context, cau
 	}
 	key, _ := contexts.GetChannelAPIKey(ts.ctx)
 	failure.Message += " " + sanitizeDiagnosticText(ExtractErrorMessage(cause), key)
-	return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request.ID, cause, failure)
+	return ts.requestService.UpdateRequestStatusFromError(ctx, ts.request, cause, failure, ts.responseChunks...)
 }
 
 func persistRequestFailure(ctx context.Context, state *PersistenceState, err error) {
@@ -62,7 +62,7 @@ func persistRequestFailure(ctx context.Context, state *PersistenceState, err err
 	}
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if updateErr := state.RequestService.UpdateRequestStatusFromError(persistCtx, state.Request.ID, err, failure); updateErr != nil {
+	if updateErr := state.RequestService.UpdateRequestStatusFromError(persistCtx, state.Request, err, failure); updateErr != nil {
 		log.Warn(persistCtx, "Failed to persist request failure", log.Cause(updateErr))
 	}
 }

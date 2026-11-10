@@ -1,10 +1,11 @@
 package orchestrator
 
 import (
-	"context"
+	"sync"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/internal/server/events"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
@@ -16,16 +17,18 @@ type PersistenceState struct {
 	hedge     *titleHedgeAttempt
 	APIKey    *ent.APIKey
 
-	RequestService      *biz.RequestService
-	UsageLogService     *biz.UsageLogService
-	SystemService       *biz.SystemService
-	ChannelService      *biz.ChannelService
-	PromptProvider      PromptProvider
-	PromptProtecter     PromptProtecter
+	RequestService    *biz.RequestService
+	UsageLogService   *biz.UsageLogService
+	ChannelService    *biz.ChannelService
+	PromptProvider    PromptProvider
+	PromptProtecter   PromptProtecter
+	CandidateSelector CandidateSelector
+	LoadBalancers     map[string]*LoadBalancer
+	RoutingPolicy     EffectiveRoutingPolicy
+	// Settings is the system settings snapshot taken when the request started.
+	Settings            *RequestSettings
+	PluginHooks         RequestHooks
 	RetryPolicyProvider RetryPolicyProvider
-	CandidateSelector   CandidateSelector
-	LoadBalancers       map[string]*LoadBalancer
-	RoutingPolicy       EffectiveRoutingPolicy
 
 	// Request state
 	ModelMapper *ModelMapper
@@ -59,6 +62,7 @@ type PersistenceState struct {
 	BudgetAttempt *biz.BudgetAttempt
 	// A non-stream Responses outcome can fail while its HTTP status remains 200.
 	ResponseTerminalError error
+	ExecutionHeaders      *executionHeaderObserver
 
 	// ChannelModelsCandidates is the primary state for channel selection
 	ChannelModelsCandidates []*ChannelModelsCandidate
@@ -107,36 +111,26 @@ type PersistenceState struct {
 	// RawProviderRequest stores the actual outbound provider request for pass-through checks.
 	RawProviderRequest *httpclient.Request
 
-	// RawStreamCh receives raw provider stream events for stream response pass-through
-	// once the pass-through consumer is attached; earlier events are held on
-	// RawStreamBacklog.
-	RawStreamCh chan *httpclient.StreamEvent
-	// RawStreamDone publishes the producer's final error without a cancellation race.
-	RawStreamDone <-chan struct{}
-
-	// RawStreamQueue owns aggregate count and byte accounting for raw events
-	// retained after the pass-through consumer attaches.
-	RawStreamQueue *rawStreamQueue
-
-	// RawStreamBacklog holds the current attempt's raw provider stream events until
-	// applyPassThroughStream attaches the pass-through consumer, so the pipeline can
-	// pre-read the attempt without the fan-out goroutine blocking on RawStreamCh.
-	RawStreamBacklog *rawStreamBacklog
-
-	// RawStreamErrRef points to the current attempt's local error variable used by the
-	// captureRawProviderStream fan-out goroutine. Using a per-attempt pointer (instead of
-	// a single shared field) prevents data races when retries spawn a new goroutine before
-	// the previous one has exited.
-	RawStreamErrRef *error
-
-	// RawStreamCancel cancels the current attempt's fan-out goroutine started by
-	// captureRawProviderStream. Must be called in PrepareForRetry and NextChannel so the
-	// abandoned goroutine exits promptly and releases its upstream HTTP connection.
-	RawStreamCancel context.CancelFunc
-	RawStreamDetach context.CancelFunc
+	// PassThroughRecorder retains the current attempt's raw provider stream events for
+	// stream response pass-through. It is replaced by every attempt that records.
+	PassThroughRecorder *rawEventRecorder
 
 	// PassThroughApplied records whether the inbound request body was substituted during pass-through.
 	PassThroughApplied bool
+
+	// PluginOverloaded is set when an onAttempt hook cannot borrow a runtime.
+	// HasMoreChannels returns false while it is set, so the pipeline does not switch channels.
+	PluginOverloaded bool
+
+	// EventBus publishes plugin events for this request. Nil skips publication.
+	// It is copied from the orchestrator; it is not stored on context.Context.
+	EventBus *events.Bus
+
+	// OutboundAttempt is the 1-based count of outbound attempts started for this
+	// request, including same-channel retries. Zero means no attempt has started.
+	OutboundAttempt int
+
+	requestFailedEvent sync.Once
 }
 
 func (s *PersistenceState) publishesRequest() bool {

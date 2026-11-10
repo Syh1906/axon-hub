@@ -942,7 +942,7 @@ func (s *anthropicInboundStream) Next() bool {
 						Index: &s.contentIndex,
 						ContentBlock: &MessageContentBlock{
 							Type:   blockType,
-							ID:     deltaToolCall.ID,
+							ID:     anthropicToolBlockID(blockType, deltaToolCall.ID),
 							Name:   &deltaToolCall.Function.Name,
 							Input:  json.RawMessage("{}"),
 							Caller: getAnthropicCaller(deltaToolCall.TransformerMetadata),
@@ -1138,6 +1138,8 @@ func (s *anthropicInboundStream) Next() bool {
 				stopReason = "max_tokens"
 			case "tool_calls":
 				stopReason = "tool_use"
+			case "content_filter":
+				stopReason = "refusal"
 			default:
 				stopReason = "end_turn"
 			}

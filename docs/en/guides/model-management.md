@@ -2,6 +2,11 @@
 
 This guide explains how to manage AI models in AxonHub and use "Model Associations" for intelligent routing.
 
+## Reading and refreshing the public catalog
+
+The public model catalog loads on demand and reuses results for five minutes. Concurrent callers share one fetch; administrators can use **Refresh now**. There is no background refresh or refresh interval setting. The server retains encoded JSON and the last successful catalog in the current process. Failed or malformed upstream responses preserve that catalog; the bundled catalog is used when no successful response exists. Check the displayed source and timestamp: a completed refresh does not guarantee new upstream data. The separate Codex catalog is unchanged.
+
+
 ## Import a model card from the catalog
 
 The right-side **Model card** header provides **Import model card from catalog**. Select a developer and catalog model, preview capabilities, modalities, limits and prices, then import. It replaces the whole right-side card: tool calling, vision, temperature, reasoning support/default, input/output modalities, pricing, context/output limits, knowledge cutoff and release/update dates. The left-side developer, model ID, matching rules, public IDs, name and group stay unchanged. Save the model to persist.

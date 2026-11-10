@@ -107,6 +107,16 @@ func (processor *ChatCompletionOrchestrator) raceTitle(
 	tracker *healthGateAttemptTracker, policy *biz.RetryPolicy, delay time.Duration,
 ) titleAttemptResult {
 	seed := *state
+	var forkErr error
+	if state.PluginHooks.ForkForHedge != nil {
+		seed.PluginHooks, forkErr = state.PluginHooks.ForkForHedge()
+	}
+	backupStarted := false
+	defer func() {
+		if !backupStarted && seed.PluginHooks.Request != nil && state.PluginHooks.ForkForHedge != nil {
+			seed.PluginHooks.Request.OnProcessEnd()
+		}
+	}()
 	raw := *state.RawRequest
 	raw.Headers = raw.Headers.Clone()
 	requestRecord := *state.Request
@@ -121,6 +131,9 @@ func (processor *ChatCompletionOrchestrator) raceTitle(
 	guard := &titleDispatchGuard{}
 
 	launch := func(index int) {
+		if index == 1 {
+			backupStarted = true
+		}
 		attemptCtx, cancel := context.WithCancel(contexts.ForkRequest(ctx))
 		cancels[index] = cancel
 		owner, attemptCtx := newStreamLifecycle(attemptCtx)
@@ -180,6 +193,10 @@ func (processor *ChatCompletionOrchestrator) raceTitle(
 			branchRaw.Headers = raw.Headers.Clone()
 			branchPipe, branchOutbound, branchTracker := processor.requestPipeline(&branch, policy)
 			outcome.state, outcome.outbound, outcome.tracker = &branch, branchOutbound, branchTracker
+			if forkErr != nil {
+				outcome.err = forkErr
+				return
+			}
 			var decision *healthGateRequestDecision
 			attemptCtx = context.WithValue(attemptCtx, healthGateDecisionContextKey{}, &decision)
 			outcome.ctx = attemptCtx
@@ -253,7 +270,7 @@ func (processor *ChatCompletionOrchestrator) raceTitle(
 
 func titleHedgeStop(err error) bool {
 	var denied *biz.BudgetDenied
-	return errors.Is(err, httpclient.ErrRequestMayHaveExecuted) ||
+	return isPluginOverloaded(err) || errors.Is(err, httpclient.ErrRequestMayHaveExecuted) ||
 		errors.Is(err, httpclient.ErrContinuationUnavailable) || errors.Is(err, httpclient.ErrContinuationRestoreFailed) || shared.IsResponsesRecoveryError(err) ||
 		errors.Is(err, transformer.ErrUnsupportedConversion) || errors.Is(err, pipeline.ErrPreCommitBufferExceeded) || errors.Is(err, httpclient.ErrStreamEventTooLarge) ||
 		(errors.As(err, &denied) && !denied.CandidateOnly)

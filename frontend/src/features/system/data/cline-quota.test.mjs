@@ -7,6 +7,9 @@ const dataDir = import.meta.dirname;
 const srcRoot = join(dataDir, '..', '..', '..');
 
 function read(relativePath) {
+  if (relativePath === 'components/quota-badges.tsx') {
+    return ['components/quota-display.tsx', 'components/quota-row.tsx', relativePath].map((file) => readFileSync(join(srcRoot, file), 'utf8')).join('\n');
+  }
   return readFileSync(join(srcRoot, relativePath), 'utf8');
 }
 

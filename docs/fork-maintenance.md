@@ -6,14 +6,20 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-发布状态总览（2026-11-09）：最新正式版为 `v1.0.0-beta12-fork.4`，固定源码 `149bbe14`，云悠、泉哥已依次升级。版本部署完成；云悠后台验收通过，泉哥账号／渠道初次超时后重试恢复，网络问题尚未根除。具体源码、产物及部署边界见[本版记录](#beta12-fork4-正式发布与双机更新2026-11-09)。
+发布状态总览（2026-11-10）：最新正式版为 `v1.0.0-beta12-fork.5`，固定源码 `6aec4906`，发布及双机部署记录见本文末尾。当前在 `d672328c` 上整合原始 rc1，目标 `rc1-fork.1` 尚未发布；本地检查不代表生产已更新。历史网络正文接收超时的排查边界仍保留。
 
-本版统一后台诊断、渠道刷新／执行统计、流式收尾、会话偏好和标题延迟并发。同提交四项CI与精简发布成功。本轮配置副本已清理，未改Nginx／业务配置或备份数据库；MySQL实库、真实账单与长期负载仍未验证。
+## v1.0.0-rc1 整合（目标 rc1-fork.1，待发布）
 
-2026-11-09 后续回归修复与费用统一已完成本地验收，尚未提交、发布或部署：已修正取消诊断与接续折叠冲突、标题胜者的渠道／状态码／性能读取、标题实时预览，以及 PostgreSQL 汇总中的字段引号错误。另合并额度批量读取和仪表板周期聚合，修复旧有全部时间 Token 缓存刷新丢失授权上下文的问题。全部实际费用汇总、渠道归属和归档保护也已同步，见[费用追加验收](../.agent/summary/fork4-cost-implementation-20261109.md)。临时 Nginx 诊断已撤销，原正文 0 字节超时仍未定因。完整范围、实测和剩余线上正文传输超时见[本轮修复记录](../.agent/summary/fork4-regression-performance-20261109.md)；不能据此将生产标为已恢复。
+- 基线：本 fork `d672328cc1b552e4ca2b24486b169614aab5d69d`，原始上游 `v1.0.0-rc1` / `d2935453d23cb1886350a3d1b15f777038af3230`。继承 ChouUn 来源保持独立记录。
+- 当前状态：隔离分支 `codex/sync-original-rc1` 本地整合；未提交、推送、发布或部署。详细实施与验证记录位于 `.agent/summary/rc1-fork1-implementation-20261110.md`（本地，不随 Git 分发）。
+- 已确认取舍：管理／项目／插件导航保留二开入口；公共目录按需加载并保留手动刷新及最近成功结果；无 Retry-After 的 429 不加固定冷却；402／520 默认更快切渠道但显式重试优先；插件纳入 JSON 备份，恢复停用且清授权；历史追踪回填最后请求时间，缺明细显示未知。
+- 性能：系统页签按需加载；渠道模型候选使用可取消共享查询，30 秒新鲜期，随渠道修改失效。列表每批 20 条和虚拟行渲染保持；插件菜单只读轻量 UI 目录。客户端取消公共目录等待不终止其他调用者共享的有界拉取。
+- 核对范围：上游 schema／data migration 与现有 fork topics。生成文件来自整合后的 schema；无已发布迁移修改。新增 `v1.0.0-rc1-fork.1` 按 256 个追踪分批回填，版本位于 beta12-fork.5 之后、rc2 之前；SQLite／PostgreSQL 16／MySQL 8.4 均通过。
+- 请求链保留计价、预算、同名渠道 ID 关联、版本优先、健康门控和会话归属、标题采用结果、Page 兼容、Codex HTTP／WS 与未知执行禁止重放。上游串行 recorder 替代 raw_stream_queue；预读仍限制 4096 事件／64 MiB，客户端取消后的已缓冲终态及停机中止尾部均有回归。
+- 独立复审修正：标题请求遇到插件运行池繁忙时，与普通请求一致停止新尝试；备用分支繁忙不打断已发出的正常主响应。`title_hedge.go` 与三场景回归覆盖该边界。指定 `rc1-fork.1` 的市场安装、含插件包与 KV 的 PostgreSQL 完整迁移、真实 fork.5 schema 连续两次升级的数据保留均已补验；流程偏差和未验环境见本地 `.agent/summary/rc1-self-review-20261110.md`。
+- 插件 JSON 备份属于 1.8，与系统配置开关一致；导出逐包、KV 分批，恢复重新映射 installation ID，已有插件不覆盖。新插件默认禁用并清空授权，旧格式继续兼容。核对 `internal/server/backup/plugins.go` 与 `plugins_test.go`。
+- 下次同步重点：上游对无 header 冷却、目录失败缓存、流式收尾、插件 session 与标题并发、备份映射、追踪迁移的修改，不能覆盖上述差异。自己的发布工作流、正式级别和快照编号保持。
 
-本仓库保留 ChouUn 的继承历史及功能归属，beta12 起直接合并 looplj 的原始 release。
-原始基线与继承 fork 分别记录在 `release.config.json`，新的 `beta12-fork.N` 发版规则见[独立发版与部署](zh/development/release.md)。
 
 ## beta12-fork.2 发布后修复与生产补验
 
@@ -67,7 +73,7 @@ fork 改动，由用户决定。
 | Responses／流式 | HTTP／WebSocket 终态、交付确认、来源与续聊恢复 | 保留供应商终态、客户端交付、用量证据分离；HTTP 保留完整历史恢复，原生 WS 保留同一连接和上游 ID；未知执行禁止重放。核对 `responses_session.go`、`responses_attempt.go`、`inbound.go`、`outbound.go`。 |
 | 计价／预算 | 新供应商和异步任务结算 | 当前执行快照、阶梯／分时／图片分项、Key 倍率和预算锁优先；异步任务只在有供应商终态证据时结算或释放。核对 `usage_cost*`、`budget_*`、`video.go`。 |
 | 渠道端点／超时 | Responses 双协议、渠道重试和嵌套超时配置 | 平铺超时字段保持公开契约：nil 继承、0 关闭；已发布的 `supportsWebSockets=true` 保留 HTTP＋WS 能力，false 关闭 WS。Codex 的两个编辑入口统一保存独立端点，保留目录 URL／JSON；旧 `transport` 和 WS URL 按原语义读取。核对 `channel_endpoint*.go`、`channel_llm.go`、GraphQL 输入回读。 |
-| 透传／队列 | 上游原始事件队列和交付边界 | 保留当前 4096 事件／64 MiB 预读边界及对应溢出回归，后续队列释放需保持预算、取消和顺序。核对 `pass_through.go`、`raw_stream_queue.go`。 |
+| 透传／队列 | 上游原始事件队列和交付边界 | 保留当前 4096 事件／64 MiB 预读边界及对应溢出回归，后续队列释放需保持预算、取消和顺序。核对 `pass_through.go` 的串行 recorder（rc1 起替代 `raw_stream_queue.go`）。 |
 | 权限／请求可见性 | Playground／项目读取范围调整 | 当前项目读取者查看项目全部请求的契约继续有效；仅保留跨项目隔离及服务账号授权上限。核对 scopes、请求列表 GraphQL 和测试。 |
 | API Key／模型／路由 | 分组唯一性、优先级、配额和健康门控增强 | 保留项目＋分组唯一性、预算锁、模型优先级前后端上限 10、权重分层、health gate、多地址和会话来源。核对 `api_key_names.go`、`candidates*.go`、`health_gate*.go`。 |
 | 统计／归档 | 归档用量、Key 标签、性能查询和更细时间范围 | live＋archive 一致快照、已删除 Key 和 first-byte／最终执行口径优先；不能用上游旧 TTFT 查询替代当前速度口径。核对 `dashboard*`、`analytics_helpers.go`、`gql/qb`。 |

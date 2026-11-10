@@ -10,7 +10,7 @@ import { formatNumber } from '@/utils/format-number';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -867,7 +867,7 @@ export function ModelsActionDialog() {
               </div>
             </div>
 
-            <div className='flex flex-shrink-0 justify-end gap-2 border-t pt-4'>
+            <DialogFooter pinned divided>
               <Button type='button' variant='outline' onClick={handleClose}>
                 {t('common.buttons.cancel')}
               </Button>
@@ -889,7 +889,7 @@ export function ModelsActionDialog() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

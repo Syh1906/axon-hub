@@ -52,7 +52,7 @@ release.config.json 保存仓库、发布分支、直接上游 tag/提交、原�
 publishBinaries 为 false 时跳过 GoReleaser 及其前端依赖安装、各平台下载包、校验和与配置 schema 附件，仅保留镜像和 release.json；true 时仍走原完整下载包流程。选择在打新 tag 前写入配置，不能通过重跑修改已公开的版本。
 镜像发布仍执行测试、双架构构建与临时 PostgreSQL 启动检查。构建和推送都在 GitHub 云端进行，不在本地打包，也不导出镜像 tar；Docker 构建上下文排除设计图、验收目录和本地演示数据。
 仅镜像版本不支持原生二进制下载升级，安装脚本不会获得对应包；此类用户应保留原版或等待明确启用下载包的新版本。GitHub 自动生成源码归档不属于重复构建产物。
-当前原始基线是 looplj 的 v1.0.0-beta12，对应 2b1a0f93；
+当前工作分支的原始基线是 looplj 的 v1.0.0-rc1，对应 d2935453（rc1-fork.1 待发布）；
 历史继承 fork 基线是 ChouUn 的 v1.0.0-beta10-fork.7，对应 b205ae8e；beta10 原始基线为 939b2bc0。
 
 beta12 之后自己的版本采用 <原始上游 tag>-fork.N：

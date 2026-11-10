@@ -27,7 +27,7 @@ func TestExpiredResponsesAffinityResumesOrdinarySessionRouting(t *testing.T) {
 	candidates := []*ChannelModelsCandidate{stickyTestCandidate(1, 0), stickyTestCandidate(2, 9), stickyTestCandidate(3, -1)}
 	candidates[0].APIFormat, candidates[1].APIFormat = string(llm.APIFormatOpenAIResponse), string(llm.APIFormatOpenAIResponse)
 	candidates[2].APIFormat = string(llm.APIFormatOpenAIChatCompletion)
-	selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(policy, nil), policy, provider)
+	selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(nil, nil), policy, provider)
 	ctx := contexts.WithTrace(t.Context(), &ent.Trace{ID: 7})
 	req := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, Model: "alias", RawRequest: &httpclient.Request{Body: []byte(`{"input":[{"encrypted_content":"expired"}]}`)}}
 	selected, err := selector.Select(ctx, req)
@@ -56,7 +56,7 @@ func TestResponsesContinuationUnavailableUsesEligibleCandidates(t *testing.T) {
 			for _, candidate := range candidates {
 				candidate.APIFormat = string(llm.APIFormatOpenAIResponse)
 			}
-			selector := WithTraceStickyLoadBalancedSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(policy, nil), policy, provider)
+			selector := newLivePolicyTestSelector(&staticChannelSelector{candidates: candidates}, NewLoadBalancer(nil, nil), policy, provider)
 			body := []byte(`{"model":"gpt-test","input":[{"type":"reasoning","encrypted_content":"opaque-history"}]}`)
 			request := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, Model: "gpt-test", RawRequest: &httpclient.Request{Body: body}}
 			selected, err := selector.Select(t.Context(), request)

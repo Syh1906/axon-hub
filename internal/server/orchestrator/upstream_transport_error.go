@@ -11,6 +11,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/contexts"
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
@@ -86,11 +87,13 @@ func ClassifyUpstreamTransportError(err error) error {
 func persistRequestExecutionFailure(
 	ctx context.Context,
 	requestService *biz.RequestService,
-	executionID int,
+	execution *ent.RequestExecution,
 	rawErr error,
 	metrics *biz.LatencyMetrics,
 	response *httpclient.Response,
-	upstreamModels ...string,
+	upstreamModelID string,
+	responseHeaders http.Header,
+	chunks ...*httpclient.StreamEvent,
 ) error {
 	status := requestexecution.StatusFailed
 	if errors.Is(rawErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
@@ -105,19 +108,14 @@ func persistRequestExecutionFailure(
 		info.ExternalID = gjson.GetBytes(response.Body, "id").String()
 	}
 
-	upstreamModelID := ""
-	if len(upstreamModels) > 0 {
-		upstreamModelID = upstreamModels[0]
-	} else if response != nil {
-		upstreamModelID = gjson.GetBytes(response.Body, "model").String()
-	}
 	return requestService.UpdateRequestExecutionStatusWithMetrics(
 		ctx,
-		executionID,
+		execution,
 		status,
 		sanitizeDiagnosticText(ExtractErrorMessage(failure), key),
 		info,
 		metrics,
 		upstreamModelID,
+		responseHeaders, chunks...,
 	)
 }
