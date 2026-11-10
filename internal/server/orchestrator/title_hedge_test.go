@@ -332,9 +332,11 @@ func TestTitleHedgePreservesLivePreview(t *testing.T) {
 	policy := processor.SystemService.StoragePolicyOrDefault(ctx)
 	policy.LivePreview = true
 	require.NoError(t, processor.SystemService.SetStoragePolicy(ctx, policy))
-	result, err := processor.processWithTitleHedgeDelay(ctx, &httpclient.Request{Method: "POST",
+	result, err := processor.processWithTitleHedgeDelay(ctx, &httpclient.Request{
+		Method:  "POST",
 		Headers: http.Header{"X-Codex-Turn-Metadata": {`{"thread_source":"thread_title"}`}},
-		Body:    []byte(`{"model":"gpt-6-luna","stream":true,"input":"title"}`)}, 25*time.Millisecond)
+		Body:    []byte(`{"model":"gpt-6-luna","stream":true,"input":"title"}`),
+	}, 25*time.Millisecond)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = result.ChatCompletionStream.Close() })
 	stored := client.Request.GetX(ctx, result.RequestID)
@@ -382,6 +384,7 @@ func TestTitleHealthPreservesFailureDuringConcurrentWinnerCleanup(t *testing.T) 
 // the optional lane owns a separate session even if it never starts.
 type titleHookProbe struct {
 	pipeline.DummyMiddleware
+
 	requests atomic.Int32
 	attempts atomic.Int32
 	releases atomic.Int32

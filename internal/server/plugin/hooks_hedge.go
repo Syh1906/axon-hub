@@ -17,9 +17,11 @@ func (h *requestHookMiddleware) forkForHedge() (orchestrator.RequestHooks, error
 	if err := source.gen.acquirePinned(); err != nil {
 		return orchestrator.RequestHooks{}, err
 	}
-	session := &requestHookSession{manager: source.manager, gen: source.gen,
+	session := &requestHookSession{
+		manager: source.manager, gen: source.gen,
 		requestJSON: bytes.Clone(source.requestJSON), states: map[int]json.RawMessage{},
-		requestOverrides: maps.Clone(source.requestOverrides)}
+		requestOverrides: maps.Clone(source.requestOverrides),
+	}
 	for id, value := range source.states {
 		session.states[id] = bytes.Clone(value)
 	}

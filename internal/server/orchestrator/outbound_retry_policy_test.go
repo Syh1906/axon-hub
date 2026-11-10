@@ -3,6 +3,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -353,7 +354,7 @@ func TestOutboundPersistentStream_Close_TransportErrorKeepsMetricsAndClassifiesE
 
 			dbExec, err := client.RequestExecution.Get(ctx, exec.ID)
 			require.NoError(t, err)
-			if tc.streamErr == context.Canceled {
+			if errors.Is(tc.streamErr, context.Canceled) {
 				require.Equal(t, requestexecution.StatusCanceled, dbExec.Status)
 				require.Equal(t, "client_canceled", dbExec.Failure.Source)
 			} else {
@@ -369,7 +370,6 @@ func TestOutboundPersistentStream_Close_TransportErrorKeepsMetricsAndClassifiesE
 			require.Equal(t, int64(400), *dbExec.MetricsFirstTokenLatencyMs)
 			require.NotNil(t, dbExec.MetricsLatencyMs)
 			require.GreaterOrEqual(t, *dbExec.MetricsLatencyMs, int64(1500))
-
 		})
 	}
 }

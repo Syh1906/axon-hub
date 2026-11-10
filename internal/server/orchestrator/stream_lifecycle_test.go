@@ -323,8 +323,10 @@ func TestCanceledLifecycleDrainsBufferedTerminalAfterClosingSource(t *testing.T)
 		{Type: "response.completed", Data: []byte(`{"type":"response.completed","response":{"status":"completed"}}`)},
 	})}
 	state := &PersistenceState{}
-	attempt := &OutboundPersistentStream{ctx: execution, stream: source, lifecycle: owner,
-		state: state, terminalTracker: NewStreamTerminalTrackerForRequest(nil)}
+	attempt := &OutboundPersistentStream{
+		ctx: execution, stream: source, lifecycle: owner,
+		state: state, terminalTracker: NewStreamTerminalTrackerForRequest(nil),
+	}
 	cancel()
 	<-execution.Done()
 	attempt.collectTail()

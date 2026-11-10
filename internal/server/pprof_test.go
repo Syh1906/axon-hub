@@ -56,7 +56,7 @@ func TestPprofHandlerAccess(t *testing.T) {
 
 func TestPprofServerServesHeapProfile(t *testing.T) {
 	p := &pprofServer{}
-	if err := p.start(Pprof{Enabled: true, Addr: "127.0.0.1:0"}); err != nil {
+	if err := p.start(t.Context(), Pprof{Enabled: true, Addr: "127.0.0.1:0"}); err != nil {
 		t.Fatalf("start() error = %v", err)
 	}
 	t.Cleanup(func() { _ = p.shutdown(context.Background()) })
@@ -77,7 +77,7 @@ func TestPprofServerServesHeapProfile(t *testing.T) {
 
 func TestPprofServerRejectsNonLoopbackAddr(t *testing.T) {
 	p := &pprofServer{}
-	if err := p.start(Pprof{Enabled: true, Addr: "0.0.0.0:0"}); err == nil {
+	if err := p.start(t.Context(), Pprof{Enabled: true, Addr: "0.0.0.0:0"}); err == nil {
 		_ = p.shutdown(context.Background())
 		t.Fatal("start() with wildcard addr = nil, want error")
 	}

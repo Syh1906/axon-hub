@@ -83,11 +83,12 @@ type pprofServer struct {
 	addr   string
 }
 
-func (p *pprofServer) start(cfg Pprof) error {
+func (p *pprofServer) start(ctx context.Context, cfg Pprof) error {
 	if err := validatePprofAddr(cfg.Addr); err != nil {
 		return err
 	}
-	ln, err := net.Listen("tcp", cfg.Addr)
+	var listenConfig net.ListenConfig
+	ln, err := listenConfig.Listen(ctx, "tcp", cfg.Addr)
 	if err != nil {
 		return fmt.Errorf("listen server.pprof.addr %s: %w", cfg.Addr, err)
 	}
@@ -127,7 +128,7 @@ func registerPprof(lc fx.Lifecycle, cfg Config) {
 	}
 	p := &pprofServer{}
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error { return p.start(cfg.Pprof) },
+		OnStart: func(ctx context.Context) error { return p.start(ctx, cfg.Pprof) },
 		OnStop:  p.shutdown,
 	})
 }

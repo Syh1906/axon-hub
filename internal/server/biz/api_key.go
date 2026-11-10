@@ -282,7 +282,6 @@ func (s *APIKeyService) CreateLLMAPIKey(ctx context.Context, owner *ent.APIKey, 
 		dupCount, err := authz.RunAsHost(ctx, client, "api key name uniqueness", func(hostCtx context.Context) (int, error) {
 			return client.APIKey.Query().Where(apikey.NameEQ(name), apikey.ProjectIDEQ(owner.ProjectID), apikey.GroupRefIsNil()).Count(hostCtx)
 		})
-
 		if err != nil {
 			return fmt.Errorf("failed to check api key name uniqueness: %w", err)
 		}
