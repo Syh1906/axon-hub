@@ -19,7 +19,7 @@ function validateManifest(manifest) {
 function validateReplacement(manifest) {
   if (manifest.kind === 'snapshot') return validateManifest(manifest);
   if (manifest.schemaVersion !== 1 || manifest.repository !== 'Syh1906/axon-hub' ||
-    !/^v\d+\.\d+\.\d+-[^/]+\.syh\.[1-9]\d*$/.test(manifest.version) ||
+    !/^v\d+\.\d+\.\d+-[^/]+(?:-fork\.|\.syh\.)[1-9]\d*$/.test(manifest.version) ||
     !/^[a-f0-9]{40}$/.test(manifest.commit) ||
     !/^ghcr\.io\/syh1906\/axon-hub@sha256:[a-f0-9]{64}$/.test(manifest.image) ||
     JSON.stringify(manifest.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])) {

@@ -60,16 +60,21 @@ test('拒绝将正式清单、其他仓库或不完整快照作为退役目标',
   }
 });
 
-test('正式发布可以替代旧快照，但不删除正式镜像或无关附件', () => {
-  const f = fixture();
-  const release = { schemaVersion: 1, repository: 'Syh1906/axon-hub',
-    version: 'v1.0.0-beta10-fork.7.syh.11', commit: 'b'.repeat(40),
-    image: f.replacement.image, platforms: ['linux/amd64', 'linux/arm64'] };
-  const plan = planRetirement(f.previous, release, f.versions, f.artifacts);
-  assert.deepEqual(plan.packageVersions.map((item) => item.id), [1, 2, 3]);
-  assert.deepEqual(plan.artifacts.map((item) => item.id), [10, 11]);
-  assert.equal(plan.replacementVersion, release.version);
-  assert.equal(plan.replacementSnapshotId, null);
-  assert.throws(() => planRetirement(f.previous, { ...release, commit: 'invalid' }, f.versions, f.artifacts), /正式发布清单/);
-  assert.throws(() => planRetirement(f.previous, { ...release, image: f.previous.image }, f.versions, f.artifacts), /不同/);
-});
+for (const version of ['v1.0.0-beta10-fork.7.syh.11', 'v1.0.0-beta12-fork.5', 'v1.0.0-rc1-fork.1']) {
+  test(`正式发布 ${version} 可以替代旧快照，但不删除正式镜像或无关附件`, () => {
+    const f = fixture();
+    const release = { schemaVersion: 1, repository: 'Syh1906/axon-hub',
+      version, commit: 'b'.repeat(40),
+      image: f.replacement.image, platforms: ['linux/amd64', 'linux/arm64'] };
+    const plan = planRetirement(f.previous, release, f.versions, f.artifacts);
+    assert.deepEqual(plan.packageVersions.map((item) => item.id), [1, 2, 3]);
+    assert.deepEqual(plan.artifacts.map((item) => item.id), [10, 11]);
+    assert.equal(plan.replacementVersion, release.version);
+    assert.equal(plan.replacementSnapshotId, null);
+    assert.throws(() => planRetirement(f.previous, { ...release, commit: 'invalid' }, f.versions, f.artifacts), /正式发布清单/);
+    assert.throws(() => planRetirement(f.previous, { ...release, image: f.previous.image }, f.versions, f.artifacts), /不同/);
+    for (const invalid of ['v1.0.0-rc1', 'v1.0.0-rc1-fork.0', 'v1.0.0-rc1-fork.1+snapshot.test', 'v1.0.0-rc1-fork.01']) {
+      assert.throws(() => planRetirement(f.previous, { ...release, version: invalid }, f.versions, f.artifacts), /正式发布清单/);
+    }
+  });
+}
