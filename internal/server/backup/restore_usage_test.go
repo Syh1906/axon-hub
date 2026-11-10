@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBackupUsageRestoresEveryBillAndIsIdempotent(t *testing.T) {
@@ -46,8 +47,10 @@ func TestBackupUsageRestoresEveryBillAndIsIdempotent(t *testing.T) {
 				target, restore, targetCtx := setupBackupTest(t)
 				defer target.Close()
 				createBackupTestChannel(t, target, targetCtx, "unrelated", channel.TypeOpenai)
-				opts := RestoreOptions{IncludeChannels: true, IncludeProjects: true, IncludeAPIKeys: true, IncludeUsageStats: true, IncludeRequestLogs: withRequests,
-					ChannelConflictStrategy: ConflictStrategySkip, ProjectConflictStrategy: ConflictStrategySkip, APIKeyConflictStrategy: ConflictStrategySkip}
+				opts := RestoreOptions{
+					IncludeChannels: true, IncludeProjects: true, IncludeAPIKeys: true, IncludeUsageStats: true, IncludeRequestLogs: withRequests,
+					ChannelConflictStrategy: ConflictStrategySkip, ProjectConflictStrategy: ConflictStrategySkip, APIKeyConflictStrategy: ConflictStrategySkip,
+				}
 				require.NoError(t, restore.Restore(targetCtx, bytes.NewReader(data), opts))
 				for _, original := range backup.Channels {
 					current := target.Channel.Query().Where(channel.NameEQ(original.Name)).OnlyX(targetCtx)

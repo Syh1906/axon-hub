@@ -22,8 +22,10 @@ type usageRestoreIdentity struct {
 }
 
 func usageRestoreKey(row *ent.UsageLog) usageRestoreIdentity {
-	return usageRestoreIdentity{RequestID: row.RequestID, ProjectID: row.ProjectID, ChannelID: row.ChannelID,
-		ModelID: row.ModelID, Format: row.Format, Source: row.Source, CreatedAt: row.CreatedAt.UTC()}
+	return usageRestoreIdentity{
+		RequestID: row.RequestID, ProjectID: row.ProjectID, ChannelID: row.ChannelID,
+		ModelID: row.ModelID, Format: row.Format, Source: row.Source, CreatedAt: row.CreatedAt.UTC(),
+	}
 }
 
 func (svc *BackupService) restoreUsageLogs(
