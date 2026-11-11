@@ -138,13 +138,14 @@ func TestGoogleNativeToolsSelector_Select_WithoutGoogleNativeTools(t *testing.T)
 	require.Contains(t, channelIDs, channels[2].ID, "Gemini Vertex channel should be included")
 }
 
-// TestGoogleNativeToolsSelector_Select_NoCompatibleChannels tests fallback when no compatible channels exist.
+// TestGoogleNativeToolsSelector_Select_NoCompatibleChannels tests that the base
+// selector excludes protocols that cannot preserve Google native tools.
 func TestGoogleNativeToolsSelector_Select_NoCompatibleChannels(t *testing.T) {
 	ctx, client := setupTest(t)
 	createAssociatedTestModel(t, ctx, client, "gemini-2.0-flash")
 
 	// Create only gemini_openai channel (does not support Google native tools)
-	ch, err := client.Channel.Create().
+	_, err := client.Channel.Create().
 		SetType(channel.TypeGeminiOpenai).
 		SetName("Gemini OpenAI Only").
 		SetBaseURL("https://generativelanguage.googleapis.com").
@@ -172,10 +173,9 @@ func TestGoogleNativeToolsSelector_Select_NoCompatibleChannels(t *testing.T) {
 	result, err := selector.Select(ctx, req)
 	require.NoError(t, err)
 
-	// Should fallback to all channels when no compatible channels exist
-	// (downstream outbound will handle the fallback)
-	require.Len(t, result, 1)
-	require.Equal(t, ch.ID, result[0].Channel.ID)
+	// Chat has no implemented Google search mapping; it must not be restored
+	// as a fallback after the shared capability filter removed it.
+	require.Empty(t, result)
 }
 
 // TestGoogleNativeToolsSelector_Select_EmptyTools tests that all channels are returned when tools are empty.
