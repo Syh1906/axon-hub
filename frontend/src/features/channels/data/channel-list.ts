@@ -3,11 +3,14 @@ import { graphqlRequest } from '@/gql/graphql';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { buildQueryChannelsQuery, type useQueryChannels } from './channels';
 import { channelConnectionSchema, type ChannelConnection } from './schema';
+import { useAuthStore } from '@/stores/authStore';
 
 export function useInfiniteChannels(variables: NonNullable<Parameters<typeof useQueryChannels>[0]>, enabled: boolean) {
   const { columnVisibility, ...input } = variables;
+  const userId = useAuthStore((state) => state.auth.user?.id);
   const query = useCursorList({
-    queryKey: ['channels', 'infinite', input, columnVisibility],
+    queryKey: ['channels', 'infinite', userId, input, columnVisibility],
+    staleTime: 10_000,
     gcTime: 5 * 60_000,
     maxPages: 8,
     enabled,

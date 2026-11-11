@@ -10,6 +10,7 @@ import { useErrorHandler } from '@/hooks/use-error-handler';
 import { mergeChannelSettingsForUpdate } from '../utils/merge';
 import { invalidateChannelIdentityQueries } from './channel-identity-cache';
 import { shouldNotifyChannelQueryError } from './channel-query-error';
+import { invalidateChannelUpstreamStates } from './channel-upstream-refresh';
 import { CHANNEL_QUERY_FULL_NODE_SELECTION, CHANNEL_QUERY_LIST_NODE_BASE_SELECTION, CHANNEL_QUERY_SUPPORTED_MODELS_SELECTION, CHANNEL_QUERY_TAGS_SELECTION, CHANNEL_QUERY_PROXY_SELECTION, CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION, CHANNEL_QUERY_LOAD_SELECTION, CHANNEL_QUERY_QUOTA_SELECTION } from './channel-query-fields';
 import { cacheWriteBillingSchema, type CacheWriteBilling, type ServiceTierSettings } from './schema';
 import { Channel, ChannelConnection, ChannelSummaryConnection, CreateChannelInput, UpdateChannelInput, channelConnectionSchema, channelSchema, channelHealthGateStatusSchema, disabledAPIKeySchema, channelEndpointsResponseSchema, BulkImportChannelsInput, BulkImportChannelsResult, bulkImportChannelsResultSchema, BulkUpdateChannelOrderingInput, BulkUpdateChannelOrderingResult, bulkUpdateChannelOrderingResultSchema, BulkUpdateChannelAutoDisableInput, BulkUpdateChannelAutoDisablePayload, bulkUpdateChannelAutoDisablePayloadSchema, ChannelAutoDisableCopySource, channelAutoDisableCopySourceSchema, channelSummaryConnectionSchema, ChannelSettings, ProxyConfig, ChannelPolicies, ChannelModelPrice, SaveChannelModelPriceInput, channelModelPriceSchema, saveChannelModelPriceInputSchema, channelSettingsInputSchema, TestChannelAPIKeysPayload, testChannelAPIKeysPayloadSchema, TestAPIKeyResult, testAPIKeyResultSchema, DetectedChannelEndpoint, detectedChannelEndpointSchema } from './schema';
@@ -1510,6 +1511,9 @@ export function useUpdateChannel() {
       return updateChannelRequest(id, input);
     },
     onSuccess: (data, { input }) => {
+      if (input.credentials !== undefined || input.type !== undefined || input.baseURL !== undefined) {
+        void invalidateChannelUpstreamStates(queryClient, [data.id]);
+      }
       if (input.name !== undefined || input.tags !== undefined || input.type !== undefined || input.remark !== undefined) {
         invalidateChannelIdentityQueries(queryClient);
       }
@@ -1576,10 +1580,13 @@ export function useUpdateChannelSettings() {
           settings: mergeChannelSettingsForUpdate(latest.settings, patch),
         });
       }),
-    onSuccess: (data) => {
+    onSuccess: (data, { input }) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['channel', data.id] });
       queryClient.invalidateQueries({ queryKey: ['provider-quotas'] });
+      if (input?.credentials !== undefined || input?.type !== undefined || input?.baseURL !== undefined) {
+        void invalidateChannelUpstreamStates(queryClient, [data.id]);
+      }
     },
     onError: (error) => {
       handleError(error, { context: t('channels.dialogs.edit.title') });
@@ -2355,6 +2362,7 @@ export function useDisableChannelAPIKey() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channelDisabledAPIKeys', variables.channelID] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      void invalidateChannelUpstreamStates(queryClient, [variables.channelID]);
       toast.success(t('channels.messages.disableAPIKeySuccess'));
     },
   });
@@ -2381,6 +2389,7 @@ export function useEnableChannelAPIKey() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channelDisabledAPIKeys', variables.channelID] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      void invalidateChannelUpstreamStates(queryClient, [variables.channelID]);
       toast.success(t('channels.messages.enableAPIKeySuccess'));
     },
   });
@@ -2406,6 +2415,7 @@ export function useEnableAllChannelAPIKeys() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channelDisabledAPIKeys', variables.channelID] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      void invalidateChannelUpstreamStates(queryClient, [variables.channelID]);
       toast.success(t('channels.messages.enableAllAPIKeysSuccess'));
     },
   });
@@ -2432,6 +2442,7 @@ export function useEnableSelectedChannelAPIKeys() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channelDisabledAPIKeys', variables.channelID] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      void invalidateChannelUpstreamStates(queryClient, [variables.channelID]);
       toast.success(t('channels.messages.enableSelectedAPIKeysSuccess'));
     },
   });
@@ -2458,6 +2469,7 @@ export function useDeleteDisabledChannelAPIKeys() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['channelDisabledAPIKeys', variables.channelID] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      void invalidateChannelUpstreamStates(queryClient, [variables.channelID]);
 
       // Show appropriate message based on the result
       if (data.message === 'ONE_KEY_PRESERVED') {

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_END_TIME, DEFAULT_START_TIME, isSameTime, normalizeDateTimeRangeValue, type DateTimeRangeValue, type TimeValue } from '@/utils/date-range';
 import { useAutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
@@ -14,6 +14,7 @@ import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
 import { useInfiniteRequests, useRequests, useRequestLogTimezone } from './data';
+import { QueryLoadAlert } from '@/components/query-load-alert';
 
 const REQUEST_FILTER_SEARCH_KEYS = {
   status: 'status',
@@ -176,9 +177,7 @@ function clearRequestFilterSearch(draft: Record<string, unknown>) {
 function RequestsContent() {
   const navigate = useNavigate();
   const { canViewChannels } = useRequestPermissions();
-  const currentSearch = useRouterState({
-    select: (state) => (state.location.search ?? {}) as Record<string, unknown>,
-  });
+  const currentSearch = useSearch({ strict: false }) as Record<string, unknown>;
   const { pageSize } = usePaginationSearch({
     defaultPageSize: 20,
     pageSizeStorageKey: 'requests-table-page-size',
@@ -250,7 +249,7 @@ function RequestsContent() {
   const infinite = useInfiniteRequests(whereClause, 50, listMode === 'infinite');
   const paged = useRequests(
     { first: pageSize, where: { ...whereClause, offset: (page - 1) * pageSize }, orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
-    { enabled: listMode === 'pages', keepPreviousPage: true }
+    { enabled: listMode === 'pages', keepPreviousPage: true, notifyOnError: false }
   );
   const query = listMode === 'infinite' ? infinite : paged;
   const { data, isLoading, refetch } = query;
@@ -259,7 +258,9 @@ function RequestsContent() {
   const refreshActive = atTop && (listMode === 'infinite' || page === 1);
   const autoRefreshResumeKey = useInterval(
     () => {
-      if (!query.isFetching) void refetch();
+      if (query.isFetching) return;
+      if (listMode === 'infinite') void infinite.resetToTop();
+      else void refetch();
     },
     refreshActive ? autoRefreshInterval : null,
     { refreshOnResume: true }
@@ -410,6 +411,8 @@ function RequestsContent() {
           })
         }
       />
+      <QueryLoadAlert error={query.error} hasData={data !== undefined && !query.isPlaceholderData} retrying={query.isFetching}
+        onRetry={() => { if (listMode === 'infinite' && infinite.isFetchNextPageError) infinite.loadMore(); else if (listMode === 'infinite' && infinite.isFetchPreviousPageError) infinite.loadPrevious(); else void scroll.onReset(); }} />
       <RequestsTable
         data={requests}
         loading={isLoading}
@@ -446,7 +449,10 @@ function RequestsContent() {
         autoRefreshResumeKey={autoRefreshResumeKey}
         onAutoRefreshIntervalChange={(interval) => {
           setAutoRefreshInterval(interval);
-          if (interval !== null && refreshActive && !query.isFetching) void refetch();
+          if (interval !== null && refreshActive && !query.isFetching) {
+            if (listMode === 'infinite') void infinite.resetToTop();
+            else void refetch();
+          }
         }}
       />
     </div>

@@ -31,7 +31,38 @@ export type UpstreamRefreshOptions = {
   includeDisabled?: boolean;
   keyRef?: string;
   silent?: boolean;
+  reuseSnapshot?: boolean;
 };
+
+export async function invalidateChannelUpstreamStates(client: QueryClient, ids: string[]) {
+  const filters = {
+    queryKey: ['channel-upstream'],
+    predicate: (query: { queryKey: readonly unknown[] }) => (query.queryKey[1] as string[]).some((id) => ids.includes(id)),
+  };
+  await client.cancelQueries(filters);
+  await client.invalidateQueries(filters);
+}
+
+// 翻页后的新增 ID 可以复用整批快照，不因数组长度不同而重新读取同一渠道。
+export async function readCachedUpstreamStates(
+  client: QueryClient,
+  ids: string[],
+  fetchMissing: (ids: string[]) => Promise<ChannelUpstreamState[]>,
+  reuseSnapshot: boolean
+) {
+  const states = new Map<string, ChannelUpstreamState>();
+  const queries = (reuseSnapshot ? client.getQueryCache().findAll({ queryKey: ['channel-upstream'] }) : [])
+    .filter(({ state }) => !state.isInvalidated && !state.error && Date.now() - state.dataUpdatedAt < 30_000)
+    .sort((a, b) => a.state.dataUpdatedAt - b.state.dataUpdatedAt);
+  for (const query of queries) {
+    for (const state of (query.state.data as ChannelUpstreamState[] | undefined) ?? []) states.set(state.channelId, state);
+  }
+  const missing = ids.filter((id) => !states.has(id));
+  for (let offset = 0; offset < missing.length; offset += 100) {
+    for (const state of await fetchMissing(missing.slice(offset, offset + 100))) states.set(state.channelId, state);
+  }
+  return ids.flatMap((id) => states.has(id) ? [states.get(id)!] : []);
+}
 type RefreshResult = { channels: ChannelUpstreamState[]; refreshed: number; skipped: number; failed: number };
 
 export async function refreshUpstreamChannels(
@@ -90,4 +121,11 @@ export function channelsNeedingPageRefresh(previous: string[], current: string[]
   if (previous.every((id, index) => current[index] === id)) return current.slice(previous.length);
   if (current.every((id, index) => previous[index] === id)) return [];
   return current;
+}
+
+export function channelsWithoutPendingRefresh(client: QueryClient, ids: string[]) {
+  const pending = new Set(client.getMutationCache()
+    .findAll({ mutationKey: ['channel-upstream-refresh'], status: 'pending' })
+    .flatMap((mutation) => (mutation.state.variables as UpstreamRefreshOptions).channelIds));
+  return ids.filter((id) => !pending.has(id));
 }

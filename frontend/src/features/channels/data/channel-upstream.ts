@@ -7,11 +7,13 @@ import { toast } from 'sonner';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import {
   channelsNeedingPageRefresh,
+  channelsWithoutPendingRefresh,
+  readCachedUpstreamStates,
   publishUpstreamStates,
   refreshUpstreamChannels,
   type UpstreamRefreshOptions,
 } from './channel-upstream-refresh';
-import { channelUpstreamStateSchema, type ChannelUpstreamState, type UpstreamInput } from './schema';
+import { channelUpstreamStateSchema, type UpstreamInput } from './schema';
 
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
 
@@ -69,14 +71,8 @@ export function useRefreshChannelUpstreams() {
     mutationKey: ['channel-upstream-refresh'],
     mutationFn: async (variables: UpstreamRefreshOptions) => {
       const ids = [...new Set(variables.channelIds)];
-      const states: ChannelUpstreamState[] = [];
-      for (let offset = 0; offset < ids.length; offset += 100) {
-        const data = await graphqlRequest<{ channelUpstreamStates: unknown }>(
-          `query ChannelUpstreamStates($channelIds: [ID!]!) { channelUpstreamStates(channelIds: $channelIds) { ${upstreamStateFields} } }`,
-          { channelIds: ids.slice(offset, offset + 100) }
-        );
-        states.push(...z.array(channelUpstreamStateSchema).parse(data.channelUpstreamStates));
-      }
+      const states = await readCachedUpstreamStates(queryClient, ids,
+        (batch) => queryClient.fetchQuery({ ...channelUpstreamQueryOptions(batch), staleTime: 0 }), variables.reuseSnapshot === true);
       return refreshUpstreamChannels(states, variables, async (channelId, keyRef) => {
         const data = await graphqlRequest<{
           refreshChannelUpstreams: { channels: unknown; refreshed: number; skipped: number; failed: number };
@@ -94,7 +90,8 @@ export function useRefreshChannelUpstreams() {
         };
       });
     },
-    onSuccess: async ({ channels, failed }, variables) => {
+    onSuccess: async ({ channels, failed, refreshed }, variables) => {
+      if (variables.reuseSnapshot && !refreshed && !failed) return;
       await publishUpstreamStates(queryClient, channels);
       await queryClient.invalidateQueries({ queryKey: ['channels', 'live'] });
       if (failed && !variables.silent) toast.warning(t('channels.upstream.refreshFailed'));
@@ -106,6 +103,7 @@ export function useRefreshChannelUpstreams() {
 }
 
 export function useRefreshUpstreamOnPage(channelIds: string[], canWrite: boolean) {
+  const queryClient = useQueryClient();
   const refresh = useRefreshChannelUpstreams();
   const lastPage = useRef('');
   const signature = channelIds.join('|');
@@ -116,12 +114,13 @@ export function useRefreshUpstreamOnPage(channelIds: string[], canWrite: boolean
       return;
     }
     if (!canWrite || lastPage.current === signature) return;
-    const channelIds = channelsNeedingPageRefresh(lastPage.current ? lastPage.current.split('|') : [], signature.split('|'));
+    const channelIds = channelsWithoutPendingRefresh(queryClient,
+      channelsNeedingPageRefresh(lastPage.current ? lastPage.current.split('|') : [], signature.split('|')));
     lastPage.current = signature;
     // The server checks due times. Start after the list snapshot is available,
     // without waiting for each row's upstream request to finish rendering.
-    if (channelIds.length > 0) mutate({ channelIds, silent: true });
-  }, [canWrite, signature, mutate]);
+    if (channelIds.length > 0) mutate({ channelIds, silent: true, reuseSnapshot: true });
+  }, [canWrite, signature, mutate, queryClient]);
 }
 
 export function useSaveChannelUpstream(channelId: string) {

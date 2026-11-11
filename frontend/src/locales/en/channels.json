@@ -1,4 +1,9 @@
 {
+  "channels.readFailure.sections": "Could not read {{sections}}. Existing values are from the previous update.",
+  "channels.readFailure.usage": "Today's usage",
+  "channels.readFailure.upstream": "Upstream balance and multiplier",
+  "channels.readFailure.health": "Health",
+  "channels.readFailure.live": "Channel status",
   "channels.selector.search": "Search name, tags or ID",
   "channels.selector.remove": "Remove {{name}}",
   "copilot_device.copy_code": "Copy code",

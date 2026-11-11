@@ -107,6 +107,7 @@ function executionQuery(canViewChannels, onRequest, onError) {
     '@/gql/graphql': { graphqlRequest: onRequest },
     'react-i18next': { useTranslation: () => ({ t: (key) => key }) },
     '@/stores/projectStore': { useSelectedProjectId: () => 'selected-project' },
+    '@/stores/authStore': { useAuthStore: (select) => select({ auth: { user: { id: 'test-user' } } }) },
     '@/hooks/use-cursor-list': {},
     '@/hooks/use-error-handler': { useErrorHandler: () => ({ handleError: onError }) },
     '@/hooks/usePermissions': {},

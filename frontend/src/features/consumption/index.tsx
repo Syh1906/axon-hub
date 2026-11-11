@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { extractNumberID } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { QueryLoadAlert } from '@/components/query-load-alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,6 +38,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
   const selectedProjectID = useSelectedProjectId();
   const scope = isLeaderboard ? projectID : selectedProjectID;
   const [groupSelection, setGroupSelection] = useState<{ scope: string | null | undefined; id: number } | null>(null);
+  const [groupOptionsOpen, setGroupOptionsOpen] = useState(false);
   const groupRef = groupSelection?.scope === scope ? groupSelection?.id : undefined;
   const isKeyDimension = dimension === 'API_KEY' || dimension === 'API_KEY_GROUP';
   const filter = {
@@ -53,7 +55,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
     { ...filter, dimension: 'API_KEY_GROUP', groupRef: undefined, search: undefined },
     view,
     selectedProjectID,
-    isKeyDimension
+    isKeyDimension && (groupOptionsOpen || groupRef != null)
   );
   const dimensions: ConsumptionDimension[] = isLeaderboard
     ? ['CHANNEL', 'API_KEY_GROUP', 'MODEL', 'API_KEY', 'USER']
@@ -145,6 +147,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
             {isKeyDimension && (
               <Select
                 value={String(groupRef ?? 'all')}
+                onOpenChange={setGroupOptionsOpen}
                 onValueChange={(value) => setGroupSelection(value === 'all' ? null : { scope, id: Number(value) })}
               >
                 <SelectTrigger className='w-48' aria-label={t('apikeys.groups.title')}>
@@ -153,6 +156,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value='all'>{t('consumption.allGroups')}</SelectItem>
+                    {groupOptions.isFetching && <SelectItem value='loading' disabled>{t('common.loading')}</SelectItem>}
                     {groupOptions.data?.map((entry) => (
                       <SelectItem key={entry.id} value={String(extractNumberID(entry.id))}>
                         {entry.name}
@@ -174,17 +178,7 @@ export default function ConsumptionPage({ view = 'leaderboard' }: { view?: 'lead
               />
             </div>
           </div>
-          {error && (
-            <Alert variant='destructive'>
-              <AlertTitle>{t('common.loadError')}</AlertTitle>
-              <AlertDescription>
-                {error.message}
-                <Button variant='outline' size='sm' onClick={() => refetch()}>
-                  {t('common.buttons.retry')}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+          <QueryLoadAlert error={error} hasData={data !== undefined} retrying={isFetching} onRetry={() => { void refetch(); }} />
           {(!error || data) && (
             <div
               ref={setTableScrollElement}

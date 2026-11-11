@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -395,13 +396,15 @@ export function useRequestContinuations(requestID: string, count: number, after:
 
 export function useInfiniteRequests(where: Record<string, any> | undefined, pageSize: number, enabled = true) {
   const permissions = useRequestPermissions();
+  const userId = useAuthStore((state) => state.auth.user?.id);
   const projectId = useSelectedProjectId();
   return useCursorList({
     enabled,
     structuralSharing: shareRequestList,
     gcTime: 5 * 60_000,
     maxPages: 8,
-    queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId],
+    staleTime: 3_000,
+    queryKey: ['requests', 'infinite', where, pageSize, permissions, projectId, userId],
     fetchPage: async (after, signal) => {
       const data = await graphqlRequest<{ requests: RequestConnection }>(
         buildRequestsQuery(permissions),
@@ -451,18 +454,19 @@ export function useRequests(
       [key: string]: any;
     };
   },
-  options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean; keepPreviousPage?: boolean }
+  options?: { projectId?: string | null; scopeToSelectedProject?: boolean; enabled?: boolean; keepPreviousPage?: boolean; notifyOnError?: boolean }
 ) {
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
   const permissions = useRequestPermissions();
   const selectedProjectId = useSelectedProjectId();
   const scopeToSelectedProject = options?.scopeToSelectedProject ?? true;
+  const userId = useAuthStore((state) => state.auth.user?.id);
   const projectId = options?.projectId !== undefined ? options.projectId : selectedProjectId;
   const enabled = options?.enabled ?? true;
 
   return useQuery({
-    queryKey: ['requests', variables, permissions, projectId, scopeToSelectedProject],
+    queryKey: ['requests', variables, permissions, projectId, scopeToSelectedProject, userId],
     queryFn: async ({ signal }) => {
       try {
         const query = buildRequestsQuery(permissions);
@@ -485,16 +489,16 @@ export function useRequests(
         );
         return requestConnectionSchema.parse(data?.requests);
       } catch (error) {
-        handleError(error, t('common.errors.internalServerError'));
+        if (options?.notifyOnError !== false) handleError(error, t('common.errors.internalServerError'));
         throw error;
       }
     },
     enabled,
     placeholderData: (previous, previousQuery) => {
       if (!options?.keepPreviousPage || !previousQuery) return undefined;
-      const [, oldVariables, oldPermissions, oldProject, oldScope] = previousQuery.queryKey;
+      const [, oldVariables, oldPermissions, oldProject, oldScope, oldUser] = previousQuery.queryKey;
       const withoutOffset = (value: typeof variables) => ({ ...value, where: { ...value?.where, offset: undefined } });
-      return oldProject === projectId &&
+      return oldUser === userId && oldProject === projectId &&
         oldScope === scopeToSelectedProject &&
         JSON.stringify(oldPermissions) === JSON.stringify(permissions) &&
         JSON.stringify(withoutOffset(oldVariables as typeof variables)) === JSON.stringify(withoutOffset(variables))

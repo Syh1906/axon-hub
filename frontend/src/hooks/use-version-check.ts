@@ -10,6 +10,10 @@ const VERSION_CHECK_STORAGE_KEY = 'axonhub_dismissed_version';
 const VERSION_CHECK_TIMESTAMP_KEY = 'axonhub_version_check_timestamp';
 const VERSION_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
+export function versionCheckDue(lastAttempt: string | null, now = Date.now()) {
+  return !lastAttempt || now - Number(lastAttempt) >= VERSION_CHECK_INTERVAL;
+}
+
 /**
  * Hook to check for new versions and show toast notification.
  * Only shows to owners and only once per version.
@@ -22,26 +26,21 @@ export function useVersionCheck() {
     if (!isOwner) return false;
 
     const lastCheckTime = localStorage.getItem(VERSION_CHECK_TIMESTAMP_KEY);
-    if (!lastCheckTime) return true;
-
-    const timeSinceLastCheck = Date.now() - parseInt(lastCheckTime, 10);
-    return timeSinceLastCheck >= VERSION_CHECK_INTERVAL;
+    return versionCheckDue(lastCheckTime);
   }, [isOwner]);
 
   const { data: updateCheck } = useQuery({
-    queryKey: ['versionCheck'],
-    queryFn: async () => {
-      const data = await graphqlRequest<{ checkForUpdate: VersionCheck }>(CHECK_FOR_UPDATE_QUERY, { includeBeta: false });
-      return data.checkForUpdate;
-    },
-    //@ts-ignore
-    onSuccess: () => {
-      // Store the timestamp after successful check
+    queryKey: ['checkForUpdate', false],
+    queryFn: async ({ signal }) => {
+      // 失败也记本次尝试，避免 GitHub 不可达时切页反复占用连接。
+      // Query v5 不再调用查询的 onSuccess，必须在实际执行位置记录。
       localStorage.setItem(VERSION_CHECK_TIMESTAMP_KEY, Date.now().toString());
+      const data = await graphqlRequest<{ checkForUpdate: VersionCheck }>(CHECK_FOR_UPDATE_QUERY, { includeBeta: false }, undefined, { signal });
+      return data.checkForUpdate;
     },
     enabled: shouldCheckVersion(),
     retry: false,
-    staleTime: Infinity,
+    staleTime: VERSION_CHECK_INTERVAL,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,

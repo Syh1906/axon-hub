@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { ZodError } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { loadErrorKey, loadErrorRequestId, readFailureToastId } from '@/lib/load-error';
 import { 
   parseGraphQLErrors, 
   getErrorI18nKey, 
@@ -33,7 +34,19 @@ export function useErrorHandler() {
         ? { context: options } 
         : options || {};
       
-      const { context, onDuplicate, onErrorCode, showToast = true } = opts;
+      const { onDuplicate, onErrorCode, showToast = true } = opts;
+
+      const readToastId = readFailureToastId(error, window.location.pathname);
+      if (readToastId && !onErrorCode) {
+        const message = t(loadErrorKey(error));
+        const id = loadErrorRequestId(error);
+        if (showToast) toast.error(message, {
+          id: readToastId,
+          duration: 5000,
+          description: id ? t('common.loadFailure.requestId', { id }) : undefined,
+        });
+        return { type: 'read', message };
+      }
 
       // Handle Zod validation errors
       if (error instanceof ZodError) {

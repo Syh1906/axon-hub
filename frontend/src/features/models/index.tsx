@@ -17,6 +17,7 @@ import { ModelsOnboardingFlow } from './components/models-onboarding-flow';
 import { ModelsTable } from './components/models-table';
 import ModelsProvider, { useModels } from './context/models-context';
 import { useQueryAllModels } from './data/models';
+import { QueryLoadAlert } from '@/components/query-load-alert';
 import { useDevelopersData } from './data/providers';
 
 function ModelsContent() {
@@ -51,7 +52,7 @@ function ModelsContent() {
     return undefined;
   })();
 
-  const { data, isLoading } = useQueryAllModels({
+  const { data, isLoading, error, isFetching, refetch } = useQueryAllModels({
     where: whereClause,
   });
   const models = useMemo(() => data?.edges.map((edge) => edge.node) ?? [], [data]);
@@ -67,6 +68,7 @@ function ModelsContent() {
 
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
+      <QueryLoadAlert error={error} hasData={data !== undefined} retrying={isFetching} onRetry={() => { void refetch(); }} />
       <ModelsTable
         data={models}
         columns={columns}

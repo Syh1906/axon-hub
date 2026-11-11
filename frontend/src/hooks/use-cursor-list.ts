@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hashKey, useInfiniteQuery, useQueryClient, type InfiniteData, type QueryKey } from '@tanstack/react-query';
-import { prepareCursorListHead, trimCursorList, type CursorPageParam } from './cursor-list-cache';
+import { cursorListView, prepareCursorListHead, trimCursorList, type CursorPageParam } from './cursor-list-cache';
 
 type CursorPage = {
   edges: { node: { id: string }; cursor: string }[];
@@ -17,6 +17,7 @@ export function useCursorList<Page extends CursorPage>({
   gcTime,
   maxPages = 0,
   fetchPreviousPage,
+  staleTime = 0,
 }: {
   queryKey: QueryKey;
   fetchPage: (after: string | null, signal: AbortSignal) => Promise<Page>;
@@ -26,6 +27,7 @@ export function useCursorList<Page extends CursorPage>({
   gcTime?: number;
   maxPages?: number;
   fetchPreviousPage?: (before: string, signal: AbortSignal) => Promise<Page>;
+  staleTime?: number;
 }) {
   const client = useQueryClient();
   const trimming = useRef(false);
@@ -39,22 +41,25 @@ export function useCursorList<Page extends CursorPage>({
     setReadyKey(undefined);
     if (!enabled) return;
     let active = true;
-    // Returning to a list also resets its scroll position. Prepare its cache
-    // before enabling Query, otherwise mount/refetch replays every old cursor.
-    void prepareCursorListHead<Page>(client, keyRef.current).then(() => {
+    // 返回列表时先准备缓存：新鲜且仍含首页的窗口直接复用，
+    // 其他情况从首页重新读，避免刷新沿着所有历史游标重放。
+    void prepareCursorListHead<Page>(client, keyRef.current, staleTime).then(() => {
       if (active) setReadyKey(resetKey);
     });
     return () => {
       active = false;
     };
-  }, [client, enabled, resetKey]);
+  }, [client, enabled, resetKey, staleTime]);
 
   const query = useInfiniteQuery<Page, Error, InfiniteData<Page, CursorPageParam>, QueryKey, CursorPageParam>({
     queryKey,
     enabled: ready,
     initialPageParam: null,
-    queryFn: ({ pageParam, signal }) =>
-      typeof pageParam === 'object' && pageParam !== null ? fetchPreviousPage!(pageParam.before, signal) : fetchPage(pageParam, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const page = await (typeof pageParam === 'object' && pageParam !== null
+        ? fetchPreviousPage!(pageParam.before, signal) : fetchPage(pageParam, signal));
+      return { ...page, fetchedAt: Date.now() };
+    },
     getNextPageParam: (page) => (page.pageInfo.hasNextPage ? page.pageInfo.endCursor : undefined),
     getPreviousPageParam: (page) =>
       fetchPreviousPage && page.pageInfo.hasPreviousPage && page.pageInfo.startCursor ? { before: page.pageInfo.startCursor } : undefined,
@@ -62,8 +67,9 @@ export function useCursorList<Page extends CursorPage>({
     refetchInterval: interval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    staleTime: 0,
+    staleTime,
     structuralSharing,
+    select: cursorListView<Page>,
     gcTime,
   });
   const data = useMemo(() => {

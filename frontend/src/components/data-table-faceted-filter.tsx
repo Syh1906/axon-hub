@@ -110,7 +110,7 @@ export function DataTableFacetedFilter<TData, TValue>({
             onValueChange={onSearchValueChange}
           />
           <CommandList hasMore={hasMore} isLoadingMore={isLoadingMore} onLoadMore={onLoadMore}>
-            {!onSearchValueChange && <CommandEmpty>{t('common.noResultsFound')}</CommandEmpty>}
+            {!onSearchValueChange && <CommandEmpty>{t(isLoading ? 'common.loading' : 'common.noResultsFound')}</CommandEmpty>}
             {onSearchValueChange && options.length === 0 ? (
               <div className='py-6 text-center text-sm'>{isLoading ? t('common.loading') : t('common.noResultsFound')}</div>
             ) : (

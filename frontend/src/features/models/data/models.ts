@@ -8,6 +8,7 @@ import { useErrorHandler } from '@/hooks/use-error-handler';
 import { modelPriceSchema } from '@/features/channels/data/schema';
 import { Model, ModelConnection, CreateModelInput, UpdateModelInput, modelConnectionSchema, modelSchema } from './schema';
 import { modelCardInputSchema } from './schema';
+import { useAuthStore } from '@/stores/authStore';
 
 const MODELS_QUERY = `
   query GetModels(
@@ -584,9 +585,10 @@ interface QueryAllModelsArgs {
 }
 
 export function useQueryAllModels(args: QueryAllModelsArgs, options?: { enabled?: boolean }) {
+  const userId = useAuthStore((state) => state.auth.user?.id);
   return useQuery({
     enabled: options?.enabled ?? true,
-    queryKey: ['models', 'all', args],
+    queryKey: ['models', 'all', args, userId],
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     queryFn: async ({ signal }) => {

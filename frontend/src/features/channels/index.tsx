@@ -6,6 +6,7 @@ import { usePaginationSearch } from '@/hooks/use-pagination-search';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { QueryLoadAlert } from '@/components/query-load-alert';
 
 import { Main } from '@/components/layout/main';
 import { PageHeader } from '@/components/layout/page-header';
@@ -344,6 +345,8 @@ function ChannelsContent() {
         </Alert>
       )}
       <ChannelControlsProvider ids={channelIDs} visibility={columnVisibility} canWrite={channelPermissions.canWrite}>
+      <QueryLoadAlert error={query.error} hasData={queryData !== undefined} retrying={query.isFetching}
+        onRetry={() => { if (query.isFetchNextPageError) query.loadMore(); else if (query.isFetchPreviousPageError) query.loadPrevious(); else void query.resetToTop(); }} />
       <ChannelsTable
         loading={isLoading || isPlaceholderData || filtersPending || (tagFilter.length > 1 && tagChannels.isLoading)}
         data={channels}

@@ -2,16 +2,33 @@ import type { InfiniteData, QueryClient, QueryKey } from '@tanstack/react-query'
 
 export type CursorPageParam = string | null | { before: string };
 
-export async function prepareCursorListHead<Page extends { edges: unknown[] }>(client: QueryClient, queryKey: QueryKey) {
+// 获取时间只供缓存判断，不作为表格数据变化；未变的请求行仍可整体复用。
+export function cursorListView<Page extends { edges: unknown[]; fetchedAt?: number }>(data: InfiniteData<Page, CursorPageParam>) {
+  return {
+    ...data,
+    pages: data.pages.map((page) => {
+      const { fetchedAt: _fetchedAt, ...visible } = page;
+      return visible as Page;
+    }),
+  };
+}
+
+export async function prepareCursorListHead<Page extends { edges: unknown[]; fetchedAt?: number }>(client: QueryClient, queryKey: QueryKey, staleTime = 0) {
   await client.cancelQueries({ queryKey, exact: true });
-  const updatedAt = client.getQueryState(queryKey)?.dataUpdatedAt;
+  const state = client.getQueryState<InfiniteData<Page, CursorPageParam>>(queryKey);
+  const current = state?.data;
+  // 翻页成功不能延长首批有效期；失效、失败和已移出首页的窗口必须重新读首页。
+  const updatedAt = current?.pageParams[0] === null && !state?.isInvalidated && !state?.error
+    ? Math.min(state?.dataUpdatedAt ?? 0, current.pages[0]?.fetchedAt ?? state?.dataUpdatedAt ?? 0)
+    : 0;
+  const reusePages = updatedAt > 0 && Date.now() - updatedAt < staleTime;
   client.setQueryData<InfiniteData<Page, CursorPageParam>>(
     queryKey,
     (current) =>
-      current?.pages.length
+      current?.pages.length && !reusePages
         ? { pages: [current.pages[0]], pageParams: [null] }
         : current,
-    // 保留可见记录，但下一次查询必须从最新首批开始，不能沿用历史窗口的游标。
+    // 保留可见记录与真实获取时间，下一次需要读取时从首批开始。
     { updatedAt }
   );
 }

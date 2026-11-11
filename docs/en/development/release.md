@@ -1,8 +1,10 @@
 # Independent releases and upstream maintenance
 
+Preparing `v1.0.0-rc1-fork.2`: admin read performance and failure feedback improvements, plus the snapshot retirement validation fix. This remains a stable, image-only release with a manifest. The following describes the previous release; publication and deployment results will be recorded after verification.
+
 The current stable release is [v1.0.0-rc1-fork.1](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.1) (2026-11-10), the first maintained release after merging original rc1. Source is pinned to `d9e0879915a8dc270c6b9e85acaf9116b7972727`. Test, Build, Lint, Govulncheck and the [streamlined release](https://github.com/Syh1906/axon-hub/actions/runs/42832075745) succeeded for this source. It is stable/latest and publishes amd64/arm64 images with only `release.json`, without native binary packages.
 
-The [release notes](../../../.github/release-notes.md) cover the complete interval from the preceding stable `v1.0.0-beta12-fork.5` / `6aec4906`: the Page snapshot `f75f1049`, original beta12 → rc1, retained fork behavior and reviewed WS continuation fixes. Original rc1 was merged at `b309f9ec`, PR #5 entered the maintenance branch at `746f3d20`, followed by local CI corrections. Manifest SHA-256: `d1f3815ae54bd9e328736c5992f66eb6d8671e74acaac0f9ef48853f612d1aa4`.
+The [previous release notes](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.1) cover the complete interval from the preceding stable `v1.0.0-beta12-fork.5` / `6aec4906`: the Page snapshot `f75f1049`, original beta12 → rc1, retained fork behavior and reviewed WS continuation fixes. Original rc1 was merged at `b309f9ec`, PR #5 entered the maintenance branch at `746f3d20`, followed by local CI corrections. Manifest SHA-256: `d1f3815ae54bd9e328736c5992f66eb6d8671e74acaac0f9ef48853f612d1aa4`.
 
 Cloud and Quan passed basic deployment checks at 22:25:21 and 22:27:54 Singapore time. Both use `sha256:42069c614157976a43d12f6a226bfc93cf38513da317784df70d367757b60456`. Recreation and health waits took 7.291/7.455 seconds, not measured per-request downtime. Local/public health, version/commit, initialization, 33 homepage assets and anonymous authorization passed. System version, two plugin tables, trace field/index and historical backfill were verified; channel/model/project/key ID sets were preserved.
 

@@ -1,4 +1,9 @@
 {
+  "channels.readFailure.sections": "{{sections}}读取失败；已有数值为上次数据",
+  "channels.readFailure.usage": "今日用量",
+  "channels.readFailure.upstream": "上游余额与倍率",
+  "channels.readFailure.health": "健康情况",
+  "channels.readFailure.live": "渠道状态",
   "channels.selector.search": "搜索名称、标签或 ID",
   "channels.selector.remove": "移除 {{name}}",
   "copilot_device.copy_code": "复制代码",

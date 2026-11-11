@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { QueryLoadAlert } from '@/components/query-load-alert';
 import { createChannelControlStore, type ChannelControlData } from '../data/channel-control-store';
 import { channelControlBatches, channelLiveQueryOptions } from '../data/channel-control-query';
 import { channelProbeQueryOptions } from '../data/channel-probe';
@@ -12,6 +14,7 @@ const ControlStoreContext = createContext<ReturnType<typeof createChannelControl
 function ChannelControlQueries({ ids, load, health, upstream, usage, canWrite }: {
   ids: string[]; load: boolean; health: boolean; upstream: boolean; usage: boolean; canWrite: boolean;
 }) {
+  const { t } = useTranslation();
   const store = useContext(ControlStoreContext)!;
   const batches = useMemo(() => channelControlBatches(ids), [ids]);
   const live = useQueries({ queries: batches.map((batch) => channelLiveQueryOptions(batch, load)) });
@@ -33,7 +36,18 @@ function ChannelControlQueries({ ids, load, health, upstream, usage, canWrite }:
       batches[index].forEach((id) => store.publish(id, { todayUsageError: result.isError }));
     });
   }, [store, ids, batches, live, probes, upstreams, usages]);
-  return null;
+  const groups = [
+    { label: 'channels.readFailure.live', results: live },
+    { label: 'channels.readFailure.health', results: health ? probes : [] },
+    { label: 'channels.readFailure.upstream', results: upstream ? upstreams : [] },
+    { label: 'channels.readFailure.usage', results: usage ? usages : [] },
+  ];
+  const failed = groups.filter((group) => group.results.some((result) => result.isError));
+  const failedQueries = failed.flatMap((group) => group.results.filter((result) => result.isError));
+  return <QueryLoadAlert error={failedQueries[0]?.error} hasData={failedQueries.every((result) => result.data !== undefined)}
+    retrying={failedQueries.some((result) => result.isFetching)}
+    label={failed.length ? t('channels.readFailure.sections', { sections: failed.map((group) => t(group.label)).join(' / ') }) : undefined}
+    onRetry={() => { failedQueries.forEach((result) => { void result.refetch(); }); }} />;
 }
 
 export function ChannelControlsProvider({ ids, visibility, canWrite, children }: {

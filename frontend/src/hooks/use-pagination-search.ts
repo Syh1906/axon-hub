@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { buildPaginationArgs, updateCursorHistory, type CursorDirection, type PaginationVariables } from './pagination-search-state';
 
 interface UsePaginationSearchOptions {
@@ -59,11 +59,8 @@ export function usePaginationSearch(options: UsePaginationSearchOptions = {}): U
   } = options;
 
   const navigate = useNavigate();
-  const { search } = useRouterState({
-    select: (state) => ({
-      search: (state.location.search ?? {}) as Record<string, unknown>,
-    }),
-  });
+  // 跟随当前渲染的页面，避免离开时提前读到目标页参数并发送一次无关查询。
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
 
   const rawStartCursor = search[startCursorKey];
   const rawEndCursor = search[endCursorKey];

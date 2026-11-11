@@ -56,6 +56,10 @@ interface RequestFilterControlsProps {
   channelOptions: { value: string; label: string }[];
   channelTagOptions: { value: string; label: string }[];
   apiKeyGroupOptions: { value: string; label: string }[];
+  onChannelOpenChange: (open: boolean) => void;
+  onApiKeyOpenChange: (open: boolean) => void;
+  onGroupOpenChange: (open: boolean) => void;
+  isFetchingGroups: boolean;
   isFetchingChannels: boolean;
   showArchivedChannels: boolean;
   handleToggleShowArchivedChannels: (checked: boolean) => void;
@@ -89,6 +93,10 @@ function RequestFilterControls({
   channelOptions,
   channelTagOptions,
   apiKeyGroupOptions,
+  onChannelOpenChange,
+  onApiKeyOpenChange,
+  onGroupOpenChange,
+  isFetchingGroups,
   isFetchingChannels,
   showArchivedChannels,
   handleToggleShowArchivedChannels,
@@ -174,13 +182,17 @@ function RequestFilterControls({
           column={table.getColumn('channelTag')}
           title={t('requests.filters.channelTag')}
           options={channelTagOptions}
+          onOpenChange={onChannelOpenChange}
+          isLoading={isFetchingChannels}
         />
       )}
-      {canViewChannels && table.getColumn('channel') && (channelOptions.length > 0 || isFetchingChannels) && (
+      {canViewChannels && table.getColumn('channel') && (
         <DataTableFacetedFilter
           column={table.getColumn('channel')}
           title={t('requests.filters.channel')}
           options={channelOptions}
+          onOpenChange={onChannelOpenChange}
+          isLoading={isFetchingChannels}
           footer={channelFooter}
         />
       )}
@@ -189,6 +201,8 @@ function RequestFilterControls({
           column={table.getColumn('apiKeyGroup')}
           title={t('requests.filters.apiKeyGroup')}
           options={apiKeyGroupOptions}
+          onOpenChange={onGroupOpenChange}
+          isLoading={isFetchingGroups}
         />
       )}
       {canViewApiKeys && table.getColumn('caller') && (
@@ -196,6 +210,7 @@ function RequestFilterControls({
           column={table.getColumn('caller')}
           title={t('requests.filters.apiKey')}
           options={apiKeyOptions}
+          onOpenChange={onApiKeyOpenChange}
           searchValue={apiKeySearch}
           onSearchValueChange={onApiKeySearchChange}
           isLoading={isFetchingApiKeys}
@@ -240,6 +255,9 @@ export function DataTableToolbar<TData>({
 }: DataTableToolbarProps<TData>) {
   const { t } = useTranslation();
   const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+  const [channelFilterOpen, setChannelFilterOpen] = useState(false);
+  const [apiKeyFilterOpen, setApiKeyFilterOpen] = useState(false);
+  const [groupFilterOpen, setGroupFilterOpen] = useState(false);
   const statusCountQuery = useRequestLogStatusCounts(
     queryWhere,
     statusFilterOpen,
@@ -263,6 +281,8 @@ export function DataTableToolbar<TData>({
   // Active filter count for mobile badge (excludes model ID filter)
   const columnFilters = table.getState().columnFilters;
   const selectedApiKeyIDs = columnFilters.find((filter) => filter.id === 'caller')?.value as string[] | undefined;
+  const hasChannelFilter = columnFilters.some((filter) => ['channel', 'channelTag'].includes(filter.id) && (filter.value as string[])?.length);
+  const hasGroupFilter = columnFilters.some((filter) => filter.id === 'apiKeyGroup' && (filter.value as string[])?.length);
   const activeFilterCount = useMemo(() => {
     let count = 0;
     for (const filter of columnFilters) {
@@ -317,7 +337,7 @@ export function DataTableToolbar<TData>({
   const selectedProjectId = useSelectedProjectId();
 
   const { data: channelsData, isFetching: isFetchingChannels } = useAllChannelSummarys(selectedProjectId, {
-    enabled: canViewChannels,
+    enabled: canViewChannels && (channelFilterOpen || hasChannelFilter),
     includeArchived: showArchivedChannels,
   });
 
@@ -330,14 +350,14 @@ export function DataTableToolbar<TData>({
   } = useApiKeyOptions({
     search: debouncedApiKeySearch,
     includeArchived: showArchivedApiKeys,
-    enabled: canViewApiKeys,
+    enabled: canViewApiKeys && apiKeyFilterOpen,
   });
   const { data: selectedApiKeysData, isFetching: isFetchingSelectedApiKeys } = useApiKeyOptionsByIDs(selectedApiKeyIDs, {
     enabled: canViewApiKeys && !!selectedApiKeyIDs?.length,
   });
   const isFetchingApiKeys = isFetchingApiKeyOptions || isFetchingSelectedApiKeys;
 
-  const { data: groups } = useKeyGroups(canViewApiKeys);
+  const { data: groups, isFetching: isFetchingGroups } = useKeyGroups(canViewApiKeys && (groupFilterOpen || hasGroupFilter));
   const apiKeyGroupOptions = [
     { value: '0', label: t('requests.filters.ungrouped') },
     ...(groups ?? []).map((group) => ({ value: String(group.id), label: group.name })),
@@ -456,6 +476,10 @@ export function DataTableToolbar<TData>({
               channelOptions={channelOptions}
               channelTagOptions={channelTagOptions}
               apiKeyGroupOptions={apiKeyGroupOptions}
+              onChannelOpenChange={setChannelFilterOpen}
+              onApiKeyOpenChange={setApiKeyFilterOpen}
+              onGroupOpenChange={setGroupFilterOpen}
+              isFetchingGroups={isFetchingGroups}
               isFetchingChannels={isFetchingChannels}
               showArchivedChannels={showArchivedChannels}
               handleToggleShowArchivedChannels={handleToggleShowArchivedChannels}
@@ -493,6 +517,10 @@ export function DataTableToolbar<TData>({
         channelOptions={channelOptions}
         channelTagOptions={channelTagOptions}
         apiKeyGroupOptions={apiKeyGroupOptions}
+        onChannelOpenChange={setChannelFilterOpen}
+        onApiKeyOpenChange={setApiKeyFilterOpen}
+        onGroupOpenChange={setGroupFilterOpen}
+        isFetchingGroups={isFetchingGroups}
         isFetchingChannels={isFetchingChannels}
         showArchivedChannels={showArchivedChannels}
         handleToggleShowArchivedChannels={handleToggleShowArchivedChannels}

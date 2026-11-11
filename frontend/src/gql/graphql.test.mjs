@@ -61,6 +61,55 @@ test('the deadline includes a stalled response body', async (t) => {
   await assert.rejects(graphqlRequest('{ stats }', undefined, undefined, { timeoutMs: 10 }), (error) => error.status === 408);
 });
 
+test('a response-body timeout preserves the server ID and the trace sent before the body', async (t) => {
+  let sentTrace;
+  const requestId = 'ar-12345678-1234-1234-1234-123456789abc';
+  t.mock.method(globalThis, 'fetch', async (_url, { headers, signal }) => {
+    sentTrace = headers['AH-Trace-Id'];
+    return {
+      ok: true, status: 200, headers: new Headers({ 'content-type': 'application/json', 'AH-Request-Id': requestId }),
+      json: () => new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true })),
+    };
+  });
+  await assert.rejects(graphqlRequest('query ChannelStatus { stats }', { secret: 'not-in-diagnostics' }, undefined, { timeoutMs: 10 }), (error) => {
+    assert.equal(error.extensions.code, 'CLIENT_READ_TIMEOUT');
+    assert.equal(error.requestId, requestId);
+    assert.match(sentTrace, /^at-[a-f0-9-]{36}$/);
+    assert.equal(error.diagnostics.traceId, sentTrace);
+    assert.equal(error.diagnostics.operationName, 'ChannelStatus');
+    assert.equal(error.diagnostics.responseReceived, true);
+    assert.ok(error.diagnostics.elapsedMs >= 0);
+    assert.equal(JSON.stringify(error).includes('not-in-diagnostics'), false);
+    return true;
+  });
+});
+
+test('a timeout before headers retains a unique client trace without claiming the server received it', async (t) => {
+  const traces = [];
+  t.mock.method(globalThis, 'fetch', async (_url, { headers, signal }) => {
+    traces.push(headers['AH-Trace-Id']);
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  });
+  for (let i = 0; i < 2; i++) await assert.rejects(graphqlRequest('query Stats { stats }', undefined, undefined, { timeoutMs: 10 }), (error) => {
+    assert.equal(error.requestId, undefined);
+    assert.equal(error.diagnostics.responseReceived, false);
+    assert.equal(error.diagnostics.traceId, traces.at(-1));
+    return true;
+  });
+  assert.notEqual(traces[0], traces[1]);
+});
+
+test('server receive and execution timeouts retain their original classification', async (t) => {
+  for (const code of ['REQUEST_BODY_TIMEOUT', 'REQUEST_TIMEOUT']) {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ errors: [{ message: 'timed out', extensions: { code } }] }));
+    await assert.rejects(graphqlRequest('query Stats { stats }'), (error) => {
+      assert.equal(error.extensions.code, code);
+      assert.equal(error.diagnostics.responseReceived, true);
+      return true;
+    });
+  }
+});
+
 const templatesSource = readFileSync(join(import.meta.dirname, '../features/channels/data/templates.ts'), 'utf8');
 const templateDocument = (name) => templatesSource.match(new RegExp(`const ${name} = \x60([\\s\\S]*?)\x60;`))[1];
 for (const name of ['CREATE_CHANNEL_OVERRIDE_TEMPLATE', 'UPDATE_CHANNEL_OVERRIDE_TEMPLATE']) {
