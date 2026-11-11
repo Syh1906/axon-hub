@@ -11,7 +11,8 @@ fork 改动，由用户决定。
 ## rc1-fork.3 协议兼容修复与双机更新（2026-11-11）
 
 - 本地实现、定向测试及独立 `gpt-6.1-sol / max` 审查完成，阶段内无剩余 P1/P2 阻塞项。包含 DeepSeek 原生 Responses 思考记录、Claude 原生控制／工具／历史、Gemini 块顺序／签名、路由和最终出口能力约束，以及 Claude Code 直接调用方修复。
-- 相对 rc1-fork.2 无 schema/data migration、依赖和默认透传设置变化；新内部字段可缺省，不改变数据库及渠道配置。版本 `v1.0.0-rc1-fork.3`，保持 `prerelease=false`、`publishBinaries=false`，只发布双架构镜像和清单。
+- 相对 rc1-fork.2 无 schema/data migration、第三方模块依赖和默认透传设置变化；新内部字段可缺省，不改变数据库及渠道配置。版本 `v1.0.0-rc1-fork.3`，保持 `prerelease=false`、`publishBinaries=false`，只发布双架构镜像和清单。
+- 发布前云端 Govulncheck 检出 [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859)，官方修复版本为 Go 1.26.11／1.27.4。构建镜像、根模块及两个辅助工具、安全检查同步 1.27.4，独立 llm 模块最低版本同步 1.26.11；保留原发布编号，未公开前不因 CI 修复跳号。
 - 发布前等待同提交的维护分支 Test，通过后推送该版本 tag。发布完成后依次更新云悠、泉哥，仅替换应用镜像，不备份数据库、不重建数据库或数据卷；当前发布／部署尚待执行。
 - 根因、范围及检查证据见下方对应 bugfix topic、[更新说明](../.github/release-notes.md)和本地[独立复审记录](../.agent/summary/protocol-fidelity-review-20261111.md)。真实供应商调用、完整供应商能力矩阵和长期负载不在已完成验收范围内。
 

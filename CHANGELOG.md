@@ -9,7 +9,8 @@
 
 ### 升级与验证
 
-- 精简正式发布仅含 Linux amd64／arm64 镜像和 `release.json`。相对 rc1-fork.2 无 schema/data migration、依赖或默认透传开关变更；生产仅更新应用固定镜像，不备份数据库、不重建数据卷。
+- 发布检查发现 Go 标准库 `GO-2026-6859`（HTTP/1 `MaxBytesReader` 标头竞态崩溃），构建及安全检查升级到 Go 1.27.4，独立 llm 模块最低版本同步为同样已修复的 Go 1.26.11。
+- 精简正式发布仅含 Linux amd64／arm64 镜像和 `release.json`。相对 rc1-fork.2 无 schema/data migration、第三方模块依赖或默认透传开关变更；生产仅更新应用固定镜像，不备份数据库、不重建数据卷。
 - 本地定向回归、自检及独立 `gpt-6.1-sol / max` 复审完成，阶段内无剩余 P1/P2 阻塞项。真实供应商端到端和完整能力组合未据此宣称通过；发布与双机部署结果见 [Fork 维护台账](docs/fork-maintenance.md)。
 
 ## [v1.0.0-beta12-fork.2] - 2026-11-08

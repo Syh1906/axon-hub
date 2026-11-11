@@ -1,6 +1,6 @@
 module github.com/looplj/axonhub/llm
 
-go 1.26.4
+go 1.26.11
 
 require (
 	github.com/MoeForge/moego v0.1.0-alpha.1
