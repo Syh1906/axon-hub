@@ -71,7 +71,7 @@ func filterResolvedCandidatesForRequest(
 }
 
 func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate, req *llm.Request) []*ChannelModelsCandidate {
-	explicitEndpointRequired := requiresExplicitEndpoint(req.RequestType) || requiresResponsesToolProtocol(req)
+	explicitEndpointRequired := requiresExplicitEndpoint(req.RequestType) || llm.HasConversionRequirements(req)
 	filtered := make([]*ChannelModelsCandidate, 0, len(candidates))
 	for _, c := range candidates {
 		if c == nil || c.Channel == nil {

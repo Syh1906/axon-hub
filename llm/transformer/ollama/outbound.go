@@ -107,6 +107,9 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	if llmReq == nil {
 		return nil, fmt.Errorf("request is nil")
 	}
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
 
 	if llmReq.Model == "" {
 		return nil, fmt.Errorf("%w: model is required", transformer.ErrInvalidRequest)

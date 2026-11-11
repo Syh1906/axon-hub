@@ -84,6 +84,8 @@ type MessageRequest struct {
 
 	// OutputConfig is an optional output configuration.
 	OutputConfig *OutputConfig `json:"output_config,omitempty"`
+	// Container identifies the server-tool environment to continue using.
+	Container json.RawMessage `json:"container,omitempty"`
 
 	// Tools is an optional array of tools.
 	Tools []Tool `json:"tools,omitempty"`
@@ -177,7 +179,12 @@ type Thinking struct {
 	Type         string `json:"type"          validate:"required,oneof=enabled disabled adaptive between_tools"`
 	BudgetTokens int64  `json:"budget_tokens,omitempty" validate:"required_if=Type enabled"`
 	// Display is an optional display name for the thinking, enum: summarized, omitted.
-	Display string `json:"display,omitempty"`
+	Display      string                `json:"display,omitempty"`
+	BlockBinding *ThinkingBlockBinding `json:"block_binding,omitempty"`
+}
+
+type ThinkingBlockBinding struct {
+	PrefixMismatchBehavior string `json:"prefix_mismatch_behavior"`
 }
 
 // OutputConfig represents Anthropic output configuration.
@@ -186,7 +193,13 @@ type OutputConfig struct {
 	// Effort controls the overall effort level for the response.
 	// Any of "low", "medium", "high", "max".
 	// "max" is only supported by claude-opus-4-6.
-	Effort string `json:"effort,omitempty" validate:"omitempty,oneof=low medium high max"`
+	Effort string        `json:"effort,omitempty" validate:"omitempty,oneof=low medium high max"`
+	Format *OutputFormat `json:"format,omitempty"`
+}
+
+type OutputFormat struct {
+	Type   string          `json:"type"`
+	Schema json.RawMessage `json:"schema"`
 }
 
 type ToolChoice struct {
@@ -201,6 +214,8 @@ type ToolChoice struct {
 
 // Tool represents a tool definition for Anthropic API.
 type Tool struct {
+	// Raw retains unmodeled native tools for same-protocol forwarding.
+	Raw json.RawMessage `json:"-"`
 	// Type is used for native tools (e.g., "web_search_20250305").
 	// For custom/function tools, this field is omitted.
 	Type         string          `json:"type,omitempty"`
@@ -521,12 +536,13 @@ func (d StreamDelta) MarshalJSON() ([]byte, error) {
 
 // StreamMessage represents the message part of a stream event.
 type StreamMessage struct {
-	ID      string                `json:"id"`
-	Type    string                `json:"type"`
-	Role    string                `json:"role"`
-	Content []MessageContentBlock `json:"content"`
-	Model   string                `json:"model"`
-	Usage   *Usage                `json:"usage,omitempty"`
+	ID        string                `json:"id"`
+	Type      string                `json:"type"`
+	Role      string                `json:"role"`
+	Content   []MessageContentBlock `json:"content"`
+	Model     string                `json:"model"`
+	Usage     *Usage                `json:"usage,omitempty"`
+	Container json.RawMessage       `json:"container,omitempty"`
 }
 
 // Message represents the Anthropic Messages API response format.
@@ -543,8 +559,9 @@ type Message struct {
 	//
 	// This value will be a non-null string if one of your custom stop sequences was
 	// generated.
-	StopSequence *string `json:"stop_sequence,omitempty"`
-	Usage        *Usage  `json:"usage,omitempty"`
+	StopSequence *string         `json:"stop_sequence,omitempty"`
+	Usage        *Usage          `json:"usage,omitempty"`
+	Container    json.RawMessage `json:"container,omitempty"`
 }
 
 type ErrorDetail struct {

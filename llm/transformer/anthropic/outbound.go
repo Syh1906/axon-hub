@@ -132,6 +132,19 @@ func (t *OutboundTransformer) TransformRequest(
 	if llmReq == nil {
 		return nil, fmt.Errorf("chat completion request is nil")
 	}
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
+	if !supportsAnthropicNativeTools(t.config) {
+		if llm.AnthropicNativeToolFeature(llmReq) != "" {
+			return nil, fmt.Errorf("%w: %w: native Anthropic tools are not supported by this provider", transformer.ErrUnsupportedConversion, transformer.ErrInvalidRequest)
+		}
+		for _, tool := range llmReq.Tools {
+			if tool.Type == llm.ToolTypeWebSearch || tool.Type == ToolTypeWebSearch20250305 {
+				return nil, fmt.Errorf("%w: %w: web_search is not supported by this Anthropic-compatible provider", transformer.ErrUnsupportedConversion, transformer.ErrInvalidRequest)
+			}
+		}
+	}
 
 	// Get API key from provider (Vertex/ClaudeCode use OAuth, not API keys)
 	var apiKey string
@@ -177,6 +190,9 @@ func (t *OutboundTransformer) TransformRequest(
 
 	// Convert to Anthropic request format
 	anthropicReq := convertToAnthropicRequestWithConfig(llmReq, t.config)
+	if err := restoreNativeRequestFields(llmReq, anthropicReq); err != nil {
+		return nil, err
+	}
 
 	// System and developer messages are extracted into the top-level system
 	// prompt. When the request carries nothing else there is no conversation
@@ -222,6 +238,9 @@ func (t *OutboundTransformer) TransformRequest(
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
+	if anthropicReq.Thinking != nil && anthropicReq.Thinking.BlockBinding != nil {
+		headers.Add("Anthropic-Beta", "thinking-binding-controls-2026-08-01")
+	}
 
 	//nolint:exhaustive // Checked.
 	switch t.config.Type {

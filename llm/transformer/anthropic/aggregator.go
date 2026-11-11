@@ -24,6 +24,7 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 		contentBlocks     []MessageContentBlock
 		usage             *Usage
 		stopReason        *string
+		stopSequence      *string
 		messageDeltaUsage bool
 		streamError       bool
 		usageEvidence     = llm.AccountingEvidenceUnavailable
@@ -138,6 +139,9 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 			}
 		case "message_delta":
 			if event.Delta != nil {
+				if event.Delta.StopSequence != nil {
+					stopSequence = event.Delta.StopSequence
+				}
 				if event.Delta.StopReason != nil {
 					stopReason = event.Delta.StopReason
 				}
@@ -212,13 +216,15 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 		}
 
 		message = &Message{
-			ID:         messageStart.Message.ID,
-			Type:       messageStart.Message.Type,
-			Role:       messageStart.Message.Role,
-			Content:    contentBlocks,
-			Model:      messageStart.Message.Model,
-			StopReason: stopReason,
-			Usage:      usage,
+			ID:           messageStart.Message.ID,
+			Type:         messageStart.Message.Type,
+			Role:         messageStart.Message.Role,
+			Content:      contentBlocks,
+			Model:        messageStart.Message.Model,
+			Container:    messageStart.Message.Container,
+			StopReason:   stopReason,
+			StopSequence: stopSequence,
+			Usage:        usage,
 		}
 	} else {
 		// Ensure we have at least one content block
@@ -230,13 +236,14 @@ func AggregateStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent
 
 		// Create a default message when no message_start event is received
 		message = &Message{
-			ID:         "msg_unknown",
-			Type:       "message",
-			Role:       "assistant",
-			Content:    contentBlocks,
-			Model:      "claude-3-sonnet-20240229",
-			StopReason: stopReason,
-			Usage:      usage,
+			ID:           "msg_unknown",
+			Type:         "message",
+			Role:         "assistant",
+			Content:      contentBlocks,
+			Model:        "claude-3-sonnet-20240229",
+			StopReason:   stopReason,
+			StopSequence: stopSequence,
+			Usage:        usage,
 		}
 	}
 

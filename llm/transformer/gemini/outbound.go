@@ -109,6 +109,9 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	if llmReq == nil {
 		return nil, fmt.Errorf("request is nil")
 	}
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
 
 	var apiKey string
 	if t.config.APIKeyProvider != nil {

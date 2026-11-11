@@ -4,6 +4,32 @@
 
 AxonHub supports the native Anthropic Messages API for applications that prefer Anthropic's specific features and response format. You can use the Anthropic SDK to access not only Claude models but also OpenAI, Gemini, and other supported models.
 
+Compatibility is limited to the target model and API's supported capabilities.
+Same-protocol reconstruction preserves `thinking.block_binding`, `container`, and
+`output_config.format`. Thinking binding controls add the required
+`thinking-binding-controls-2026-08-01` beta header. JSON Schema output constraints
+map through the shared representation to OpenAI Chat, Responses, and Gemini.
+Schema-less `json_object` requests are explicitly rejected for Anthropic instead
+of silently ignored. Thinking binding controls and server containers cannot move
+to another protocol; only requests carrying these options are constrained.
+`container: null` does not require container-state preservation.
+
+Unmodeled native tool definitions retain their original options and order for
+Anthropic-only forwarding. Server-tool history without an implemented mapping
+cannot become client function calls. Anthropic inbound routing excludes channels
+whose current converters lack native-tool support, including Vertex; it does not
+drop tools and fall back when no compatible candidate exists. This guarantees
+payload preservation, not provider support for every tool. The Claude Code wrapper
+merges required beta headers and retains native tool-choice names; ordinary
+functions keep the existing name-prefix handling.
+
+Non-streaming responses, streaming responses, and stream aggregation preserve
+the native `pause_turn`, `stop_sequence`, and `model_context_window_exceeded`
+reasons, stop-sequence text, and container information. Clients should replay
+the assistant content and container ID to continue a paused server-tool turn;
+the gateway does not automatically issue another model request. Support for a
+requested option on a particular model/provider remains subject to its API.
+
 ## Key Benefits
 
 - **API Interoperability**: Use Anthropic Messages API to call OpenAI, Gemini, and other supported models

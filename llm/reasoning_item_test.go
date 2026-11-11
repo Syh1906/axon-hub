@@ -13,6 +13,10 @@ func TestMessage_ReasoningItemsSurviveJSONRoundTrip(t *testing.T) {
 		ReasoningItems: []ReasoningItem{
 			{ID: "rs_first", Content: "first", Signature: "gAAAA_FIRST_BLOB"},
 			{ID: "rs_second", Content: "second", Signature: "gAAAA_SECOND_BLOB"},
+			{ID: "rs_native", Content: "full text", Signature: "opaque-native", Responses: &ResponsesReasoning{
+				Content: []string{"full ", "text"}, Summary: []string{"summary"},
+			}},
+			{ID: "rs_empty", Responses: &ResponsesReasoning{Content: []string{}}},
 		},
 	}
 

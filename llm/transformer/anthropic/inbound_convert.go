@@ -307,11 +307,17 @@ func convertToLLMRequest(anthropicReq *MessageRequest) (*llm.Request, error) {
 	// Convert tools
 	if len(anthropicReq.Tools) > 0 {
 		tools := make([]llm.Tool, 0, len(anthropicReq.Tools))
-		for _, tool := range anthropicReq.Tools {
+		var nativeTools []nativeTool
+		for index, tool := range anthropicReq.Tools {
 			llmTool, ok := convertToolToLLM(tool)
 			if ok {
 				tools = append(tools, llmTool)
+			} else {
+				nativeTools = append(nativeTools, nativeTool{Index: index, Tool: tool})
 			}
+		}
+		if len(nativeTools) > 0 {
+			chatReq.TransformerMetadata[nativeToolsKey] = nativeTools
 		}
 
 		chatReq.Tools = tools
@@ -394,6 +400,7 @@ func convertToLLMRequest(anthropicReq *MessageRequest) (*llm.Request, error) {
 		}
 	}
 
+	captureNativeRequestFields(anthropicReq, chatReq)
 	return chatReq, nil
 }
 
@@ -742,6 +749,7 @@ func convertToAnthropicResponse(chatResp *llm.Response) *Message {
 	if chatResp.Usage != nil {
 		resp.Usage = convertToAnthropicUsage(chatResp.Usage)
 	}
+	restoreNativeResponseState(chatResp, resp)
 
 	return resp
 }
@@ -782,7 +790,7 @@ func convertToolToLLM(tool Tool) (llm.Tool, bool) {
 			CacheControl: convertToLLMCacheControl(tool.CacheControl),
 		}, true
 	default:
-		// Ignore other native tools (image_generation, google_*, etc.)
+		// The caller retains unmodeled native tools separately for Anthropic-only replay.
 		return llm.Tool{}, false
 	}
 }

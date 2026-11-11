@@ -1053,8 +1053,8 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 
 	endpoints, forced := applyForcedAPIFormatsForRequest(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, channel.ResolveEndpoints())
 	apiFormat := selectEndpointAPIFormat(endpoints, req, forced)
-	if apiFormat == "" && requiresResponsesToolProtocol(req) {
-		return nil, fmt.Errorf("channel %s has no compatible endpoint for Responses custom tools", channel.Name)
+	if apiFormat == "" && llm.HasConversionRequirements(req) {
+		return nil, fmt.Errorf("channel %s has no endpoint that can preserve the requested tools or response controls", channel.Name)
 	}
 	if requiresExplicitEndpoint(req.RequestType) && apiFormat == "" {
 		return []*ChannelModelsCandidate{}, nil

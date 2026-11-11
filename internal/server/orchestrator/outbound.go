@@ -24,7 +24,6 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
-	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 // OutboundPersistentStream wraps a stream and tracks all responses for final saving to database.
@@ -749,7 +748,6 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		}
 		llmRequest = transformedRequest
 	}
-	llmRequest = filterResponseCustomToolMessagesForNonResponsesOutbound(llmRequest, outboundFormat)
 
 	if llmRequest.Stream == nil && outboundFormat == llm.APIFormatAnthropicMessage {
 		llmRequest.Stream = lo.ToPtr(false)
@@ -808,6 +806,9 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 			outboundFormat,
 		)
 	}
+	if err := transformer.ValidateRequestConversion(llmRequest, outboundFormat); err != nil {
+		return nil, err
+	}
 
 	return httpRequest, nil
 }
@@ -826,38 +827,8 @@ func containsAdditionalToolsInputItems(request *llm.Request) bool {
 	return false
 }
 
-func filterResponseCustomToolMessagesForNonResponsesOutbound(
-	llmRequest *llm.Request,
-	outboundFormat llm.APIFormat,
-) *llm.Request {
-	if llmRequest == nil {
-		return nil
-	}
-
-	if !isResponsesFormat(llmRequest.APIFormat) || isResponsesFormat(outboundFormat) || !containsResponseCustomToolMessages(llmRequest.Messages) {
-		return llmRequest
-	}
-
-	cloned := *llmRequest
-	cloned.Messages = shared.FilterOutResponseCustomToolMessages(llmRequest.Messages)
-
-	return &cloned
-}
-
 func isResponsesFormat(format llm.APIFormat) bool {
 	return format == llm.APIFormatOpenAIResponse || format == llm.APIFormatOpenAIResponseWebSocket || format == llm.APIFormatOpenAIResponseCompact
-}
-
-func containsResponseCustomToolMessages(messages []llm.Message) bool {
-	for _, msg := range messages {
-		for _, toolCall := range msg.ToolCalls {
-			if toolCall.Type == llm.ToolTypeResponsesCustomTool || toolCall.ResponseCustomToolCall != nil {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 func (p *PersistentOutboundTransformer) TransformResponse(ctx context.Context, response *httpclient.Response) (*llm.Response, error) {

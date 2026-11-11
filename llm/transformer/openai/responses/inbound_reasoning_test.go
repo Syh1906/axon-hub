@@ -389,8 +389,8 @@ func TestConvertReasoningWithFollowing(t *testing.T) {
 				require.NotNil(t, result)
 				require.Equal(t, 3, consumed)
 				require.Equal(t, []llm.ReasoningItem{
-					{ID: "rs_first", Content: "first", Signature: "gAAAA_FIRST_BLOB"},
-					{ID: "rs_second", Content: "second", Signature: "gAAAA_SECOND_BLOB"},
+					{ID: "rs_first", Content: "first", Signature: "gAAAA_FIRST_BLOB", Responses: &llm.ResponsesReasoning{Summary: []string{"first"}}},
+					{ID: "rs_second", Content: "second", Signature: "gAAAA_SECOND_BLOB", Responses: &llm.ResponsesReasoning{Summary: []string{"second"}}},
 				}, result.ReasoningItems)
 				require.Equal(t, "firstsecond", lo.FromPtr(result.ReasoningContent))
 				require.Equal(t, "gAAAA_SECOND_BLOB", lo.FromPtr(result.ReasoningSignature))

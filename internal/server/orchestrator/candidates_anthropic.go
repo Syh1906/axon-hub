@@ -10,10 +10,9 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/anthropic"
 )
 
-// AnthropicNativeToolsSelector is a decorator that prioritizes candidates supporting Anthropic native tools.
-// When a request contains Anthropic native tools (web_search -> web_search_20250305),
-// this selector filters out candidates whose channels don't support these tools (e.g., moonshot_anthropic).
-// If no compatible candidates are found, it falls back to all candidates (allowing downstream fallback logic).
+// AnthropicNativeToolsSelector filters channels that cannot retain the native
+// tool definitions or history in an Anthropic request. An empty compatible set
+// stays empty instead of attempting a lossy fallback.
 type AnthropicNativeToolsSelector struct {
 	wrapped CandidateSelector
 }
@@ -37,12 +36,21 @@ func (s *AnthropicNativeToolsSelector) Select(ctx context.Context, req *llm.Requ
 	}
 
 	// If request doesn't contain Anthropic native tools, return all candidates
-	if !anthropic.ContainsAnthropicNativeTools(req.Tools) {
+	if !anthropic.ContainsAnthropicNativeTools(req.Tools) && llm.AnthropicNativeToolFeature(req) == "" {
 		return candidates, nil
 	}
 
 	// Filter: keep only candidates whose channels support Anthropic native tools
 	compatible := lo.Filter(candidates, func(c *ChannelModelsCandidate, _ int) bool {
+		format := llm.APIFormat(c.APIFormat)
+		if format == "" && c.Channel.Outbound != nil {
+			format = c.Channel.Outbound.APIFormat()
+		}
+		if format != "" && format != llm.APIFormatAnthropicMessage {
+			// Existing web-search mappings may use Responses or Gemini. Native-only
+			// definitions/history are rejected by the shared conversion contract.
+			return llm.UnsupportedRequestFeature(req, format) == ""
+		}
 		return c.Channel.Type.SupportsAnthropicNativeTools()
 	})
 
@@ -56,11 +64,10 @@ func (s *AnthropicNativeToolsSelector) Select(ctx context.Context, req *llm.Requ
 		return compatible, nil
 	}
 
-	// No compatible candidates, return all (let downstream handle fallback)
 	if log.DebugEnabled(ctx) {
-		log.Debug(ctx, "No candidates support Anthropic native tools, falling back to all",
+		log.Debug(ctx, "No candidates support Anthropic native tools",
 			log.Int("total_candidates", len(candidates)))
 	}
 
-	return candidates, nil
+	return compatible, nil
 }

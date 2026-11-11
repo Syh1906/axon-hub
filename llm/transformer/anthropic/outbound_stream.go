@@ -138,6 +138,7 @@ func (s *outboundStream) transformStreamChunk(event *httpclient.StreamEvent) (*l
 	switch streamEvent.Type {
 	case "message_start":
 		if streamEvent.Message != nil {
+			captureNativeResponseState(resp, nil, nil, streamEvent.Message.Container)
 			// Store ID, model, and usage for subsequent events
 			state.streamID = streamEvent.Message.ID
 			state.streamModel = streamEvent.Message.Model
@@ -322,6 +323,7 @@ func (s *outboundStream) transformStreamChunk(event *httpclient.StreamEvent) (*l
 		}
 
 		if streamEvent.Delta != nil && streamEvent.Delta.StopReason != nil {
+			captureNativeResponseState(resp, streamEvent.Delta.StopReason, streamEvent.Delta.StopSequence, nil)
 			// Determine finish reason (shared with the non-streaming path).
 			finishReason := convertToLlmFinishReason(streamEvent.Delta.StopReason)
 

@@ -12,10 +12,9 @@ import (
 // candidateAggregator is a helper struct to aggregate data for each candidate.
 type candidateAggregator struct {
 	index             int64
-	textParts         strings.Builder
-	reasoningContent  strings.Builder
-	toolCalls         map[int]*llm.ToolCall
-	inlineDataParts   []*Part
+	parts             []*Part
+	text              strings.Builder
+	textPart          *Part
 	finishReason      string
 	groundingMetadata *GroundingMetadata
 }
@@ -70,8 +69,7 @@ func AggregateStreamChunks(
 			// Initialize candidate aggregator if it doesn't exist
 			if _, ok := candidateAggs[candidateIndex]; !ok {
 				candidateAggs[candidateIndex] = &candidateAggregator{
-					index:     candidateIndex,
-					toolCalls: make(map[int]*llm.ToolCall),
+					index: candidateIndex,
 				}
 			}
 
@@ -79,37 +77,7 @@ func AggregateStreamChunks(
 
 			// Process content parts
 			if candidate.Content != nil {
-				for _, part := range candidate.Content.Parts {
-					if part == nil {
-						continue
-					}
-
-					switch {
-					case part.Text != "":
-						if part.Thought {
-							agg.reasoningContent.WriteString(part.Text)
-						} else {
-							agg.textParts.WriteString(part.Text)
-						}
-
-					case part.FunctionCall != nil:
-						toolCallIndex := len(agg.toolCalls)
-						argsJSON, _ := json.Marshal(part.FunctionCall.Args)
-						agg.toolCalls[toolCallIndex] = &llm.ToolCall{
-							Index: toolCallIndex,
-							ID:    part.FunctionCall.ID,
-							Type:  "function",
-							Function: llm.FunctionCall{
-								Name:      part.FunctionCall.Name,
-								Arguments: string(argsJSON),
-							},
-						}
-						setOutboundToolCallThoughtSignature(agg.toolCalls[toolCallIndex], part.ThoughtSignature)
-
-					case part.InlineData != nil:
-						agg.inlineDataParts = append(agg.inlineDataParts, part)
-					}
-				}
+				agg.appendParts(candidate.Content.Parts)
 			}
 
 			// Capture finish reason
@@ -159,49 +127,8 @@ func buildGeminiResponse(
 			Role: "model",
 		}
 
-		parts := make([]*Part, 0)
-
-		// Add reasoning content (thinking) first if present
-		if agg.reasoningContent.Len() > 0 {
-			parts = append(parts, &Part{
-				Text:    agg.reasoningContent.String(),
-				Thought: true,
-			})
-		}
-
-		// Add text content
-		if agg.textParts.Len() > 0 {
-			parts = append(parts, &Part{Text: agg.textParts.String()})
-		}
-
-		// Add tool calls
-		for idx := range len(agg.toolCalls) {
-			tc := agg.toolCalls[idx]
-
-			var args map[string]any
-			if tc.Function.Arguments != "" {
-				_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
-			}
-
-			var thoughtSignature string
-			if signature := getInboundGeminiToolCallThoughtSignature(*tc); signature != nil {
-				thoughtSignature = *signature
-			}
-
-			parts = append(parts, &Part{
-				FunctionCall: &FunctionCall{
-					ID:   tc.ID,
-					Name: tc.Function.Name,
-					Args: args,
-				},
-				ThoughtSignature: thoughtSignature,
-			})
-		}
-
-		// Add inline data parts (images, etc.)
-		parts = append(parts, agg.inlineDataParts...)
-
-		content.Parts = parts
+		agg.flushText()
+		content.Parts = agg.parts
 
 		// Determine finish reason
 		finishReason := agg.finishReason
@@ -241,4 +168,33 @@ func buildGeminiResponse(
 		Usage:     llmUsage,
 		Completed: completed,
 	}, nil
+}
+
+func (a *candidateAggregator) flushText() {
+	if a.textPart != nil {
+		a.textPart.Text = a.text.String()
+		a.textPart = nil
+		a.text.Reset()
+	}
+}
+
+func (a *candidateAggregator) appendParts(parts []*Part) {
+	for i, part := range parts {
+		if part == nil {
+			continue
+		}
+		plainText := part.Text != "" && part.ThoughtSignature == "" && part.InlineData == nil && part.FileData == nil && part.FunctionCall == nil && part.FunctionResponse == nil
+		// Merge only a continuation across chunk boundaries. Explicit parts in
+		// one chunk and signed parts retain their own position and identity.
+		if i == 0 && plainText && a.textPart != nil && a.textPart.Thought == part.Thought {
+			a.text.WriteString(part.Text)
+			continue
+		}
+		a.flushText()
+		a.parts = append(a.parts, part)
+		if plainText {
+			a.textPart = part
+			a.text.WriteString(part.Text)
+		}
+	}
 }

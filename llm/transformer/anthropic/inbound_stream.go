@@ -48,6 +48,7 @@ type anthropicInboundStream struct {
 	queueIndex                int
 	err                       error
 	stopReason                *string
+	stopSequence              *string
 	pendingUsage              *Usage
 	// Tool call tracking
 	toolCalls            map[int]*llm.ToolCall // Track tool calls by index
@@ -482,7 +483,8 @@ func (s *anthropicInboundStream) enqueueTerminalEvents() error {
 
 	if s.stopReason != nil {
 		streamEvent.Delta = &StreamDelta{
-			StopReason: s.stopReason,
+			StopReason:   s.stopReason,
+			StopSequence: s.stopSequence,
 		}
 	}
 
@@ -610,12 +612,13 @@ func (s *anthropicInboundStream) Next() bool {
 		streamEvent := StreamEvent{
 			Type: "message_start",
 			Message: &StreamMessage{
-				ID:      s.messageID,
-				Type:    "message",
-				Role:    "assistant",
-				Model:   s.model,
-				Content: []MessageContentBlock{},
-				Usage:   usage,
+				ID:        s.messageID,
+				Type:      "message",
+				Role:      "assistant",
+				Model:     s.model,
+				Content:   []MessageContentBlock{},
+				Usage:     usage,
+				Container: nativeJSON(chunk.TransformerMetadata, nativeContainerKey),
 			},
 		}
 
@@ -1146,7 +1149,10 @@ func (s *anthropicInboundStream) Next() bool {
 
 			// Store the stop reason, but don't generate message_delta yet
 			// We'll wait for the usage chunk to combine them
-			s.stopReason = &stopReason
+			native := &Message{StopReason: &stopReason}
+			restoreNativeResponseState(chunk, native)
+			s.stopReason = native.StopReason
+			s.stopSequence = native.StopSequence
 		}
 	}
 

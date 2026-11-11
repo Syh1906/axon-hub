@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
@@ -26,6 +27,16 @@ func TestResponsesToolOutputConversionPreservesItemIdentity(t *testing.T) {
 			require.NoError(t, err)
 			request, err := NewInboundTransformer().TransformRequest(t.Context(), &httpclient.Request{Body: body})
 			require.NoError(t, err)
+			stored, err := json.Marshal(request)
+			require.NoError(t, err)
+			request = &llm.Request{}
+			require.NoError(t, json.Unmarshal(stored, request))
+			outputOnly := &llm.Request{Messages: request.Messages[len(request.Messages)-1:]}
+			if kind == "custom_tool_call_output" {
+				require.NotEmpty(t, llm.ResponsesOnlyFeature(outputOnly))
+			} else {
+				require.Empty(t, llm.ResponsesOnlyFeature(outputOnly))
+			}
 			items := convertInputFromMessages(request.Messages, request.TransformOptions)
 			encoded, err := json.Marshal(items)
 			require.NoError(t, err)

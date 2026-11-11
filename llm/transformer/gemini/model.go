@@ -157,7 +157,7 @@ type FunctionCall struct {
 	Name string `json:"name,omitempty"`
 
 	// Args is the function parameters and values in JSON object format.
-	Args map[string]any `json:"args,omitempty"`
+	Args map[string]any `json:"args,omitzero"`
 }
 
 // FunctionResponse represents the result output of a FunctionCall.

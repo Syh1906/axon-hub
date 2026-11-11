@@ -208,6 +208,9 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	if llmReq == nil {
 		return nil, fmt.Errorf("chat request is nil")
 	}
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
 	if t.APIFormat() == llm.APIFormatOpenAIResponseWebSocket {
 		switch llmReq.RequestType {
 		case llm.RequestTypeChat, "":

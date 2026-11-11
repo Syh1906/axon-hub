@@ -134,6 +134,27 @@ func convertLLMFinishReasonToGemini(reason *string) string {
 	}
 }
 
+// convertFileDataToLLMPart is shared by request history and response parsing so
+// file-backed content keeps the same position, URL and MIME type in both paths.
+func convertFileDataToLLMPart(file *FileData) llm.MessageContentPart {
+	mimeType := mediaMIMEType(file.MIMEType, file.FileURI, func(mediaType string) bool {
+		return isDocumentMIMEType(mediaType) || isVideoMIMEType(mediaType) ||
+			isAudioMIMEType(mediaType) || strings.HasPrefix(mediaType, "image/")
+	})
+	switch {
+	case isDocumentMIMEType(mimeType):
+		return llm.MessageContentPart{Type: "document", Document: &llm.DocumentURL{URL: file.FileURI, MIMEType: mimeType}}
+	case isVideoMIMEType(mimeType):
+		return llm.MessageContentPart{Type: "video_url", VideoURL: &llm.VideoURL{URL: file.FileURI, MIMEType: mimeType}}
+	case isAudioMIMEType(mimeType):
+		return llm.MessageContentPart{Type: "input_audio", InputAudio: &llm.InputAudio{
+			Format: audioMIMETypeToFormat(mimeType), URL: file.FileURI, MIMEType: mimeType,
+		}}
+	default:
+		return llm.MessageContentPart{Type: "image_url", ImageURL: &llm.ImageURL{URL: file.FileURI, MIMEType: mimeType}}
+	}
+}
+
 func convertImageURLToGeminiPart(image *llm.ImageURL) *Part {
 	if image == nil || image.URL == "" {
 		return nil

@@ -6,6 +6,23 @@ AxonHub provides native support for the Gemini API, enabling access to Gemini's 
 
 GenerateContent requests also accept `system_instruction`, `inline_data`, and `mime_type` as aliases for `systemInstruction`, `inlineData`, and `mimeType`. When both spellings supply values, the camelCase value takes precedence. Gemini output continues to use the standard camelCase field names.
 
+Same-protocol conversion preserves reasoning part boundaries and signatures on
+their original text, image, file-reference, or function-call parts. Signed parts are not merged
+into other parts. Non-streaming responses, stream events, and aggregation follow
+the same constraints. Internal metadata stores positions and signatures without
+duplicating image payloads, and text edits from prompt processing remain effective.
+File references retain their URI and MIME type. Standalone signature and finish
+chunks are emitted even when they contain no text.
+Unsigned mixtures of text and function-call parts also retain their order;
+ordinary text-only messages keep the existing lightweight representation.
+
+Cross-protocol conversion is limited to implemented equivalents. Google
+`codeExecution` and `urlContext` remain on Gemini; ordinary text and function
+tools can still cross protocols. Text-generation support alone does not imply
+support for the same hosted tools. The current surface remains
+`generateContent`/`streamGenerateContent`; this does not add the Interactions API
+or change default pass-through settings.
+
 ## Key Benefits
 
 - **API Interoperability**: Use Gemini API to call OpenAI, Anthropic, and other supported models

@@ -144,6 +144,9 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 	if llmReq == nil {
 		return nil, fmt.Errorf("chat completion request is nil")
 	}
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
 
 	// Validate required fields for chat requests
 	if llmReq.Model == "" {

@@ -120,7 +120,7 @@ func TestType_SupportsAnthropicNativeTools(t *testing.T) {
 		},
 		{
 			name: "anthropic_gcp",
-			want: true,
+			want: false,
 		},
 		{
 			name: "deepseek_anthropic",

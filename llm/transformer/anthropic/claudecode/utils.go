@@ -77,7 +77,10 @@ func applyClaudeToolPrefixStructured(llmReq *llm.Request, prefix string) *llm.Re
 	if llmReq.ToolChoice != nil && llmReq.ToolChoice.NamedToolChoice != nil {
 		if llmReq.ToolChoice.NamedToolChoice.Type == "tool" || llmReq.ToolChoice.NamedToolChoice.Type == llm.ToolTypeFunction {
 			name := llmReq.ToolChoice.NamedToolChoice.Function.Name
-			if name != "" && !strings.HasPrefix(name, prefix) {
+			declaredFunction := slices.ContainsFunc(llmReq.Tools, func(tool llm.Tool) bool {
+				return tool.Type == llm.ToolTypeFunction && tool.Function.Name == prefix+name
+			})
+			if name != "" && !strings.HasPrefix(name, prefix) && declaredFunction {
 				llmReq.ToolChoice.NamedToolChoice.Function.Name = prefix + name
 			}
 		}

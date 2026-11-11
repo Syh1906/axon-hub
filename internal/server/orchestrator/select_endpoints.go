@@ -50,22 +50,29 @@ func selectAPIFormat(
 
 	preferredFormat := string(req.APIFormat)
 	allowed := llm.CapableAPIFormats(req.RequestType)
-	if requiresResponsesToolProtocol(req) {
-		// Custom tool definitions and history cannot survive a Chat Completions
-		// conversion. Keep them on Responses instead of silently deleting them.
+	if llm.ResponsesOnlyFeature(req) != "" {
+		// Native tools, server state and their history must stay on Responses
+		// when there is no implemented cross-protocol representation. Preserve
+		// the usual exact-transport preference within that protocol family.
+		fallback := ""
 		for _, ep := range endpoints {
 			_, capable := allowed[ep.APIFormat]
-			if isResponsesFormat(llm.APIFormat(ep.APIFormat)) && (allowed == nil || capable) {
-				return ep.APIFormat
+			if isResponsesFormat(llm.APIFormat(ep.APIFormat)) && (allowed == nil || capable) && llm.UnsupportedRequestFeature(req, llm.APIFormat(ep.APIFormat)) == "" {
+				if ep.APIFormat == preferredFormat {
+					return ep.APIFormat
+				}
+				if fallback == "" {
+					fallback = ep.APIFormat
+				}
 			}
 		}
-		return ""
+		return fallback
 	}
 
 	if allowed != nil {
 		if preferredFormat != "" {
 			for _, ep := range endpoints {
-				if _, ok := allowed[ep.APIFormat]; ok && ep.APIFormat == preferredFormat {
+				if _, ok := allowed[ep.APIFormat]; ok && ep.APIFormat == preferredFormat && llm.UnsupportedRequestFeature(req, llm.APIFormat(ep.APIFormat)) == "" {
 					return ep.APIFormat
 				}
 			}
@@ -73,7 +80,7 @@ func selectAPIFormat(
 			if allowResponsesTransportFamily {
 				if compatibleFormat := compatibleResponsesAPIFormat(req.APIFormat); compatibleFormat != "" {
 					for _, ep := range endpoints {
-						if _, ok := allowed[ep.APIFormat]; ok && ep.APIFormat == compatibleFormat {
+						if _, ok := allowed[ep.APIFormat]; ok && ep.APIFormat == compatibleFormat && llm.UnsupportedRequestFeature(req, llm.APIFormat(ep.APIFormat)) == "" {
 							return ep.APIFormat
 						}
 					}
@@ -82,7 +89,7 @@ func selectAPIFormat(
 		}
 
 		for _, ep := range endpoints {
-			if _, ok := allowed[ep.APIFormat]; ok {
+			if _, ok := allowed[ep.APIFormat]; ok && llm.UnsupportedRequestFeature(req, llm.APIFormat(ep.APIFormat)) == "" {
 				return ep.APIFormat
 			}
 		}
@@ -92,6 +99,9 @@ func selectAPIFormat(
 		}
 	}
 
+	if llm.UnsupportedRequestFeature(req, llm.APIFormat(endpoints[0].APIFormat)) != "" {
+		return ""
+	}
 	return endpoints[0].APIFormat
 }
 
@@ -110,15 +120,6 @@ func requiresExplicitEndpoint(requestType llm.RequestType) bool {
 	return requestType == llm.RequestTypeAlphaSearch ||
 		requestType == llm.RequestTypeDecisions ||
 		requestType == llm.RequestTypeSystemOne
-}
-
-func requiresResponsesToolProtocol(req *llm.Request) bool {
-	for _, tool := range req.Tools {
-		if tool.Type == llm.ToolTypeResponsesCustomTool || tool.ResponseCustomTool != nil {
-			return true
-		}
-	}
-	return containsResponseCustomToolMessages(req.Messages)
 }
 
 // applyForcedAPIFormats uses the same configured ordering as catalog filtering.

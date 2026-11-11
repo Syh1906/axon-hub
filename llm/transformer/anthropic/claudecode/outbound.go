@@ -165,6 +165,10 @@ func (t *ClaudeCodeTransformer) TransformRequest(
 
 	// Add/overwrite Claude Code specific headers
 	for _, header := range claudeCodeHeaders {
+		if header[0] == "Anthropic-Beta" {
+			httpReq.Headers.Set(header[0], mergeBetasIntoHeader(strings.Join(httpReq.Headers.Values(header[0]), ","), strings.Split(header[1], ",")))
+			continue
+		}
 		httpReq.Headers.Set(header[0], header[1])
 	}
 

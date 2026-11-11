@@ -1311,8 +1311,8 @@ func TestConvertOutputToMessage(t *testing.T) {
 			},
 			validate: func(t *testing.T, msg llm.Message) {
 				require.Equal(t, []llm.ReasoningItem{
-					{ID: "rs_first", Content: "first", Signature: "gAAAA_FIRST_BLOB"},
-					{ID: "rs_second", Content: "second", Signature: "gAAAA_SECOND_BLOB"},
+					{ID: "rs_first", Content: "first", Signature: "gAAAA_FIRST_BLOB", Responses: &llm.ResponsesReasoning{Summary: []string{"first"}}},
+					{ID: "rs_second", Content: "second", Signature: "gAAAA_SECOND_BLOB", Responses: &llm.ResponsesReasoning{Summary: []string{"second"}}},
 				}, msg.ReasoningItems)
 			},
 		},

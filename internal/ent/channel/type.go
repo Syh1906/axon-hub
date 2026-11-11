@@ -38,7 +38,8 @@ func (t Type) SupportsGoogleNativeTools() bool {
 // Anthropic native tools (web_search_20250305) are supported by Anthropic-backed
 // channels, Claude Code, and DeepSeek's verified Anthropic-compatible endpoint.
 // Other Anthropic-compatible channels remain excluded until support is verified.
+// Vertex is excluded because its current outbound converter rejects native tools.
 func (t Type) SupportsAnthropicNativeTools() bool {
-	return t == TypeAnthropic || t == TypeAnthropicAWS || t == TypeAnthropicGcp ||
+	return t == TypeAnthropic || t == TypeAnthropicAWS ||
 		t == TypeClaudecode || t == TypeDeepseekAnthropic
 }

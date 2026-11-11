@@ -117,6 +117,29 @@ response 和 item ID、工具数据、图像操作与结果，以及支持的未
 不会包装成 Responses `image_generation` 调用。原生 Images 的请求和响应约定请参阅
 [图像生成 API](image-generation.md)。
 
+**跨协议能力边界：**
+
+路由会优先选择能保留请求能力的协议。Responses 的 `file_search`、`mcp`、自定义工具、
+未建模的原生输入，以及 `conversation`、`prompt`、`context_management`、`moderation`
+等服务器状态或处理选项，在没有等价实现时保持在 Responses 协议族内。
+普通函数及纯函数 namespace 仍可转换。目标不支持的内置工具、输出约束或原生状态会
+明确拒绝，不会删掉这些内容再发送；最终发送协议也会检查，防止渠道回退丢失能力。
+仅含 `custom_tool_call_output` 的增量请求也受同样限制，内部序列化不会丢失其类型。
+同渠道同时提供 Responses HTTP 与 WebSocket 时，携带原生工具或状态的请求仍优先匹配
+客户端使用的传输方式。
+没有合适端点时按现有无候选渠道流程处理。此检查不证明任一 Responses 供应商支持全部
+OpenAI 原生工具，仍需配置实际支持这些能力的渠道。
+
+**原生思考记录：**
+
+两端均使用 Responses 时，关闭请求体透传也会保留思考记录 `content[]` 中的
+`reasoning_text` 正文、独立的 `summary`、分段和不透明的 `encrypted_content`。
+原生 Responses 数据不需要先通过 OpenAI 密文外观识别才能回传，因此支持 DeepSeek
+等直接返回明文思考内容的 Responses 服务。普通响应解析和续聊数据序列化同样保留这些字段。
+转发为 Chat Completions 时使用完整思考正文；没有正文才使用摘要，不拼接两者。
+其他协议的思考签名仍沿用原有供应商过滤，不能仅因是字符串就作为 Responses 密文发送。
+此行为不改变全局／渠道透传开关、路由或模型目录配置。
+
 **智能体消息与加密参数：**
 
 Responses 函数调用的 `encrypted_function_args` 在普通响应、流式响应和历史回传中保留。

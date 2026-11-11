@@ -472,11 +472,11 @@ func convertLLMMessageToGeminiContent(msg *llm.Message) *Content {
 		}
 	}
 
-	if len(parts) == 0 {
+	if len(parts) == 0 && len(msg.GeminiParts) == 0 {
 		return nil
 	}
 
-	content.Parts = parts
+	content.Parts = restoreNativeParts(msg, parts)
 
 	return content
 }
@@ -701,7 +701,6 @@ func convertGeminiCandidateToLLMChoiceWithState(candidate *Candidate, isStream b
 		}
 
 		var (
-			textParts        []string
 			contentParts     []llm.MessageContentPart
 			toolCalls        []llm.ToolCall
 			reasoningContent string
@@ -717,7 +716,7 @@ func convertGeminiCandidateToLLMChoiceWithState(candidate *Candidate, isStream b
 				if part.Thought {
 					reasoningContent += part.Text
 				} else {
-					textParts = append(textParts, part.Text)
+					contentParts = append(contentParts, llm.MessageContentPart{Type: "text", Text: lo.ToPtr(part.Text)})
 				}
 
 			case part.InlineData != nil:
@@ -743,6 +742,9 @@ func convertGeminiCandidateToLLMChoiceWithState(candidate *Candidate, isStream b
 					})
 				}
 
+			case part.FileData != nil:
+				contentParts = append(contentParts, convertFileDataToLLMPart(part.FileData))
+
 			case part.FunctionCall != nil:
 				argsJSON, _ := json.Marshal(part.FunctionCall.Args)
 				tc := llm.ToolCall{
@@ -765,23 +767,18 @@ func convertGeminiCandidateToLLMChoiceWithState(candidate *Candidate, isStream b
 			}
 		}
 
-		// Set content - prefer multipart if we have images
-		if len(contentParts) > 0 {
-			// Add text parts to content parts
-			for _, text := range textParts {
-				contentParts = append([]llm.MessageContentPart{{
-					Type: "text",
-					Text: lo.ToPtr(text),
-				}}, contentParts...)
+		// Keep content part order; signatures refer to these exact positions.
+		if len(contentParts) > 0 && !needsNativePartLayout(candidate.Content.Parts) && lo.EveryBy(contentParts, func(part llm.MessageContentPart) bool { return part.Type == "text" }) {
+			text := ""
+			for _, part := range contentParts {
+				text += lo.FromPtr(part.Text)
 			}
-
+			msg.Content = llm.MessageContent{Content: lo.ToPtr(text)}
+		} else if len(contentParts) == 1 && contentParts[0].Type == "text" {
+			msg.Content = llm.MessageContent{Content: contentParts[0].Text}
+		} else if len(contentParts) > 0 {
 			msg.Content = llm.MessageContent{
 				MultipleContent: contentParts,
-			}
-		} else if len(textParts) > 0 {
-			allText := strings.Join(textParts, "")
-			msg.Content = llm.MessageContent{
-				Content: &allText,
 			}
 		}
 
@@ -795,6 +792,7 @@ func convertGeminiCandidateToLLMChoiceWithState(candidate *Candidate, isStream b
 		if reasoningContent != "" {
 			msg.ReasoningContent = &reasoningContent
 		}
+		captureNativeParts(msg, candidate.Content.Parts)
 
 		if annotations := deriveGeminiAnnotations(candidate); len(annotations) > 0 {
 			msg.Annotations = annotations

@@ -4,6 +4,25 @@
 
 AxonHub 支持原生 Anthropic Messages API，适用于偏好 Anthropic 特定功能和响应格式的应用程序。您可以使用 Anthropic SDK 访问 Claude 模型，也可以访问 OpenAI、Gemini 和其他支持的模型。
 
+协议兼容以目标模型及接口支持的能力为限。同协议重组会保留
+`thinking.block_binding`、`container` 和 `output_config.format`；携带思考绑定选项时，
+会添加所需的 `thinking-binding-controls-2026-08-01` beta 标头。
+JSON Schema 输出约束通过统一结构映射到 OpenAI Chat、Responses 和 Gemini；Anthropic
+没有可直接等价表达的无 schema `json_object` 请求会明确拒绝，不再静默忽略。
+`block_binding` 和服务器容器不能迁移到其他协议，因此仅限制携带这些选项的请求；
+`container: null` 不表示需要保留容器状态。
+
+未映射到统一函数的原生工具定义保留原始选项与顺序，仅在 Anthropic 协议下转发；
+没有跨协议映射的服务端工具历史同样不能改成客户端函数调用。Anthropic 入站会排除当前
+不支持原生工具的渠道（含当前 Vertex 转换器），没有合适候选时不会删除工具再降级。
+这只保证数据完整转发，具体工具仍需目标供应商支持。Claude Code 出口会合并必需的
+beta 标头，并保持原生工具的选择名称；普通函数继续沿用既有名称前缀。
+
+普通及流式响应保留 `pause_turn`、`stop_sequence`、`model_context_window_exceeded`
+原始停止原因、匹配的停止文本和容器信息；聚合流式分片时同样保留。
+`pause_turn` 表示服务端工具需要继续，客户端应将助手内容和容器编号带回；网关不会自动
+增加模型调用。具体模型／供应商是否支持所请求的选项仍由其 API 决定。
+
 ## 核心优势
 
 - **API 互操作性**：使用 Anthropic Messages API 调用 OpenAI、Gemini 和其他支持的模型

@@ -8,6 +8,13 @@ fork 改动，由用户决定。
 
 发布状态总览（2026-11-11）：最新正式版 `v1.0.0-rc1-fork.2`，源码 `1c0a65a0`；后台读取优化、独立复审、精简发版与双机基础部署验收完成。空正文传输故障仍未定因，不宣称所有线上超时已消除。
 
+## rc1-fork.3 协议兼容修复与双机更新（2026-11-11）
+
+- 本地实现、定向测试及独立 `gpt-6.1-sol / max` 审查完成，阶段内无剩余 P1/P2 阻塞项。包含 DeepSeek 原生 Responses 思考记录、Claude 原生控制／工具／历史、Gemini 块顺序／签名、路由和最终出口能力约束，以及 Claude Code 直接调用方修复。
+- 相对 rc1-fork.2 无 schema/data migration、依赖和默认透传设置变化；新内部字段可缺省，不改变数据库及渠道配置。版本 `v1.0.0-rc1-fork.3`，保持 `prerelease=false`、`publishBinaries=false`，只发布双架构镜像和清单。
+- 发布前等待同提交的维护分支 Test，通过后推送该版本 tag。发布完成后依次更新云悠、泉哥，仅替换应用镜像，不备份数据库、不重建数据库或数据卷；当前发布／部署尚待执行。
+- 根因、范围及检查证据见下方对应 bugfix topic、[更新说明](../.github/release-notes.md)和本地[独立复审记录](../.agent/summary/protocol-fidelity-review-20261111.md)。真实供应商调用、完整供应商能力矩阵和长期负载不在已完成验收范围内。
+
 ## rc1-fork.2 后台读取优化与双机更新（2026-11-11）
 
 - [正式 Release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.2)／[精简发版 42989955513](https://github.com/Syh1906/axon-hub/actions/runs/42989955513)成功；正式/latest，amd64/arm64 镜像及唯一附件 release.json。源码 `1c0a65a093f9c356f0005e8b59e13f2c16ffd0ff`，同提交 Test／Build／Lint／Govulncheck 通过。
@@ -1459,6 +1466,22 @@ fork 改动，由用户决定。
 - 错误处理：`invalid_encrypted_content` 无论是否绑定来源都不在同一渠道重试，已允许的备用渠道仍可参与；不计为渠道健康或熔断故障，含流已经交付后的收尾。无状态错误及 response.failed 中该错误码在输出开始前按 HTTP 400 返回，开始后通过失败事件保留错误原因；原 HTTP 状态与错误详情不伪造，请求失败记录仍保留。缺少明文证据的旧历史不会自动改写。
 - 代码：`llm/transformer/openai/responses/{encrypted_arguments,agent_message_history,model,inbound,inbound_stream,outbound_convert,outbound_stream,aggregator,compact_inbound,request_extensions}.go`；`internal/server/orchestrator/{outbound,pass_through,responses_continuation_route,health_gate_outcome,health_gate_middleware,model_circuit_breaker,stream_terminal}.go`。
 - 验证与同步：新增合成协议夹具、普通／流式／历史回传、明文证据边界、compact／透传、单渠道一次调用与备用渠道回归；Responses 包测试及 orchestrator 定向测试通过，无 schema/data migration。同步上游时保留空列表语义与分片结束阶段标记，不能按密文前缀猜测明文或补空标记。详细命令及边界见[修复记录](../.agent/summary/agent-message-encryption-20261107.md)。
+
+### 协议原生字段与跨协议能力边界
+
+- 状态：2026-11-11 本地实现及定向验证，未提交、发布或部署。承接同日官方 API／LiteLLM、Bifrost、New API 调研，范围为已复现的字段、签名、终态和工具能力丢失，不新增协议入口。
+- Anthropic：保留 `output_config.format`、思考绑定控制、容器和原始停止状态，贯通普通响应、流式与聚合；JSON Schema 约束映射到已有支持协议，不能等价转换的控制显式拒绝，不自动继续调用模型。
+- Gemini：按原位置保留思考、媒体和工具签名；使用引用元数据，避免额外复制图片。补齐响应文件引用，保留独立签名及结束分片。流式聚合不再按内容类别重排，仅合并跨分片连续的无签名文本；工具空参数对象保持。
+- 共享能力判断用于候选协议选择与实际发送边界，限制无法表示的 Responses 原生工具／状态、Google 内置工具等；删除自定义工具历史后继续转发的旧分支。普通函数 namespace 和文本不受影响，默认透传、权限、重试预算与媒体专用入口保持。
+- 验证、兼容边界与命令见[实现记录](../.agent/summary/protocol-fidelity-20261111.md)。同步上游时同时检查原生字段、聚合顺序和候选／最终协议约束，不能只保留某一处校验。
+- 同日独立复审补齐停止文本被后续用量覆盖、Responses 原生请求的 HTTP／WS 优先级、自定义工具结果类型、Anthropic 未建模原生工具及服务端历史、原生工具候选过滤、Gemini 无签名混合块顺序，以及 Claude Code beta／原生工具选择名称。继续复用已有结构、定向回归和无候选处理，详见[独立复审记录](../.agent/summary/protocol-fidelity-review-20261111.md)。
+
+### DeepSeek 原生 Responses 思考记录保留
+
+- 状态：2026-11-11 本地修复，未提交、发布或部署。泉哥 `#85507` 的 Codex 请求含 4 个思考项，转发到 DeepSeek `/responses` 后全部消失，导致 400 要求回传 `reasoning_text`；请求透传未启用，与模型目录无关。
+- 根因：统一消息只表示摘要，遗漏 `content[].text`；重新组装时还要求签名符合 OpenAI 外观，把 DeepSeek 原生项过滤掉。普通响应解析存在相同正文丢失。
+- 实现：`llm.ReasoningItem` 增加可选的原生 Responses 信息，区分正文与摘要并保留分段、状态及不透明内容；请求、普通响应及序列化共用转换。跨协议使用完整正文，保留原有外来签名过滤。不新增数据库迁移、默认开关或供应商重试。
+- 验证：合成原始症状、关闭／开启透传的真实管线、原生流式事件、普通响应、序列化、Chat 转换及既有相关回归。同步上游时检查是否已完整表示原生思考项，不能仅删除密文过滤而遗漏正文。命令、结果和限制见[修复记录](../.agent/summary/deepseek-responses-85507-20261111.md)。
 
 ### Responses 失败终态的记录与结算
 

@@ -389,8 +389,9 @@ type Message struct {
 	// The name of the tool call.
 	// Is is a help field, will not be sent to the llm service.
 	ToolCallName *string `json:"tool_call_name,omitempty"`
-	// Preserve Responses item identity without exposing it to other API formats.
-	ResponsesToolOutput *ResponsesToolOutput `json:"-"`
+	// Preserve Responses item identity in stored unified messages. Each API
+	// transformer decides how to represent it on its own wire format.
+	ResponsesToolOutput *ResponsesToolOutput `json:"responses_tool_output,omitempty"`
 	// This field is a help field, will not be sent to the llm service.
 	ToolCallIsError *bool      `json:"tool_call_is_error,omitempty"`
 	ToolCalls       []ToolCall `json:"tool_calls,omitempty"`
@@ -412,6 +413,9 @@ type Message struct {
 	// ReasoningItems preserves item-scoped reasoning data when an upstream
 	// protocol exposes multiple reasoning items in one message.
 	ReasoningItems []ReasoningItem `json:"reasoning_items,omitempty"`
+	// GeminiParts retains order and part-scoped signatures without duplicating
+	// media payloads. Indices refer to Content, ReasoningItems, or ToolCalls.
+	GeminiParts []GeminiPartRef `json:"gemini_parts,omitempty"`
 
 	// Help field, will not be sent to the llm service, to adapt the anthropic think signature.
 	// https://platform.claude.com/docs/en/build-with-claude/extended-thinking
@@ -454,6 +458,24 @@ type ResponsesToolOutput struct {
 type ReasoningItem struct {
 	ID        string `json:"id,omitempty"`
 	Content   string `json:"content,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	// Responses retains the native content/summary distinction and records that
+	// Signature came from Responses encrypted_content, not another API's signature.
+	Responses *ResponsesReasoning `json:"responses,omitempty"`
+}
+
+// ResponsesReasoning preserves native reasoning parts across normalization.
+// Content is full reasoning text; Summary is its separately supplied summary.
+type ResponsesReasoning struct {
+	Content []string `json:"content,omitzero"`
+	Summary []string `json:"summary,omitzero"`
+	Status  *string  `json:"status,omitempty"`
+}
+
+type GeminiPartRef struct {
+	Kind      string `json:"kind"`
+	Index     int    `json:"index"`
+	Thought   bool   `json:"thought,omitempty"`
 	Signature string `json:"signature,omitempty"`
 }
 

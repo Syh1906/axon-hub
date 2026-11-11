@@ -1772,7 +1772,7 @@ func TestPersistentOutboundTransformer_TransformRequest_WithPrepopulatedState(t 
 	require.Equal(t, testChannel, processor.state.CurrentCandidate.Channel)
 }
 
-func TestFilterResponseCustomToolMessagesForNonResponsesOutbound(t *testing.T) {
+func TestCustomToolHistoryConversionBoundary(t *testing.T) {
 	baseRequest := &llm.Request{
 		APIFormat: llm.APIFormatOpenAIResponse,
 		Messages: []llm.Message{
@@ -1815,25 +1815,19 @@ func TestFilterResponseCustomToolMessagesForNonResponsesOutbound(t *testing.T) {
 		},
 	}
 
-	t.Run("filters when inbound is responses and outbound is not", func(t *testing.T) {
-		got := filterResponseCustomToolMessagesForNonResponsesOutbound(baseRequest, llm.APIFormatOpenAIChatCompletion)
-		require.NotSame(t, baseRequest, got)
-		require.Len(t, got.Messages, 2)
-		require.Len(t, got.Messages[0].ToolCalls, 1)
-		require.Equal(t, llm.ToolTypeFunction, got.Messages[0].ToolCalls[0].Type)
-		require.NotNil(t, got.Messages[1].ToolCallID)
-		require.Equal(t, "call_function_1", *got.Messages[1].ToolCallID)
+	t.Run("rejects instead of deleting custom history", func(t *testing.T) {
+		require.Error(t, transformer.ValidateRequestConversion(baseRequest, llm.APIFormatOpenAIChatCompletion))
+		require.Len(t, baseRequest.Messages, 3)
+		require.Len(t, baseRequest.Messages[0].ToolCalls, 2)
 	})
 
-	t.Run("does not filter when outbound is responses", func(t *testing.T) {
-		got := filterResponseCustomToolMessagesForNonResponsesOutbound(baseRequest, llm.APIFormatOpenAIResponse)
-		require.Same(t, baseRequest, got)
+	t.Run("allows native responses history", func(t *testing.T) {
+		require.NoError(t, transformer.ValidateRequestConversion(baseRequest, llm.APIFormatOpenAIResponse))
 	})
 
-	t.Run("does not filter when inbound is not responses", func(t *testing.T) {
+	t.Run("rejects custom history regardless of source label", func(t *testing.T) {
 		nonResponsesReq := *baseRequest
 		nonResponsesReq.APIFormat = llm.APIFormatOpenAIChatCompletion
-		got := filterResponseCustomToolMessagesForNonResponsesOutbound(&nonResponsesReq, llm.APIFormatOpenAIChatCompletion)
-		require.Same(t, &nonResponsesReq, got)
+		require.Error(t, transformer.ValidateRequestConversion(&nonResponsesReq, llm.APIFormatOpenAIChatCompletion))
 	})
 }

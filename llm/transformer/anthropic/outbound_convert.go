@@ -1305,6 +1305,7 @@ func convertToLlmResponse(anthropicResp *Message, platformType PlatformType) *ll
 	if transformerMetadata != nil {
 		resp.TransformerMetadata = transformerMetadata
 	}
+	captureNativeResponseState(resp, anthropicResp.StopReason, anthropicResp.StopSequence, anthropicResp.Container)
 
 	return resp
 }

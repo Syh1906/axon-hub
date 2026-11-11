@@ -128,6 +128,36 @@ and model discovery uses `/v1/models`; these requests are not wrapped as
 Responses `image_generation` calls. See [Image Generation API](image-generation.md)
 for the native Images request and response contract.
 
+**Cross-protocol capability boundaries:**
+
+Routing prefers a protocol that can retain the requested features. Responses
+`file_search`, `mcp`, custom tools, unmodeled native inputs, and server-managed
+options such as `conversation`, `prompt`, `context_management`, and `moderation`
+remain in the Responses family when no equivalent conversion exists. Ordinary
+functions and function-only namespaces remain convertible. Unsupported hosted
+tools, output constraints, or native state are rejected instead of silently
+removed; the final emitted protocol is also checked. If no compatible endpoint
+exists, the existing no-candidate handling applies. This does not imply that every
+Responses-compatible provider supports all OpenAI tools; configure a provider
+that actually implements the requested capabilities.
+Incremental requests containing only `custom_tool_call_output` follow the same
+restriction, including after internal serialization. When a channel exposes both
+Responses HTTP and WebSocket, requests with native tools or state still prefer
+the client's exact transport.
+
+**Native reasoning history:**
+
+For Responses-to-Responses requests, disabling body pass-through still preserves
+`reasoning_text` parts in a reasoning item's `content[]`, its separate `summary`,
+part boundaries, and opaque `encrypted_content`. Native Responses data does not
+have to match OpenAI's encrypted-blob shape to be replayed. This supports Responses
+providers such as DeepSeek that return plaintext reasoning. Non-streaming response
+parsing and continuation serialization preserve the same fields. Conversion to Chat
+Completions uses the full reasoning text, falling back to the summary only when no
+full text exists; it does not concatenate both. Signatures from other protocols keep
+the existing provider filter. Global/channel pass-through switches, routing, and model
+catalog configuration are unchanged.
+
 **Agent messages and encrypted arguments:**
 
 Responses function calls preserve `encrypted_function_args` in non-streaming responses,

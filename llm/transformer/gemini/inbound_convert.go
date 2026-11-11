@@ -379,7 +379,7 @@ func convertGeminiContentToLLMMessage(content *Content, previousContents []*Cont
 		switch {
 		case part.Text != "":
 			if part.Thought {
-				reasoningContent = part.Text
+				reasoningContent += part.Text
 			} else {
 				textParts = append(textParts, llm.MessageContentPart{
 					Type: "text",
@@ -429,47 +429,7 @@ func convertGeminiContentToLLMMessage(content *Content, previousContents []*Cont
 			}
 
 		case part.FileData != nil:
-			// Convert file data based on MIME type or URL extension
-			mimeType := mediaMIMEType(part.FileData.MIMEType, part.FileData.FileURI, func(mediaType string) bool {
-				return isDocumentMIMEType(mediaType) || isVideoMIMEType(mediaType) ||
-					isAudioMIMEType(mediaType) || strings.HasPrefix(mediaType, "image/")
-			})
-			if isDocumentMIMEType(mimeType) {
-				// Document type (PDF, Word, etc.)
-				textParts = append(textParts, llm.MessageContentPart{
-					Type: "document",
-					Document: &llm.DocumentURL{
-						URL:      part.FileData.FileURI,
-						MIMEType: mimeType,
-					},
-				})
-			} else if isVideoMIMEType(mimeType) {
-				textParts = append(textParts, llm.MessageContentPart{
-					Type: "video_url",
-					VideoURL: &llm.VideoURL{
-						URL:      part.FileData.FileURI,
-						MIMEType: mimeType,
-					},
-				})
-			} else if isAudioMIMEType(mimeType) {
-				textParts = append(textParts, llm.MessageContentPart{
-					Type: "input_audio",
-					InputAudio: &llm.InputAudio{
-						Format:   audioMIMETypeToFormat(mimeType),
-						URL:      part.FileData.FileURI,
-						MIMEType: mimeType,
-					},
-				})
-			} else {
-				// Image type
-				textParts = append(textParts, llm.MessageContentPart{
-					Type: "image_url",
-					ImageURL: &llm.ImageURL{
-						URL:      part.FileData.FileURI,
-						MIMEType: mimeType,
-					},
-				})
-			}
+			textParts = append(textParts, convertFileDataToLLMPart(part.FileData))
 
 		case part.FunctionCall != nil:
 			argsJSON := []byte("{}")
@@ -529,6 +489,7 @@ func convertGeminiContentToLLMMessage(content *Content, previousContents []*Cont
 	if reasoningContent != "" {
 		msg.ReasoningContent = &reasoningContent
 	}
+	captureNativeParts(msg, content.Parts)
 
 	return msg, nil
 }
@@ -675,6 +636,11 @@ func convertLLMChoiceToGeminiCandidate(choice *llm.Choice, isStream bool) *Candi
 							lastPart = geminiPart
 						}
 					}
+				case "input_audio":
+					if geminiPart := convertAudioToGeminiPart(part.InputAudio); geminiPart != nil {
+						parts = append(parts, geminiPart)
+						lastPart = geminiPart
+					}
 				}
 			}
 		}
@@ -715,7 +681,7 @@ func convertLLMChoiceToGeminiCandidate(choice *llm.Choice, isStream bool) *Candi
 			}
 		}
 
-		content.Parts = parts
+		content.Parts = restoreNativeParts(msg, parts)
 		candidate.Content = content
 	}
 

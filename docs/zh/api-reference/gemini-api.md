@@ -6,6 +6,17 @@ AxonHub 原生支持 Gemini API，可访问 Gemini 强大的多模态功能。�
 
 GenerateContent 请求也接受 `system_instruction`、`inline_data` 和 `mime_type`，分别作为 `systemInstruction`、`inlineData` 和 `mimeType` 的兼容别名。两种写法都有值时，优先使用 camelCase 字段的值。Gemini 输出仍使用标准的 camelCase 字段名。
 
+同协议转换保留思考内容的分段，以及签名所在的文字、图片、文件引用或工具调用块。
+带签名的内容不会被合并到其他块；完整响应、流式事件和流式聚合遵循相同约束。
+文件引用保留地址及媒体类型；独立的签名分片和结束分片不会因没有正文而被跳过。
+无签名的文字／工具混合块也保持原顺序；普通纯文本仍沿用原有轻量处理。
+内部只保存块位置和签名引用，不额外复制图片正文，提示处理修改后的文本仍然生效。
+
+跨协议只转换有对应实现的能力。Google `codeExecution`、`urlContext` 保持在 Gemini
+协议上；普通文本和函数工具仍可跨协议。不能因目标供应商也提供文本生成，就假定它拥有
+相同的内置工具。现有入口仍是 `generateContent`／`streamGenerateContent`，未实现
+Interactions API，也未改变默认透传设置。
+
 ## 核心优势
 
 - **API 互操作性**：使用 Gemini API 调用 OpenAI、Anthropic 和其他支持的模型

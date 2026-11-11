@@ -230,6 +230,12 @@ func convertAssistantMessage(msg llm.Message) []Item {
 	}
 
 	for _, reasoningItem := range reasoningItems {
+		if reasoningItem.Responses != nil {
+			// Native Responses reasoning must survive same-format replay, even
+			// without an OpenAI-shaped blob (e.g. DeepSeek's plaintext content).
+			items = append(items, nativeReasoningItem(reasoningItem))
+			continue
+		}
 		encryptedContent := shared.DecodeOpenAIEncryptedContent(&reasoningItem.Signature)
 		if encryptedContent == nil {
 			continue
@@ -829,23 +835,13 @@ func convertOutputToMessage(output []Item, transformerMetadata map[string]any) l
 				},
 			})
 		case "reasoning":
-			var itemReasoning strings.Builder
-			for _, summary := range outputItem.Summary {
-				reasoningContent.WriteString(summary.Text)
-				itemReasoning.WriteString(summary.Text)
+			reasoningItem := reasoningFromItem(outputItem)
+			reasoningContent.WriteString(reasoningItem.Content)
+			if reasoningItem.Signature != "" {
+				reasoningSignature = lo.ToPtr(reasoningItem.Signature)
 			}
-
-			itemSignature := ""
-			if outputItem.EncryptedContent != nil && *outputItem.EncryptedContent != "" {
-				reasoningSignature = shared.EncodeOpenAIEncryptedContent(outputItem.EncryptedContent)
-				itemSignature = lo.FromPtr(reasoningSignature)
-			}
-			if itemReasoning.Len() > 0 || itemSignature != "" {
-				reasoningItems = append(reasoningItems, llm.ReasoningItem{
-					ID:        outputItem.ID,
-					Content:   itemReasoning.String(),
-					Signature: itemSignature,
-				})
+			if reasoningItem.Responses != nil {
+				reasoningItems = append(reasoningItems, reasoningItem)
 			}
 		case "image_generation_call":
 			flushText()

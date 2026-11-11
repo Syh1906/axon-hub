@@ -1261,6 +1261,7 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 		expectedToolCount        int
 		expectedToolNames        []string
 		expectedWebSearchMaxUses *int64
+		expectUnsupported        bool
 	}{
 		{
 			name: "Direct platform preserves native tools",
@@ -1403,7 +1404,8 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 			expectedWebSearchMaxUses: lo.ToPtr(int64(5)),
 		},
 		{
-			name: "Doubao platform filters native tools",
+			name:              "Doubao platform rejects unsupported native tools",
+			expectUnsupported: true,
 			config: &Config{
 				Type:           PlatformDoubao,
 				BaseURL:        "https://ark.cn-beijing.volces.com",
@@ -1494,7 +1496,8 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 			expectedToolNames: []string{"web_search"},
 		},
 		{
-			name: "Direct platform ignores image_generation native tool",
+			name:              "Direct platform rejects image_generation native tool",
+			expectUnsupported: true,
 			config: &Config{
 				Type:           PlatformDirect,
 				BaseURL:        "https://api.anthropic.com",
@@ -1528,7 +1531,8 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 			expectedToolNames: []string{"calculator"},
 		},
 		{
-			name: "Direct platform ignores Google native tools",
+			name:              "Direct platform rejects Google native tools",
+			expectUnsupported: true,
 			config: &Config{
 				Type:           PlatformDirect,
 				BaseURL:        "https://api.anthropic.com",
@@ -1568,7 +1572,8 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 			expectedToolNames: []string{"calculator"},
 		},
 		{
-			name: "Mixed tools with web_search type and other native tools - only web_search converted",
+			name:              "Mixed tools reject unsupported native tools",
+			expectUnsupported: true,
 			config: &Config{
 				Type:           PlatformDirect,
 				BaseURL:        "https://api.anthropic.com",
@@ -1615,6 +1620,11 @@ func TestOutboundTransformer_NativeToolFiltering(t *testing.T) {
 			require.NoError(t, err)
 
 			result, err := transformer.TransformRequest(t.Context(), tt.request)
+			if tt.expectUnsupported {
+				require.ErrorContains(t, err, "unsupported conversion")
+				require.Nil(t, result)
+				return
+			}
 			require.NoError(t, err)
 			require.NotNil(t, result)
 

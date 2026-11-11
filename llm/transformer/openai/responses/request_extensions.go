@@ -261,7 +261,7 @@ func buildRawOnlyInputFragments(input Input, rawItems []json.RawMessage) ([]llm.
 			continue
 		}
 		// A structured input is not necessarily one replayed item: system
-		// messages move to instructions, and unsigned reasoning is omitted.
+		// messages move to instructions, and empty reasoning placeholders are omitted.
 		// Project each contiguous segment through the existing converters once
 		// so native items retain their position relative to what is replayed.
 		messages, err := convertInputToMessages(&Input{Items: input.Items[segmentStart:i]})

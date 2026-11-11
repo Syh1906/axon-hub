@@ -535,17 +535,7 @@ func convertReasoningWithFollowing(items []Item, startIdx int) (*llm.Message, in
 	// content or tool call they belong to. Each item keeps its own ID, summary,
 	// and opaque encrypted content.
 	for i := startIdx; i < len(items) && items[i].Type == "reasoning"; i++ {
-		reasoningItem := &items[i]
-		var reasoningText strings.Builder
-		for _, summary := range reasoningItem.Summary {
-			reasoningText.WriteString(summary.Text)
-		}
-
-		msg.ReasoningItems = append(msg.ReasoningItems, llm.ReasoningItem{
-			ID:        reasoningItem.ID,
-			Content:   reasoningText.String(),
-			Signature: lo.FromPtr(reasoningItem.EncryptedContent),
-		})
+		msg.ReasoningItems = append(msg.ReasoningItems, reasoningFromItem(items[i]))
 		consumed++
 	}
 
@@ -1279,6 +1269,14 @@ func buildReasoningItems(msg llm.Message) []Item {
 
 	items := make([]Item, 0, len(reasoningItems))
 	for _, reasoningItem := range reasoningItems {
+		if reasoningItem.Responses != nil {
+			item := nativeReasoningItem(reasoningItem)
+			if item.ID == "" {
+				item.ID = generateItemID()
+			}
+			items = append(items, item)
+			continue
+		}
 		if reasoningItem.Content == "" && reasoningItem.Signature == "" {
 			continue
 		}

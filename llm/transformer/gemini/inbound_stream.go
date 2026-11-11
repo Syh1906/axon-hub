@@ -162,6 +162,9 @@ func (s *geminiInboundStream) transformChunk(chunk *llm.Response) (*httpclient.S
 
 		if srcMsg == nil {
 			out.Choices = append(out.Choices, outChoice)
+			if outChoice.FinishReason != nil {
+				emitAny = true
+			}
 			continue
 		}
 
@@ -297,6 +300,7 @@ func (s *geminiInboundStream) transformChunk(chunk *llm.Response) (*httpclient.S
 		// Emit if there is any non-tool content, any flushed tool call, or a finish reason.
 		hasNonToolContent := (dstMsg.Content.Content != nil && *dstMsg.Content.Content != "") ||
 			len(dstMsg.Content.MultipleContent) > 0 ||
+			len(dstMsg.GeminiParts) > 0 ||
 			(dstMsg.ReasoningContent != nil && *dstMsg.ReasoningContent != "") ||
 			dstMsg.Refusal != ""
 		if hasNonToolContent || len(completed) > 0 || outChoice.FinishReason != nil {
