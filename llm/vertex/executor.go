@@ -111,6 +111,8 @@ func (e *Executor) transformRequest(request *httpclient.Request) (*httpclient.Re
 		OnResponseHeaders:   request.OnResponseHeaders,
 		OnTransportSelected: request.OnTransportSelected,
 		OnReplayUnsafe:      request.OnReplayUnsafe,
+		TransportTrace:      request.TransportTrace,
+		OnHTTPProgress:      request.OnHTTPProgress,
 	}
 
 	// Process request body for Vertex AI compatibility

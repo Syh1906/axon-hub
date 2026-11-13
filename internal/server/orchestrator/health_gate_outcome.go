@@ -14,7 +14,7 @@ func healthGatePipelineTimeout(ctx context.Context) bool {
 		return false
 	}
 	cause := context.Cause(ctx)
-	return errors.Is(cause, pipeline.ErrNonStreamResponseTimeout) || errors.Is(cause, pipeline.ErrStreamFirstEventTimeout)
+	return errors.Is(cause, pipeline.ErrNonStreamResponseTimeout) || errors.Is(cause, pipeline.ErrStreamFirstEventTimeout) || errors.Is(cause, pipeline.ErrRequestUploadTimeout)
 }
 
 func healthGateClientCanceled(ctx context.Context) bool {
@@ -56,7 +56,7 @@ func classifyHealthGateOutcome(ctx context.Context, err error) biz.HealthGateOut
 	}
 	if errors.Is(err, pipeline.ErrEmptyResponse) || errors.Is(err, pipeline.ErrEmptyStreamChunks) ||
 		errors.Is(err, pipeline.ErrEmptyAggregatedBody) || errors.Is(err, pipeline.ErrStreamFirstEventTimeout) ||
-		errors.Is(err, pipeline.ErrNonStreamResponseTimeout) || errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, pipeline.ErrNonStreamResponseTimeout) || errors.Is(err, pipeline.ErrRequestUploadTimeout) || errors.Is(err, context.DeadlineExceeded) ||
 		isRetryableTransportError(err) {
 		return biz.HealthGateOutcomeFailure
 	}

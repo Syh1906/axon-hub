@@ -131,6 +131,12 @@ func WithResponseTimeouts(streamFirstEventTimeout, nonStreamTimeout time.Duratio
 	}
 }
 
+// WithRequestUploadTimeout bounds native HTTP connection/upload before the
+// response timer starts. Zero leaves that phase to the overall caller deadline.
+func WithRequestUploadTimeout(timeout time.Duration) Option {
+	return func(p *pipeline) { p.requestUploadTimeout = timeout }
+}
+
 // WithStreamOutputCommit keeps reasoning-only and startup events private until
 // user-visible output. It is used by callers racing short structured responses.
 func WithStreamOutputCommit() Option {
@@ -172,9 +178,10 @@ func (f *Factory) Pipeline(
 	opts ...Option,
 ) *pipeline {
 	p := &pipeline{
-		Executor: f.Executor,
-		Inbound:  inbound,
-		Outbound: outbound,
+		Executor:             f.Executor,
+		Inbound:              inbound,
+		Outbound:             outbound,
+		requestUploadTimeout: -1, // Inherit the selected attempt's response budget.
 	}
 
 	// Apply options
@@ -199,6 +206,7 @@ type pipeline struct {
 	emptyResponseDetection  bool
 	streamFirstEventTimeout time.Duration
 	nonStreamTimeout        time.Duration
+	requestUploadTimeout    time.Duration
 	streamOutputCommit      bool
 	dispatchGuard           func() error
 }
@@ -295,6 +303,7 @@ func (p *pipeline) applyRawStreamMiddlewares(ctx context.Context, stream streams
 }
 
 func (p *pipeline) applyRawErrorResponseMiddlewares(ctx context.Context, err error) {
+	err = requestTimeoutCause(ctx, err)
 	// Error response middlewares should be applied in reverse order (last to first)
 	for i := len(p.middlewares) - 1; i >= 0; i-- {
 		p.middlewares[i].OnOutboundRawError(ctx, err)
@@ -577,15 +586,13 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (_ 
 			Stream: false,
 		}
 
-		timeoutCtx, cancel := withNonStreamTimeout(ctx, nonStreamTimeout)
+		timeoutCtx, guard := newResponsePhaseGuard(ctx, httpReq, nonStreamTimeout, p.requestUploadTimeout, ErrNonStreamResponseTimeout)
 		response, err := p.autoAggregateStream(timeoutCtx, executor, httpReq)
-		cancel()
-		if err != nil {
-			if isNonStreamTimeout(timeoutCtx, nonStreamTimeout) {
-				return nil, ErrNonStreamResponseTimeout
+		if finalErr := guard.finishBeforeFirstEvent(err); finalErr != nil {
+			if err == nil {
+				p.applyRawErrorResponseMiddlewares(ctx, finalErr)
 			}
-
-			return nil, fmt.Errorf("failed to auto-aggregate streaming response: %w", err)
+			return nil, fmt.Errorf("failed to auto-aggregate streaming response: %w", finalErr)
 		}
 
 		result.Response = response
@@ -594,15 +601,13 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (_ 
 			Stream: false,
 		}
 
-		timeoutCtx, cancel := withNonStreamTimeout(ctx, nonStreamTimeout)
+		timeoutCtx, guard := newResponsePhaseGuard(ctx, httpReq, nonStreamTimeout, p.requestUploadTimeout, ErrNonStreamResponseTimeout)
 		response, err := p.notStream(timeoutCtx, executor, httpReq)
-		cancel()
-		if err != nil {
-			if isNonStreamTimeout(timeoutCtx, nonStreamTimeout) {
-				return nil, ErrNonStreamResponseTimeout
+		if finalErr := guard.finishBeforeFirstEvent(err); finalErr != nil {
+			if err == nil {
+				p.applyRawErrorResponseMiddlewares(ctx, finalErr)
 			}
-
-			return nil, err
+			return nil, finalErr
 		}
 
 		result.Response = response
@@ -658,17 +663,5 @@ func (p *pipeline) maxSameChannelRetriesFor() int {
 }
 
 func isResponseTimeoutError(err error) bool {
-	return errors.Is(err, ErrStreamFirstEventTimeout) || errors.Is(err, ErrNonStreamResponseTimeout)
-}
-
-func withNonStreamTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout <= 0 {
-		return ctx, func() {}
-	}
-
-	return context.WithTimeoutCause(ctx, timeout, ErrNonStreamResponseTimeout)
-}
-
-func isNonStreamTimeout(ctx context.Context, timeout time.Duration) bool {
-	return timeout > 0 && errors.Is(context.Cause(ctx), ErrNonStreamResponseTimeout)
+	return errors.Is(err, ErrStreamFirstEventTimeout) || errors.Is(err, ErrNonStreamResponseTimeout) || errors.Is(err, ErrRequestUploadTimeout)
 }

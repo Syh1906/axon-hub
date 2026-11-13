@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/payloadcache"
+	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/internal/pkg/xjson"
 	"github.com/looplj/axonhub/internal/server/scheduler"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -45,12 +46,13 @@ func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadServic
 }
 
 type requestPayloadReference struct {
-	Version   int                  `json:"version"`
-	State     string               `json:"state"`
-	Key       string               `json:"key,omitempty"`
-	Size      int                  `json:"size,omitempty"`
-	ExpiresAt time.Time            `json:"expiresAt,omitzero"`
-	Images    *requestImageSummary `json:"images,omitempty"`
+	Version   int                            `json:"version"`
+	State     string                         `json:"state"`
+	Key       string                         `json:"key,omitempty"`
+	Size      int                            `json:"size,omitempty"`
+	ExpiresAt time.Time                      `json:"expiresAt,omitzero"`
+	Images    *requestImageSummary           `json:"images,omitempty"`
+	Content   *requestpayload.ContentSummary `json:"content,omitempty"`
 }
 
 type requestPayloadMarker struct {

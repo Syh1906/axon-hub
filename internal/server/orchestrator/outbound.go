@@ -42,6 +42,7 @@ type OutboundPersistentStream struct {
 	request            *ent.Request
 	requestExec        *ent.RequestExecution
 	rawProviderRequest *httpclient.Request
+	transport          *executionTransport
 
 	transformer    transformer.Outbound
 	apiFormat      llm.APIFormat
@@ -82,6 +83,7 @@ func NewOutboundPersistentStream(
 	}
 	s := &OutboundPersistentStream{
 		rawProviderRequest: state.RawProviderRequest,
+		transport:          state.ExecutionTransport,
 		ctx:                ctx,
 		stream:             stream,
 		request:            request,
@@ -222,6 +224,7 @@ func (ts *OutboundPersistentStream) closeSource() error {
 
 func (ts *OutboundPersistentStream) finalizeClose() error {
 	ctx := ts.ctx
+	defer func() { ts.transport.record(ctx, ts.terminalState != streamTerminalCompleted) }()
 
 	log.Debug(ctx, "Closing persistent stream", log.Int("chunk_count", len(ts.responseChunks)), log.Bool("execution_completed", ts.terminalState == streamTerminalCompleted))
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/looplj/axonhub/llm"
@@ -15,103 +14,11 @@ import (
 	"github.com/looplj/axonhub/llm/streams"
 )
 
-type firstEventTimeoutGuard struct {
-	timer    *time.Timer
-	cancel   context.CancelFunc
-	stopOnce sync.Once
-	state    atomic.Uint32
-}
-
-const (
-	firstEventPending uint32 = iota
-	firstEventCompleted
-	firstEventTimedOut
-)
-
 const (
 	maxPreReadEvents           = 3
 	maxPreCommitBufferedEvents = 1024
 	maxPreCommitBufferedBytes  = 8 * 1024 * 1024
 )
-
-func newFirstEventTimeoutGuard(ctx context.Context, timeout time.Duration) (context.Context, *firstEventTimeoutGuard) {
-	if timeout <= 0 {
-		return ctx, nil
-	}
-
-	streamCtx, cancel := context.WithCancel(ctx)
-	guard := &firstEventTimeoutGuard{
-		cancel: cancel,
-	}
-	guard.timer = time.AfterFunc(timeout, func() {
-		if guard.state.CompareAndSwap(firstEventPending, firstEventTimedOut) {
-			cancel()
-		}
-	})
-
-	return streamCtx, guard
-}
-
-func (g *firstEventTimeoutGuard) timedOut() bool {
-	return g != nil && g.state.Load() == firstEventTimedOut
-}
-
-func (g *firstEventTimeoutGuard) stop() {
-	if g == nil {
-		return
-	}
-
-	g.stopOnce.Do(func() {
-		g.timer.Stop()
-	})
-}
-
-func (g *firstEventTimeoutGuard) cancelStream() {
-	if g == nil {
-		return
-	}
-
-	g.cancel()
-}
-
-func (g *firstEventTimeoutGuard) completeFirstEventPhase() {
-	if g == nil {
-		return
-	}
-
-	g.state.CompareAndSwap(firstEventPending, firstEventCompleted)
-	g.stop()
-}
-
-func (g *firstEventTimeoutGuard) acceptFirstEvent() bool {
-	if g == nil {
-		return true
-	}
-
-	// If the timeout already canceled the stream, keep that state so callers
-	// can retry instead of returning a partially usable stream.
-	if g.state.CompareAndSwap(firstEventPending, firstEventCompleted) {
-		g.stop()
-
-		return true
-	}
-
-	return g.state.Load() == firstEventCompleted
-}
-
-func (g *firstEventTimeoutGuard) finishBeforeFirstEvent(err error) error {
-	if g == nil {
-		return err
-	}
-
-	g.completeFirstEventPhase()
-	g.cancelStream()
-	if g.timedOut() {
-		return ErrStreamFirstEventTimeout
-	}
-
-	return err
-}
 
 type cancelOnCloseStream struct {
 	stream streams.Stream[*httpclient.StreamEvent]
@@ -205,7 +112,7 @@ func shouldWrapPreReadStreamError(err error) bool {
 func (p *pipeline) preReadLlmStream(
 	ctx context.Context,
 	llmStream streams.Stream[*llm.Response],
-	firstEventGuard *firstEventTimeoutGuard,
+	firstEventGuard *responsePhaseGuard,
 ) (streams.Stream[*llm.Response], error) {
 	preReadUntilContent := p.hasStreamRetryBudget() || p.streamOutputCommit
 	probeLimit := maxPreReadEvents
@@ -317,7 +224,7 @@ func nextLlmStreamEvent(
 	ctx context.Context,
 	llmStream streams.Stream[*llm.Response],
 	firstEvent bool,
-	firstEventGuard *firstEventTimeoutGuard,
+	firstEventGuard *responsePhaseGuard,
 ) (bool, error) {
 	if !firstEvent || firstEventGuard == nil {
 		return llmStream.Next(), nil
@@ -328,7 +235,7 @@ func nextLlmStreamEvent(
 		if !firstEventGuard.acceptFirstEvent() {
 			llmStream.Close()
 
-			return false, ErrStreamFirstEventTimeout
+			return false, firstEventGuard.timeoutError()
 		}
 
 		return true, nil
@@ -338,7 +245,7 @@ func nextLlmStreamEvent(
 	if firstEventGuard.timedOut() {
 		llmStream.Close()
 
-		return false, ErrStreamFirstEventTimeout
+		return false, firstEventGuard.timeoutError()
 	}
 
 	if ctx.Err() != nil {
@@ -359,7 +266,7 @@ func (p *pipeline) stream(
 	request *httpclient.Request,
 	firstEventTimeout time.Duration,
 ) (streams.Stream[*httpclient.StreamEvent], error) {
-	streamCtx, firstEventGuard := newFirstEventTimeoutGuard(ctx, firstEventTimeout)
+	streamCtx, firstEventGuard := newResponsePhaseGuard(ctx, request, firstEventTimeout, p.requestUploadTimeout, ErrStreamFirstEventTimeout)
 
 	outboundStream, err := executor.DoStream(streamCtx, request)
 	if firstEventGuard.timedOut() {
@@ -388,7 +295,10 @@ func (p *pipeline) stream(
 
 		return nil, WrapUpstreamError(err)
 	}
-	responseHeaders := httpclient.MergeForwardResponseHeaders(nil, httpclient.GetResponseHeaders(outboundStream))
+	upstreamHeaders := httpclient.GetResponseHeaders(outboundStream)
+	responseHeaders := httpclient.MergeForwardResponseHeaders(nil, upstreamHeaders)
+	outboundStream = httpclient.WithResponseHeaders(preserveStreamCapabilities(outboundStream,
+		&responseTimeoutStream{Stream: outboundStream, ctx: streamCtx}), upstreamHeaders)
 
 	// Apply raw stream middlewares
 	rawStream := outboundStream
@@ -474,7 +384,12 @@ func (p *pipeline) stream(
 		firstEventGuard.stop()
 	}
 
+	firstEventRecorded := false
 	llmStream = preserveStreamCapabilities(llmStream, streams.MapErr(llmStream, func(resp *llm.Response) (*llm.Response, error) {
+		if !firstEventRecorded {
+			request.ReportHTTPProgress(httpclient.TransportFirstEvent, time.Now())
+			firstEventRecorded = true
+		}
 		return withTransformerMetadata(request.TransformerMetadata, resp), nil
 	}))
 	inboundStream, err := p.Inbound.TransformStream(ctx, llmStream)

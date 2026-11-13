@@ -209,6 +209,15 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
+### 大请求分段超时与图片保真优化（2026-11-13，未发布）
+
+- 原生 HTTP 的连接／上传与响应阶段分别计时，默认沿用该次渠道的响应预算，上传完成后重新开始响应等待；0 值和父请求总期限继续生效。SDK／原生 WS 未报告 HTTP 进度时保留原响应计时。新增 `upstream_upload_timeout`，既有 524、本地首事件／响应超时、取消和发送后未知结果禁重放保持可区分；未新增按大小选路或改变生产超时配置。
+- 所有分组的聊天正文在直通、恢复、覆盖和传输规范化后进入统一保真优化。仅压缩静态、无数字签名 PNG 的原始 IDAT 扫描行；像素／尺寸／元数据不变，只采用更小结果。按项目隔离的有界内存缓存复用结果，限制并发、单图展开量与每请求额外处理预算；其他格式、加密状态和独立图片编辑输入保留原样。优化后同步实际出站记录与续聊快照。
+- 图片摘要补齐 Responses 工具图片、Anthropic tool_result、Gemini 内嵌图片及生成图片结果计数；新增正文类别数字摘要。优化前后任一正文较大或执行失败／流未完成时，结构化日志记录上传完成证据、连接／上传与上传后响应等待时间，不记录提示词、图片或凭据。自动聚合流在首次失败落库前保留阶段超时原因，避免误记取消；响应头、首事件及完整结果等待均有真实本地 HTTP 回归。旧 marker 字段继续兼容读取，无 schema/data migration。
+- 维护位置：`internal/pkg/requestpayload/`、`llm/httpclient/transport_progress.go`、`llm/pipeline/response_phase_timeout.go`、`internal/server/orchestrator/request_transport.go`。核对 HTTP/WS 适配、恢复后的最终正文、首事件计时和错误来源；不要把阶段 deadline 写进可变的 context Deadline。
+- 独立审查补齐 Vertex 原生 HTTP 请求复制的进度回调、Gemini／Antigravity 已定义正文位置及系统文本；带 Gemini 签名的图片历史只计数，保持原始编码。统一计时日志允许失败时从 debug 提升到 info 一次；响应处理后才合成的超时在重试前通知错误观察者，已验证前次执行失败、备用执行完成。上述修正有定向回归，未扩展客户端、选路或生产配置。
+- 本地 requestpayload、httpclient、pipeline、Responses 转换器及 orchestrator 回归通过；biz 图片摘要与恢复相关定向回归通过。原 Go 编译缓存出现工具链崩溃，隔离缓存后相同工具链验证通过；未运行 lint/build 或部署。真实上游用合成图片做未压缩／无损压缩对照，不使用业务正文；结果与命令见[实施记录](../.agent/summary/large-request-optimization-20261113.md)。
+
 ### moego 图片与 Responses HTTP 局部试用
 
 - 状态：已实现并通过离线对照和定向回归，未发布、未部署。

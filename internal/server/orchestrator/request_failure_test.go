@@ -76,6 +76,7 @@ func TestRequestFailureClassification(t *testing.T) {
 		code   string
 		status int
 	}{
+		{"upload", pipeline.ErrRequestUploadTimeout, "upstream_upload_timeout", 504},
 		{"first event", pipeline.ErrStreamFirstEventTimeout, "upstream_first_event_timeout", 504},
 		{"response", pipeline.ErrNonStreamResponseTimeout, "upstream_response_timeout", 504},
 		{"upstream 524", pipeline.WrapUpstreamError(&llm.ResponseError{StatusCode: 524}), "upstream_timeout", 524},

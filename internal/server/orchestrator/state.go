@@ -63,6 +63,7 @@ type PersistenceState struct {
 	// A non-stream Responses outcome can fail while its HTTP status remains 200.
 	ResponseTerminalError error
 	ExecutionHeaders      *executionHeaderObserver
+	ExecutionTransport    *executionTransport
 
 	// ChannelModelsCandidates is the primary state for channel selection
 	ChannelModelsCandidates []*ChannelModelsCandidate

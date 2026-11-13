@@ -187,6 +187,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	}
 
 	state.RequestExec = requestExec
+	attachExecutionTransport(state, request)
 	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {
 		if requestExec.Selection == nil {
@@ -271,6 +272,10 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 	if response != nil && m.headerObserver != nil && !m.headerObserver.observed.Load() {
 		m.headerObserver.observe(ctx, response.Headers)
 	}
+	// HTTP 200 can carry a provider failure. Later decoding/aggregation failures
+	// can also promote a debug timing record to info through the error callback.
+	state := m.outbound.state
+	state.ExecutionTransport.record(ctx, state.ResponseTerminalError != nil || (response != nil && response.StatusCode >= 400))
 	return response, nil
 }
 
@@ -325,6 +330,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawError(ctx context.Conte
 	if state == nil || state.RequestExec == nil {
 		publishRequestAttemptFailed(ctx, state, err)
 		return
+	}
+	if record := state.ExecutionTransport; record != nil && record.executionID == state.RequestExec.ID {
+		record.record(ctx, true)
 	}
 
 	// Log error with channel information for better debugging

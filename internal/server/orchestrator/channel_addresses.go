@@ -32,7 +32,7 @@ func isUpstreamAddressFailure(err error) bool {
 		return status >= 500 && status <= 599
 	}
 	var networkError net.Error
-	return errors.As(err, &networkError) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, pipeline.ErrStreamFirstEventTimeout) || errors.Is(err, pipeline.ErrNonStreamResponseTimeout)
+	return errors.As(err, &networkError) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, pipeline.ErrStreamFirstEventTimeout) || errors.Is(err, pipeline.ErrNonStreamResponseTimeout) || errors.Is(err, pipeline.ErrRequestUploadTimeout)
 }
 
 // CanRetryAfterTimeout only retries when a different configured address remains.

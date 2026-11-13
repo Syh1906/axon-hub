@@ -67,6 +67,10 @@ type Request struct {
 	// prevents retries when a timeout or decoder replaces the transport error.
 	OnReplayUnsafe    func()                             `json:"-"`
 	OnResponseHeaders func(context.Context, http.Header) `json:"-"`
+
+	// TransportTrace and OnHTTPProgress contain timing only, never headers or payloads.
+	TransportTrace *TransportTrace                 `json:"-"`
+	OnHTTPProgress func(TransportPhase, time.Time) `json:"-"`
 }
 
 func (r *Request) ObserveResponseHeaders(ctx context.Context, headers http.Header) {

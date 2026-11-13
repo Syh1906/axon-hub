@@ -89,6 +89,8 @@ func isUpstreamTimeoutError(err error) bool {
 
 func requestFailureCode(err error) string {
 	switch {
+	case errors.Is(err, pipeline.ErrRequestUploadTimeout):
+		return "upstream_upload_timeout"
 	case isRequestSizeLimitError(err):
 		return "upstream_request_too_large"
 	case errors.Is(err, pipeline.ErrStreamFirstEventTimeout):
@@ -140,6 +142,11 @@ func classifyRequestFailure(ctx context.Context, err error) error {
 		}
 		copy.Cause = err
 		return &copy
+	}
+	if errors.Is(err, pipeline.ErrRequestUploadTimeout) {
+		return &llm.ResponseError{StatusCode: http.StatusGatewayTimeout, Cause: err, Detail: llm.ErrorDetail{
+			Code: code, Type: "timeout_error", Message: "The gateway timed out while connecting or uploading the request to the upstream provider.",
+		}}
 	}
 	if errors.Is(err, pipeline.ErrStreamFirstEventTimeout) || errors.Is(err, pipeline.ErrNonStreamResponseTimeout) {
 		return &llm.ResponseError{StatusCode: http.StatusGatewayTimeout, Cause: err, Detail: llm.ErrorDetail{

@@ -40,6 +40,7 @@ func TestHealthGateOutcome_Boundaries(t *testing.T) {
 		{"empty aggregated", pipeline.ErrEmptyAggregatedBody, biz.HealthGateOutcomeFailure},
 		{"stream timeout", pipeline.ErrStreamFirstEventTimeout, biz.HealthGateOutcomeFailure},
 		{"response timeout", pipeline.ErrNonStreamResponseTimeout, biz.HealthGateOutcomeFailure},
+		{"upload timeout", pipeline.ErrRequestUploadTimeout, biz.HealthGateOutcomeFailure},
 		{"deadline", context.DeadlineExceeded, biz.HealthGateOutcomeFailure},
 		{"network", &net.DNSError{Err: "failed"}, biz.HealthGateOutcomeFailure},
 		{"unknown local", errors.New("local conversion"), biz.HealthGateOutcomeNeutral},

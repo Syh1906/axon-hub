@@ -20,6 +20,7 @@ func (p *pipeline) notStream(
 ) (*httpclient.Response, error) {
 	httpResp, err := executor.Do(ctx, request)
 	if err != nil {
+		err = requestTimeoutCause(ctx, err)
 		// Apply error response middlewares
 		p.applyRawErrorResponseMiddlewares(ctx, err)
 

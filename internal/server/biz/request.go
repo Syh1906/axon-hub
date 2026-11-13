@@ -28,6 +28,7 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
@@ -45,6 +46,7 @@ type RequestService struct {
 	DataStorageService   *DataStorageService
 	LiveStreamRegistry   *LiveStreamRegistry
 	PayloadService       *RequestPayloadService
+	imageOptimizer       requestpayload.Optimizer
 	previousChannelCache xcache.Cache[int]
 	responsesAffinity    *responsesAffinityStore
 	sessionOwnerCache    xcache.Cache[SessionOwner]

@@ -284,14 +284,15 @@ func (hc *HttpClient) Do(ctx context.Context, request *Request) (*Response, erro
 		rawReq.Header.Set("Accept", "application/json")
 	}
 
-	rawResp, err := hc.client.Do(rawReq)
+	rawResp, err := hc.client.Do(traceHTTPRequest(request, rawReq))
 	if rawResp != nil {
+		request.ReportHTTPProgress(TransportHeaders, time.Now())
 		request.ObserveResponseHeaders(ctx, rawResp.Header)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
-	rawResp.Body = ObserveFirstByte(rawResp.Body, request.OnFirstResponseByte)
+	rawResp.Body = ObserveFirstByte(rawResp.Body, request.observeFirstByte)
 
 	defer func() {
 		err := rawResp.Body.Close()
@@ -379,14 +380,15 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 	rawReq.Header.Set("Connection", "keep-alive")
 
 	// Execute request
-	rawResp, err := hc.client.Do(rawReq)
+	rawResp, err := hc.client.Do(traceHTTPRequest(request, rawReq))
 	if rawResp != nil {
+		request.ReportHTTPProgress(TransportHeaders, time.Now())
 		request.ObserveResponseHeaders(ctx, rawResp.Header)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("HTTP stream request failed: %w", err)
 	}
-	rawResp.Body = ObserveFirstByte(rawResp.Body, request.OnFirstResponseByte)
+	rawResp.Body = ObserveFirstByte(rawResp.Body, request.observeFirstByte)
 
 	// Check for HTTP errors before creating stream
 	if rawResp.StatusCode >= 400 {
