@@ -1,6 +1,6 @@
 # 独立维护、同步上游与发版
 
-本轮正在准备 `v1.0.0-rc1-fork.4` 统计加载优化的精简正式发布；新增可重建统计汇总表，因此不使用普通快照入口。当前正式版为 `v1.0.0-rc1-fork.3`，最新发布／部署状态以 [Fork 维护台账](../../fork-maintenance.md) 为准。下述 fork.2 段落保留其当时验收记录，不能当作当前运行版本。
+当前正式版为 `v1.0.0-rc1-fork.4`，统计加载优化的精简正式发布及双机更新已完成；新增可重建统计汇总表，因此使用正式升级路径。泉哥切换命令中断后已恢复，容器运行空档约 6 分 2 秒；首次历史回填仍有等待。发布、恢复及验收事实以 [Fork 维护台账](../../fork-maintenance.md) 为准。下述 fork.2 段落保留其当时验收记录，不能当作当前运行版本。
 
 历史正式版 [v1.0.0-rc1-fork.2](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.2)（2026-11-11），源码 `1c0a65a093f9c356f0005e8b59e13f2c16ffd0ff`。同提交 Test／Build／Lint／Govulncheck 通过，[精简发版 42989955513](https://github.com/Syh1906/axon-hub/actions/runs/42989955513) 成功，正式/latest，仅 amd64／arm64 镜像及 `release.json`。[更新说明](../../../.github/release-notes.md)覆盖后台读取优化、失败定位与快照退役校验修复；相对 fork.1 无后端运行代码、schema/data migration 或依赖变更。
 
