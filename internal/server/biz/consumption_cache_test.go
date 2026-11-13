@@ -2,10 +2,11 @@ package biz
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestConsumptionSharedQueryCancellation(t *testing.T) {

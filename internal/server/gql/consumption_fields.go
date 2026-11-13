@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/99designs/gqlgen/graphql"
+
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 

@@ -6,8 +6,9 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
-	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/stretchr/testify/require"
+
+	"github.com/looplj/axonhub/internal/contexts"
 )
 
 type consumptionReadDriver struct{ reads int }

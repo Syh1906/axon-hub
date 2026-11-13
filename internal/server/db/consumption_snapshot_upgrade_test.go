@@ -6,12 +6,14 @@ import (
 	"testing"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/schema"
+	"github.com/stretchr/testify/require"
+
+	entsql "entgo.io/ent/dialect/sql"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/migrate"
-	"github.com/stretchr/testify/require"
 )
 
 func TestConsumptionSnapshotSchemaUpgrade(t *testing.T) {

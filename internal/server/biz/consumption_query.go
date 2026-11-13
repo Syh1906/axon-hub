@@ -181,6 +181,7 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 	}
 	return facts.rows, nil
 }
+
 func (s *ConsumptionService) queryGroupsFacts(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	// Live and archived rows must be read from one snapshot; cleanup may move
 	// a record between the two sources at any moment.
@@ -205,6 +206,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 	}
 	return facts.rows, nil
 }
+
 func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	facts := &consumptionFacts{}
 	query := s.client.Request.Query().Where(request.CreatedAtLT(end), request.StatusIn(request.StatusCompleted, request.StatusFailed, request.StatusCanceled))

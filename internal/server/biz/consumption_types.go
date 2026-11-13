@@ -118,7 +118,7 @@ type ConsumptionResult struct {
 	CurrencyCode       string                          `json:"currencyCode"`
 }
 
-// 每页限制日期数，浏览器只合并完整收到的日期，不把部分金额当成全量。
+// ConsumptionSlicePage 限制每页日期数，浏览器只合并完整收到的日期，不把部分金额当成全量。
 type ConsumptionSlicePage struct {
 	Days         []*ConsumptionSliceRevision
 	Pending      bool

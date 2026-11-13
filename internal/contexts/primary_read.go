@@ -8,6 +8,7 @@ type primaryReadKey struct{}
 func WithPrimaryRead(ctx context.Context) context.Context {
 	return context.WithValue(ctx, primaryReadKey{}, true)
 }
+
 func IsPrimaryRead(ctx context.Context) bool {
 	value, _ := ctx.Value(primaryReadKey{}).(bool)
 	return value

@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -22,6 +23,7 @@ type consumptionMutation interface {
 	Client() *ent.Client
 	Tx() (*ent.Tx, error)
 	IDs(context.Context) ([]int, error)
+	ID() (int, bool)
 }
 type consumptionDate struct {
 	ProjectID int       `json:"project_id"`
@@ -58,7 +60,10 @@ func (s *ConsumptionService) snapshotInvalidation(next ent.Mutator) ent.Mutator 
 		if !consumptionAffectsStatistics(mutation) {
 			return next.Mutate(ctx, mutation)
 		}
-		m := mutation.(consumptionMutation)
+		m, ok := mutation.(consumptionMutation)
+		if !ok {
+			return nil, fmt.Errorf("unsupported consumption mutation %T", mutation)
+		}
 		var ids []int
 		var dates []consumptionDate
 		var locateErr error
@@ -84,7 +89,7 @@ func (s *ConsumptionService) snapshotInvalidation(next ent.Mutator) ent.Mutator 
 			return value, err
 		}
 		if m.Op().Is(ent.OpCreate) {
-			if id, ok := m.(interface{ ID() (int, bool) }).ID(); ok {
+			if id, ok := m.ID(); ok {
 				ids = []int{id}
 			}
 		}
@@ -150,14 +155,15 @@ func consumptionChangedDates(ctx context.Context, client *ent.Client, kind strin
 		return d.Select(source.C("project_id"), sql.As(at, "occurred_at")).From(source).Where(sql.InInts(source.C("id"), ids...))
 	}
 	var query *sql.Selector
-	if kind == "Request" {
+	switch kind {
+	case "Request":
 		query = base(source.C("created_at"))
 		execution := sql.Table("request_executions").As("changed_execution")
 		execution.SetDialect(db)
 		query.UnionAll(base(execution.C("created_at")).Join(execution).OnP(sql.And(sql.ColumnsEQ(execution.C("request_id"), source.C("id")), sql.ColumnsEQ(execution.C("project_id"), source.C("project_id")))))
-	} else if kind == "CacheEffectivenessWindow" {
+	case "CacheEffectivenessWindow":
 		query = base(source.C("window_end"))
-	} else if kind == "UsageArchive" {
+	case "UsageArchive":
 		query = base(source.C("occurred_at"))
 		for _, item := range [][2]string{{"requests", "created_at"}, {"request_executions", "created_at"}, {"usage_archives", "occurred_at"}} {
 			row := sql.Table(item[0]).As("archive_owner_" + item[0])
@@ -172,7 +178,7 @@ func consumptionChangedDates(ctx context.Context, client *ent.Client, kind strin
 			}
 			query.UnionAll(base(row.C(item[1])).Join(row).OnP(sql.And(match, sql.ColumnsEQ(row.C("project_id"), source.C("project_id")))))
 		}
-	} else {
+	default:
 		request := sql.Table("requests").As("changed_request")
 		request.SetDialect(db)
 		query = base(request.C("created_at")).Join(request).OnP(sql.And(sql.ColumnsEQ(request.C("id"), source.C("request_id")), sql.ColumnsEQ(request.C("project_id"), source.C("project_id"))))
