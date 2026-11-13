@@ -160,6 +160,16 @@ models:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionEntry
   ConsumptionResult:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionResult
+  ConsumptionSlicePage:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionSlicePage
+  ConsumptionSliceRevision:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionSliceRevision
+  ConsumptionSliceRevisionInput:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionSliceRevision
+  ConsumptionCacheSample:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionCacheSample
+  ConsumptionPerformanceSample:
+    model: github.com/looplj/axonhub/internal/server/biz.ConsumptionPerformanceSample
   ConsumptionProject:
     model: github.com/looplj/axonhub/internal/server/biz.ConsumptionProject
   ConsumptionGroupOption:

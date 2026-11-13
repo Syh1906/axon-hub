@@ -2,45 +2,81 @@ package biz
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
+	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/singleflight"
 )
 
-func TestConsumptionSharedQuerySurvivesCallerCancellation(t *testing.T) {
-	s := &ConsumptionService{flight: &singleflight.Group{}}
+func TestConsumptionSharedQueryCancellation(t *testing.T) {
+	s := &ConsumptionService{flight: &consumptionFlight{}}
 	started, release := make(chan struct{}), make(chan struct{})
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
 	want := &ConsumptionResult{CurrencyCode: "USD"}
-	_, err := s.sharedQuery(ctx, "same", func(shared context.Context) (*ConsumptionResult, error) {
+	var calls atomic.Int32
+	compute := func(shared context.Context) (*ConsumptionResult, error) {
+		calls.Add(1)
 		close(started)
-		<-release
-		if err := shared.Err(); err != nil {
-			return nil, err
+		select {
+		case <-shared.Done():
+			return nil, shared.Err()
+		case <-release:
+			return want, nil
 		}
-		return want, nil
+	}
+	first, second := make(chan error, 1), make(chan error, 1)
+	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				first <- context.Canceled
+			}
+		}()
+		_, err := s.sharedQuery(ctx, "same", compute)
+		first <- err
+	}()
+	<-started
+	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				second <- context.Canceled
+			}
+		}()
+		result, err := s.sharedQuery(t.Context(), "same", compute)
+		if err == nil && result != want {
+			err = context.Canceled
+		}
+		second <- err
+	}()
+	require.Eventually(t, func() bool {
+		s.flight.mu.Lock()
+		defer s.flight.mu.Unlock()
+		return s.flight.calls["same"].waiters == 2
+	}, time.Second, time.Millisecond)
+	cancel()
+	require.ErrorIs(t, <-first, context.Canceled)
+	close(release)
+	require.NoError(t, <-second)
+	require.EqualValues(t, 1, calls.Load())
+	_, err := s.sharedQuery(t.Context(), "panic", func(context.Context) (*ConsumptionResult, error) { panic("fixture panic") })
+	require.ErrorContains(t, err, "fixture panic")
+}
+
+func TestConsumptionSharedQueryStopsWithoutWaiters(t *testing.T) {
+	s := &ConsumptionService{flight: &consumptionFlight{}}
+	ctx, cancel := context.WithCancel(t.Context())
+	stopped := make(chan struct{})
+	_, err := s.sharedQuery(ctx, "last", func(shared context.Context) (*ConsumptionResult, error) {
+		cancel()
+		<-shared.Done()
+		close(stopped)
+		return nil, shared.Err()
 	})
 	require.ErrorIs(t, err, context.Canceled)
 	select {
-	case <-started:
+	case <-stopped:
 	case <-time.After(time.Second):
-		t.Fatal("shared computation did not start")
+		t.Fatal("unused query kept running")
 	}
-	second := s.flight.DoChan("same", func() (any, error) { return nil, context.Canceled })
-	_, err = s.sharedQuery(ctx, "same", func(context.Context) (*ConsumptionResult, error) {
-		t.Error("same key started a duplicate computation")
-		return nil, nil
-	})
+	_, err = s.sharedQuery(ctx, "canceled", func(context.Context) (*ConsumptionResult, error) { t.Error("started canceled query"); return nil, nil })
 	require.ErrorIs(t, err, context.Canceled)
-	close(release)
-	result := <-second
-	require.NoError(t, result.Err)
-	require.Same(t, want, result.Val)
-	require.True(t, result.Shared)
-	// A panic must settle all waiters instead of terminating the server process.
-	_, err = s.sharedQuery(t.Context(), "panic", func(context.Context) (*ConsumptionResult, error) { panic("fixture panic") })
-	require.ErrorContains(t, err, "fixture panic")
 }

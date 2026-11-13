@@ -103,6 +103,9 @@ func sortConsumptionModels(models []*ConsumptionModel, input ConsumptionFilter) 
 
 func (r consumptionGroup) metrics() ConsumptionMetrics {
 	metrics := ConsumptionMetrics{RequestCount: r.Requests, TotalTokens: r.Tokens, TotalCost: r.Cost, CacheRequests: r.CacheRequests, CacheReadTokens: r.CacheRead, CacheInputTokens: r.CacheInput, CacheCreationCost: r.CacheCreationCost}
+	metrics.PricedCost, metrics.TokenPricedCost, metrics.PricedTokens = r.PricedCost, r.TokenPricedCost, r.PricedTokens
+	metrics.SuccessCount, metrics.OutcomeCount = r.SuccessCount, r.OutcomeCount
+	metrics.FirstTokenSum, metrics.FirstTokenCount, metrics.SpeedSum = r.FirstTokenSum, r.FirstTokenCount, r.SpeedSum
 	metrics.AvgCostPerRequest = consumptionRatio(r.PricedCost, int64(r.PricedRequests))
 	metrics.AvgCostPerMillionTokens = consumptionRatio(r.TokenPricedCost*1_000_000, r.PricedTokens)
 	metrics.PricedRequestCount = r.PricedRequests

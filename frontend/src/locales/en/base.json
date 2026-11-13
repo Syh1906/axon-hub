@@ -1,4 +1,6 @@
 {
+  "common.loadFailure.statisticsPending": "Statistics are still being prepared. Completed progress is saved. Please try again shortly.",
+  "common.loadFailure.statisticsChanged": "Statistics changed while loading. Please retry to get a complete result.",
   "common.loadFailure.unavailable": "Unable to load data",
   "common.loadFailure.stale": "Update failed. Showing the previous data.",
   "common.loadFailure.responseTimeout": "The server responded, but reading the result timed out. Please retry.",

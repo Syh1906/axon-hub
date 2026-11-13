@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/looplj/axonhub/internal/contexts"
 )
 
 // routerDriver wraps two dialect.Driver instances (master and replica).
@@ -34,7 +35,7 @@ func (d *routerDriver) Exec(ctx context.Context, query string, args, v any) erro
 
 func (d *routerDriver) Query(ctx context.Context, query string, args, v any) error {
 	// Non-Ent queries (raw SQL) or mutations with RETURNING: fall back to master.
-	if ent.QueryFromContext(ctx) == nil {
+	if ent.QueryFromContext(ctx) == nil || contexts.IsPrimaryRead(ctx) {
 		return d.master.Query(ctx, query, args, v)
 	}
 	return d.replica.Query(ctx, query, args, v)

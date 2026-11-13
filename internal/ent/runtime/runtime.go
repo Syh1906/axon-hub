@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
+	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -611,6 +612,65 @@ func init() {
 	channelupstreamstatusDescConfigFingerprint := channelupstreamstatusFields[2].Descriptor()
 	// channelupstreamstatus.ConfigFingerprintValidator is a validator for the "config_fingerprint" field. It is called by the builders before save.
 	channelupstreamstatus.ConfigFingerprintValidator = channelupstreamstatusDescConfigFingerprint.Validators[0].(func(string) error)
+	consumptionsnapshot.Policy = privacy.NewPolicies(schema.ConsumptionSnapshot{})
+	consumptionsnapshot.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := consumptionsnapshot.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	consumptionsnapshotFields := schema.ConsumptionSnapshot{}.Fields()
+	_ = consumptionsnapshotFields
+	// consumptionsnapshotDescCacheKey is the schema descriptor for cache_key field.
+	consumptionsnapshotDescCacheKey := consumptionsnapshotFields[0].Descriptor()
+	// consumptionsnapshot.CacheKeyValidator is a validator for the "cache_key" field. It is called by the builders before save.
+	consumptionsnapshot.CacheKeyValidator = consumptionsnapshotDescCacheKey.Validators[0].(func(string) error)
+	// consumptionsnapshotDescSourceVersion is the schema descriptor for source_version field.
+	consumptionsnapshotDescSourceVersion := consumptionsnapshotFields[5].Descriptor()
+	// consumptionsnapshot.DefaultSourceVersion holds the default value on creation for the source_version field.
+	consumptionsnapshot.DefaultSourceVersion = consumptionsnapshotDescSourceVersion.Default.(string)
+	// consumptionsnapshot.SourceVersionValidator is a validator for the "source_version" field. It is called by the builders before save.
+	consumptionsnapshot.SourceVersionValidator = consumptionsnapshotDescSourceVersion.Validators[0].(func(string) error)
+	// consumptionsnapshotDescSnapshotVersion is the schema descriptor for snapshot_version field.
+	consumptionsnapshotDescSnapshotVersion := consumptionsnapshotFields[6].Descriptor()
+	// consumptionsnapshot.DefaultSnapshotVersion holds the default value on creation for the snapshot_version field.
+	consumptionsnapshot.DefaultSnapshotVersion = consumptionsnapshotDescSnapshotVersion.Default.(string)
+	// consumptionsnapshot.SnapshotVersionValidator is a validator for the "snapshot_version" field. It is called by the builders before save.
+	consumptionsnapshot.SnapshotVersionValidator = consumptionsnapshotDescSnapshotVersion.Validators[0].(func(string) error)
+	// consumptionsnapshotDescRequestedAt is the schema descriptor for requested_at field.
+	consumptionsnapshotDescRequestedAt := consumptionsnapshotFields[9].Descriptor()
+	// consumptionsnapshot.DefaultRequestedAt holds the default value on creation for the requested_at field.
+	consumptionsnapshot.DefaultRequestedAt = consumptionsnapshotDescRequestedAt.Default.(func() time.Time)
+	// consumptionsnapshotDescLeaseUntil is the schema descriptor for lease_until field.
+	consumptionsnapshotDescLeaseUntil := consumptionsnapshotFields[10].Descriptor()
+	// consumptionsnapshot.DefaultLeaseUntil holds the default value on creation for the lease_until field.
+	consumptionsnapshot.DefaultLeaseUntil = consumptionsnapshotDescLeaseUntil.Default.(func() time.Time)
+	// consumptionsnapshotDescLeaseToken is the schema descriptor for lease_token field.
+	consumptionsnapshotDescLeaseToken := consumptionsnapshotFields[11].Descriptor()
+	// consumptionsnapshot.DefaultLeaseToken holds the default value on creation for the lease_token field.
+	consumptionsnapshot.DefaultLeaseToken = consumptionsnapshotDescLeaseToken.Default.(string)
+	// consumptionsnapshot.LeaseTokenValidator is a validator for the "lease_token" field. It is called by the builders before save.
+	consumptionsnapshot.LeaseTokenValidator = consumptionsnapshotDescLeaseToken.Validators[0].(func(string) error)
+	// consumptionsnapshotDescPending is the schema descriptor for pending field.
+	consumptionsnapshotDescPending := consumptionsnapshotFields[12].Descriptor()
+	// consumptionsnapshot.DefaultPending holds the default value on creation for the pending field.
+	consumptionsnapshot.DefaultPending = consumptionsnapshotDescPending.Default.(bool)
+	// consumptionsnapshotDescFailed is the schema descriptor for failed field.
+	consumptionsnapshotDescFailed := consumptionsnapshotFields[13].Descriptor()
+	// consumptionsnapshot.DefaultFailed holds the default value on creation for the failed field.
+	consumptionsnapshot.DefaultFailed = consumptionsnapshotDescFailed.Default.(bool)
+	// consumptionsnapshotDescFingerprint is the schema descriptor for fingerprint field.
+	consumptionsnapshotDescFingerprint := consumptionsnapshotFields[14].Descriptor()
+	// consumptionsnapshot.DefaultFingerprint holds the default value on creation for the fingerprint field.
+	consumptionsnapshot.DefaultFingerprint = consumptionsnapshotDescFingerprint.Default.(string)
+	// consumptionsnapshot.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	consumptionsnapshot.FingerprintValidator = consumptionsnapshotDescFingerprint.Validators[0].(func(string) error)
+	// consumptionsnapshotDescCheckedAt is the schema descriptor for checked_at field.
+	consumptionsnapshotDescCheckedAt := consumptionsnapshotFields[15].Descriptor()
+	// consumptionsnapshot.DefaultCheckedAt holds the default value on creation for the checked_at field.
+	consumptionsnapshot.DefaultCheckedAt = consumptionsnapshotDescCheckedAt.Default.(func() time.Time)
 	datastorageMixin := schema.DataStorage{}.Mixin()
 	datastorage.Policy = privacy.NewPolicies(schema.DataStorage{})
 	datastorage.Hooks[0] = func(next ent.Mutator) ent.Mutator {

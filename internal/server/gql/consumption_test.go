@@ -50,3 +50,30 @@ func TestConsumptionGraphQLReadOnlyPermission(t *testing.T) {
 	require.Contains(t, run(ctx), "errors")
 	require.Contains(t, run(context.Background()), "errors")
 }
+
+func TestConsumptionGraphQLSliceFields(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:consumption_slice_fields?mode=memory&_fk=0")
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	ctx := authz.WithTestBypass(t.Context())
+	system := biz.NewSystemService(biz.SystemServiceParams{Ent: client})
+	require.NoError(t, system.SetGeneralSettings(ctx, biz.SystemGeneralSettings{Timezone: "Asia/Shanghai", CurrencyCode: "USD"}))
+	svc := biz.NewConsumptionService(client, system, xcache.Config{})
+	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{consumptionService: svc}}))
+	viewer := contexts.WithUser(ctx, &ent.User{ID: 1, IsOwner: true})
+	for _, query := range []string{
+		`{ consumptionSlices(input:{dimension:API_KEY_GROUP,period:TODAY}){slices{entries{metrics{totalCost}}}next} }`,
+		`query { consumptionSlices(input:{dimension:API_KEY_GROUP,period:TODAY}){slices{entries{...cost ...speed}}} } fragment cost on ConsumptionEntry {metrics{totalCost}} fragment speed on ConsumptionEntry {metrics{speed:avgTokensPerSecond}}`,
+	} {
+		body, err := json.Marshal(map[string]string{"query": query})
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/admin/graphql", strings.NewReader(string(body))).WithContext(viewer)
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, req)
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+		require.NotContains(t, payload, "errors")
+	}
+	// 精简和通过 fragment 请求完整指标的查询必须使用不同持久汇总。
+	require.Equal(t, 2, client.ConsumptionSnapshot.Query().CountX(ctx))
+}

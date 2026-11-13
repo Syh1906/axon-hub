@@ -44,7 +44,7 @@ func (g consumptionCacheGroup) coefficient() *int {
 	return &value
 }
 
-func (s *ConsumptionService) attachCacheCoefficients(ctx context.Context, projectID int, start *time.Time, end time.Time, entries []*ConsumptionEntry) error {
+func (s *ConsumptionService) queryCacheSamples(ctx context.Context, projectID int, start *time.Time, end time.Time) ([]consumptionCacheGroup, error) {
 	query := s.client.CacheEffectivenessWindow.Query().Where(cacheeffectivenesswindow.WindowEndLTE(end))
 	if projectID > 0 {
 		query.Where(cacheeffectivenesswindow.ProjectIDEQ(projectID))
@@ -63,8 +63,21 @@ func (s *ConsumptionService) attachCacheCoefficients(ctx context.Context, projec
 		).GroupBy(q.C("channel_id"), model)
 	}).Scan(ctx, &groups)
 	if err != nil {
-		return fmt.Errorf("query cache effectiveness: %w", err)
+		return nil, fmt.Errorf("query cache effectiveness: %w", err)
 	}
+	return groups, nil
+}
+
+func (s *ConsumptionService) attachCacheCoefficients(ctx context.Context, projectID int, start *time.Time, end time.Time, entries []*ConsumptionEntry) error {
+	groups, err := s.queryCacheSamples(ctx, projectID, start, end)
+	if err != nil {
+		return err
+	}
+	attachConsumptionCacheSamples(entries, groups)
+	return nil
+}
+
+func attachConsumptionCacheSamples(entries []*ConsumptionEntry, groups []consumptionCacheGroup) {
 	byChannel := make(map[int]*consumptionCacheGroup)
 	byModel := make(map[int]map[string]consumptionCacheGroup)
 	for _, group := range groups {
@@ -78,20 +91,34 @@ func (s *ConsumptionService) attachCacheCoefficients(ctx context.Context, projec
 	for _, entry := range entries {
 		if group := byChannel[entry.ID.ID]; group != nil {
 			entry.Metrics.CacheCoefficient = group.coefficient()
+			group.attach(&entry.Metrics)
 		}
 		for _, model := range entry.Models {
 			if group, ok := byModel[entry.ID.ID][model.Model]; ok {
 				model.Metrics.CacheCoefficient = group.coefficient()
+				group.attach(&model.Metrics)
 			}
 		}
 	}
-	return nil
+}
+
+func (g consumptionCacheGroup) attach(m *ConsumptionMetrics) {
+	m.CoefficientSamples, m.CoefficientEligible = g.Samples, g.Eligible
+	m.CoefficientTheoretical, m.CoefficientObserved = g.Theoretical, g.Observed
 }
 
 func (s *ConsumptionService) RegisterScheduledTasks(ctx context.Context, schedulerService *scheduler.Scheduler) error {
+	if err := schedulerService.Register(ctx, scheduler.TaskSpec{Name: "consumption-date-summaries", Description: "按需回填用量日期汇总", FixRate: 250 * time.Millisecond}, func(ctx context.Context) {
+		if err := s.fillConsumptionSnapshot(ctx); err != nil {
+			log.Warn(ctx, "fill consumption snapshot", log.Cause(err))
+		}
+	}); err != nil {
+		return err
+	}
 	return schedulerService.Register(ctx, scheduler.TaskSpec{
 		Name: "consumption-cache-effectiveness", Description: "汇总渠道缓存效果", CronExpr: "*/5 * * * *", Timezone: "UTC",
 	}, func(ctx context.Context) {
+		s.expireConsumptionSnapshots(ctx)
 		if err := s.aggregateCacheWindows(ctx, time.Now()); err != nil {
 			log.Error(ctx, "aggregate consumption cache effectiveness", log.Cause(err))
 		}

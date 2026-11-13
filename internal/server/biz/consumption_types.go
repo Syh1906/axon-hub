@@ -36,14 +36,18 @@ const (
 )
 
 type ConsumptionFilter struct {
-	GroupRef  *int
-	ProjectID *objects.GUID
-	Dimension ConsumptionDimension
-	Metric    ConsumptionMetric
-	Period    ConsumptionPeriod
-	StartDate *string
-	EndDate   *string
-	Search    *string
+	// 只由 GraphQL 字段选择确定，不改变旧客户端的完整统计契约。
+	OmitPerformance bool
+	Uncached        bool `json:"-"`
+	DailySnapshot   bool `json:"-"`
+	GroupRef        *int
+	ProjectID       *objects.GUID
+	Dimension       ConsumptionDimension
+	Metric          ConsumptionMetric
+	Period          ConsumptionPeriod
+	StartDate       *string
+	EndDate         *string
+	Search          *string
 }
 
 type ConsumptionProject struct {
@@ -52,6 +56,18 @@ type ConsumptionProject struct {
 }
 
 type ConsumptionMetrics struct {
+	PricedCost              float64  `json:"pricedCost"`
+	TokenPricedCost         float64  `json:"tokenPricedCost"`
+	PricedTokens            int64    `json:"pricedTokens"`
+	SuccessCount            int64    `json:"successCount"`
+	OutcomeCount            int64    `json:"outcomeCount"`
+	FirstTokenSum           float64  `json:"firstTokenSum"`
+	FirstTokenCount         int64    `json:"firstTokenCount"`
+	SpeedSum                float64  `json:"speedSum"`
+	CoefficientSamples      int64    `json:"coefficientSamples"`
+	CoefficientEligible     int64    `json:"coefficientEligible"`
+	CoefficientTheoretical  int64    `json:"coefficientTheoretical"`
+	CoefficientObserved     int64    `json:"coefficientObserved"`
 	RequestCount            int      `json:"requestCount"`
 	TotalTokens             int64    `json:"totalTokens"`
 	TotalCost               float64  `json:"totalCost"`
@@ -89,13 +105,51 @@ type ConsumptionEntry struct {
 }
 
 type ConsumptionResult struct {
-	Entries      []*ConsumptionEntry `json:"entries"`
-	ModelEntries []*ConsumptionModel `json:"modelEntries,omitempty"`
-	GeneratedAt  time.Time           `json:"generatedAt"`
-	RangeStart   *time.Time          `json:"rangeStart"`
-	RangeEnd     time.Time           `json:"rangeEnd"`
-	Timezone     string              `json:"timezone"`
-	CurrencyCode string              `json:"currencyCode"`
+	Revision           string                          `json:"revision"`
+	CacheSamples       []*ConsumptionCacheSample       `json:"cacheSamples"`
+	PerformanceSamples []*ConsumptionPerformanceSample `json:"performanceSamples"`
+	ResolvedAt         time.Time                       `json:"resolvedAt"`
+	Entries            []*ConsumptionEntry             `json:"entries"`
+	ModelEntries       []*ConsumptionModel             `json:"modelEntries,omitempty"`
+	GeneratedAt        time.Time                       `json:"generatedAt"`
+	RangeStart         *time.Time                      `json:"rangeStart"`
+	RangeEnd           time.Time                       `json:"rangeEnd"`
+	Timezone           string                          `json:"timezone"`
+	CurrencyCode       string                          `json:"currencyCode"`
+}
+
+// 每页限制日期数，浏览器只合并完整收到的日期，不把部分金额当成全量。
+type ConsumptionSlicePage struct {
+	Days         []*ConsumptionSliceRevision
+	Pending      bool
+	ResolvedAt   time.Time
+	Slices       []*ConsumptionResult
+	Next         *time.Time
+	RangeStart   *time.Time
+	RangeEnd     time.Time
+	Timezone     string
+	CurrencyCode string
+}
+
+type ConsumptionSliceRevision struct {
+	Start    time.Time
+	Revision string
+}
+
+type ConsumptionCacheSample struct {
+	ChannelID   objects.GUID `json:"channelID"`
+	Model       string       `json:"model"`
+	Samples     int64        `json:"samples"`
+	Eligible    int64        `json:"eligible"`
+	Theoretical int64        `json:"theoretical"`
+	Observed    int64        `json:"observed"`
+}
+
+type ConsumptionPerformanceSample struct {
+	ChannelID objects.GUID       `json:"channelID"`
+	Name      string             `json:"name"`
+	Model     string             `json:"model"`
+	Metrics   ConsumptionMetrics `json:"metrics"`
 }
 
 // consumptionRange uses calendar days in the configured system timezone.

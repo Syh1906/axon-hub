@@ -1,4 +1,6 @@
 {
+  "common.loadFailure.statisticsPending": "统计汇总仍在处理，已完成进度会保留，请稍后重试。",
+  "common.loadFailure.statisticsChanged": "统计数据在加载期间发生变化，请重试以获取完整结果。",
   "common.loadFailure.unavailable": "暂时无法加载数据",
   "common.loadFailure.stale": "更新失败，当前显示上次数据",
   "common.loadFailure.responseTimeout": "服务器已响应，但读取结果超时，请重试。",

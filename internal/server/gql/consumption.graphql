@@ -42,6 +42,18 @@ type ConsumptionGroupOption {
 }
 
 type ConsumptionMetrics {
+  pricedCost: Float!
+  tokenPricedCost: Float!
+  pricedTokens: Int!
+  successCount: Int!
+  outcomeCount: Int!
+  firstTokenSum: Float!
+  firstTokenCount: Int!
+  speedSum: Float!
+  coefficientSamples: Int!
+  coefficientEligible: Int!
+  coefficientTheoretical: Int!
+  coefficientObserved: Int!
   requestCount: Int!
   totalTokens: Int!
   totalCost: Float!
@@ -62,6 +74,35 @@ type ConsumptionMetrics {
   cacheCoefficient: Int
 }
 
+type ConsumptionSlicePage {
+  days: [ConsumptionSliceRevision!]!
+  pending: Boolean!
+  resolvedAt: Time!
+  slices: [ConsumptionResult!]!
+  next: Time
+  rangeStart: Time
+  rangeEnd: Time!
+  timezone: String!
+  currencyCode: String!
+}
+
+type ConsumptionSliceRevision { start: Time! revision: String! }
+input ConsumptionSliceRevisionInput { start: Time! revision: String! }
+type ConsumptionCacheSample {
+  channelID: ID!
+  model: String!
+  samples: Int!
+  eligible: Int!
+  theoretical: Int!
+  observed: Int!
+}
+type ConsumptionPerformanceSample {
+  channelID: ID!
+  name: String!
+  model: String!
+  metrics: ConsumptionMetrics!
+}
+
 type ConsumptionModel {
   model: String!
   metrics: ConsumptionMetrics!
@@ -79,6 +120,10 @@ type ConsumptionEntry {
 }
 
 type ConsumptionResult {
+  revision: String!
+  cacheSamples: [ConsumptionCacheSample!]!
+  performanceSamples: [ConsumptionPerformanceSample!]!
+  resolvedAt: Time!
   entries: [ConsumptionEntry!]!
   modelEntries: [ConsumptionModel!]!
   generatedAt: Time!
@@ -89,6 +134,8 @@ type ConsumptionResult {
 }
 
 extend type Query {
+  consumptionSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
+  usageSlices(input: ConsumptionFilter!, after: Time, known: [ConsumptionSliceRevisionInput!], asOf: Time, verify: Boolean! = false): ConsumptionSlicePage!
   consumptionProjects: [ConsumptionProject!]!
   consumptionGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!
   usageGroupOptions(input: ConsumptionFilter!): [ConsumptionGroupOption!]!

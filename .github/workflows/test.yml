@@ -38,6 +38,20 @@ jobs:
         run: ./scripts/release/version.test.ps1
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: axonhub
+          POSTGRES_DB: consumption_upgrade
+          POSTGRES_PASSWORD: consumption-test-only
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U axonhub -d consumption_upgrade"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      AXONHUB_TEST_CONSUMPTION_PG_DSN: postgres://axonhub:consumption-test-only@localhost:15432/consumption_upgrade?sslmode=disable
     steps:
       - uses: actions/checkout@v7
         with:

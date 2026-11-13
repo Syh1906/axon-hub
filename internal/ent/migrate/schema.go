@@ -535,6 +535,54 @@ var (
 			},
 		},
 	}
+	// ConsumptionSnapshotsColumns holds the columns for the "consumption_snapshots" table.
+	ConsumptionSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "cache_key", Type: field.TypeString, Size: 64},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "range_start", Type: field.TypeTime},
+		{Name: "range_end", Type: field.TypeTime},
+		{Name: "generated_at", Type: field.TypeTime},
+		{Name: "source_version", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "snapshot_version", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "payload", Type: field.TypeBytes, Nullable: true, SchemaType: map[string]string{"mysql": "longblob"}},
+		{Name: "query", Type: field.TypeBytes, Nullable: true},
+		{Name: "requested_at", Type: field.TypeTime},
+		{Name: "lease_until", Type: field.TypeTime},
+		{Name: "lease_token", Type: field.TypeString, Size: 36, Default: ""},
+		{Name: "pending", Type: field.TypeBool, Default: true},
+		{Name: "failed", Type: field.TypeBool, Default: false},
+		{Name: "fingerprint", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "checked_at", Type: field.TypeTime},
+	}
+	// ConsumptionSnapshotsTable holds the schema information for the "consumption_snapshots" table.
+	ConsumptionSnapshotsTable = &schema.Table{
+		Name:       "consumption_snapshots",
+		Columns:    ConsumptionSnapshotsColumns,
+		PrimaryKey: []*schema.Column{ConsumptionSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "consumption_snapshot_by_key",
+				Unique:  true,
+				Columns: []*schema.Column{ConsumptionSnapshotsColumns[1]},
+			},
+			{
+				Name:    "consumption_snapshot_by_requested_at",
+				Unique:  false,
+				Columns: []*schema.Column{ConsumptionSnapshotsColumns[10]},
+			},
+			{
+				Name:    "consumption_snapshot_by_project_date",
+				Unique:  false,
+				Columns: []*schema.Column{ConsumptionSnapshotsColumns[2], ConsumptionSnapshotsColumns[3]},
+			},
+			{
+				Name:    "consumption_snapshot_by_pending_work",
+				Unique:  false,
+				Columns: []*schema.Column{ConsumptionSnapshotsColumns[13], ConsumptionSnapshotsColumns[11], ConsumptionSnapshotsColumns[10]},
+			},
+		},
+	}
 	// DataStoragesColumns holds the columns for the "data_storages" table.
 	DataStoragesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1535,6 +1583,7 @@ var (
 		ChannelOverrideTemplatesTable,
 		ChannelProbesTable,
 		ChannelUpstreamStatusTable,
+		ConsumptionSnapshotsTable,
 		DataStoragesTable,
 		InvitationsTable,
 		ModelsTable,

@@ -8,6 +8,8 @@ type LoadError = {
 export function loadErrorKey(error: unknown): string {
   const failure = error && typeof error === 'object' ? (error as LoadError) : undefined;
   const code = failure?.extensions?.code;
+  if (code === 'STATISTICS_PENDING') return 'common.loadFailure.statisticsPending';
+  if (code === 'STATISTICS_RANGE_CHANGED') return 'common.loadFailure.statisticsChanged';
   if (code === 'REQUEST_BODY_TIMEOUT') return 'common.loadFailure.bodyTimeout';
   if (code === 'REQUEST_TIMEOUT') return 'common.loadFailure.executionTimeout';
   if (code === 'CLIENT_READ_TIMEOUT' && failure?.diagnostics?.responseReceived) return 'common.loadFailure.responseTimeout';

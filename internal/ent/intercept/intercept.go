@@ -23,6 +23,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
+	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -507,6 +508,33 @@ func (f TraverseChannelUpstreamStatus) Traverse(ctx context.Context, q ent.Query
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.ChannelUpstreamStatusQuery", q)
+}
+
+// The ConsumptionSnapshotFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ConsumptionSnapshotFunc func(context.Context, *ent.ConsumptionSnapshotQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ConsumptionSnapshotFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ConsumptionSnapshotQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ConsumptionSnapshotQuery", q)
+}
+
+// The TraverseConsumptionSnapshot type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseConsumptionSnapshot func(context.Context, *ent.ConsumptionSnapshotQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseConsumptionSnapshot) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseConsumptionSnapshot) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ConsumptionSnapshotQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ConsumptionSnapshotQuery", q)
 }
 
 // The DataStorageFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1136,6 +1164,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ChannelProbeQuery, predicate.ChannelProbe, channelprobe.OrderOption]{typ: ent.TypeChannelProbe, tq: q}, nil
 	case *ent.ChannelUpstreamStatusQuery:
 		return &query[*ent.ChannelUpstreamStatusQuery, predicate.ChannelUpstreamStatus, channelupstreamstatus.OrderOption]{typ: ent.TypeChannelUpstreamStatus, tq: q}, nil
+	case *ent.ConsumptionSnapshotQuery:
+		return &query[*ent.ConsumptionSnapshotQuery, predicate.ConsumptionSnapshot, consumptionsnapshot.OrderOption]{typ: ent.TypeConsumptionSnapshot, tq: q}, nil
 	case *ent.DataStorageQuery:
 		return &query[*ent.DataStorageQuery, predicate.DataStorage, datastorage.OrderOption]{typ: ent.TypeDataStorage, tq: q}, nil
 	case *ent.InvitationQuery:

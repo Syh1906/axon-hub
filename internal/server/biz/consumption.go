@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
@@ -16,11 +17,10 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
 	"github.com/looplj/axonhub/internal/ent/project"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
-	"github.com/looplj/axonhub/internal/log"
+
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/scopes"
-	"golang.org/x/sync/singleflight"
 )
 
 type ConsumptionService struct {
@@ -28,11 +28,14 @@ type ConsumptionService struct {
 	client *ent.Client
 	system *SystemService
 	cache  xcache.Cache[*ConsumptionResult]
-	flight *singleflight.Group
+	flight *consumptionFlight
+	worker *sync.Mutex
 }
 
 func NewConsumptionService(client *ent.Client, system *SystemService, config xcache.Config) *ConsumptionService {
-	return &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config), flight: &singleflight.Group{}}
+	s := &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config), flight: &consumptionFlight{}, worker: &sync.Mutex{}}
+	client.Use(s.snapshotInvalidation)
+	return s
 }
 
 func (s *ConsumptionService) Leaderboard(ctx context.Context, input ConsumptionFilter) (*ConsumptionResult, error) {
@@ -126,7 +129,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 
 	// Authorization is checked before the cache and this narrowly scoped read.
 	// Usage is project-scoped. The admin leaderboard ignores ambient project context.
-	return authz.RunWithSystemBypass(ctx, "consumption-project-query", func(ctx context.Context) (*ConsumptionResult, error) {
+	return authz.RunAsHost(ctx, s.client, "consumption-project-query", func(ctx context.Context) (*ConsumptionResult, error) {
 		settings, err := s.system.GeneralSettings(ctx)
 		if err != nil {
 			return nil, err
@@ -138,7 +141,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 			return nil, err
 		}
 		keyRevision := ""
-		if input.Dimension == ConsumptionDimensionAPIKey || input.Dimension == ConsumptionDimensionAPIKeyGroup {
+		if !input.Uncached && (input.Dimension == ConsumptionDimensionAPIKey || input.Dimension == ConsumptionDimensionAPIKeyGroup) {
 			keysQuery := s.client.APIKey.Query()
 			groupsQuery := s.client.APIKeyGroup.Query()
 			if projectID > 0 {
@@ -168,18 +171,28 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("consumption:v7:%x:%s", sha256.Sum256(keyInput), keyRevision)
-		if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
-			return s.withChannelIdentity(ctx, input, result)
+		key := fmt.Sprintf("consumption:v8:%x:%s", sha256.Sum256(keyInput), keyRevision)
+		if !input.Uncached {
+			if result, err := s.cache.Get(ctx, key); err == nil && result != nil {
+				return s.withChannelIdentity(ctx, input, result)
+			}
 		}
 		compute := func(ctx context.Context) (*ConsumptionResult, error) {
-			if cached, err := s.cache.Get(ctx, key); err == nil && cached != nil {
-				return cached, nil
+			if !input.Uncached {
+				if cached, err := s.cache.Get(ctx, key); err == nil && cached != nil {
+					return cached, nil
+				}
 			}
-			rows, err := s.queryGroups(ctx, projectID, input, start, end)
+			readFacts := s.queryGroupsFacts
+			if input.DailySnapshot {
+				// 日期 worker 已开启包含指纹与所有显示字段的读取事务。
+				readFacts = s.queryGroupsFactsSnapshot
+			}
+			facts, err := readFacts(ctx, projectID, input, start, end)
 			if err != nil {
 				return nil, err
 			}
+			rows := facts.rows
 			entries := make([]*ConsumptionEntry, 0)
 			modelEntries := make([]*ConsumptionModel, 0)
 			if input.Dimension == ConsumptionDimensionModel {
@@ -228,17 +241,30 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 					}
 				}
 			}
-			if input.Dimension == ConsumptionDimensionChannel {
+			if input.Dimension == ConsumptionDimensionChannel && !input.DailySnapshot {
 				if err := s.attachCacheCoefficients(ctx, projectID, start, end, entries); err != nil {
 					return nil, err
 				}
 			}
 			sortConsumptionEntries(entries, input)
-			result := &ConsumptionResult{Entries: entries, ModelEntries: modelEntries, GeneratedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
-			_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
+			result := &ConsumptionResult{Entries: entries, ModelEntries: modelEntries, GeneratedAt: now, ResolvedAt: now, RangeStart: start, RangeEnd: end, Timezone: location.String(), CurrencyCode: settings.CurrencyCode}
+			for _, sample := range facts.cache {
+				result.CacheSamples = append(result.CacheSamples, &ConsumptionCacheSample{ChannelID: objects.GUID{Type: ent.TypeChannel, ID: sample.ChannelID}, Model: sample.Model, Samples: sample.Samples, Eligible: sample.Eligible, Theoretical: sample.Theoretical, Observed: sample.Observed})
+			}
+			for _, sample := range facts.attempts {
+				result.PerformanceSamples = append(result.PerformanceSamples, &ConsumptionPerformanceSample{ChannelID: objects.GUID{Type: ent.TypeChannel, ID: sample.EntityID}, Name: sample.Name, Model: sample.Model, Metrics: sample.metrics()})
+			}
+			if !input.Uncached {
+				_ = s.cache.Set(ctx, key, result, store.WithExpiration(time.Minute))
+			}
 			return result, nil
 		}
-		result, err := s.sharedQuery(ctx, key, compute)
+		var result *ConsumptionResult
+		if input.DailySnapshot {
+			result, err = compute(ctx)
+		} else {
+			result, err = s.sharedQuery(ctx, key, compute)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -246,26 +272,7 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 	})
 }
 
-// 调用方取消仅结束自己的等待；共享计算独立限时，供其余页面复用。
+// 只有最后一位等待者离开，才取消共享计算。
 func (s *ConsumptionService) sharedQuery(ctx context.Context, key string, compute func(context.Context) (*ConsumptionResult, error)) (*ConsumptionResult, error) {
-	result := s.flight.DoChan(key, func() (value any, err error) {
-		defer func() {
-			if recovered := recover(); recovered != nil {
-				log.Error(ctx, "consumption query panicked", log.Any("panic", recovered))
-				err = fmt.Errorf("compute consumption: %v", recovered)
-			}
-		}()
-		sharedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-		defer cancel()
-		return compute(sharedCtx)
-	})
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case value := <-result:
-		if value.Err != nil {
-			return nil, value.Err
-		}
-		return value.Val.(*ConsumptionResult), nil
-	}
+	return s.flight.do(ctx, key, compute)
 }

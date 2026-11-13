@@ -15,12 +15,14 @@ const moduleURL = (source) => `data:text/javascript;base64,${Buffer.from(source)
 const utils = compile(readFileSync(join(import.meta.dirname, '../../../lib/utils.ts'), 'utf8'))
   .replaceAll("'clsx'", JSON.stringify(import.meta.resolve('clsx')))
   .replaceAll("'tailwind-merge'", JSON.stringify(import.meta.resolve('tailwind-merge')));
+const slices = compile(readFileSync(join(import.meta.dirname, 'consumption-slices.ts'), 'utf8'));
 const source = compile(readFileSync(join(import.meta.dirname, 'consumption.ts'), 'utf8'))
   .replaceAll("import { useCallback } from 'react';", 'const useCallback = (fn) => fn;')
   .replaceAll("import { useTranslation } from 'react-i18next';", `import i18next from ${JSON.stringify(import.meta.resolve('i18next'))}; const useTranslation = () => ({ t: i18next.getFixedT(i18next.language) });`)
-  .replaceAll("import { useQuery } from '@tanstack/react-query';", 'const useQuery = (options) => options;')
+  .replaceAll("import { useQuery, useQueryClient } from '@tanstack/react-query';", 'const useQuery = (options) => options; const useQueryClient = () => ({});')
   .replaceAll("import { graphqlRequest } from '@/gql/graphql';", 'const graphqlRequest = () => { throw new Error("unexpected network"); };')
   .replaceAll("import { useAuthStore } from '@/stores/authStore';", 'let userID = "viewer"; export const setTestUserID = (id) => { userID = id; }; const useAuthStore = (select) => select({ auth: { user: { id: userID } } });')
+  .replaceAll("'./consumption-slices'", JSON.stringify(moduleURL(slices)))
   .replaceAll("'@/lib/utils'", JSON.stringify(moduleURL(utils)))
   .replaceAll("'zod'", JSON.stringify(import.meta.resolve('zod')));
 const { useConsumption, useConsumptionGroupOptions, setTestUserID } = await import(moduleURL(source));
@@ -186,6 +188,13 @@ test('a successful response crossing midnight refreshes promptly without acceler
   assert.equal(options.refetchInterval(query), 1_000);
   query.state.error = new Error('read timed out');
   assert.equal(options.refetchInterval(query), 300_000);
+});
+
+test('已重新确认日期的历史汇总不会因生成时间跨日而快速重试', (t) => {
+  const now = Date.parse('2026-11-08T16:00:01Z');
+  t.mock.method(Date, 'now', () => now);
+  const query = { state: { data: { ...data, timezone: 'Asia/Shanghai', generatedAt: '2026-11-08T15:59:59Z', resolvedAt: new Date(now).toISOString() }, dataUpdatedAt: now } };
+  assert.equal(useConsumption(input, 'usage', 'project-1').refetchInterval(query), 300_000);
 });
 
 test('服务商搜索匹配中文名和带空格名称，切换语言仍复用查询缓存', async () => {

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -18,10 +19,16 @@ func channelAttemptExpressions(q *sql.Selector) (outcome, first, speed string) {
 	r := sql.Table(request.Table).As("attempt_request")
 	u := sql.Table(usagelog.Table).As("attempt_usage")
 	q.Join(r).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), r.C("id")), sql.ColumnsEQ(q.C("project_id"), r.C("project_id"))))
-	q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), u.C("request_id")),
-		sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id")),
-		sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(q.C("id"), q.C("request_id"), q.C("channel_id"), q.C("project_id"), u.C("id"))),
-	))
+	if q.Dialect() == dialect.Postgres {
+		execution := sql.Table(requestexecution.Table)
+		execution.SetDialect(q.Dialect())
+		u = joinExecutionUsage(q, execution)
+	} else {
+		q.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), u.C("request_id")),
+			sql.ColumnsEQ(q.C("channel_id"), u.C("channel_id")), sql.ColumnsEQ(q.C("project_id"), u.C("project_id")),
+			sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(q.C("id"), q.C("request_id"), q.C("channel_id"), q.C("project_id"), u.C("id"))),
+		))
+	}
 	outcome = usageanalytics.ChannelOutcomeSQL(q.C("status"), q.C("selection"), q.C("response_status_code"), q.C("error_message"), q.Dialect())
 	first = usageanalytics.FirstTokenSQL(q.C("metrics_first_token_latency_ms"), q.C("metrics_latency_ms"), q.C("stream"), q.C("status"))
 	speed = usageanalytics.OutputSpeedSQL(usageanalytics.TextTokensSQL(u.C("completion_tokens"), u.C("cost_snapshot"), u.C("completion_audio_tokens"), q.Dialect()),

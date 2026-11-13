@@ -1,6 +1,8 @@
 # 独立维护、同步上游与发版
 
-当前正式版为 [v1.0.0-rc1-fork.2](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.2)（2026-11-11），源码 `1c0a65a093f9c356f0005e8b59e13f2c16ffd0ff`。同提交 Test／Build／Lint／Govulncheck 通过，[精简发版 42989955513](https://github.com/Syh1906/axon-hub/actions/runs/42989955513) 成功，正式/latest，仅 amd64／arm64 镜像及 `release.json`。[更新说明](../../../.github/release-notes.md)覆盖后台读取优化、失败定位与快照退役校验修复；相对 fork.1 无后端运行代码、schema/data migration 或依赖变更。
+本轮正在准备 `v1.0.0-rc1-fork.4` 统计加载优化的精简正式发布；新增可重建统计汇总表，因此不使用普通快照入口。当前正式版为 `v1.0.0-rc1-fork.3`，最新发布／部署状态以 [Fork 维护台账](../../fork-maintenance.md) 为准。下述 fork.2 段落保留其当时验收记录，不能当作当前运行版本。
+
+历史正式版 [v1.0.0-rc1-fork.2](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.2)（2026-11-11），源码 `1c0a65a093f9c356f0005e8b59e13f2c16ffd0ff`。同提交 Test／Build／Lint／Govulncheck 通过，[精简发版 42989955513](https://github.com/Syh1906/axon-hub/actions/runs/42989955513) 成功，正式/latest，仅 amd64／arm64 镜像及 `release.json`。[更新说明](../../../.github/release-notes.md)覆盖后台读取优化、失败定位与快照退役校验修复；相对 fork.1 无后端运行代码、schema/data migration 或依赖变更。
 
 固定镜像摘要为 `sha256:201ff56eb572b667d786825a3f240f05b2ccd730c4b1dc95e002c16e58cf217f`，清单 SHA-256 为 `d1fb3fa182e875827747adeb0367b13716a5c2c9dc44846c64e8ad6fd8cf6f36`。云悠／泉哥分别于新加坡时间 16:58:14／16:59:51 完成基础部署验收；重建及健康等待 6.393／6.960 秒，不等于实测逐请求中断。双机内外健康、版本/提交、初始化、34 项首页资源及匿名鉴权通过；数据库结构摘要、渠道/模型/项目/Key编号集合保持，系统版本更新为 fork.2。
 

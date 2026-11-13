@@ -87,6 +87,14 @@ func joinConsumption(s *sql.Selector, projectID int, start *time.Time, end time.
 }
 
 func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) *sql.SelectTable {
+	if s.Dialect() == dialect.Postgres {
+		// 每个已选执行最多查一条账目，防止优化器先物化整批执行×用量再嵌套匹配。
+		id := usageanalytics.ExecutionUsageIDSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"))
+		u := sql.Table("LATERAL (SELECT matched_usage.completion_tokens, matched_usage.cost_snapshot, matched_usage.completion_audio_tokens FROM usage_logs matched_usage WHERE matched_usage.id = " + id +
+			" AND matched_usage.request_id = " + execution.C("request_id") + " AND matched_usage.project_id = " + execution.C("project_id") + " AND matched_usage.channel_id = " + execution.C("channel_id") + " OFFSET 0) AS execution_usage").Unquote().As("execution_usage")
+		s.LeftJoin(u).OnP(sql.ExprP("TRUE"))
+		return u
+	}
 	u := sql.Table(usagelog.Table).As("execution_usage")
 	s.LeftJoin(u).OnP(sql.And(sql.ColumnsEQ(u.C("request_id"), execution.C("request_id")),
 		sql.ColumnsEQ(u.C("channel_id"), execution.C("channel_id")), sql.ColumnsEQ(u.C("project_id"), execution.C("project_id")),
@@ -111,7 +119,7 @@ func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilt
 	// lookup instead of sorting executions from the entire time range.
 	if s.Dialect() != dialect.Postgres || input.GroupRef != nil || (input.Search != nil && *input.Search != "") {
 		u, execution := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel), joinLatestConsumptionExecution(s)
-		if input.Dimension == ConsumptionDimensionChannel {
+		if input.Dimension == ConsumptionDimensionChannel || input.OmitPerformance {
 			return u, execution, consumptionPerformanceSQL{}
 		}
 		if s.Dialect() == dialect.Postgres {
@@ -145,7 +153,7 @@ func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilt
 	// This table represents the derived selector above, so it is not attached
 	// through Join. Set its dialect before embedding C() results in raw SQL.
 	execution.SetDialect(s.Dialect())
-	if input.Dimension != ConsumptionDimensionChannel {
+	if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance {
 		return u, execution, projectConsumptionPerformance(s, execution)
 	}
 	return u, execution, consumptionPerformanceSQL{}
@@ -160,7 +168,20 @@ func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 	return execution
 }
 
+type consumptionFacts struct {
+	rows     []consumptionGroup
+	attempts []consumptionGroup
+	cache    []consumptionCacheGroup
+}
+
 func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
+	facts, err := s.queryGroupsFacts(ctx, projectID, input, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return facts.rows, nil
+}
+func (s *ConsumptionService) queryGroupsFacts(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	// Live and archived rows must be read from one snapshot; cleanup may move
 	// a record between the two sources at any moment.
 	options := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
@@ -174,10 +195,18 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 	defer tx.Rollback()
 	reader := *s
 	reader.client = tx.Client()
-	return reader.queryGroupsSnapshot(ctx, projectID, input, start, end)
+	return reader.queryGroupsFactsSnapshot(ctx, projectID, input, start, end)
 }
 
 func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
+	facts, err := s.queryGroupsFactsSnapshot(ctx, projectID, input, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return facts.rows, nil
+}
+func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
+	facts := &consumptionFacts{}
 	query := s.client.Request.Query().Where(request.CreatedAtLT(end), request.StatusIn(request.StatusCompleted, request.StatusFailed, request.StatusCanceled))
 	if projectID > 0 {
 		query.Where(request.ProjectIDEQ(projectID))
@@ -213,7 +242,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 		)
 		// Channel performance is computed from all attempts below; avoid calculating
 		// final-request performance that would immediately be discarded.
-		if input.Dimension != ConsumptionDimensionChannel {
+		if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance {
 			outcome, firstToken, speed := performance.outcome, performance.firstToken, performance.speed
 			q.AppendSelect(
 				sql.As("COALESCE(SUM("+outcome+"), 0)", "success_count"),
@@ -256,16 +285,28 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 			return nil, err
 		}
 		rows = mergeConsumptionGroups(rows, additional)
-		attempts, err := queryChannelAttemptGroups(ctx, s.client, projectID, input, nil, start, end)
-		if err != nil {
-			return nil, err
+		if !input.OmitPerformance || input.Metric != ConsumptionMetricCache {
+			attempts, err := queryChannelAttemptGroups(ctx, s.client, projectID, input, nil, start, end)
+			if err != nil {
+				return nil, err
+			}
+			facts.attempts = attempts
+			if !input.DailySnapshot || input.Metric == ConsumptionMetricCost {
+				rows = replaceChannelPerformance(rows, attempts, input.Metric != ConsumptionMetricCache)
+			}
 		}
-		rows = replaceChannelPerformance(rows, attempts, input.Metric != ConsumptionMetricCache)
 		for i := range rows {
 			rows[i].ChannelTotal = parents[rows[i].EntityID]
 		}
 	}
-	return rows, nil
+	if input.DailySnapshot && input.Dimension == ConsumptionDimensionChannel {
+		facts.cache, err = s.queryCacheSamples(ctx, projectID, start, end)
+		if err != nil {
+			return nil, err
+		}
+	}
+	facts.rows = rows
+	return facts, nil
 }
 
 // Each average uses matching cost and quantity samples. Unknown costs never

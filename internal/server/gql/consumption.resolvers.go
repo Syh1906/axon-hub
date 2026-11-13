@@ -7,9 +7,20 @@ package gql
 
 import (
 	"context"
+	"time"
 
 	"github.com/looplj/axonhub/internal/server/biz"
 )
+
+// ConsumptionSlices is the resolver for the consumptionSlices field.
+func (r *queryResolver) ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
+	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "leaderboard")
+}
+
+// UsageSlices is the resolver for the usageSlices field.
+func (r *queryResolver) UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error) {
+	return r.consumptionService.ReadSlices(ctx, consumptionFields(ctx, input), after, known, asOf, verify, "usage")
+}
 
 // ConsumptionProjects is the resolver for the consumptionProjects field.
 func (r *queryResolver) ConsumptionProjects(ctx context.Context) ([]*biz.ConsumptionProject, error) {
@@ -28,10 +39,10 @@ func (r *queryResolver) UsageGroupOptions(ctx context.Context, input biz.Consump
 
 // ConsumptionLeaderboard is the resolver for the consumptionLeaderboard field.
 func (r *queryResolver) ConsumptionLeaderboard(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error) {
-	return r.consumptionService.Leaderboard(ctx, input)
+	return r.consumptionService.Leaderboard(ctx, consumptionFields(ctx, input))
 }
 
 // UsageStatistics is the resolver for the usageStatistics field.
 func (r *queryResolver) UsageStatistics(ctx context.Context, input biz.ConsumptionFilter) (*biz.ConsumptionResult, error) {
-	return r.consumptionService.UsageStatistics(ctx, input)
+	return r.consumptionService.UsageStatistics(ctx, consumptionFields(ctx, input))
 }

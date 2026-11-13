@@ -26,6 +26,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channeloverridetemplate"
 	"github.com/looplj/axonhub/internal/ent/channelprobe"
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
+	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
@@ -78,6 +79,7 @@ const (
 	TypeChannelOverrideTemplate  = "ChannelOverrideTemplate"
 	TypeChannelProbe             = "ChannelProbe"
 	TypeChannelUpstreamStatus    = "ChannelUpstreamStatus"
+	TypeConsumptionSnapshot      = "ConsumptionSnapshot"
 	TypeDataStorage              = "DataStorage"
 	TypeInvitation               = "Invitation"
 	TypeModel                    = "Model"
@@ -16946,6 +16948,1219 @@ func (m *ChannelUpstreamStatusMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelUpstreamStatus edge %s", name)
+}
+
+// ConsumptionSnapshotMutation represents an operation that mutates the ConsumptionSnapshot nodes in the graph.
+type ConsumptionSnapshotMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	cache_key        *string
+	project_id       *int
+	addproject_id    *int
+	range_start      *time.Time
+	range_end        *time.Time
+	generated_at     *time.Time
+	source_version   *string
+	snapshot_version *string
+	payload          *[]byte
+	query            *[]byte
+	requested_at     *time.Time
+	lease_until      *time.Time
+	lease_token      *string
+	pending          *bool
+	failed           *bool
+	fingerprint      *string
+	checked_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*ConsumptionSnapshot, error)
+	predicates       []predicate.ConsumptionSnapshot
+}
+
+var _ ent.Mutation = (*ConsumptionSnapshotMutation)(nil)
+
+// consumptionsnapshotOption allows management of the mutation configuration using functional options.
+type consumptionsnapshotOption func(*ConsumptionSnapshotMutation)
+
+// newConsumptionSnapshotMutation creates new mutation for the ConsumptionSnapshot entity.
+func newConsumptionSnapshotMutation(c config, op Op, opts ...consumptionsnapshotOption) *ConsumptionSnapshotMutation {
+	m := &ConsumptionSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeConsumptionSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withConsumptionSnapshotID sets the ID field of the mutation.
+func withConsumptionSnapshotID(id int) consumptionsnapshotOption {
+	return func(m *ConsumptionSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ConsumptionSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*ConsumptionSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ConsumptionSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withConsumptionSnapshot sets the old ConsumptionSnapshot of the mutation.
+func withConsumptionSnapshot(node *ConsumptionSnapshot) consumptionsnapshotOption {
+	return func(m *ConsumptionSnapshotMutation) {
+		m.oldValue = func(context.Context) (*ConsumptionSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ConsumptionSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ConsumptionSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ConsumptionSnapshotMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ConsumptionSnapshotMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ConsumptionSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCacheKey sets the "cache_key" field.
+func (m *ConsumptionSnapshotMutation) SetCacheKey(s string) {
+	m.cache_key = &s
+}
+
+// CacheKey returns the value of the "cache_key" field in the mutation.
+func (m *ConsumptionSnapshotMutation) CacheKey() (r string, exists bool) {
+	v := m.cache_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheKey returns the old "cache_key" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldCacheKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheKey: %w", err)
+	}
+	return oldValue.CacheKey, nil
+}
+
+// ResetCacheKey resets all changes to the "cache_key" field.
+func (m *ConsumptionSnapshotMutation) ResetCacheKey() {
+	m.cache_key = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *ConsumptionSnapshotMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *ConsumptionSnapshotMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *ConsumptionSnapshotMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *ConsumptionSnapshotMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *ConsumptionSnapshotMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetRangeStart sets the "range_start" field.
+func (m *ConsumptionSnapshotMutation) SetRangeStart(t time.Time) {
+	m.range_start = &t
+}
+
+// RangeStart returns the value of the "range_start" field in the mutation.
+func (m *ConsumptionSnapshotMutation) RangeStart() (r time.Time, exists bool) {
+	v := m.range_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRangeStart returns the old "range_start" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldRangeStart(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRangeStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRangeStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRangeStart: %w", err)
+	}
+	return oldValue.RangeStart, nil
+}
+
+// ResetRangeStart resets all changes to the "range_start" field.
+func (m *ConsumptionSnapshotMutation) ResetRangeStart() {
+	m.range_start = nil
+}
+
+// SetRangeEnd sets the "range_end" field.
+func (m *ConsumptionSnapshotMutation) SetRangeEnd(t time.Time) {
+	m.range_end = &t
+}
+
+// RangeEnd returns the value of the "range_end" field in the mutation.
+func (m *ConsumptionSnapshotMutation) RangeEnd() (r time.Time, exists bool) {
+	v := m.range_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRangeEnd returns the old "range_end" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldRangeEnd(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRangeEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRangeEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRangeEnd: %w", err)
+	}
+	return oldValue.RangeEnd, nil
+}
+
+// ResetRangeEnd resets all changes to the "range_end" field.
+func (m *ConsumptionSnapshotMutation) ResetRangeEnd() {
+	m.range_end = nil
+}
+
+// SetGeneratedAt sets the "generated_at" field.
+func (m *ConsumptionSnapshotMutation) SetGeneratedAt(t time.Time) {
+	m.generated_at = &t
+}
+
+// GeneratedAt returns the value of the "generated_at" field in the mutation.
+func (m *ConsumptionSnapshotMutation) GeneratedAt() (r time.Time, exists bool) {
+	v := m.generated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGeneratedAt returns the old "generated_at" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldGeneratedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGeneratedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGeneratedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGeneratedAt: %w", err)
+	}
+	return oldValue.GeneratedAt, nil
+}
+
+// ResetGeneratedAt resets all changes to the "generated_at" field.
+func (m *ConsumptionSnapshotMutation) ResetGeneratedAt() {
+	m.generated_at = nil
+}
+
+// SetSourceVersion sets the "source_version" field.
+func (m *ConsumptionSnapshotMutation) SetSourceVersion(s string) {
+	m.source_version = &s
+}
+
+// SourceVersion returns the value of the "source_version" field in the mutation.
+func (m *ConsumptionSnapshotMutation) SourceVersion() (r string, exists bool) {
+	v := m.source_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceVersion returns the old "source_version" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldSourceVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceVersion: %w", err)
+	}
+	return oldValue.SourceVersion, nil
+}
+
+// ResetSourceVersion resets all changes to the "source_version" field.
+func (m *ConsumptionSnapshotMutation) ResetSourceVersion() {
+	m.source_version = nil
+}
+
+// SetSnapshotVersion sets the "snapshot_version" field.
+func (m *ConsumptionSnapshotMutation) SetSnapshotVersion(s string) {
+	m.snapshot_version = &s
+}
+
+// SnapshotVersion returns the value of the "snapshot_version" field in the mutation.
+func (m *ConsumptionSnapshotMutation) SnapshotVersion() (r string, exists bool) {
+	v := m.snapshot_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSnapshotVersion returns the old "snapshot_version" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldSnapshotVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSnapshotVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSnapshotVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSnapshotVersion: %w", err)
+	}
+	return oldValue.SnapshotVersion, nil
+}
+
+// ResetSnapshotVersion resets all changes to the "snapshot_version" field.
+func (m *ConsumptionSnapshotMutation) ResetSnapshotVersion() {
+	m.snapshot_version = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *ConsumptionSnapshotMutation) SetPayload(b []byte) {
+	m.payload = &b
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *ConsumptionSnapshotMutation) Payload() (r []byte, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldPayload(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ClearPayload clears the value of the "payload" field.
+func (m *ConsumptionSnapshotMutation) ClearPayload() {
+	m.payload = nil
+	m.clearedFields[consumptionsnapshot.FieldPayload] = struct{}{}
+}
+
+// PayloadCleared returns if the "payload" field was cleared in this mutation.
+func (m *ConsumptionSnapshotMutation) PayloadCleared() bool {
+	_, ok := m.clearedFields[consumptionsnapshot.FieldPayload]
+	return ok
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *ConsumptionSnapshotMutation) ResetPayload() {
+	m.payload = nil
+	delete(m.clearedFields, consumptionsnapshot.FieldPayload)
+}
+
+// SetQuery sets the "query" field.
+func (m *ConsumptionSnapshotMutation) SetQuery(b []byte) {
+	m.query = &b
+}
+
+// Query returns the value of the "query" field in the mutation.
+func (m *ConsumptionSnapshotMutation) Query() (r []byte, exists bool) {
+	v := m.query
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuery returns the old "query" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldQuery(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuery is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuery requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuery: %w", err)
+	}
+	return oldValue.Query, nil
+}
+
+// ClearQuery clears the value of the "query" field.
+func (m *ConsumptionSnapshotMutation) ClearQuery() {
+	m.query = nil
+	m.clearedFields[consumptionsnapshot.FieldQuery] = struct{}{}
+}
+
+// QueryCleared returns if the "query" field was cleared in this mutation.
+func (m *ConsumptionSnapshotMutation) QueryCleared() bool {
+	_, ok := m.clearedFields[consumptionsnapshot.FieldQuery]
+	return ok
+}
+
+// ResetQuery resets all changes to the "query" field.
+func (m *ConsumptionSnapshotMutation) ResetQuery() {
+	m.query = nil
+	delete(m.clearedFields, consumptionsnapshot.FieldQuery)
+}
+
+// SetRequestedAt sets the "requested_at" field.
+func (m *ConsumptionSnapshotMutation) SetRequestedAt(t time.Time) {
+	m.requested_at = &t
+}
+
+// RequestedAt returns the value of the "requested_at" field in the mutation.
+func (m *ConsumptionSnapshotMutation) RequestedAt() (r time.Time, exists bool) {
+	v := m.requested_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedAt returns the old "requested_at" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldRequestedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedAt: %w", err)
+	}
+	return oldValue.RequestedAt, nil
+}
+
+// ResetRequestedAt resets all changes to the "requested_at" field.
+func (m *ConsumptionSnapshotMutation) ResetRequestedAt() {
+	m.requested_at = nil
+}
+
+// SetLeaseUntil sets the "lease_until" field.
+func (m *ConsumptionSnapshotMutation) SetLeaseUntil(t time.Time) {
+	m.lease_until = &t
+}
+
+// LeaseUntil returns the value of the "lease_until" field in the mutation.
+func (m *ConsumptionSnapshotMutation) LeaseUntil() (r time.Time, exists bool) {
+	v := m.lease_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLeaseUntil returns the old "lease_until" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldLeaseUntil(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLeaseUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLeaseUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLeaseUntil: %w", err)
+	}
+	return oldValue.LeaseUntil, nil
+}
+
+// ResetLeaseUntil resets all changes to the "lease_until" field.
+func (m *ConsumptionSnapshotMutation) ResetLeaseUntil() {
+	m.lease_until = nil
+}
+
+// SetLeaseToken sets the "lease_token" field.
+func (m *ConsumptionSnapshotMutation) SetLeaseToken(s string) {
+	m.lease_token = &s
+}
+
+// LeaseToken returns the value of the "lease_token" field in the mutation.
+func (m *ConsumptionSnapshotMutation) LeaseToken() (r string, exists bool) {
+	v := m.lease_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLeaseToken returns the old "lease_token" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldLeaseToken(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLeaseToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLeaseToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLeaseToken: %w", err)
+	}
+	return oldValue.LeaseToken, nil
+}
+
+// ResetLeaseToken resets all changes to the "lease_token" field.
+func (m *ConsumptionSnapshotMutation) ResetLeaseToken() {
+	m.lease_token = nil
+}
+
+// SetPending sets the "pending" field.
+func (m *ConsumptionSnapshotMutation) SetPending(b bool) {
+	m.pending = &b
+}
+
+// Pending returns the value of the "pending" field in the mutation.
+func (m *ConsumptionSnapshotMutation) Pending() (r bool, exists bool) {
+	v := m.pending
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPending returns the old "pending" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldPending(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPending is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPending requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPending: %w", err)
+	}
+	return oldValue.Pending, nil
+}
+
+// ResetPending resets all changes to the "pending" field.
+func (m *ConsumptionSnapshotMutation) ResetPending() {
+	m.pending = nil
+}
+
+// SetFailed sets the "failed" field.
+func (m *ConsumptionSnapshotMutation) SetFailed(b bool) {
+	m.failed = &b
+}
+
+// Failed returns the value of the "failed" field in the mutation.
+func (m *ConsumptionSnapshotMutation) Failed() (r bool, exists bool) {
+	v := m.failed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailed returns the old "failed" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldFailed(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailed: %w", err)
+	}
+	return oldValue.Failed, nil
+}
+
+// ResetFailed resets all changes to the "failed" field.
+func (m *ConsumptionSnapshotMutation) ResetFailed() {
+	m.failed = nil
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (m *ConsumptionSnapshotMutation) SetFingerprint(s string) {
+	m.fingerprint = &s
+}
+
+// Fingerprint returns the value of the "fingerprint" field in the mutation.
+func (m *ConsumptionSnapshotMutation) Fingerprint() (r string, exists bool) {
+	v := m.fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFingerprint returns the old "fingerprint" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFingerprint: %w", err)
+	}
+	return oldValue.Fingerprint, nil
+}
+
+// ResetFingerprint resets all changes to the "fingerprint" field.
+func (m *ConsumptionSnapshotMutation) ResetFingerprint() {
+	m.fingerprint = nil
+}
+
+// SetCheckedAt sets the "checked_at" field.
+func (m *ConsumptionSnapshotMutation) SetCheckedAt(t time.Time) {
+	m.checked_at = &t
+}
+
+// CheckedAt returns the value of the "checked_at" field in the mutation.
+func (m *ConsumptionSnapshotMutation) CheckedAt() (r time.Time, exists bool) {
+	v := m.checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckedAt returns the old "checked_at" field's value of the ConsumptionSnapshot entity.
+// If the ConsumptionSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConsumptionSnapshotMutation) OldCheckedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckedAt: %w", err)
+	}
+	return oldValue.CheckedAt, nil
+}
+
+// ResetCheckedAt resets all changes to the "checked_at" field.
+func (m *ConsumptionSnapshotMutation) ResetCheckedAt() {
+	m.checked_at = nil
+}
+
+// Where appends a list predicates to the ConsumptionSnapshotMutation builder.
+func (m *ConsumptionSnapshotMutation) Where(ps ...predicate.ConsumptionSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ConsumptionSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ConsumptionSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ConsumptionSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ConsumptionSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ConsumptionSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ConsumptionSnapshot).
+func (m *ConsumptionSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ConsumptionSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.cache_key != nil {
+		fields = append(fields, consumptionsnapshot.FieldCacheKey)
+	}
+	if m.project_id != nil {
+		fields = append(fields, consumptionsnapshot.FieldProjectID)
+	}
+	if m.range_start != nil {
+		fields = append(fields, consumptionsnapshot.FieldRangeStart)
+	}
+	if m.range_end != nil {
+		fields = append(fields, consumptionsnapshot.FieldRangeEnd)
+	}
+	if m.generated_at != nil {
+		fields = append(fields, consumptionsnapshot.FieldGeneratedAt)
+	}
+	if m.source_version != nil {
+		fields = append(fields, consumptionsnapshot.FieldSourceVersion)
+	}
+	if m.snapshot_version != nil {
+		fields = append(fields, consumptionsnapshot.FieldSnapshotVersion)
+	}
+	if m.payload != nil {
+		fields = append(fields, consumptionsnapshot.FieldPayload)
+	}
+	if m.query != nil {
+		fields = append(fields, consumptionsnapshot.FieldQuery)
+	}
+	if m.requested_at != nil {
+		fields = append(fields, consumptionsnapshot.FieldRequestedAt)
+	}
+	if m.lease_until != nil {
+		fields = append(fields, consumptionsnapshot.FieldLeaseUntil)
+	}
+	if m.lease_token != nil {
+		fields = append(fields, consumptionsnapshot.FieldLeaseToken)
+	}
+	if m.pending != nil {
+		fields = append(fields, consumptionsnapshot.FieldPending)
+	}
+	if m.failed != nil {
+		fields = append(fields, consumptionsnapshot.FieldFailed)
+	}
+	if m.fingerprint != nil {
+		fields = append(fields, consumptionsnapshot.FieldFingerprint)
+	}
+	if m.checked_at != nil {
+		fields = append(fields, consumptionsnapshot.FieldCheckedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ConsumptionSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case consumptionsnapshot.FieldCacheKey:
+		return m.CacheKey()
+	case consumptionsnapshot.FieldProjectID:
+		return m.ProjectID()
+	case consumptionsnapshot.FieldRangeStart:
+		return m.RangeStart()
+	case consumptionsnapshot.FieldRangeEnd:
+		return m.RangeEnd()
+	case consumptionsnapshot.FieldGeneratedAt:
+		return m.GeneratedAt()
+	case consumptionsnapshot.FieldSourceVersion:
+		return m.SourceVersion()
+	case consumptionsnapshot.FieldSnapshotVersion:
+		return m.SnapshotVersion()
+	case consumptionsnapshot.FieldPayload:
+		return m.Payload()
+	case consumptionsnapshot.FieldQuery:
+		return m.Query()
+	case consumptionsnapshot.FieldRequestedAt:
+		return m.RequestedAt()
+	case consumptionsnapshot.FieldLeaseUntil:
+		return m.LeaseUntil()
+	case consumptionsnapshot.FieldLeaseToken:
+		return m.LeaseToken()
+	case consumptionsnapshot.FieldPending:
+		return m.Pending()
+	case consumptionsnapshot.FieldFailed:
+		return m.Failed()
+	case consumptionsnapshot.FieldFingerprint:
+		return m.Fingerprint()
+	case consumptionsnapshot.FieldCheckedAt:
+		return m.CheckedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ConsumptionSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case consumptionsnapshot.FieldCacheKey:
+		return m.OldCacheKey(ctx)
+	case consumptionsnapshot.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case consumptionsnapshot.FieldRangeStart:
+		return m.OldRangeStart(ctx)
+	case consumptionsnapshot.FieldRangeEnd:
+		return m.OldRangeEnd(ctx)
+	case consumptionsnapshot.FieldGeneratedAt:
+		return m.OldGeneratedAt(ctx)
+	case consumptionsnapshot.FieldSourceVersion:
+		return m.OldSourceVersion(ctx)
+	case consumptionsnapshot.FieldSnapshotVersion:
+		return m.OldSnapshotVersion(ctx)
+	case consumptionsnapshot.FieldPayload:
+		return m.OldPayload(ctx)
+	case consumptionsnapshot.FieldQuery:
+		return m.OldQuery(ctx)
+	case consumptionsnapshot.FieldRequestedAt:
+		return m.OldRequestedAt(ctx)
+	case consumptionsnapshot.FieldLeaseUntil:
+		return m.OldLeaseUntil(ctx)
+	case consumptionsnapshot.FieldLeaseToken:
+		return m.OldLeaseToken(ctx)
+	case consumptionsnapshot.FieldPending:
+		return m.OldPending(ctx)
+	case consumptionsnapshot.FieldFailed:
+		return m.OldFailed(ctx)
+	case consumptionsnapshot.FieldFingerprint:
+		return m.OldFingerprint(ctx)
+	case consumptionsnapshot.FieldCheckedAt:
+		return m.OldCheckedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ConsumptionSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConsumptionSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case consumptionsnapshot.FieldCacheKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheKey(v)
+		return nil
+	case consumptionsnapshot.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case consumptionsnapshot.FieldRangeStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRangeStart(v)
+		return nil
+	case consumptionsnapshot.FieldRangeEnd:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRangeEnd(v)
+		return nil
+	case consumptionsnapshot.FieldGeneratedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGeneratedAt(v)
+		return nil
+	case consumptionsnapshot.FieldSourceVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceVersion(v)
+		return nil
+	case consumptionsnapshot.FieldSnapshotVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSnapshotVersion(v)
+		return nil
+	case consumptionsnapshot.FieldPayload:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case consumptionsnapshot.FieldQuery:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuery(v)
+		return nil
+	case consumptionsnapshot.FieldRequestedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedAt(v)
+		return nil
+	case consumptionsnapshot.FieldLeaseUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLeaseUntil(v)
+		return nil
+	case consumptionsnapshot.FieldLeaseToken:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLeaseToken(v)
+		return nil
+	case consumptionsnapshot.FieldPending:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPending(v)
+		return nil
+	case consumptionsnapshot.FieldFailed:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailed(v)
+		return nil
+	case consumptionsnapshot.FieldFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFingerprint(v)
+		return nil
+	case consumptionsnapshot.FieldCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ConsumptionSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ConsumptionSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, consumptionsnapshot.FieldProjectID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ConsumptionSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case consumptionsnapshot.FieldProjectID:
+		return m.AddedProjectID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConsumptionSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case consumptionsnapshot.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ConsumptionSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ConsumptionSnapshotMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(consumptionsnapshot.FieldPayload) {
+		fields = append(fields, consumptionsnapshot.FieldPayload)
+	}
+	if m.FieldCleared(consumptionsnapshot.FieldQuery) {
+		fields = append(fields, consumptionsnapshot.FieldQuery)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ConsumptionSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ConsumptionSnapshotMutation) ClearField(name string) error {
+	switch name {
+	case consumptionsnapshot.FieldPayload:
+		m.ClearPayload()
+		return nil
+	case consumptionsnapshot.FieldQuery:
+		m.ClearQuery()
+		return nil
+	}
+	return fmt.Errorf("unknown ConsumptionSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ConsumptionSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case consumptionsnapshot.FieldCacheKey:
+		m.ResetCacheKey()
+		return nil
+	case consumptionsnapshot.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case consumptionsnapshot.FieldRangeStart:
+		m.ResetRangeStart()
+		return nil
+	case consumptionsnapshot.FieldRangeEnd:
+		m.ResetRangeEnd()
+		return nil
+	case consumptionsnapshot.FieldGeneratedAt:
+		m.ResetGeneratedAt()
+		return nil
+	case consumptionsnapshot.FieldSourceVersion:
+		m.ResetSourceVersion()
+		return nil
+	case consumptionsnapshot.FieldSnapshotVersion:
+		m.ResetSnapshotVersion()
+		return nil
+	case consumptionsnapshot.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case consumptionsnapshot.FieldQuery:
+		m.ResetQuery()
+		return nil
+	case consumptionsnapshot.FieldRequestedAt:
+		m.ResetRequestedAt()
+		return nil
+	case consumptionsnapshot.FieldLeaseUntil:
+		m.ResetLeaseUntil()
+		return nil
+	case consumptionsnapshot.FieldLeaseToken:
+		m.ResetLeaseToken()
+		return nil
+	case consumptionsnapshot.FieldPending:
+		m.ResetPending()
+		return nil
+	case consumptionsnapshot.FieldFailed:
+		m.ResetFailed()
+		return nil
+	case consumptionsnapshot.FieldFingerprint:
+		m.ResetFingerprint()
+		return nil
+	case consumptionsnapshot.FieldCheckedAt:
+		m.ResetCheckedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ConsumptionSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ConsumptionSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ConsumptionSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ConsumptionSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ConsumptionSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ConsumptionSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ConsumptionSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ConsumptionSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ConsumptionSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ConsumptionSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ConsumptionSnapshot edge %s", name)
 }
 
 // DataStorageMutation represents an operation that mutates the DataStorage nodes in the graph.

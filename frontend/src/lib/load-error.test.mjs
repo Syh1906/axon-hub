@@ -4,6 +4,8 @@ import { loadErrorKey, loadErrorRequestId, readFailureToastId } from './load-err
 
 test('入口区分网络、接收超时、处理超时和权限失败', () => {
   const cases = [
+    [{ extensions: { code: 'STATISTICS_PENDING' } }, 'statisticsPending'],
+    [{ extensions: { code: 'STATISTICS_RANGE_CHANGED' } }, 'statisticsChanged'],
     [{ status: 0 }, 'network'],
     [new TypeError('private message'), 'network'],
     [{ status: 408 }, 'timeout'],

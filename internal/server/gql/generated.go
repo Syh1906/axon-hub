@@ -984,6 +984,15 @@ type ComplexityRoot struct {
 		AuthCookie func(childComplexity int) int
 	}
 
+	ConsumptionCacheSample struct {
+		ChannelID   func(childComplexity int) int
+		Eligible    func(childComplexity int) int
+		Model       func(childComplexity int) int
+		Observed    func(childComplexity int) int
+		Samples     func(childComplexity int) int
+		Theoretical func(childComplexity int) int
+	}
+
 	ConsumptionEntry struct {
 		ChannelProvider func(childComplexity int) int
 		ChannelRemark   func(childComplexity int) int
@@ -1011,10 +1020,22 @@ type ComplexityRoot struct {
 		CacheInputTokens        func(childComplexity int) int
 		CacheReadTokens         func(childComplexity int) int
 		CacheRequests           func(childComplexity int) int
+		CoefficientEligible     func(childComplexity int) int
+		CoefficientObserved     func(childComplexity int) int
+		CoefficientSamples      func(childComplexity int) int
+		CoefficientTheoretical  func(childComplexity int) int
+		FirstTokenCount         func(childComplexity int) int
+		FirstTokenSum           func(childComplexity int) int
+		OutcomeCount            func(childComplexity int) int
+		PricedCost              func(childComplexity int) int
 		PricedRequestCount      func(childComplexity int) int
+		PricedTokens            func(childComplexity int) int
 		RequestCount            func(childComplexity int) int
 		SpeedSampleCount        func(childComplexity int) int
+		SpeedSum                func(childComplexity int) int
+		SuccessCount            func(childComplexity int) int
 		SuccessRate             func(childComplexity int) int
+		TokenPricedCost         func(childComplexity int) int
 		TokenPricedRequestCount func(childComplexity int) int
 		TotalCost               func(childComplexity int) int
 		TotalTokens             func(childComplexity int) int
@@ -1026,19 +1047,47 @@ type ComplexityRoot struct {
 		Model   func(childComplexity int) int
 	}
 
+	ConsumptionPerformanceSample struct {
+		ChannelID func(childComplexity int) int
+		Metrics   func(childComplexity int) int
+		Model     func(childComplexity int) int
+		Name      func(childComplexity int) int
+	}
+
 	ConsumptionProject struct {
 		ID   func(childComplexity int) int
 		Name func(childComplexity int) int
 	}
 
 	ConsumptionResult struct {
+		CacheSamples       func(childComplexity int) int
+		CurrencyCode       func(childComplexity int) int
+		Entries            func(childComplexity int) int
+		GeneratedAt        func(childComplexity int) int
+		ModelEntries       func(childComplexity int) int
+		PerformanceSamples func(childComplexity int) int
+		RangeEnd           func(childComplexity int) int
+		RangeStart         func(childComplexity int) int
+		ResolvedAt         func(childComplexity int) int
+		Revision           func(childComplexity int) int
+		Timezone           func(childComplexity int) int
+	}
+
+	ConsumptionSlicePage struct {
 		CurrencyCode func(childComplexity int) int
-		Entries      func(childComplexity int) int
-		GeneratedAt  func(childComplexity int) int
-		ModelEntries func(childComplexity int) int
+		Days         func(childComplexity int) int
+		Next         func(childComplexity int) int
+		Pending      func(childComplexity int) int
 		RangeEnd     func(childComplexity int) int
 		RangeStart   func(childComplexity int) int
+		ResolvedAt   func(childComplexity int) int
+		Slices       func(childComplexity int) int
 		Timezone     func(childComplexity int) int
+	}
+
+	ConsumptionSliceRevision struct {
+		Revision func(childComplexity int) int
+		Start    func(childComplexity int) int
 	}
 
 	ContextPricing struct {
@@ -2216,6 +2265,7 @@ type ComplexityRoot struct {
 		ConsumptionGroupOptions         func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionLeaderboard          func(childComplexity int, input biz.ConsumptionFilter) int
 		ConsumptionProjects             func(childComplexity int) int
+		ConsumptionSlices               func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) int
 		CostStatsByAPIKey               func(childComplexity int, timeWindow *string) int
 		CostStatsByChannel              func(childComplexity int, timeWindow *string) int
 		CostStatsByModel                func(childComplexity int, timeWindow *string) int
@@ -2300,6 +2350,7 @@ type ComplexityRoot struct {
 		UsageCostInjectionSettings      func(childComplexity int) int
 		UsageGroupOptions               func(childComplexity int, input biz.ConsumptionFilter) int
 		UsageLogs                       func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
+		UsageSlices                     func(childComplexity int, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) int
 		UsageStatistics                 func(childComplexity int, input biz.ConsumptionFilter) int
 		UsageStatsByUser                func(childComplexity int, timeWindow *string) int
 		UserAgentPassThroughSettings    func(childComplexity int) int
@@ -3807,6 +3858,8 @@ type QueryResolver interface {
 	AnalyticsAPIKeyStats(ctx context.Context, filter *AnalyticsFilter) ([]*AnalyticsAPIKeyStat, error)
 	AnalyticsChannelTags(ctx context.Context) ([]string, error)
 	AnalyticsModelStats(ctx context.Context, filter *AnalyticsModelFilter) ([]*AnalyticsModelStat, error)
+	ConsumptionSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
+	UsageSlices(ctx context.Context, input biz.ConsumptionFilter, after *time.Time, known []*biz.ConsumptionSliceRevision, asOf *time.Time, verify bool) (*biz.ConsumptionSlicePage, error)
 	ConsumptionProjects(ctx context.Context) ([]*biz.ConsumptionProject, error)
 	ConsumptionGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
 	UsageGroupOptions(ctx context.Context, input biz.ConsumptionFilter) ([]*biz.ConsumptionGroupOption, error)
@@ -7490,6 +7543,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CommandCodeQuotaSettings.AuthCookie(childComplexity), true
 
+	case "ConsumptionCacheSample.channelID":
+		if e.complexity.ConsumptionCacheSample.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.ChannelID(childComplexity), true
+	case "ConsumptionCacheSample.eligible":
+		if e.complexity.ConsumptionCacheSample.Eligible == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.Eligible(childComplexity), true
+	case "ConsumptionCacheSample.model":
+		if e.complexity.ConsumptionCacheSample.Model == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.Model(childComplexity), true
+	case "ConsumptionCacheSample.observed":
+		if e.complexity.ConsumptionCacheSample.Observed == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.Observed(childComplexity), true
+	case "ConsumptionCacheSample.samples":
+		if e.complexity.ConsumptionCacheSample.Samples == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.Samples(childComplexity), true
+	case "ConsumptionCacheSample.theoretical":
+		if e.complexity.ConsumptionCacheSample.Theoretical == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionCacheSample.Theoretical(childComplexity), true
+
 	case "ConsumptionEntry.channelProvider":
 		if e.complexity.ConsumptionEntry.ChannelProvider == nil {
 			break
@@ -7612,12 +7702,66 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.CacheRequests(childComplexity), true
+	case "ConsumptionMetrics.coefficientEligible":
+		if e.complexity.ConsumptionMetrics.CoefficientEligible == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.CoefficientEligible(childComplexity), true
+	case "ConsumptionMetrics.coefficientObserved":
+		if e.complexity.ConsumptionMetrics.CoefficientObserved == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.CoefficientObserved(childComplexity), true
+	case "ConsumptionMetrics.coefficientSamples":
+		if e.complexity.ConsumptionMetrics.CoefficientSamples == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.CoefficientSamples(childComplexity), true
+	case "ConsumptionMetrics.coefficientTheoretical":
+		if e.complexity.ConsumptionMetrics.CoefficientTheoretical == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.CoefficientTheoretical(childComplexity), true
+	case "ConsumptionMetrics.firstTokenCount":
+		if e.complexity.ConsumptionMetrics.FirstTokenCount == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.FirstTokenCount(childComplexity), true
+	case "ConsumptionMetrics.firstTokenSum":
+		if e.complexity.ConsumptionMetrics.FirstTokenSum == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.FirstTokenSum(childComplexity), true
+	case "ConsumptionMetrics.outcomeCount":
+		if e.complexity.ConsumptionMetrics.OutcomeCount == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.OutcomeCount(childComplexity), true
+	case "ConsumptionMetrics.pricedCost":
+		if e.complexity.ConsumptionMetrics.PricedCost == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.PricedCost(childComplexity), true
 	case "ConsumptionMetrics.pricedRequestCount":
 		if e.complexity.ConsumptionMetrics.PricedRequestCount == nil {
 			break
 		}
 
 		return e.complexity.ConsumptionMetrics.PricedRequestCount(childComplexity), true
+	case "ConsumptionMetrics.pricedTokens":
+		if e.complexity.ConsumptionMetrics.PricedTokens == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.PricedTokens(childComplexity), true
 	case "ConsumptionMetrics.requestCount":
 		if e.complexity.ConsumptionMetrics.RequestCount == nil {
 			break
@@ -7630,12 +7774,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionMetrics.SpeedSampleCount(childComplexity), true
+	case "ConsumptionMetrics.speedSum":
+		if e.complexity.ConsumptionMetrics.SpeedSum == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.SpeedSum(childComplexity), true
+	case "ConsumptionMetrics.successCount":
+		if e.complexity.ConsumptionMetrics.SuccessCount == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.SuccessCount(childComplexity), true
 	case "ConsumptionMetrics.successRate":
 		if e.complexity.ConsumptionMetrics.SuccessRate == nil {
 			break
 		}
 
 		return e.complexity.ConsumptionMetrics.SuccessRate(childComplexity), true
+	case "ConsumptionMetrics.tokenPricedCost":
+		if e.complexity.ConsumptionMetrics.TokenPricedCost == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionMetrics.TokenPricedCost(childComplexity), true
 	case "ConsumptionMetrics.tokenPricedRequestCount":
 		if e.complexity.ConsumptionMetrics.TokenPricedRequestCount == nil {
 			break
@@ -7674,6 +7836,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ConsumptionModel.Model(childComplexity), true
 
+	case "ConsumptionPerformanceSample.channelID":
+		if e.complexity.ConsumptionPerformanceSample.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionPerformanceSample.ChannelID(childComplexity), true
+	case "ConsumptionPerformanceSample.metrics":
+		if e.complexity.ConsumptionPerformanceSample.Metrics == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionPerformanceSample.Metrics(childComplexity), true
+	case "ConsumptionPerformanceSample.model":
+		if e.complexity.ConsumptionPerformanceSample.Model == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionPerformanceSample.Model(childComplexity), true
+	case "ConsumptionPerformanceSample.name":
+		if e.complexity.ConsumptionPerformanceSample.Name == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionPerformanceSample.Name(childComplexity), true
+
 	case "ConsumptionProject.id":
 		if e.complexity.ConsumptionProject.ID == nil {
 			break
@@ -7687,6 +7874,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ConsumptionProject.Name(childComplexity), true
 
+	case "ConsumptionResult.cacheSamples":
+		if e.complexity.ConsumptionResult.CacheSamples == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionResult.CacheSamples(childComplexity), true
 	case "ConsumptionResult.currencyCode":
 		if e.complexity.ConsumptionResult.CurrencyCode == nil {
 			break
@@ -7711,6 +7904,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionResult.ModelEntries(childComplexity), true
+	case "ConsumptionResult.performanceSamples":
+		if e.complexity.ConsumptionResult.PerformanceSamples == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionResult.PerformanceSamples(childComplexity), true
 	case "ConsumptionResult.rangeEnd":
 		if e.complexity.ConsumptionResult.RangeEnd == nil {
 			break
@@ -7723,12 +7922,92 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumptionResult.RangeStart(childComplexity), true
+	case "ConsumptionResult.resolvedAt":
+		if e.complexity.ConsumptionResult.ResolvedAt == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionResult.ResolvedAt(childComplexity), true
+	case "ConsumptionResult.revision":
+		if e.complexity.ConsumptionResult.Revision == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionResult.Revision(childComplexity), true
 	case "ConsumptionResult.timezone":
 		if e.complexity.ConsumptionResult.Timezone == nil {
 			break
 		}
 
 		return e.complexity.ConsumptionResult.Timezone(childComplexity), true
+
+	case "ConsumptionSlicePage.currencyCode":
+		if e.complexity.ConsumptionSlicePage.CurrencyCode == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.CurrencyCode(childComplexity), true
+	case "ConsumptionSlicePage.days":
+		if e.complexity.ConsumptionSlicePage.Days == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.Days(childComplexity), true
+	case "ConsumptionSlicePage.next":
+		if e.complexity.ConsumptionSlicePage.Next == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.Next(childComplexity), true
+	case "ConsumptionSlicePage.pending":
+		if e.complexity.ConsumptionSlicePage.Pending == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.Pending(childComplexity), true
+	case "ConsumptionSlicePage.rangeEnd":
+		if e.complexity.ConsumptionSlicePage.RangeEnd == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.RangeEnd(childComplexity), true
+	case "ConsumptionSlicePage.rangeStart":
+		if e.complexity.ConsumptionSlicePage.RangeStart == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.RangeStart(childComplexity), true
+	case "ConsumptionSlicePage.resolvedAt":
+		if e.complexity.ConsumptionSlicePage.ResolvedAt == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.ResolvedAt(childComplexity), true
+	case "ConsumptionSlicePage.slices":
+		if e.complexity.ConsumptionSlicePage.Slices == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.Slices(childComplexity), true
+	case "ConsumptionSlicePage.timezone":
+		if e.complexity.ConsumptionSlicePage.Timezone == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSlicePage.Timezone(childComplexity), true
+
+	case "ConsumptionSliceRevision.revision":
+		if e.complexity.ConsumptionSliceRevision.Revision == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSliceRevision.Revision(childComplexity), true
+	case "ConsumptionSliceRevision.start":
+		if e.complexity.ConsumptionSliceRevision.Start == nil {
+			break
+		}
+
+		return e.complexity.ConsumptionSliceRevision.Start(childComplexity), true
 
 	case "ContextPricing.inputTokens":
 		if e.complexity.ContextPricing.InputTokens == nil {
@@ -13522,6 +13801,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ConsumptionProjects(childComplexity), true
+	case "Query.consumptionSlices":
+		if e.complexity.Query.ConsumptionSlices == nil {
+			break
+		}
+
+		args, err := ec.field_Query_consumptionSlices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ConsumptionSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["asOf"].(*time.Time), args["verify"].(bool)), true
 	case "Query.costStatsByAPIKey":
 		if e.complexity.Query.CostStatsByAPIKey == nil {
 			break
@@ -14271,6 +14561,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
+	case "Query.usageSlices":
+		if e.complexity.Query.UsageSlices == nil {
+			break
+		}
+
+		args, err := ec.field_Query_usageSlices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.UsageSlices(childComplexity, args["input"].(biz.ConsumptionFilter), args["after"].(*time.Time), args["known"].([]*biz.ConsumptionSliceRevision), args["asOf"].(*time.Time), args["verify"].(bool)), true
 	case "Query.usageStatistics":
 		if e.complexity.Query.UsageStatistics == nil {
 			break
@@ -19010,6 +19311,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCompleteOnboardingInput,
 		ec.unmarshalInputCompleteSystemModelSettingOnboardingInput,
 		ec.unmarshalInputConsumptionFilter,
+		ec.unmarshalInputConsumptionSliceRevisionInput,
 		ec.unmarshalInputCostItemInput,
 		ec.unmarshalInputCountChannelsByTypeInput,
 		ec.unmarshalInputCreateAPIKeyInput,
@@ -22444,6 +22746,37 @@ func (ec *executionContext) field_Query_consumptionLeaderboard_args(ctx context.
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_consumptionSlices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConsumptionFilter2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "known", ec.unmarshalOConsumptionSliceRevisionInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["known"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["asOf"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["verify"] = arg4
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_costStatsByAPIKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -23445,6 +23778,37 @@ func (ec *executionContext) field_Query_usageLogs_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["where"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_usageSlices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConsumptionFilter2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "known", ec.unmarshalOConsumptionSliceRevisionInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["known"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "asOf", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["asOf"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "verify", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["verify"] = arg4
 	return args, nil
 }
 
@@ -42453,6 +42817,180 @@ func (ec *executionContext) fieldContext_CommandCodeQuotaSettings_authCookie(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _ConsumptionCacheSample_channelID(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionCacheSample_model(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionCacheSample_samples(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_samples,
+		func(ctx context.Context) (any, error) {
+			return obj.Samples, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_samples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionCacheSample_eligible(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_eligible,
+		func(ctx context.Context) (any, error) {
+			return obj.Eligible, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_eligible(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionCacheSample_theoretical(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_theoretical,
+		func(ctx context.Context) (any, error) {
+			return obj.Theoretical, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_theoretical(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionCacheSample_observed(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionCacheSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionCacheSample_observed,
+		func(ctx context.Context) (any, error) {
+			return obj.Observed, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionCacheSample_observed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionCacheSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConsumptionEntry_channelRemark(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -42651,6 +43189,30 @@ func (ec *executionContext) fieldContext_ConsumptionEntry_metrics(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "pricedCost":
+				return ec.fieldContext_ConsumptionMetrics_pricedCost(ctx, field)
+			case "tokenPricedCost":
+				return ec.fieldContext_ConsumptionMetrics_tokenPricedCost(ctx, field)
+			case "pricedTokens":
+				return ec.fieldContext_ConsumptionMetrics_pricedTokens(ctx, field)
+			case "successCount":
+				return ec.fieldContext_ConsumptionMetrics_successCount(ctx, field)
+			case "outcomeCount":
+				return ec.fieldContext_ConsumptionMetrics_outcomeCount(ctx, field)
+			case "firstTokenSum":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenSum(ctx, field)
+			case "firstTokenCount":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenCount(ctx, field)
+			case "speedSum":
+				return ec.fieldContext_ConsumptionMetrics_speedSum(ctx, field)
+			case "coefficientSamples":
+				return ec.fieldContext_ConsumptionMetrics_coefficientSamples(ctx, field)
+			case "coefficientEligible":
+				return ec.fieldContext_ConsumptionMetrics_coefficientEligible(ctx, field)
+			case "coefficientTheoretical":
+				return ec.fieldContext_ConsumptionMetrics_coefficientTheoretical(ctx, field)
+			case "coefficientObserved":
+				return ec.fieldContext_ConsumptionMetrics_coefficientObserved(ctx, field)
 			case "requestCount":
 				return ec.fieldContext_ConsumptionMetrics_requestCount(ctx, field)
 			case "totalTokens":
@@ -42782,6 +43344,354 @@ func (ec *executionContext) fieldContext_ConsumptionGroupOption_name(_ context.C
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_pricedCost(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_pricedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.PricedCost, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_pricedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_tokenPricedCost(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_tokenPricedCost,
+		func(ctx context.Context) (any, error) {
+			return obj.TokenPricedCost, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_tokenPricedCost(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_pricedTokens(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_pricedTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.PricedTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_pricedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_successCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_successCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SuccessCount, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_successCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_outcomeCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_outcomeCount,
+		func(ctx context.Context) (any, error) {
+			return obj.OutcomeCount, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_outcomeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_firstTokenSum(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_firstTokenSum,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstTokenSum, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_firstTokenSum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_firstTokenCount(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_firstTokenCount,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstTokenCount, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_firstTokenCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_speedSum(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_speedSum,
+		func(ctx context.Context) (any, error) {
+			return obj.SpeedSum, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_speedSum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_coefficientSamples(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_coefficientSamples,
+		func(ctx context.Context) (any, error) {
+			return obj.CoefficientSamples, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_coefficientSamples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_coefficientEligible(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_coefficientEligible,
+		func(ctx context.Context) (any, error) {
+			return obj.CoefficientEligible, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_coefficientEligible(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_coefficientTheoretical(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_coefficientTheoretical,
+		func(ctx context.Context) (any, error) {
+			return obj.CoefficientTheoretical, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_coefficientTheoretical(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionMetrics_coefficientObserved(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionMetrics_coefficientObserved,
+		func(ctx context.Context) (any, error) {
+			return obj.CoefficientObserved, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionMetrics_coefficientObserved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -43362,6 +44272,208 @@ func (ec *executionContext) fieldContext_ConsumptionModel_metrics(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "pricedCost":
+				return ec.fieldContext_ConsumptionMetrics_pricedCost(ctx, field)
+			case "tokenPricedCost":
+				return ec.fieldContext_ConsumptionMetrics_tokenPricedCost(ctx, field)
+			case "pricedTokens":
+				return ec.fieldContext_ConsumptionMetrics_pricedTokens(ctx, field)
+			case "successCount":
+				return ec.fieldContext_ConsumptionMetrics_successCount(ctx, field)
+			case "outcomeCount":
+				return ec.fieldContext_ConsumptionMetrics_outcomeCount(ctx, field)
+			case "firstTokenSum":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenSum(ctx, field)
+			case "firstTokenCount":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenCount(ctx, field)
+			case "speedSum":
+				return ec.fieldContext_ConsumptionMetrics_speedSum(ctx, field)
+			case "coefficientSamples":
+				return ec.fieldContext_ConsumptionMetrics_coefficientSamples(ctx, field)
+			case "coefficientEligible":
+				return ec.fieldContext_ConsumptionMetrics_coefficientEligible(ctx, field)
+			case "coefficientTheoretical":
+				return ec.fieldContext_ConsumptionMetrics_coefficientTheoretical(ctx, field)
+			case "coefficientObserved":
+				return ec.fieldContext_ConsumptionMetrics_coefficientObserved(ctx, field)
+			case "requestCount":
+				return ec.fieldContext_ConsumptionMetrics_requestCount(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_ConsumptionMetrics_totalTokens(ctx, field)
+			case "totalCost":
+				return ec.fieldContext_ConsumptionMetrics_totalCost(ctx, field)
+			case "unpricedRequestCount":
+				return ec.fieldContext_ConsumptionMetrics_unpricedRequestCount(ctx, field)
+			case "pricedRequestCount":
+				return ec.fieldContext_ConsumptionMetrics_pricedRequestCount(ctx, field)
+			case "tokenPricedRequestCount":
+				return ec.fieldContext_ConsumptionMetrics_tokenPricedRequestCount(ctx, field)
+			case "speedSampleCount":
+				return ec.fieldContext_ConsumptionMetrics_speedSampleCount(ctx, field)
+			case "cacheRequests":
+				return ec.fieldContext_ConsumptionMetrics_cacheRequests(ctx, field)
+			case "cacheReadTokens":
+				return ec.fieldContext_ConsumptionMetrics_cacheReadTokens(ctx, field)
+			case "cacheInputTokens":
+				return ec.fieldContext_ConsumptionMetrics_cacheInputTokens(ctx, field)
+			case "cacheCreationCost":
+				return ec.fieldContext_ConsumptionMetrics_cacheCreationCost(ctx, field)
+			case "cacheHitRate":
+				return ec.fieldContext_ConsumptionMetrics_cacheHitRate(ctx, field)
+			case "successRate":
+				return ec.fieldContext_ConsumptionMetrics_successRate(ctx, field)
+			case "avgFirstTokenMs":
+				return ec.fieldContext_ConsumptionMetrics_avgFirstTokenMs(ctx, field)
+			case "avgTokensPerSecond":
+				return ec.fieldContext_ConsumptionMetrics_avgTokensPerSecond(ctx, field)
+			case "avgCostPerRequest":
+				return ec.fieldContext_ConsumptionMetrics_avgCostPerRequest(ctx, field)
+			case "avgCostPerMillionTokens":
+				return ec.fieldContext_ConsumptionMetrics_avgCostPerMillionTokens(ctx, field)
+			case "cacheCoefficient":
+				return ec.fieldContext_ConsumptionMetrics_cacheCoefficient(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionMetrics", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionPerformanceSample_channelID(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionPerformanceSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionPerformanceSample_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionPerformanceSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionPerformanceSample_name(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionPerformanceSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionPerformanceSample_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionPerformanceSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionPerformanceSample_model(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionPerformanceSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionPerformanceSample_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionPerformanceSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionPerformanceSample_metrics(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionPerformanceSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionPerformanceSample_metrics,
+		func(ctx context.Context) (any, error) {
+			return obj.Metrics, nil
+		},
+		nil,
+		ec.marshalNConsumptionMetrics2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionMetrics,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionPerformanceSample_metrics(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionPerformanceSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "pricedCost":
+				return ec.fieldContext_ConsumptionMetrics_pricedCost(ctx, field)
+			case "tokenPricedCost":
+				return ec.fieldContext_ConsumptionMetrics_tokenPricedCost(ctx, field)
+			case "pricedTokens":
+				return ec.fieldContext_ConsumptionMetrics_pricedTokens(ctx, field)
+			case "successCount":
+				return ec.fieldContext_ConsumptionMetrics_successCount(ctx, field)
+			case "outcomeCount":
+				return ec.fieldContext_ConsumptionMetrics_outcomeCount(ctx, field)
+			case "firstTokenSum":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenSum(ctx, field)
+			case "firstTokenCount":
+				return ec.fieldContext_ConsumptionMetrics_firstTokenCount(ctx, field)
+			case "speedSum":
+				return ec.fieldContext_ConsumptionMetrics_speedSum(ctx, field)
+			case "coefficientSamples":
+				return ec.fieldContext_ConsumptionMetrics_coefficientSamples(ctx, field)
+			case "coefficientEligible":
+				return ec.fieldContext_ConsumptionMetrics_coefficientEligible(ctx, field)
+			case "coefficientTheoretical":
+				return ec.fieldContext_ConsumptionMetrics_coefficientTheoretical(ctx, field)
+			case "coefficientObserved":
+				return ec.fieldContext_ConsumptionMetrics_coefficientObserved(ctx, field)
 			case "requestCount":
 				return ec.fieldContext_ConsumptionMetrics_requestCount(ctx, field)
 			case "totalTokens":
@@ -43458,6 +44570,146 @@ func (ec *executionContext) fieldContext_ConsumptionProject_name(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionResult_revision(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionResult_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionResult_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionResult_cacheSamples(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionResult_cacheSamples,
+		func(ctx context.Context) (any, error) {
+			return obj.CacheSamples, nil
+		},
+		nil,
+		ec.marshalNConsumptionCacheSample2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionCacheSampleᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionResult_cacheSamples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_ConsumptionCacheSample_channelID(ctx, field)
+			case "model":
+				return ec.fieldContext_ConsumptionCacheSample_model(ctx, field)
+			case "samples":
+				return ec.fieldContext_ConsumptionCacheSample_samples(ctx, field)
+			case "eligible":
+				return ec.fieldContext_ConsumptionCacheSample_eligible(ctx, field)
+			case "theoretical":
+				return ec.fieldContext_ConsumptionCacheSample_theoretical(ctx, field)
+			case "observed":
+				return ec.fieldContext_ConsumptionCacheSample_observed(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionCacheSample", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionResult_performanceSamples(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionResult_performanceSamples,
+		func(ctx context.Context) (any, error) {
+			return obj.PerformanceSamples, nil
+		},
+		nil,
+		ec.marshalNConsumptionPerformanceSample2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPerformanceSampleᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionResult_performanceSamples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_ConsumptionPerformanceSample_channelID(ctx, field)
+			case "name":
+				return ec.fieldContext_ConsumptionPerformanceSample_name(ctx, field)
+			case "model":
+				return ec.fieldContext_ConsumptionPerformanceSample_model(ctx, field)
+			case "metrics":
+				return ec.fieldContext_ConsumptionPerformanceSample_metrics(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionPerformanceSample", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionResult_resolvedAt(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionResult_resolvedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionResult_resolvedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -43680,6 +44932,355 @@ func (ec *executionContext) _ConsumptionResult_currencyCode(ctx context.Context,
 func (ec *executionContext) fieldContext_ConsumptionResult_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ConsumptionResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_days(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_days,
+		func(ctx context.Context) (any, error) {
+			return obj.Days, nil
+		},
+		nil,
+		ec.marshalNConsumptionSliceRevision2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_days(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "start":
+				return ec.fieldContext_ConsumptionSliceRevision_start(ctx, field)
+			case "revision":
+				return ec.fieldContext_ConsumptionSliceRevision_revision(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionSliceRevision", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_pending(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_pending,
+		func(ctx context.Context) (any, error) {
+			return obj.Pending, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_pending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_resolvedAt(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_resolvedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_resolvedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_slices(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_slices,
+		func(ctx context.Context) (any, error) {
+			return obj.Slices, nil
+		},
+		nil,
+		ec.marshalNConsumptionResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_slices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ConsumptionResult_revision(ctx, field)
+			case "cacheSamples":
+				return ec.fieldContext_ConsumptionResult_cacheSamples(ctx, field)
+			case "performanceSamples":
+				return ec.fieldContext_ConsumptionResult_performanceSamples(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionResult_resolvedAt(ctx, field)
+			case "entries":
+				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
+			case "modelEntries":
+				return ec.fieldContext_ConsumptionResult_modelEntries(ctx, field)
+			case "generatedAt":
+				return ec.fieldContext_ConsumptionResult_generatedAt(ctx, field)
+			case "rangeStart":
+				return ec.fieldContext_ConsumptionResult_rangeStart(ctx, field)
+			case "rangeEnd":
+				return ec.fieldContext_ConsumptionResult_rangeEnd(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ConsumptionResult_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ConsumptionResult_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_next(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_next,
+		func(ctx context.Context) (any, error) {
+			return obj.Next, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_next(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_rangeStart(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_rangeStart,
+		func(ctx context.Context) (any, error) {
+			return obj.RangeStart, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_rangeStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_rangeEnd(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_rangeEnd,
+		func(ctx context.Context) (any, error) {
+			return obj.RangeEnd, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_rangeEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_timezone(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_timezone,
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSlicePage_currencyCode(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSlicePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSlicePage_currencyCode,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrencyCode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSlicePage_currencyCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSlicePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSliceRevision_start(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSliceRevision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSliceRevision_start,
+		func(ctx context.Context) (any, error) {
+			return obj.Start, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSliceRevision_start(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSliceRevision",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumptionSliceRevision_revision(ctx context.Context, field graphql.CollectedField, obj *biz.ConsumptionSliceRevision) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumptionSliceRevision_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumptionSliceRevision_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumptionSliceRevision",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -76178,6 +77779,128 @@ func (ec *executionContext) fieldContext_Query_analyticsModelStats(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_consumptionSlices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_consumptionSlices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ConsumptionSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
+		},
+		nil,
+		ec.marshalNConsumptionSlicePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_consumptionSlices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "days":
+				return ec.fieldContext_ConsumptionSlicePage_days(ctx, field)
+			case "pending":
+				return ec.fieldContext_ConsumptionSlicePage_pending(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionSlicePage_resolvedAt(ctx, field)
+			case "slices":
+				return ec.fieldContext_ConsumptionSlicePage_slices(ctx, field)
+			case "next":
+				return ec.fieldContext_ConsumptionSlicePage_next(ctx, field)
+			case "rangeStart":
+				return ec.fieldContext_ConsumptionSlicePage_rangeStart(ctx, field)
+			case "rangeEnd":
+				return ec.fieldContext_ConsumptionSlicePage_rangeEnd(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ConsumptionSlicePage_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ConsumptionSlicePage_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionSlicePage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_consumptionSlices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_usageSlices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_usageSlices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().UsageSlices(ctx, fc.Args["input"].(biz.ConsumptionFilter), fc.Args["after"].(*time.Time), fc.Args["known"].([]*biz.ConsumptionSliceRevision), fc.Args["asOf"].(*time.Time), fc.Args["verify"].(bool))
+		},
+		nil,
+		ec.marshalNConsumptionSlicePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_usageSlices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "days":
+				return ec.fieldContext_ConsumptionSlicePage_days(ctx, field)
+			case "pending":
+				return ec.fieldContext_ConsumptionSlicePage_pending(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionSlicePage_resolvedAt(ctx, field)
+			case "slices":
+				return ec.fieldContext_ConsumptionSlicePage_slices(ctx, field)
+			case "next":
+				return ec.fieldContext_ConsumptionSlicePage_next(ctx, field)
+			case "rangeStart":
+				return ec.fieldContext_ConsumptionSlicePage_rangeStart(ctx, field)
+			case "rangeEnd":
+				return ec.fieldContext_ConsumptionSlicePage_rangeEnd(ctx, field)
+			case "timezone":
+				return ec.fieldContext_ConsumptionSlicePage_timezone(ctx, field)
+			case "currencyCode":
+				return ec.fieldContext_ConsumptionSlicePage_currencyCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumptionSlicePage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_usageSlices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_consumptionProjects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -76332,6 +78055,14 @@ func (ec *executionContext) fieldContext_Query_consumptionLeaderboard(ctx contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ConsumptionResult_revision(ctx, field)
+			case "cacheSamples":
+				return ec.fieldContext_ConsumptionResult_cacheSamples(ctx, field)
+			case "performanceSamples":
+				return ec.fieldContext_ConsumptionResult_performanceSamples(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionResult_resolvedAt(ctx, field)
 			case "entries":
 				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
 			case "modelEntries":
@@ -76389,6 +78120,14 @@ func (ec *executionContext) fieldContext_Query_usageStatistics(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ConsumptionResult_revision(ctx, field)
+			case "cacheSamples":
+				return ec.fieldContext_ConsumptionResult_cacheSamples(ctx, field)
+			case "performanceSamples":
+				return ec.fieldContext_ConsumptionResult_performanceSamples(ctx, field)
+			case "resolvedAt":
+				return ec.fieldContext_ConsumptionResult_resolvedAt(ctx, field)
 			case "entries":
 				return ec.fieldContext_ConsumptionResult_entries(ctx, field)
 			case "modelEntries":
@@ -110443,6 +112182,40 @@ func (ec *executionContext) unmarshalInputConsumptionFilter(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputConsumptionSliceRevisionInput(ctx context.Context, obj any) (biz.ConsumptionSliceRevision, error) {
+	var it biz.ConsumptionSliceRevision
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"start", "revision"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "start":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("start"))
+			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Start = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCostItemInput(ctx context.Context, obj any) (objects.CostItem, error) {
 	var it objects.CostItem
 	asMap := map[string]any{}
@@ -140906,6 +142679,70 @@ func (ec *executionContext) _CommandCodeQuotaSettings(ctx context.Context, sel a
 	return out
 }
 
+var consumptionCacheSampleImplementors = []string{"ConsumptionCacheSample"}
+
+func (ec *executionContext) _ConsumptionCacheSample(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionCacheSample) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumptionCacheSampleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumptionCacheSample")
+		case "channelID":
+			out.Values[i] = ec._ConsumptionCacheSample_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._ConsumptionCacheSample_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "samples":
+			out.Values[i] = ec._ConsumptionCacheSample_samples(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "eligible":
+			out.Values[i] = ec._ConsumptionCacheSample_eligible(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "theoretical":
+			out.Values[i] = ec._ConsumptionCacheSample_theoretical(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "observed":
+			out.Values[i] = ec._ConsumptionCacheSample_observed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var consumptionEntryImplementors = []string{"ConsumptionEntry"}
 
 func (ec *executionContext) _ConsumptionEntry(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionEntry) graphql.Marshaler {
@@ -141035,6 +142872,66 @@ func (ec *executionContext) _ConsumptionMetrics(ctx context.Context, sel ast.Sel
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ConsumptionMetrics")
+		case "pricedCost":
+			out.Values[i] = ec._ConsumptionMetrics_pricedCost(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tokenPricedCost":
+			out.Values[i] = ec._ConsumptionMetrics_tokenPricedCost(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pricedTokens":
+			out.Values[i] = ec._ConsumptionMetrics_pricedTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "successCount":
+			out.Values[i] = ec._ConsumptionMetrics_successCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outcomeCount":
+			out.Values[i] = ec._ConsumptionMetrics_outcomeCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstTokenSum":
+			out.Values[i] = ec._ConsumptionMetrics_firstTokenSum(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstTokenCount":
+			out.Values[i] = ec._ConsumptionMetrics_firstTokenCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "speedSum":
+			out.Values[i] = ec._ConsumptionMetrics_speedSum(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coefficientSamples":
+			out.Values[i] = ec._ConsumptionMetrics_coefficientSamples(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coefficientEligible":
+			out.Values[i] = ec._ConsumptionMetrics_coefficientEligible(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coefficientTheoretical":
+			out.Values[i] = ec._ConsumptionMetrics_coefficientTheoretical(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coefficientObserved":
+			out.Values[i] = ec._ConsumptionMetrics_coefficientObserved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "requestCount":
 			out.Values[i] = ec._ConsumptionMetrics_requestCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -141171,6 +143068,60 @@ func (ec *executionContext) _ConsumptionModel(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var consumptionPerformanceSampleImplementors = []string{"ConsumptionPerformanceSample"}
+
+func (ec *executionContext) _ConsumptionPerformanceSample(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionPerformanceSample) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumptionPerformanceSampleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumptionPerformanceSample")
+		case "channelID":
+			out.Values[i] = ec._ConsumptionPerformanceSample_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ConsumptionPerformanceSample_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._ConsumptionPerformanceSample_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metrics":
+			out.Values[i] = ec._ConsumptionPerformanceSample_metrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var consumptionProjectImplementors = []string{"ConsumptionProject"}
 
 func (ec *executionContext) _ConsumptionProject(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionProject) graphql.Marshaler {
@@ -141226,6 +143177,26 @@ func (ec *executionContext) _ConsumptionResult(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ConsumptionResult")
+		case "revision":
+			out.Values[i] = ec._ConsumptionResult_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cacheSamples":
+			out.Values[i] = ec._ConsumptionResult_cacheSamples(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "performanceSamples":
+			out.Values[i] = ec._ConsumptionResult_performanceSamples(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedAt":
+			out.Values[i] = ec._ConsumptionResult_resolvedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "entries":
 			out.Values[i] = ec._ConsumptionResult_entries(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -141255,6 +143226,123 @@ func (ec *executionContext) _ConsumptionResult(ctx context.Context, sel ast.Sele
 			}
 		case "currencyCode":
 			out.Values[i] = ec._ConsumptionResult_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var consumptionSlicePageImplementors = []string{"ConsumptionSlicePage"}
+
+func (ec *executionContext) _ConsumptionSlicePage(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionSlicePage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumptionSlicePageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumptionSlicePage")
+		case "days":
+			out.Values[i] = ec._ConsumptionSlicePage_days(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pending":
+			out.Values[i] = ec._ConsumptionSlicePage_pending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedAt":
+			out.Values[i] = ec._ConsumptionSlicePage_resolvedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "slices":
+			out.Values[i] = ec._ConsumptionSlicePage_slices(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "next":
+			out.Values[i] = ec._ConsumptionSlicePage_next(ctx, field, obj)
+		case "rangeStart":
+			out.Values[i] = ec._ConsumptionSlicePage_rangeStart(ctx, field, obj)
+		case "rangeEnd":
+			out.Values[i] = ec._ConsumptionSlicePage_rangeEnd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._ConsumptionSlicePage_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currencyCode":
+			out.Values[i] = ec._ConsumptionSlicePage_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var consumptionSliceRevisionImplementors = []string{"ConsumptionSliceRevision"}
+
+func (ec *executionContext) _ConsumptionSliceRevision(ctx context.Context, sel ast.SelectionSet, obj *biz.ConsumptionSliceRevision) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumptionSliceRevisionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumptionSliceRevision")
+		case "start":
+			out.Values[i] = ec._ConsumptionSliceRevision_start(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._ConsumptionSliceRevision_revision(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -152598,6 +154686,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_analyticsModelStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "consumptionSlices":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_consumptionSlices(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "usageSlices":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_usageSlices(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -166540,6 +168672,60 @@ func (ec *executionContext) unmarshalNCompleteSystemModelSettingOnboardingInput2
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNConsumptionCacheSample2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionCacheSampleᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ConsumptionCacheSample) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNConsumptionCacheSample2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionCacheSample(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConsumptionCacheSample2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionCacheSample(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionCacheSample) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumptionCacheSample(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNConsumptionDimension2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionDimension(ctx context.Context, v any) (biz.ConsumptionDimension, error) {
 	var res biz.ConsumptionDimension
 	err := res.UnmarshalGQL(v)
@@ -166731,6 +168917,60 @@ func (ec *executionContext) marshalNConsumptionModel2ᚖgithubᚗcomᚋloopljᚋ
 	return ec._ConsumptionModel(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNConsumptionPerformanceSample2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPerformanceSampleᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ConsumptionPerformanceSample) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNConsumptionPerformanceSample2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPerformanceSample(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConsumptionPerformanceSample2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPerformanceSample(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionPerformanceSample) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumptionPerformanceSample(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNConsumptionPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionPeriod(ctx context.Context, v any) (biz.ConsumptionPeriod, error) {
 	var res biz.ConsumptionPeriod
 	err := res.UnmarshalGQL(v)
@@ -166799,6 +169039,50 @@ func (ec *executionContext) marshalNConsumptionResult2githubᚗcomᚋloopljᚋax
 	return ec._ConsumptionResult(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNConsumptionResult2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ConsumptionResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNConsumptionResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNConsumptionResult2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionResult(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -166807,6 +169091,79 @@ func (ec *executionContext) marshalNConsumptionResult2ᚖgithubᚗcomᚋlooplj�
 		return graphql.Null
 	}
 	return ec._ConsumptionResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNConsumptionSlicePage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage(ctx context.Context, sel ast.SelectionSet, v biz.ConsumptionSlicePage) graphql.Marshaler {
+	return ec._ConsumptionSlicePage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConsumptionSlicePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSlicePage(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionSlicePage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumptionSlicePage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNConsumptionSliceRevision2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ConsumptionSliceRevision) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNConsumptionSliceRevision2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevision(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConsumptionSliceRevision2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevision(ctx context.Context, sel ast.SelectionSet, v *biz.ConsumptionSliceRevision) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumptionSliceRevision(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNConsumptionSliceRevisionInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevision(ctx context.Context, v any) (*biz.ConsumptionSliceRevision, error) {
+	res, err := ec.unmarshalInputConsumptionSliceRevisionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNContextPricing2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐContextPricing(ctx context.Context, sel ast.SelectionSet, v objects.ContextPricing) graphql.Marshaler {
@@ -175598,6 +177955,24 @@ func (ec *executionContext) unmarshalOCommandCodeQuotaSettingsInput2ᚖgithubᚗ
 	}
 	res, err := ec.unmarshalInputCommandCodeQuotaSettingsInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOConsumptionSliceRevisionInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevisionᚄ(ctx context.Context, v any) ([]*biz.ConsumptionSliceRevision, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*biz.ConsumptionSliceRevision, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNConsumptionSliceRevisionInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐConsumptionSliceRevision(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOCostItem2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCostItemᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.CostItem) graphql.Marshaler {
