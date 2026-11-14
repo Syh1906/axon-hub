@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptrace"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,14 +19,14 @@ var nextPoolGeneration atomic.Uint64
 var nextConnectionID atomic.Uint64
 
 // recoveringTransport keeps proxy/TLS policy local to its owning HttpClient.
-// Each origin has an independent standard-library pool. Recovery changes only
-// the pool used by future requests; it never closes a traced connection or
-// retries a request. At most one old pool per origin may drain at a time.
+// Each origin starts with one pool and may add independent pools when concurrent
+// HTTP/2 uploads stall. Recovery changes only future requests; an active pool
+// may have at most one old generation draining. Neither mechanism replays work.
 type recoveringTransport struct {
 	template  *http.Transport
 	tlsConfig *tls.Config // Immutable policy, separate from Transport's lazy HTTP/2 setup.
 	mu        sync.Mutex
-	origins   map[string]*originPool
+	origins   map[string]*originPools
 }
 
 type originPool struct {
@@ -34,12 +36,15 @@ type originPool struct {
 	timer         *time.Timer
 	idleEpoch     uint64
 	closeWhenIdle bool
+	retiring      bool // Unhelpful expansion: stop admission, drain existing work.
+	lastStall     *uploadStall
 }
 
 type poolGeneration struct {
 	id        uint64
 	transport *http.Transport
-	active    int // Includes response bodies, not just RoundTrip calls.
+	active    int                      // Includes response bodies, not just RoundTrip calls.
+	attempts  map[*poolUpload]struct{} // Protected by recoveringTransport.mu.
 	connMu    sync.Mutex
 	conns     map[*identifiedConn]struct{}
 	closed    bool
@@ -47,13 +52,14 @@ type poolGeneration struct {
 
 func newRecoveringTransport(template *http.Transport) *recoveringTransport {
 	template = template.Clone()
-	return &recoveringTransport{template: template, tlsConfig: template.TLSClientConfig.Clone(), origins: make(map[string]*originPool)}
+	return &recoveringTransport{template: template, tlsConfig: template.TLSClientConfig.Clone(), origins: make(map[string]*originPools)}
 }
 
 func (t *recoveringTransport) newGeneration() *poolGeneration {
 	generation := &poolGeneration{
 		id: nextPoolGeneration.Add(1), transport: t.template.Clone(),
-		conns: make(map[*identifiedConn]struct{}),
+		conns:    make(map[*identifiedConn]struct{}),
+		attempts: make(map[*poolUpload]struct{}),
 	}
 	dial := generation.transport.DialContext
 	if dial == nil {
@@ -112,11 +118,23 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	// not participate in the key or in transport diagnostics.
 	origin := strings.ToLower(req.URL.Scheme + "://" + req.URL.Host)
 	t.mu.Lock()
-	pool := t.origins[origin]
-	if pool == nil {
-		pool = &originPool{current: t.newGeneration()}
-		t.origins[origin] = pool
+	pools := t.origins[origin]
+	if pools == nil {
+		pools = &originPools{lanes: []*originPool{{current: t.newGeneration()}}}
+		t.origins[origin] = pools
 	}
+	pool, action := t.chooseUploadPool(pools, time.Now())
+	var cleanups []func()
+	for _, lane := range slices.Clone(pools.lanes) {
+		if lane.retiring {
+			// An expired trial may already be idle, with no future release to
+			// retire it. Reclaim it now, even when IdleConnTimeout is disabled.
+			if cleanup := t.onIdleLocked(origin, lane); cleanup != nil {
+				cleanups = append(cleanups, cleanup)
+			}
+		}
+	}
+	poolCount := len(pools.lanes)
 	pool.idleEpoch++
 	if pool.timer != nil {
 		pool.timer.Stop()
@@ -125,7 +143,12 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	pool.closeWhenIdle = false
 	generation := pool.current
 	generation.active++
+	upload := &poolUpload{ctx: req.Context(), bytes: req.ContentLength}
+	generation.attempts[upload] = struct{}{}
 	t.mu.Unlock()
+	for _, cleanup := range cleanups {
+		cleanup()
+	}
 
 	observer, _ := req.Context().Value(transportObserverKey{}).(*TransportTrace)
 	if observer != nil {
@@ -141,20 +164,63 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 			}
 			return verified
 		})
+		observer.setPoolChoice(generation.id, poolCount, action)
 	}
-	response, err := generation.transport.RoundTrip(req)
+	// Observe native callers too. Do not depend on application payload decoding or
+	// acquire the diagnostic trace lock while holding the pool lock.
+	progress := &httptrace.ClientTrace{
+		GetConn: func(string) {
+			t.mu.Lock()
+			upload.resetConnection()
+			t.mu.Unlock()
+		},
+		GotConn: func(info httptrace.GotConnInfo) {
+			t.mu.Lock()
+			upload.connectionID, upload.protocol = connectionIdentity(info.Conn)
+			upload.connected = time.Now()
+			t.mu.Unlock()
+		},
+		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			t.mu.Lock()
+			now := time.Now()
+			if info.Err == nil {
+				if pool.current == generation {
+					if stalled := generation.stalledSharedUpload(now); stalled != nil {
+						pool.lastStall = &uploadStall{bytes: stalled.bytes, elapsed: now.Sub(stalled.connected), observed: now}
+					}
+				}
+				upload.uploaded = now
+			} else {
+				upload.failed = true
+			}
+			result := t.observeUploadProbe(pools, pool, generation, upload, now)
+			t.mu.Unlock()
+			if observer != nil && result != "" {
+				observer.setPoolChoice(generation.id, poolCount, result)
+			}
+		},
+	}
+	response, err := generation.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), progress)))
 	if err != nil {
-		t.release(origin, pool, generation)
+		t.release(origin, pool, generation, upload)
 		return response, err
 	}
+	t.mu.Lock()
+	upload.headers = true
+	upload.status = response.StatusCode
+	probeResult := t.observeUploadProbe(pools, pool, generation, upload, time.Now())
+	t.mu.Unlock()
 	if observer != nil {
+		if probeResult != "" {
+			observer.setPoolChoice(generation.id, poolCount, probeResult)
+		}
 		observer.recordProtocol(response.Proto)
 		// HTTP/2 can deliver headers before finishing the upload. Verification
 		// observes both events in either order rather than sampling only here.
 		observer.record(TransportHeaders, time.Now())
 	}
 	response.Body = &poolResponseBody{ReadCloser: response.Body, release: func() {
-		t.release(origin, pool, generation)
+		t.release(origin, pool, generation, upload)
 	}}
 	return response, nil
 }
@@ -162,7 +228,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 func (t *recoveringTransport) recoverUpload(origin string, pool *originPool, generation *poolGeneration, bodyBytes int64) (string, func()) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.origins[origin] != pool || pool.current != generation {
+	if !t.hasPool(origin, pool) || pool.current != generation {
 		return "already_replaced", nil
 	}
 	if t.template.DisableKeepAlives {
@@ -180,15 +246,18 @@ func (t *recoveringTransport) recoverUpload(origin string, pool *originPool, gen
 	pool.current = t.newGeneration()
 	pool.draining = generation
 	pool.recoveryBytes = bodyBytes
+	pool.lastStall = nil
 	if generation.active == 0 {
 		return "pool_replaced", t.retireLocked(origin, pool, generation)
 	}
 	return "pool_replaced", nil
 }
 
-func (t *recoveringTransport) release(origin string, pool *originPool, generation *poolGeneration) {
+func (t *recoveringTransport) release(origin string, pool *originPool, generation *poolGeneration, upload *poolUpload) {
 	t.mu.Lock()
 	generation.active--
+	delete(generation.attempts, upload)
+	upload.released = true
 	var cleanup func()
 	if generation != pool.current && generation.active == 0 {
 		cleanup = t.retireLocked(origin, pool, generation)
@@ -223,7 +292,7 @@ func (t *recoveringTransport) onIdleLocked(origin string, pool *originPool) func
 	if pool.current.active != 0 || pool.draining != nil {
 		return nil
 	}
-	if pool.closeWhenIdle {
+	if pool.closeWhenIdle || pool.retiring {
 		return t.removeIdleLocked(origin, pool)
 	}
 	if timeout := t.template.IdleConnTimeout; timeout > 0 {
@@ -237,7 +306,7 @@ func (t *recoveringTransport) onIdleLocked(origin string, pool *originPool) func
 			}()
 			t.mu.Lock()
 			var cleanup func()
-			if t.origins[origin] == pool && pool.idleEpoch == epoch {
+			if t.hasPool(origin, pool) && pool.idleEpoch == epoch {
 				cleanup = t.removeIdleLocked(origin, pool)
 			}
 			t.mu.Unlock()
@@ -256,23 +325,32 @@ func (t *recoveringTransport) removeIdleLocked(origin string, pool *originPool) 
 		pool.timer.Stop()
 		pool.timer = nil
 	}
-	delete(t.origins, origin)
+	pools := t.origins[origin]
+	pools.lanes = slices.DeleteFunc(pools.lanes, func(lane *originPool) bool { return lane == pool })
+	if pools.probe != nil && pools.probe.lane == pool {
+		pools.probe = nil
+	}
+	if len(pools.lanes) == 0 {
+		delete(t.origins, origin)
+	}
 	return pool.current.prepareClose()
 }
 
 func (t *recoveringTransport) CloseIdleConnections() {
 	t.mu.Lock()
 	var cleanups []func()
-	for origin, pool := range t.origins {
-		pool.closeWhenIdle = true
-		if pool.current.active == 0 && pool.draining == nil {
-			if cleanup := t.removeIdleLocked(origin, pool); cleanup != nil {
-				cleanups = append(cleanups, cleanup)
-			}
-		} else {
-			cleanups = append(cleanups, pool.current.transport.CloseIdleConnections)
-			if pool.draining != nil {
-				cleanups = append(cleanups, pool.draining.transport.CloseIdleConnections)
+	for origin, pools := range t.origins {
+		for _, pool := range slices.Clone(pools.lanes) {
+			pool.closeWhenIdle = true
+			if pool.current.active == 0 && pool.draining == nil {
+				if cleanup := t.removeIdleLocked(origin, pool); cleanup != nil {
+					cleanups = append(cleanups, cleanup)
+				}
+			} else {
+				cleanups = append(cleanups, pool.current.transport.CloseIdleConnections)
+				if pool.draining != nil {
+					cleanups = append(cleanups, pool.draining.transport.CloseIdleConnections)
+				}
 			}
 		}
 	}
@@ -280,6 +358,12 @@ func (t *recoveringTransport) CloseIdleConnections() {
 	for _, cleanup := range cleanups {
 		cleanup()
 	}
+}
+
+// hasPool is called with t.mu held; a lane can expire independently of its peers.
+func (t *recoveringTransport) hasPool(origin string, pool *originPool) bool {
+	pools := t.origins[origin]
+	return pools != nil && slices.Contains(pools.lanes, pool)
 }
 
 type poolResponseBody struct {

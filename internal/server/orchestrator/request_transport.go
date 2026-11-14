@@ -84,7 +84,8 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 	defer t.mu.Unlock()
 	largeRequest := t.bytes >= 5<<20 || (t.optimization != nil && t.optimization.InputBytes >= 5<<20)
 	timings := t.trace.Snapshot()
-	info := failed || largeRequest || timings.PoolRecovery != ""
+	slowUpload := timings.UploadMs != nil && *timings.UploadMs >= 2000
+	info := failed || largeRequest || slowUpload || timings.PoolRecovery != "" || timings.PoolAction != ""
 	// Transport completion can precede decoding or aggregate-response failure.
 	// Permit a debug record to become visible at info once, without duplicates.
 	if t.recorded && (t.recordedInfo || !info) {

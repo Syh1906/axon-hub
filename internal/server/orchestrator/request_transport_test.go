@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -114,4 +115,31 @@ func TestTransportFailureIsLoggedAfterHTTP200(t *testing.T) {
 		state.ExecutionTransport.record(ctx, false)
 		require.Equal(t, 1, count, "a later failure must still produce one info diagnostic")
 	}
+}
+
+func TestSlowSuccessfulUploadIsLoggedWithoutBody(t *testing.T) {
+	logger := log.GetGlobalLogger()
+	previous := *logger
+	logger.SetLevel(log.InfoLevel)
+	t.Cleanup(func() { *logger = previous })
+	type captureKey struct{}
+	ctx := context.WithValue(context.Background(), captureKey{}, true)
+	count := 0
+	logger.AddHook(log.HookFunc(func(logCtx context.Context, message string, fields ...log.Field) []log.Field {
+		if message == "上游请求分段计时" && logCtx.Value(captureKey{}) == true {
+			count++
+			for _, field := range fields {
+				require.NotContains(t, []string{"body", "headers", "credentials"}, field.Key)
+			}
+		}
+		return fields
+	}))
+	request := &httpclient.Request{TransportTrace: new(httpclient.TransportTrace)}
+	now := time.Now()
+	request.ReportHTTPProgress(httpclient.TransportConnected, now)
+	request.ReportHTTPProgress(httpclient.TransportUploaded, now.Add(3*time.Second))
+	record := &executionTransport{trace: request.TransportTrace, bytes: 128 << 10}
+	record.record(ctx, false)
+	record.record(ctx, false)
+	require.Equal(t, 1, count)
 }

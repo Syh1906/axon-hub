@@ -29,6 +29,8 @@ type TransportTrace struct {
 	reused             *bool
 	connectionAttempts int
 	poolRecovery       string
+	poolCount          int
+	poolAction         string
 	recoverUpload      func() (string, func())
 	verifyUpload       func() bool
 }
@@ -48,6 +50,8 @@ type TransportTimings struct {
 	Reused             *bool  `json:"connection_reused,omitempty"`
 	ConnectionAttempts int    `json:"connection_attempts,omitempty"`
 	PoolRecovery       string `json:"pool_recovery,omitempty"`
+	PoolCount          int    `json:"pool_count,omitempty"`
+	PoolAction         string `json:"pool_action,omitempty"`
 }
 
 func (t *TransportTrace) beginPoolAttempt(generation uint64, recoverUpload func() (string, func()), verifyUpload func() bool) {
@@ -59,6 +63,16 @@ func (t *TransportTrace) beginPoolAttempt(generation uint64, recoverUpload func(
 	t.times = map[TransportPhase]time.Time{TransportStarted: time.Now()}
 	t.connectionID, t.protocol, t.reused, t.connectionAttempts = 0, "", nil, 0
 	t.poolRecovery = ""
+	t.poolCount, t.poolAction = 0, ""
+}
+
+func (t *TransportTrace) setPoolChoice(generation uint64, count int, action string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.poolGeneration != generation {
+		return
+	}
+	t.poolCount, t.poolAction = count, action
 }
 
 func (t *TransportTrace) recordConnection(info httptrace.GotConnInfo) {
@@ -148,6 +162,7 @@ func (t *TransportTrace) Snapshot() TransportTimings {
 		PoolGeneration:   t.poolGeneration, ConnectionID: t.connectionID,
 		Protocol: t.protocol, Reused: t.reused, ConnectionAttempts: t.connectionAttempts,
 		PoolRecovery: t.poolRecovery,
+		PoolCount:    t.poolCount, PoolAction: t.poolAction,
 	}
 }
 

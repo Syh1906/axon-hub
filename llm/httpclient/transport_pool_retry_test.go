@@ -107,7 +107,7 @@ func TestRecoveryClosesOutsideTraceAndPoolLocks(t *testing.T) {
 	_, err := generation.transport.DialContext(t.Context(), "tcp", "test.invalid:443")
 	require.NoError(t, err)
 	origin := &originPool{current: generation}
-	pool.origins["https://test.invalid"] = origin
+	pool.origins["https://test.invalid"] = &originPools{lanes: []*originPool{origin}}
 	request := &Request{TransportTrace: new(TransportTrace)}
 	request.TransportTrace.beginPoolAttempt(generation.id, func() (string, func()) {
 		return pool.recoverUpload("https://test.invalid", origin, generation, 1024)

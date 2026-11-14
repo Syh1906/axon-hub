@@ -105,7 +105,7 @@ func TestUploadRecoveryDrainsWithoutInterruptingOtherRequests(t *testing.T) {
 			require.NoError(t, err)
 			managed := client.client.Transport.(*recoveringTransport)
 			managed.mu.Lock()
-			oldPool := managed.origins[server.URL]
+			oldPool := managed.origins[server.URL].lanes[0]
 			oldGeneration := oldPool.current
 			managed.mu.Unlock()
 
