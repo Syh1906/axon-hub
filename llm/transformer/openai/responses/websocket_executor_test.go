@@ -81,6 +81,17 @@ func TestNewWebSocketExecutorOffersHTTP11Only(t *testing.T) {
 	require.Equal(t, []string{"http/1.1"}, executor.dialer.TLSClientConfig.NextProtos)
 }
 
+func TestNewWebSocketExecutorPreservesManagedTransportTLS(t *testing.T) {
+	client := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled}, httpclient.WithInsecureSkipVerify(true))
+	defer client.CloseIdleConnections()
+	executor := NewWebSocketExecutor(client)
+	require.NotNil(t, executor.dialer.TLSClientConfig)
+	require.True(t, executor.dialer.TLSClientConfig.InsecureSkipVerify)
+	require.Equal(t, []string{"http/1.1"}, executor.dialer.TLSClientConfig.NextProtos)
+	executor.dialer.TLSClientConfig.InsecureSkipVerify = false
+	require.True(t, client.TLSConfig().InsecureSkipVerify, "the WebSocket dialer must not mutate shared HTTP TLS policy")
+}
+
 func TestWebSocketExecutorDoStreamSendsResponseCreate(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

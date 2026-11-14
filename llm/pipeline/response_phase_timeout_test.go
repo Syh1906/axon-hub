@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -40,6 +42,78 @@ func TestHTTPUploadDoesNotConsumeResponseBudget(t *testing.T) {
 	require.GreaterOrEqual(t, *trace.FirstByteWaitMs, int64(100))
 }
 
+func TestUploadTimeoutRecoversPoolWithoutReplayingRequest(t *testing.T) {
+	for _, h2 := range []bool{false, true} {
+		t.Run(fmt.Sprintf("http2=%t", h2), func(t *testing.T) {
+			finish := make(chan struct{})
+			var calls atomic.Int64
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				if r.URL.Path == "/blocked" {
+					select {
+					case <-finish:
+					case <-r.Context().Done():
+					}
+					return
+				}
+				_, _ = w.Write([]byte(`{"ok":true}`))
+			}))
+			server.EnableHTTP2 = h2
+			server.StartTLS()
+			defer server.Close()
+			defer close(finish)
+			client := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled}, httpclient.WithInsecureSkipVerify(true))
+			defer client.CloseIdleConnections()
+			request := &httpclient.Request{Method: http.MethodPost, URL: server.URL + "/blocked", Body: bytes.Repeat([]byte("x"), 16<<20)}
+			parent, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctx, guard := newResponsePhaseGuard(parent, request, time.Second, 250*time.Millisecond, ErrNonStreamResponseTimeout)
+			_, err := client.Do(ctx, request)
+			require.ErrorIs(t, guard.finishBeforeFirstEvent(err), ErrRequestUploadTimeout)
+			before := request.TransportTrace.Snapshot()
+			require.Equal(t, "pool_replaced", before.PoolRecovery)
+			require.False(t, before.UploadCompleted)
+			require.EqualValues(t, 1, calls.Load(), "connection recovery must not replay the failed POST")
+			next := &httpclient.Request{Method: http.MethodGet, URL: server.URL}
+			_, err = client.Do(parent, next)
+			require.NoError(t, err)
+			after := next.TransportTrace.Snapshot()
+			require.NotEqual(t, before.PoolGeneration, after.PoolGeneration)
+			require.NotEqual(t, before.ConnectionID, after.ConnectionID)
+			require.EqualValues(t, 2, calls.Load())
+		})
+	}
+}
+
+func TestRedirectUploadTimeoutRecoversOnlyCurrentOrigin(t *testing.T) {
+	finish := make(chan struct{})
+	var calls atomic.Int64
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		select {
+		case <-finish:
+		case <-r.Context().Done():
+		}
+	}))
+	defer target.Close()
+	defer close(finish)
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Location", target.URL)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+	client := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled})
+	defer client.CloseIdleConnections()
+	request := &httpclient.Request{Method: http.MethodPost, URL: source.URL, Body: bytes.Repeat([]byte("x"), 16<<20)}
+	ctx, guard := newResponsePhaseGuard(t.Context(), request, 2*time.Second, 250*time.Millisecond, ErrNonStreamResponseTimeout)
+	_, err := client.Do(ctx, request)
+	require.ErrorIs(t, guard.finishBeforeFirstEvent(err), ErrRequestUploadTimeout)
+	require.Equal(t, "pool_replaced", request.TransportTrace.Snapshot().PoolRecovery)
+	require.False(t, request.TransportTrace.Snapshot().UploadCompleted)
+	require.EqualValues(t, 1, calls.Load())
+}
+
 func TestResponsePhaseTimeoutClassification(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
@@ -59,6 +133,55 @@ func TestResponsePhaseTimeoutClassification(t *testing.T) {
 			}
 			<-ctx.Done()
 			require.ErrorIs(t, guard.finishBeforeFirstEvent(ctx.Err()), tc.want)
+		})
+	}
+}
+
+func TestHTTPPoolRecoveryExcludesParentCancellationAndResponseTimeout(t *testing.T) {
+	for _, parentTimeout := range []bool{false, true} {
+		t.Run(fmt.Sprintf("parentTimeout=%t", parentTimeout), func(t *testing.T) {
+			finish := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/quick" {
+					_, _ = w.Write([]byte(`{"ok":true}`))
+					return
+				}
+				if !parentTimeout {
+					_, _ = io.Copy(io.Discard, r.Body)
+				}
+				select {
+				case <-finish:
+				case <-r.Context().Done():
+				}
+			}))
+			defer server.Close()
+			defer close(finish)
+			client := httpclient.NewHttpClient()
+			defer client.CloseIdleConnections()
+			parent, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			body := []byte(`{}`)
+			if parentTimeout {
+				var stop context.CancelFunc
+				parent, stop = context.WithTimeout(parent, 150*time.Millisecond)
+				defer stop()
+				body = bytes.Repeat([]byte("x"), 16<<20)
+			}
+			request := &httpclient.Request{Method: http.MethodPost, URL: server.URL, Body: body}
+			ctx, guard := newResponsePhaseGuard(parent, request, 250*time.Millisecond, time.Second, ErrNonStreamResponseTimeout)
+			_, err := client.Do(ctx, request)
+			err = guard.finishBeforeFirstEvent(err)
+			if parentTimeout {
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+			} else {
+				require.ErrorIs(t, err, ErrNonStreamResponseTimeout)
+			}
+			before := request.TransportTrace.Snapshot()
+			require.Empty(t, before.PoolRecovery)
+			next := &httpclient.Request{Method: http.MethodGet, URL: server.URL + "/quick"}
+			_, err = client.Do(t.Context(), next)
+			require.NoError(t, err)
+			require.Equal(t, before.PoolGeneration, next.TransportTrace.Snapshot().PoolGeneration)
 		})
 	}
 }

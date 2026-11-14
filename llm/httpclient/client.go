@@ -84,7 +84,7 @@ func NewHttpClientWithProxy(proxyConfig *ProxyConfig, opts ...ClientOption) *Htt
 		}
 	}
 
-	client := &http.Client{Transport: transport}
+	client := &http.Client{Transport: newRecoveringTransport(transport)}
 	if options.rejectHTTPSDowngrade {
 		client.CheckRedirect = rejectHTTPSDowngrade
 	}
@@ -153,6 +153,22 @@ func rejectHTTPSDowngrade(req *http.Request, via []*http.Request) error {
 // GetNativeClient returns the underlying *http.Client for advanced use cases.
 func (hc *HttpClient) GetNativeClient() *http.Client {
 	return hc.client
+}
+
+// TLSConfig returns a copy of the native client's TLS policy, independent of
+// connection-pool wrappers. Callers may adjust protocol negotiation locally.
+func (hc *HttpClient) TLSConfig() *tls.Config {
+	var transport *http.Transport
+	switch native := hc.client.Transport.(type) {
+	case *recoveringTransport:
+		return native.tlsConfig.Clone()
+	case *http.Transport:
+		transport = native
+	}
+	if transport != nil && transport.TLSClientConfig != nil {
+		return transport.TLSClientConfig.Clone()
+	}
+	return nil
 }
 
 // CloseIdleConnections closes idle connections held by the underlying HTTP transport.
@@ -254,10 +270,26 @@ func NewHttpClient(opts ...ClientOption) *HttpClient {
 		client.Transport = transport
 	}
 
+	if transport, ok := client.Transport.(*http.Transport); ok {
+		client.Transport = managedNativeTransport(transport)
+	} else if client.Transport == nil {
+		if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+			client.Transport = managedNativeTransport(transport)
+		}
+	}
 	return &HttpClient{
 		client: client,
 		opts:   opts,
 	}
+}
+
+func managedNativeTransport(transport *http.Transport) http.RoundTripper {
+	// Externally supplied TLS dialers own the TLS connection (and its ALPN).
+	// Preserve that contract instead of wrapping it and losing *tls.Conn.
+	if transport.DialTLSContext != nil || transport.DialTLS != nil {
+		return transport
+	}
+	return newRecoveringTransport(transport)
 }
 
 // NewHttpClientWithClient creates a new HTTP client with a custom http.Client.

@@ -2,6 +2,8 @@ package httpclient
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,4 +34,27 @@ func TestTransportTraceUnknownAndEarlyResponseAreNotZero(t *testing.T) {
 	require.Nil(t, trace.Snapshot().HeadersWaitMs)
 	trace.record(TransportUploaded, now.Add(2*time.Millisecond))
 	require.Nil(t, trace.Snapshot().HeadersWaitMs, "response can arrive before upload completes")
+}
+
+func TestTransportTraceDoesNotCarryRecoveryAcrossRedirectOrigins(t *testing.T) {
+	trace := new(TransportTrace)
+	trace.beginPoolAttempt(1, func() (string, func()) { return "pool_replaced", nil }, func() bool { return true })
+	trace.record(TransportUploaded, time.Now())
+	trace.record(TransportHeaders, time.Now())
+	trace.beginPoolAttempt(2, func() (string, func()) { return "pool_replaced", nil }, nil)
+	got := trace.Snapshot()
+	require.EqualValues(t, 2, got.PoolGeneration)
+	require.False(t, got.UploadCompleted)
+	require.Empty(t, got.PoolRecovery, "a redirect must not attribute the previous origin's upload verification to its new pool")
+}
+
+func TestConnectionIdentityThroughHTTPSProxyTLS(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	owned := &identifiedConn{Conn: client, id: 42}
+	proxyTLS := tls.Client(owned, &tls.Config{ServerName: "proxy.example"})
+	upstreamTLS := tls.Client(proxyTLS, &tls.Config{ServerName: "upstream.example"})
+	id, _ := connectionIdentity(upstreamTLS)
+	require.EqualValues(t, 42, id)
 }

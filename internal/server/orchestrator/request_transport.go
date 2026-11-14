@@ -83,14 +83,15 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	largeRequest := t.bytes >= 5<<20 || (t.optimization != nil && t.optimization.InputBytes >= 5<<20)
-	info := failed || largeRequest
+	timings := t.trace.Snapshot()
+	info := failed || largeRequest || timings.PoolRecovery != ""
 	// Transport completion can precede decoding or aggregate-response failure.
 	// Permit a debug record to become visible at info once, without duplicates.
 	if t.recorded && (t.recordedInfo || !info) {
 		return
 	}
 	t.recorded, t.recordedInfo = true, info
-	fields := []log.Field{log.Int("request_id", t.requestID), log.Int("execution_id", t.executionID), log.Int("channel_id", t.channelID), log.Int("request_bytes", t.bytes), log.Any("transport", t.trace.Snapshot())}
+	fields := []log.Field{log.Int("request_id", t.requestID), log.Int("execution_id", t.executionID), log.Int("channel_id", t.channelID), log.Int("request_bytes", t.bytes), log.Any("transport", timings)}
 	if t.optimization != nil {
 		fields = append(fields, log.Any("image_optimization", t.optimization))
 	}

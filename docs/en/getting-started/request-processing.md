@@ -97,9 +97,17 @@ At the channel layer, AxonHub can further rewrite the upstream model name and re
 
 The system sends the request to the selected AI provider.
 
+AxonHub-owned native HTTP clients isolate connection pools by upstream origin while continuing to reuse healthy connections. If a connection has been obtained but the request upload times out, subsequent requests use a new pool for that origin. The old pool stops accepting new requests and is reclaimed after its existing responses finish. User cancellation, connection establishment failures, parameter errors, and response timeouts after upload do not trigger this recovery.
+
+Each origin retains at most one current pool and one draining pool. After its last response ends, the old pool closes its owned connections; another recovery cannot create a third pool until those connections have actually closed. Before another recovery is allowed, the new pool must finish uploading a body at least as large as the failed request and receive response headers, in either order; a small successful request does not validate large uploads. Idle pools expire using the existing idle timeout. Externally injected HTTP clients, custom TLS dialers, SDK-owned connections, and native WebSockets are not taken over by this mechanism.
+
+Transport timing logs include the pool generation, connection identity, reuse status, and actual HTTP protocol. Recovery and the first verified comparable upload are logged at info level. `pool_replaced` means future requests use a new pool; `upload_verified` confirms a comparable or larger upload, not successful completion of the model request. Diagnostics contain neither payloads nor credentials.
+
 ### 9. Retry on Failure
 
 If the upstream call fails, AxonHub may retry or switch to the next candidate channel.
+
+Pool recovery is independent of request retries: replacing a pool does not resubmit the original request, increase retry budgets, or change timeout settings. Existing restrictions on replaying requests with an unknown execution outcome remain in effect.
 
 ### 10. Response Transform
 

@@ -31,6 +31,10 @@ type responsePhaseGuard struct {
 }
 
 func newResponsePhaseGuard(ctx context.Context, request *httpclient.Request, responseTimeout, uploadTimeout time.Duration, cause error) (context.Context, *responsePhaseGuard) {
+	// Copies made by executors share the attempt's transport recovery handle.
+	if request.TransportTrace == nil {
+		request.TransportTrace = new(httpclient.TransportTrace)
+	}
 	if uploadTimeout < 0 {
 		uploadTimeout = responseTimeout
 	}
@@ -64,6 +68,9 @@ func (g *responsePhaseGuard) arm(timeout time.Duration, cause error) {
 		}
 		g.failure, g.done = cause, true
 		g.mu.Unlock()
+		if cause == ErrRequestUploadTimeout {
+			g.request.RecoverHTTPUpload()
+		}
 		g.cancel(cause)
 	})
 }
@@ -76,9 +83,12 @@ func (g *responsePhaseGuard) progress(phase httpclient.TransportPhase) {
 	}
 	switch phase {
 	case httpclient.TransportStarted:
-		if g.phase != "" {
+		if g.phase == httpclient.TransportStarted {
 			return
 		}
+		// Redirects and standard-library safe retries may start a new upload
+		// after an earlier attempt was fully written. Keep phase attribution
+		// current; the caller's total deadline still bounds all attempts.
 		g.phase = phase
 		g.arm(g.uploadTimeout, ErrRequestUploadTimeout)
 	case httpclient.TransportUploaded, httpclient.TransportHeaders:

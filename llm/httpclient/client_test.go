@@ -413,11 +413,28 @@ func TestHttpClientImpl_DoStream(t *testing.T) {
 func TestNewHttpClient_WithInsecureSkipVerify_PreservesDefaultTransportSettings(t *testing.T) {
 	hc := NewHttpClient(WithInsecureSkipVerify(true))
 
-	tr, ok := hc.GetNativeClient().Transport.(*http.Transport)
+	pool, ok := hc.GetNativeClient().Transport.(*recoveringTransport)
 	require.True(t, ok)
+	tr := pool.template
 	require.NotNil(t, tr.Proxy)
 	require.NotNil(t, tr.TLSClientConfig)
 	require.True(t, tr.TLSClientConfig.InsecureSkipVerify)
+}
+
+func TestNewHttpClientPreservesExternalTLSDialer(t *testing.T) {
+	previous := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = previous })
+	transport := &http.Transport{DialTLSContext: func(context.Context, string, string) (net.Conn, error) {
+		return nil, fmt.Errorf("external TLS dialer")
+	}}
+	http.DefaultTransport = transport
+	client := NewHttpClient()
+	require.Same(t, transport, client.GetNativeClient().Transport)
+	customTLS := NewHttpClient(WithInsecureSkipVerify(true))
+	cloned, ok := customTLS.GetNativeClient().Transport.(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, cloned.DialTLSContext)
+	require.True(t, customTLS.TLSConfig().InsecureSkipVerify)
 }
 
 func TestNewHttpClientWithProxy_RejectsHTTPSDowngrade(t *testing.T) {
@@ -478,8 +495,9 @@ func TestNewHttpClientWithProxy_ConnectionReuse(t *testing.T) {
 				DisableConnectionReuse: tt.disableConnectionReuse,
 			})
 			defer client.GetNativeClient().CloseIdleConnections()
-			transport, ok := client.GetNativeClient().Transport.(*http.Transport)
+			pool, ok := client.GetNativeClient().Transport.(*recoveringTransport)
 			require.True(t, ok)
+			transport := pool.template
 			require.Equal(t, tt.disableConnectionReuse, transport.DisableKeepAlives)
 			require.Equal(t, !tt.disableConnectionReuse, transport.ForceAttemptHTTP2)
 
@@ -512,8 +530,9 @@ func TestNewHttpClientWithProxy_DisableConnectionReuseOnlyAppliesToURLProxy(t *t
 			})
 			defer client.CloseIdleConnections()
 
-			transport, ok := client.GetNativeClient().Transport.(*http.Transport)
+			pool, ok := client.GetNativeClient().Transport.(*recoveringTransport)
 			require.True(t, ok)
+			transport := pool.template
 			require.False(t, transport.DisableKeepAlives)
 			require.True(t, transport.ForceAttemptHTTP2)
 		})
