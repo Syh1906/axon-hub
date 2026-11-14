@@ -99,6 +99,49 @@ func TestAdaptiveUploadNeedsComparableImprovement(t *testing.T) {
 	require.False(t, lane.retiring)
 }
 
+func TestAdaptiveUploadAcceptsCompletionAfterResponseRelease(t *testing.T) {
+	for _, name := range []string{"completed", "canceled", "write_failed"} {
+		t.Run(name, func(t *testing.T) {
+			transport, pools, now := adaptiveFixture(t)
+			lane, _ := transport.chooseUploadPool(pools, now)
+			for i := range 2 {
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				upload := &poolUpload{ctx: ctx, bytes: 256 << 10, protocol: "HTTP/2.0", connected: now, headers: true, status: 200}
+				lane.current.active++
+				lane.current.attempts[upload] = struct{}{}
+				require.Empty(t, transport.observeUploadProbe(pools, lane, lane.current, upload, now))
+				// HTTP/2 can finish the response before WroteRequest runs.
+				transport.release("https://upstream.invalid", lane, lane.current, upload)
+				upload.uploaded = now.Add(time.Second)
+				if name == "canceled" {
+					cancel()
+				}
+				if name == "write_failed" {
+					upload.uploaded = time.Time{}
+					upload.failed = true
+				}
+				action := transport.observeUploadProbe(pools, lane, lane.current, upload, now.Add(time.Second))
+				if name == "write_failed" {
+					require.Equal(t, "expansion_unverified", action)
+					require.Nil(t, pools.probe)
+					return
+				}
+				if name == "canceled" {
+					require.Empty(t, action)
+					require.Zero(t, pools.probe.confirmed)
+				} else if i == 0 {
+					require.Empty(t, action)
+					require.Equal(t, 1, pools.probe.confirmed)
+				} else {
+					require.Equal(t, "expansion_verified", action)
+					require.Nil(t, pools.probe)
+				}
+			}
+		})
+	}
+}
+
 func TestAdaptiveUploadRejectsUnhelpfulProbeAndDrains(t *testing.T) {
 	for _, name := range []string{"slow", "rejected", "expired", "canceled"} {
 		t.Run(name, func(t *testing.T) {
@@ -397,6 +440,11 @@ func TestAdaptiveUploadCreatesReusableHTTP2CapacityWithoutReplay(t *testing.T) {
 		response, err := client.Do(t.Context(), request)
 		require.NoError(t, err)
 		require.Equal(t, "ok", string(response.Body))
+		// The response can finish before the asynchronous WroteRequest hook.
+		// Its outer progress callback runs after the pool result is recorded.
+		require.Eventually(t, func() bool {
+			return request.TransportTrace.Snapshot().UploadCompleted
+		}, time.Second, time.Millisecond)
 		timing := request.TransportTrace.Snapshot()
 		require.Equal(t, 2, timing.PoolCount)
 		require.NotEqual(t, first.ConnectionID, timing.ConnectionID)

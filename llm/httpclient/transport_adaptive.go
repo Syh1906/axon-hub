@@ -186,9 +186,12 @@ func (t *recoveringTransport) chooseUploadPool(pools *originPools, now time.Time
 func (t *recoveringTransport) observeUploadProbe(pools *originPools, lane *originPool, generation *poolGeneration, upload *poolUpload, now time.Time) string {
 	probe := pools.probe
 	if probe == nil || probe.lane != lane || probe.generation != generation || lane.current != generation ||
-		upload.released || upload.ctx.Err() != nil || upload.probeCounted {
+		upload.ctx.Err() != nil || upload.probeCounted {
 		return ""
 	}
+	// HTTP/2 may finish the response before WroteRequest runs. Releasing the
+	// response removes upload pressure, but does not invalidate a later write
+	// result for this still-current probe. Cancellation remains excluded.
 	if !now.Before(probe.deadline) {
 		pools.rejectProbe(now)
 		return "expansion_unverified"
