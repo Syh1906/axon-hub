@@ -218,14 +218,16 @@ fork 改动，由用户决定。
 
 ## Feature Topics
 
-### HTTP 上传超时后的连接池恢复（2026-11-14，未发布）
+### HTTP 上传超时后的连接池恢复（2026-11-14，临时快照已双机部署）
 
 - AxonHub 自建原生 HTTP 客户端按实际目标地址隔离标准库连接池；仅在取得连接后、上传完成或响应头到达前的明确上传超时更换后续请求使用的池。旧池继续交付已有响应，每个目标最多一个当前池和一个待回收池；并发失败合并恢复，空闲目标按现有 idle timeout 回收。
 - 新池完成正文不小于失败请求的上传并取得响应头后才解除连续恢复抑制，小请求成功不作为大请求恢复依据。更换池不新增重发，不改变渠道、地址、预算或超时配置；取消、响应等待超时和已禁用复用的客户端不据此更换池。
 - 分段日志补充池版本、连接标识、复用状态、HTTP 协议和恢复状态；恢复与同等上传验证成功使用 info 日志，无正文或凭据。WebSocket 通过独立的 TLS 配置复制接口继承策略，不依赖底层 Transport 类型；外部注入客户端及 SDK 自管连接不接管。
 - 维护位置：`llm/httpclient/transport_pool.go`、`transport_progress.go`、`llm/pipeline/response_phase_timeout.go`、`internal/server/orchestrator/request_transport.go` 和 Responses WebSocket 初始化。无持久缓存、schema/data migration 或前端调整。升级上游时核对连接生命周期、TLS 继承及原重试边界。
 - 独立 `gpt-6.1-sol / max` 审查与自检完成：修复 HTTP/2 EOF 早于内部清理时遗留连接、诊断锁与标准库池锁反向顺序、早响应头漏掉上传成功、透明重试／307 重定向沿用旧证据及 HTTPS 代理双层 TLS 身份缺失。实际关闭在共享锁外执行，保留旧代占位直到关闭完成，并拒绝迟到拨号；定向回归通过。未执行 race 或生产效果验收。
-- 验证与限制见[实施记录](../.agent/summary/connection-pool-recovery-20261114.md)；未部署生产，实际泉哥到圆圆的上传改善仍待同机自然流量确认。
+- 源码 `641410e9916d27c7b5e9e50353a349ca21c21e3c` 已提交，Test／Build／Lint／Govulncheck 通过；[快照工作流 43605316825](https://github.com/Syh1906/axon-hub/actions/runs/43605316825) 的源码测试、双架构镜像和临时 PostgreSQL 启动校验全部通过。基线 `v1.0.0-rc1-fork.5`，快照 `snapshot-641410e9916d-43605316825-1`，镜像固定 `sha256:57c56585dbfe4b26f4b470c574cc87ceb341eec106985dc3fc0d9a0ea8611c11`，不创建新 tag／Release。
+- 云悠于新加坡时间 22:51:22 完成基础验收，追加约 100 秒观察期间 4 条自然请求完成、无 ERROR／PANIC／FATAL，然后按用户授权更新泉哥；泉哥于 23:01:04 完成基础验收。两台版本、健康、34 项页面资源、匿名鉴权、数据库结构／关键编号集合和配置保持通过，重启数 0；仅重建应用，不备份数据库。临时配置副本与一次性任务清理，旧 fork.5 镜像保留。
+- 实现及审查见[实施记录](../.agent/summary/connection-pool-recovery-20261114.md)，产物和部署边界见[快照部署记录](../.agent/summary/snapshot-connection-20261114.md)。短时请求无失败不证明线路优化已奏效；尚未在自然故障中观察到连接池恢复前后对照，仍需同机自然流量确认。
 
 ### 大请求分段超时与图片保真优化（2026-11-13，rc1-fork.5 已发布）
 
