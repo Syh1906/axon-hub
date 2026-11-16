@@ -10,6 +10,13 @@ fork 改动，由用户决定。
 
 此前正式版为 `v1.0.0-rc1-fork.5`，源码 `6f135434`；大请求分段超时、图片保真优化、精简发版与双机基础部署验收完成。自然流量已出现新的分段计时及图片优化记录；泉哥切换窗口影响了一条经云悠转发的请求，不宣称零中断或全部上游超时已消除。
 
+## rc1-fork.7 协议策略、统计与请求控制（2026-11-17，准备发布）
+
+- 本轮在 release/v1.0.x 提交协议策略与总览后，准备 v1.0.0-rc1-fork.7；比较基线 fork.6，包含统计刷新／并发一致性、图片预算预估、Responses 服务档位及协议阶段全部改动。原始上游仍为 looplj/axonhub rc1。
+- 保持 prerelease=false、publishBinaries=false，仅 amd64／arm64 镜像和 release.json；维护分支同提交 Test 成功后打 tag 触发精简工作流，发布成功后依次更新云悠、泉哥。当前运行版本在完成部署前仍为 fork.6。
+- 统计改动新增 statistics_revisions、执行表 6 个与用量表 3 个 statistics 字段及索引，Ent 自动升级；无新增 data migration。部署在线准备、只重建应用，不备份数据库、不改数据卷／代理／资源配置。回退旧版会失去新协议限制和档位控制，需核对配置需求。
+- 协议阶段独立 gpt-6.1-sol / max 审查与自检有界通过；版本、检查、镜像和两机实际验收结果在完成后回填。详见[本次更新说明](../.github/release-notes.md)。
+
 ## rc1-fork.6 自动连接扩缩容与快照退役（2026-11-15）
 
 - [正式 Release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.6)／[精简发布 43639889595](https://github.com/Syh1906/axon-hub/actions/runs/43639889595)成功，正式/latest，仅 Linux amd64／arm64 镜像及 `release.json`；源码 `269412f52dd18ac31ef113f9018752c251316329`。同提交维护分支 push 的 Test `43639140900`、Build `43639142368`、Lint `43639140876`、Govulncheck `43639140927` 均通过；发布复用该 Test，并通过临时 PostgreSQL 启动检查。
