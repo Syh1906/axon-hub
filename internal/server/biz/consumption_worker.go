@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"entgo.io/ent/dialect"
 	"github.com/google/uuid"
-
-	stdsql "database/sql"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -23,8 +20,30 @@ import (
 // 请求断开不销毁回填进度；停止查看五秒后不再领取该范围的未完成任务。
 
 func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error {
+	_, err := s.fillNextConsumptionSnapshot(ctx)
+	return err
+}
+
+// Drain available dates without inserting a scheduler interval between them.
+// The existing worker lock/leases still bound concurrency to one computation.
+func (s *ConsumptionService) fillRequestedConsumptionSnapshots(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+	for range consumptionSlicePageDays {
+		filled, err := s.fillNextConsumptionSnapshot(ctx)
+		if err != nil || !filled {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *ConsumptionService) fillNextConsumptionSnapshot(ctx context.Context) (bool, error) {
+	if s.demand != nil && time.Now().UnixNano() > s.demand.Load() {
+		return false, nil
+	}
 	if !s.worker.TryLock() {
-		return nil
+		return false, nil
 	}
 
 	defer s.worker.Unlock()
@@ -33,7 +52,7 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 
 	defer cancel()
 
-	_, err := authz.RunAsHost(ctx, s.client, "consumption-backfill", func(ctx context.Context) (bool, error) {
+	return authz.RunAsHost(ctx, s.client, "consumption-backfill", func(ctx context.Context) (bool, error) {
 		ctx = contexts.WithPrimaryRead(ctx)
 
 		now := time.Now().UTC()
@@ -108,7 +127,7 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 		if result == nil {
 
 			count, err = s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token), consumptionsnapshot.SourceVersionEQ(job.SourceVersion)).
-				SetSnapshotVersion(job.SourceVersion).SetPending(false).SetFailed(false).SetCheckedAt(time.Now().UTC()).SetLeaseUntil(time.Unix(0, 0).UTC()).Save(ctx)
+				SetSourceVersion(fingerprint).SetSnapshotVersion(fingerprint).SetPending(false).SetFailed(false).SetCheckedAt(time.Now().UTC()).SetLeaseUntil(time.Unix(0, 0).UTC()).Save(ctx)
 
 			if err == nil && count == 0 {
 				_, err = s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token)).SetLeaseUntil(time.Unix(0, 0).UTC()).Save(ctx)
@@ -128,7 +147,7 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 		// 事实版本若在生成期间变化，不发布旧数据，也不覆盖新版本的 pending。
 
 		count, err = s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token), consumptionsnapshot.SourceVersionEQ(job.SourceVersion)).
-			SetPayload(bytes).SetFingerprint(fingerprint).SetCheckedAt(time.Now().UTC()).SetSnapshotVersion(job.SourceVersion).SetGeneratedAt(result.GeneratedAt).SetPending(false).SetFailed(false).SetLeaseUntil(time.Unix(0, 0).UTC()).Save(ctx)
+			SetPayload(bytes).SetFingerprint(fingerprint).SetCheckedAt(time.Now().UTC()).SetSourceVersion(fingerprint).SetSnapshotVersion(fingerprint).SetGeneratedAt(result.GeneratedAt).SetPending(false).SetFailed(false).SetLeaseUntil(time.Unix(0, 0).UTC()).Save(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -138,11 +157,11 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 			q := s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token))
 
 			if job.RangeEnd.After(now) {
-				// 活跃日持续写入也必须能展示已完成的一致读快照；一分钟内保留
+				// 活跃日持续写入也可展示本次刷新开始之后完成的一致快照。
 
-				// 此计算时间，仍标记待更新。历史修正则必须等对应新版本完成。
+				// 保留待更新版本；下一次明确刷新无需等待固定租约。
 
-				q.SetPayload(bytes).SetFingerprint(fingerprint).SetSnapshotVersion(job.SourceVersion).SetGeneratedAt(result.GeneratedAt).SetCheckedAt(result.GeneratedAt).SetLeaseUntil(time.Now().UTC().Add(time.Minute))
+				q.SetPayload(bytes).SetFingerprint(fingerprint).SetSnapshotVersion(fingerprint).SetGeneratedAt(result.GeneratedAt).SetCheckedAt(result.GeneratedAt).SetLeaseUntil(time.Unix(0, 0).UTC())
 			} else {
 				q.SetLeaseUntil(time.Unix(0, 0).UTC())
 			}
@@ -154,7 +173,6 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 		return count > 0, err
 	})
 
-	return err
 }
 
 func (s *ConsumptionService) expireConsumptionSnapshots(ctx context.Context) {
@@ -173,34 +191,25 @@ func (s *ConsumptionService) expireConsumptionSnapshots(ctx context.Context) {
 func (s *ConsumptionService) readConsumptionDay(ctx context.Context, query consumptionDayQuery, job *ent.ConsumptionSnapshot) (*ConsumptionResult, string, error) {
 	query.Filter.Uncached, query.Filter.DailySnapshot = true, true
 
-	opts := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
-
-	if s.client.Driver().Dialect() == dialect.SQLite {
-		opts = &stdsql.TxOptions{}
-	}
-
-	tx, err := s.client.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, "", err
-	}
-
-	defer func() { _ = tx.Rollback() }()
-
-	reader := *s
-
-	reader.client = tx.Client()
-
-	fingerprint, err := reader.consumptionFingerprint(ctx, query)
-
-	if err != nil || (len(job.Payload) > 0 && fingerprint == job.Fingerprint) {
-		return nil, fingerprint, err
-	}
-
-	result, err := reader.query(ctx, query.Filter, "snapshot", query.Project)
-
-	if err == nil && (result.Timezone != query.Timezone || result.CurrencyCode != query.Currency || result.RangeStart == nil || !result.RangeStart.Equal(query.Start) || !result.RangeEnd.Equal(query.End)) {
-		return nil, "", fmt.Errorf("consumption summary configuration changed during calculation")
-	}
-
+	var fingerprint string
+	result, err := readStatisticsSnapshot(ctx, s.client, false, func(client *ent.Client) (*ConsumptionResult, error) {
+		started := time.Now().UTC()
+		reader := *s
+		reader.client = client
+		var err error
+		fingerprint, err = reader.consumptionFingerprint(ctx, query)
+		if err != nil || (len(job.Payload) > 0 && fingerprint == job.Fingerprint) {
+			return nil, err
+		}
+		result, err := reader.query(ctx, query.Filter, "snapshot", query.Project)
+		if err != nil {
+			return nil, err
+		}
+		if result.Timezone != query.Timezone || result.CurrencyCode != query.Currency || result.RangeStart == nil || !result.RangeStart.Equal(query.Start) || !result.RangeEnd.Equal(query.End) {
+			return nil, fmt.Errorf("consumption summary configuration changed during calculation")
+		}
+		result.GeneratedAt = started
+		return result, nil
+	})
 	return result, fingerprint, err
 }

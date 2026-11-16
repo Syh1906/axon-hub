@@ -29,7 +29,7 @@ fixture_requests(id, project_id, channel_id, api_key_id, model_id, status, creat
  (6,1,11,1,'fixture','completed',TIMESTAMPTZ '2026-11-09T08:00:00Z',NULL::jsonb,601)
 ),
 requests AS (SELECT fixture_requests.*, 'api'::text AS source FROM fixture_requests),
-request_executions(id, request_id, project_id, channel_id, model_id, status, error_message,
+fixture_executions(id, request_id, project_id, channel_id, model_id, status, error_message,
  response_status_code, metrics_latency_ms, metrics_first_byte_latency_ms, metrics_first_byte_recorded,
  metrics_first_token_latency_ms, stream, format) AS (
  VALUES
@@ -43,6 +43,13 @@ request_executions(id, request_id, project_id, channel_id, model_id, status, err
  (501,5,1,11,'fixture','completed','',200,100,0,TRUE,0,TRUE,'openai/responses'),
  (601,6,1,11,'fixture','completed','',200,1200,200,TRUE,300,TRUE,'openai/chat_completions')
 ),
+request_executions AS (
+ SELECT e.*, TRUE AS statistics_ready, NULL::jsonb AS selection, TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at,
+ CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_outcome,
+ CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_channel_outcome,
+ CASE WHEN stream THEN metrics_first_token_latency_ms END AS statistics_first_token_ms,
+ CASE WHEN id IN (101,201) THEN 100.0 END AS statistics_output_speed FROM fixture_executions e
+),
 fixture_usage(id,request_id,project_id,channel_id,prompt_tokens,completion_tokens,total_tokens,
  prompt_cached_tokens,prompt_write_cached_tokens,total_cost,cost_snapshot,completion_audio_tokens) AS (
  VALUES
@@ -55,7 +62,7 @@ fixture_usage(id,request_id,project_id,channel_id,prompt_tokens,completion_token
 ),
 usage_logs AS (SELECT fixture_usage.*, 1 AS api_key_id, 'fixture'::text AS model_id,
  TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at, 0 AS completion_reasoning_tokens,
- NULL::jsonb AS cost_items, ''::text AS cost_price_reference_id,
+ total_cost AS statistics_standard_cost, TRUE AS statistics_standard_ready, NULL::jsonb AS cost_items, ''::text AS cost_price_reference_id,
  0 AS prompt_write_cached_tokens_5m, 0 AS prompt_write_cached_tokens_1h,
  NULL::bigint AS prompt_text_tokens, NULL::bigint AS prompt_image_tokens,
  NULL::bigint AS prompt_text_cached_tokens, NULL::bigint AS prompt_image_cached_tokens FROM fixture_usage),

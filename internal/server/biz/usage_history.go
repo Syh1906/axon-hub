@@ -16,7 +16,7 @@ func IncludeArchivedUsage(s *sql.Selector) {
 
 func usageHistory(db string) *sql.Selector {
 	fields := []string{"id", "request_id", "project_id", "api_key_id", "channel_id", "model_id", "created_at",
-		"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "completion_reasoning_tokens", "total_cost"}
+		"prompt_tokens", "completion_tokens", "total_tokens", "prompt_cached_tokens", "prompt_write_cached_tokens", "completion_reasoning_tokens", "total_cost", "statistics_standard_cost"}
 	live := sql.Table(usagelog.Table)
 	archive := sql.Table(usagearchive.Table).As("history_archive")
 	live.SetDialect(db)
@@ -24,6 +24,10 @@ func usageHistory(db string) *sql.Selector {
 	liveCols, archivedCols := make([]string, len(fields)), make([]string, len(fields))
 	for i, field := range fields {
 		liveCols[i] = live.C(field)
+		if field == "statistics_standard_cost" {
+			archivedCols[i] = "NULL AS statistics_standard_cost"
+			continue
+		}
 		archivedField := field
 		if field == "id" {
 			archivedField = "source_id"

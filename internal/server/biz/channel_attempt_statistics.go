@@ -45,6 +45,14 @@ func excludeArchivedExecutions(q *sql.Selector) {
 }
 
 func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectID int, input ConsumptionFilter, ids []int, start *time.Time, end time.Time) ([]consumptionGroup, error) {
+	if _, transactional := client.Driver().(dialect.Tx); !transactional {
+		return readStatisticsSnapshot(ctx, client, false, func(client *ent.Client) ([]consumptionGroup, error) {
+			return queryChannelAttemptGroups(ctx, client, projectID, input, ids, start, end)
+		})
+	}
+	if err := prepareStatisticsPerformance(ctx, client, projectID, ids, start, end, false); err != nil {
+		return nil, err
+	}
 	end = end.UTC()
 	if start != nil {
 		utc := start.UTC()
@@ -63,7 +71,9 @@ func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectI
 	var rows []consumptionGroup
 	err := query.Modify(func(q *sql.Selector) {
 		excludeArchivedExecutions(q)
-		outcome, first, speed := channelAttemptExpressions(q)
+		r := sql.Table(request.Table).As("attempt_request")
+		q.Join(r).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), r.C("id")), sql.ColumnsEQ(q.C("project_id"), r.C("project_id"))))
+		outcome, first, speed := q.C("statistics_channel_outcome"), q.C("statistics_first_token_ms"), q.C("statistics_output_speed")
 		model := "COALESCE(NULLIF(TRIM(" + q.C("model_id") + "), ''), " + sql.Table(request.Table).As("attempt_request").C("model_id") + ")"
 		selectConsumptionEntity(q, ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Search: input.Search}, model)
 		q.AppendSelect(sql.As("COALESCE(SUM("+outcome+"),0)", "success_count"), sql.As("COUNT("+outcome+")", "outcome_count"),

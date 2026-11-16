@@ -2,10 +2,8 @@ package biz
 
 import (
 	"context"
-	stdsql "database/sql"
 	"time"
 
-	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
@@ -15,7 +13,7 @@ import (
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
-func (svc *ChannelService) TodayUsage(ctx context.Context, ids []int) ([]*objects.ChannelTodayUsage, error) {
+func (svc *ChannelService) TodayUsage(ctx context.Context, ids []int, includeModels ...bool) ([]*objects.ChannelTodayUsage, error) {
 	if err := authz.RequireScope(ctx, scopes.ScopeReadChannels); err != nil {
 		return nil, err
 	}
@@ -34,7 +32,7 @@ func (svc *ChannelService) TodayUsage(ctx context.Context, ids []int) ([]*object
 		now := time.Now().In(location)
 		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
 		end := start.AddDate(0, 0, 1)
-		rows, err := queryChannelTodayUsage(ctx, svc.entFromContext(ctx), visible, start, end)
+		rows, err := queryChannelTodayUsage(ctx, svc.entFromContext(ctx), visible, start, end, includeModels...)
 		if err != nil {
 			return nil, err
 		}
@@ -47,23 +45,13 @@ func (svc *ChannelService) TodayUsage(ctx context.Context, ids []int) ([]*object
 
 // Aggregate usage per request before joining so multiple usage rows do not
 // multiply the request count. Missing prices stay distinct from explicit zero.
-func queryChannelTodayUsage(ctx context.Context, client *ent.Client, ids []int, start, end time.Time) ([]*objects.ChannelTodayUsage, error) {
-	if _, transactional := client.Driver().(dialect.Tx); transactional {
-		return queryChannelTodayUsageSnapshot(ctx, client, ids, start, end)
-	}
-	options := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
-	if client.Driver().Dialect() == dialect.SQLite {
-		options = &stdsql.TxOptions{}
-	}
-	tx, err := client.BeginTx(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	return queryChannelTodayUsageSnapshot(ctx, tx.Client(), ids, start, end)
+func queryChannelTodayUsage(ctx context.Context, client *ent.Client, ids []int, start, end time.Time, includeModels ...bool) ([]*objects.ChannelTodayUsage, error) {
+	return readStatisticsSnapshot(ctx, client, len(includeModels) == 0 || !includeModels[0], func(client *ent.Client) ([]*objects.ChannelTodayUsage, error) {
+		return queryChannelTodayUsageSnapshot(ctx, client, ids, start, end, includeModels...)
+	})
 }
 
-func queryChannelTodayUsageSnapshot(ctx context.Context, client *ent.Client, ids []int, start, end time.Time) ([]*objects.ChannelTodayUsage, error) {
+func queryChannelTodayUsageSnapshot(ctx context.Context, client *ent.Client, ids []int, start, end time.Time, includeModels ...bool) ([]*objects.ChannelTodayUsage, error) {
 	timezone := start.Location().String()
 	start, end = start.UTC(), end.UTC()
 	var rows []struct {
@@ -103,6 +91,16 @@ func queryChannelTodayUsageSnapshot(ctx context.Context, client *ent.Client, ids
 		value.UnpricedCount += row.UnpricedRequests
 		value.PricedCount += row.PricedRequests
 	}
+	var models map[int][]*objects.ChannelTodayModelUsage
+	if len(includeModels) > 0 && includeModels[0] {
+		if err := prepareChannelStandardCosts(ctx, client, ids, start, end); err != nil {
+			return nil, err
+		}
+		models, err = queryChannelUsageModelsBatch(ctx, client, ids, start, end)
+		if err != nil {
+			return nil, err
+		}
+	}
 	result := make([]*objects.ChannelTodayUsage, 0, len(ids))
 	for _, id := range ids {
 		entry := byID[id]
@@ -111,6 +109,10 @@ func queryChannelTodayUsageSnapshot(ctx context.Context, client *ent.Client, ids
 		}
 		entry.ChannelID = objects.GUID{ID: id, Type: ent.TypeChannel}
 		entry.Timezone = timezone
+		entry.Models = models[id]
+		if entry.Models == nil {
+			entry.Models = []*objects.ChannelTodayModelUsage{}
+		}
 		result = append(result, entry)
 	}
 	return result, nil

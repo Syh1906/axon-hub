@@ -26,6 +26,18 @@ type RequestExecution struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// StatisticsReady holds the value of the "statistics_ready" field.
+	StatisticsReady bool `json:"statistics_ready,omitempty"`
+	// StatisticsVersion holds the value of the "statistics_version" field.
+	StatisticsVersion int64 `json:"statistics_version,omitempty"`
+	// StatisticsOutcome holds the value of the "statistics_outcome" field.
+	StatisticsOutcome *float64 `json:"statistics_outcome,omitempty"`
+	// StatisticsChannelOutcome holds the value of the "statistics_channel_outcome" field.
+	StatisticsChannelOutcome *float64 `json:"statistics_channel_outcome,omitempty"`
+	// StatisticsFirstTokenMs holds the value of the "statistics_first_token_ms" field.
+	StatisticsFirstTokenMs *float64 `json:"statistics_first_token_ms,omitempty"`
+	// StatisticsOutputSpeed holds the value of the "statistics_output_speed" field.
+	StatisticsOutputSpeed *float64 `json:"statistics_output_speed,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
 	// RequestID holds the value of the "request_id" field.
@@ -155,9 +167,11 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldSelection, requestexecution.FieldFailure, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
-		case requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
+		case requestexecution.FieldStatisticsReady, requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
-		case requestexecution.FieldID, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldChannelAPIKeyIndex, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
+		case requestexecution.FieldStatisticsOutcome, requestexecution.FieldStatisticsChannelOutcome, requestexecution.FieldStatisticsFirstTokenMs, requestexecution.FieldStatisticsOutputSpeed:
+			values[i] = new(sql.NullFloat64)
+		case requestexecution.FieldID, requestexecution.FieldStatisticsVersion, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldChannelAPIKeyIndex, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
 			values[i] = new(sql.NullInt64)
 		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldUpstreamModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldChannelAPIKeySuffix, requestexecution.FieldErrorMessage, requestexecution.FieldRetryDecision, requestexecution.FieldStatus, requestexecution.FieldCacheCompatibilityKey, requestexecution.FieldCacheTTLBucket, requestexecution.FieldRequestURL:
 			values[i] = new(sql.NullString)
@@ -195,6 +209,46 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
+			}
+		case requestexecution.FieldStatisticsReady:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_ready", values[i])
+			} else if value.Valid {
+				_m.StatisticsReady = value.Bool
+			}
+		case requestexecution.FieldStatisticsVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_version", values[i])
+			} else if value.Valid {
+				_m.StatisticsVersion = value.Int64
+			}
+		case requestexecution.FieldStatisticsOutcome:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_outcome", values[i])
+			} else if value.Valid {
+				_m.StatisticsOutcome = new(float64)
+				*_m.StatisticsOutcome = value.Float64
+			}
+		case requestexecution.FieldStatisticsChannelOutcome:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_channel_outcome", values[i])
+			} else if value.Valid {
+				_m.StatisticsChannelOutcome = new(float64)
+				*_m.StatisticsChannelOutcome = value.Float64
+			}
+		case requestexecution.FieldStatisticsFirstTokenMs:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_first_token_ms", values[i])
+			} else if value.Valid {
+				_m.StatisticsFirstTokenMs = new(float64)
+				*_m.StatisticsFirstTokenMs = value.Float64
+			}
+		case requestexecution.FieldStatisticsOutputSpeed:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_output_speed", values[i])
+			} else if value.Valid {
+				_m.StatisticsOutputSpeed = new(float64)
+				*_m.StatisticsOutputSpeed = value.Float64
 			}
 		case requestexecution.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -484,6 +538,32 @@ func (_m *RequestExecution) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("statistics_ready=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StatisticsReady))
+	builder.WriteString(", ")
+	builder.WriteString("statistics_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StatisticsVersion))
+	builder.WriteString(", ")
+	if v := _m.StatisticsOutcome; v != nil {
+		builder.WriteString("statistics_outcome=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.StatisticsChannelOutcome; v != nil {
+		builder.WriteString("statistics_channel_outcome=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.StatisticsFirstTokenMs; v != nil {
+		builder.WriteString("statistics_first_token_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.StatisticsOutputSpeed; v != nil {
+		builder.WriteString("statistics_output_speed=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))

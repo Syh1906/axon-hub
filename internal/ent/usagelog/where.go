@@ -175,6 +175,21 @@ func Format(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldFormat, v))
 }
 
+// StatisticsStandardCost applies equality check predicate on the "statistics_standard_cost" field. It's identical to StatisticsStandardCostEQ.
+func StatisticsStandardCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardReady applies equality check predicate on the "statistics_standard_ready" field. It's identical to StatisticsStandardReadyEQ.
+func StatisticsStandardReady(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsStandardReady, v))
+}
+
+// StatisticsVersion applies equality check predicate on the "statistics_version" field. It's identical to StatisticsVersionEQ.
+func StatisticsVersion(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsVersion, v))
+}
+
 // TotalCost applies equality check predicate on the "total_cost" field. It's identical to TotalCostEQ.
 func TotalCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldTotalCost, v))
@@ -1303,6 +1318,106 @@ func FormatEqualFold(v string) predicate.UsageLog {
 // FormatContainsFold applies the ContainsFold predicate on the "format" field.
 func FormatContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldFormat, v))
+}
+
+// StatisticsStandardCostEQ applies the EQ predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostNEQ applies the NEQ predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostIn applies the In predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldStatisticsStandardCost, vs...))
+}
+
+// StatisticsStandardCostNotIn applies the NotIn predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldStatisticsStandardCost, vs...))
+}
+
+// StatisticsStandardCostGT applies the GT predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostGTE applies the GTE predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostLT applies the LT predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostLTE applies the LTE predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldStatisticsStandardCost, v))
+}
+
+// StatisticsStandardCostIsNil applies the IsNil predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldStatisticsStandardCost))
+}
+
+// StatisticsStandardCostNotNil applies the NotNil predicate on the "statistics_standard_cost" field.
+func StatisticsStandardCostNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldStatisticsStandardCost))
+}
+
+// StatisticsStandardReadyEQ applies the EQ predicate on the "statistics_standard_ready" field.
+func StatisticsStandardReadyEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsStandardReady, v))
+}
+
+// StatisticsStandardReadyNEQ applies the NEQ predicate on the "statistics_standard_ready" field.
+func StatisticsStandardReadyNEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldStatisticsStandardReady, v))
+}
+
+// StatisticsVersionEQ applies the EQ predicate on the "statistics_version" field.
+func StatisticsVersionEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionNEQ applies the NEQ predicate on the "statistics_version" field.
+func StatisticsVersionNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionIn applies the In predicate on the "statistics_version" field.
+func StatisticsVersionIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldStatisticsVersion, vs...))
+}
+
+// StatisticsVersionNotIn applies the NotIn predicate on the "statistics_version" field.
+func StatisticsVersionNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldStatisticsVersion, vs...))
+}
+
+// StatisticsVersionGT applies the GT predicate on the "statistics_version" field.
+func StatisticsVersionGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionGTE applies the GTE predicate on the "statistics_version" field.
+func StatisticsVersionGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionLT applies the LT predicate on the "statistics_version" field.
+func StatisticsVersionLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionLTE applies the LTE predicate on the "statistics_version" field.
+func StatisticsVersionLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldStatisticsVersion, v))
 }
 
 // CostSnapshotIsNil applies the IsNil predicate on the "cost_snapshot" field.

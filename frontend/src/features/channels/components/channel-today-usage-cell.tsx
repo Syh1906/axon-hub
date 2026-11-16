@@ -1,11 +1,10 @@
-import { useChannelControlData } from '../context/channel-controls-context';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { currencyFractionDigits } from '@/utils/currency-display';
 import { formatNumber } from '@/utils/format-number';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { useChannelTodayUsageDetails } from '../data/channel-usage';
+import { useChannelControlData } from '../context/channel-controls-context';
 import type { Channel } from '../data/schema';
 
 export function ChannelTodayUsageCell({ channel: source }: { channel: Channel }) {
@@ -42,30 +41,17 @@ export function ChannelTodayUsageCell({ channel: source }: { channel: Channel })
       </HoverCardTrigger>
       <HoverCardContent className='w-[1180px] max-w-[calc(100vw-24px)] p-3 text-left text-xs' sideOffset={6} collisionPadding={12}>
         <p className='mb-2 font-medium'>{t('channels.todayUsage.modelDetails')}</p>
-        {open && <ChannelTodayUsageModels channelId={channel.id} />}
+        {open && <ChannelTodayUsageModels data={usage} />}
         <p>{t('channels.todayUsage.timezone', { timezone: usage.timezone })}</p>
       </HoverCardContent>
     </HoverCard>
   );
 }
 
-// Mount only while open: scrolling the channel list never starts detail queries.
-function ChannelTodayUsageModels({ channelId }: { channelId: string }) {
+// 悬停只展示最近一次明确刷新得到的模型数据。
+function ChannelTodayUsageModels({ data }: { data: NonNullable<Channel['todayUsage']> }) {
   const { t, i18n } = useTranslation();
   const currencyDisplayDecimals = useCurrencyDisplayDecimals();
-  const { data, isPending, error } = useChannelTodayUsageDetails(channelId);
-  if (isPending)
-    return (
-      <p role='status' className='py-3'>
-        {t('common.loading')}
-      </p>
-    );
-  if (error)
-    return (
-      <p role='alert' className='py-3'>
-        {t('channels.todayUsage.loadFailed')}
-      </p>
-    );
   if (!data.models.length) return <p className='py-3'>{t('common.noData')}</p>;
   const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en-US';
   const totals = data.models.reduce(

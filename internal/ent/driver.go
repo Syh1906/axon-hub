@@ -11,6 +11,10 @@ import (
 func (c *Client) Driver() dialect.Driver {
 	drv := c.config.driver
 	for {
+		if wrapped, ok := drv.(*mutationDriver); ok {
+			drv = wrapped.Driver
+			continue
+		}
 		if dd, ok := drv.(*dialect.DebugDriver); ok {
 			drv = dd.Driver
 			continue

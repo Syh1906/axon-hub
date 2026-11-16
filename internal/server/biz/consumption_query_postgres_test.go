@@ -3,10 +3,12 @@ package biz
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +23,11 @@ type consumptionQueryCapture struct {
 	args  []any
 }
 
-func (d *consumptionQueryCapture) Query(_ context.Context, query string, args, _ any) error {
+func (d *consumptionQueryCapture) Query(_ context.Context, query string, args, rows any) error {
+	if strings.Contains(query, `"statistics_ready"`) && strings.Contains(query, "LIMIT 128") {
+		rows.(*sql.Rows).ColumnScanner = emptyStatisticsRows{}
+		return nil
+	}
 	d.query = query
 	d.args, _ = args.([]any)
 	return errCaptureConsumptionQuery
@@ -29,11 +35,20 @@ func (d *consumptionQueryCapture) Query(_ context.Context, query string, args, _
 func (*consumptionQueryCapture) Exec(context.Context, string, any, any) error {
 	return errCaptureConsumptionQuery
 }
-func (*consumptionQueryCapture) Tx(context.Context) (dialect.Tx, error) {
-	return nil, errCaptureConsumptionQuery
+func (d *consumptionQueryCapture) Tx(context.Context) (dialect.Tx, error) {
+	return d, nil
 }
-func (*consumptionQueryCapture) Close() error    { return nil }
-func (*consumptionQueryCapture) Dialect() string { return dialect.Postgres }
+func (*consumptionQueryCapture) Commit() error   { return nil }
+func (*consumptionQueryCapture) Rollback() error { return nil }
+
+type emptyStatisticsRows struct{ sql.ColumnScanner }
+
+func (emptyStatisticsRows) Columns() ([]string, error) { return []string{"id"}, nil }
+func (emptyStatisticsRows) Next() bool                 { return false }
+func (emptyStatisticsRows) Err() error                 { return nil }
+func (emptyStatisticsRows) Close() error               { return nil }
+func (*consumptionQueryCapture) Close() error          { return nil }
+func (*consumptionQueryCapture) Dialect() string       { return dialect.Postgres }
 
 // Exercise the production builders, including the raw SQL expressions inside
 // JOIN predicates. SQLite accepts MySQL backticks and cannot catch this outage.

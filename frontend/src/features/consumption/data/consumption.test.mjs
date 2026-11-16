@@ -77,7 +77,7 @@ test('group search and selection reuse the complete cached summary without a new
   for (const filter of [{ search: ' TEAM ' }, { groupRef: 2 }, { groupRef: 2, search: 'team' }]) {
     const selected = useConsumption({ ...input, ...filter }, 'usage', 'project-1');
     assert.deepEqual(selected.queryKey, options.queryKey);
-    await client.fetchQuery({ ...selected, queryFn });
+    // 同页筛选只更新 select，不重新挂载查询或主动调用 fetchQuery。
     const observer = new QueryObserver(client, { ...selected, queryFn });
     assert.deepEqual(observer.getCurrentResult().data.entries, [data.entries[1]]);
     observer.destroy();
@@ -110,10 +110,10 @@ test('query caches isolate projects and views and keep historical refresh finite
   assert.notDeepEqual(options.queryKey, useConsumption(input, 'usage', 'project-2').queryKey);
   assert.notDeepEqual(options.queryKey, useConsumption(input, 'leaderboard', 'project-1').queryKey);
   assert.equal(useConsumption(input, 'usage', null).enabled, false);
-  assert.equal(options.staleTime({ state: {} }), 300_000);
-  assert.equal(options.refetchInterval({ state: {} }), 300_000);
+  assert.equal(options.staleTime, 0);
+  assert.equal(options.refetchInterval, false);
   assert.equal(options.gcTime, 1_800_000);
-  assert.equal(useConsumption({ ...input, period: 'TODAY' }, 'usage', 'project-1').staleTime({ state: {} }), 60_000);
+  assert.equal(useConsumption({ ...input, period: 'TODAY' }, 'usage', 'project-1').staleTime, 0);
 });
 
 test('different users cannot reuse the same statistics cache', () => {
@@ -160,41 +160,14 @@ test('returning after reporting midnight reloads yesterday even within five minu
   client.clear();
 });
 
-test('active relative views refresh at reporting midnight and on wake after it', (t) => {
-  const before = Date.parse('2026-11-08T15:59:30Z');
-  let now = before;
-  t.mock.method(Date, 'now', () => now);
-  const query = { state: { data: { ...data, timezone: 'Asia/Shanghai', generatedAt: new Date(before).toISOString() }, dataUpdatedAt: before } };
-  for (const period of ['TODAY', 'YESTERDAY', 'WEEK', 'MONTH']) {
+test('统计只在进入页面、改变条件或明确刷新时更新，不在悬停和窗口聚焦时轮询', () => {
+  for (const period of ['TODAY', 'YESTERDAY', 'WEEK', 'MONTH', 'ALL', 'CUSTOM']) {
     const options = useConsumption({ ...input, period }, 'usage', 'project-1');
-    now = before;
-    assert.equal(options.refetchInterval(query), 30_000);
-    assert.equal(options.staleTime(query), 30_000);
-    assert.equal(options.refetchOnWindowFocus(query), false);
-    now = before + 31_000;
-    assert.equal(options.refetchOnWindowFocus(query), true);
+    assert.equal(options.refetchInterval, false);
+    assert.equal(options.refetchOnWindowFocus, false);
+    assert.equal(options.refetchOnMount, 'always');
+    assert.equal(options.staleTime, 0);
   }
-  const custom = useConsumption({ ...input, period: 'CUSTOM' }, 'usage', 'project-1');
-  assert.equal(custom.staleTime(query), 300_000);
-  assert.equal(custom.refetchOnWindowFocus(query), false);
-});
-
-test('a successful response crossing midnight refreshes promptly without accelerating failed reads', (t) => {
-  const now = Date.parse('2026-11-08T16:00:01Z');
-  t.mock.method(Date, 'now', () => now);
-  const query = { state: { data: { ...data, timezone: 'Asia/Shanghai', generatedAt: '2026-11-08T15:59:59Z' }, dataUpdatedAt: now, error: null } };
-  const options = useConsumption(input, 'usage', 'project-1');
-  assert.equal(options.staleTime(query), 0);
-  assert.equal(options.refetchInterval(query), 1_000);
-  query.state.error = new Error('read timed out');
-  assert.equal(options.refetchInterval(query), 300_000);
-});
-
-test('已重新确认日期的历史汇总不会因生成时间跨日而快速重试', (t) => {
-  const now = Date.parse('2026-11-08T16:00:01Z');
-  t.mock.method(Date, 'now', () => now);
-  const query = { state: { data: { ...data, timezone: 'Asia/Shanghai', generatedAt: '2026-11-08T15:59:59Z', resolvedAt: new Date(now).toISOString() }, dataUpdatedAt: now } };
-  assert.equal(useConsumption(input, 'usage', 'project-1').refetchInterval(query), 300_000);
 });
 
 test('服务商搜索匹配中文名和带空格名称，切换语言仍复用查询缓存', async () => {

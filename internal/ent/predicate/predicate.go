@@ -96,6 +96,9 @@ type ResponsesOrigin func(*sql.Selector)
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 
+// StatisticsRevision is the predicate function for statisticsrevision builders.
+type StatisticsRevision func(*sql.Selector)
+
 // System is the predicate function for system builders.
 type System func(*sql.Selector)
 

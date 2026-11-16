@@ -37,6 +37,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
 	"github.com/looplj/axonhub/internal/ent/schema"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
@@ -1209,36 +1210,44 @@ func init() {
 	requestexecution.DefaultUpdatedAt = requestexecutionDescUpdatedAt.Default.(func() time.Time)
 	// requestexecution.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	requestexecution.UpdateDefaultUpdatedAt = requestexecutionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// requestexecutionDescStatisticsReady is the schema descriptor for statistics_ready field.
+	requestexecutionDescStatisticsReady := requestexecutionFields[0].Descriptor()
+	// requestexecution.DefaultStatisticsReady holds the default value on creation for the statistics_ready field.
+	requestexecution.DefaultStatisticsReady = requestexecutionDescStatisticsReady.Default.(bool)
+	// requestexecutionDescStatisticsVersion is the schema descriptor for statistics_version field.
+	requestexecutionDescStatisticsVersion := requestexecutionFields[1].Descriptor()
+	// requestexecution.DefaultStatisticsVersion holds the default value on creation for the statistics_version field.
+	requestexecution.DefaultStatisticsVersion = requestexecutionDescStatisticsVersion.Default.(int64)
 	// requestexecutionDescProjectID is the schema descriptor for project_id field.
-	requestexecutionDescProjectID := requestexecutionFields[0].Descriptor()
+	requestexecutionDescProjectID := requestexecutionFields[6].Descriptor()
 	// requestexecution.DefaultProjectID holds the default value on creation for the project_id field.
 	requestexecution.DefaultProjectID = requestexecutionDescProjectID.Default.(int)
 	// requestexecutionDescExternalID is the schema descriptor for external_id field.
-	requestexecutionDescExternalID := requestexecutionFields[5].Descriptor()
+	requestexecutionDescExternalID := requestexecutionFields[11].Descriptor()
 	// requestexecution.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
 	requestexecution.ExternalIDValidator = requestexecutionDescExternalID.Validators[0].(func(string) error)
 	// requestexecutionDescFormat is the schema descriptor for format field.
-	requestexecutionDescFormat := requestexecutionFields[9].Descriptor()
+	requestexecutionDescFormat := requestexecutionFields[15].Descriptor()
 	// requestexecution.DefaultFormat holds the default value on creation for the format field.
 	requestexecution.DefaultFormat = requestexecutionDescFormat.Default.(string)
 	// requestexecutionDescChannelAPIKeySuffix is the schema descriptor for channel_api_key_suffix field.
-	requestexecutionDescChannelAPIKeySuffix := requestexecutionFields[11].Descriptor()
+	requestexecutionDescChannelAPIKeySuffix := requestexecutionFields[17].Descriptor()
 	// requestexecution.ChannelAPIKeySuffixValidator is a validator for the "channel_api_key_suffix" field. It is called by the builders before save.
 	requestexecution.ChannelAPIKeySuffixValidator = requestexecutionDescChannelAPIKeySuffix.Validators[0].(func(string) error)
 	// requestexecutionDescStream is the schema descriptor for stream field.
-	requestexecutionDescStream := requestexecutionFields[22].Descriptor()
+	requestexecutionDescStream := requestexecutionFields[28].Descriptor()
 	// requestexecution.DefaultStream holds the default value on creation for the stream field.
 	requestexecution.DefaultStream = requestexecutionDescStream.Default.(bool)
 	// requestexecutionDescCacheCompatibilityKey is the schema descriptor for cache_compatibility_key field.
-	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[27].Descriptor()
+	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[33].Descriptor()
 	// requestexecution.CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
 	requestexecution.CacheCompatibilityKeyValidator = requestexecutionDescCacheCompatibilityKey.Validators[0].(func(string) error)
 	// requestexecutionDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
-	requestexecutionDescCacheTTLBucket := requestexecutionFields[29].Descriptor()
+	requestexecutionDescCacheTTLBucket := requestexecutionFields[35].Descriptor()
 	// requestexecution.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
 	requestexecution.CacheTTLBucketValidator = requestexecutionDescCacheTTLBucket.Validators[0].(func(string) error)
 	// requestexecutionDescPassThroughApplied is the schema descriptor for pass_through_applied field.
-	requestexecutionDescPassThroughApplied := requestexecutionFields[33].Descriptor()
+	requestexecutionDescPassThroughApplied := requestexecutionFields[39].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
 	responsesoriginMixin := schema.ResponsesOrigin{}.Mixin()
@@ -1324,6 +1333,21 @@ func init() {
 	roleDescScopes := roleFields[3].Descriptor()
 	// role.DefaultScopes holds the default value on creation for the scopes field.
 	role.DefaultScopes = roleDescScopes.Default.([]string)
+	statisticsrevision.Policy = privacy.NewPolicies(schema.StatisticsRevision{})
+	statisticsrevision.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := statisticsrevision.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	statisticsrevisionFields := schema.StatisticsRevision{}.Fields()
+	_ = statisticsrevisionFields
+	// statisticsrevisionDescVersion is the schema descriptor for version field.
+	statisticsrevisionDescVersion := statisticsrevisionFields[2].Descriptor()
+	// statisticsrevision.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	statisticsrevision.VersionValidator = statisticsrevisionDescVersion.Validators[0].(func(string) error)
 	systemMixin := schema.System{}.Mixin()
 	system.Policy = privacy.NewPolicies(schema.System{})
 	system.Hooks[0] = func(next ent.Mutator) ent.Mutator {
@@ -1594,8 +1618,16 @@ func init() {
 	usagelogDescFormat := usagelogFields[22].Descriptor()
 	// usagelog.DefaultFormat holds the default value on creation for the format field.
 	usagelog.DefaultFormat = usagelogDescFormat.Default.(string)
+	// usagelogDescStatisticsStandardReady is the schema descriptor for statistics_standard_ready field.
+	usagelogDescStatisticsStandardReady := usagelogFields[24].Descriptor()
+	// usagelog.DefaultStatisticsStandardReady holds the default value on creation for the statistics_standard_ready field.
+	usagelog.DefaultStatisticsStandardReady = usagelogDescStatisticsStandardReady.Default.(bool)
+	// usagelogDescStatisticsVersion is the schema descriptor for statistics_version field.
+	usagelogDescStatisticsVersion := usagelogFields[25].Descriptor()
+	// usagelog.DefaultStatisticsVersion holds the default value on creation for the statistics_version field.
+	usagelog.DefaultStatisticsVersion = usagelogDescStatisticsVersion.Default.(int64)
 	// usagelogDescCostItems is the schema descriptor for cost_items field.
-	usagelogDescCostItems := usagelogFields[25].Descriptor()
+	usagelogDescCostItems := usagelogFields[28].Descriptor()
 	// usagelog.DefaultCostItems holds the default value on creation for the cost_items field.
 	usagelog.DefaultCostItems = usagelogDescCostItems.Default.([]objects.CostItem)
 	userMixin := schema.User{}.Mixin()

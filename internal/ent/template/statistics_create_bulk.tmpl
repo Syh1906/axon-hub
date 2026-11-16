@@ -1,0 +1,135 @@
+{{/* Ent v0.14.6 create_bulk template (Apache-2.0). Propagate only the transaction
+   to the next bulk item; retain its original authorization context. */}}
+{{ define "dialect/sql/create_bulk" }}
+{{ $builder := pascal $.Scope.Builder }}
+{{ $receiver := $.Scope.Receiver }}
+
+// Save creates the {{ $.Name }} entities in the database.
+func ({{ $receiver }} *{{ $builder }}) Save(ctx context.Context) ([]*{{ $.Name }}, error) {
+	{{- /* Initialization error was set by MapCreateBulk. */}}
+	if {{ $receiver }}.err != nil {
+		return nil, {{ $receiver }}.err
+	}
+	specs := make([]*sqlgraph.CreateSpec, len({{ $receiver }}.builders))
+	nodes := make([]*{{ $.Name }}, len({{ $receiver }}.builders))
+	mutators := make([]Mutator, len({{ $receiver }}.builders))
+	for i := range {{ $receiver }}.builders {
+		func(i int, root context.Context) {
+			builder := {{ $receiver }}.builders[i]
+			{{- if $.HasDefault }}
+				builder.defaults()
+			{{- end }}
+			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
+				mutation, ok := m.(*{{ $.MutationName }})
+				if !ok {
+					return nil, fmt.Errorf("unexpected mutation type %T", m)
+				}
+				if err := builder.check(); err != nil {
+					return nil, err
+				}
+				builder.mutation = mutation
+				var err error
+				nodes[i], specs[i] {{ if $.HasValueScanner }}, err {{ end }}= builder.createSpec()
+				{{- if $.HasValueScanner }}
+					if err != nil {
+						return nil, err
+					}
+				{{- end }}
+				if i < len(mutators)-1 {
+					_, err = mutators[i+1].Mutate({{ if or (eq $.Name "Request") (eq $.Name "RequestExecution") (eq $.Name "UsageLog") (eq $.Name "UsageArchive") (eq $.Name "BudgetCharge") (eq $.Name "CacheEffectivenessWindow") (eq $.Name "APIKey") (eq $.Name "APIKeyGroup") (eq $.Name "User") (eq $.Name "Channel") (eq $.Name "Project") }}statisticsBatchContext(root, ctx){{ else }}root{{ end }}, {{ $receiver }}.builders[i+1].mutation)
+				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
+					{{- /* Allow mutating the sqlgraph.BatchCreateSpec by ent extensions or user templates.*/}}
+					{{- with $tmpls := matchTemplate "dialect/sql/create_bulk/spec/*" }}
+						{{- range $tmpl := $tmpls }}
+							{{- xtemplate $tmpl $ }}
+						{{- end }}
+					{{- end }}
+					// Invoke the actual operation on the latest mutation in the chain.
+					if err = sqlgraph.BatchCreate(ctx, {{ $receiver }}.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{msg: err.Error(), wrap: err}
+						}
+					}
+				}
+				if err != nil {
+					return nil, err
+				}
+				{{- if $.HasOneFieldID }}
+					mutation.{{ $.ID.BuilderField }} = &nodes[i].{{ $.ID.StructField }}
+					{{- if and (or $.ID.IsString $.ID.IsUUID $.ID.IsBytes $.ID.IsOther) (not $.ID.HasValueScanner) }}
+						{{- /* Do nothing, because these 4 types must be supplied by the user. */ -}}
+					{{- else if $.ID.HasValueScanner }}
+						if specs[i].ID.Value != nil {
+							sv, ok := specs[i].ID.Value.(field.ValueScanner)
+							if !ok {
+								sv = {{ $.ID.ScanValueFunc }}()
+								if err := sv.Scan(specs[i].ID.Value); err != nil {
+									return nil, err
+								}
+							}
+							if id, err := {{ $.ID.FromValueFunc }}(sv); err != nil {
+								return nil, err
+							} else {
+								nodes[i].ID = id
+							}
+						}
+					{{- else if or $.ID.Type.ValueScanner }}
+						if specs[i].ID.Value != nil {
+							if err := nodes[i].ID.Scan(specs[i].ID.Value); err != nil {
+								return nil, err
+							}
+						}
+					{{- else }}
+						if specs[i].ID.Value != nil {{ if $.ID.UserDefined }}&& nodes[i].ID == 0{{ end }} {
+							id := specs[i].ID.Value.(int64)
+							nodes[i].ID = {{ $.ID.Type }}(id)
+						}
+					{{- end }}
+				{{- end }}
+				mutation.done = true
+				return nodes[i], nil
+			})
+			for i := len(builder.hooks) - 1; i >= 0; i-- {
+				mut = builder.hooks[i](mut)
+			}
+			mutators[i] = mut
+		}(i, ctx)
+	}
+	if len(mutators) > 0 {
+		if _, err := mutators[0].Mutate(ctx, {{ $receiver }}.builders[0].mutation); err != nil {
+			return nil, err
+		}
+	}
+	return nodes, nil
+}
+
+// SaveX is like Save, but panics if an error occurs.
+func ({{ $receiver }} *{{ $builder }}) SaveX(ctx context.Context) []*{{ $.Name }} {
+	v, err := {{ $receiver }}.Save(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Exec executes the query.
+func ({{ $receiver }} *{{ $builder }}) Exec(ctx context.Context) error {
+	_, err := {{ $receiver }}.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func ({{ $receiver }} *{{ $builder }}) ExecX(ctx context.Context) {
+	if err := {{ $receiver }}.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
+{{- /* Allow adding methods to the create_bulk builder by ent extensions or user templates.*/}}
+{{- with $tmpls := matchTemplate "dialect/sql/create_bulk/additional/*" }}
+	{{- range $tmpl := $tmpls }}
+		{{- xtemplate $tmpl $ }}
+	{{- end }}
+{{- end }}
+{{ end }}

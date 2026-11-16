@@ -109,7 +109,7 @@ func (g consumptionCacheGroup) attach(m *ConsumptionMetrics) {
 
 func (s *ConsumptionService) RegisterScheduledTasks(ctx context.Context, schedulerService *scheduler.Scheduler) error {
 	if err := schedulerService.Register(ctx, scheduler.TaskSpec{Name: "consumption-date-summaries", Description: "按需回填用量日期汇总", FixRate: 250 * time.Millisecond}, func(ctx context.Context) {
-		if err := s.fillConsumptionSnapshot(ctx); err != nil {
+		if err := s.fillRequestedConsumptionSnapshots(ctx); err != nil {
 			log.Warn(ctx, "fill consumption snapshot", log.Cause(err))
 		}
 	}); err != nil {

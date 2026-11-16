@@ -1,69 +1,25 @@
 import { z } from 'zod';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { channelTodayUsageSchema } from './schema';
-
-const channelTodayUsageDetailsSchema = z.object({
-  channelId: z.string(),
-  timezone: z.string(),
-  currencyCode: z.string(),
-  models: z.array(
-    z.object({
-      model: z.string(),
-      requestCount: z.number(),
-      unpricedCount: z.number(),
-      pricedCount: z.number(),
-      totalTokens: z.number(),
-      totalCost: z.number(),
-      cacheHitRate: z.number().nullable(),
-      successRate: z.number().nullable(),
-      avgFirstTokenMs: z.number().nullable(),
-      avgTokensPerSecond: z.number().nullable(),
-      standardCost: z.number().nullable(),
-      standardUnpricedCount: z.number(),
-      avgCostPerMillionTokens: z.number().nullable(),
-      tokenPricedRequestCount: z.number(),
-    })
-  ),
-});
-
-export function useChannelTodayUsageDetails(channelId: string) {
-  return useQuery({
-    queryKey: ['channel-today-usage-details', channelId],
-    staleTime: 20_000,
-    gcTime: 300_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const data = await graphqlRequest<{ channelTodayUsageDetails: unknown }>(
-        `query ChannelTodayUsageDetails($channelId: ID!) {
-          channelTodayUsageDetails(channelId: $channelId) {
-            channelId timezone currencyCode
-            models { model requestCount unpricedCount pricedCount totalTokens totalCost cacheHitRate successRate avgFirstTokenMs avgTokensPerSecond standardCost standardUnpricedCount avgCostPerMillionTokens tokenPricedRequestCount }
-          }
-        }`,
-        { channelId },
-        undefined,
-        { signal }
-      );
-      return channelTodayUsageDetailsSchema.parse(data.channelTodayUsageDetails);
-    },
-  });
-}
 
 export function channelTodayUsageQueryOptions(channelIds: string[]) {
   return {
     queryKey: ['channel-today-usage', channelIds],
     enabled: channelIds.length > 0,
-    refetchInterval: 30_000,
+    refetchInterval: false as const,
+    refetchOnMount: 'always' as const,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    staleTime: 30_000,
+    refetchOnReconnect: false,
+    staleTime: Infinity,
     gcTime: 5 * 60_000,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const data = await graphqlRequest<{ channelTodayUsage: unknown }>(
         `query ChannelTodayUsage($channelIds: [ID!]!) {
-          channelTodayUsage(channelIds: $channelIds) { channelId requestCount unpricedCount pricedCount totalCost timezone currencyCode }
+          channelTodayUsage(channelIds: $channelIds) { channelId requestCount unpricedCount pricedCount totalCost timezone currencyCode
+            models { model requestCount unpricedCount pricedCount totalTokens totalCost cacheHitRate successRate avgFirstTokenMs avgTokensPerSecond standardCost standardUnpricedCount avgCostPerMillionTokens tokenPricedRequestCount }
+          }
         }`,
         { channelIds },
         undefined,
@@ -76,4 +32,33 @@ export function channelTodayUsageQueryOptions(channelIds: string[]) {
 
 export function useChannelTodayUsage(channelIds: string[]) {
   return useQuery(channelTodayUsageQueryOptions(channelIds));
+}
+
+export async function refreshChannelTodayUsage(client: QueryClient, channelIds: string[]) {
+  const requested = new Set(channelIds);
+  const overlapping = client
+    .getQueryCache()
+    .findAll({ queryKey: ['channel-today-usage'] })
+    .filter((query) => (query.queryKey[1] as string[]).some((id) => requested.has(id)));
+  // Keep first loads on their observed query keys, including their error/retry
+  // lifecycle. Batches which already have data only need the requested IDs.
+  const batches = overlapping
+    .filter((query) => query.state.data === undefined)
+    .map((query) => query.queryKey[1] as string[]);
+  const covered = new Set(batches.flat());
+  const remaining = channelIds.filter((id) => !covered.has(id));
+  if (remaining.length > 0) batches.push(remaining);
+  await client.cancelQueries({ predicate: (query) => overlapping.includes(query) });
+  const rows = (await Promise.all(batches.map((ids) => client.fetchQuery({ ...channelTodayUsageQueryOptions(ids), staleTime: 0 })))).flat();
+  const updated = new Map(rows.map((row) => [row.channelId, row]));
+  for (const query of client.getQueryCache().findAll({ queryKey: ['channel-today-usage'] })) {
+    const ids = query.queryKey[1] as string[];
+    client.setQueryData<typeof rows>(query.queryKey, (previous) =>
+      previous
+        ? previous.map((row) => updated.get(row.channelId) ?? row)
+        : ids.every((id) => updated.has(id))
+          ? ids.map((id) => updated.get(id)!)
+          : undefined
+    );
+  }
 }

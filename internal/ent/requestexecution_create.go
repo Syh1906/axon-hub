@@ -54,6 +54,90 @@ func (_c *RequestExecutionCreate) SetNillableUpdatedAt(v *time.Time) *RequestExe
 	return _c
 }
 
+// SetStatisticsReady sets the "statistics_ready" field.
+func (_c *RequestExecutionCreate) SetStatisticsReady(v bool) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsReady(v)
+	return _c
+}
+
+// SetNillableStatisticsReady sets the "statistics_ready" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsReady(v *bool) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsReady(*v)
+	}
+	return _c
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_c *RequestExecutionCreate) SetStatisticsVersion(v int64) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsVersion(v)
+	return _c
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsVersion(v *int64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsVersion(*v)
+	}
+	return _c
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (_c *RequestExecutionCreate) SetStatisticsOutcome(v float64) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsOutcome(v)
+	return _c
+}
+
+// SetNillableStatisticsOutcome sets the "statistics_outcome" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsOutcome(v *float64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsOutcome(*v)
+	}
+	return _c
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (_c *RequestExecutionCreate) SetStatisticsChannelOutcome(v float64) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsChannelOutcome(v)
+	return _c
+}
+
+// SetNillableStatisticsChannelOutcome sets the "statistics_channel_outcome" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsChannelOutcome(v *float64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsChannelOutcome(*v)
+	}
+	return _c
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (_c *RequestExecutionCreate) SetStatisticsFirstTokenMs(v float64) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsFirstTokenMs(v)
+	return _c
+}
+
+// SetNillableStatisticsFirstTokenMs sets the "statistics_first_token_ms" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsFirstTokenMs(v *float64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsFirstTokenMs(*v)
+	}
+	return _c
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (_c *RequestExecutionCreate) SetStatisticsOutputSpeed(v float64) *RequestExecutionCreate {
+	_c.mutation.SetStatisticsOutputSpeed(v)
+	return _c
+}
+
+// SetNillableStatisticsOutputSpeed sets the "statistics_output_speed" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableStatisticsOutputSpeed(v *float64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetStatisticsOutputSpeed(*v)
+	}
+	return _c
+}
+
 // SetProjectID sets the "project_id" field.
 func (_c *RequestExecutionCreate) SetProjectID(v int) *RequestExecutionCreate {
 	_c.mutation.SetProjectID(v)
@@ -500,6 +584,14 @@ func (_c *RequestExecutionCreate) defaults() {
 		v := requestexecution.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.StatisticsReady(); !ok {
+		v := requestexecution.DefaultStatisticsReady
+		_c.mutation.SetStatisticsReady(v)
+	}
+	if _, ok := _c.mutation.StatisticsVersion(); !ok {
+		v := requestexecution.DefaultStatisticsVersion
+		_c.mutation.SetStatisticsVersion(v)
+	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		v := requestexecution.DefaultProjectID
 		_c.mutation.SetProjectID(v)
@@ -520,6 +612,12 @@ func (_c *RequestExecutionCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *RequestExecutionCreate) check() error {
+	if _, ok := _c.mutation.StatisticsReady(); !ok {
+		return &ValidationError{Name: "statistics_ready", err: errors.New(`ent: missing required field "RequestExecution.statistics_ready"`)}
+	}
+	if _, ok := _c.mutation.StatisticsVersion(); !ok {
+		return &ValidationError{Name: "statistics_version", err: errors.New(`ent: missing required field "RequestExecution.statistics_version"`)}
+	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "RequestExecution.project_id"`)}
 	}
@@ -606,6 +704,30 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.StatisticsReady(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
+		_node.StatisticsReady = value
+	}
+	if value, ok := _c.mutation.StatisticsVersion(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsVersion, field.TypeInt64, value)
+		_node.StatisticsVersion = value
+	}
+	if value, ok := _c.mutation.StatisticsOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64, value)
+		_node.StatisticsOutcome = &value
+	}
+	if value, ok := _c.mutation.StatisticsChannelOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64, value)
+		_node.StatisticsChannelOutcome = &value
+	}
+	if value, ok := _c.mutation.StatisticsFirstTokenMs(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64, value)
+		_node.StatisticsFirstTokenMs = &value
+	}
+	if value, ok := _c.mutation.StatisticsOutputSpeed(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64, value)
+		_node.StatisticsOutputSpeed = &value
 	}
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(requestexecution.FieldProjectID, field.TypeInt, value)
@@ -843,6 +965,132 @@ func (u *RequestExecutionUpsert) SetUpdatedAt(v time.Time) *RequestExecutionUpse
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *RequestExecutionUpsert) UpdateUpdatedAt() *RequestExecutionUpsert {
 	u.SetExcluded(requestexecution.FieldUpdatedAt)
+	return u
+}
+
+// SetStatisticsReady sets the "statistics_ready" field.
+func (u *RequestExecutionUpsert) SetStatisticsReady(v bool) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsReady, v)
+	return u
+}
+
+// UpdateStatisticsReady sets the "statistics_ready" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsReady() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsReady)
+	return u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *RequestExecutionUpsert) SetStatisticsVersion(v int64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsVersion, v)
+	return u
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsVersion() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsVersion)
+	return u
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *RequestExecutionUpsert) AddStatisticsVersion(v int64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldStatisticsVersion, v)
+	return u
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (u *RequestExecutionUpsert) SetStatisticsOutcome(v float64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsOutcome, v)
+	return u
+}
+
+// UpdateStatisticsOutcome sets the "statistics_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsOutcome() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsOutcome)
+	return u
+}
+
+// AddStatisticsOutcome adds v to the "statistics_outcome" field.
+func (u *RequestExecutionUpsert) AddStatisticsOutcome(v float64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldStatisticsOutcome, v)
+	return u
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (u *RequestExecutionUpsert) ClearStatisticsOutcome() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldStatisticsOutcome)
+	return u
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsert) SetStatisticsChannelOutcome(v float64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsChannelOutcome, v)
+	return u
+}
+
+// UpdateStatisticsChannelOutcome sets the "statistics_channel_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsChannelOutcome() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsChannelOutcome)
+	return u
+}
+
+// AddStatisticsChannelOutcome adds v to the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsert) AddStatisticsChannelOutcome(v float64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldStatisticsChannelOutcome, v)
+	return u
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsert) ClearStatisticsChannelOutcome() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldStatisticsChannelOutcome)
+	return u
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsert) SetStatisticsFirstTokenMs(v float64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsFirstTokenMs, v)
+	return u
+}
+
+// UpdateStatisticsFirstTokenMs sets the "statistics_first_token_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsFirstTokenMs() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsFirstTokenMs)
+	return u
+}
+
+// AddStatisticsFirstTokenMs adds v to the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsert) AddStatisticsFirstTokenMs(v float64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldStatisticsFirstTokenMs, v)
+	return u
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsert) ClearStatisticsFirstTokenMs() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldStatisticsFirstTokenMs)
+	return u
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (u *RequestExecutionUpsert) SetStatisticsOutputSpeed(v float64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldStatisticsOutputSpeed, v)
+	return u
+}
+
+// UpdateStatisticsOutputSpeed sets the "statistics_output_speed" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateStatisticsOutputSpeed() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldStatisticsOutputSpeed)
+	return u
+}
+
+// AddStatisticsOutputSpeed adds v to the "statistics_output_speed" field.
+func (u *RequestExecutionUpsert) AddStatisticsOutputSpeed(v float64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldStatisticsOutputSpeed, v)
+	return u
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (u *RequestExecutionUpsert) ClearStatisticsOutputSpeed() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldStatisticsOutputSpeed)
 	return u
 }
 
@@ -1292,6 +1540,153 @@ func (u *RequestExecutionUpsertOne) SetUpdatedAt(v time.Time) *RequestExecutionU
 func (u *RequestExecutionUpsertOne) UpdateUpdatedAt() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatisticsReady sets the "statistics_ready" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsReady(v bool) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsReady(v)
+	})
+}
+
+// UpdateStatisticsReady sets the "statistics_ready" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsReady() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsReady()
+	})
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsVersion(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsVersion(v)
+	})
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *RequestExecutionUpsertOne) AddStatisticsVersion(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsVersion(v)
+	})
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsVersion() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsVersion()
+	})
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsOutcome(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsOutcome(v)
+	})
+}
+
+// AddStatisticsOutcome adds v to the "statistics_outcome" field.
+func (u *RequestExecutionUpsertOne) AddStatisticsOutcome(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsOutcome(v)
+	})
+}
+
+// UpdateStatisticsOutcome sets the "statistics_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsOutcome() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsOutcome()
+	})
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (u *RequestExecutionUpsertOne) ClearStatisticsOutcome() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsOutcome()
+	})
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsChannelOutcome(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsChannelOutcome(v)
+	})
+}
+
+// AddStatisticsChannelOutcome adds v to the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertOne) AddStatisticsChannelOutcome(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsChannelOutcome(v)
+	})
+}
+
+// UpdateStatisticsChannelOutcome sets the "statistics_channel_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsChannelOutcome() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsChannelOutcome()
+	})
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertOne) ClearStatisticsChannelOutcome() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsChannelOutcome()
+	})
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsFirstTokenMs(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsFirstTokenMs(v)
+	})
+}
+
+// AddStatisticsFirstTokenMs adds v to the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertOne) AddStatisticsFirstTokenMs(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsFirstTokenMs(v)
+	})
+}
+
+// UpdateStatisticsFirstTokenMs sets the "statistics_first_token_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsFirstTokenMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsFirstTokenMs()
+	})
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertOne) ClearStatisticsFirstTokenMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsFirstTokenMs()
+	})
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertOne) SetStatisticsOutputSpeed(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsOutputSpeed(v)
+	})
+}
+
+// AddStatisticsOutputSpeed adds v to the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertOne) AddStatisticsOutputSpeed(v float64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsOutputSpeed(v)
+	})
+}
+
+// UpdateStatisticsOutputSpeed sets the "statistics_output_speed" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateStatisticsOutputSpeed() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsOutputSpeed()
+	})
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertOne) ClearStatisticsOutputSpeed() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsOutputSpeed()
 	})
 }
 
@@ -1759,7 +2154,7 @@ func (_c *RequestExecutionCreateBulk) Save(ctx context.Context) ([]*RequestExecu
 				var err error
 				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
+					_, err = mutators[i+1].Mutate(statisticsBatchContext(root, ctx), _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					spec.OnConflict = _c.conflict
@@ -1964,6 +2359,153 @@ func (u *RequestExecutionUpsertBulk) SetUpdatedAt(v time.Time) *RequestExecution
 func (u *RequestExecutionUpsertBulk) UpdateUpdatedAt() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetStatisticsReady sets the "statistics_ready" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsReady(v bool) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsReady(v)
+	})
+}
+
+// UpdateStatisticsReady sets the "statistics_ready" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsReady() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsReady()
+	})
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsVersion(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsVersion(v)
+	})
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *RequestExecutionUpsertBulk) AddStatisticsVersion(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsVersion(v)
+	})
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsVersion() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsVersion()
+	})
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsOutcome(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsOutcome(v)
+	})
+}
+
+// AddStatisticsOutcome adds v to the "statistics_outcome" field.
+func (u *RequestExecutionUpsertBulk) AddStatisticsOutcome(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsOutcome(v)
+	})
+}
+
+// UpdateStatisticsOutcome sets the "statistics_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsOutcome() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsOutcome()
+	})
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (u *RequestExecutionUpsertBulk) ClearStatisticsOutcome() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsOutcome()
+	})
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsChannelOutcome(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsChannelOutcome(v)
+	})
+}
+
+// AddStatisticsChannelOutcome adds v to the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertBulk) AddStatisticsChannelOutcome(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsChannelOutcome(v)
+	})
+}
+
+// UpdateStatisticsChannelOutcome sets the "statistics_channel_outcome" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsChannelOutcome() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsChannelOutcome()
+	})
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (u *RequestExecutionUpsertBulk) ClearStatisticsChannelOutcome() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsChannelOutcome()
+	})
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsFirstTokenMs(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsFirstTokenMs(v)
+	})
+}
+
+// AddStatisticsFirstTokenMs adds v to the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertBulk) AddStatisticsFirstTokenMs(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsFirstTokenMs(v)
+	})
+}
+
+// UpdateStatisticsFirstTokenMs sets the "statistics_first_token_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsFirstTokenMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsFirstTokenMs()
+	})
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (u *RequestExecutionUpsertBulk) ClearStatisticsFirstTokenMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsFirstTokenMs()
+	})
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertBulk) SetStatisticsOutputSpeed(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetStatisticsOutputSpeed(v)
+	})
+}
+
+// AddStatisticsOutputSpeed adds v to the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertBulk) AddStatisticsOutputSpeed(v float64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddStatisticsOutputSpeed(v)
+	})
+}
+
+// UpdateStatisticsOutputSpeed sets the "statistics_output_speed" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateStatisticsOutputSpeed() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateStatisticsOutputSpeed()
+	})
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (u *RequestExecutionUpsertBulk) ClearStatisticsOutputSpeed() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearStatisticsOutputSpeed()
 	})
 }
 

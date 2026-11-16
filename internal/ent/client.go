@@ -45,6 +45,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
@@ -120,6 +121,8 @@ type Client struct {
 	ResponsesOrigin *ResponsesOriginClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// StatisticsRevision is the client for interacting with the StatisticsRevision builders.
+	StatisticsRevision *StatisticsRevisionClient
 	// System is the client for interacting with the System builders.
 	System *SystemClient
 	// Thread is the client for interacting with the Thread builders.
@@ -144,6 +147,7 @@ type Client struct {
 func NewClient(opts ...Option) *Client {
 	client := &Client{config: newConfig(opts...)}
 	client.init()
+	client.EnableStatisticsTransactions()
 	return client
 }
 
@@ -179,6 +183,7 @@ func (c *Client) init() {
 	c.RequestExecution = NewRequestExecutionClient(c.config)
 	c.ResponsesOrigin = NewResponsesOriginClient(c.config)
 	c.Role = NewRoleClient(c.config)
+	c.StatisticsRevision = NewStatisticsRevisionClient(c.config)
 	c.System = NewSystemClient(c.config)
 	c.Thread = NewThreadClient(c.config)
 	c.Trace = NewTraceClient(c.config)
@@ -309,6 +314,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		RequestExecution:         NewRequestExecutionClient(cfg),
 		ResponsesOrigin:          NewResponsesOriginClient(cfg),
 		Role:                     NewRoleClient(cfg),
+		StatisticsRevision:       NewStatisticsRevisionClient(cfg),
 		System:                   NewSystemClient(cfg),
 		Thread:                   NewThreadClient(cfg),
 		Trace:                    NewTraceClient(cfg),
@@ -366,6 +372,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		RequestExecution:         NewRequestExecutionClient(cfg),
 		ResponsesOrigin:          NewResponsesOriginClient(cfg),
 		Role:                     NewRoleClient(cfg),
+		StatisticsRevision:       NewStatisticsRevisionClient(cfg),
 		System:                   NewSystemClient(cfg),
 		Thread:                   NewThreadClient(cfg),
 		Trace:                    NewTraceClient(cfg),
@@ -410,8 +417,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage, c.Invitation,
 		c.Model, c.OIDCIdentity, c.Plugin, c.PluginStorage, c.Project, c.Prompt,
 		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.ResponsesOrigin, c.Role, c.System, c.Thread, c.Trace, c.UsageArchive,
-		c.UsageLog, c.User, c.UserProject, c.UserRole,
+		c.ResponsesOrigin, c.Role, c.StatisticsRevision, c.System, c.Thread, c.Trace,
+		c.UsageArchive, c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -428,8 +435,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelUpstreamStatus, c.ConsumptionSnapshot, c.DataStorage, c.Invitation,
 		c.Model, c.OIDCIdentity, c.Plugin, c.PluginStorage, c.Project, c.Prompt,
 		c.PromptProtectionRule, c.ProviderQuotaStatus, c.Request, c.RequestExecution,
-		c.ResponsesOrigin, c.Role, c.System, c.Thread, c.Trace, c.UsageArchive,
-		c.UsageLog, c.User, c.UserProject, c.UserRole,
+		c.ResponsesOrigin, c.Role, c.StatisticsRevision, c.System, c.Thread, c.Trace,
+		c.UsageArchive, c.UsageLog, c.User, c.UserProject, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -498,6 +505,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ResponsesOrigin.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
+	case *StatisticsRevisionMutation:
+		return c.StatisticsRevision.mutate(ctx, m)
 	case *SystemMutation:
 		return c.System.mutate(ctx, m)
 	case *ThreadMutation:
@@ -5335,6 +5344,140 @@ func (c *RoleClient) mutate(ctx context.Context, m *RoleMutation) (Value, error)
 	}
 }
 
+// StatisticsRevisionClient is a client for the StatisticsRevision schema.
+type StatisticsRevisionClient struct {
+	config
+}
+
+// NewStatisticsRevisionClient returns a client for the StatisticsRevision from the given config.
+func NewStatisticsRevisionClient(c config) *StatisticsRevisionClient {
+	return &StatisticsRevisionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `statisticsrevision.Hooks(f(g(h())))`.
+func (c *StatisticsRevisionClient) Use(hooks ...Hook) {
+	c.hooks.StatisticsRevision = append(c.hooks.StatisticsRevision, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `statisticsrevision.Intercept(f(g(h())))`.
+func (c *StatisticsRevisionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StatisticsRevision = append(c.inters.StatisticsRevision, interceptors...)
+}
+
+// Create returns a builder for creating a StatisticsRevision entity.
+func (c *StatisticsRevisionClient) Create() *StatisticsRevisionCreate {
+	mutation := newStatisticsRevisionMutation(c.config, OpCreate)
+	return &StatisticsRevisionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StatisticsRevision entities.
+func (c *StatisticsRevisionClient) CreateBulk(builders ...*StatisticsRevisionCreate) *StatisticsRevisionCreateBulk {
+	return &StatisticsRevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StatisticsRevisionClient) MapCreateBulk(slice any, setFunc func(*StatisticsRevisionCreate, int)) *StatisticsRevisionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StatisticsRevisionCreateBulk{err: fmt.Errorf("calling to StatisticsRevisionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StatisticsRevisionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StatisticsRevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StatisticsRevision.
+func (c *StatisticsRevisionClient) Update() *StatisticsRevisionUpdate {
+	mutation := newStatisticsRevisionMutation(c.config, OpUpdate)
+	return &StatisticsRevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StatisticsRevisionClient) UpdateOne(_m *StatisticsRevision) *StatisticsRevisionUpdateOne {
+	mutation := newStatisticsRevisionMutation(c.config, OpUpdateOne, withStatisticsRevision(_m))
+	return &StatisticsRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StatisticsRevisionClient) UpdateOneID(id int) *StatisticsRevisionUpdateOne {
+	mutation := newStatisticsRevisionMutation(c.config, OpUpdateOne, withStatisticsRevisionID(id))
+	return &StatisticsRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StatisticsRevision.
+func (c *StatisticsRevisionClient) Delete() *StatisticsRevisionDelete {
+	mutation := newStatisticsRevisionMutation(c.config, OpDelete)
+	return &StatisticsRevisionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StatisticsRevisionClient) DeleteOne(_m *StatisticsRevision) *StatisticsRevisionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StatisticsRevisionClient) DeleteOneID(id int) *StatisticsRevisionDeleteOne {
+	builder := c.Delete().Where(statisticsrevision.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StatisticsRevisionDeleteOne{builder}
+}
+
+// Query returns a query builder for StatisticsRevision.
+func (c *StatisticsRevisionClient) Query() *StatisticsRevisionQuery {
+	return &StatisticsRevisionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStatisticsRevision},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StatisticsRevision entity by its id.
+func (c *StatisticsRevisionClient) Get(ctx context.Context, id int) (*StatisticsRevision, error) {
+	return c.Query().Where(statisticsrevision.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StatisticsRevisionClient) GetX(ctx context.Context, id int) *StatisticsRevision {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StatisticsRevisionClient) Hooks() []Hook {
+	hooks := c.hooks.StatisticsRevision
+	return append(hooks[:len(hooks):len(hooks)], statisticsrevision.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *StatisticsRevisionClient) Interceptors() []Interceptor {
+	return c.inters.StatisticsRevision
+}
+
+func (c *StatisticsRevisionClient) mutate(ctx context.Context, m *StatisticsRevisionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StatisticsRevisionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StatisticsRevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StatisticsRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StatisticsRevisionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StatisticsRevision mutation op: %q", m.Op())
+	}
+}
+
 // SystemClient is a client for the System schema.
 type SystemClient struct {
 	config
@@ -6721,8 +6864,8 @@ type (
 		ChannelProbe, ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage,
 		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
 		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
-		ResponsesOrigin, Role, System, Thread, Trace, UsageArchive, UsageLog, User,
-		UserProject, UserRole []ent.Hook
+		ResponsesOrigin, Role, StatisticsRevision, System, Thread, Trace, UsageArchive,
+		UsageLog, User, UserProject, UserRole []ent.Hook
 	}
 	inters struct {
 		APIKey, APIKeyGroup, APIKeyOperation, APIKeyProfileTemplate, BudgetAccount,
@@ -6731,7 +6874,7 @@ type (
 		ChannelProbe, ChannelUpstreamStatus, ConsumptionSnapshot, DataStorage,
 		Invitation, Model, OIDCIdentity, Plugin, PluginStorage, Project, Prompt,
 		PromptProtectionRule, ProviderQuotaStatus, Request, RequestExecution,
-		ResponsesOrigin, Role, System, Thread, Trace, UsageArchive, UsageLog, User,
-		UserProject, UserRole []ent.Interceptor
+		ResponsesOrigin, Role, StatisticsRevision, System, Thread, Trace, UsageArchive,
+		UsageLog, User, UserProject, UserRole []ent.Interceptor
 	}
 )

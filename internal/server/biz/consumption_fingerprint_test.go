@@ -44,7 +44,8 @@ func TestConsumptionFingerprintPostgresIdentifiers(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Len(t, driver.queries, 11)
+	require.Len(t, driver.queries, 1)
+	require.Contains(t, driver.queries[0], "statistics_revisions")
 
 	for _, query := range driver.queries {
 		require.NotContains(t, query, "`")
@@ -142,6 +143,8 @@ func TestConsumptionSnapshotActiveFallbackKeepsFingerprint(t *testing.T) {
 		})
 	})
 
+	_, err = f.service.Slices(ctx, input, nil, "usage")
+	require.NoError(t, err)
 	require.NoError(t, f.service.fillConsumptionSnapshot(f.ctx))
 
 	f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(r.ID)).SetTotalCost(2).SaveX(f.ctx)

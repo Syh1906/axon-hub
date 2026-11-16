@@ -72,6 +72,12 @@ type UsageLog struct {
 	Source usagelog.Source `json:"source,omitempty"`
 	// Request format used
 	Format string `json:"format,omitempty"`
+	// StatisticsStandardCost holds the value of the "statistics_standard_cost" field.
+	StatisticsStandardCost *float64 `json:"statistics_standard_cost,omitempty"`
+	// StatisticsStandardReady holds the value of the "statistics_standard_ready" field.
+	StatisticsStandardReady bool `json:"statistics_standard_ready,omitempty"`
+	// StatisticsVersion holds the value of the "statistics_version" field.
+	StatisticsVersion int64 `json:"statistics_version,omitempty"`
 	// CostSnapshot holds the value of the "cost_snapshot" field.
 	CostSnapshot *objects.RequestCostSnapshot `json:"cost_snapshot,omitempty"`
 	// Total cost calculated based on channel model price
@@ -141,9 +147,11 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagelog.FieldCostSnapshot, usagelog.FieldCostItems:
 			values[i] = new([]byte)
-		case usagelog.FieldTotalCost:
+		case usagelog.FieldStatisticsStandardReady:
+			values[i] = new(sql.NullBool)
+		case usagelog.FieldStatisticsStandardCost, usagelog.FieldTotalCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens:
+		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptTextTokens, usagelog.FieldPromptImageTokens, usagelog.FieldPromptTextCachedTokens, usagelog.FieldPromptImageCachedTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens, usagelog.FieldStatisticsVersion:
 			values[i] = new(sql.NullInt64)
 		case usagelog.FieldModelID, usagelog.FieldSource, usagelog.FieldFormat, usagelog.FieldCostPriceReferenceID:
 			values[i] = new(sql.NullString)
@@ -324,6 +332,25 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Format = value.String
 			}
+		case usagelog.FieldStatisticsStandardCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_standard_cost", values[i])
+			} else if value.Valid {
+				_m.StatisticsStandardCost = new(float64)
+				*_m.StatisticsStandardCost = value.Float64
+			}
+		case usagelog.FieldStatisticsStandardReady:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_standard_ready", values[i])
+			} else if value.Valid {
+				_m.StatisticsStandardReady = value.Bool
+			}
+		case usagelog.FieldStatisticsVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field statistics_version", values[i])
+			} else if value.Valid {
+				_m.StatisticsVersion = value.Int64
+			}
 		case usagelog.FieldCostSnapshot:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field cost_snapshot", values[i])
@@ -486,6 +513,17 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("format=")
 	builder.WriteString(_m.Format)
+	builder.WriteString(", ")
+	if v := _m.StatisticsStandardCost; v != nil {
+		builder.WriteString("statistics_standard_cost=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("statistics_standard_ready=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StatisticsStandardReady))
+	builder.WriteString(", ")
+	builder.WriteString("statistics_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StatisticsVersion))
 	builder.WriteString(", ")
 	builder.WriteString("cost_snapshot=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CostSnapshot))

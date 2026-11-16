@@ -1,0 +1,39 @@
+{{/* Ent v0.14.6 client/init (Apache-2.0). Install mutation routing before
+   any entities/builders can retain the original client configuration. */}}
+{{ define "client/init" }}
+// Client is the client that holds all ent builders.
+type Client struct {
+	config
+	{{- if $.SupportMigrate }}
+		// Schema is the client for creating, migrating and dropping schema.
+		Schema *migrate.Schema
+	{{- end }}
+	{{- range $n := $.Nodes }}
+		// {{ $n.Name }} is the client for interacting with the {{ $n.Name }} builders.
+		{{ $n.Name }} *{{ $n.ClientName }}
+	{{- end }}
+	{{- template "client/fields/additional" $ }}
+	{{- with $tmpls := matchTemplate "client/fields/additional/*" }}
+		{{- range $tmpl := $tmpls }}
+			{{- xtemplate $tmpl $ }}
+		{{- end }}
+	{{- end }}
+}
+
+// NewClient creates a new client configured with the given options.
+func NewClient(opts ...Option) *Client {
+	client := &Client{config: newConfig(opts...)}
+	client.init()
+	client.EnableStatisticsTransactions()
+	return client
+}
+
+func (c *Client) init() {
+	{{- if $.SupportMigrate }}
+		c.Schema = migrate.NewSchema(c.driver)
+	{{- end }}
+	{{- range $n := $.Nodes }}
+		c.{{ $n.Name }} = New{{ $n.ClientName }}(c.config)
+	{{- end }}
+}
+{{ end }}

@@ -831,6 +831,30 @@ func (f RoleMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) 
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.RoleMutation", m)
 }
 
+// The StatisticsRevisionQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type StatisticsRevisionQueryRuleFunc func(context.Context, *ent.StatisticsRevisionQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f StatisticsRevisionQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.StatisticsRevisionQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.StatisticsRevisionQuery", q)
+}
+
+// The StatisticsRevisionMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type StatisticsRevisionMutationRuleFunc func(context.Context, *ent.StatisticsRevisionMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f StatisticsRevisionMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.StatisticsRevisionMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.StatisticsRevisionMutation", m)
+}
+
 // The SystemQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type SystemQueryRuleFunc func(context.Context, *ent.SystemQuery) error
@@ -1118,6 +1142,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.RoleQuery:
 		return q.Filter(), nil
+	case *ent.StatisticsRevisionQuery:
+		return q.Filter(), nil
 	case *ent.SystemQuery:
 		return q.Filter(), nil
 	case *ent.ThreadQuery:
@@ -1200,6 +1226,8 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.ResponsesOriginMutation:
 		return m.Filter(), nil
 	case *ent.RoleMutation:
+		return m.Filter(), nil
+	case *ent.StatisticsRevisionMutation:
 		return m.Filter(), nil
 	case *ent.SystemMutation:
 		return m.Filter(), nil

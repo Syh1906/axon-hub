@@ -26,6 +26,8 @@ func (RequestExecution) Mixin() []ent.Mixin {
 
 func (RequestExecution) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("statistics_ready", "created_at").StorageKey("request_executions_by_statistics_pending"),
+		index.Fields("request_id", "channel_id", "project_id", "id").StorageKey("request_executions_by_usage_match"),
 		index.Fields("created_at").StorageKey("request_executions_by_created_at"),
 		// Index for window function: find latest execution per request
 		index.Fields("request_id", "status", "created_at").
@@ -40,6 +42,12 @@ func (RequestExecution) Indexes() []ent.Index {
 
 func (RequestExecution) Fields() []ent.Field {
 	return []ent.Field{
+		field.Bool("statistics_ready").Default(false).Annotations(entgql.Skip()),
+		field.Int64("statistics_version").Default(0).Annotations(entgql.Skip()),
+		field.Float("statistics_outcome").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Float("statistics_channel_outcome").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Float("statistics_first_token_ms").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Float("statistics_output_speed").Optional().Nillable().Annotations(entgql.Skip()),
 		field.Int("project_id").Immutable().Default(1),
 		field.Int("request_id").Immutable(),
 		field.Int("channel_id").Immutable().Optional(), // Optional for deleted channel, this field is not null.

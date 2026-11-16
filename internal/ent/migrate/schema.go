@@ -1040,6 +1040,12 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
+		{Name: "statistics_ready", Type: field.TypeBool, Default: false},
+		{Name: "statistics_version", Type: field.TypeInt64, Default: 0},
+		{Name: "statistics_outcome", Type: field.TypeFloat64, Nullable: true},
+		{Name: "statistics_channel_outcome", Type: field.TypeFloat64, Nullable: true},
+		{Name: "statistics_first_token_ms", Type: field.TypeFloat64, Nullable: true},
+		{Name: "statistics_output_speed", Type: field.TypeFloat64, Nullable: true},
 		{Name: "project_id", Type: field.TypeInt, Default: 1},
 		{Name: "channel_api_key_index", Type: field.TypeInt, Nullable: true},
 		{Name: "external_id", Type: field.TypeString, Nullable: true, Size: 512},
@@ -1083,24 +1089,34 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "request_executions_channels_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[34]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[40]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_data_storages_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[35]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[41]},
 				RefColumns: []*schema.Column{DataStoragesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_requests_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[36]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[42]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
+			{
+				Name:    "request_executions_by_statistics_pending",
+				Unique:  false,
+				Columns: []*schema.Column{RequestExecutionsColumns[3], RequestExecutionsColumns[1]},
+			},
+			{
+				Name:    "request_executions_by_usage_match",
+				Unique:  false,
+				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[40], RequestExecutionsColumns[9], RequestExecutionsColumns[0]},
+			},
 			{
 				Name:    "request_executions_by_created_at",
 				Unique:  false,
@@ -1109,17 +1125,17 @@ var (
 			{
 				Name:    "request_executions_by_request_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[36], RequestExecutionsColumns[21], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[27], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_request_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[36], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[34], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[40], RequestExecutionsColumns[1]},
 			},
 		},
 	}
@@ -1186,6 +1202,31 @@ var (
 				Name:    "roles_by_level",
 				Unique:  false,
 				Columns: []*schema.Column{RolesColumns[5]},
+			},
+		},
+	}
+	// StatisticsRevisionsColumns holds the columns for the "statistics_revisions" table.
+	StatisticsRevisionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "version", Type: field.TypeString, Size: 36},
+	}
+	// StatisticsRevisionsTable holds the schema information for the "statistics_revisions" table.
+	StatisticsRevisionsTable = &schema.Table{
+		Name:       "statistics_revisions",
+		Columns:    StatisticsRevisionsColumns,
+		PrimaryKey: []*schema.Column{StatisticsRevisionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "statistics_revision_by_project_time",
+				Unique:  true,
+				Columns: []*schema.Column{StatisticsRevisionsColumns[1], StatisticsRevisionsColumns[2]},
+			},
+			{
+				Name:    "statistics_revision_by_time",
+				Unique:  false,
+				Columns: []*schema.Column{StatisticsRevisionsColumns[2]},
 			},
 		},
 	}
@@ -1389,6 +1430,9 @@ var (
 		{Name: "completion_rejected_prediction_tokens", Type: field.TypeInt64, Nullable: true, Default: 0},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"api", "playground", "test"}, Default: "api"},
 		{Name: "format", Type: field.TypeString, Default: "openai/chat_completions"},
+		{Name: "statistics_standard_cost", Type: field.TypeFloat64, Nullable: true},
+		{Name: "statistics_standard_ready", Type: field.TypeBool, Default: false},
+		{Name: "statistics_version", Type: field.TypeInt64, Default: 0},
 		{Name: "cost_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "total_cost", Type: field.TypeFloat64, Nullable: true},
 		{Name: "cost_items", Type: field.TypeJSON, Nullable: true},
@@ -1405,19 +1449,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_channels_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[27]},
+				Columns:    []*schema.Column{UsageLogsColumns[30]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_projects_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[28]},
+				Columns:    []*schema.Column{UsageLogsColumns[31]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_requests_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[29]},
+				Columns:    []*schema.Column{UsageLogsColumns[32]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1426,7 +1470,12 @@ var (
 			{
 				Name:    "usage_logs_by_request_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[29]},
+				Columns: []*schema.Column{UsageLogsColumns[32]},
+			},
+			{
+				Name:    "usage_logs_by_statistics_pricing",
+				Unique:  false,
+				Columns: []*schema.Column{UsageLogsColumns[30], UsageLogsColumns[24], UsageLogsColumns[32]},
 			},
 			{
 				Name:    "usage_logs_by_created_at",
@@ -1441,12 +1490,12 @@ var (
 			{
 				Name:    "usage_logs_by_project_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[28], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[31], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[27], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[30], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_api_key_id_created_at",
@@ -1598,6 +1647,7 @@ var (
 		RequestExecutionsTable,
 		ResponsesOriginsTable,
 		RolesTable,
+		StatisticsRevisionsTable,
 		SystemsTable,
 		ThreadsTable,
 		TracesTable,

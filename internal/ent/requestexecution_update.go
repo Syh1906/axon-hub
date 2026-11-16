@@ -37,6 +37,149 @@ func (_u *RequestExecutionUpdate) SetUpdatedAt(v time.Time) *RequestExecutionUpd
 	return _u
 }
 
+// SetStatisticsReady sets the "statistics_ready" field.
+func (_u *RequestExecutionUpdate) SetStatisticsReady(v bool) *RequestExecutionUpdate {
+	_u.mutation.SetStatisticsReady(v)
+	return _u
+}
+
+// SetNillableStatisticsReady sets the "statistics_ready" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsReady(v *bool) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsReady(*v)
+	}
+	return _u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_u *RequestExecutionUpdate) SetStatisticsVersion(v int64) *RequestExecutionUpdate {
+	_u.mutation.ResetStatisticsVersion()
+	_u.mutation.SetStatisticsVersion(v)
+	return _u
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsVersion(v *int64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsVersion(*v)
+	}
+	return _u
+}
+
+// AddStatisticsVersion adds value to the "statistics_version" field.
+func (_u *RequestExecutionUpdate) AddStatisticsVersion(v int64) *RequestExecutionUpdate {
+	_u.mutation.AddStatisticsVersion(v)
+	return _u
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (_u *RequestExecutionUpdate) SetStatisticsOutcome(v float64) *RequestExecutionUpdate {
+	_u.mutation.ResetStatisticsOutcome()
+	_u.mutation.SetStatisticsOutcome(v)
+	return _u
+}
+
+// SetNillableStatisticsOutcome sets the "statistics_outcome" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsOutcome(v *float64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsOutcome(*v)
+	}
+	return _u
+}
+
+// AddStatisticsOutcome adds value to the "statistics_outcome" field.
+func (_u *RequestExecutionUpdate) AddStatisticsOutcome(v float64) *RequestExecutionUpdate {
+	_u.mutation.AddStatisticsOutcome(v)
+	return _u
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (_u *RequestExecutionUpdate) ClearStatisticsOutcome() *RequestExecutionUpdate {
+	_u.mutation.ClearStatisticsOutcome()
+	return _u
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdate) SetStatisticsChannelOutcome(v float64) *RequestExecutionUpdate {
+	_u.mutation.ResetStatisticsChannelOutcome()
+	_u.mutation.SetStatisticsChannelOutcome(v)
+	return _u
+}
+
+// SetNillableStatisticsChannelOutcome sets the "statistics_channel_outcome" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsChannelOutcome(v *float64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsChannelOutcome(*v)
+	}
+	return _u
+}
+
+// AddStatisticsChannelOutcome adds value to the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdate) AddStatisticsChannelOutcome(v float64) *RequestExecutionUpdate {
+	_u.mutation.AddStatisticsChannelOutcome(v)
+	return _u
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdate) ClearStatisticsChannelOutcome() *RequestExecutionUpdate {
+	_u.mutation.ClearStatisticsChannelOutcome()
+	return _u
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdate) SetStatisticsFirstTokenMs(v float64) *RequestExecutionUpdate {
+	_u.mutation.ResetStatisticsFirstTokenMs()
+	_u.mutation.SetStatisticsFirstTokenMs(v)
+	return _u
+}
+
+// SetNillableStatisticsFirstTokenMs sets the "statistics_first_token_ms" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsFirstTokenMs(v *float64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsFirstTokenMs(*v)
+	}
+	return _u
+}
+
+// AddStatisticsFirstTokenMs adds value to the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdate) AddStatisticsFirstTokenMs(v float64) *RequestExecutionUpdate {
+	_u.mutation.AddStatisticsFirstTokenMs(v)
+	return _u
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdate) ClearStatisticsFirstTokenMs() *RequestExecutionUpdate {
+	_u.mutation.ClearStatisticsFirstTokenMs()
+	return _u
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdate) SetStatisticsOutputSpeed(v float64) *RequestExecutionUpdate {
+	_u.mutation.ResetStatisticsOutputSpeed()
+	_u.mutation.SetStatisticsOutputSpeed(v)
+	return _u
+}
+
+// SetNillableStatisticsOutputSpeed sets the "statistics_output_speed" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableStatisticsOutputSpeed(v *float64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetStatisticsOutputSpeed(*v)
+	}
+	return _u
+}
+
+// AddStatisticsOutputSpeed adds value to the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdate) AddStatisticsOutputSpeed(v float64) *RequestExecutionUpdate {
+	_u.mutation.AddStatisticsOutputSpeed(v)
+	return _u
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdate) ClearStatisticsOutputSpeed() *RequestExecutionUpdate {
+	_u.mutation.ClearStatisticsOutputSpeed()
+	return _u
+}
+
 // SetExternalID sets the "external_id" field.
 func (_u *RequestExecutionUpdate) SetExternalID(v string) *RequestExecutionUpdate {
 	_u.mutation.SetExternalID(v)
@@ -484,6 +627,51 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.StatisticsReady(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StatisticsVersion(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsVersion(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StatisticsOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsOutcome(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsOutcomeCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsChannelOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsChannelOutcome(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsChannelOutcomeCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsFirstTokenMs(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsFirstTokenMs(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsFirstTokenMsCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsOutputSpeed(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsOutputSpeed(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsOutputSpeedCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64)
+	}
 	if _u.mutation.ChannelAPIKeyIndexCleared() {
 		_spec.ClearField(requestexecution.FieldChannelAPIKeyIndex, field.TypeInt)
 	}
@@ -670,6 +858,149 @@ type RequestExecutionUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RequestExecutionUpdateOne) SetUpdatedAt(v time.Time) *RequestExecutionUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetStatisticsReady sets the "statistics_ready" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsReady(v bool) *RequestExecutionUpdateOne {
+	_u.mutation.SetStatisticsReady(v)
+	return _u
+}
+
+// SetNillableStatisticsReady sets the "statistics_ready" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsReady(v *bool) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsReady(*v)
+	}
+	return _u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsVersion(v int64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetStatisticsVersion()
+	_u.mutation.SetStatisticsVersion(v)
+	return _u
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsVersion(v *int64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsVersion(*v)
+	}
+	return _u
+}
+
+// AddStatisticsVersion adds value to the "statistics_version" field.
+func (_u *RequestExecutionUpdateOne) AddStatisticsVersion(v int64) *RequestExecutionUpdateOne {
+	_u.mutation.AddStatisticsVersion(v)
+	return _u
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsOutcome(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetStatisticsOutcome()
+	_u.mutation.SetStatisticsOutcome(v)
+	return _u
+}
+
+// SetNillableStatisticsOutcome sets the "statistics_outcome" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsOutcome(v *float64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsOutcome(*v)
+	}
+	return _u
+}
+
+// AddStatisticsOutcome adds value to the "statistics_outcome" field.
+func (_u *RequestExecutionUpdateOne) AddStatisticsOutcome(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.AddStatisticsOutcome(v)
+	return _u
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (_u *RequestExecutionUpdateOne) ClearStatisticsOutcome() *RequestExecutionUpdateOne {
+	_u.mutation.ClearStatisticsOutcome()
+	return _u
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsChannelOutcome(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetStatisticsChannelOutcome()
+	_u.mutation.SetStatisticsChannelOutcome(v)
+	return _u
+}
+
+// SetNillableStatisticsChannelOutcome sets the "statistics_channel_outcome" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsChannelOutcome(v *float64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsChannelOutcome(*v)
+	}
+	return _u
+}
+
+// AddStatisticsChannelOutcome adds value to the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdateOne) AddStatisticsChannelOutcome(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.AddStatisticsChannelOutcome(v)
+	return _u
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (_u *RequestExecutionUpdateOne) ClearStatisticsChannelOutcome() *RequestExecutionUpdateOne {
+	_u.mutation.ClearStatisticsChannelOutcome()
+	return _u
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsFirstTokenMs(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetStatisticsFirstTokenMs()
+	_u.mutation.SetStatisticsFirstTokenMs(v)
+	return _u
+}
+
+// SetNillableStatisticsFirstTokenMs sets the "statistics_first_token_ms" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsFirstTokenMs(v *float64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsFirstTokenMs(*v)
+	}
+	return _u
+}
+
+// AddStatisticsFirstTokenMs adds value to the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdateOne) AddStatisticsFirstTokenMs(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.AddStatisticsFirstTokenMs(v)
+	return _u
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (_u *RequestExecutionUpdateOne) ClearStatisticsFirstTokenMs() *RequestExecutionUpdateOne {
+	_u.mutation.ClearStatisticsFirstTokenMs()
+	return _u
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdateOne) SetStatisticsOutputSpeed(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetStatisticsOutputSpeed()
+	_u.mutation.SetStatisticsOutputSpeed(v)
+	return _u
+}
+
+// SetNillableStatisticsOutputSpeed sets the "statistics_output_speed" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableStatisticsOutputSpeed(v *float64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetStatisticsOutputSpeed(*v)
+	}
+	return _u
+}
+
+// AddStatisticsOutputSpeed adds value to the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdateOne) AddStatisticsOutputSpeed(v float64) *RequestExecutionUpdateOne {
+	_u.mutation.AddStatisticsOutputSpeed(v)
+	return _u
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (_u *RequestExecutionUpdateOne) ClearStatisticsOutputSpeed() *RequestExecutionUpdateOne {
+	_u.mutation.ClearStatisticsOutputSpeed()
 	return _u
 }
 
@@ -1149,6 +1480,51 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(requestexecution.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.StatisticsReady(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StatisticsVersion(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsVersion(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StatisticsOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsOutcome(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsOutcomeCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsOutcome, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsChannelOutcome(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsChannelOutcome(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsChannelOutcomeCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsChannelOutcome, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsFirstTokenMs(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsFirstTokenMs(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsFirstTokenMsCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsFirstTokenMs, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsOutputSpeed(); ok {
+		_spec.SetField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsOutputSpeed(); ok {
+		_spec.AddField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsOutputSpeedCleared() {
+		_spec.ClearField(requestexecution.FieldStatisticsOutputSpeed, field.TypeFloat64)
 	}
 	if _u.mutation.ChannelAPIKeyIndexCleared() {
 		_spec.ClearField(requestexecution.FieldChannelAPIKeyIndex, field.TypeInt)

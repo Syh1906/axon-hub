@@ -360,6 +360,48 @@ func (_c *UsageLogCreate) SetNillableFormat(v *string) *UsageLogCreate {
 	return _c
 }
 
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (_c *UsageLogCreate) SetStatisticsStandardCost(v float64) *UsageLogCreate {
+	_c.mutation.SetStatisticsStandardCost(v)
+	return _c
+}
+
+// SetNillableStatisticsStandardCost sets the "statistics_standard_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableStatisticsStandardCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetStatisticsStandardCost(*v)
+	}
+	return _c
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (_c *UsageLogCreate) SetStatisticsStandardReady(v bool) *UsageLogCreate {
+	_c.mutation.SetStatisticsStandardReady(v)
+	return _c
+}
+
+// SetNillableStatisticsStandardReady sets the "statistics_standard_ready" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableStatisticsStandardReady(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetStatisticsStandardReady(*v)
+	}
+	return _c
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_c *UsageLogCreate) SetStatisticsVersion(v int64) *UsageLogCreate {
+	_c.mutation.SetStatisticsVersion(v)
+	return _c
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableStatisticsVersion(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetStatisticsVersion(*v)
+	}
+	return _c
+}
+
 // SetCostSnapshot sets the "cost_snapshot" field.
 func (_c *UsageLogCreate) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogCreate {
 	_c.mutation.SetCostSnapshot(v)
@@ -526,6 +568,14 @@ func (_c *UsageLogCreate) defaults() error {
 		v := usagelog.DefaultFormat
 		_c.mutation.SetFormat(v)
 	}
+	if _, ok := _c.mutation.StatisticsStandardReady(); !ok {
+		v := usagelog.DefaultStatisticsStandardReady
+		_c.mutation.SetStatisticsStandardReady(v)
+	}
+	if _, ok := _c.mutation.StatisticsVersion(); !ok {
+		v := usagelog.DefaultStatisticsVersion
+		_c.mutation.SetStatisticsVersion(v)
+	}
 	if _, ok := _c.mutation.CostItems(); !ok {
 		v := usagelog.DefaultCostItems
 		_c.mutation.SetCostItems(v)
@@ -563,6 +613,12 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.Format(); !ok {
 		return &ValidationError{Name: "format", err: errors.New(`ent: missing required field "UsageLog.format"`)}
+	}
+	if _, ok := _c.mutation.StatisticsStandardReady(); !ok {
+		return &ValidationError{Name: "statistics_standard_ready", err: errors.New(`ent: missing required field "UsageLog.statistics_standard_ready"`)}
+	}
+	if _, ok := _c.mutation.StatisticsVersion(); !ok {
+		return &ValidationError{Name: "statistics_version", err: errors.New(`ent: missing required field "UsageLog.statistics_version"`)}
 	}
 	if len(_c.mutation.RequestIDs()) == 0 {
 		return &ValidationError{Name: "request", err: errors.New(`ent: missing required edge "UsageLog.request"`)}
@@ -684,6 +740,18 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Format(); ok {
 		_spec.SetField(usagelog.FieldFormat, field.TypeString, value)
 		_node.Format = value
+	}
+	if value, ok := _c.mutation.StatisticsStandardCost(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64, value)
+		_node.StatisticsStandardCost = &value
+	}
+	if value, ok := _c.mutation.StatisticsStandardReady(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardReady, field.TypeBool, value)
+		_node.StatisticsStandardReady = value
+	}
+	if value, ok := _c.mutation.StatisticsVersion(); ok {
+		_spec.SetField(usagelog.FieldStatisticsVersion, field.TypeInt64, value)
+		_node.StatisticsVersion = value
 	}
 	if value, ok := _c.mutation.CostSnapshot(); ok {
 		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
@@ -1179,6 +1247,60 @@ func (u *UsageLogUpsert) AddCompletionRejectedPredictionTokens(v int64) *UsageLo
 // ClearCompletionRejectedPredictionTokens clears the value of the "completion_rejected_prediction_tokens" field.
 func (u *UsageLogUpsert) ClearCompletionRejectedPredictionTokens() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldCompletionRejectedPredictionTokens)
+	return u
+}
+
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (u *UsageLogUpsert) SetStatisticsStandardCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldStatisticsStandardCost, v)
+	return u
+}
+
+// UpdateStatisticsStandardCost sets the "statistics_standard_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateStatisticsStandardCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldStatisticsStandardCost)
+	return u
+}
+
+// AddStatisticsStandardCost adds v to the "statistics_standard_cost" field.
+func (u *UsageLogUpsert) AddStatisticsStandardCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldStatisticsStandardCost, v)
+	return u
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (u *UsageLogUpsert) ClearStatisticsStandardCost() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldStatisticsStandardCost)
+	return u
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (u *UsageLogUpsert) SetStatisticsStandardReady(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldStatisticsStandardReady, v)
+	return u
+}
+
+// UpdateStatisticsStandardReady sets the "statistics_standard_ready" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateStatisticsStandardReady() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldStatisticsStandardReady)
+	return u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *UsageLogUpsert) SetStatisticsVersion(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldStatisticsVersion, v)
+	return u
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateStatisticsVersion() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldStatisticsVersion)
+	return u
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *UsageLogUpsert) AddStatisticsVersion(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldStatisticsVersion, v)
 	return u
 }
 
@@ -1767,6 +1889,69 @@ func (u *UsageLogUpsertOne) ClearCompletionRejectedPredictionTokens() *UsageLogU
 	})
 }
 
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (u *UsageLogUpsertOne) SetStatisticsStandardCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsStandardCost(v)
+	})
+}
+
+// AddStatisticsStandardCost adds v to the "statistics_standard_cost" field.
+func (u *UsageLogUpsertOne) AddStatisticsStandardCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddStatisticsStandardCost(v)
+	})
+}
+
+// UpdateStatisticsStandardCost sets the "statistics_standard_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateStatisticsStandardCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsStandardCost()
+	})
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (u *UsageLogUpsertOne) ClearStatisticsStandardCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearStatisticsStandardCost()
+	})
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (u *UsageLogUpsertOne) SetStatisticsStandardReady(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsStandardReady(v)
+	})
+}
+
+// UpdateStatisticsStandardReady sets the "statistics_standard_ready" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateStatisticsStandardReady() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsStandardReady()
+	})
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *UsageLogUpsertOne) SetStatisticsVersion(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsVersion(v)
+	})
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *UsageLogUpsertOne) AddStatisticsVersion(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddStatisticsVersion(v)
+	})
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateStatisticsVersion() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsVersion()
+	})
+}
+
 // SetCostSnapshot sets the "cost_snapshot" field.
 func (u *UsageLogUpsertOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -1923,7 +2108,7 @@ func (_c *UsageLogCreateBulk) Save(ctx context.Context) ([]*UsageLog, error) {
 				var err error
 				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
+					_, err = mutators[i+1].Mutate(statisticsBatchContext(root, ctx), _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					spec.OnConflict = _c.conflict
@@ -2528,6 +2713,69 @@ func (u *UsageLogUpsertBulk) UpdateCompletionRejectedPredictionTokens() *UsageLo
 func (u *UsageLogUpsertBulk) ClearCompletionRejectedPredictionTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearCompletionRejectedPredictionTokens()
+	})
+}
+
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (u *UsageLogUpsertBulk) SetStatisticsStandardCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsStandardCost(v)
+	})
+}
+
+// AddStatisticsStandardCost adds v to the "statistics_standard_cost" field.
+func (u *UsageLogUpsertBulk) AddStatisticsStandardCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddStatisticsStandardCost(v)
+	})
+}
+
+// UpdateStatisticsStandardCost sets the "statistics_standard_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateStatisticsStandardCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsStandardCost()
+	})
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (u *UsageLogUpsertBulk) ClearStatisticsStandardCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearStatisticsStandardCost()
+	})
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (u *UsageLogUpsertBulk) SetStatisticsStandardReady(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsStandardReady(v)
+	})
+}
+
+// UpdateStatisticsStandardReady sets the "statistics_standard_ready" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateStatisticsStandardReady() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsStandardReady()
+	})
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (u *UsageLogUpsertBulk) SetStatisticsVersion(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetStatisticsVersion(v)
+	})
+}
+
+// AddStatisticsVersion adds v to the "statistics_version" field.
+func (u *UsageLogUpsertBulk) AddStatisticsVersion(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddStatisticsVersion(v)
+	})
+}
+
+// UpdateStatisticsVersion sets the "statistics_version" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateStatisticsVersion() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateStatisticsVersion()
 	})
 }
 

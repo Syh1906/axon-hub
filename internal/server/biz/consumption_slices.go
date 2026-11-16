@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect"
-	"github.com/google/uuid"
 
 	stdsql "database/sql"
 
@@ -25,7 +24,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/user"
 )
 
-func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectID int, input ConsumptionFilter, known []*ConsumptionSliceRevision, location *time.Location, currency string) (bool, error) {
+func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectID int, input ConsumptionFilter, known []*ConsumptionSliceRevision, location *time.Location, currency string, refreshAt time.Time) (bool, error) {
 	opts := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
 
 	if s.client.Driver().Dialect() == dialect.SQLite {
@@ -39,11 +38,33 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 
 	defer func() { _ = tx.Rollback() }()
 
+	if len(known) == 0 {
+		return true, nil
+	}
+	from, until := known[0].Start, known[0].Start.In(location).AddDate(0, 0, 1)
+	for _, day := range known {
+		if day.Start.Before(from) {
+			from = day.Start
+		}
+		if next := day.Start.In(location).AddDate(0, 0, 1); next.After(until) {
+			until = next
+		}
+	}
+	source, err := readStatisticsRevisions(ctx, tx.Client(), projectID, from, until)
+	if err != nil {
+		return false, err
+	}
+	identity, err := loadConsumptionChannelIdentity(ctx, tx.Client(), input.Dimension)
+	if err != nil {
+		return false, err
+	}
+
 	for offset := 0; offset < len(known); offset += 100 {
 
 		end := min(offset+100, len(known))
 
 		expected := map[string]string{}
+		current := map[string]string{}
 
 		keys := make([]string, 0, end-offset)
 
@@ -59,6 +80,7 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 			keys = append(keys, key)
 
 			expected[key] = day.Revision
+			current[key] = statisticsFingerprint(source, start, start.AddDate(0, 0, 1))
 
 		}
 
@@ -75,13 +97,13 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 
 		for _, job := range jobs {
 
-			active := job.RangeEnd.After(now) && now.Sub(job.CheckedAt) < time.Minute
+			active := job.RangeEnd.After(now) && !job.GeneratedAt.Before(refreshAt) && sameStatisticsMetadata(current[job.CacheKey], job.SnapshotVersion)
 
-			if !active && (job.Pending || job.SourceVersion != job.SnapshotVersion) {
+			if !active && (job.Pending || current[job.CacheKey] != job.SnapshotVersion) {
 				return false, nil
 			}
 
-			version := consumptionDayRevision(job)
+			version := identity.revision(consumptionDayRevision(job))
 
 			if version != expected[job.CacheKey] {
 				return false, nil
@@ -94,7 +116,7 @@ func (s *ConsumptionService) verifyConsumptionDays(ctx context.Context, projectI
 	return true, nil
 }
 
-const consumptionSnapshotVersion = 2
+const consumptionSnapshotVersion = 3
 
 const consumptionSlicePageDays = 31
 
@@ -180,7 +202,7 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 
 		if verify {
 
-			valid, err := s.verifyConsumptionDays(ctx, projectID, input, known, location, settings.CurrencyCode)
+			valid, err := s.verifyConsumptionDays(ctx, projectID, input, known, location, settings.CurrencyCode, resolved)
 			if err != nil {
 				return nil, err
 			}
@@ -236,7 +258,11 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 			dates = append(dates, date)
 		}
 
-		jobs, err := s.requestConsumptionDays(ctx, projectID, input, dates, settings.CurrencyCode, revisions)
+		identity, err := loadConsumptionChannelIdentity(ctx, s.client, input.Dimension)
+		if err != nil {
+			return nil, err
+		}
+		jobs, err := s.requestConsumptionDays(ctx, projectID, input, dates, settings.CurrencyCode, revisions, resolved, identity)
 		if err != nil {
 			return nil, err
 		}
@@ -249,11 +275,11 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 
 			state := &ConsumptionSliceRevision{Start: cursor.UTC()}
 
-			ready := consumptionDayReady(job, now)
+			ready := consumptionDayReady(job, resolved)
 
 			if ready {
 
-				state.Revision = consumptionDayRevision(job)
+				state.Revision = identity.revision(consumptionDayRevision(job))
 
 				if revisions[state.Start.Unix()] != state.Revision {
 
@@ -269,12 +295,7 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 
 					result.RangeStart = &state.Start
 
-					hydrated, err := s.withChannelIdentity(ctx, input, &result)
-					if err != nil {
-						return nil, err
-					}
-
-					hydrated, err = s.filterConsumptionSlice(ctx, input, hydrated)
+					hydrated, err := s.filterConsumptionSlice(ctx, input, identity.apply(&result))
 					if err != nil {
 						return nil, err
 					}
@@ -305,6 +326,9 @@ func (s *ConsumptionService) ReadSlices(ctx context.Context, input ConsumptionFi
 
 			page.Next = &next
 
+		}
+		if page.Pending && s.demand != nil {
+			s.demand.Store(time.Now().Add(5 * time.Second).UnixNano())
 		}
 
 		return page, nil
@@ -375,8 +399,8 @@ func (s *ConsumptionService) firstConsumptionDate(ctx context.Context, projectID
 	return first, nil
 }
 
-func consumptionDayReady(job *ent.ConsumptionSnapshot, now time.Time) bool {
-	return job.GeneratedAt.After(time.Unix(0, 0)) && ((!job.Pending && job.SourceVersion == job.SnapshotVersion) || (job.RangeEnd.After(now) && now.Sub(job.CheckedAt) < time.Minute))
+func consumptionDayReady(job *ent.ConsumptionSnapshot, refreshAt time.Time) bool {
+	return job.GeneratedAt.After(time.Unix(0, 0)) && ((!job.Pending && job.SourceVersion == job.SnapshotVersion) || (job.RangeEnd.After(refreshAt) && !job.GeneratedAt.Before(refreshAt) && sameStatisticsMetadata(job.SourceVersion, job.SnapshotVersion)))
 }
 
 func consumptionDayRevision(job *ent.ConsumptionSnapshot) string {
@@ -385,7 +409,7 @@ func consumptionDayRevision(job *ent.ConsumptionSnapshot) string {
 
 // 一页只读一次轻量状态；心跳最多每两秒批量更新，只读取缺失版本的载荷。
 
-func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, projectID int, input ConsumptionFilter, dates []time.Time, currency string, revisions map[int64]string) ([]*ent.ConsumptionSnapshot, error) {
+func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, projectID int, input ConsumptionFilter, dates []time.Time, currency string, revisions map[int64]string, refreshAt time.Time, identity *consumptionChannelIdentity) ([]*ent.ConsumptionSnapshot, error) {
 	if len(dates) == 0 {
 		return nil, nil
 	}
@@ -410,12 +434,18 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 	defer func() { _ = tx.Rollback() }()
 
 	client := tx.Client()
+	revisionsRows, err := readStatisticsRevisions(ctx, client, projectID, dates[0], dates[len(dates)-1].AddDate(0, 0, 1))
+	if err != nil {
+		return nil, err
+	}
+	versions := make(map[string]string, len(dates))
 
 	keys, queries := make([]string, len(dates)), make([][]byte, len(dates))
 
 	for i, start := range dates {
 
 		keys[i], queries[i], err = consumptionDayKey(projectID, input, start, start.AddDate(0, 0, 1), currency)
+		versions[keys[i]] = statisticsFingerprint(revisionsRows, start, start.AddDate(0, 0, 1))
 		if err != nil {
 			return nil, err
 		}
@@ -450,7 +480,7 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 	for i, key := range keys {
 		if byKey[key] == nil {
 			create = append(create, client.ConsumptionSnapshot.Create().SetCacheKey(key).SetProjectID(projectID).SetRangeStart(dates[i].UTC()).SetRangeEnd(dates[i].AddDate(0, 0, 1).UTC()).
-				SetGeneratedAt(time.Unix(0, 0).UTC()).SetRequestedAt(now).SetQuery(queries[i]).SetSourceVersion(uuid.NewString()))
+				SetGeneratedAt(time.Unix(0, 0).UTC()).SetRequestedAt(now).SetQuery(queries[i]).SetSourceVersion(versions[key]))
 		}
 	}
 
@@ -471,7 +501,7 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 
 	}
 
-	var touch, dirty, payload []int
+	var touch, payload []int
 
 	ordered := make([]*ent.ConsumptionSnapshot, len(keys))
 
@@ -481,34 +511,23 @@ func (s *ConsumptionService) requestConsumptionDays(ctx context.Context, project
 
 		ordered[i] = job
 
-		activeExpired := job.RangeEnd.After(now) && now.Sub(job.CheckedAt) >= time.Minute
-
-		needs := job.SourceVersion != job.SnapshotVersion || activeExpired || now.Sub(job.CheckedAt) >= 5*time.Minute
-
-		if needs && !job.Pending {
-
-			dirty = append(dirty, job.ID)
-
-			job.Pending = true
-
+		if job.SourceVersion != versions[key] {
+			if err := client.ConsumptionSnapshot.UpdateOneID(job.ID).SetSourceVersion(versions[key]).SetPending(true).Exec(ctx); err != nil {
+				return nil, err
+			}
+			job.SourceVersion, job.Pending = versions[key], true
 		}
 
 		if now.Sub(job.RequestedAt) >= 2*time.Second {
 			touch = append(touch, job.ID)
 		}
 
-		version := consumptionDayRevision(job)
+		version := identity.revision(consumptionDayRevision(job))
 
-		if consumptionDayReady(job, now) && revisions[job.RangeStart.Unix()] != version {
+		if consumptionDayReady(job, refreshAt) && revisions[job.RangeStart.Unix()] != version {
 			payload = append(payload, job.ID)
 		}
 
-	}
-
-	if len(dirty) > 0 {
-		if err := client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDIn(dirty...)).SetPending(true).Exec(ctx); err != nil {
-			return nil, err
-		}
 	}
 
 	if len(touch) > 0 {

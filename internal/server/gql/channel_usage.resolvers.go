@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 )
@@ -22,7 +23,13 @@ func (r *queryResolver) ChannelTodayUsage(ctx context.Context, channelIds []*obj
 		}
 		ids = append(ids, id.ID)
 	}
-	return r.channelService.TodayUsage(ctx, ids)
+	includeModels := false
+	for _, field := range graphql.CollectFieldsCtx(ctx, nil) {
+		if field.Name == "models" {
+			includeModels = true
+		}
+	}
+	return r.channelService.TodayUsage(ctx, ids, includeModels)
 }
 
 // ChannelTodayUsageDetails is the resolver for the channelTodayUsageDetails field.

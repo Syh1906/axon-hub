@@ -451,6 +451,68 @@ func (_u *UsageLogUpdate) ClearCompletionRejectedPredictionTokens() *UsageLogUpd
 	return _u
 }
 
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (_u *UsageLogUpdate) SetStatisticsStandardCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetStatisticsStandardCost()
+	_u.mutation.SetStatisticsStandardCost(v)
+	return _u
+}
+
+// SetNillableStatisticsStandardCost sets the "statistics_standard_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableStatisticsStandardCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetStatisticsStandardCost(*v)
+	}
+	return _u
+}
+
+// AddStatisticsStandardCost adds value to the "statistics_standard_cost" field.
+func (_u *UsageLogUpdate) AddStatisticsStandardCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddStatisticsStandardCost(v)
+	return _u
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (_u *UsageLogUpdate) ClearStatisticsStandardCost() *UsageLogUpdate {
+	_u.mutation.ClearStatisticsStandardCost()
+	return _u
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (_u *UsageLogUpdate) SetStatisticsStandardReady(v bool) *UsageLogUpdate {
+	_u.mutation.SetStatisticsStandardReady(v)
+	return _u
+}
+
+// SetNillableStatisticsStandardReady sets the "statistics_standard_ready" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableStatisticsStandardReady(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetStatisticsStandardReady(*v)
+	}
+	return _u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_u *UsageLogUpdate) SetStatisticsVersion(v int64) *UsageLogUpdate {
+	_u.mutation.ResetStatisticsVersion()
+	_u.mutation.SetStatisticsVersion(v)
+	return _u
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableStatisticsVersion(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetStatisticsVersion(*v)
+	}
+	return _u
+}
+
+// AddStatisticsVersion adds value to the "statistics_version" field.
+func (_u *UsageLogUpdate) AddStatisticsVersion(v int64) *UsageLogUpdate {
+	_u.mutation.AddStatisticsVersion(v)
+	return _u
+}
+
 // SetCostSnapshot sets the "cost_snapshot" field.
 func (_u *UsageLogUpdate) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpdate {
 	_u.mutation.SetCostSnapshot(v)
@@ -744,6 +806,24 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CompletionRejectedPredictionTokensCleared() {
 		_spec.ClearField(usagelog.FieldCompletionRejectedPredictionTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.StatisticsStandardCost(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsStandardCost(); ok {
+		_spec.AddField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsStandardCostCleared() {
+		_spec.ClearField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsStandardReady(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StatisticsVersion(); ok {
+		_spec.SetField(usagelog.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsVersion(); ok {
+		_spec.AddField(usagelog.FieldStatisticsVersion, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.CostSnapshot(); ok {
 		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)
@@ -1219,6 +1299,68 @@ func (_u *UsageLogUpdateOne) ClearCompletionRejectedPredictionTokens() *UsageLog
 	return _u
 }
 
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (_u *UsageLogUpdateOne) SetStatisticsStandardCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetStatisticsStandardCost()
+	_u.mutation.SetStatisticsStandardCost(v)
+	return _u
+}
+
+// SetNillableStatisticsStandardCost sets the "statistics_standard_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableStatisticsStandardCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetStatisticsStandardCost(*v)
+	}
+	return _u
+}
+
+// AddStatisticsStandardCost adds value to the "statistics_standard_cost" field.
+func (_u *UsageLogUpdateOne) AddStatisticsStandardCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddStatisticsStandardCost(v)
+	return _u
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (_u *UsageLogUpdateOne) ClearStatisticsStandardCost() *UsageLogUpdateOne {
+	_u.mutation.ClearStatisticsStandardCost()
+	return _u
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (_u *UsageLogUpdateOne) SetStatisticsStandardReady(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetStatisticsStandardReady(v)
+	return _u
+}
+
+// SetNillableStatisticsStandardReady sets the "statistics_standard_ready" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableStatisticsStandardReady(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetStatisticsStandardReady(*v)
+	}
+	return _u
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (_u *UsageLogUpdateOne) SetStatisticsVersion(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetStatisticsVersion()
+	_u.mutation.SetStatisticsVersion(v)
+	return _u
+}
+
+// SetNillableStatisticsVersion sets the "statistics_version" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableStatisticsVersion(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetStatisticsVersion(*v)
+	}
+	return _u
+}
+
+// AddStatisticsVersion adds value to the "statistics_version" field.
+func (_u *UsageLogUpdateOne) AddStatisticsVersion(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddStatisticsVersion(v)
+	return _u
+}
+
 // SetCostSnapshot sets the "cost_snapshot" field.
 func (_u *UsageLogUpdateOne) SetCostSnapshot(v *objects.RequestCostSnapshot) *UsageLogUpdateOne {
 	_u.mutation.SetCostSnapshot(v)
@@ -1542,6 +1684,24 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.CompletionRejectedPredictionTokensCleared() {
 		_spec.ClearField(usagelog.FieldCompletionRejectedPredictionTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.StatisticsStandardCost(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsStandardCost(); ok {
+		_spec.AddField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.StatisticsStandardCostCleared() {
+		_spec.ClearField(usagelog.FieldStatisticsStandardCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.StatisticsStandardReady(); ok {
+		_spec.SetField(usagelog.FieldStatisticsStandardReady, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StatisticsVersion(); ok {
+		_spec.SetField(usagelog.FieldStatisticsVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStatisticsVersion(); ok {
+		_spec.AddField(usagelog.FieldStatisticsVersion, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.CostSnapshot(); ok {
 		_spec.SetField(usagelog.FieldCostSnapshot, field.TypeJSON, value)

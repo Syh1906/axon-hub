@@ -69,6 +69,12 @@ const (
 	FieldSource = "source"
 	// FieldFormat holds the string denoting the format field in the database.
 	FieldFormat = "format"
+	// FieldStatisticsStandardCost holds the string denoting the statistics_standard_cost field in the database.
+	FieldStatisticsStandardCost = "statistics_standard_cost"
+	// FieldStatisticsStandardReady holds the string denoting the statistics_standard_ready field in the database.
+	FieldStatisticsStandardReady = "statistics_standard_ready"
+	// FieldStatisticsVersion holds the string denoting the statistics_version field in the database.
+	FieldStatisticsVersion = "statistics_version"
 	// FieldCostSnapshot holds the string denoting the cost_snapshot field in the database.
 	FieldCostSnapshot = "cost_snapshot"
 	// FieldTotalCost holds the string denoting the total_cost field in the database.
@@ -136,6 +142,9 @@ var Columns = []string{
 	FieldCompletionRejectedPredictionTokens,
 	FieldSource,
 	FieldFormat,
+	FieldStatisticsStandardCost,
+	FieldStatisticsStandardReady,
+	FieldStatisticsVersion,
 	FieldCostSnapshot,
 	FieldTotalCost,
 	FieldCostItems,
@@ -194,6 +203,10 @@ var (
 	DefaultCompletionRejectedPredictionTokens int64
 	// DefaultFormat holds the default value on creation for the "format" field.
 	DefaultFormat string
+	// DefaultStatisticsStandardReady holds the default value on creation for the "statistics_standard_ready" field.
+	DefaultStatisticsStandardReady bool
+	// DefaultStatisticsVersion holds the default value on creation for the "statistics_version" field.
+	DefaultStatisticsVersion int64
 	// DefaultCostItems holds the default value on creation for the "cost_items" field.
 	DefaultCostItems []objects.CostItem
 )
@@ -356,6 +369,21 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByFormat orders the results by the format field.
 func ByFormat(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFormat, opts...).ToFunc()
+}
+
+// ByStatisticsStandardCost orders the results by the statistics_standard_cost field.
+func ByStatisticsStandardCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsStandardCost, opts...).ToFunc()
+}
+
+// ByStatisticsStandardReady orders the results by the statistics_standard_ready field.
+func ByStatisticsStandardReady(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsStandardReady, opts...).ToFunc()
+}
+
+// ByStatisticsVersion orders the results by the statistics_version field.
+func ByStatisticsVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsVersion, opts...).ToFunc()
 }
 
 // ByTotalCost orders the results by the total_cost field.

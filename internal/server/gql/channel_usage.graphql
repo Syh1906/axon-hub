@@ -6,6 +6,7 @@ type ChannelTodayUsage {
   totalCost: Float!
   timezone: String!
   currencyCode: String!
+  models: [ChannelTodayModelUsage!]!
 }
 
 extend type Query {

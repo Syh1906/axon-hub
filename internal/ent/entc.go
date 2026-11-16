@@ -49,6 +49,7 @@ func main() {
 	opts := []entc.Option{
 		entc.FeatureNames("intercept", "schema/snapshot", "sql/upsert", "sql/modifier", "entql", "privacy"),
 		entc.Extensions(ex),
+		entc.TemplateFiles(filepath.Join(xfile.CurDir(), "template", "statistics_create_bulk.tmpl"), filepath.Join(xfile.CurDir(), "template", "statistics_client.tmpl")),
 	}
 	// rt := reflect.TypeOf(objects.GUID{})
 	if err := entc.Generate(filepath.Join(xfile.CurDir(), "schema"), &gen.Config{

@@ -42,6 +42,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
@@ -140,6 +141,7 @@ func checkColumn(t, c string) error {
 			requestexecution.Table:         requestexecution.ValidColumn,
 			responsesorigin.Table:          responsesorigin.ValidColumn,
 			role.Table:                     role.ValidColumn,
+			statisticsrevision.Table:       statisticsrevision.ValidColumn,
 			system.Table:                   system.ValidColumn,
 			thread.Table:                   thread.ValidColumn,
 			trace.Table:                    trace.ValidColumn,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
@@ -30,10 +31,13 @@ type ConsumptionService struct {
 	cache  xcache.Cache[*ConsumptionResult]
 	flight *consumptionFlight
 	worker *sync.Mutex
+	demand *atomic.Int64
 }
 
 func NewConsumptionService(client *ent.Client, system *SystemService, config xcache.Config) *ConsumptionService {
+	client.EnableStatisticsTransactions()
 	s := &ConsumptionService{AbstractService: &AbstractService{db: client}, client: client, system: system, cache: xcache.NewFromConfig[*ConsumptionResult](config), flight: &consumptionFlight{}, worker: &sync.Mutex{}}
+	s.demand = &atomic.Int64{}
 	client.Use(s.snapshotInvalidation)
 	return s
 }

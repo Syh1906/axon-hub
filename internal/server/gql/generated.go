@@ -830,6 +830,7 @@ type ComplexityRoot struct {
 	ChannelTodayUsage struct {
 		ChannelID     func(childComplexity int) int
 		CurrencyCode  func(childComplexity int) int
+		Models        func(childComplexity int) int
 		PricedCount   func(childComplexity int) int
 		RequestCount  func(childComplexity int) int
 		Timezone      func(childComplexity int) int
@@ -6936,6 +6937,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelTodayUsage.CurrencyCode(childComplexity), true
+	case "ChannelTodayUsage.models":
+		if e.complexity.ChannelTodayUsage.Models == nil {
+			break
+		}
+
+		return e.complexity.ChannelTodayUsage.Models(childComplexity), true
 	case "ChannelTodayUsage.pricedCount":
 		if e.complexity.ChannelTodayUsage.PricedCount == nil {
 			break
@@ -39825,6 +39832,65 @@ func (ec *executionContext) fieldContext_ChannelTodayUsage_currencyCode(_ contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelTodayUsage_models(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelTodayUsage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelTodayUsage_models,
+		func(ctx context.Context) (any, error) {
+			return obj.Models, nil
+		},
+		nil,
+		ec.marshalNChannelTodayModelUsage2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelTodayModelUsageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelTodayUsage_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelTodayUsage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "model":
+				return ec.fieldContext_ChannelTodayModelUsage_model(ctx, field)
+			case "requestCount":
+				return ec.fieldContext_ChannelTodayModelUsage_requestCount(ctx, field)
+			case "unpricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_unpricedCount(ctx, field)
+			case "pricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_pricedCount(ctx, field)
+			case "totalTokens":
+				return ec.fieldContext_ChannelTodayModelUsage_totalTokens(ctx, field)
+			case "totalCost":
+				return ec.fieldContext_ChannelTodayModelUsage_totalCost(ctx, field)
+			case "cacheHitRate":
+				return ec.fieldContext_ChannelTodayModelUsage_cacheHitRate(ctx, field)
+			case "successRate":
+				return ec.fieldContext_ChannelTodayModelUsage_successRate(ctx, field)
+			case "avgFirstTokenMs":
+				return ec.fieldContext_ChannelTodayModelUsage_avgFirstTokenMs(ctx, field)
+			case "avgTokensPerSecond":
+				return ec.fieldContext_ChannelTodayModelUsage_avgTokensPerSecond(ctx, field)
+			case "standardCost":
+				return ec.fieldContext_ChannelTodayModelUsage_standardCost(ctx, field)
+			case "standardUnpricedCount":
+				return ec.fieldContext_ChannelTodayModelUsage_standardUnpricedCount(ctx, field)
+			case "avgCostPerMillionTokens":
+				return ec.fieldContext_ChannelTodayModelUsage_avgCostPerMillionTokens(ctx, field)
+			case "tokenPricedRequestCount":
+				return ec.fieldContext_ChannelTodayModelUsage_tokenPricedRequestCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelTodayModelUsage", field.Name)
 		},
 	}
 	return fc, nil
@@ -76914,6 +76980,8 @@ func (ec *executionContext) fieldContext_Query_channelTodayUsage(ctx context.Con
 				return ec.fieldContext_ChannelTodayUsage_timezone(ctx, field)
 			case "currencyCode":
 				return ec.fieldContext_ChannelTodayUsage_currencyCode(ctx, field)
+			case "models":
+				return ec.fieldContext_ChannelTodayUsage_models(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelTodayUsage", field.Name)
 		},
@@ -141612,6 +141680,11 @@ func (ec *executionContext) _ChannelTodayUsage(ctx context.Context, sel ast.Sele
 			}
 		case "currencyCode":
 			out.Values[i] = ec._ChannelTodayUsage_currencyCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "models":
+			out.Values[i] = ec._ChannelTodayUsage_models(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -369,6 +369,18 @@ func (f RoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoleMutation", m)
 }
 
+// The StatisticsRevisionFunc type is an adapter to allow the use of ordinary
+// function as StatisticsRevision mutator.
+type StatisticsRevisionFunc func(context.Context, *ent.StatisticsRevisionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f StatisticsRevisionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.StatisticsRevisionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.StatisticsRevisionMutation", m)
+}
+
 // The SystemFunc type is an adapter to allow the use of ordinary
 // function as System mutator.
 type SystemFunc func(context.Context, *ent.SystemMutation) (ent.Value, error)

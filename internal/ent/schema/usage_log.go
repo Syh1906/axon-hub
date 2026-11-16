@@ -26,6 +26,8 @@ func (UsageLog) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("request_id").
 			StorageKey("usage_logs_by_request_id"),
+		index.Fields("channel_id", "statistics_standard_ready", "request_id").
+			StorageKey("usage_logs_by_statistics_pricing"),
 		// Performance indexes for analytics queries
 		index.Fields("created_at").
 			StorageKey("usage_logs_by_created_at"),
@@ -76,6 +78,9 @@ func (UsageLog) Fields() []ent.Field {
 		field.String("format").Immutable().Default("openai/chat_completions").Comment("Request format used"),
 
 		// Cost fields
+		field.Float("statistics_standard_cost").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Bool("statistics_standard_ready").Default(false).Annotations(entgql.Skip()),
+		field.Int64("statistics_version").Default(0).Annotations(entgql.Skip()),
 		field.JSON("cost_snapshot", &objects.RequestCostSnapshot{}).
 			Optional().Annotations(entgql.Skip()),
 		field.Float("total_cost").

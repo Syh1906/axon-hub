@@ -2,12 +2,12 @@ package biz
 
 import (
 	"context"
-	stdsql "database/sql"
 	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -112,59 +112,30 @@ func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end 
 	return u
 }
 
-// PostgreSQL can select each request's final execution and its metrics together.
-// Keep bounded detail/archive reads on the indexed per-request lookup instead.
+// Resolve a recorded final execution by primary key. Only published legacy
+// requests without that link need the per-request last-execution lookup.
 func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable, consumptionPerformanceSQL) {
-	// Search and group filters can select very few requests. Keep their indexed
-	// lookup instead of sorting executions from the entire time range.
-	if s.Dialect() != dialect.Postgres || input.GroupRef != nil || (input.Search != nil && *input.Search != "") {
-		u, execution := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel), joinLatestConsumptionExecution(s)
-		if input.Dimension == ConsumptionDimensionChannel || input.OmitPerformance {
-			return u, execution, consumptionPerformanceSQL{}
-		}
-		if s.Dialect() == dialect.Postgres {
-			return u, execution, projectConsumptionPerformance(s, execution)
-		}
-		joinExecutionUsage(s, execution)
-		return u, execution, consumptionPerformanceExpressions(u, execution)
+	u, execution := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel), joinLatestConsumptionExecution(s)
+	if input.Dimension == ConsumptionDimensionChannel || input.OmitPerformance {
+		return u, execution, consumptionPerformanceSQL{}
 	}
-	u := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel)
-	r := sql.Table(request.Table).As("execution_request")
-	bounded := sql.Dialect(s.Dialect()).Select(r.C("id")).From(r).Where(sql.LT(r.C("created_at"), end))
-	if start != nil {
-		bounded.Where(sql.GTE(r.C("created_at"), *start))
-	}
-	if projectID > 0 {
-		bounded.Where(sql.EQ(r.C("project_id"), projectID))
-	}
-	e := sql.Table(requestexecution.Table).As("candidate_execution")
-	keys := []string{e.C("request_id"), e.C("project_id"), e.C("channel_id")}
-	columns := e.Columns("id", "request_id", "project_id", "channel_id", "model_id", "status", "error_message",
-		"response_status_code", "metrics_latency_ms", "metrics_first_byte_latency_ms", "metrics_first_byte_recorded",
-		"metrics_first_token_latency_ms", "stream", "format")
-	final := sql.Dialect(s.Dialect()).SelectExpr(sql.ExprFunc(func(b *sql.Builder) {
-		b.WriteString("DISTINCT ON ").Wrap(func(b *sql.Builder) { b.IdentComma(keys...) }).Pad().IdentComma(columns...)
-	})).From(e).Where(sql.In(e.C("request_id"), bounded)).
-		Where(sql.ExprP(usageanalytics.ResultExecutionFilterSQL("candidate_execution", s.Dialect()))).
-		OrderBy(append(keys, sql.Desc(e.C("id")))...).As("execution")
-	s.LeftJoin(final).OnP(sql.And(sql.ColumnsEQ(s.C("id"), final.C("request_id")),
-		sql.ColumnsEQ(s.C("project_id"), final.C("project_id")), sql.ColumnsEQ(s.C("channel_id"), final.C("channel_id"))))
-	execution := sql.Table(requestexecution.Table).As("execution")
-	// This table represents the derived selector above, so it is not attached
-	// through Join. Set its dialect before embedding C() results in raw SQL.
-	execution.SetDialect(s.Dialect())
-	if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance {
-		return u, execution, projectConsumptionPerformance(s, execution)
-	}
-	return u, execution, consumptionPerformanceSQL{}
+	return u, execution, consumptionPerformanceExpressions(u, execution)
 }
 
 func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 	execution := sql.Table(requestexecution.Table).As("execution")
 	latest := sql.Table(requestexecution.Table).As("latest")
-	s.LeftJoin(execution).OnP(sql.EQ(execution.C("id"), sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
+	execution.SetDialect(s.Dialect())
+	latest.SetDialect(s.Dialect())
+	resultID, executionID := s.C("result_execution_id"), execution.C("id")
+	legacy := sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
 		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id")),
-			sql.ExprP(usageanalytics.RequestResultMatchSQL(s.C, latest.C, s.Dialect()))))))
+			sql.ExprP(usageanalytics.RequestResultMatchSQL(s.C, latest.C, s.Dialect()))))
+	s.LeftJoin(execution).OnP(sql.And(
+		sql.P(func(b *sql.Builder) {
+			b.WriteString(executionID).WriteString(" = COALESCE(").WriteString(resultID).WriteString(", (").Join(legacy).WriteString("))")
+		}),
+		sql.ColumnsEQ(execution.C("request_id"), s.C("id")), sql.ColumnsEQ(execution.C("project_id"), s.C("project_id")), sql.ColumnsEQ(execution.C("channel_id"), s.C("channel_id"))))
 	return execution
 }
 
@@ -185,18 +156,11 @@ func (s *ConsumptionService) queryGroups(ctx context.Context, projectID int, inp
 func (s *ConsumptionService) queryGroupsFacts(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	// Live and archived rows must be read from one snapshot; cleanup may move
 	// a record between the two sources at any moment.
-	options := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
-	if s.client.Driver().Dialect() == dialect.SQLite {
-		options = &stdsql.TxOptions{}
-	}
-	tx, err := s.client.BeginTx(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	reader := *s
-	reader.client = tx.Client()
-	return reader.queryGroupsFactsSnapshot(ctx, projectID, input, start, end)
+	return readStatisticsSnapshot(ctx, s.client, false, func(client *ent.Client) (*consumptionFacts, error) {
+		reader := *s
+		reader.client = client
+		return reader.queryGroupsFactsSnapshot(ctx, projectID, input, start, end)
+	})
 }
 
 func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) ([]consumptionGroup, error) {
@@ -209,6 +173,11 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 
 func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	facts := &consumptionFacts{}
+	if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance {
+		if err := prepareStatisticsPerformance(ctx, s.client, projectID, nil, start, end, true); err != nil {
+			return nil, err
+		}
+	}
 	query := s.client.Request.Query().Where(request.CreatedAtLT(end), request.StatusIn(request.StatusCompleted, request.StatusFailed, request.StatusCanceled))
 	if projectID > 0 {
 		query.Where(request.ProjectIDEQ(projectID))

@@ -28,10 +28,9 @@ func TestConsumptionExecutionLookupScope(t *testing.T) {
 		name    string
 		dialect string
 		filter  ConsumptionFilter
-		batch   bool
 	}{
-		{name: "postgres leaderboard", dialect: dialect.Postgres, batch: true},
-		{name: "empty search", dialect: dialect.Postgres, filter: ConsumptionFilter{Search: lo.ToPtr("")}, batch: true},
+		{name: "postgres leaderboard", dialect: dialect.Postgres},
+		{name: "empty search", dialect: dialect.Postgres, filter: ConsumptionFilter{Search: lo.ToPtr("")}},
 		{name: "narrow search", dialect: dialect.Postgres, filter: ConsumptionFilter{Search: lo.ToPtr("one channel")}},
 		{name: "selected group", dialect: dialect.Postgres, filter: ConsumptionFilter{GroupRef: lo.ToPtr(1)}},
 		{name: "sqlite", dialect: dialect.SQLite},
@@ -45,13 +44,9 @@ func TestConsumptionExecutionLookupScope(t *testing.T) {
 			if tc.dialect == dialect.Postgres {
 				require.NotContains(t, query, "`", "PostgreSQL identifiers must never contain MySQL quoting")
 			}
-			if tc.batch {
-				require.Contains(t, query, "DISTINCT ON")
-			} else {
-				// Narrow filters must not sort executions for the whole time range.
-				require.NotContains(t, query, "DISTINCT ON")
-				require.Contains(t, query, "MAX(")
-			}
+			require.NotContains(t, query, "DISTINCT ON", "recorded results avoid sorting the entire date")
+			require.Contains(t, query, "COALESCE(")
+			require.Contains(t, query, "MAX(", "unlinked published history still uses bounded legacy lookup")
 		})
 	}
 }
@@ -70,6 +65,11 @@ func newConsumptionFixture(t *testing.T) *consumptionFixture {
 	t.Helper()
 	client := enttest.NewEntClient(t, "sqlite3", fmt.Sprintf("file:consumption_%d?mode=memory&_fk=0", time.Now().UnixNano()))
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	return newConsumptionFixtureWithClient(t, client)
+}
+
+func newConsumptionFixtureWithClient(t *testing.T, client *ent.Client) *consumptionFixture {
+	t.Helper()
 	ctx := authz.WithTestBypass(context.Background())
 	project := client.Project.Create().SetName("stats").SaveX(ctx)
 	user := client.User.Create().SetEmail("stats@example.test").SetPassword("unused-test-hash").SetFirstName("统计用户").SaveX(ctx)

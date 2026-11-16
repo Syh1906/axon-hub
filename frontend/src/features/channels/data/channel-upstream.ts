@@ -14,6 +14,7 @@ import {
   type UpstreamRefreshOptions,
 } from './channel-upstream-refresh';
 import { channelUpstreamStateSchema, type UpstreamInput } from './schema';
+import { refreshChannelTodayUsage } from './channel-usage';
 
 export type { ChannelUpstreamState, UpstreamKey, UpstreamBalance, UpstreamInput } from './schema';
 
@@ -71,6 +72,11 @@ export function useRefreshChannelUpstreams() {
     mutationKey: ['channel-upstream-refresh'],
     mutationFn: async (variables: UpstreamRefreshOptions) => {
       const ids = [...new Set(variables.channelIds)];
+      if (variables.force && !variables.keyRef) {
+        // The existing channel refresh button also refreshes its prepared usage.
+        // Balance and usage are independent; a provider failure does not block usage.
+        void refreshChannelTodayUsage(queryClient, ids).catch((error) => handleError(error, t('channels.todayUsage.loadFailed')));
+      }
       const states = await readCachedUpstreamStates(queryClient, ids,
         (batch) => queryClient.fetchQuery({ ...channelUpstreamQueryOptions(batch), staleTime: 0 }), variables.reuseSnapshot === true);
       return refreshUpstreamChannels(states, variables, async (channelId, keyRef) => {

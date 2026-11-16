@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/contexts"
@@ -20,26 +18,6 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 )
-
-func TestConsumptionInvalidationIdentifiers(t *testing.T) {
-	for _, db := range []string{dialect.Postgres, dialect.MySQL, dialect.SQLite} {
-		for _, kind := range []string{"Request", "RequestExecution", "UsageLog", "UsageArchive", "BudgetCharge", "CacheEffectivenessWindow"} {
-
-			q := sql.Dialect(db).Select("id").From(sql.Table("consumption_snapshots"))
-
-			consumptionDatePredicate([]consumptionDate{{ProjectID: 1, At: time.Now()}})(q)
-
-			query, _ := q.Query()
-
-			if db == dialect.Postgres {
-				require.NotContains(t, query, "`", kind)
-			}
-
-			require.Contains(t, query, "project_id", kind)
-
-		}
-	}
-}
 
 func TestConsumptionSlicesKeepEmptyDayCacheSamples(t *testing.T) {
 	f := newConsumptionFixture(t)
@@ -296,9 +274,12 @@ func TestConsumptionSnapshotIgnoresUnrelatedMetadata(t *testing.T) {
 
 	require.NoError(t, err)
 
-	f.client.User.Create().SetEmail("unrelated@example.test").SetPassword("test-only").SetFirstName("无关用户").SaveX(f.ctx)
-
-	f.client.Project.Create().SetName("无关项目").SaveX(f.ctx)
+	otherUser := f.client.User.Create().SetEmail("unrelated@example.test").SetPassword("test-only").SetFirstName("无关用户").SaveX(f.ctx)
+	otherProject := f.client.Project.Create().SetName("无关项目").SaveX(f.ctx)
+	otherKey := f.client.APIKey.Create().SetName("其他 Key").SetKey("other-fixture-not-a-credential").SetUserID(otherUser.ID).SetProjectID(otherProject.ID).SaveX(f.ctx)
+	otherKey.Update().SetName("其他 Key 更名").SaveX(f.ctx)
+	otherUser.Update().SetFirstName("其他用户更名").SaveX(f.ctx)
+	otherProject.Update().SetName("其他项目更名").SaveX(f.ctx)
 
 	page, err := f.readSlices(t, ctx, input, nil, "usage")
 
@@ -307,6 +288,43 @@ func TestConsumptionSnapshotIgnoresUnrelatedMetadata(t *testing.T) {
 	require.Equal(t, first.Slices[0].GeneratedAt, page.Slices[0].GeneratedAt, "其他用户和项目不使本日期完整重算")
 
 	require.Equal(t, first.Days[0].Revision, page.Days[0].Revision, "无关元数据不使相同载荷重新下载")
+}
+
+func TestConsumptionChannelDisplayChangeReusesNumericSnapshot(t *testing.T) {
+	f := newConsumptionFixture(t)
+	at := time.Now().AddDate(0, 0, -3)
+	f.addRequest(t, at, "model-a", request.StatusCompleted, 100, 10, 0, 0, 2, nil)
+	day := at.In(f.service.system.TimeLocation(f.ctx)).Format("2006-01-02")
+	input := ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Metric: ConsumptionMetricCost, Period: ConsumptionPeriodCustom, StartDate: &day, EndDate: &day, OmitPerformance: true}
+	input.ProjectID = &objects.GUID{Type: ent.TypeProject, ID: f.project.ID}
+	ctx := contexts.WithUser(f.ctx, &ent.User{ID: f.user.ID, IsOwner: true})
+	first, err := f.readSlices(t, ctx, input, nil, "leaderboard")
+	require.NoError(t, err)
+	f.channel.Update().SetName("渠道新名称").SetTags([]string{"新标签"}).SetRemark("新备注").SaveX(f.ctx)
+	page, err := f.service.ReadSlices(ctx, input, nil, first.Days, nil, false, "leaderboard")
+	require.NoError(t, err)
+	require.False(t, page.Pending, "展示文字变化不能重新扫描历史事实")
+	require.Len(t, page.Slices, 1, "已缓存日期仍应收到最新展示文字")
+	require.Equal(t, first.Slices[0].GeneratedAt, page.Slices[0].GeneratedAt)
+	require.NotEqual(t, first.Days[0].Revision, page.Days[0].Revision)
+	require.Equal(t, "渠道新名称", page.Slices[0].Entries[0].Name)
+	require.Equal(t, []string{"新标签"}, page.Slices[0].Entries[0].ChannelTags)
+	require.Equal(t, "新备注", page.Slices[0].Entries[0].ChannelRemark)
+	search := "新名称"
+	input.Search = &search
+	filtered, err := f.service.ReadSlices(ctx, input, nil, nil, nil, false, "leaderboard")
+	require.NoError(t, err)
+	require.False(t, filtered.Pending)
+	require.Len(t, filtered.Slices[0].Entries, 1)
+	require.Equal(t, first.Slices[0].GeneratedAt, filtered.Slices[0].GeneratedAt)
+	input.Search = nil
+	verified, err := f.service.ReadSlices(ctx, input, nil, page.Days, &page.ResolvedAt, true, "leaderboard")
+	require.NoError(t, err)
+	require.False(t, verified.Pending)
+	f.channel.Update().ClearRemark().SaveX(f.ctx)
+	verified, err = f.service.ReadSlices(ctx, input, nil, page.Days, &page.ResolvedAt, true, "leaderboard")
+	require.NoError(t, err)
+	require.True(t, verified.Pending, "跨页核对不能接受旧展示版本")
 }
 
 func TestConsumptionSnapshotCrossDayArchivedUsageCorrection(t *testing.T) {
@@ -454,11 +472,11 @@ func TestConsumptionSnapshotDoesNotPublishAcrossCorrection(t *testing.T) {
 
 				f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(r.ID)).SetTotalCost(7).SaveX(f.ctx)
 
-				version := f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx).SourceVersion
+				version := f.client.StatisticsRevision.Query().AllX(f.ctx)[0].Version
 
 				f.client.UsageLog.Update().Where(usagelog.RequestIDEQ(r.ID)).SetTotalCost(8).SaveX(f.ctx)
 
-				require.NotEqual(t, version, f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx).SourceVersion, "生成期间后续修正仍推进版本")
+				require.NotEqual(t, version, f.client.StatisticsRevision.Query().AllX(f.ctx)[0].Version, "生成期间后续修正仍推进源修订")
 
 			}
 
@@ -479,8 +497,9 @@ func TestConsumptionSnapshotDoesNotPublishAcrossCorrection(t *testing.T) {
 	require.NoError(t, f.service.fillConsumptionSnapshot(f.ctx))
 
 	snapshot := f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx)
-
-	require.NotEqual(t, snapshot.SourceVersion, snapshot.SnapshotVersion)
+	source, err := f.service.consumptionFingerprint(f.ctx, consumptionDayQuery{Project: f.project.ID, Start: snapshot.RangeStart, End: snapshot.RangeEnd})
+	require.NoError(t, err)
+	require.NotEqual(t, source, snapshot.SnapshotVersion)
 
 	page, err := f.readSlices(t, ctx, input, nil, "usage")
 

@@ -555,7 +555,7 @@ func (_c *CacheEffectivenessWindowCreateBulk) Save(ctx context.Context) ([]*Cach
 				var err error
 				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, _c.builders[i+1].mutation)
+					_, err = mutators[i+1].Mutate(statisticsBatchContext(root, ctx), _c.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					spec.OnConflict = _c.conflict

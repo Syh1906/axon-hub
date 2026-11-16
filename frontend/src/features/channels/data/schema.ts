@@ -614,6 +614,15 @@ export const channelHealthGateStatusSchema = channelHealthGateSummarySchema.exte
 export type ChannelHealthGateStatus = z.infer<typeof channelHealthGateStatusSchema>;
 
 // Channel
+export const channelTodayModelUsageSchema = z.object({
+  model: z.string(), requestCount: z.number(), unpricedCount: z.number(), pricedCount: z.number(),
+  totalTokens: z.number(), totalCost: z.number(), cacheHitRate: z.number().nullable(),
+  successRate: z.number().nullable(), avgFirstTokenMs: z.number().nullable(), avgTokensPerSecond: z.number().nullable(),
+  standardCost: z.number().nullable(), standardUnpricedCount: z.number(),
+  avgCostPerMillionTokens: z.number().nullable(), tokenPricedRequestCount: z.number(),
+});
+export type ChannelTodayModelUsage = z.infer<typeof channelTodayModelUsageSchema>;
+
 export const channelTodayUsageSchema = z.object({
   channelId: z.string(),
   requestCount: z.number(),
@@ -622,6 +631,7 @@ export const channelTodayUsageSchema = z.object({
   totalCost: z.number(),
   timezone: z.string(),
   currencyCode: z.string(),
+  models: z.array(channelTodayModelUsageSchema).default([]),
 });
 
 export const channelSchema = z.object({

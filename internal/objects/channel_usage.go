@@ -2,13 +2,14 @@ package objects
 
 // ChannelTodayUsage summarizes requests assigned to a channel in the system day.
 type ChannelTodayUsage struct {
-	ChannelID     GUID    `json:"channelId"`
-	RequestCount  int     `json:"requestCount"`
-	UnpricedCount int     `json:"unpricedCount"`
-	PricedCount   int     `json:"pricedCount"`
-	TotalCost     float64 `json:"totalCost"`
-	Timezone      string  `json:"timezone"`
-	CurrencyCode  string  `json:"currencyCode"`
+	ChannelID     GUID                      `json:"channelId"`
+	RequestCount  int                       `json:"requestCount"`
+	UnpricedCount int                       `json:"unpricedCount"`
+	PricedCount   int                       `json:"pricedCount"`
+	TotalCost     float64                   `json:"totalCost"`
+	Timezone      string                    `json:"timezone"`
+	CurrencyCode  string                    `json:"currencyCode"`
+	Models        []*ChannelTodayModelUsage `json:"models"`
 }
 
 type ChannelTodayUsageDetails struct {

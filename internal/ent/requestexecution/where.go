@@ -65,6 +65,36 @@ func UpdatedAt(v time.Time) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// StatisticsReady applies equality check predicate on the "statistics_ready" field. It's identical to StatisticsReadyEQ.
+func StatisticsReady(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsReady, v))
+}
+
+// StatisticsVersion applies equality check predicate on the "statistics_version" field. It's identical to StatisticsVersionEQ.
+func StatisticsVersion(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsVersion, v))
+}
+
+// StatisticsOutcome applies equality check predicate on the "statistics_outcome" field. It's identical to StatisticsOutcomeEQ.
+func StatisticsOutcome(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsOutcome, v))
+}
+
+// StatisticsChannelOutcome applies equality check predicate on the "statistics_channel_outcome" field. It's identical to StatisticsChannelOutcomeEQ.
+func StatisticsChannelOutcome(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsFirstTokenMs applies equality check predicate on the "statistics_first_token_ms" field. It's identical to StatisticsFirstTokenMsEQ.
+func StatisticsFirstTokenMs(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsOutputSpeed applies equality check predicate on the "statistics_output_speed" field. It's identical to StatisticsOutputSpeedEQ.
+func StatisticsOutputSpeed(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsOutputSpeed, v))
+}
+
 // ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
 func ProjectID(v int) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldProjectID, v))
@@ -268,6 +298,256 @@ func UpdatedAtLT(v time.Time) predicate.RequestExecution {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// StatisticsReadyEQ applies the EQ predicate on the "statistics_ready" field.
+func StatisticsReadyEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsReady, v))
+}
+
+// StatisticsReadyNEQ applies the NEQ predicate on the "statistics_ready" field.
+func StatisticsReadyNEQ(v bool) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsReady, v))
+}
+
+// StatisticsVersionEQ applies the EQ predicate on the "statistics_version" field.
+func StatisticsVersionEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionNEQ applies the NEQ predicate on the "statistics_version" field.
+func StatisticsVersionNEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionIn applies the In predicate on the "statistics_version" field.
+func StatisticsVersionIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldStatisticsVersion, vs...))
+}
+
+// StatisticsVersionNotIn applies the NotIn predicate on the "statistics_version" field.
+func StatisticsVersionNotIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldStatisticsVersion, vs...))
+}
+
+// StatisticsVersionGT applies the GT predicate on the "statistics_version" field.
+func StatisticsVersionGT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionGTE applies the GTE predicate on the "statistics_version" field.
+func StatisticsVersionGTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionLT applies the LT predicate on the "statistics_version" field.
+func StatisticsVersionLT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldStatisticsVersion, v))
+}
+
+// StatisticsVersionLTE applies the LTE predicate on the "statistics_version" field.
+func StatisticsVersionLTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldStatisticsVersion, v))
+}
+
+// StatisticsOutcomeEQ applies the EQ predicate on the "statistics_outcome" field.
+func StatisticsOutcomeEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeNEQ applies the NEQ predicate on the "statistics_outcome" field.
+func StatisticsOutcomeNEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeIn applies the In predicate on the "statistics_outcome" field.
+func StatisticsOutcomeIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldStatisticsOutcome, vs...))
+}
+
+// StatisticsOutcomeNotIn applies the NotIn predicate on the "statistics_outcome" field.
+func StatisticsOutcomeNotIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldStatisticsOutcome, vs...))
+}
+
+// StatisticsOutcomeGT applies the GT predicate on the "statistics_outcome" field.
+func StatisticsOutcomeGT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeGTE applies the GTE predicate on the "statistics_outcome" field.
+func StatisticsOutcomeGTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeLT applies the LT predicate on the "statistics_outcome" field.
+func StatisticsOutcomeLT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeLTE applies the LTE predicate on the "statistics_outcome" field.
+func StatisticsOutcomeLTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldStatisticsOutcome, v))
+}
+
+// StatisticsOutcomeIsNil applies the IsNil predicate on the "statistics_outcome" field.
+func StatisticsOutcomeIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldStatisticsOutcome))
+}
+
+// StatisticsOutcomeNotNil applies the NotNil predicate on the "statistics_outcome" field.
+func StatisticsOutcomeNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldStatisticsOutcome))
+}
+
+// StatisticsChannelOutcomeEQ applies the EQ predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeNEQ applies the NEQ predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeNEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeIn applies the In predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldStatisticsChannelOutcome, vs...))
+}
+
+// StatisticsChannelOutcomeNotIn applies the NotIn predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeNotIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldStatisticsChannelOutcome, vs...))
+}
+
+// StatisticsChannelOutcomeGT applies the GT predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeGT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeGTE applies the GTE predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeGTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeLT applies the LT predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeLT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeLTE applies the LTE predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeLTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldStatisticsChannelOutcome, v))
+}
+
+// StatisticsChannelOutcomeIsNil applies the IsNil predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldStatisticsChannelOutcome))
+}
+
+// StatisticsChannelOutcomeNotNil applies the NotNil predicate on the "statistics_channel_outcome" field.
+func StatisticsChannelOutcomeNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldStatisticsChannelOutcome))
+}
+
+// StatisticsFirstTokenMsEQ applies the EQ predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsNEQ applies the NEQ predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsNEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsIn applies the In predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldStatisticsFirstTokenMs, vs...))
+}
+
+// StatisticsFirstTokenMsNotIn applies the NotIn predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsNotIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldStatisticsFirstTokenMs, vs...))
+}
+
+// StatisticsFirstTokenMsGT applies the GT predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsGT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsGTE applies the GTE predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsGTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsLT applies the LT predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsLT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsLTE applies the LTE predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsLTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldStatisticsFirstTokenMs, v))
+}
+
+// StatisticsFirstTokenMsIsNil applies the IsNil predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldStatisticsFirstTokenMs))
+}
+
+// StatisticsFirstTokenMsNotNil applies the NotNil predicate on the "statistics_first_token_ms" field.
+func StatisticsFirstTokenMsNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldStatisticsFirstTokenMs))
+}
+
+// StatisticsOutputSpeedEQ applies the EQ predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedNEQ applies the NEQ predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedNEQ(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedIn applies the In predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldStatisticsOutputSpeed, vs...))
+}
+
+// StatisticsOutputSpeedNotIn applies the NotIn predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedNotIn(vs ...float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldStatisticsOutputSpeed, vs...))
+}
+
+// StatisticsOutputSpeedGT applies the GT predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedGT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedGTE applies the GTE predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedGTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedLT applies the LT predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedLT(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedLTE applies the LTE predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedLTE(v float64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldStatisticsOutputSpeed, v))
+}
+
+// StatisticsOutputSpeedIsNil applies the IsNil predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldStatisticsOutputSpeed))
+}
+
+// StatisticsOutputSpeedNotNil applies the NotNil predicate on the "statistics_output_speed" field.
+func StatisticsOutputSpeedNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldStatisticsOutputSpeed))
 }
 
 // ProjectIDEQ applies the EQ predicate on the "project_id" field.

@@ -39,6 +39,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
@@ -915,6 +916,33 @@ func (f TraverseRole) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.RoleQuery", q)
 }
 
+// The StatisticsRevisionFunc type is an adapter to allow the use of ordinary function as a Querier.
+type StatisticsRevisionFunc func(context.Context, *ent.StatisticsRevisionQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f StatisticsRevisionFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.StatisticsRevisionQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.StatisticsRevisionQuery", q)
+}
+
+// The TraverseStatisticsRevision type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseStatisticsRevision func(context.Context, *ent.StatisticsRevisionQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseStatisticsRevision) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseStatisticsRevision) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.StatisticsRevisionQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.StatisticsRevisionQuery", q)
+}
+
 // The SystemFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SystemFunc func(context.Context, *ent.SystemQuery) (ent.Value, error)
 
@@ -1194,6 +1222,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ResponsesOriginQuery, predicate.ResponsesOrigin, responsesorigin.OrderOption]{typ: ent.TypeResponsesOrigin, tq: q}, nil
 	case *ent.RoleQuery:
 		return &query[*ent.RoleQuery, predicate.Role, role.OrderOption]{typ: ent.TypeRole, tq: q}, nil
+	case *ent.StatisticsRevisionQuery:
+		return &query[*ent.StatisticsRevisionQuery, predicate.StatisticsRevision, statisticsrevision.OrderOption]{typ: ent.TypeStatisticsRevision, tq: q}, nil
 	case *ent.SystemQuery:
 		return &query[*ent.SystemQuery, predicate.System, system.OrderOption]{typ: ent.TypeSystem, tq: q}, nil
 	case *ent.ThreadQuery:

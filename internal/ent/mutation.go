@@ -42,6 +42,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/ent/responsesorigin"
 	"github.com/looplj/axonhub/internal/ent/role"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/ent/thread"
 	"github.com/looplj/axonhub/internal/ent/trace"
@@ -94,6 +95,7 @@ const (
 	TypeRequestExecution         = "RequestExecution"
 	TypeResponsesOrigin          = "ResponsesOrigin"
 	TypeRole                     = "Role"
+	TypeStatisticsRevision       = "StatisticsRevision"
 	TypeSystem                   = "System"
 	TypeThread                   = "Thread"
 	TypeTrace                    = "Trace"
@@ -32068,6 +32070,17 @@ type RequestExecutionMutation struct {
 	id                                *int
 	created_at                        *time.Time
 	updated_at                        *time.Time
+	statistics_ready                  *bool
+	statistics_version                *int64
+	addstatistics_version             *int64
+	statistics_outcome                *float64
+	addstatistics_outcome             *float64
+	statistics_channel_outcome        *float64
+	addstatistics_channel_outcome     *float64
+	statistics_first_token_ms         *float64
+	addstatistics_first_token_ms      *float64
+	statistics_output_speed           *float64
+	addstatistics_output_speed        *float64
 	project_id                        *int
 	addproject_id                     *int
 	channel_api_key_index             *int
@@ -32292,6 +32305,378 @@ func (m *RequestExecutionMutation) OldUpdatedAt(ctx context.Context) (v time.Tim
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *RequestExecutionMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// SetStatisticsReady sets the "statistics_ready" field.
+func (m *RequestExecutionMutation) SetStatisticsReady(b bool) {
+	m.statistics_ready = &b
+}
+
+// StatisticsReady returns the value of the "statistics_ready" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsReady() (r bool, exists bool) {
+	v := m.statistics_ready
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsReady returns the old "statistics_ready" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsReady(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsReady is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsReady requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsReady: %w", err)
+	}
+	return oldValue.StatisticsReady, nil
+}
+
+// ResetStatisticsReady resets all changes to the "statistics_ready" field.
+func (m *RequestExecutionMutation) ResetStatisticsReady() {
+	m.statistics_ready = nil
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (m *RequestExecutionMutation) SetStatisticsVersion(i int64) {
+	m.statistics_version = &i
+	m.addstatistics_version = nil
+}
+
+// StatisticsVersion returns the value of the "statistics_version" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsVersion() (r int64, exists bool) {
+	v := m.statistics_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsVersion returns the old "statistics_version" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsVersion(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsVersion: %w", err)
+	}
+	return oldValue.StatisticsVersion, nil
+}
+
+// AddStatisticsVersion adds i to the "statistics_version" field.
+func (m *RequestExecutionMutation) AddStatisticsVersion(i int64) {
+	if m.addstatistics_version != nil {
+		*m.addstatistics_version += i
+	} else {
+		m.addstatistics_version = &i
+	}
+}
+
+// AddedStatisticsVersion returns the value that was added to the "statistics_version" field in this mutation.
+func (m *RequestExecutionMutation) AddedStatisticsVersion() (r int64, exists bool) {
+	v := m.addstatistics_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStatisticsVersion resets all changes to the "statistics_version" field.
+func (m *RequestExecutionMutation) ResetStatisticsVersion() {
+	m.statistics_version = nil
+	m.addstatistics_version = nil
+}
+
+// SetStatisticsOutcome sets the "statistics_outcome" field.
+func (m *RequestExecutionMutation) SetStatisticsOutcome(f float64) {
+	m.statistics_outcome = &f
+	m.addstatistics_outcome = nil
+}
+
+// StatisticsOutcome returns the value of the "statistics_outcome" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsOutcome() (r float64, exists bool) {
+	v := m.statistics_outcome
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsOutcome returns the old "statistics_outcome" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsOutcome(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsOutcome is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsOutcome requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsOutcome: %w", err)
+	}
+	return oldValue.StatisticsOutcome, nil
+}
+
+// AddStatisticsOutcome adds f to the "statistics_outcome" field.
+func (m *RequestExecutionMutation) AddStatisticsOutcome(f float64) {
+	if m.addstatistics_outcome != nil {
+		*m.addstatistics_outcome += f
+	} else {
+		m.addstatistics_outcome = &f
+	}
+}
+
+// AddedStatisticsOutcome returns the value that was added to the "statistics_outcome" field in this mutation.
+func (m *RequestExecutionMutation) AddedStatisticsOutcome() (r float64, exists bool) {
+	v := m.addstatistics_outcome
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatisticsOutcome clears the value of the "statistics_outcome" field.
+func (m *RequestExecutionMutation) ClearStatisticsOutcome() {
+	m.statistics_outcome = nil
+	m.addstatistics_outcome = nil
+	m.clearedFields[requestexecution.FieldStatisticsOutcome] = struct{}{}
+}
+
+// StatisticsOutcomeCleared returns if the "statistics_outcome" field was cleared in this mutation.
+func (m *RequestExecutionMutation) StatisticsOutcomeCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldStatisticsOutcome]
+	return ok
+}
+
+// ResetStatisticsOutcome resets all changes to the "statistics_outcome" field.
+func (m *RequestExecutionMutation) ResetStatisticsOutcome() {
+	m.statistics_outcome = nil
+	m.addstatistics_outcome = nil
+	delete(m.clearedFields, requestexecution.FieldStatisticsOutcome)
+}
+
+// SetStatisticsChannelOutcome sets the "statistics_channel_outcome" field.
+func (m *RequestExecutionMutation) SetStatisticsChannelOutcome(f float64) {
+	m.statistics_channel_outcome = &f
+	m.addstatistics_channel_outcome = nil
+}
+
+// StatisticsChannelOutcome returns the value of the "statistics_channel_outcome" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsChannelOutcome() (r float64, exists bool) {
+	v := m.statistics_channel_outcome
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsChannelOutcome returns the old "statistics_channel_outcome" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsChannelOutcome(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsChannelOutcome is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsChannelOutcome requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsChannelOutcome: %w", err)
+	}
+	return oldValue.StatisticsChannelOutcome, nil
+}
+
+// AddStatisticsChannelOutcome adds f to the "statistics_channel_outcome" field.
+func (m *RequestExecutionMutation) AddStatisticsChannelOutcome(f float64) {
+	if m.addstatistics_channel_outcome != nil {
+		*m.addstatistics_channel_outcome += f
+	} else {
+		m.addstatistics_channel_outcome = &f
+	}
+}
+
+// AddedStatisticsChannelOutcome returns the value that was added to the "statistics_channel_outcome" field in this mutation.
+func (m *RequestExecutionMutation) AddedStatisticsChannelOutcome() (r float64, exists bool) {
+	v := m.addstatistics_channel_outcome
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatisticsChannelOutcome clears the value of the "statistics_channel_outcome" field.
+func (m *RequestExecutionMutation) ClearStatisticsChannelOutcome() {
+	m.statistics_channel_outcome = nil
+	m.addstatistics_channel_outcome = nil
+	m.clearedFields[requestexecution.FieldStatisticsChannelOutcome] = struct{}{}
+}
+
+// StatisticsChannelOutcomeCleared returns if the "statistics_channel_outcome" field was cleared in this mutation.
+func (m *RequestExecutionMutation) StatisticsChannelOutcomeCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldStatisticsChannelOutcome]
+	return ok
+}
+
+// ResetStatisticsChannelOutcome resets all changes to the "statistics_channel_outcome" field.
+func (m *RequestExecutionMutation) ResetStatisticsChannelOutcome() {
+	m.statistics_channel_outcome = nil
+	m.addstatistics_channel_outcome = nil
+	delete(m.clearedFields, requestexecution.FieldStatisticsChannelOutcome)
+}
+
+// SetStatisticsFirstTokenMs sets the "statistics_first_token_ms" field.
+func (m *RequestExecutionMutation) SetStatisticsFirstTokenMs(f float64) {
+	m.statistics_first_token_ms = &f
+	m.addstatistics_first_token_ms = nil
+}
+
+// StatisticsFirstTokenMs returns the value of the "statistics_first_token_ms" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsFirstTokenMs() (r float64, exists bool) {
+	v := m.statistics_first_token_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsFirstTokenMs returns the old "statistics_first_token_ms" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsFirstTokenMs(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsFirstTokenMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsFirstTokenMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsFirstTokenMs: %w", err)
+	}
+	return oldValue.StatisticsFirstTokenMs, nil
+}
+
+// AddStatisticsFirstTokenMs adds f to the "statistics_first_token_ms" field.
+func (m *RequestExecutionMutation) AddStatisticsFirstTokenMs(f float64) {
+	if m.addstatistics_first_token_ms != nil {
+		*m.addstatistics_first_token_ms += f
+	} else {
+		m.addstatistics_first_token_ms = &f
+	}
+}
+
+// AddedStatisticsFirstTokenMs returns the value that was added to the "statistics_first_token_ms" field in this mutation.
+func (m *RequestExecutionMutation) AddedStatisticsFirstTokenMs() (r float64, exists bool) {
+	v := m.addstatistics_first_token_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatisticsFirstTokenMs clears the value of the "statistics_first_token_ms" field.
+func (m *RequestExecutionMutation) ClearStatisticsFirstTokenMs() {
+	m.statistics_first_token_ms = nil
+	m.addstatistics_first_token_ms = nil
+	m.clearedFields[requestexecution.FieldStatisticsFirstTokenMs] = struct{}{}
+}
+
+// StatisticsFirstTokenMsCleared returns if the "statistics_first_token_ms" field was cleared in this mutation.
+func (m *RequestExecutionMutation) StatisticsFirstTokenMsCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldStatisticsFirstTokenMs]
+	return ok
+}
+
+// ResetStatisticsFirstTokenMs resets all changes to the "statistics_first_token_ms" field.
+func (m *RequestExecutionMutation) ResetStatisticsFirstTokenMs() {
+	m.statistics_first_token_ms = nil
+	m.addstatistics_first_token_ms = nil
+	delete(m.clearedFields, requestexecution.FieldStatisticsFirstTokenMs)
+}
+
+// SetStatisticsOutputSpeed sets the "statistics_output_speed" field.
+func (m *RequestExecutionMutation) SetStatisticsOutputSpeed(f float64) {
+	m.statistics_output_speed = &f
+	m.addstatistics_output_speed = nil
+}
+
+// StatisticsOutputSpeed returns the value of the "statistics_output_speed" field in the mutation.
+func (m *RequestExecutionMutation) StatisticsOutputSpeed() (r float64, exists bool) {
+	v := m.statistics_output_speed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsOutputSpeed returns the old "statistics_output_speed" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldStatisticsOutputSpeed(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsOutputSpeed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsOutputSpeed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsOutputSpeed: %w", err)
+	}
+	return oldValue.StatisticsOutputSpeed, nil
+}
+
+// AddStatisticsOutputSpeed adds f to the "statistics_output_speed" field.
+func (m *RequestExecutionMutation) AddStatisticsOutputSpeed(f float64) {
+	if m.addstatistics_output_speed != nil {
+		*m.addstatistics_output_speed += f
+	} else {
+		m.addstatistics_output_speed = &f
+	}
+}
+
+// AddedStatisticsOutputSpeed returns the value that was added to the "statistics_output_speed" field in this mutation.
+func (m *RequestExecutionMutation) AddedStatisticsOutputSpeed() (r float64, exists bool) {
+	v := m.addstatistics_output_speed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatisticsOutputSpeed clears the value of the "statistics_output_speed" field.
+func (m *RequestExecutionMutation) ClearStatisticsOutputSpeed() {
+	m.statistics_output_speed = nil
+	m.addstatistics_output_speed = nil
+	m.clearedFields[requestexecution.FieldStatisticsOutputSpeed] = struct{}{}
+}
+
+// StatisticsOutputSpeedCleared returns if the "statistics_output_speed" field was cleared in this mutation.
+func (m *RequestExecutionMutation) StatisticsOutputSpeedCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldStatisticsOutputSpeed]
+	return ok
+}
+
+// ResetStatisticsOutputSpeed resets all changes to the "statistics_output_speed" field.
+func (m *RequestExecutionMutation) ResetStatisticsOutputSpeed() {
+	m.statistics_output_speed = nil
+	m.addstatistics_output_speed = nil
+	delete(m.clearedFields, requestexecution.FieldStatisticsOutputSpeed)
 }
 
 // SetProjectID sets the "project_id" field.
@@ -34217,12 +34602,30 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 36)
+	fields := make([]string, 0, 42)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, requestexecution.FieldUpdatedAt)
+	}
+	if m.statistics_ready != nil {
+		fields = append(fields, requestexecution.FieldStatisticsReady)
+	}
+	if m.statistics_version != nil {
+		fields = append(fields, requestexecution.FieldStatisticsVersion)
+	}
+	if m.statistics_outcome != nil {
+		fields = append(fields, requestexecution.FieldStatisticsOutcome)
+	}
+	if m.statistics_channel_outcome != nil {
+		fields = append(fields, requestexecution.FieldStatisticsChannelOutcome)
+	}
+	if m.statistics_first_token_ms != nil {
+		fields = append(fields, requestexecution.FieldStatisticsFirstTokenMs)
+	}
+	if m.statistics_output_speed != nil {
+		fields = append(fields, requestexecution.FieldStatisticsOutputSpeed)
 	}
 	if m.project_id != nil {
 		fields = append(fields, requestexecution.FieldProjectID)
@@ -34338,6 +34741,18 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case requestexecution.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case requestexecution.FieldStatisticsReady:
+		return m.StatisticsReady()
+	case requestexecution.FieldStatisticsVersion:
+		return m.StatisticsVersion()
+	case requestexecution.FieldStatisticsOutcome:
+		return m.StatisticsOutcome()
+	case requestexecution.FieldStatisticsChannelOutcome:
+		return m.StatisticsChannelOutcome()
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		return m.StatisticsFirstTokenMs()
+	case requestexecution.FieldStatisticsOutputSpeed:
+		return m.StatisticsOutputSpeed()
 	case requestexecution.FieldProjectID:
 		return m.ProjectID()
 	case requestexecution.FieldRequestID:
@@ -34419,6 +34834,18 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCreatedAt(ctx)
 	case requestexecution.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case requestexecution.FieldStatisticsReady:
+		return m.OldStatisticsReady(ctx)
+	case requestexecution.FieldStatisticsVersion:
+		return m.OldStatisticsVersion(ctx)
+	case requestexecution.FieldStatisticsOutcome:
+		return m.OldStatisticsOutcome(ctx)
+	case requestexecution.FieldStatisticsChannelOutcome:
+		return m.OldStatisticsChannelOutcome(ctx)
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		return m.OldStatisticsFirstTokenMs(ctx)
+	case requestexecution.FieldStatisticsOutputSpeed:
+		return m.OldStatisticsOutputSpeed(ctx)
 	case requestexecution.FieldProjectID:
 		return m.OldProjectID(ctx)
 	case requestexecution.FieldRequestID:
@@ -34509,6 +34936,48 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case requestexecution.FieldStatisticsReady:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsReady(v)
+		return nil
+	case requestexecution.FieldStatisticsVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsVersion(v)
+		return nil
+	case requestexecution.FieldStatisticsOutcome:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsOutcome(v)
+		return nil
+	case requestexecution.FieldStatisticsChannelOutcome:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsChannelOutcome(v)
+		return nil
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsFirstTokenMs(v)
+		return nil
+	case requestexecution.FieldStatisticsOutputSpeed:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsOutputSpeed(v)
 		return nil
 	case requestexecution.FieldProjectID:
 		v, ok := value.(int)
@@ -34756,6 +35225,21 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *RequestExecutionMutation) AddedFields() []string {
 	var fields []string
+	if m.addstatistics_version != nil {
+		fields = append(fields, requestexecution.FieldStatisticsVersion)
+	}
+	if m.addstatistics_outcome != nil {
+		fields = append(fields, requestexecution.FieldStatisticsOutcome)
+	}
+	if m.addstatistics_channel_outcome != nil {
+		fields = append(fields, requestexecution.FieldStatisticsChannelOutcome)
+	}
+	if m.addstatistics_first_token_ms != nil {
+		fields = append(fields, requestexecution.FieldStatisticsFirstTokenMs)
+	}
+	if m.addstatistics_output_speed != nil {
+		fields = append(fields, requestexecution.FieldStatisticsOutputSpeed)
+	}
 	if m.addproject_id != nil {
 		fields = append(fields, requestexecution.FieldProjectID)
 	}
@@ -34788,6 +35272,16 @@ func (m *RequestExecutionMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *RequestExecutionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case requestexecution.FieldStatisticsVersion:
+		return m.AddedStatisticsVersion()
+	case requestexecution.FieldStatisticsOutcome:
+		return m.AddedStatisticsOutcome()
+	case requestexecution.FieldStatisticsChannelOutcome:
+		return m.AddedStatisticsChannelOutcome()
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		return m.AddedStatisticsFirstTokenMs()
+	case requestexecution.FieldStatisticsOutputSpeed:
+		return m.AddedStatisticsOutputSpeed()
 	case requestexecution.FieldProjectID:
 		return m.AddedProjectID()
 	case requestexecution.FieldChannelAPIKeyIndex:
@@ -34813,6 +35307,41 @@ func (m *RequestExecutionMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *RequestExecutionMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case requestexecution.FieldStatisticsVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsVersion(v)
+		return nil
+	case requestexecution.FieldStatisticsOutcome:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsOutcome(v)
+		return nil
+	case requestexecution.FieldStatisticsChannelOutcome:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsChannelOutcome(v)
+		return nil
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsFirstTokenMs(v)
+		return nil
+	case requestexecution.FieldStatisticsOutputSpeed:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsOutputSpeed(v)
+		return nil
 	case requestexecution.FieldProjectID:
 		v, ok := value.(int)
 		if !ok {
@@ -34877,6 +35406,18 @@ func (m *RequestExecutionMutation) AddField(name string, value ent.Value) error 
 // mutation.
 func (m *RequestExecutionMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(requestexecution.FieldStatisticsOutcome) {
+		fields = append(fields, requestexecution.FieldStatisticsOutcome)
+	}
+	if m.FieldCleared(requestexecution.FieldStatisticsChannelOutcome) {
+		fields = append(fields, requestexecution.FieldStatisticsChannelOutcome)
+	}
+	if m.FieldCleared(requestexecution.FieldStatisticsFirstTokenMs) {
+		fields = append(fields, requestexecution.FieldStatisticsFirstTokenMs)
+	}
+	if m.FieldCleared(requestexecution.FieldStatisticsOutputSpeed) {
+		fields = append(fields, requestexecution.FieldStatisticsOutputSpeed)
+	}
 	if m.FieldCleared(requestexecution.FieldChannelID) {
 		fields = append(fields, requestexecution.FieldChannelID)
 	}
@@ -34969,6 +35510,18 @@ func (m *RequestExecutionMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RequestExecutionMutation) ClearField(name string) error {
 	switch name {
+	case requestexecution.FieldStatisticsOutcome:
+		m.ClearStatisticsOutcome()
+		return nil
+	case requestexecution.FieldStatisticsChannelOutcome:
+		m.ClearStatisticsChannelOutcome()
+		return nil
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		m.ClearStatisticsFirstTokenMs()
+		return nil
+	case requestexecution.FieldStatisticsOutputSpeed:
+		m.ClearStatisticsOutputSpeed()
+		return nil
 	case requestexecution.FieldChannelID:
 		m.ClearChannelID()
 		return nil
@@ -35060,6 +35613,24 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case requestexecution.FieldStatisticsReady:
+		m.ResetStatisticsReady()
+		return nil
+	case requestexecution.FieldStatisticsVersion:
+		m.ResetStatisticsVersion()
+		return nil
+	case requestexecution.FieldStatisticsOutcome:
+		m.ResetStatisticsOutcome()
+		return nil
+	case requestexecution.FieldStatisticsChannelOutcome:
+		m.ResetStatisticsChannelOutcome()
+		return nil
+	case requestexecution.FieldStatisticsFirstTokenMs:
+		m.ResetStatisticsFirstTokenMs()
+		return nil
+	case requestexecution.FieldStatisticsOutputSpeed:
+		m.ResetStatisticsOutputSpeed()
 		return nil
 	case requestexecution.FieldProjectID:
 		m.ResetProjectID()
@@ -37329,6 +37900,476 @@ func (m *RoleMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Role edge %s", name)
+}
+
+// StatisticsRevisionMutation represents an operation that mutates the StatisticsRevision nodes in the graph.
+type StatisticsRevisionMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	project_id    *int
+	addproject_id *int
+	occurred_at   *time.Time
+	version       *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*StatisticsRevision, error)
+	predicates    []predicate.StatisticsRevision
+}
+
+var _ ent.Mutation = (*StatisticsRevisionMutation)(nil)
+
+// statisticsrevisionOption allows management of the mutation configuration using functional options.
+type statisticsrevisionOption func(*StatisticsRevisionMutation)
+
+// newStatisticsRevisionMutation creates new mutation for the StatisticsRevision entity.
+func newStatisticsRevisionMutation(c config, op Op, opts ...statisticsrevisionOption) *StatisticsRevisionMutation {
+	m := &StatisticsRevisionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeStatisticsRevision,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withStatisticsRevisionID sets the ID field of the mutation.
+func withStatisticsRevisionID(id int) statisticsrevisionOption {
+	return func(m *StatisticsRevisionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *StatisticsRevision
+		)
+		m.oldValue = func(ctx context.Context) (*StatisticsRevision, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().StatisticsRevision.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withStatisticsRevision sets the old StatisticsRevision of the mutation.
+func withStatisticsRevision(node *StatisticsRevision) statisticsrevisionOption {
+	return func(m *StatisticsRevisionMutation) {
+		m.oldValue = func(context.Context) (*StatisticsRevision, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m StatisticsRevisionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m StatisticsRevisionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *StatisticsRevisionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *StatisticsRevisionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().StatisticsRevision.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *StatisticsRevisionMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *StatisticsRevisionMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the StatisticsRevision entity.
+// If the StatisticsRevision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StatisticsRevisionMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *StatisticsRevisionMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *StatisticsRevisionMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *StatisticsRevisionMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetOccurredAt sets the "occurred_at" field.
+func (m *StatisticsRevisionMutation) SetOccurredAt(t time.Time) {
+	m.occurred_at = &t
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *StatisticsRevisionMutation) OccurredAt() (r time.Time, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the StatisticsRevision entity.
+// If the StatisticsRevision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StatisticsRevisionMutation) OldOccurredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *StatisticsRevisionMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *StatisticsRevisionMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *StatisticsRevisionMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the StatisticsRevision entity.
+// If the StatisticsRevision object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StatisticsRevisionMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *StatisticsRevisionMutation) ResetVersion() {
+	m.version = nil
+}
+
+// Where appends a list predicates to the StatisticsRevisionMutation builder.
+func (m *StatisticsRevisionMutation) Where(ps ...predicate.StatisticsRevision) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the StatisticsRevisionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *StatisticsRevisionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.StatisticsRevision, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *StatisticsRevisionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *StatisticsRevisionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (StatisticsRevision).
+func (m *StatisticsRevisionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *StatisticsRevisionMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.project_id != nil {
+		fields = append(fields, statisticsrevision.FieldProjectID)
+	}
+	if m.occurred_at != nil {
+		fields = append(fields, statisticsrevision.FieldOccurredAt)
+	}
+	if m.version != nil {
+		fields = append(fields, statisticsrevision.FieldVersion)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *StatisticsRevisionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		return m.ProjectID()
+	case statisticsrevision.FieldOccurredAt:
+		return m.OccurredAt()
+	case statisticsrevision.FieldVersion:
+		return m.Version()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *StatisticsRevisionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case statisticsrevision.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	case statisticsrevision.FieldVersion:
+		return m.OldVersion(ctx)
+	}
+	return nil, fmt.Errorf("unknown StatisticsRevision field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StatisticsRevisionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case statisticsrevision.FieldOccurredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	case statisticsrevision.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StatisticsRevision field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *StatisticsRevisionMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, statisticsrevision.FieldProjectID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *StatisticsRevisionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		return m.AddedProjectID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *StatisticsRevisionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown StatisticsRevision numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *StatisticsRevisionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *StatisticsRevisionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *StatisticsRevisionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown StatisticsRevision nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *StatisticsRevisionMutation) ResetField(name string) error {
+	switch name {
+	case statisticsrevision.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case statisticsrevision.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	case statisticsrevision.FieldVersion:
+		m.ResetVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown StatisticsRevision field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *StatisticsRevisionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *StatisticsRevisionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *StatisticsRevisionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *StatisticsRevisionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *StatisticsRevisionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *StatisticsRevisionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *StatisticsRevisionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown StatisticsRevision unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *StatisticsRevisionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown StatisticsRevision edge %s", name)
 }
 
 // SystemMutation represents an operation that mutates the System nodes in the graph.
@@ -42194,6 +43235,11 @@ type UsageLogMutation struct {
 	addcompletion_rejected_prediction_tokens *int64
 	source                                   *usagelog.Source
 	format                                   *string
+	statistics_standard_cost                 *float64
+	addstatistics_standard_cost              *float64
+	statistics_standard_ready                *bool
+	statistics_version                       *int64
+	addstatistics_version                    *int64
 	cost_snapshot                            **objects.RequestCostSnapshot
 	total_cost                               *float64
 	addtotal_cost                            *float64
@@ -43759,6 +44805,168 @@ func (m *UsageLogMutation) ResetFormat() {
 	m.format = nil
 }
 
+// SetStatisticsStandardCost sets the "statistics_standard_cost" field.
+func (m *UsageLogMutation) SetStatisticsStandardCost(f float64) {
+	m.statistics_standard_cost = &f
+	m.addstatistics_standard_cost = nil
+}
+
+// StatisticsStandardCost returns the value of the "statistics_standard_cost" field in the mutation.
+func (m *UsageLogMutation) StatisticsStandardCost() (r float64, exists bool) {
+	v := m.statistics_standard_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsStandardCost returns the old "statistics_standard_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldStatisticsStandardCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsStandardCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsStandardCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsStandardCost: %w", err)
+	}
+	return oldValue.StatisticsStandardCost, nil
+}
+
+// AddStatisticsStandardCost adds f to the "statistics_standard_cost" field.
+func (m *UsageLogMutation) AddStatisticsStandardCost(f float64) {
+	if m.addstatistics_standard_cost != nil {
+		*m.addstatistics_standard_cost += f
+	} else {
+		m.addstatistics_standard_cost = &f
+	}
+}
+
+// AddedStatisticsStandardCost returns the value that was added to the "statistics_standard_cost" field in this mutation.
+func (m *UsageLogMutation) AddedStatisticsStandardCost() (r float64, exists bool) {
+	v := m.addstatistics_standard_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearStatisticsStandardCost clears the value of the "statistics_standard_cost" field.
+func (m *UsageLogMutation) ClearStatisticsStandardCost() {
+	m.statistics_standard_cost = nil
+	m.addstatistics_standard_cost = nil
+	m.clearedFields[usagelog.FieldStatisticsStandardCost] = struct{}{}
+}
+
+// StatisticsStandardCostCleared returns if the "statistics_standard_cost" field was cleared in this mutation.
+func (m *UsageLogMutation) StatisticsStandardCostCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldStatisticsStandardCost]
+	return ok
+}
+
+// ResetStatisticsStandardCost resets all changes to the "statistics_standard_cost" field.
+func (m *UsageLogMutation) ResetStatisticsStandardCost() {
+	m.statistics_standard_cost = nil
+	m.addstatistics_standard_cost = nil
+	delete(m.clearedFields, usagelog.FieldStatisticsStandardCost)
+}
+
+// SetStatisticsStandardReady sets the "statistics_standard_ready" field.
+func (m *UsageLogMutation) SetStatisticsStandardReady(b bool) {
+	m.statistics_standard_ready = &b
+}
+
+// StatisticsStandardReady returns the value of the "statistics_standard_ready" field in the mutation.
+func (m *UsageLogMutation) StatisticsStandardReady() (r bool, exists bool) {
+	v := m.statistics_standard_ready
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsStandardReady returns the old "statistics_standard_ready" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldStatisticsStandardReady(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsStandardReady is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsStandardReady requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsStandardReady: %w", err)
+	}
+	return oldValue.StatisticsStandardReady, nil
+}
+
+// ResetStatisticsStandardReady resets all changes to the "statistics_standard_ready" field.
+func (m *UsageLogMutation) ResetStatisticsStandardReady() {
+	m.statistics_standard_ready = nil
+}
+
+// SetStatisticsVersion sets the "statistics_version" field.
+func (m *UsageLogMutation) SetStatisticsVersion(i int64) {
+	m.statistics_version = &i
+	m.addstatistics_version = nil
+}
+
+// StatisticsVersion returns the value of the "statistics_version" field in the mutation.
+func (m *UsageLogMutation) StatisticsVersion() (r int64, exists bool) {
+	v := m.statistics_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatisticsVersion returns the old "statistics_version" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldStatisticsVersion(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatisticsVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatisticsVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatisticsVersion: %w", err)
+	}
+	return oldValue.StatisticsVersion, nil
+}
+
+// AddStatisticsVersion adds i to the "statistics_version" field.
+func (m *UsageLogMutation) AddStatisticsVersion(i int64) {
+	if m.addstatistics_version != nil {
+		*m.addstatistics_version += i
+	} else {
+		m.addstatistics_version = &i
+	}
+}
+
+// AddedStatisticsVersion returns the value that was added to the "statistics_version" field in this mutation.
+func (m *UsageLogMutation) AddedStatisticsVersion() (r int64, exists bool) {
+	v := m.addstatistics_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStatisticsVersion resets all changes to the "statistics_version" field.
+func (m *UsageLogMutation) ResetStatisticsVersion() {
+	m.statistics_version = nil
+	m.addstatistics_version = nil
+}
+
 // SetCostSnapshot sets the "cost_snapshot" field.
 func (m *UsageLogMutation) SetCostSnapshot(ocs *objects.RequestCostSnapshot) {
 	m.cost_snapshot = &ocs
@@ -44107,7 +45315,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, usagelog.FieldCreatedAt)
 	}
@@ -44183,6 +45391,15 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.format != nil {
 		fields = append(fields, usagelog.FieldFormat)
 	}
+	if m.statistics_standard_cost != nil {
+		fields = append(fields, usagelog.FieldStatisticsStandardCost)
+	}
+	if m.statistics_standard_ready != nil {
+		fields = append(fields, usagelog.FieldStatisticsStandardReady)
+	}
+	if m.statistics_version != nil {
+		fields = append(fields, usagelog.FieldStatisticsVersion)
+	}
 	if m.cost_snapshot != nil {
 		fields = append(fields, usagelog.FieldCostSnapshot)
 	}
@@ -44253,6 +45470,12 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.Source()
 	case usagelog.FieldFormat:
 		return m.Format()
+	case usagelog.FieldStatisticsStandardCost:
+		return m.StatisticsStandardCost()
+	case usagelog.FieldStatisticsStandardReady:
+		return m.StatisticsStandardReady()
+	case usagelog.FieldStatisticsVersion:
+		return m.StatisticsVersion()
 	case usagelog.FieldCostSnapshot:
 		return m.CostSnapshot()
 	case usagelog.FieldTotalCost:
@@ -44320,6 +45543,12 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldSource(ctx)
 	case usagelog.FieldFormat:
 		return m.OldFormat(ctx)
+	case usagelog.FieldStatisticsStandardCost:
+		return m.OldStatisticsStandardCost(ctx)
+	case usagelog.FieldStatisticsStandardReady:
+		return m.OldStatisticsStandardReady(ctx)
+	case usagelog.FieldStatisticsVersion:
+		return m.OldStatisticsVersion(ctx)
 	case usagelog.FieldCostSnapshot:
 		return m.OldCostSnapshot(ctx)
 	case usagelog.FieldTotalCost:
@@ -44512,6 +45741,27 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFormat(v)
 		return nil
+	case usagelog.FieldStatisticsStandardCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsStandardCost(v)
+		return nil
+	case usagelog.FieldStatisticsStandardReady:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsStandardReady(v)
+		return nil
+	case usagelog.FieldStatisticsVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatisticsVersion(v)
+		return nil
 	case usagelog.FieldCostSnapshot:
 		v, ok := value.(*objects.RequestCostSnapshot)
 		if !ok {
@@ -44599,6 +45849,12 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addcompletion_rejected_prediction_tokens != nil {
 		fields = append(fields, usagelog.FieldCompletionRejectedPredictionTokens)
 	}
+	if m.addstatistics_standard_cost != nil {
+		fields = append(fields, usagelog.FieldStatisticsStandardCost)
+	}
+	if m.addstatistics_version != nil {
+		fields = append(fields, usagelog.FieldStatisticsVersion)
+	}
 	if m.addtotal_cost != nil {
 		fields = append(fields, usagelog.FieldTotalCost)
 	}
@@ -44644,6 +45900,10 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCompletionAcceptedPredictionTokens()
 	case usagelog.FieldCompletionRejectedPredictionTokens:
 		return m.AddedCompletionRejectedPredictionTokens()
+	case usagelog.FieldStatisticsStandardCost:
+		return m.AddedStatisticsStandardCost()
+	case usagelog.FieldStatisticsVersion:
+		return m.AddedStatisticsVersion()
 	case usagelog.FieldTotalCost:
 		return m.AddedTotalCost()
 	}
@@ -44774,6 +46034,20 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCompletionRejectedPredictionTokens(v)
 		return nil
+	case usagelog.FieldStatisticsStandardCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsStandardCost(v)
+		return nil
+	case usagelog.FieldStatisticsVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatisticsVersion(v)
+		return nil
 	case usagelog.FieldTotalCost:
 		v, ok := value.(float64)
 		if !ok {
@@ -44833,6 +46107,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(usagelog.FieldCompletionRejectedPredictionTokens) {
 		fields = append(fields, usagelog.FieldCompletionRejectedPredictionTokens)
+	}
+	if m.FieldCleared(usagelog.FieldStatisticsStandardCost) {
+		fields = append(fields, usagelog.FieldStatisticsStandardCost)
 	}
 	if m.FieldCleared(usagelog.FieldCostSnapshot) {
 		fields = append(fields, usagelog.FieldCostSnapshot)
@@ -44904,6 +46181,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldCompletionRejectedPredictionTokens:
 		m.ClearCompletionRejectedPredictionTokens()
+		return nil
+	case usagelog.FieldStatisticsStandardCost:
+		m.ClearStatisticsStandardCost()
 		return nil
 	case usagelog.FieldCostSnapshot:
 		m.ClearCostSnapshot()
@@ -44999,6 +46279,15 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldFormat:
 		m.ResetFormat()
+		return nil
+	case usagelog.FieldStatisticsStandardCost:
+		m.ResetStatisticsStandardCost()
+		return nil
+	case usagelog.FieldStatisticsStandardReady:
+		m.ResetStatisticsStandardReady()
+		return nil
+	case usagelog.FieldStatisticsVersion:
+		m.ResetStatisticsVersion()
 		return nil
 	case usagelog.FieldCostSnapshot:
 		m.ResetCostSnapshot()

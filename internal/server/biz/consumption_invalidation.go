@@ -12,10 +12,8 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
-	"github.com/looplj/axonhub/internal/ent/predicate"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
-	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/ent/statisticsrevision"
 )
 
 type consumptionMutation interface {
@@ -35,13 +33,16 @@ var consumptionStatisticFields = map[string][]string{
 	"RequestExecution": {"status", "metrics_latency_ms", "metrics_first_token_latency_ms", "metrics_first_byte_latency_ms", "metrics_first_byte_recorded", "response_status_code", "error_message", "selection"},
 	"UsageLog":         nil, "UsageArchive": nil, "CacheEffectivenessWindow": nil,
 	"BudgetCharge": {"usage_log_id"}, "APIKey": {"name", "group_ref", "deleted_at"}, "APIKeyGroup": {"name"},
-	"User": {"first_name", "last_name", "email", "deleted_at"}, "Channel": {"name", "deleted_at", "tags", "remark"}, "Project": {"name"},
+	"User": {"first_name", "last_name", "email", "deleted_at"}, "Channel": {"deleted_at"}, "Project": {"name"},
 }
 var consumptionSourceTables = map[string]string{"Request": "requests", "RequestExecution": "request_executions", "UsageLog": "usage_logs", "UsageArchive": "usage_archives", "BudgetCharge": "budget_charges", "CacheEffectivenessWindow": "cache_effectiveness_windows"}
 
 func consumptionAffectsStatistics(m ent.Mutation) bool {
 	fields, ok := consumptionStatisticFields[m.Type()]
 	if !ok {
+		return false
+	}
+	if m.Op().Is(ent.OpCreate) && consumptionSourceTables[m.Type()] == "" {
 		return false
 	}
 	if m.Op().Is(ent.OpCreate|ent.OpDelete|ent.OpDeleteOne) || fields == nil {
@@ -52,7 +53,9 @@ func consumptionAffectsStatistics(m ent.Mutation) bool {
 			return true
 		}
 	}
-	return false
+	// SQL modifiers update immutable routing/dispatch evidence without adding a
+	// mutation field. Such updates still carry the automatic updated_at field.
+	return (m.Type() == "Request" || m.Type() == "RequestExecution") && len(m.Fields()) == 1 && m.Fields()[0] == "updated_at"
 }
 
 func (s *ConsumptionService) snapshotInvalidation(next ent.Mutator) ent.Mutator {
@@ -64,78 +67,146 @@ func (s *ConsumptionService) snapshotInvalidation(next ent.Mutator) ent.Mutator 
 		if !ok {
 			return nil, fmt.Errorf("unsupported consumption mutation %T", mutation)
 		}
-		var ids []int
-		var dates []consumptionDate
-		var locateErr error
-		metadata := consumptionSourceTables[m.Type()] == ""
-		deleting := m.Op().Is(ent.OpDelete | ent.OpDeleteOne)
-		_, locateErr = authz.RunAsHost(ctx, m.Client(), "consumption-source-dates", func(ctx context.Context) (bool, error) {
-			ctx = contexts.WithPrimaryRead(schematype.SkipSoftDelete(ctx))
-			if metadata || m.Op().Is(ent.OpCreate) {
-				return true, nil
-			}
-			var err error
-			ids, err = m.IDs(ctx)
-			if err != nil {
-				return false, err
-			}
-			if deleting {
-				dates, err = consumptionChangedDates(ctx, m.Client(), m.Type(), ids)
-			}
-			return true, err
-		})
-		value, err := next.Mutate(ctx, mutation)
-		if err != nil {
-			return value, err
-		}
-		if m.Op().Is(ent.OpCreate) {
-			if id, ok := m.ID(); ok {
-				ids = []int{id}
+		if mutation.Type() == "RequestExecution" {
+			if err := mutation.SetField("statistics_ready", false); err != nil {
+				return nil, err
 			}
 		}
-		if !metadata && !deleting && locateErr == nil {
-			dates, locateErr = authz.RunAsHost(ctx, m.Client(), "consumption-source-dates", func(ctx context.Context) ([]consumptionDate, error) {
-				return consumptionChangedDates(contexts.WithPrimaryRead(ctx), m.Client(), m.Type(), ids)
-			})
+		if mutation.Type() == "UsageLog" {
+			// Derived pricing is recalculated only after the source bill changes.
+			if err := mutation.SetField("statistics_standard_ready", false); err != nil {
+				return nil, err
+			}
 		}
-		if locateErr != nil {
-			log.Warn(ctx, "locate consumption source dates", log.Cause(locateErr))
-			metadata = true
+		if (mutation.Type() == "RequestExecution" || mutation.Type() == "UsageLog") && mutation.Op().Is(ent.OpUpdate|ent.OpUpdateOne) {
+			if err := mutation.AddField("statistics_version", int64(1)); err != nil {
+				return nil, err
+			}
 		}
-		invalidate := func() {
-			invalidCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			defer cancel()
-			_, err := authz.RunAsHost(invalidCtx, s.client, "consumption-invalidate", func(ctx context.Context) (int, error) {
-				if !metadata && len(dates) == 0 {
-					return 0, nil
+		return m.Client().WithStatisticsTransaction(ctx, func(ctx context.Context, client *ent.Client) (ent.Value, error) {
+			metadata := consumptionSourceTables[m.Type()] == ""
+			deleting := m.Op().Is(ent.OpDelete | ent.OpDeleteOne)
+			var ids []int
+			var dates []consumptionDate
+			var owners []statisticsOwner
+			reassign := m.Type() == "UsageLog" || m.Type() == "BudgetCharge" || m.Type() == "RequestExecution" && m.Op().Is(ent.OpCreate|ent.OpDelete|ent.OpDeleteOne)
+			_, err := authz.RunAsHost(ctx, client, "consumption-source-dates", func(ctx context.Context) (bool, error) {
+				if m.Op().Is(ent.OpCreate) {
+					return true, nil
 				}
-				q := s.client.ConsumptionSnapshot.Update().SetSourceVersion(uuid.NewString()).SetPending(true)
-				if metadata {
-					q.SetCheckedAt(time.Unix(0, 0).UTC()).SetLeaseToken(uuid.NewString()).SetLeaseUntil(time.Unix(0, 0).UTC())
-				} else {
-					q.Where(consumptionDatePredicate(dates))
-				}
-				return q.Save(ctx)
-			})
-			if err != nil {
-				log.Error(invalidCtx, "invalidate consumption snapshots", log.Cause(err))
-			}
-		}
-		if tx, txErr := m.Tx(); txErr == nil {
-			tx.OnCommit(func(next ent.Committer) ent.Committer {
-				return ent.CommitFunc(func(ctx context.Context, tx *ent.Tx) error {
-					if err := next.Commit(ctx, tx); err != nil {
-						return err
+				var err error
+				ids, err = m.IDs(contexts.WithPrimaryRead(schematype.SkipSoftDelete(ctx)))
+				if err == nil && metadata {
+					dates, err = consumptionMetadataDates(ctx, client, m.Type(), ids)
+				} else if err == nil && deleting {
+					dates, err = consumptionChangedDates(ctx, client, m.Type(), ids)
+					if err == nil && reassign {
+						owners, err = statisticsExecutionOwners(ctx, client, m.Type(), ids)
 					}
-					invalidate()
-					return nil
-				})
+				}
+				return err == nil, err
 			})
-		} else {
-			invalidate()
-		}
-		return value, nil
+			if err != nil {
+				return nil, err
+			}
+			value, err := next.Mutate(ctx, mutation)
+			if err != nil {
+				return value, err
+			}
+			if m.Op().Is(ent.OpCreate) {
+				if id, ok := m.ID(); ok {
+					ids = []int{id}
+				}
+			}
+			_, err = authz.RunAsHost(ctx, client, "consumption-revision", func(ctx context.Context) (bool, error) {
+				if !metadata && !deleting {
+					var err error
+					dates, err = consumptionChangedDates(ctx, client, m.Type(), ids)
+					if err != nil {
+						return false, err
+					}
+				}
+				if reassign {
+					if !deleting {
+						var err error
+						owners, err = statisticsExecutionOwners(ctx, client, m.Type(), ids)
+						if err != nil {
+							return false, err
+						}
+					}
+					if err := invalidateExecutionStatistics(ctx, client, owners); err != nil {
+						return false, err
+					}
+				}
+				return true, writeStatisticsRevisions(ctx, client, dates)
+			})
+			return value, err
+		})
 	})
+}
+
+// Identity and membership changes only affect the projects which own them.
+// Channel deletion is global; names, tags and remarks are hydrated
+// separately and do not invalidate numeric snapshots at all.
+func consumptionMetadataDates(ctx context.Context, client *ent.Client, kind string, ids []int) ([]consumptionDate, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if kind == "Channel" {
+		return []consumptionDate{{ProjectID: 0}}, nil
+	}
+	table := map[string]string{"APIKey": "api_keys", "APIKeyGroup": "api_key_groups", "User": "api_keys", "Project": "projects"}[kind]
+	match, project := "id", "project_id"
+	if kind == "User" {
+		match = "user_id"
+	} else if kind == "Project" {
+		project = "id"
+	}
+	t := sql.Table(table)
+	t.SetDialect(client.Driver().Dialect())
+	query, args := sql.Dialect(client.Driver().Dialect()).Select(sql.As(t.C(project), "project_id")).Distinct().From(t).Where(sql.InInts(t.C(match), ids...)).Query()
+	var cursor sql.Rows
+	if err := client.Driver().Query(ctx, query, args, &cursor); err != nil {
+		return nil, err
+	}
+	defer cursor.Close()
+	var dates []consumptionDate
+	err := sql.ScanSlice(&cursor, &dates)
+	return dates, err
+}
+
+func writeStatisticsRevisions(ctx context.Context, client *ent.Client, dates []consumptionDate) error {
+	// UTC hours cover every reporting timezone. Boundary hours may invalidate
+	// an adjacent day too, but a changed fact can never escape its revision.
+	unique := map[consumptionDate]bool{}
+	for _, date := range dates {
+		if date.At.IsZero() {
+			date.At = time.Unix(0, 0).UTC()
+		} else {
+			date.At = date.At.UTC().Truncate(time.Hour)
+		}
+		unique[date] = true
+	}
+	ordered := make([]consumptionDate, 0, len(unique))
+	for date := range unique {
+		ordered = append(ordered, date)
+	}
+	slices.SortFunc(ordered, func(a, b consumptionDate) int {
+		if a.ProjectID < b.ProjectID {
+			return -1
+		}
+		if a.ProjectID > b.ProjectID {
+			return 1
+		}
+		return a.At.Compare(b.At)
+	})
+	for _, date := range ordered {
+		if err := client.StatisticsRevision.Create().SetProjectID(date.ProjectID).SetOccurredAt(date.At).SetVersion(uuid.NewString()).
+			OnConflictColumns(statisticsrevision.FieldProjectID, statisticsrevision.FieldOccurredAt).UpdateNewValues().Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 只读取由来源主键匹配的项目/日期，再在 UPDATE 顶层使用索引约束。
@@ -223,35 +294,4 @@ func consumptionChangedDates(ctx context.Context, client *ent.Client, kind strin
 		}
 	}
 	return dates, nil
-}
-
-func consumptionDatePredicate(dates []consumptionDate) predicate.ConsumptionSnapshot {
-	type span struct {
-		start, end time.Time
-		all        bool
-	}
-	byProject := map[int]span{}
-	for _, date := range dates {
-		r, exists := byProject[date.ProjectID]
-		if date.At.IsZero() {
-			r.all = true
-		} else {
-			if !exists || date.At.Before(r.start) {
-				r.start = date.At
-			}
-			if !exists || date.At.After(r.end) {
-				r.end = date.At
-			}
-		}
-		byProject[date.ProjectID] = r
-	}
-	predicates := []predicate.ConsumptionSnapshot{}
-	for id, r := range byProject {
-		p := consumptionsnapshot.ProjectIDIn(0, id)
-		if !r.all {
-			p = consumptionsnapshot.And(p, consumptionsnapshot.RangeStartLTE(r.end), consumptionsnapshot.RangeEndGT(r.start))
-		}
-		predicates = append(predicates, p)
-	}
-	return consumptionsnapshot.Or(predicates...)
 }

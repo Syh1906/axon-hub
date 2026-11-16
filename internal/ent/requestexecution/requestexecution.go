@@ -21,6 +21,18 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldStatisticsReady holds the string denoting the statistics_ready field in the database.
+	FieldStatisticsReady = "statistics_ready"
+	// FieldStatisticsVersion holds the string denoting the statistics_version field in the database.
+	FieldStatisticsVersion = "statistics_version"
+	// FieldStatisticsOutcome holds the string denoting the statistics_outcome field in the database.
+	FieldStatisticsOutcome = "statistics_outcome"
+	// FieldStatisticsChannelOutcome holds the string denoting the statistics_channel_outcome field in the database.
+	FieldStatisticsChannelOutcome = "statistics_channel_outcome"
+	// FieldStatisticsFirstTokenMs holds the string denoting the statistics_first_token_ms field in the database.
+	FieldStatisticsFirstTokenMs = "statistics_first_token_ms"
+	// FieldStatisticsOutputSpeed holds the string denoting the statistics_output_speed field in the database.
+	FieldStatisticsOutputSpeed = "statistics_output_speed"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
 	// FieldRequestID holds the string denoting the request_id field in the database.
@@ -125,6 +137,12 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldStatisticsReady,
+	FieldStatisticsVersion,
+	FieldStatisticsOutcome,
+	FieldStatisticsChannelOutcome,
+	FieldStatisticsFirstTokenMs,
+	FieldStatisticsOutputSpeed,
 	FieldProjectID,
 	FieldRequestID,
 	FieldChannelID,
@@ -178,6 +196,10 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultStatisticsReady holds the default value on creation for the "statistics_ready" field.
+	DefaultStatisticsReady bool
+	// DefaultStatisticsVersion holds the default value on creation for the "statistics_version" field.
+	DefaultStatisticsVersion int64
 	// DefaultProjectID holds the default value on creation for the "project_id" field.
 	DefaultProjectID int
 	// ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
@@ -238,6 +260,36 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByStatisticsReady orders the results by the statistics_ready field.
+func ByStatisticsReady(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsReady, opts...).ToFunc()
+}
+
+// ByStatisticsVersion orders the results by the statistics_version field.
+func ByStatisticsVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsVersion, opts...).ToFunc()
+}
+
+// ByStatisticsOutcome orders the results by the statistics_outcome field.
+func ByStatisticsOutcome(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsOutcome, opts...).ToFunc()
+}
+
+// ByStatisticsChannelOutcome orders the results by the statistics_channel_outcome field.
+func ByStatisticsChannelOutcome(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsChannelOutcome, opts...).ToFunc()
+}
+
+// ByStatisticsFirstTokenMs orders the results by the statistics_first_token_ms field.
+func ByStatisticsFirstTokenMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsFirstTokenMs, opts...).ToFunc()
+}
+
+// ByStatisticsOutputSpeed orders the results by the statistics_output_speed field.
+func ByStatisticsOutputSpeed(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatisticsOutputSpeed, opts...).ToFunc()
 }
 
 // ByProjectID orders the results by the project_id field.
