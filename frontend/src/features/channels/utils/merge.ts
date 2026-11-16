@@ -118,6 +118,7 @@ export function mergeChannelSettingsForUpdate(
 
   return {
     streamFirstEventTimeoutSeconds: pick('streamFirstEventTimeoutSeconds', existing?.streamFirstEventTimeoutSeconds ?? null),
+    responsesServiceTierOverride: pick('responsesServiceTierOverride', existing?.responsesServiceTierOverride ?? 'INHERIT'),
     modelContexts: pick('modelContexts', existing?.modelContexts ?? []),
     nonStreamResponseTimeoutSeconds: pick('nonStreamResponseTimeoutSeconds', existing?.nonStreamResponseTimeoutSeconds ?? null),
     disableSessionReuse: pick('disableSessionReuse', existing?.disableSessionReuse ?? false),

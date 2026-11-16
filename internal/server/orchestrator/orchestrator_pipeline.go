@@ -84,6 +84,7 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 	middlewares = append(middlewares, state.PluginHooks.attemptStage(outbound)...)
 	middlewares = append(middlewares,
 		applyOverrideRequestBody(outbound),
+		applyResponsesServiceTierOverride(outbound),
 		// applyUserAgentPassThrough runs before header overrides to set the initial
 		// User-Agent value (either from client pass-through or default "axonhub/1.0").
 		// A provider-required User-Agent already set by the outbound transformer

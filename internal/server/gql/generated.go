@@ -774,6 +774,7 @@ type ComplexityRoot struct {
 		Proxy                           func(childComplexity int) int
 		QuotaRoutingMode                func(childComplexity int) int
 		RateLimit                       func(childComplexity int) int
+		ResponsesServiceTierOverride    func(childComplexity int) int
 		RetryableErrorPatterns          func(childComplexity int) int
 		RetryableStatusCodes            func(childComplexity int) int
 		ServiceTierBilling              func(childComplexity int) int
@@ -6703,6 +6704,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.RateLimit(childComplexity), true
+	case "ChannelSettings.responsesServiceTierOverride":
+		if e.complexity.ChannelSettings.ResponsesServiceTierOverride == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.ResponsesServiceTierOverride(childComplexity), true
 	case "ChannelSettings.retryableErrorPatterns":
 		if e.complexity.ChannelSettings.RetryableErrorPatterns == nil {
 			break
@@ -31996,6 +32003,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "responsesServiceTierOverride":
+				return ec.fieldContext_ChannelSettings_responsesServiceTierOverride(ctx, field)
 			case "cacheWriteBilling":
 				return ec.fieldContext_ChannelSettings_cacheWriteBilling(ctx, field)
 			case "modelContexts":
@@ -37602,6 +37611,35 @@ func (ec *executionContext) fieldContext_ChannelRequestAssociation_channelId(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_responsesServiceTierOverride(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_responsesServiceTierOverride,
+		func(ctx context.Context) (any, error) {
+			return obj.ResponsesServiceTierOverride, nil
+		},
+		nil,
+		ec.marshalNResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_responsesServiceTierOverride(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ResponsesServiceTierOverride does not have child fields")
 		},
 	}
 	return fc, nil
@@ -110231,13 +110269,20 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"responsesServiceTierOverride", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "responsesServiceTierOverride":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesServiceTierOverride"))
+			data, err := ec.unmarshalOResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesServiceTierOverride = data
 		case "cacheWriteBilling":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheWriteBilling"))
 			data, err := ec.unmarshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling(ctx, v)
@@ -129216,13 +129261,48 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"responsesServiceTierOverride", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "responsesServiceTierOverride":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesServiceTierOverride"))
+			data, err := ec.unmarshalOResponsesServiceTierOverride2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesServiceTierOverride = data
+		case "streamFirstEventTimeoutSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("streamFirstEventTimeoutSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StreamFirstEventTimeoutSeconds = data
+		case "nonStreamResponseTimeoutSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nonStreamResponseTimeoutSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NonStreamResponseTimeoutSeconds = data
+		case "disableSessionReuse":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disableSessionReuse"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisableSessionReuse = data
+		case "allowImageGenerationTool":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowImageGenerationTool"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowImageGenerationTool = data
 		case "extraModelPrefix":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extraModelPrefix"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -141137,6 +141217,11 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelSettings")
+		case "responsesServiceTierOverride":
+			out.Values[i] = ec._ChannelSettings_responsesServiceTierOverride(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "cacheWriteBilling":
 			out.Values[i] = ec._ChannelSettings_cacheWriteBilling(ctx, field, obj)
 		case "modelContexts":
@@ -173547,6 +173632,16 @@ func (ec *executionContext) unmarshalNRequestWhereInput2ᚖgithubᚗcomᚋlooplj
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, v any) (objects.ResponsesServiceTierOverride, error) {
+	var res objects.ResponsesServiceTierOverride
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, sel ast.SelectionSet, v objects.ResponsesServiceTierOverride) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNRestoreOptionsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbackupᚐRestoreOptions(ctx context.Context, v any) (backup.RestoreOptions, error) {
 	res, err := ec.unmarshalInputRestoreOptionsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -182041,6 +182136,32 @@ func (ec *executionContext) unmarshalORequestWhereInput2ᚖgithubᚗcomᚋlooplj
 	}
 	res, err := ec.unmarshalInputRequestWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, v any) (objects.ResponsesServiceTierOverride, error) {
+	var res objects.ResponsesServiceTierOverride
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, sel ast.SelectionSet, v objects.ResponsesServiceTierOverride) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalOResponsesServiceTierOverride2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, v any) (*objects.ResponsesServiceTierOverride, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(objects.ResponsesServiceTierOverride)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResponsesServiceTierOverride2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx context.Context, sel ast.SelectionSet, v *objects.ResponsesServiceTierOverride) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalORetryableErrorPattern2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRetryableErrorPatternᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.RetryableErrorPattern) graphql.Marshaler {

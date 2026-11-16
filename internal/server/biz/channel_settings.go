@@ -27,26 +27,31 @@ import (
 // (mergeChannelSettingsForUpdate) and makes those semantics available to
 // direct GraphQL callers.
 type UpdateChannelSettingsInput struct {
-	ExtraModelPrefix            *string                               `json:"extraModelPrefix"`
-	ModelMappings               []objects.ModelMapping                `json:"modelMappings"`
-	AutoTrimedModelPrefixes     []string                              `json:"autoTrimedModelPrefixes"`
-	HideOriginalModels          *bool                                 `json:"hideOriginalModels"`
-	HideMappedModels            *bool                                 `json:"hideMappedModels"`
-	LowercaseModelID            *bool                                 `json:"lowercaseModelId"`
-	Proxy                       *httpclient.ProxyConfig               `json:"proxy"`
-	TransformOptions            *objects.TransformOptions             `json:"transformOptions"`
-	HeaderOverrideOperations    []objects.OverrideOperation           `json:"headerOverrideOperations"`
-	BodyOverrideOperations      []objects.OverrideOperation           `json:"bodyOverrideOperations"`
-	PassThroughUserAgent        *bool                                 `json:"passThroughUserAgent"`
-	PassThroughBody             *bool                                 `json:"passThroughBody"`
-	RateLimit                   *objects.ChannelRateLimit             `json:"rateLimit"`
-	RetryableStatusCodes        []int                                 `json:"retryableStatusCodes"`
-	RetryableErrorPatterns      []objects.RetryableErrorPattern       `json:"retryableErrorPatterns"`
-	ModelProtocols              []objects.ModelProtocol               `json:"modelProtocols"`
-	APIKeyStrategy              *string                               `json:"apiKeyStrategy"`
-	APIKeyRoundRobinSwitchAfter *int                                  `json:"apiKeyRoundRobinSwitchAfter"`
-	ProviderQuota               *objects.ChannelProviderQuotaSettings `json:"providerQuota"`
-	QuotaRoutingMode            *objects.QuotaRoutingMode             `json:"quotaRoutingMode"`
+	ResponsesServiceTierOverride    *objects.ResponsesServiceTierOverride `json:"responsesServiceTierOverride"`
+	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
+	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
+	DisableSessionReuse             *bool                                 `json:"disableSessionReuse"`
+	AllowImageGenerationTool        *bool                                 `json:"allowImageGenerationTool"`
+	ExtraModelPrefix                *string                               `json:"extraModelPrefix"`
+	ModelMappings                   []objects.ModelMapping                `json:"modelMappings"`
+	AutoTrimedModelPrefixes         []string                              `json:"autoTrimedModelPrefixes"`
+	HideOriginalModels              *bool                                 `json:"hideOriginalModels"`
+	HideMappedModels                *bool                                 `json:"hideMappedModels"`
+	LowercaseModelID                *bool                                 `json:"lowercaseModelId"`
+	Proxy                           *httpclient.ProxyConfig               `json:"proxy"`
+	TransformOptions                *objects.TransformOptions             `json:"transformOptions"`
+	HeaderOverrideOperations        []objects.OverrideOperation           `json:"headerOverrideOperations"`
+	BodyOverrideOperations          []objects.OverrideOperation           `json:"bodyOverrideOperations"`
+	PassThroughUserAgent            *bool                                 `json:"passThroughUserAgent"`
+	PassThroughBody                 *bool                                 `json:"passThroughBody"`
+	RateLimit                       *objects.ChannelRateLimit             `json:"rateLimit"`
+	RetryableStatusCodes            []int                                 `json:"retryableStatusCodes"`
+	RetryableErrorPatterns          []objects.RetryableErrorPattern       `json:"retryableErrorPatterns"`
+	ModelProtocols                  []objects.ModelProtocol               `json:"modelProtocols"`
+	APIKeyStrategy                  *string                               `json:"apiKeyStrategy"`
+	APIKeyRoundRobinSwitchAfter     *int                                  `json:"apiKeyRoundRobinSwitchAfter"`
+	ProviderQuota                   *objects.ChannelProviderQuotaSettings `json:"providerQuota"`
+	QuotaRoutingMode                *objects.QuotaRoutingMode             `json:"quotaRoutingMode"`
 }
 
 // Apply returns the settings that result from applying the patch to base.
@@ -60,6 +65,21 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 
 	if i == nil {
 		return merged
+	}
+	if i.ResponsesServiceTierOverride != nil {
+		merged.ResponsesServiceTierOverride = *i.ResponsesServiceTierOverride
+	}
+	if i.StreamFirstEventTimeoutSeconds != nil {
+		merged.StreamFirstEventTimeoutSeconds = i.StreamFirstEventTimeoutSeconds
+	}
+	if i.NonStreamResponseTimeoutSeconds != nil {
+		merged.NonStreamResponseTimeoutSeconds = i.NonStreamResponseTimeoutSeconds
+	}
+	if i.DisableSessionReuse != nil {
+		merged.DisableSessionReuse = *i.DisableSessionReuse
+	}
+	if i.AllowImageGenerationTool != nil {
+		merged.AllowImageGenerationTool = i.AllowImageGenerationTool
 	}
 
 	if i.ExtraModelPrefix != nil {

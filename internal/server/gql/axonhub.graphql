@@ -201,7 +201,15 @@ input ChannelProviderQuotaSettingsInput {
   ollama: OllamaQuotaSettingsInput
 }
 
+enum ResponsesServiceTierOverride {
+  INHERIT
+  STANDARD
+  FAST
+  ULTRAFAST
+}
+
 type ChannelSettings {
+  responsesServiceTierOverride: ResponsesServiceTierOverride!
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContext!]
   serviceTierBilling: ServiceTierSettings
@@ -306,6 +314,7 @@ input ModelMappingInput {
 }
 
 input ChannelSettingsInput {
+  responsesServiceTierOverride: ResponsesServiceTierOverride
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContextInput!]
   upstreamAddresses: [ChannelUpstreamAddressInput!]
@@ -357,6 +366,11 @@ input ChannelModelContextInput {
 # values; nested objects replace the stored value as a whole. Use this
 # instead of updateChannel's settings input when only some settings change.
 input UpdateChannelSettingsInput {
+  responsesServiceTierOverride: ResponsesServiceTierOverride
+  streamFirstEventTimeoutSeconds: Int
+  nonStreamResponseTimeoutSeconds: Int
+  disableSessionReuse: Boolean
+  allowImageGenerationTool: Boolean
   extraModelPrefix: String
   modelMappings: [ModelMappingInput!]
   autoTrimedModelPrefixes: [String!]

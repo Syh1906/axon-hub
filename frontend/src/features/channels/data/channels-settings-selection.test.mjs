@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { mergeChannelSettingsForUpdate } from '../utils/merge.ts';
 
-const source = readFileSync(join(import.meta.dirname, 'channels.ts'), 'utf8');
+const source = ['channels.ts', 'channel-create-operations.ts'].map((file) => readFileSync(join(import.meta.dirname, file), 'utf8')).join('\n');
 const lines = source.split('\n');
 
 function enclosingDeclaration(lineIndex) {
@@ -49,4 +50,28 @@ test('every settings selection block in channels.ts requests quotaRoutingMode', 
     [],
     `settings selection block(s) missing quotaRoutingMode: ${missing.map((b) => b.name).join(', ')}`
   );
+});
+
+test('渠道请求设置的读写返回都包含模式覆写', () => {
+  const blocks = extractSettingsBlocks().filter((block) => /\ballowImageGenerationTool\b/.test(block.body));
+  assert.ok(blocks.length > 0);
+  for (const block of blocks) {
+    assert.match(block.body, /\bresponsesServiceTierOverride\b/, block.name);
+  }
+  const selections = readFileSync(join(import.meta.dirname, 'channel-query-fields.ts'), 'utf8');
+  assert.equal((selections.match(/\ballowImageGenerationTool\b/g) ?? []).length,
+    (selections.match(/\bresponsesServiceTierOverride\b/g) ?? []).length);
+});
+
+test('清空超时和保存其他设置保留模式，恢复默认保留通用覆盖规则', () => {
+  const rules = [{ op: 'set', path: 'service_tier', value: 'ultrafast' }];
+  const existing = { responsesServiceTierOverride: 'FAST', bodyOverrideOperations: rules, streamFirstEventTimeoutSeconds: 120 };
+  const clearTimeout = mergeChannelSettingsForUpdate(existing, { streamFirstEventTimeoutSeconds: null });
+  assert.equal(clearTimeout.responsesServiceTierOverride, 'FAST');
+  assert.equal(clearTimeout.streamFirstEventTimeoutSeconds, null);
+  const reset = mergeChannelSettingsForUpdate(existing, { responsesServiceTierOverride: 'INHERIT' });
+  assert.equal(reset.responsesServiceTierOverride, 'INHERIT');
+  assert.deepEqual(reset.bodyOverrideOperations, rules);
+  assert.equal(reset.streamFirstEventTimeoutSeconds, 120);
+  assert.equal(mergeChannelSettingsForUpdate(undefined, {}).responsesServiceTierOverride, 'INHERIT');
 });

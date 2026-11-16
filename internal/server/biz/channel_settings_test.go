@@ -17,13 +17,14 @@ import (
 
 func TestUpdateChannelSettingsInput_Apply(t *testing.T) {
 	base := &objects.ChannelSettings{
-		ExtraModelPrefix:        "deepseek",
-		AutoTrimedModelPrefixes: []string{"openai"},
-		HideOriginalModels:      true,
-		LowercaseModelID:        true,
-		Proxy:                   &httpclient.ProxyConfig{Type: "http", URL: "http://proxy.example.com:8080"},
-		RateLimit:               &objects.ChannelRateLimit{RPM: lo.ToPtr(int64(60))},
-		RetryableStatusCodes:    []int{429},
+		ExtraModelPrefix:             "deepseek",
+		AutoTrimedModelPrefixes:      []string{"openai"},
+		HideOriginalModels:           true,
+		LowercaseModelID:             true,
+		Proxy:                        &httpclient.ProxyConfig{Type: "http", URL: "http://proxy.example.com:8080"},
+		RateLimit:                    &objects.ChannelRateLimit{RPM: lo.ToPtr(int64(60))},
+		RetryableStatusCodes:         []int{429},
+		ResponsesServiceTierOverride: objects.ResponsesServiceTierFast,
 	}
 
 	t.Run("nil patch keeps base", func(t *testing.T) {
@@ -52,6 +53,7 @@ func TestUpdateChannelSettingsInput_Apply(t *testing.T) {
 		require.Equal(t, base.Proxy, merged.Proxy)
 		require.Equal(t, base.RateLimit, merged.RateLimit)
 		require.Equal(t, []int{429}, merged.RetryableStatusCodes)
+		require.Equal(t, objects.ResponsesServiceTierFast, merged.ResponsesServiceTierOverride)
 	})
 
 	t.Run("absent api key policy keeps stored values", func(t *testing.T) {

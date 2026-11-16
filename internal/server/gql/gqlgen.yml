@@ -269,6 +269,8 @@ models:
     fields:
       modelPriceMultiplier:
         fieldName: ModelPriceMultiplier
+  ResponsesServiceTierOverride:
+    model: github.com/looplj/axonhub/internal/objects.ResponsesServiceTierOverride
   ChannelCostMode:
     model: github.com/looplj/axonhub/internal/objects.ChannelCostMode
   UpstreamProvider:

@@ -643,6 +643,9 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 		if err := ValidateChannelResponseTimeouts(input.Settings); err != nil {
 			return nil, err
 		}
+		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
+			return nil, err
+		}
 
 		if err := validateChannelModelContexts(input.Settings); err != nil {
 			return nil, err
@@ -1044,6 +1047,9 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			return nil, fmt.Errorf("invalid rate limit: %w", err)
 		}
 		if err := ValidateChannelResponseTimeouts(input.Settings); err != nil {
+			return nil, err
+		}
+		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
 			return nil, err
 		}
 

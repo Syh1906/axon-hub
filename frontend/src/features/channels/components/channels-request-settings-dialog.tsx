@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useUpdateChannelSettings } from '../data/channels';
-import { type Channel } from '../data/schema';
+import { responsesServiceTierOverrideSchema, type Channel } from '../data/schema';
 
 const timeoutField = z.union([z.number().int().nonnegative(), z.literal('')]);
 const requestSettingsSchema = z.object({
+  responsesServiceTierOverride: responsesServiceTierOverrideSchema,
   streamFirstEventTimeoutSeconds: timeoutField,
   nonStreamResponseTimeoutSeconds: timeoutField,
   disableSessionReuse: z.boolean(),
@@ -24,6 +26,7 @@ type RequestSettings = z.infer<typeof requestSettingsSchema>;
 
 function valuesFromChannel(channel: Channel): RequestSettings {
   return {
+    responsesServiceTierOverride: channel.settings?.responsesServiceTierOverride ?? 'INHERIT',
     streamFirstEventTimeoutSeconds: channel.settings?.streamFirstEventTimeoutSeconds ?? '',
     nonStreamResponseTimeoutSeconds: channel.settings?.nonStreamResponseTimeoutSeconds ?? '',
     disableSessionReuse: channel.settings?.disableSessionReuse ?? false,
@@ -51,6 +54,7 @@ export function ChannelsRequestSettingsDialog({
       await updateSettings.mutateAsync({
         id: currentRow.id,
         patch: {
+          responsesServiceTierOverride: values.responsesServiceTierOverride,
           streamFirstEventTimeoutSeconds: values.streamFirstEventTimeoutSeconds === '' ? null : values.streamFirstEventTimeoutSeconds,
           nonStreamResponseTimeoutSeconds: values.nonStreamResponseTimeoutSeconds === '' ? null : values.nonStreamResponseTimeoutSeconds,
           disableSessionReuse: values.disableSessionReuse,
@@ -100,6 +104,38 @@ export function ChannelsRequestSettingsDialog({
                 ))}
                 <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.timeoutHelp')}</p>
               </div>
+              <FormField
+                control={form.control}
+                name='responsesServiceTierOverride'
+                render={({ field }) => (
+                  <FormItem className='rounded-md border p-4'>
+                    <FormLabel>{t('channels.requestSettings.responsesServiceTierOverride')}</FormLabel>
+                    <FormDescription className='whitespace-pre-line'>
+                      {t('channels.requestSettings.responsesServiceTierHelp')}
+                    </FormDescription>
+                    <Select value={field.value} onValueChange={field.onChange} disabled={updateSettings.isPending}>
+                      <FormControl>
+                        <SelectTrigger className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectGroup>
+                          {responsesServiceTierOverrideSchema.options.map((mode) => (
+                            <SelectItem key={mode} value={mode}>
+                              {t(`channels.requestSettings.responsesServiceTier.${mode}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {field.value === 'ULTRAFAST' && (
+                      <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.responsesServiceTierUltrafastHelp')}</p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name='disableSessionReuse'
