@@ -91,9 +91,9 @@ func TestDetectChannelEndpoints_ClassifiesProtocols(t *testing.T) {
 	require.Equal(t, endpointDetectReasonNotFound, chat.Reason)
 
 	responses := byFormat["openai/responses"]
-	require.True(t, responses.Supported)
+	require.False(t, responses.Supported)
 	require.Equal(t, http.StatusBadRequest, responses.StatusCode)
-	require.Equal(t, endpointDetectReasonSupported, responses.Reason)
+	require.Equal(t, endpointDetectReasonInvalid, responses.Reason)
 
 	anthropic := byFormat["anthropic/messages"]
 	require.False(t, anthropic.Supported)
@@ -138,7 +138,7 @@ func TestDetectChannelEndpoints_TransportErrorIsUnreachable(t *testing.T) {
 
 	require.False(t, byFormat["openai/responses"].Supported)
 	require.Equal(t, endpointDetectReasonUnreachable, byFormat["openai/responses"].Reason)
-	require.True(t, byFormat["openai/chat_completions"].Supported)
+	require.False(t, byFormat["openai/chat_completions"].Supported)
 }
 
 // A channel that already exposes a format must be probed with its real
@@ -188,7 +188,7 @@ func TestDetectChannelEndpoints_ReusesConfiguredOutboundAuth(t *testing.T) {
 	}
 
 	messages := byFormat["anthropic/messages"]
-	require.True(t, messages.Supported)
+	require.False(t, messages.Supported)
 	require.Equal(t, http.StatusBadRequest, messages.StatusCode)
 }
 

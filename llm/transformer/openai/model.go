@@ -13,6 +13,8 @@ const TransformerMetadataKeyCitations = "citations"
 // Request represents an OpenAI chat completion request.
 // This is a clean OpenAI-specific model without helper fields.
 type Request struct {
+	// The gateway currently supports one generated choice per request.
+	N *int64 `json:"n,omitempty"`
 	// Messages is a list of messages to send to the model.
 	Messages []Message `json:"messages" validator:"required,min=1"`
 

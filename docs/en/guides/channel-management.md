@@ -323,35 +323,63 @@ https://custom-gateway.example.com/api##
 
 ## Multi-Protocol Endpoints and Model Protocol Overrides
 
-A single channel can host multiple outbound endpoints covering chat, responses, messages and other protocols, so different clients connect with their native protocol.
+Clients send requests to AxonHub, which selects a channel and sends an upstream request. Configure the two protocol surfaces separately. Using the same protocol does not imply raw-body pass-through.
 
 ### Endpoint Configuration
 
-Manage endpoints in the channel **Endpoints** dialog:
+Define upstream capabilities in the channel menu under **Endpoints & Protocols → Upstream endpoints**:
 
 - Each endpoint consists of `api_format`, an optional `base_url` (inherits the channel Base URL when empty), and an optional `path` (replaces the protocol's default path; version appending is skipped when set).
 - Each channel type ships with built-in default endpoints (e.g. zhipu provides `openai/chat_completions`, `zhipu_anthropic` provides `anthropic/messages`); custom endpoints can add other formats or override same-named ones.
 
 ### Endpoint Auto-Detection
 
-The **Endpoints** dialog can probe the upstream for the three relay protocols (`openai/chat_completions`, `openai/responses`, `anthropic/messages`), so a channel that supports all three can pass through almost every client protocol natively.
+The **Upstream endpoints** tab can probe Chat Completions, Responses and Messages. Detection confirms only the test response shape, not support for every model, tool or parameter.
 
 - Click **Auto-detect** in the **Current Endpoints** section. The backend sends one lightweight probe per protocol using the channel Base URL, credentials and default test model.
 - Detected protocols are added to the custom endpoint list. They are not saved automatically — review the list and press **Save** to persist.
-- A route is reported as supported when the upstream replies with anything other than `404`/`405`; `401`/`403` are reported as an authentication problem, and `5xx` or connection failures as errors.
+- Support requires a successful HTTP response with the expected protocol structure. HTML, empty JSON, `400`, `422` and `429` do not establish support. `401`/`403` indicate an authentication problem; `5xx` and connection failures are reported as errors.
 - The channel list **Endpoints** column summarizes the configured relay protocols as four icons, including the native Gemini Contents endpoint: colored when configured, dimmed otherwise.
 
 ### Model Protocol Overrides (ModelProtocols)
 
-Force the available outbound protocols for a single model in the **Model Protocol Overrides** block:
+Further restrict a model's upstream formats in the **Model upstream protocols** tab:
 
 ```json
 { "model": "glm-5.3-flash", "apiFormats": ["openai/responses", "openai/chat_completions"], "enabled": true }
 ```
 
-- `apiFormats` expresses priority in configuration order; when the client's inbound protocol is in the list it connects directly, otherwise the first listed protocol is used through the unified conversion pipeline.
+- `apiFormats` expresses priority in configuration order. An exact client-format match wins; otherwise use the first format allowed by the channel policy that can preserve the request's requirements. Same-protocol mode never forces conversion to another protocol.
 - Enabled overrides may only reference `api_format`s the channel already provides (default or custom endpoints), validated on save; overrides are cleaned up automatically when a model is removed from the channel's supported list.
-- Endpoints and protocol overrides are committed atomically in a single save.
+- Endpoints, ingress policy and model overrides are saved atomically. Cancel leaves them unchanged.
+
+### Client protocol access and conversion
+
+Configure two independent options under **Endpoints & protocols → Ingress & conversion**:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| Allowed client protocols | All compatible protocols | Selecting specific protocols allows only the checked Chat Completions, Responses, Messages and Gemini formats to use this channel. |
+| Cross-protocol conversion | Allow conversion | Same-protocol mode skips a channel without a matching upstream. Model retries and final dispatch enforce the same policy. |
+
+For example, to keep a Messages-only channel from serving converted requests, allow only **Messages** and select **Same protocol only**. Chat requests may still use other channels. Channels without a policy retain automatic conversion.
+
+Responses HTTP and WebSocket belong to the same protocol family and may adapt transport. Same-protocol mode does not guarantee that native tools, server state or encrypted content work across providers; raw-body pass-through remains a separate setting. This policy applies only to chat, not dedicated image or audio APIs. Existing AI SDK chat adapters remain available under “All compatible protocols” but are excluded by a specific four-protocol allowlist.
+
+The existing settings JSON stores `protocolPolicy`: `allowedProtocols: []` allows all protocols and `sameProtocolOnly: false` permits conversion. Restoring these defaults removes restrictions. No database migration is needed.
+
+### Protocol routes overview
+
+Open **Gateway → Protocol routes** in the administration navigation to inspect enabled public chat models by client protocol. Expand a model for upstream model IDs, protocols, channels and exclusion reasons. Responses offers separate HTTP/SSE and WebSocket ingress views.
+
+- Same-protocol, converted, conditional and excluded counts are deduplicated by channel, using its best usable route when multiple upstream models match. Conditional routes are counted separately and show their conditions in the detail view. Aliases for the same actual model are filtered by protocol before retaining the first usable alias. When unknown request conditions may change the outbound protocol, separate rows show those branches; association order and request conditions determine which is used.
+- This is a service-wide view requiring system-level `read_channels`; it does not inherit the current project. API key permissions, projects, quotas, health gates, request tools and continuation state can further restrict actual candidates.
+- History requires system-level `read_requests`. It reads only successful execution metadata from the last seven days matching ingress, public model, channel, actual model and upstream format, and only executions started after the model and channel's last edit. The displayed time is the successful request's start, not its completion; later body cleanup or metadata changes do not count as a new success. Missing permission or a failed read shows “History unavailable”; no record shows “Unverified in last 7 days”. Past success does not establish live availability or support for every feature.
+- Lists use 20-model pages, debounced search and on-demand channel/history details. Entering the page refreshes configuration; there is no background polling or automatic upstream call. Regex models expose only explicitly published IDs, not regex expressions as model names.
+
+### Requests whose meaning cannot be preserved
+
+Automatic conversion requires an upstream that preserves the requested controls. Chat accepts only an omitted `n` or `n: 1`; other values are explicitly rejected. Requests with `stop` do not select Responses. Probability requirements exclude the current Messages, Gemini and Ollama adapters and prevent Chat/Responses cross-protocol conversion; this includes Responses `include: ["message.output_text.logprobs"]`. Native Chat and Responses HTTP/WebSocket probability requests remain supported. DeepSeek Chat now rejects `json_schema` instead of silently weakening it to `json_object`; custom Chat paths retain DeepSeek thinking adaptation. Chat requests do not fall back to image-only or other non-chat endpoints.
 
 ### Responses HTTP and WebSocket endpoints
 

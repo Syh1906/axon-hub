@@ -13,6 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ChannelProtocolPolicyEditor, type ProtocolPolicyDraft } from './channel-protocol-policy-editor';
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useChannels } from '../context/channels-context';
 import { cn } from '@/lib/utils';
@@ -45,6 +47,7 @@ const DETECTION_REASON_KEYS: Record<string, string> = {
   server_error: 'channels.endpoints.detect.reasons.serverError',
   unreachable: 'channels.endpoints.detect.reasons.unreachable',
   invalid_request: 'channels.endpoints.detect.reasons.invalidRequest',
+  invalid_response: 'protocolPolicy.unverifiedResponse',
 };
 
 function DetectionResultCard({ result }: { result: DetectedChannelEndpoint }) {
@@ -161,6 +164,9 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
 
   const [endpoints, setEndpoints] = useState<ChannelEndpoint[]>(() => channel.endpoints ?? []);
   const [modelProtocols, setModelProtocols] = useState<ModelProtocol[]>(() => getInitialModelProtocols(channel));
+  const [protocolPolicy, setProtocolPolicy] = useState<ProtocolPolicyDraft>(() => channel.settings?.protocolPolicy ?? { allowedProtocols: [], sameProtocolOnly: false });
+  const [restrictedProtocols, setRestrictedProtocols] = useState(() => !!channel.settings?.protocolPolicy?.allowedProtocols.length);
+  const [activeTab, setActiveTab] = useState('upstream');
   const [newProtocolModel, setNewProtocolModel] = useState('');
   const [newProtocolFormats, setNewProtocolFormats] = useState<string[]>([]);
   const [editingProtocolModel, setEditingProtocolModel] = useState<string | null>(null);
@@ -191,6 +197,9 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     setEndpoints(channel.endpoints ?? []);
     setCodexResponsesWebSocket(getCodexResponsesWebSocketState(channel).enabled);
     setModelProtocols(getInitialModelProtocols(channel));
+    setProtocolPolicy(channel.settings?.protocolPolicy ?? { allowedProtocols: [], sameProtocolOnly: false });
+    setRestrictedProtocols(!!channel.settings?.protocolPolicy?.allowedProtocols.length);
+    setActiveTab('upstream');
     setNewProtocolModel('');
     setNewProtocolFormats([]);
     setEditingProtocolModel(null);
@@ -341,6 +350,11 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
 
   const handleSave = useCallback(async () => {
     setError(null);
+    if (restrictedProtocols && protocolPolicy.allowedProtocols.length === 0) {
+      setError(t('protocolPolicy.required'));
+      setActiveTab('policy');
+      return;
+    }
 
     const apiFormats = savedEndpoints.map((ep) => ep.apiFormat);
     const duplicates = apiFormats.filter((f, i) => apiFormats.indexOf(f) !== i);
@@ -389,7 +403,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
             catalogJSON: ep.catalogJSON ?? null,
           })),
         },
-        patch: { modelProtocols },
+        patch: { modelProtocols, protocolPolicy: { ...protocolPolicy, allowedProtocols: restrictedProtocols ? protocolPolicy.allowedProtocols : [] } },
       });
 
       toast.success(t('channels.messages.updateSuccess'));
@@ -397,21 +411,28 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     } catch {
       // error handled by hook
     }
-  }, [channel, defaultEndpoints, isCodexChannel, savedEndpoints, modelProtocols, onOpenChange, updateChannelSettings, t]);
+  }, [channel, defaultEndpoints, isCodexChannel, savedEndpoints, modelProtocols, protocolPolicy, restrictedProtocols, onOpenChange, updateChannelSettings, t]);
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           ref={setDialogContentElement}
-          className='flex max-h-[90vh] w-full max-w-full flex-col overflow-hidden sm:max-w-4xl'
+          className={cn('flex max-h-[90vh] w-full max-w-full flex-col overflow-hidden', activeTab === 'policy' ? 'sm:max-w-2xl' : 'sm:max-w-4xl')}
         >
           <DialogHeader className='shrink-0'>
             <DialogTitle>{t('channels.endpoints.title')}</DialogTitle>
             <DialogDescription>{channel.name}</DialogDescription>
           </DialogHeader>
 
-          <div className='min-h-0 flex-1 space-y-6 overflow-y-auto py-4'>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className='min-h-0 flex-1'>
+            <TabsList className='w-full shrink-0'>
+              <TabsTrigger value='upstream'>{t('protocolPolicy.upstreamTab')}</TabsTrigger>
+              <TabsTrigger value='policy'>{t('protocolPolicy.policyTab')}</TabsTrigger>
+              <TabsTrigger value='models'>{t('protocolPolicy.modelsTab')}</TabsTrigger>
+            </TabsList>
+          <div className='min-h-0 flex-1 overflow-y-auto py-4'>
+            <TabsContent value='upstream' className='flex flex-col gap-6'>
             {isCodexChannel && (
               <div className='space-y-2'>
                 <div className='flex items-center justify-between gap-2'>
@@ -453,11 +474,11 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
               {detectionResults && <div className='flex flex-wrap gap-2'>{detectionResults.map((result) => <DetectionResultCard key={result.apiFormat} result={result} />)}</div>}
             </div>
 
-            {/* Model protocol overrides */}
-            <details className='rounded-lg border p-3'>
-              <summary className='cursor-pointer text-sm font-medium'>
-                {t('channels.endpoints.modelProtocols.title')} · {modelProtocols.length}
-              </summary>
+            </TabsContent>
+            <TabsContent value='policy'>
+              <ChannelProtocolPolicyEditor value={protocolPolicy} onChange={setProtocolPolicy} restricted={restrictedProtocols} onRestrictedChange={setRestrictedProtocols} />
+            </TabsContent>
+            <TabsContent value='models'>
               <div className='mt-3 flex flex-col gap-3'>
                 <div className='flex items-center justify-between'>
                   <label className='text-sm font-medium'>{t('channels.endpoints.modelProtocols.title')}</label>
@@ -573,7 +594,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
                   </div>
                 )}
               </div>
-            </details>
+            </TabsContent>
             {error && (
               <div className='text-destructive bg-destructive/10 flex items-center gap-2 rounded-md px-3 py-2 text-sm'>
                 <AlertCircle className='h-4 w-4 shrink-0' />
@@ -581,6 +602,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
               </div>
             )}
           </div>
+          </Tabs>
 
           <DialogFooter className='shrink-0 border-t pt-4'>
             <Button variant='outline' onClick={() => onOpenChange(false)}>

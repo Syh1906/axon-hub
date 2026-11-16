@@ -78,6 +78,7 @@ export const NAV_MODULE_DEFS: NavModuleDef[] = [
         items: [
           { titleKey: 'sidebar.items.channels', url: '/channels', icon: IconAi },
           { titleKey: 'sidebar.items.models', url: '/models', icon: IconRobot },
+          { titleKey: 'protocolRoutes.title', url: '/protocol-routes', icon: IconPlugConnected },
           { titleKey: 'sidebar.items.promptProtectionRules', url: '/prompt-protection-rules', icon: IconShield },
           { titleKey: 'sidebar.items.dataStorages', url: '/data-storages', icon: IconDatabase },
         ],

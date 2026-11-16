@@ -75,3 +75,13 @@ test('清空超时和保存其他设置保留模式，恢复默认保留通用�
   assert.equal(reset.streamFirstEventTimeoutSeconds, 120);
   assert.equal(mergeChannelSettingsForUpdate(undefined, {}).responsesServiceTierOverride, 'INHERIT');
 });
+
+
+test('协议策略在其他设置保存时保留，显式恢复默认可清除限制', () => {
+  const policy = { allowedProtocols: ['anthropic/messages'], sameProtocolOnly: true };
+  const updated = mergeChannelSettingsForUpdate({ protocolPolicy: policy, responsesServiceTierOverride: 'FAST' }, { disableSessionReuse: true });
+  assert.deepEqual(updated.protocolPolicy, policy);
+  const reset = mergeChannelSettingsForUpdate(updated, { protocolPolicy: { allowedProtocols: [], sameProtocolOnly: false } });
+  assert.equal(reset.responsesServiceTierOverride, 'FAST');
+  assert.deepEqual(reset.protocolPolicy, { allowedProtocols: [], sameProtocolOnly: false });
+});

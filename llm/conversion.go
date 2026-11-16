@@ -104,6 +104,19 @@ func UnsupportedRequestFeature(req *Request, target APIFormat) string {
 	if req == nil || (req.RequestType != "" && req.RequestType != RequestTypeChat && req.RequestType != RequestTypeCompact) {
 		return ""
 	}
+	if HasStopSequences(req) && isResponsesAPI(target) {
+		return "stop"
+	}
+	if RequiresLogprobs(req) && (target == APIFormatAnthropicMessage || target == APIFormatOllamaChat || target == APIFormatGeminiContents) {
+		return "logprobs"
+	}
+	// Chat and Responses express probabilities differently, and the current
+	// cross-protocol response converters do not map them. Native Responses
+	// (including HTTP/WS adaptation) retains the raw provider response/events.
+	if RequiresLogprobs(req) && ((req.APIFormat == APIFormatOpenAIChatCompletion && isResponsesAPI(target)) ||
+		(isResponsesAPI(req.APIFormat) && target == APIFormatOpenAIChatCompletion)) {
+		return "logprobs"
+	}
 	if !isResponsesAPI(target) {
 		if feature := ResponsesOnlyFeature(req); feature != "" {
 			return feature
@@ -149,6 +162,9 @@ func HasConversionRequirements(req *Request) bool {
 	if req == nil {
 		return false
 	}
+	if HasStopSequences(req) || RequiresLogprobs(req) {
+		return true
+	}
 	if ResponsesOnlyFeature(req) != "" {
 		return true
 	}
@@ -167,6 +183,36 @@ func HasConversionRequirements(req *Request) bool {
 		switch tool.Type {
 		case ToolTypeWebSearch, ToolTypeGoogleSearch, ToolTypeGoogleCodeExecution, ToolTypeGoogleUrlContext, ToolTypeImageGeneration:
 			return true
+		}
+	}
+	return false
+}
+
+func HasStopSequences(req *Request) bool {
+	return req != nil && req.Stop != nil && ((req.Stop.Stop != nil && *req.Stop.Stop != "") || len(req.Stop.MultipleStop) > 0)
+}
+
+func RequiresLogprobs(req *Request) bool {
+	if req == nil {
+		return false
+	}
+	if (req.Logprobs != nil && *req.Logprobs) || req.TopLogprobs != nil {
+		return true
+	}
+	// Responses can request probabilities with include alone. Metadata becomes
+	// []any after persistence, so recognize both native and decoded forms.
+	switch include := req.TransformerMetadata["include"].(type) {
+	case []string:
+		for _, field := range include {
+			if field == "message.output_text.logprobs" {
+				return true
+			}
+		}
+	case []any:
+		for _, field := range include {
+			if field == "message.output_text.logprobs" {
+				return true
+			}
 		}
 	}
 	return false

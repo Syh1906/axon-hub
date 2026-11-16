@@ -27,6 +27,7 @@ import (
 // (mergeChannelSettingsForUpdate) and makes those semantics available to
 // direct GraphQL callers.
 type UpdateChannelSettingsInput struct {
+	ProtocolPolicy                  *objects.ChannelProtocolPolicy        `json:"protocolPolicy"`
 	ResponsesServiceTierOverride    *objects.ResponsesServiceTierOverride `json:"responsesServiceTierOverride"`
 	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
 	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
@@ -65,6 +66,9 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 
 	if i == nil {
 		return merged
+	}
+	if i.ProtocolPolicy != nil {
+		merged.ProtocolPolicy = i.ProtocolPolicy
 	}
 	if i.ResponsesServiceTierOverride != nil {
 		merged.ResponsesServiceTierOverride = *i.ResponsesServiceTierOverride

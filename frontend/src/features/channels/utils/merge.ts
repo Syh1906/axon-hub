@@ -143,6 +143,7 @@ export function mergeChannelSettingsForUpdate(
     maxSingleChannelRetries: pick('maxSingleChannelRetries', existing?.maxSingleChannelRetries ?? null),
 
     modelProtocols: pick('modelProtocols', existing?.modelProtocols ?? []),
+    protocolPolicy: pick('protocolPolicy', existing?.protocolPolicy ?? null),
 apiKeyStrategy: pick('apiKeyStrategy', existing?.apiKeyStrategy ?? null),
     apiKeyRoundRobinSwitchAfter: pick('apiKeyRoundRobinSwitchAfter', existing?.apiKeyRoundRobinSwitchAfter ?? null),
     providerQuota: pick('providerQuota', existing?.providerQuota ?? null),

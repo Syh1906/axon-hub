@@ -2,13 +2,13 @@
 
 ## Overview
 
-AxonHub provides full support for the OpenAI API specification, allowing you to use any OpenAI-compatible client SDK to access models from multiple providers.
+AxonHub provides OpenAI-compatible interfaces for accessing multiple providers through OpenAI client SDKs. Available parameters and tools depend on the protocol, adapter and upstream capabilities.
 
 ## Key Benefits
 
 - **API Interoperability**: Use OpenAI Chat Completions API to call Anthropic, Gemini, and other supported models
 - **Zero Code Changes**: Continue using your existing OpenAI client SDK without modification
-- **Automatic Translation**: AxonHub automatically converts between API formats when needed
+- **Automatic Translation**: Conversion is enabled by default; channels can restrict client protocols and disable cross-protocol conversion
 - **Provider Flexibility**: Access any supported AI provider using the OpenAI API format
 
 ## Supported Endpoints
@@ -18,6 +18,8 @@ AxonHub provides full support for the OpenAI API specification, allowing you to 
 **Endpoints:**
 - `POST /v1/chat/completions` - Text generation
 - `GET /v1/models` - List available models
+
+Chat accepts only an omitted `n` or `n: 1`; other values are explicitly rejected. Requests with `stop` cannot convert to Responses, `logprobs` is not silently discarded on adapters without a mapping, and unsupported DeepSeek Chat `json_schema` requests are rejected. Administrators can inspect configured model/channel relationships in Protocol routes. See [channel policy and conversion boundaries](../guides/channel-management.md#client-protocol-access-and-conversion).
 
 **Example Request:**
 ```go

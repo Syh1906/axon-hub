@@ -113,6 +113,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             apiKeyStrategy
             apiKeyRoundRobinSwitchAfter
             quotaRoutingMode
+            protocolPolicy { allowedProtocols sameProtocolOnly }
             modelProtocols {
               model
               apiFormats

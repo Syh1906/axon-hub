@@ -2,13 +2,13 @@
 
 ## 概述
 
-AxonHub 完全支持 OpenAI API 规范，允许您使用任何 OpenAI 兼容的客户端 SDK 访问多个提供商的模型。
+AxonHub 提供 OpenAI 兼容接口，可通过 OpenAI 客户端 SDK 访问多个提供商的模型。可用参数和工具取决于具体协议、转换器及上游能力。
 
 ## 核心优势
 
 - **API 互操作性**：使用 OpenAI Chat Completions API 调用 Anthropic、Gemini 和其他支持的模型
 - **零代码变更**：继续使用现有的 OpenAI 客户端 SDK，无需修改
-- **自动转换**：AxonHub 在需要时自动在 API 格式之间进行转换
+- **自动转换**：默认在需要时转换 API 格式；渠道可限制客户端协议并关闭跨协议转换
 - **提供商灵活性**：使用 OpenAI API 格式访问任何支持的 AI 提供商
 
 ## 支持的端点
@@ -18,6 +18,8 @@ AxonHub 完全支持 OpenAI API 规范，允许您使用任何 OpenAI 兼容的�
 **端点：**
 - `POST /v1/chat/completions` - 文本生成
 - `GET /v1/models` - 列出可用模型
+
+Chat 的 `n` 仅支持省略或 `1`，其他值明确拒绝。带 `stop` 的请求不能转换到 Responses；`logprobs` 不会静默丢弃到未实现其映射的出口；DeepSeek Chat 不支持的 `json_schema` 会明确拒绝。管理员可在“协议路由”查看配置层面的模型与渠道关系，详见[渠道协议策略与转换边界](../guides/channel-management.md#允许的客户端协议与转换策略)。
 
 **示例请求：**
 ```go

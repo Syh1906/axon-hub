@@ -38,6 +38,7 @@ import { Route as AuthenticatedPermissionDemoIndexRouteImport } from './routes/_
 import { Route as AuthenticatedPluginsIndexRouteImport } from './routes/_authenticated/plugins/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedPromptProtectionRulesIndexRouteImport } from './routes/_authenticated/prompt-protection-rules/index'
+import { Route as AuthenticatedProtocolRoutesIndexRouteImport } from './routes/_authenticated/protocol-routes/index'
 import { Route as AuthenticatedRequestsRequestIdRouteImport } from './routes/_authenticated/requests/$requestId'
 import { Route as AuthenticatedRolesIndexRouteImport } from './routes/_authenticated/roles/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
@@ -222,6 +223,12 @@ const AuthenticatedPromptProtectionRulesIndexRoute =
   AuthenticatedPromptProtectionRulesIndexRouteImport.update({
     id: '/prompt-protection-rules/',
     path: '/prompt-protection-rules/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProtocolRoutesIndexRoute =
+  AuthenticatedProtocolRoutesIndexRouteImport.update({
+    id: '/protocol-routes/',
+    path: '/protocol-routes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedRequestsRequestIdRoute =
@@ -414,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/plugins/': typeof AuthenticatedPluginsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/prompt-protection-rules/': typeof AuthenticatedPromptProtectionRulesIndexRoute
+  '/protocol-routes/': typeof AuthenticatedProtocolRoutesIndexRoute
   '/roles/': typeof AuthenticatedRolesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/system/': typeof AuthenticatedSystemIndexRoute
@@ -469,6 +477,7 @@ export interface FileRoutesByTo {
   '/plugins': typeof AuthenticatedPluginsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/prompt-protection-rules': typeof AuthenticatedPromptProtectionRulesIndexRoute
+  '/protocol-routes': typeof AuthenticatedProtocolRoutesIndexRoute
   '/roles': typeof AuthenticatedRolesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/system': typeof AuthenticatedSystemIndexRoute
@@ -527,6 +536,7 @@ export interface FileRoutesById {
   '/_authenticated/plugins/': typeof AuthenticatedPluginsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/prompt-protection-rules/': typeof AuthenticatedPromptProtectionRulesIndexRoute
+  '/_authenticated/protocol-routes/': typeof AuthenticatedProtocolRoutesIndexRoute
   '/_authenticated/roles/': typeof AuthenticatedRolesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/system/': typeof AuthenticatedSystemIndexRoute
@@ -585,6 +595,7 @@ export interface FileRouteTypes {
     | '/plugins/'
     | '/projects/'
     | '/prompt-protection-rules/'
+    | '/protocol-routes/'
     | '/roles/'
     | '/settings/'
     | '/system/'
@@ -640,6 +651,7 @@ export interface FileRouteTypes {
     | '/plugins'
     | '/projects'
     | '/prompt-protection-rules'
+    | '/protocol-routes'
     | '/roles'
     | '/settings'
     | '/system'
@@ -697,6 +709,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plugins/'
     | '/_authenticated/projects/'
     | '/_authenticated/prompt-protection-rules/'
+    | '/_authenticated/protocol-routes/'
     | '/_authenticated/roles/'
     | '/_authenticated/settings/'
     | '/_authenticated/system/'
@@ -938,6 +951,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPromptProtectionRulesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/protocol-routes/': {
+      id: '/_authenticated/protocol-routes/'
+      path: '/protocol-routes'
+      fullPath: '/protocol-routes/'
+      preLoaderRoute: typeof AuthenticatedProtocolRoutesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/requests/$requestId': {
       id: '/_authenticated/requests/$requestId'
       path: '/requests/$requestId'
@@ -1167,6 +1187,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPluginsIndexRoute: typeof AuthenticatedPluginsIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedPromptProtectionRulesIndexRoute: typeof AuthenticatedPromptProtectionRulesIndexRoute
+  AuthenticatedProtocolRoutesIndexRoute: typeof AuthenticatedProtocolRoutesIndexRoute
   AuthenticatedRolesIndexRoute: typeof AuthenticatedRolesIndexRoute
   AuthenticatedSystemIndexRoute: typeof AuthenticatedSystemIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -1210,6 +1231,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedPromptProtectionRulesIndexRoute:
     AuthenticatedPromptProtectionRulesIndexRoute,
+  AuthenticatedProtocolRoutesIndexRoute: AuthenticatedProtocolRoutesIndexRoute,
   AuthenticatedRolesIndexRoute: AuthenticatedRolesIndexRoute,
   AuthenticatedSystemIndexRoute: AuthenticatedSystemIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,

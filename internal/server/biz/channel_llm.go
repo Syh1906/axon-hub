@@ -458,6 +458,11 @@ func (svc *ChannelService) buildNonDefaultEndpointOutbound(
 	}
 	switch ep.APIFormat {
 	case llm.APIFormatOpenAIChatCompletion.String():
+		if c.Type == channel.TypeDeepseek || c.Type == channel.TypeDeepseekAnthropic {
+			return deepseek.NewOutboundTransformerWithConfig(&deepseek.Config{
+				BaseURL: baseURL, EndpointPath: ep.Path, APIKeyProvider: apiKeyProvider(),
+			})
+		}
 		if c.Type == channel.TypeCline {
 			return cline.NewOutboundTransformerWithConfig(&cline.Config{
 				BaseURL:        baseURL,

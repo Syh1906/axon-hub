@@ -29,10 +29,7 @@ func filterResolvedCandidatesForRequest(
 		return candidate != nil && candidate.when != nil
 	})
 	if !hasConditionalCandidates {
-		candidates := aggregateChannelModelCandidates(resolvedCandidates)
-		candidates = populateAPIFormat(ctx, candidates, req)
-
-		return candidates
+		return aggregateChannelModelCandidates(ctx, req, resolvedCandidates)
 	}
 
 	promptTokens := estimatePromptTokens(req)
@@ -56,7 +53,7 @@ func filterResolvedCandidatesForRequest(
 		filtered = append(filtered, candidate)
 	}
 
-	candidates := aggregateChannelModelCandidates(filtered)
+	candidates := aggregateChannelModelCandidates(ctx, req, filtered)
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "evaluated conditional associations",
@@ -64,8 +61,6 @@ func filterResolvedCandidatesForRequest(
 			log.Int("matched_candidate_count", len(filtered)),
 		)
 	}
-
-	candidates = populateAPIFormat(ctx, candidates, req)
 
 	return candidates
 }
@@ -82,18 +77,17 @@ func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate
 		// protocol overrides to one model at a time; applying them to the whole
 		// slice would merge unrelated model overrides and select the wrong
 		// protocol for the first attempt.
-		baseEndpoints := c.Channel.ResolveEndpoints()
+		strict := explicitEndpointRequired || requiresChannelProtocolSelection(c.Channel, req)
 		if len(c.Models) > 0 {
 			selectedModels := make([]biz.ChannelModelEntry, 0, len(c.Models))
 			selectedFormats := make([]string, 0, len(c.Models))
 			for _, entry := range c.Models {
-				endpoints, forced := applyForcedAPIFormatsForRequest(ctx, c.Channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, baseEndpoints)
-				format := selectEndpointAPIFormat(endpoints, req, forced)
+				format, _ := selectChannelAPIFormat(ctx, c.Channel, []biz.ChannelModelEntry{entry}, req, req.Model)
 				// Explicit protocols have no generic fallback. A model whose forced protocol
 				// list cannot serve the requested protocol must not remain as the first retry
 				// entry, otherwise an empty candidate format falls back to the channel's
 				// primary (usually chat) outbound.
-				if explicitEndpointRequired && format == "" {
+				if strict && format == "" {
 					continue
 				}
 
@@ -105,18 +99,17 @@ func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate
 				continue
 			}
 
-			if explicitEndpointRequired {
+			if strict {
 				c.Models = selectedModels
 			}
 			c.modelAPIFormats = selectedFormats
 			c.APIFormat = selectedFormats[0]
 		} else {
 			c.modelAPIFormats = nil
-			endpoints, forced := applyForcedAPIFormatsForRequest(ctx, c.Channel, c.Models, req.Model, req.RequestType, baseEndpoints)
-			c.APIFormat = selectEndpointAPIFormat(endpoints, req, forced)
+			c.APIFormat, _ = selectChannelAPIFormat(ctx, c.Channel, c.Models, req, req.Model)
 		}
 
-		if explicitEndpointRequired && c.APIFormat == "" {
+		if strict && c.APIFormat == "" {
 			continue
 		}
 

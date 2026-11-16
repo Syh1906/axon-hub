@@ -1,0 +1,44 @@
+type ChannelProtocolPolicy {
+  allowedProtocols: [String!]!
+  sameProtocolOnly: Boolean!
+}
+input ChannelProtocolPolicyInput {
+  allowedProtocols: [String!]!
+  sameProtocolOnly: Boolean!
+}
+type ProtocolRouteSummary {
+  modelID: String!
+  name: String!
+  native: Int!
+  converted: Int!
+  conditional: Int!
+  excluded: Int!
+}
+type ProtocolRoutePage {
+  totalCount: Int!
+  items: [ProtocolRouteSummary!]!
+}
+type ProtocolRoute {
+  channelID: Int!
+  channelName: String!
+  actualModel: String!
+  apiFormat: String!
+  state: String!
+  reason: String!
+  condition: FilterCondition
+}
+type ProtocolRouteEvidence {
+  channelID: Int!
+  actualModel: String!
+  apiFormat: String!
+  lastSuccess: Time!
+}
+type ProtocolRouteDetail {
+  routes: [ProtocolRoute!]!
+  evidence: [ProtocolRouteEvidence!]!
+  evidenceReadable: Boolean!
+}
+extend type Query {
+  protocolRoutes(protocol: String!, search: String! = "", offset: Int! = 0, limit: Int! = 20): ProtocolRoutePage!
+  protocolRouteDetail(protocol: String!, modelID: String!): ProtocolRouteDetail!
+}

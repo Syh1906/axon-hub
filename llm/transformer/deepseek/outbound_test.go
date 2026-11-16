@@ -31,7 +31,7 @@ func TestOutboundTransformer_TransformRequest_ResponseFormat(t *testing.T) {
 		expectedJSONSchemaNil bool
 	}{
 		{
-			name: "json_schema converted to json_object",
+			name: "json_schema rejected without weakening constraints",
 			request: &llm.Request{
 				Model: "deepseek-chat",
 				Messages: []llm.Message{
@@ -94,6 +94,11 @@ func TestOutboundTransformer_TransformRequest_ResponseFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			got, err := transformer.TransformRequest(ctx, tt.request)
+			if tt.request.ResponseFormat.Type == "json_schema" {
+				require.ErrorContains(t, err, "json_schema")
+				require.Nil(t, got)
+				return
+			}
 
 			require.NoError(t, err)
 			assert.NotNil(t, got)

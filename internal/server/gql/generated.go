@@ -39,6 +39,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/backup"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/gc"
+	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/internal/server/plugin"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -722,6 +723,11 @@ type ComplexityRoot struct {
 		Frequency func(childComplexity int) int
 	}
 
+	ChannelProtocolPolicy struct {
+		AllowedProtocols func(childComplexity int) int
+		SameProtocolOnly func(childComplexity int) int
+	}
+
 	ChannelProviderQuotaSettings struct {
 		CommandCode func(childComplexity int) int
 		Ollama      func(childComplexity int) int
@@ -770,6 +776,7 @@ type ComplexityRoot struct {
 		PassThroughBody                 func(childComplexity int) int
 		PassThroughUserAgent            func(childComplexity int) int
 		PrimaryAPIFormat                func(childComplexity int) int
+		ProtocolPolicy                  func(childComplexity int) int
 		ProviderQuota                   func(childComplexity int) int
 		Proxy                           func(childComplexity int) int
 		QuotaRoutingMode                func(childComplexity int) int
@@ -2180,6 +2187,43 @@ type ComplexityRoot struct {
 		VariantCode func(childComplexity int) int
 	}
 
+	ProtocolRoute struct {
+		APIFormat   func(childComplexity int) int
+		ActualModel func(childComplexity int) int
+		ChannelID   func(childComplexity int) int
+		ChannelName func(childComplexity int) int
+		Condition   func(childComplexity int) int
+		Reason      func(childComplexity int) int
+		State       func(childComplexity int) int
+	}
+
+	ProtocolRouteDetail struct {
+		Evidence         func(childComplexity int) int
+		EvidenceReadable func(childComplexity int) int
+		Routes           func(childComplexity int) int
+	}
+
+	ProtocolRouteEvidence struct {
+		APIFormat   func(childComplexity int) int
+		ActualModel func(childComplexity int) int
+		ChannelID   func(childComplexity int) int
+		LastSuccess func(childComplexity int) int
+	}
+
+	ProtocolRoutePage struct {
+		Items      func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	ProtocolRouteSummary struct {
+		Conditional func(childComplexity int) int
+		Converted   func(childComplexity int) int
+		Excluded    func(childComplexity int) int
+		ModelID     func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Native      func(childComplexity int) int
+	}
+
 	ProviderQuotaCollectionProvider struct {
 		Enabled  func(childComplexity int) int
 		Provider func(childComplexity int) int
@@ -2311,6 +2355,8 @@ type ComplexityRoot struct {
 		Projects                        func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ProjectOrder, where *ent.ProjectWhereInput) int
 		PromptProtectionRules           func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.PromptProtectionRuleOrder, where *ent.PromptProtectionRuleWhereInput) int
 		Prompts                         func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.PromptOrder, where *ent.PromptWhereInput) int
+		ProtocolRouteDetail             func(childComplexity int, protocol string, modelID string) int
+		ProtocolRoutes                  func(childComplexity int, protocol string, search string, offset int, limit int) int
 		ProviderQuotaCollectionSettings func(childComplexity int) int
 		ProvidersCatalog                func(childComplexity int, filtered *bool) int
 		ProxyPresets                    func(childComplexity int) int
@@ -3769,6 +3815,8 @@ type QueryResolver interface {
 	Traces(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.TraceOrder, where *ent.TraceWhereInput) (*ent.TraceConnection, error)
 	UsageLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) (*ent.UsageLogConnection, error)
 	Users(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UserOrder, where *ent.UserWhereInput) (*ent.UserConnection, error)
+	ProtocolRoutes(ctx context.Context, protocol string, search string, offset int, limit int) (*ProtocolRoutePage, error)
+	ProtocolRouteDetail(ctx context.Context, protocol string, modelID string) (*ProtocolRouteDetail, error)
 	CleanupTask(ctx context.Context) (*gc.CleanupTask, error)
 	StorageOverview(ctx context.Context) (*gc.StorageOverview, error)
 	AllChannelSummarys(ctx context.Context, includeArchived *bool) ([]*ent.Channel, error)
@@ -6466,6 +6514,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ChannelProbeSetting.Frequency(childComplexity), true
 
+	case "ChannelProtocolPolicy.allowedProtocols":
+		if e.complexity.ChannelProtocolPolicy.AllowedProtocols == nil {
+			break
+		}
+
+		return e.complexity.ChannelProtocolPolicy.AllowedProtocols(childComplexity), true
+	case "ChannelProtocolPolicy.sameProtocolOnly":
+		if e.complexity.ChannelProtocolPolicy.SameProtocolOnly == nil {
+			break
+		}
+
+		return e.complexity.ChannelProtocolPolicy.SameProtocolOnly(childComplexity), true
+
 	case "ChannelProviderQuotaSettings.commandCode":
 		if e.complexity.ChannelProviderQuotaSettings.CommandCode == nil {
 			break
@@ -6680,6 +6741,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.PrimaryAPIFormat(childComplexity), true
+	case "ChannelSettings.protocolPolicy":
+		if e.complexity.ChannelSettings.ProtocolPolicy == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.ProtocolPolicy(childComplexity), true
 	case "ChannelSettings.providerQuota":
 		if e.complexity.ChannelSettings.ProviderQuota == nil {
 			break
@@ -13286,6 +13353,143 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PromptWriteCacheVariant.VariantCode(childComplexity), true
 
+	case "ProtocolRoute.apiFormat":
+		if e.complexity.ProtocolRoute.APIFormat == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.APIFormat(childComplexity), true
+	case "ProtocolRoute.actualModel":
+		if e.complexity.ProtocolRoute.ActualModel == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.ActualModel(childComplexity), true
+	case "ProtocolRoute.channelID":
+		if e.complexity.ProtocolRoute.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.ChannelID(childComplexity), true
+	case "ProtocolRoute.channelName":
+		if e.complexity.ProtocolRoute.ChannelName == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.ChannelName(childComplexity), true
+	case "ProtocolRoute.condition":
+		if e.complexity.ProtocolRoute.Condition == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.Condition(childComplexity), true
+	case "ProtocolRoute.reason":
+		if e.complexity.ProtocolRoute.Reason == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.Reason(childComplexity), true
+	case "ProtocolRoute.state":
+		if e.complexity.ProtocolRoute.State == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoute.State(childComplexity), true
+
+	case "ProtocolRouteDetail.evidence":
+		if e.complexity.ProtocolRouteDetail.Evidence == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteDetail.Evidence(childComplexity), true
+	case "ProtocolRouteDetail.evidenceReadable":
+		if e.complexity.ProtocolRouteDetail.EvidenceReadable == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteDetail.EvidenceReadable(childComplexity), true
+	case "ProtocolRouteDetail.routes":
+		if e.complexity.ProtocolRouteDetail.Routes == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteDetail.Routes(childComplexity), true
+
+	case "ProtocolRouteEvidence.apiFormat":
+		if e.complexity.ProtocolRouteEvidence.APIFormat == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteEvidence.APIFormat(childComplexity), true
+	case "ProtocolRouteEvidence.actualModel":
+		if e.complexity.ProtocolRouteEvidence.ActualModel == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteEvidence.ActualModel(childComplexity), true
+	case "ProtocolRouteEvidence.channelID":
+		if e.complexity.ProtocolRouteEvidence.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteEvidence.ChannelID(childComplexity), true
+	case "ProtocolRouteEvidence.lastSuccess":
+		if e.complexity.ProtocolRouteEvidence.LastSuccess == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteEvidence.LastSuccess(childComplexity), true
+
+	case "ProtocolRoutePage.items":
+		if e.complexity.ProtocolRoutePage.Items == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoutePage.Items(childComplexity), true
+	case "ProtocolRoutePage.totalCount":
+		if e.complexity.ProtocolRoutePage.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRoutePage.TotalCount(childComplexity), true
+
+	case "ProtocolRouteSummary.conditional":
+		if e.complexity.ProtocolRouteSummary.Conditional == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.Conditional(childComplexity), true
+	case "ProtocolRouteSummary.converted":
+		if e.complexity.ProtocolRouteSummary.Converted == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.Converted(childComplexity), true
+	case "ProtocolRouteSummary.excluded":
+		if e.complexity.ProtocolRouteSummary.Excluded == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.Excluded(childComplexity), true
+	case "ProtocolRouteSummary.modelID":
+		if e.complexity.ProtocolRouteSummary.ModelID == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.ModelID(childComplexity), true
+	case "ProtocolRouteSummary.name":
+		if e.complexity.ProtocolRouteSummary.Name == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.Name(childComplexity), true
+	case "ProtocolRouteSummary.native":
+		if e.complexity.ProtocolRouteSummary.Native == nil {
+			break
+		}
+
+		return e.complexity.ProtocolRouteSummary.Native(childComplexity), true
+
 	case "ProviderQuotaCollectionProvider.enabled":
 		if e.complexity.ProviderQuotaCollectionProvider.Enabled == nil {
 			break
@@ -14224,6 +14428,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Prompts(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.PromptOrder), args["where"].(*ent.PromptWhereInput)), true
+	case "Query.protocolRouteDetail":
+		if e.complexity.Query.ProtocolRouteDetail == nil {
+			break
+		}
+
+		args, err := ec.field_Query_protocolRouteDetail_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ProtocolRouteDetail(childComplexity, args["protocol"].(string), args["modelID"].(string)), true
+	case "Query.protocolRoutes":
+		if e.complexity.Query.ProtocolRoutes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_protocolRoutes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ProtocolRoutes(childComplexity, args["protocol"].(string), args["search"].(string), args["offset"].(int), args["limit"].(int)), true
 	case "Query.providerQuotaCollectionSettings":
 		if e.complexity.Query.ProviderQuotaCollectionSettings == nil {
 			break
@@ -19304,6 +19530,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelPrioritiesInput,
 		ec.unmarshalInputChannelPriorityInput,
 		ec.unmarshalInputChannelProbeWhereInput,
+		ec.unmarshalInputChannelProtocolPolicyInput,
 		ec.unmarshalInputChannelProviderQuotaSettingsInput,
 		ec.unmarshalInputChannelRateLimitInput,
 		ec.unmarshalInputChannelRegexAssociationInput,
@@ -19610,7 +19837,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
+//go:embed "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -19622,6 +19849,7 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "protocol_routes.graphql", Input: sourceData("protocol_routes.graphql"), BuiltIn: false},
 	{Name: "maintenance.graphql", Input: sourceData("maintenance.graphql"), BuiltIn: false},
 	{Name: "axonhub.graphql", Input: sourceData("axonhub.graphql"), BuiltIn: false},
 	{Name: "ent.graphql", Input: sourceData("ent.graphql"), BuiltIn: false},
@@ -23351,6 +23579,48 @@ func (ec *executionContext) field_Query_prompts_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["where"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_protocolRouteDetail_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "protocol", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["protocol"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "modelID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["modelID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_protocolRoutes_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "protocol", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["protocol"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "search", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["search"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg3
 	return args, nil
 }
 
@@ -32003,6 +32273,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "protocolPolicy":
+				return ec.fieldContext_ChannelSettings_protocolPolicy(ctx, field)
 			case "responsesServiceTierOverride":
 				return ec.fieldContext_ChannelSettings_responsesServiceTierOverride(ctx, field)
 			case "cacheWriteBilling":
@@ -37318,6 +37590,64 @@ func (ec *executionContext) fieldContext_ChannelProbeSetting_frequency(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _ChannelProtocolPolicy_allowedProtocols(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelProtocolPolicy) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelProtocolPolicy_allowedProtocols,
+		func(ctx context.Context) (any, error) {
+			return obj.AllowedProtocols, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelProtocolPolicy_allowedProtocols(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelProtocolPolicy",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelProtocolPolicy_sameProtocolOnly(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelProtocolPolicy) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelProtocolPolicy_sameProtocolOnly,
+		func(ctx context.Context) (any, error) {
+			return obj.SameProtocolOnly, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelProtocolPolicy_sameProtocolOnly(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelProtocolPolicy",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ChannelProviderQuotaSettings_commandCode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelProviderQuotaSettings) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -37611,6 +37941,41 @@ func (ec *executionContext) fieldContext_ChannelRequestAssociation_channelId(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_protocolPolicy(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_protocolPolicy,
+		func(ctx context.Context) (any, error) {
+			return obj.ProtocolPolicy, nil
+		},
+		nil,
+		ec.marshalOChannelProtocolPolicy2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelProtocolPolicy,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_protocolPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "allowedProtocols":
+				return ec.fieldContext_ChannelProtocolPolicy_allowedProtocols(ctx, field)
+			case "sameProtocolOnly":
+				return ec.fieldContext_ChannelProtocolPolicy_sameProtocolOnly(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelProtocolPolicy", field.Name)
 		},
 	}
 	return fc, nil
@@ -71840,6 +72205,698 @@ func (ec *executionContext) fieldContext_PromptWriteCacheVariant_pricing(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ProtocolRoute_channelID(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_channelName(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_channelName,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_channelName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_actualModel(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_actualModel,
+		func(ctx context.Context) (any, error) {
+			return obj.ActualModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_actualModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_apiFormat(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_apiFormat,
+		func(ctx context.Context) (any, error) {
+			return obj.APIFormat, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_apiFormat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_state(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_reason(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoute_condition(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRoute) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoute_condition,
+		func(ctx context.Context) (any, error) {
+			return obj.Condition, nil
+		},
+		nil,
+		ec.marshalOFilterCondition2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCondition,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoute_condition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "type":
+				return ec.fieldContext_FilterCondition_type(ctx, field)
+			case "logic":
+				return ec.fieldContext_FilterCondition_logic(ctx, field)
+			case "conditions":
+				return ec.fieldContext_FilterCondition_conditions(ctx, field)
+			case "field":
+				return ec.fieldContext_FilterCondition_field(ctx, field)
+			case "operator":
+				return ec.fieldContext_FilterCondition_operator(ctx, field)
+			case "value":
+				return ec.fieldContext_FilterCondition_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FilterCondition", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteDetail_routes(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteDetail_routes,
+		func(ctx context.Context) (any, error) {
+			return obj.Routes, nil
+		},
+		nil,
+		ec.marshalNProtocolRoute2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteDetail_routes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_ProtocolRoute_channelID(ctx, field)
+			case "channelName":
+				return ec.fieldContext_ProtocolRoute_channelName(ctx, field)
+			case "actualModel":
+				return ec.fieldContext_ProtocolRoute_actualModel(ctx, field)
+			case "apiFormat":
+				return ec.fieldContext_ProtocolRoute_apiFormat(ctx, field)
+			case "state":
+				return ec.fieldContext_ProtocolRoute_state(ctx, field)
+			case "reason":
+				return ec.fieldContext_ProtocolRoute_reason(ctx, field)
+			case "condition":
+				return ec.fieldContext_ProtocolRoute_condition(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProtocolRoute", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteDetail_evidence(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteDetail_evidence,
+		func(ctx context.Context) (any, error) {
+			return obj.Evidence, nil
+		},
+		nil,
+		ec.marshalNProtocolRouteEvidence2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteEvidenceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteDetail_evidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "channelID":
+				return ec.fieldContext_ProtocolRouteEvidence_channelID(ctx, field)
+			case "actualModel":
+				return ec.fieldContext_ProtocolRouteEvidence_actualModel(ctx, field)
+			case "apiFormat":
+				return ec.fieldContext_ProtocolRouteEvidence_apiFormat(ctx, field)
+			case "lastSuccess":
+				return ec.fieldContext_ProtocolRouteEvidence_lastSuccess(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProtocolRouteEvidence", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteDetail_evidenceReadable(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteDetail_evidenceReadable,
+		func(ctx context.Context) (any, error) {
+			return obj.EvidenceReadable, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteDetail_evidenceReadable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteEvidence_channelID(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteEvidence_channelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ChannelID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteEvidence_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteEvidence_actualModel(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteEvidence_actualModel,
+		func(ctx context.Context) (any, error) {
+			return obj.ActualModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteEvidence_actualModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteEvidence_apiFormat(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteEvidence_apiFormat,
+		func(ctx context.Context) (any, error) {
+			return obj.APIFormat, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteEvidence_apiFormat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteEvidence_lastSuccess(ctx context.Context, field graphql.CollectedField, obj *ProtocolRouteEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteEvidence_lastSuccess,
+		func(ctx context.Context) (any, error) {
+			return obj.LastSuccess, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteEvidence_lastSuccess(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoutePage_totalCount(ctx context.Context, field graphql.CollectedField, obj *ProtocolRoutePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoutePage_totalCount,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoutePage_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoutePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRoutePage_items(ctx context.Context, field graphql.CollectedField, obj *ProtocolRoutePage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRoutePage_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNProtocolRouteSummary2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteSummaryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRoutePage_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRoutePage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "modelID":
+				return ec.fieldContext_ProtocolRouteSummary_modelID(ctx, field)
+			case "name":
+				return ec.fieldContext_ProtocolRouteSummary_name(ctx, field)
+			case "native":
+				return ec.fieldContext_ProtocolRouteSummary_native(ctx, field)
+			case "converted":
+				return ec.fieldContext_ProtocolRouteSummary_converted(ctx, field)
+			case "conditional":
+				return ec.fieldContext_ProtocolRouteSummary_conditional(ctx, field)
+			case "excluded":
+				return ec.fieldContext_ProtocolRouteSummary_excluded(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProtocolRouteSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_modelID(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_modelID,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_modelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_name(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_native(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_native,
+		func(ctx context.Context) (any, error) {
+			return obj.Native, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_native(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_converted(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_converted,
+		func(ctx context.Context) (any, error) {
+			return obj.Converted, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_converted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_conditional(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_conditional,
+		func(ctx context.Context) (any, error) {
+			return obj.Conditional, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_conditional(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProtocolRouteSummary_excluded(ctx context.Context, field graphql.CollectedField, obj *orchestrator.ProtocolRouteSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ProtocolRouteSummary_excluded,
+		func(ctx context.Context) (any, error) {
+			return obj.Excluded, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ProtocolRouteSummary_excluded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProtocolRouteSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ProviderQuotaCollectionProvider_provider(ctx context.Context, field graphql.CollectedField, obj *biz.ProviderQuotaCollectionProvider) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -73668,6 +74725,102 @@ func (ec *executionContext) fieldContext_Query_users(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_users_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_protocolRoutes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_protocolRoutes,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ProtocolRoutes(ctx, fc.Args["protocol"].(string), fc.Args["search"].(string), fc.Args["offset"].(int), fc.Args["limit"].(int))
+		},
+		nil,
+		ec.marshalNProtocolRoutePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRoutePage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_protocolRoutes(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalCount":
+				return ec.fieldContext_ProtocolRoutePage_totalCount(ctx, field)
+			case "items":
+				return ec.fieldContext_ProtocolRoutePage_items(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProtocolRoutePage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_protocolRoutes_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_protocolRouteDetail(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_protocolRouteDetail,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ProtocolRouteDetail(ctx, fc.Args["protocol"].(string), fc.Args["modelID"].(string))
+		},
+		nil,
+		ec.marshalNProtocolRouteDetail2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteDetail,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_protocolRouteDetail(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "routes":
+				return ec.fieldContext_ProtocolRouteDetail_routes(ctx, field)
+			case "evidence":
+				return ec.fieldContext_ProtocolRouteDetail_evidence(ctx, field)
+			case "evidenceReadable":
+				return ec.fieldContext_ProtocolRouteDetail_evidenceReadable(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProtocolRouteDetail", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_protocolRouteDetail_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -110037,6 +111190,40 @@ func (ec *executionContext) unmarshalInputChannelProbeWhereInput(ctx context.Con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChannelProtocolPolicyInput(ctx context.Context, obj any) (objects.ChannelProtocolPolicy, error) {
+	var it objects.ChannelProtocolPolicy
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"allowedProtocols", "sameProtocolOnly"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "allowedProtocols":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedProtocols"))
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowedProtocols = data
+		case "sameProtocolOnly":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sameProtocolOnly"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SameProtocolOnly = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputChannelProviderQuotaSettingsInput(ctx context.Context, obj any) (objects.ChannelProviderQuotaSettings, error) {
 	var it objects.ChannelProviderQuotaSettings
 	asMap := map[string]any{}
@@ -110269,13 +111456,20 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"responsesServiceTierOverride", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "protocolPolicy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("protocolPolicy"))
+			data, err := ec.unmarshalOChannelProtocolPolicyInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelProtocolPolicy(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProtocolPolicy = data
 		case "responsesServiceTierOverride":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesServiceTierOverride"))
 			data, err := ec.unmarshalOResponsesServiceTierOverride2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx, v)
@@ -129261,13 +130455,20 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"responsesServiceTierOverride", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "protocolPolicy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("protocolPolicy"))
+			data, err := ec.unmarshalOChannelProtocolPolicyInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelProtocolPolicy(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProtocolPolicy = data
 		case "responsesServiceTierOverride":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesServiceTierOverride"))
 			data, err := ec.unmarshalOResponsesServiceTierOverride2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesServiceTierOverride(ctx, v)
@@ -141041,6 +142242,50 @@ func (ec *executionContext) _ChannelProbeSetting(ctx context.Context, sel ast.Se
 	return out
 }
 
+var channelProtocolPolicyImplementors = []string{"ChannelProtocolPolicy"}
+
+func (ec *executionContext) _ChannelProtocolPolicy(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelProtocolPolicy) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelProtocolPolicyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelProtocolPolicy")
+		case "allowedProtocols":
+			out.Values[i] = ec._ChannelProtocolPolicy_allowedProtocols(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sameProtocolOnly":
+			out.Values[i] = ec._ChannelProtocolPolicy_sameProtocolOnly(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var channelProviderQuotaSettingsImplementors = []string{"ChannelProviderQuotaSettings"}
 
 func (ec *executionContext) _ChannelProviderQuotaSettings(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelProviderQuotaSettings) graphql.Marshaler {
@@ -141217,6 +142462,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelSettings")
+		case "protocolPolicy":
+			out.Values[i] = ec._ChannelSettings_protocolPolicy(ctx, field, obj)
 		case "responsesServiceTierOverride":
 			out.Values[i] = ec._ChannelSettings_responsesServiceTierOverride(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -151989,6 +153236,283 @@ func (ec *executionContext) _PromptWriteCacheVariant(ctx context.Context, sel as
 	return out
 }
 
+var protocolRouteImplementors = []string{"ProtocolRoute"}
+
+func (ec *executionContext) _ProtocolRoute(ctx context.Context, sel ast.SelectionSet, obj *orchestrator.ProtocolRoute) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, protocolRouteImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProtocolRoute")
+		case "channelID":
+			out.Values[i] = ec._ProtocolRoute_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "channelName":
+			out.Values[i] = ec._ProtocolRoute_channelName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actualModel":
+			out.Values[i] = ec._ProtocolRoute_actualModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiFormat":
+			out.Values[i] = ec._ProtocolRoute_apiFormat(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._ProtocolRoute_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._ProtocolRoute_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "condition":
+			out.Values[i] = ec._ProtocolRoute_condition(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var protocolRouteDetailImplementors = []string{"ProtocolRouteDetail"}
+
+func (ec *executionContext) _ProtocolRouteDetail(ctx context.Context, sel ast.SelectionSet, obj *ProtocolRouteDetail) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, protocolRouteDetailImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProtocolRouteDetail")
+		case "routes":
+			out.Values[i] = ec._ProtocolRouteDetail_routes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "evidence":
+			out.Values[i] = ec._ProtocolRouteDetail_evidence(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "evidenceReadable":
+			out.Values[i] = ec._ProtocolRouteDetail_evidenceReadable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var protocolRouteEvidenceImplementors = []string{"ProtocolRouteEvidence"}
+
+func (ec *executionContext) _ProtocolRouteEvidence(ctx context.Context, sel ast.SelectionSet, obj *ProtocolRouteEvidence) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, protocolRouteEvidenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProtocolRouteEvidence")
+		case "channelID":
+			out.Values[i] = ec._ProtocolRouteEvidence_channelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actualModel":
+			out.Values[i] = ec._ProtocolRouteEvidence_actualModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiFormat":
+			out.Values[i] = ec._ProtocolRouteEvidence_apiFormat(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastSuccess":
+			out.Values[i] = ec._ProtocolRouteEvidence_lastSuccess(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var protocolRoutePageImplementors = []string{"ProtocolRoutePage"}
+
+func (ec *executionContext) _ProtocolRoutePage(ctx context.Context, sel ast.SelectionSet, obj *ProtocolRoutePage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, protocolRoutePageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProtocolRoutePage")
+		case "totalCount":
+			out.Values[i] = ec._ProtocolRoutePage_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "items":
+			out.Values[i] = ec._ProtocolRoutePage_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var protocolRouteSummaryImplementors = []string{"ProtocolRouteSummary"}
+
+func (ec *executionContext) _ProtocolRouteSummary(ctx context.Context, sel ast.SelectionSet, obj *orchestrator.ProtocolRouteSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, protocolRouteSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProtocolRouteSummary")
+		case "modelID":
+			out.Values[i] = ec._ProtocolRouteSummary_modelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ProtocolRouteSummary_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "native":
+			out.Values[i] = ec._ProtocolRouteSummary_native(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "converted":
+			out.Values[i] = ec._ProtocolRouteSummary_converted(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "conditional":
+			out.Values[i] = ec._ProtocolRouteSummary_conditional(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "excluded":
+			out.Values[i] = ec._ProtocolRouteSummary_excluded(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var providerQuotaCollectionProviderImplementors = []string{"ProviderQuotaCollectionProvider"}
 
 func (ec *executionContext) _ProviderQuotaCollectionProvider(ctx context.Context, sel ast.SelectionSet, obj *biz.ProviderQuotaCollectionProvider) graphql.Marshaler {
@@ -152854,6 +154378,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_users(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "protocolRoutes":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_protocolRoutes(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "protocolRouteDetail":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_protocolRouteDetail(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -172987,6 +174555,196 @@ func (ec *executionContext) unmarshalNPromptWriteCacheVariantInput2githubᚗcom�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNProtocolRoute2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteᚄ(ctx context.Context, sel ast.SelectionSet, v []*orchestrator.ProtocolRoute) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNProtocolRoute2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRoute(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProtocolRoute2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRoute(ctx context.Context, sel ast.SelectionSet, v *orchestrator.ProtocolRoute) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProtocolRoute(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProtocolRouteDetail2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteDetail(ctx context.Context, sel ast.SelectionSet, v ProtocolRouteDetail) graphql.Marshaler {
+	return ec._ProtocolRouteDetail(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNProtocolRouteDetail2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteDetail(ctx context.Context, sel ast.SelectionSet, v *ProtocolRouteDetail) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProtocolRouteDetail(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProtocolRouteEvidence2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteEvidenceᚄ(ctx context.Context, sel ast.SelectionSet, v []*ProtocolRouteEvidence) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNProtocolRouteEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteEvidence(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProtocolRouteEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRouteEvidence(ctx context.Context, sel ast.SelectionSet, v *ProtocolRouteEvidence) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProtocolRouteEvidence(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProtocolRoutePage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRoutePage(ctx context.Context, sel ast.SelectionSet, v ProtocolRoutePage) graphql.Marshaler {
+	return ec._ProtocolRoutePage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNProtocolRoutePage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐProtocolRoutePage(ctx context.Context, sel ast.SelectionSet, v *ProtocolRoutePage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProtocolRoutePage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProtocolRouteSummary2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteSummaryᚄ(ctx context.Context, sel ast.SelectionSet, v []*orchestrator.ProtocolRouteSummary) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNProtocolRouteSummary2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteSummary(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProtocolRouteSummary2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋorchestratorᚐProtocolRouteSummary(ctx context.Context, sel ast.SelectionSet, v *orchestrator.ProtocolRouteSummary) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProtocolRouteSummary(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNProviderQuotaCollectionProvider2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐProviderQuotaCollectionProviderᚄ(ctx context.Context, sel ast.SelectionSet, v []*biz.ProviderQuotaCollectionProvider) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -177699,6 +179457,21 @@ func (ec *executionContext) unmarshalOChannelProbeWhereInput2ᚖgithubᚗcomᚋl
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputChannelProbeWhereInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOChannelProtocolPolicy2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelProtocolPolicy(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelProtocolPolicy) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ChannelProtocolPolicy(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOChannelProtocolPolicyInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelProtocolPolicy(ctx context.Context, v any) (*objects.ChannelProtocolPolicy, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputChannelProtocolPolicyInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

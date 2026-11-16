@@ -304,7 +304,8 @@ type ChannelSettings struct {
 	// this channel. Each entry's apiFormats must reference api_formats the channel
 	// already has endpoints for. When set for a model, endpoint selection is
 	// restricted to those formats; otherwise all channel endpoints are eligible.
-	ModelProtocols []ModelProtocol `json:"modelProtocols,omitempty"`
+	ModelProtocols []ModelProtocol        `json:"modelProtocols,omitempty"`
+	ProtocolPolicy *ChannelProtocolPolicy `json:"protocolPolicy,omitempty"`
 
 	// APIKeyStrategy selects how an API key is chosen when a channel has multiple
 	// enabled keys. Nil defaults to APIKeyStrategySticky (trace affinity + random

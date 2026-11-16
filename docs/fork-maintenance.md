@@ -1540,6 +1540,14 @@ fork 改动，由用户决定。
 - 代码：`llm/transformer/openai/responses/{encrypted_arguments,agent_message_history,model,inbound,inbound_stream,outbound_convert,outbound_stream,aggregator,compact_inbound,request_extensions}.go`；`internal/server/orchestrator/{outbound,pass_through,responses_continuation_route,health_gate_outcome,health_gate_middleware,model_circuit_breaker,stream_terminal}.go`。
 - 验证与同步：新增合成协议夹具、普通／流式／历史回传、明文证据边界、compact／透传、单渠道一次调用与备用渠道回归；Responses 包测试及 orchestrator 定向测试通过，无 schema/data migration。同步上游时保留空列表语义与分片结束阶段标记，不能按密文前缀猜测明文或补空标记。详细命令及边界见[修复记录](../.agent/summary/agent-message-encryption-20261107.md)。
 
+### 渠道协议策略与协议路由总览（2026-11-17，待发布）
+
+- 渠道 `settings.protocolPolicy` 分离客户端协议白名单与“仅同协议”。缺省保留自动转换；Responses HTTP／WS 允许传输适配，专用图片／音频接口不受聊天策略影响。候选筛选、模型重试、健康门控重新选型及最终发送共用策略判断，不新增路由引擎或数据库迁移。
+- 管理页“协议路由”展示公开且启用的聊天模型、实际型号、同协议／转换／条件／排除渠道。要求系统级 `read_channels`，历史另需系统级 `read_requests`；不继承当前项目，不读取请求正文。统计按渠道去重，列表每页 20 条，明细按需加载，无后台轮询或供应商调用。历史证据与实时健康分开，详见[使用说明](zh/guides/channel-management.md#协议路由总览)。
+- 转换边界：Chat `n != 1` 明确拒绝，`stop`／`logprobs` 参与能力筛选；DeepSeek `json_schema` 不再降级为 JSON object，自定义 Chat 路径保留提供商思考适配；聊天请求排除非聊天出口。端点探测只有成功且符合协议的响应才报告支持。
+- 阶段独立复核修正：公开模型先按全类型解析优先级再筛聊天类型；成功证据用不可变发起时间，防止正文清理刷新 `UpdatedAt` 形成假验证；别名先筛条件／协议再按原顺序去重，未知条件影响协议时保留分支。Chat↔Responses 概率请求明确拒绝（含 include-only），原生 Responses HTTP／WS 继续保留原始概率正文和流事件，不增加概率转换实现或迁移。定向复现及验证见[阶段复审记录](../.agent/summary/protocol-routing-implementation-20261116/review.md)。
+- 同步上游时核对策略保存／回读、默认值、所有候选入口及最终发送、Responses 传输身份、条件三值判断、模型公开 ID 和精确／规则优先级，以及历史查询权限。生成的 GraphQL 与前端路由需同步。定向测试及隔离真实接口／浏览器验收记录见[实施记录（本地）](../.agent/summary/protocol-routing-implementation-20261116/implementation.md)；未验证真实供应商，未提交或部署。
+
 ### 协议原生字段与跨协议能力边界
 
 - 状态：2026-11-11 随 `v1.0.0-rc1-fork.3` 正式发布并完成双机基础部署验收。承接同日官方 API／LiteLLM、Bifrost、New API 调研，范围为已复现的字段、签名、终态和工具能力丢失，不新增协议入口；真实供应商完整兼容性未据此宣称通过。

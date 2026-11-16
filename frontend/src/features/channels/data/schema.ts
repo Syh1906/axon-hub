@@ -459,6 +459,7 @@ export type ChannelAddress = z.infer<typeof channelAddressSchema>;
 // Channel Settings
 export const responsesServiceTierOverrideSchema = z.enum(['INHERIT', 'STANDARD', 'FAST', 'ULTRAFAST']);
 export const channelSettingsSchema = z.object({
+  protocolPolicy: z.object({ allowedProtocols: z.array(z.string()), sameProtocolOnly: z.boolean() }).nullish(),
   responsesServiceTierOverride: responsesServiceTierOverrideSchema.optional(),
   upstreamAddresses: z.array(channelAddressSchema).optional(),
   addressFailover: z.boolean().optional(),

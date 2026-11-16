@@ -1,5 +1,6 @@
 # schema tells gqlgen where the GraphQL schema is located.
 schema:
+  - protocol_routes.graphql
   - maintenance.graphql
   # axonhub.graphql must be loaded before ent.graphql because it defines DisabledAPIKey
   # which is referenced by the disabled_api_keys field in Channel schema
@@ -93,6 +94,20 @@ converters:
 
 # This section declares type mapping between the GraphQL and Go type systems.
 models:
+  ChannelProtocolPolicy:
+    model: github.com/looplj/axonhub/internal/objects.ChannelProtocolPolicy
+  ChannelProtocolPolicyInput:
+    model: github.com/looplj/axonhub/internal/objects.ChannelProtocolPolicy
+  ProtocolRouteSummary:
+    model: github.com/looplj/axonhub/internal/server/orchestrator.ProtocolRouteSummary
+  ProtocolRoute:
+    model: github.com/looplj/axonhub/internal/server/orchestrator.ProtocolRoute
+  ProtocolRoutePage:
+    model: github.com/looplj/axonhub/internal/server/gql.ProtocolRoutePage
+  ProtocolRouteDetail:
+    model: github.com/looplj/axonhub/internal/server/gql.ProtocolRouteDetail
+  ProtocolRouteEvidence:
+    model: github.com/looplj/axonhub/internal/server/gql.ProtocolRouteEvidence
   RequestUsageSummary:
     model:
       - github.com/looplj/axonhub/internal/server/biz.RequestUsageSummary

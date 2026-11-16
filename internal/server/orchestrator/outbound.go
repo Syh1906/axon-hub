@@ -633,8 +633,7 @@ func (p *PersistentOutboundTransformer) refreshCandidateAPIFormat(
 	}
 
 	entry := candidate.Models[modelIndex]
-	endpoints, forced := applyForcedAPIFormats(ctx, candidate.Channel, []biz.ChannelModelEntry{entry}, requestModel, candidate.Channel.ResolveEndpoints())
-	candidate.APIFormat = selectEndpointAPIFormat(endpoints, req, forced)
+	candidate.APIFormat, _ = selectChannelAPIFormat(ctx, candidate.Channel, []biz.ChannelModelEntry{entry}, req, requestModel)
 }
 
 // APIFormat returns the API format of the transformer.
@@ -810,6 +809,9 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 		)
 	}
 	if err := transformer.ValidateRequestConversion(llmRequest, outboundFormat); err != nil {
+		return nil, err
+	}
+	if err := validateChannelProtocol(candidate.Channel, llmRequest, outboundFormat); err != nil {
 		return nil, err
 	}
 

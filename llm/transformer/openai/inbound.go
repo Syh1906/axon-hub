@@ -56,6 +56,9 @@ func (t *InboundTransformer) TransformRequest(
 	}
 
 	// Validate required fields
+	if oaiReq.N != nil && *oaiReq.N != 1 {
+		return nil, fmt.Errorf("%w: only n=1 is supported; multiple choices cannot be preserved by all gateway paths", transformer.ErrInvalidRequest)
+	}
 	if oaiReq.Model == "" {
 		return nil, fmt.Errorf("%w: model is required", transformer.ErrInvalidRequest)
 	}

@@ -117,6 +117,11 @@ func ValidateModelProtocols(settings *objects.ChannelSettings, channelType chann
 }
 
 func validateModelProtocols(settings *objects.ChannelSettings, source *ent.Channel) error {
+	if settings != nil {
+		if err := settings.ProtocolPolicy.Validate(); err != nil {
+			return err
+		}
+	}
 	if settings == nil || len(settings.ModelProtocols) == 0 {
 		return nil
 	}

@@ -420,6 +420,40 @@ func TestApplyPassThroughResponse_PreservesIdentityAndBackMapsModel(t *testing.T
 	require.JSONEq(t, `{"id":"provider-response","model":"client-model","status":"completed","vendor_unknown":{"keep":true}}`, string(result.Body))
 }
 
+func TestResponsesLogprobsPreservedWithinFamily(t *testing.T) {
+	for _, source := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
+		for _, target := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
+			t.Run(source.String()+"->"+target.String(), func(t *testing.T) {
+				channel := &biz.Channel{Channel: &ent.Channel{ID: 1, Name: "responses", Settings: &objects.ChannelSettings{PassThroughBody: lo.ToPtr(false)}}}
+				state := &PersistenceState{
+					CurrentCandidate:   &ChannelModelsCandidate{Channel: channel},
+					LlmRequest:         &llm.Request{APIFormat: source, RawRequest: &httpclient.Request{Body: []byte(`{"model":"client-model"}`)}},
+					RawProviderRequest: &httpclient.Request{APIFormat: target.String()},
+				}
+				outbound := &PersistentOutboundTransformer{state: state}
+				_, err := captureRawProviderResponse(outbound).OnOutboundRawResponse(t.Context(), &httpclient.Response{Body: []byte(`{"id":"r","model":"upstream","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"x","logprobs":[{"token":"x","logprob":-0.3}]}]}]}`)})
+				require.NoError(t, err)
+				response, err := applyPassThroughResponse(outbound).OnInboundRawResponse(t.Context(), &httpclient.Response{Body: []byte(`{}`)})
+				require.NoError(t, err)
+				require.Equal(t, "x", gjson.GetBytes(response.Body, "output.0.content.0.logprobs.0.token").String())
+				require.Equal(t, "client-model", gjson.GetBytes(response.Body, "model").String())
+				state.OriginalRequestStream = lo.ToPtr(true)
+				state.LlmRequest.Stream = lo.ToPtr(true)
+				event := &httpclient.StreamEvent{Data: []byte(`{"type":"response.output_text.delta","delta":"x","logprobs":[{"token":"x","logprob":-0.3}]}`)}
+				captured, err := captureRawProviderStream(outbound).OnOutboundRawStream(t.Context(), testHTTPStream([]*httpclient.StreamEvent{event}))
+				require.NoError(t, err)
+				stream, err := applyPassThroughStream(outbound).OnInboundRawStream(t.Context(), captured)
+				require.NoError(t, err)
+				defer stream.Close()
+				require.True(t, stream.Next())
+				require.Equal(t, "x", gjson.GetBytes(stream.Current().Data, "logprobs.0.token").String())
+				require.False(t, stream.Next())
+				require.NoError(t, stream.Err())
+			})
+		}
+	}
+}
+
 func TestApplyPassThroughResponse_CrossFormatBackMapsModel(t *testing.T) {
 	channel := &biz.Channel{Channel: &ent.Channel{
 		ID:       1,

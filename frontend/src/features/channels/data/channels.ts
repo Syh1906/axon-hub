@@ -94,7 +94,8 @@ const CHANNEL_FIELDS_FRAGMENT = `
         }
         primaryApiFormat
         maxSingleChannelRetries
-        modelProtocols {
+        protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
           model
           apiFormats
           enabled
@@ -365,7 +366,8 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           }
           primaryApiFormat
           maxSingleChannelRetries
-          modelProtocols {
+          protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
             model
             apiFormats
             enabled
@@ -619,7 +621,8 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           }
           primaryApiFormat
           maxSingleChannelRetries
-          modelProtocols {
+          protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
             model
             apiFormats
             enabled

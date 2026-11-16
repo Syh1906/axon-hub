@@ -209,6 +209,7 @@ enum ResponsesServiceTierOverride {
 }
 
 type ChannelSettings {
+  protocolPolicy: ChannelProtocolPolicy
   responsesServiceTierOverride: ResponsesServiceTierOverride!
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContext!]
@@ -314,6 +315,7 @@ input ModelMappingInput {
 }
 
 input ChannelSettingsInput {
+  protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContextInput!]
@@ -366,6 +368,7 @@ input ChannelModelContextInput {
 # values; nested objects replace the stored value as a whole. Use this
 # instead of updateChannel's settings input when only some settings change.
 input UpdateChannelSettingsInput {
+  protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int

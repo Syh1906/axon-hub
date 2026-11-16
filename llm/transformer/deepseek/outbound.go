@@ -19,6 +19,7 @@ import (
 
 type Config struct {
 	BaseURL        string              `json:"base_url,omitempty"`
+	EndpointPath   string              `json:"endpoint_path,omitempty"`
 	APIKeyProvider auth.APIKeyProvider `json:"-"`
 }
 
@@ -28,6 +29,7 @@ type OutboundTransformer struct {
 	BaseURL        string
 	APIKeyProvider auth.APIKeyProvider
 	completion     transformer.Outbound
+	chatURL        string
 }
 
 func NewOutboundTransformer(baseURL, apiKey string) (transformer.Outbound, error) {
@@ -45,6 +47,7 @@ func NewOutboundTransformerWithConfig(config *Config) (transformer.Outbound, err
 		BaseURL:        config.BaseURL,
 		APIKeyProvider: config.APIKeyProvider,
 		ReasoningField: openai.ReasoningFieldContent,
+		EndpointPath:   config.EndpointPath,
 	}
 
 	t, err := openai.NewOutboundTransformerWithConfig(oaiConfig)
@@ -53,6 +56,12 @@ func NewOutboundTransformerWithConfig(config *Config) (transformer.Outbound, err
 	}
 
 	baseURL := transformer.NormalizeBaseURL(config.BaseURL, "v1")
+	chatURL := baseURL + "/chat/completions"
+	if strings.HasSuffix(config.BaseURL, "##") {
+		chatURL = strings.TrimSuffix(config.BaseURL, "##")
+	} else if config.EndpointPath != "" {
+		chatURL = transformer.NormalizeBaseURL(config.BaseURL, "") + config.EndpointPath
+	}
 
 	completionT, err := openai.NewCompletionOutboundTransformer(&openai.Config{
 		BaseURL:        strings.TrimSuffix(baseURL, "/v1") + "/beta#",
@@ -67,6 +76,7 @@ func NewOutboundTransformerWithConfig(config *Config) (transformer.Outbound, err
 		APIKeyProvider: config.APIKeyProvider,
 		Outbound:       t,
 		completion:     completionT,
+		chatURL:        chatURL,
 	}, nil
 }
 
@@ -84,6 +94,9 @@ func (t *OutboundTransformer) TransformRequest(
 	ctx context.Context,
 	llmReq *llm.Request,
 ) (*httpclient.Request, error) {
+	if err := transformer.ValidateRequestConversion(llmReq, t.APIFormat()); err != nil {
+		return nil, err
+	}
 	//nolint:exhaustive // Checked.
 	switch llmReq.RequestType {
 	case llm.RequestTypeChat, "":
@@ -103,8 +116,7 @@ func (t *OutboundTransformer) TransformRequest(
 	oaiReq := openai.RequestFromLLM(ctx, llmReq, openai.ReasoningFieldContent)
 
 	if oaiReq.ResponseFormat != nil && oaiReq.ResponseFormat.Type == "json_schema" {
-		oaiReq.ResponseFormat.Type = "json_object"
-		oaiReq.ResponseFormat.JSONSchema = nil
+		return nil, fmt.Errorf("%w: %w: DeepSeek Chat does not support json_schema; refusing to discard the output constraint", transformer.ErrUnsupportedConversion, transformer.ErrInvalidRequest)
 	}
 
 	dsReq := Request{
@@ -147,7 +159,7 @@ func (t *OutboundTransformer) TransformRequest(
 		APIKey: apiKey,
 	}
 
-	url := t.BaseURL + "/chat/completions"
+	url := t.chatURL
 
 	return &httpclient.Request{
 		Method:    http.MethodPost,

@@ -519,7 +519,7 @@ func effectiveAssociationSourceCounts(systemSettings *biz.SystemModelSettings, m
 	return len(biz.DeveloperModelAssociations(systemSettings, m.Developer)), modelCount, developerInheritanceDisabled
 }
 
-func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCandidate) []*ChannelModelsCandidate {
+func aggregateChannelModelCandidates(ctx context.Context, req *llm.Request, resolvedCandidates []*resolvedAssociationCandidate) []*ChannelModelsCandidate {
 	type candidateKey struct {
 		channelID int
 		priority  int
@@ -538,11 +538,19 @@ func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCa
 		if resolved == nil || resolved.channel == nil {
 			continue
 		}
+		// Different aliases for the same actual model can force different
+		// protocols. Filter before deduplication so an unusable alias cannot
+		// consume the slot of a later usable one. Keep cached resolution intact.
+		selected := populateAPIFormat(ctx, []*ChannelModelsCandidate{{Channel: resolved.channel, Models: resolved.models}}, req)
+		if len(selected) == 0 {
+			continue
+		}
 
 		key := candidateKey{channelID: resolved.channel.ID, priority: resolved.priority}
 
-		modelsToAppend := make([]biz.ChannelModelEntry, 0, len(resolved.models))
-		for _, entry := range resolved.models {
+		modelsToAppend := make([]biz.ChannelModelEntry, 0, len(selected[0].Models))
+		formatsToAppend := make([]string, 0, len(selected[0].Models))
+		for modelIndex, entry := range selected[0].Models {
 			modelKey := channelModelKey{
 				channelID:   resolved.channel.ID,
 				actualModel: entry.ActualModel,
@@ -554,6 +562,7 @@ func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCa
 			seenChannelModels[modelKey] = struct{}{}
 
 			modelsToAppend = append(modelsToAppend, entry)
+			formatsToAppend = append(formatsToAppend, selected[0].modelAPIFormats[modelIndex])
 		}
 
 		if len(modelsToAppend) == 0 {
@@ -572,6 +581,8 @@ func aggregateChannelModelCandidates(resolvedCandidates []*resolvedAssociationCa
 		}
 
 		candidates[idx].Models = append(candidates[idx].Models, modelsToAppend...)
+		candidates[idx].modelAPIFormats = append(candidates[idx].modelAPIFormats, formatsToAppend...)
+		candidates[idx].APIFormat = candidates[idx].modelAPIFormats[0]
 	}
 
 	return candidates
@@ -1051,9 +1062,8 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 		return nil, fmt.Errorf("model %s not supported in channel %s", req.Model, channel.Name)
 	}
 
-	endpoints, forced := applyForcedAPIFormatsForRequest(ctx, channel, []biz.ChannelModelEntry{entry}, req.Model, req.RequestType, channel.ResolveEndpoints())
-	apiFormat := selectEndpointAPIFormat(endpoints, req, forced)
-	if apiFormat == "" && llm.HasConversionRequirements(req) {
+	apiFormat, _ := selectChannelAPIFormat(ctx, channel, []biz.ChannelModelEntry{entry}, req, req.Model)
+	if apiFormat == "" && (llm.HasConversionRequirements(req) || requiresChannelProtocolSelection(channel, req)) {
 		return nil, fmt.Errorf("channel %s has no endpoint that can preserve the requested tools or response controls", channel.Name)
 	}
 	if requiresExplicitEndpoint(req.RequestType) && apiFormat == "" {

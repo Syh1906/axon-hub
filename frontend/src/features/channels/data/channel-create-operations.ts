@@ -77,7 +77,8 @@ export const CREATE_CHANNEL_MUTATION = `
         }
         primaryApiFormat
         maxSingleChannelRetries
-        modelProtocols {
+        protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
           model
           apiFormats
           enabled
@@ -194,7 +195,8 @@ export const DUPLICATE_CHANNEL_MUTATION = `
         }
         primaryApiFormat
         maxSingleChannelRetries
-        modelProtocols {
+        protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
           model
           apiFormats
           enabled
@@ -311,7 +313,8 @@ export const BULK_CREATE_CHANNELS_MUTATION = `
         }
         primaryApiFormat
         maxSingleChannelRetries
-        modelProtocols {
+        protocolPolicy { allowedProtocols sameProtocolOnly }
+            modelProtocols {
           model
           apiFormats
           enabled

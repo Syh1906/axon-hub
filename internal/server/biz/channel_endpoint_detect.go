@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -35,13 +36,14 @@ const endpointDetectTimeout = 20 * time.Second
 // Detection outcome reasons. They are stable values consumed by the frontend
 // to explain why a protocol was or was not marked as supported.
 const (
-	endpointDetectReasonSupported   = "supported"
-	endpointDetectReasonNotFound    = "not_found"
-	endpointDetectReasonAuthError   = "auth_error"
-	endpointDetectReasonRateLimited = "rate_limited"
-	endpointDetectReasonServerError = "server_error"
-	endpointDetectReasonUnreachable = "unreachable"
-	endpointDetectReasonInvalid     = "invalid_request"
+	endpointDetectReasonSupported       = "supported"
+	endpointDetectReasonNotFound        = "not_found"
+	endpointDetectReasonAuthError       = "auth_error"
+	endpointDetectReasonRateLimited     = "rate_limited"
+	endpointDetectReasonServerError     = "server_error"
+	endpointDetectReasonUnreachable     = "unreachable"
+	endpointDetectReasonInvalid         = "invalid_request"
+	endpointDetectReasonInvalidResponse = "invalid_response"
 )
 
 // DetectChannelEndpointsInput is the input for automatic endpoint detection.
@@ -115,8 +117,7 @@ func (svc *ChannelService) DetectChannelEndpoints(
 }
 
 // detectChannelEndpoint probes a single api_format and classifies the result.
-// A route is considered supported unless the upstream clearly reports that the
-// path does not exist (404/405) or cannot be reached at all.
+// Only a successful response with the requested protocol's shape proves support.
 func (svc *ChannelService) detectChannelEndpoint(
 	ctx context.Context,
 	entity *ent.Channel,
@@ -165,9 +166,12 @@ func (svc *ChannelService) detectChannelEndpoint(
 
 	resp, err := ch.HTTPClient.Do(probeCtx, httpReq)
 	if err == nil {
-		result.Supported = true
 		result.StatusCode = resp.StatusCode
-		result.Reason = endpointDetectReasonSupported
+		result.Supported = resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices && validEndpointDetectResponse(apiFormat, resp.Body)
+		result.Reason = endpointDetectReasonInvalidResponse
+		if result.Supported {
+			result.Reason = endpointDetectReasonSupported
+		}
 
 		return result
 	}
@@ -190,18 +194,39 @@ func (svc *ChannelService) detectChannelEndpoint(
 	case httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden:
 		result.Reason = endpointDetectReasonAuthError
 	case httpErr.StatusCode == http.StatusTooManyRequests:
-		result.Supported = true
 		result.Reason = endpointDetectReasonRateLimited
 	case httpErr.StatusCode >= http.StatusInternalServerError:
 		result.Reason = endpointDetectReasonServerError
 	default:
-		// Any other client error (400/422/...) means the route exists and the
-		// upstream rejected the probe payload, so the protocol is available.
-		result.Supported = true
-		result.Reason = endpointDetectReasonSupported
+		result.Reason = endpointDetectReasonInvalid
 	}
 
 	return result
+}
+
+func validEndpointDetectResponse(format string, body []byte) bool {
+	var response struct {
+		Object  string            `json:"object"`
+		Type    string            `json:"type"`
+		Role    string            `json:"role"`
+		Status  string            `json:"status"`
+		Choices []json.RawMessage `json:"choices"`
+		Content []json.RawMessage `json:"content"`
+		Output  []json.RawMessage `json:"output"`
+	}
+	if json.Unmarshal(body, &response) != nil {
+		return false
+	}
+	switch llm.APIFormat(format) {
+	case llm.APIFormatOpenAIChatCompletion:
+		return response.Object == "chat.completion" && len(response.Choices) > 0
+	case llm.APIFormatOpenAIResponse:
+		return response.Object == "response" && response.Output != nil && (response.Status == "completed" || response.Status == "incomplete")
+	case llm.APIFormatAnthropicMessage:
+		return response.Type == "message" && response.Role == "assistant" && response.Content != nil
+	default:
+		return false
+	}
 }
 
 // buildEndpointDetectRequest builds a minimal, cheap probe request. The model is
