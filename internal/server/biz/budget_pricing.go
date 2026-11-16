@@ -12,6 +12,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/shopspring/decimal"
@@ -44,15 +45,22 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 		if len(raw.JSONBody) > 0 {
 			body = raw.JSONBody
 		}
-		var fields map[string]json.RawMessage
+		// Keep only the scalar controls; copying every field also copies large
+		// inline images merely to read an output limit.
+		var fields struct {
+			N                   json.RawMessage `json:"n"`
+			MaxTokens           json.RawMessage `json:"max_tokens"`
+			MaxOutputTokens     json.RawMessage `json:"max_output_tokens"`
+			MaxCompletionTokens json.RawMessage `json:"max_completion_tokens"`
+		}
 		if json.Unmarshal(body, &fields) == nil {
-			if value, ok := fields["n"]; ok && req.Image != nil {
-				if json.Unmarshal(value, &imageCount) != nil || imageCount <= 0 {
+			if len(fields.N) > 0 && req.Image != nil {
+				if json.Unmarshal(fields.N, &imageCount) != nil || imageCount <= 0 {
 					return 0, fmt.Errorf("invalid image output count")
 				}
 			}
-			for _, name := range []string{"max_tokens", "max_output_tokens", "max_completion_tokens"} {
-				if value, ok := fields[name]; ok {
+			for _, value := range []json.RawMessage{fields.MaxTokens, fields.MaxOutputTokens, fields.MaxCompletionTokens} {
+				if len(value) > 0 {
 					var limit int64
 					if json.Unmarshal(value, &limit) != nil || limit <= 0 {
 						return 0, fmt.Errorf("invalid output limit")
@@ -60,7 +68,15 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 					output = limit
 				}
 			}
-			promptTokens = max(promptTokens, int64((len(body)+2)/3))
+			textBytes := len(body)
+			imageTokens := int64(0)
+			if images, content := requestpayload.Inspect(body); images != nil {
+				textBytes -= content.ImageBytes
+				// Match the normalized request heuristic. Encoding size is not
+				// image token usage; actual provider usage still settles in full.
+				imageTokens = int64(images.Count) * 128
+			}
+			promptTokens = max(promptTokens, int64((textBytes+2)/3)+imageTokens)
 		}
 	}
 	if output < 0 {
@@ -119,7 +135,9 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	estimatedUsage.CompletionTokens = output
 	estimatedUsage.TotalTokens = promptTokens + output
 	total := decimal.Zero
-	splitInput := slices.ContainsFunc(effective, func(item objects.ModelPriceItem) bool { return item.ItemCode.IsModalityToken() })
+	splitInput := slices.ContainsFunc(effective, func(item objects.ModelPriceItem) bool {
+		return item.ItemCode.IsModalityToken() || item.ItemCode == objects.PriceItemCodePromptCachedToken || item.ItemCode == objects.PriceItemCodeWriteCachedTokens
+	})
 	inputEstimate := decimal.Zero
 	for _, item := range effective {
 		if req.Video != nil && item.Pricing.Mode != objects.PricingModeFlatFee {
@@ -159,7 +177,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			}
 			if splitInput && item.ItemCode != objects.PriceItemCodeCompletion &&
 				(pricing.Mode == objects.PricingModeTiered || pricing.Mode == objects.PricingModeVolume) && pricing.UsageTiered != nil {
-				// Until modalities are known, each subset can hit a different
+				// Until input/cache quantities are known, each subset can hit a different
 				// (including cheaper or dearer) tier. Reserve once at the largest
 				// reachable unit rate instead of applying the total to each tier.
 				maximum := decimal.Zero
@@ -180,19 +198,22 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			return subtotal.Mul(multiplier)
 		}
 		subtotal := estimateItem(resolved)
+		inputAlternative := item.ItemCode != objects.PriceItemCodeCompletion && resolved.Mode != objects.PricingModeFlatFee
 		if item.ItemCode == objects.PriceItemCodeWriteCachedTokens {
 			for _, variant := range []objects.PromptWriteCacheVariantCode{objects.PromptWriteCacheVariantCode5Min, objects.PromptWriteCacheVariantCode1Hour} {
 				variantPrice, priced := resolve(item, variant)
 				if !priced && quantity > 0 {
 					return 0, fmt.Errorf("the requested cache variant has no configured price")
 				}
+				// A fixed variant may be charged alongside uncached input.
+				inputAlternative = inputAlternative && variantPrice.Mode != objects.PricingModeFlatFee
 				value := estimateItem(variantPrice)
 				if value.GreaterThan(subtotal) {
 					subtotal = value
 				}
 			}
 		}
-		if splitInput && item.ItemCode != objects.PriceItemCodeCompletion && item.Pricing.Mode != objects.PricingModeFlatFee {
+		if inputAlternative {
 			// Only the total input estimate is known before dispatch. Its modality
 			// and cache alternatives are exclusive, so reserve the largest cost.
 			inputEstimate = decimal.Max(inputEstimate, subtotal)

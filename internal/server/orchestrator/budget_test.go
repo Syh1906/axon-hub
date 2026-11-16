@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,6 +77,35 @@ func TestBudgetPipelineRejectsBeforeTransportAndSettlesActualCost(t *testing.T) 
 	view, err := usage.BudgetService.View(ctx, key.ProjectID, "key", key.ID, "UTC")
 	require.NoError(t, err)
 	require.Equal(t, "0.60000000", view.Windows[0].Settled)
+	require.Equal(t, "0.00000000", view.Windows[0].Reserved)
+}
+
+func TestBudgetResponsesToolImagesReachTransport(t *testing.T) {
+	ctx, db, ch, requests, system, usage, key := setupBudgetRequest(t)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{
+		{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(2))}},
+		{ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(10))}},
+	}}
+	db.ChannelModelPrice.Update().SetPrice(price).ExecX(ctx)
+	usage.ChannelService.PreloadModelPricesForTest(ctx, ch)
+	outbound, err := openairesponses.NewOutboundTransformer(ch.BaseURL, "fixture-key")
+	require.NoError(t, err)
+	ch.Outbound = outbound
+	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": []string{"application/json"}},
+		Body: []byte(`{"id":"resp-images","object":"response","model":"gpt-4","status":"completed","output":[],"usage":{"input_tokens":2000,"output_tokens":20,"total_tokens":2020}}`)}}
+	processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch}, "gpt-4")}, Inbound: openairesponses.NewInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+	image := `{"type":"input_image","image_url":"data:image/jpeg;base64,` + strings.Repeat("A", 300000) + `"}`
+	body := []byte(`{"model":"gpt-4","max_output_tokens":1000,"input":[{"type":"function_call","call_id":"call-shot","name":"screenshot","arguments":"{}"},{"type":"function_call_output","call_id":"call-shot","output":[` + strings.TrimSuffix(strings.Repeat(image+",", 10), ",") + `]}]}`)
+	_, err = processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: body})
+	require.NoError(t, err)
+	require.True(t, executor.requestCalled)
+	charge := db.BudgetCharge.Query().OnlyX(ctx)
+	require.Equal(t, budgetcharge.StatusSettled, charge.Status)
+	require.EqualValues(t, 420000, *charge.Actual)
+	require.Less(t, charge.Estimate, int64(10000000))
+	view, err := usage.BudgetService.View(ctx, key.ProjectID, "key", key.ID, "UTC")
+	require.NoError(t, err)
+	require.Equal(t, "0.00420000", view.Windows[0].Settled)
 	require.Equal(t, "0.00000000", view.Windows[0].Reserved)
 }
 

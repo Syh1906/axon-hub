@@ -78,9 +78,11 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 		images.LargestInlineEncodedBytes = max(images.LargestInlineEncodedBytes, len(data))
 		// Signed native parts are opaque history; preserve the original
 		// encoding even when the decoded pixels would remain identical.
-		preserve := part.Get("thoughtSignature").Exists() || part.Get("thought_signature").Exists()
-		if visit != nil && !preserve {
-			visit(imagePart{value: value, mime: mime, prefix: prefix, data: data})
+		if visit != nil {
+			preserve := part.Get("thoughtSignature").Exists() || part.Get("thought_signature").Exists()
+			if !preserve {
+				visit(imagePart{value: value, mime: mime, prefix: prefix, data: data})
+			}
 		}
 	}
 	var parts func(gjson.Result, bool)
@@ -103,17 +105,20 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 		}
 	}
 	item = func(part gjson.Result, tool bool) {
-		switch part.Get("type").String() {
+		// Index each object's fields once. Repeated Get calls for absent fields
+		// otherwise rescan the same multi-megabyte inline image or tool output.
+		fields := part.Map()
+		switch fields["type"].String() {
 		case "input_image":
-			countImage(part, part.Get("image_url"), "", tool, false)
+			countImage(part, fields["image_url"], "", tool, false)
 			return
 		case "image_url":
-			countImage(part, part.Get("image_url.url"), "", tool, false)
+			countImage(part, fields["image_url"].Get("url"), "", tool, false)
 			return
 		case "image":
-			source := part.Get("source")
-			if source.Get("type").String() == "base64" {
-				countImage(part, source.Get("data"), source.Get("media_type").String(), tool, true)
+			source := fields["source"].Map()
+			if source["type"].String() == "base64" {
+				countImage(part, source["data"], source["media_type"].String(), tool, true)
 			} else {
 				countImage(part, gjson.Result{}, "", tool, false)
 			}
@@ -122,21 +127,21 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 			content.FileBytes += len(part.Raw)
 			return
 		case "input_text", "output_text", "text":
-			text(part.Get("text"), tool)
+			text(fields["text"], tool)
 			return
 		case "function_call_output", "custom_tool_call_output":
-			parts(part.Get("output"), true)
+			parts(fields["output"], true)
 			return
 		case "tool_result":
-			parts(part.Get("content"), true)
+			parts(fields["content"], true)
 			return
 		case "reasoning", "compaction", "compaction_summary":
-			content.EncryptedBytes += len(part.Get("encrypted_content").Raw)
+			content.EncryptedBytes += len(fields["encrypted_content"].Raw)
 			return
 		case "image_generation_call":
 			// Generated results may carry signatures/identity; count without rewriting.
 			content.ImageBytes += len(part.Raw)
-			if result := part.Get("result"); result.Type == gjson.String && result.String() != "" {
+			if result := fields["result"]; result.Type == gjson.String && result.String() != "" {
 				images.Count++
 				images.ToolCount++
 				images.InlineCount++
@@ -146,45 +151,47 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 			return
 		}
 		for _, field := range []string{"inlineData", "inline_data"} {
-			if inline := part.Get(field); inline.Exists() {
-				mime := inline.Get("mimeType").String()
+			if inline := fields[field]; inline.Exists() {
+				data := inline.Map()
+				mime := data["mimeType"].String()
 				if mime == "" {
-					mime = inline.Get("mime_type").String()
+					mime = data["mime_type"].String()
 				}
 				if strings.HasPrefix(mime, "image/") {
-					countImage(part, inline.Get("data"), mime, tool, true)
+					countImage(part, data["data"], mime, tool, true)
 				} else {
 					content.FileBytes += len(part.Raw)
 				}
 				return
 			}
 		}
-		if part.Get("fileData").Exists() || part.Get("file_data").Exists() {
+		if fields["fileData"].Exists() || fields["file_data"].Exists() {
 			content.FileBytes += len(part.Raw)
 			return
 		}
-		if value := part.Get("text"); value.Exists() {
+		if value := fields["text"]; value.Exists() {
 			text(value, tool)
 		}
-		parts(part.Get("content"), tool || part.Get("role").String() == "tool")
-		parts(part.Get("parts"), tool)
+		parts(fields["content"], tool || fields["role"].String() == "tool")
+		parts(fields["parts"], tool)
 	}
+	fields := root.Map()
 	for _, field := range []string{"input", "messages"} {
-		parts(root.Get(field), false)
+		parts(fields[field], false)
 	}
-	geminiParts := func(payload gjson.Result) {
-		parts(payload.Get("contents"), false)
-		item(payload.Get("systemInstruction"), false)
-		item(payload.Get("system_instruction"), false)
+	geminiParts := func(payload map[string]gjson.Result) {
+		parts(payload["contents"], false)
+		item(payload["systemInstruction"], false)
+		item(payload["system_instruction"], false)
 	}
-	geminiParts(root)
+	geminiParts(fields)
 	// Antigravity wraps the Gemini payload in a protocol-defined envelope.
 	// Do not recurse into arbitrary request objects in tool arguments or text.
-	if root.Get("requestType").String() == "agent" && root.Get("userAgent").String() == "antigravity" {
-		geminiParts(root.Get("request"))
+	if fields["requestType"].String() == "agent" && fields["userAgent"].String() == "antigravity" {
+		geminiParts(fields["request"].Map())
 	}
-	parts(root.Get("system"), false)
-	text(root.Get("instructions"), false)
+	parts(fields["system"], false)
+	text(fields["instructions"], false)
 	content.OtherBytes = len(body) - content.ImageBytes - content.TextBytes - content.ToolTextBytes - content.FileBytes - content.EncryptedBytes
 	return images, content
 }
