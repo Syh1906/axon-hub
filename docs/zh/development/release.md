@@ -1,5 +1,9 @@
 # 独立维护、同步上游与发版
 
+2026-11-17：当前正式版及云悠／泉哥运行版本为 [v1.0.0-rc1-fork.7](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.7)，源码 `6a2788f5ca84c8c9b15035dd169221808e71190f`。[精简发布 43927183251](https://github.com/Syh1906/axon-hub/actions/runs/43927183251)及同提交 Test／Build／Lint／Govulncheck 全部通过，仅双架构镜像与 release.json。两机完成统计新表／字段升级，内外健康、页面资源、配置保持检查通过；重建加健康等待分别 6.690／10.264 秒。泉哥切换窗口影响云悠的 3 条转发请求，窗口后同渠道恢复成功，不宣称零中断。
+
+本轮临时配置副本及部署进程已清理，未创建数据库备份；旧正式 fork.6 镜像暂留。固定摘要、CI、迁移与自然流量证据见 [Fork 维护台账](../../fork-maintenance.md)和[本轮记录（本地）](../../../.agent/summary/release-rc1-fork7-20261117.md)。以下段落保留历史状态，不代表当前版本。
+
 2026-11-15：当前正式版及云悠／泉哥运行版本均为 [v1.0.0-rc1-fork.6](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.6)，源码 `269412f52dd18ac31ef113f9018752c251316329`。[精简发布 43639889595](https://github.com/Syh1906/axon-hub/actions/runs/43639889595)与同提交 Test／Build／Lint／Govulncheck 全部通过；`prerelease=false`、`publishBinaries=false`，仅双架构镜像及 `release.json`，无新增迁移或必填配置。两台依次更新、基础验收及短时自然流量观察通过，应用重启数 0，数据库和既有配置保持。
 
 云悠／泉哥重建与健康等待分别 6.797／7.511 秒；观察约 477／264 秒时分别 37／52 条自然请求完成，没有失败请求，另有取消和处理中请求。实际观察到自动试扩容及无收益回收，尚不能证明长期性能改善或原慢请求问题全部消除。两机旧临时快照镜像及云端三个镜像包版本／三个附件已[精确退役](https://github.com/Syh1906/axon-hub/actions/runs/43641274709)，保留 fork.5 正式回退镜像。临时配置副本和部署工具已清理。源码、摘要与详细边界见 [Fork 维护台账](../../fork-maintenance.md)及[本轮部署记录（本地）](../../../.agent/summary/release-rc1-fork6-20261115.md)。以下保留历史记录，不代表当前运行版本。
