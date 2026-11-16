@@ -70,7 +70,9 @@ func TestModelPriceFallbackFeedsRequestAndKeyUsage(t *testing.T) {
 	require.Equal(t, "0.66000000", settled.String())
 	quote, err := service.BudgetService.Estimate(ctx, &ent.RequestExecution{CostSnapshot: &restored}, &llm.Request{}, nil, 1000000)
 	require.NoError(t, err)
-	require.Equal(t, "0.80000000", quote.String(), "the matched model's output limit is available for budget estimation")
+	// Reserve the 1M input once at max(2, 0.2), plus the model's 100K output
+	// limit at 10, then apply 0.25: (2 + 1) * 0.25 = 0.75.
+	require.Equal(t, "0.75000000", quote.String(), "model output limit and mutually exclusive input/cache pricing feed the estimate")
 
 	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	req := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "gpt-6-astra")

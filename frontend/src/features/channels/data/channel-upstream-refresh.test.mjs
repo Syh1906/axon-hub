@@ -234,6 +234,7 @@ test('the actual refresh hook reads new keys for manual work and reuses snapshot
     '@/hooks/use-error-handler': { useErrorHandler: () => ({ handleError() {} }) },
     './schema': { channelUpstreamStateSchema: z.unknown() },
     './channel-upstream-refresh': upstreamRefresh,
+    './channel-usage': { refreshChannelTodayUsage: async () => { assert.fail('key-specific and silent refreshes must not refresh usage'); } },
     '@/gql/graphql': { graphqlRequest: async (query, variables) => {
       if (query.includes('query ChannelUpstreamStates')) {
         calls.push('read');

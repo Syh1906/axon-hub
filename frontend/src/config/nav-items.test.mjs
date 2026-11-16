@@ -72,6 +72,7 @@ test('flattened nav urls keep the full set of sidebar routes', () => {
       '/project/users',
       '/projects',
       '/prompt-protection-rules',
+      '/protocol-routes',
       '/roles',
       '/system',
       '/system/integrations',

@@ -233,7 +233,7 @@ test('ZenMux quota schema accepts all channel variants without row grouping', ()
 
 test('channel proxy connection reuse setting is submitted, echoed, and localized', () => {
   const schema = read('features/channels/data/schema.ts');
-  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-query-fields.ts');
+  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-query-fields.ts') + read('features/channels/data/channel-create-operations.ts');
   const proxyDialog = read('features/channels/components/channels-proxy-dialog.tsx');
 
   assert.match(

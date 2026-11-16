@@ -141,7 +141,7 @@ test('serialize strips schedule fields that do not belong to the selected action
 });
 
 test('channel and retry-policy GraphQL selections load the new auto-disable fields', () => {
-  const channelsData = read('features/channels/data/channels.ts');
+  const channelsData = read('features/channels/data/channels.ts') + read('features/channels/data/channel-create-operations.ts');
   const systemData = read('features/system/data/system.ts');
   const retrySettings = read('features/system/components/retry-settings.tsx');
   const availabilityDialog = read('features/channels/components/channels-availability-dialog.tsx');
