@@ -146,6 +146,10 @@ func (t *OutboundTransformer) TransformRequest(
 		}
 	}
 
+	if llmReq.RequestType == llm.RequestTypeTokenCount {
+		return t.transformTokenCountRequest(ctx, llmReq)
+	}
+
 	// Get API key from provider (Vertex/ClaudeCode use OAuth, not API keys)
 	var apiKey string
 	if t.config.APIKeyProvider != nil {
@@ -379,6 +383,10 @@ func (t *OutboundTransformer) TransformResponse(
 	// Check for empty response body
 	if len(httpResp.Body) == 0 {
 		return nil, fmt.Errorf("response body is empty")
+	}
+
+	if httpResp.Request != nil && httpResp.Request.RequestType == string(llm.RequestTypeTokenCount) {
+		return transformTokenCountResponse(httpResp)
 	}
 
 	var anthropicResp Message

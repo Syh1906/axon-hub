@@ -198,3 +198,15 @@ func TestChannelProtocolChatExcludesNonChatEndpoints(t *testing.T) {
 		require.Equal(t, llm.APIFormatAnthropicMessage.String(), format)
 	}
 }
+
+func TestTokenCountRequiresNativeAllowedChannel(t *testing.T) {
+	ch := &biz.Channel{Channel: &ent.Channel{Type: channel.TypeAnthropic, Settings: &objects.ChannelSettings{ProtocolPolicy: &objects.ChannelProtocolPolicy{SameProtocolOnly: true}}}}
+	req := &llm.Request{Model: "m", RequestType: llm.RequestTypeTokenCount, APIFormat: llm.APIFormatAnthropicTokenCount}
+	require.NoError(t, validateChannelProtocol(ch, req, llm.APIFormatAnthropicMessage))
+	require.NoError(t, validateChannelProtocol(ch, req, llm.APIFormatAnthropicTokenCount))
+	require.Error(t, validateChannelProtocol(ch, req, llm.APIFormatOpenAIChatCompletion))
+	require.True(t, requiresExplicitEndpoint(req.RequestType))
+	require.Empty(t, selectEndpointAPIFormat([]objects.ChannelEndpoint{{APIFormat: llm.APIFormatOpenAIChatCompletion.String()}}, req, false))
+	ch.Settings.ProtocolPolicy.AllowedProtocols = []string{llm.APIFormatOpenAIChatCompletion.String()}
+	require.Error(t, validateChannelProtocol(ch, req, llm.APIFormatAnthropicMessage))
+}

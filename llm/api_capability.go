@@ -19,6 +19,8 @@ func CapableAPIFormats(requestType RequestType) map[string]struct{} {
 		return map[string]struct{}{
 			APIFormatOpenAIResponseCompact.String(): {},
 		}
+	case RequestTypeTokenCount:
+		return map[string]struct{}{APIFormatAnthropicMessage.String(): {}}
 	case RequestTypeCompletion:
 		return map[string]struct{}{
 			APIFormatOpenAICompletion.String(): {},

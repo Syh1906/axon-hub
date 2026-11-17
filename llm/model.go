@@ -281,6 +281,9 @@ type Request struct {
 	// Decisions is the raw OpenAI /v1/decisions request payload.
 	Decisions *DecisionsRequest `json:"decisions_request,omitempty"`
 
+	// TokenCount preserves the native counting request separately from generation.
+	TokenCount *TokenCountRequest `json:"token_count_request,omitempty"`
+
 	// RawRequest is the raw request from the client.
 	RawRequest *httpclient.Request `json:"raw_request,omitempty"`
 
@@ -800,6 +803,9 @@ type Response struct {
 
 	// Decisions is the raw OpenAI /v1/decisions response payload.
 	Decisions *DecisionsResponse `json:"decisions_response,omitempty"`
+
+	// TokenCount is an estimate, never billable generation usage.
+	TokenCount *TokenCountResponse `json:"token_count_response,omitempty"`
 
 	// RequestType is the outbound request type from the llm service.
 	// e.g. the request from the chat/completions endpoint is in the chat type.

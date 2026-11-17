@@ -107,6 +107,8 @@ func (e *Executor) transformRequest(request *httpclient.Request) (*httpclient.Re
 		Body:                request.Body,
 		Auth:                nil, // Remove auth as it's handled by the HTTP client
 		RequestID:           request.RequestID,
+		RequestType:         request.RequestType,
+		APIFormat:           request.APIFormat,
 		OnFirstResponseByte: request.OnFirstResponseByte,
 		OnResponseHeaders:   request.OnResponseHeaders,
 		OnTransportSelected: request.OnTransportSelected,

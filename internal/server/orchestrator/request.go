@@ -105,6 +105,10 @@ func (m *persistRequestMiddleware) OnOutboundLlmResponse(ctx context.Context, ll
 			}
 		}
 	}()
+	// Counting is not inference usage; still release the shared admission attempt.
+	if llmResp.RequestType == llm.RequestTypeTokenCount {
+		return llmResp, state.settleTokenCountBudget(persistCtx)
+	}
 	if state.ResponseTerminalError != nil && usageToLog == nil {
 		return llmResp, nil
 	}

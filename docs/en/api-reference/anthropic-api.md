@@ -30,6 +30,27 @@ the assistant content and container ID to continue a paused server-tool turn;
 the gateway does not automatically issue another model request. Support for a
 requested option on a particular model/provider remains subject to its API.
 
+## Token counting
+
+`POST /v1/messages/count_tokens` and `POST /anthropic/v1/messages/count_tokens`
+accept native counting fields such as `model`, `messages`, `system`, and `tools`,
+and return `{"input_tokens":27}`. Generation-only `max_tokens` is not required;
+streaming is rejected.
+
+Caller API keys retain project, model, channel protocol, and concurrency checks.
+Only native Anthropic Messages channels are eligible. The gateway calls their
+`/messages/count_tokens` endpoint without converting to generation or returning
+a fixed/local estimate. Providers without native counting return an error;
+Bedrock Messages is currently unsupported. Vertex uses its dedicated counting
+endpoint; real provider credentials and service behavior require separate validation.
+
+The submitted native payload is preserved except for model alias mapping, and
+Anthropic beta headers are forwarded. Project generation prompts are not injected.
+The count estimates this submitted payload, not necessarily a later generation
+request after prompt injection or tool processing. Request diagnostics are retained,
+but no inference usage log or debit is created. Missing, negative, or invalid
+`input_tokens` is an upstream error.
+
 ## Key Benefits
 
 - **API Interoperability**: Use Anthropic Messages API to call OpenAI, Gemini, and other supported models

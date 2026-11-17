@@ -23,6 +23,22 @@ beta 标头，并保持原生工具的选择名称；普通函数继续沿用既
 `pause_turn` 表示服务端工具需要继续，客户端应将助手内容和容器编号带回；网关不会自动
 增加模型调用。具体模型／供应商是否支持所请求的选项仍由其 API 决定。
 
+## Token 计数
+
+`POST /v1/messages/count_tokens` 与 `POST /anthropic/v1/messages/count_tokens`
+接收原生 `model`、`messages`、`system`、`tools` 等计数输入，返回
+`{"input_tokens":27}`。不要求生成接口的 `max_tokens`，不接受流式请求。
+
+使用调用方 API Key，沿用项目、模型、渠道协议权限及并发限制。仅选择支持原生
+Anthropic Messages 协议的渠道，并请求其 `/messages/count_tokens`；不转换为模型生成，
+不返回固定数字或本地粗估值。不支持原生计数的供应商会返回错误，Bedrock Messages
+出口暂不支持此接口。Vertex 使用其专用计数地址；供应商凭据与真实服务仍需独立验证。
+
+计数保留提交的原生负载，只做模型别名映射，并传递 Anthropic beta 标头。不注入项目
+生成提示词；结果表示此次提交内容的供应商估算，不保证等于随后经过提示词注入、工具
+处理后的生成请求用量。计数保留请求诊断记录，但不创建消费日志、不结算生成费用。
+上游缺失、负数或非法 `input_tokens` 视为错误。
+
 ## 核心优势
 
 - **API 互操作性**：使用 Anthropic Messages API 调用 OpenAI、Gemini 和其他支持的模型

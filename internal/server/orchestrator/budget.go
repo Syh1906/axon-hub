@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
@@ -31,7 +33,11 @@ func (m *budgetAdmission) OnOutboundRawRequest(ctx context.Context, raw *httpcli
 		return nil, &biz.BudgetDenied{Reason: "accounting_unavailable"}
 	}
 	service := s.UsageLogService.BudgetService
-	estimate, quoteErr := service.Estimate(ctx, s.RequestExec, s.LlmRequest, raw, estimatePromptTokens(s.LlmRequest))
+	var estimate budget.Amount
+	var quoteErr error
+	if s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
+		estimate, quoteErr = service.Estimate(ctx, s.RequestExec, s.LlmRequest, raw, estimatePromptTokens(s.LlmRequest))
+	}
 	err := service.Reserve(ctx, s.APIKey.ProjectID, s.APIKey.ID, s.Request.ID, s.RequestExec.ID, estimate, quoteErr)
 	if err == nil {
 		s.BudgetAttempt = service.KeepAttemptAlive(ctx, s.RequestExec.ID)
@@ -67,6 +73,19 @@ func (p *PersistentOutboundTransformer) endBudgetAttempt(ctx context.Context) er
 		p.state.BudgetStop = fmt.Errorf("%w: %w", httpclient.ErrRequestMayHaveExecuted, &biz.BudgetDenied{Reason: "accounting_unavailable"})
 		return p.state.BudgetStop
 	}
+	if err == nil {
+		err = p.state.settleTokenCountBudget(persistCtx)
+	}
+
+	return err
+}
+
+func (s *PersistenceState) settleTokenCountBudget(ctx context.Context) error {
+	if s.APIKey == nil || s.RequestExec == nil || s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
+		return nil
+	}
+	zero := budget.Amount(0)
+	_, _, err := s.UsageLogService.BudgetService.Settle(ctx, s.RequestExec.ID, &zero, nil)
 	return err
 }
 

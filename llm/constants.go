@@ -10,6 +10,8 @@ const (
 	RequestTypeVideo      RequestType = "video"
 	RequestTypeCompact    RequestType = "compact"
 	RequestTypeCompletion RequestType = "completion"
+	// RequestTypeTokenCount queries input size without generating or billing tokens.
+	RequestTypeTokenCount RequestType = "token_count"
 
 	// RequestTypeSpeech is the text-to-speech (TTS) request type, maps to /v1/audio/speech.
 	RequestTypeSpeech RequestType = "speech"
@@ -38,6 +40,7 @@ func AllRequestTypes() []RequestType {
 		RequestTypeVideo,
 		RequestTypeCompact,
 		RequestTypeCompletion,
+		RequestTypeTokenCount,
 		RequestTypeSpeech,
 		RequestTypeTranscription,
 		RequestTypeTranslation,
@@ -75,6 +78,7 @@ const (
 	APIFormatOpenAIAlphaSearch   APIFormat = "openai/alpha_search"
 	APIFormatGeminiContents      APIFormat = "gemini/contents"
 	APIFormatAnthropicMessage    APIFormat = "anthropic/messages"
+	APIFormatAnthropicTokenCount APIFormat = "anthropic/count_tokens"
 	APIFormatAiSDKText           APIFormat = "aisdk/text"
 	APIFormatAiSDKDataStream     APIFormat = "aisdk/datastream"
 
@@ -119,6 +123,7 @@ func AllAPIFormats() []APIFormat {
 		APIFormatOpenAIAlphaSearch,
 		APIFormatGeminiContents,
 		APIFormatAnthropicMessage,
+		APIFormatAnthropicTokenCount,
 		APIFormatAiSDKText,
 		APIFormatAiSDKDataStream,
 		APIFormatGeminiEmbedding,

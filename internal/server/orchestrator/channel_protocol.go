@@ -21,11 +21,21 @@ func channelProtocolPolicy(ch *biz.Channel) *objects.ChannelProtocolPolicy {
 // channelProtocolRejection is shared by selection, inspection and final dispatch.
 // Policy applies to chat requests; dedicated image/audio/etc APIs are unaffected.
 func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIFormat) string {
-	if req == nil || (req.RequestType != "" && req.RequestType != llm.RequestTypeChat) {
+	if req == nil || (req.RequestType != "" && req.RequestType != llm.RequestTypeChat && req.RequestType != llm.RequestTypeTokenCount) {
 		return ""
 	}
 	policy := channelProtocolPolicy(ch)
-	if !policy.AllowsClient(req.APIFormat) {
+	clientFormat := req.APIFormat
+	if req.RequestType == llm.RequestTypeTokenCount {
+		clientFormat = llm.APIFormatAnthropicMessage
+		if target == llm.APIFormatAnthropicTokenCount {
+			target = llm.APIFormatAnthropicMessage
+		}
+		if target != "" && target != llm.APIFormatAnthropicMessage {
+			return "no_compatible_endpoint"
+		}
+	}
+	if !policy.AllowsClient(clientFormat) {
 		return "client_protocol_denied"
 	}
 	if target == "" {
@@ -36,7 +46,7 @@ func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIF
 			return "no_compatible_endpoint"
 		}
 	}
-	if !policy.AllowsConversion(req.APIFormat, target) {
+	if !policy.AllowsConversion(clientFormat, target) {
 		return "conversion_disabled"
 	}
 	if ch != nil && ch.Channel != nil && (ch.Type == channel.TypeDeepseek || ch.Type == channel.TypeDeepseekAnthropic) && target == llm.APIFormatOpenAIChatCompletion && req.ResponseFormat != nil && req.ResponseFormat.Type == "json_schema" {
@@ -46,7 +56,7 @@ func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIF
 }
 
 func requiresChannelProtocolSelection(ch *biz.Channel, req *llm.Request) bool {
-	if req.RequestType == llm.RequestTypeChat {
+	if req.RequestType == llm.RequestTypeChat || req.RequestType == llm.RequestTypeTokenCount {
 		return true
 	}
 	policy := channelProtocolPolicy(ch)

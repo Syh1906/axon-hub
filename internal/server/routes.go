@@ -277,6 +277,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 
 		// OpenAI-compatible Anthropic endpoint
 		openaiGroup.POST("/messages", handlers.Anthropic.CreateMessage)
+		openaiGroup.POST("/messages/count_tokens", handlers.Anthropic.CountTokens)
 
 		// Compatible with OpenAI API
 		openaiGroup.POST("/rerank", handlers.Jina.Rerank)
@@ -299,6 +300,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 	{
 		anthropicGroup := apiGroup.Group("/anthropic/v1")
 		anthropicGroup.POST("/messages", handlers.Anthropic.CreateMessage)
+		anthropicGroup.POST("/messages/count_tokens", handlers.Anthropic.CountTokens)
 		anthropicGroup.GET("/models", handlers.Anthropic.ListModels)
 	}
 

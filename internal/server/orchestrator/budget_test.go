@@ -28,6 +28,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
+	"github.com/looplj/axonhub/llm/transformer/anthropic"
 	"github.com/looplj/axonhub/llm/transformer/openai"
 	openairesponses "github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
@@ -289,4 +290,34 @@ func TestBudgetNonStreamingResponsesOutcomeAndBilling(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestTokenCountBudgetClosesAtZero(t *testing.T) {
+	ctx, db, ch, requests, system, usage, key := setupBudgetRequest(t)
+	out, err := anthropic.NewOutboundTransformer(ch.BaseURL, ch.Credentials.APIKey)
+	require.NoError(t, err)
+	ch.Outbound = out
+	executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Body: []byte(`{"input_tokens":27}`), Headers: http.Header{"Content-Type": {"application/json"}}, Request: &httpclient.Request{RequestType: string(llm.RequestTypeTokenCount)}}}
+	processor := &ChatCompletionOrchestrator{channelSelector: &staticChannelSelector{candidates: channelsToTestCandidates([]*biz.Channel{ch}, "gpt-4")}, Inbound: anthropic.NewTokenCountInboundTransformer(), RequestService: requests, ChannelService: usage.ChannelService, PromptProvider: &stubPromptProvider{}, SystemService: system, UsageLogService: usage, PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager()}
+	for range 2 {
+		_, err = processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hello"}]}`)})
+		require.NoError(t, err)
+	}
+	require.Equal(t, int64(2), executor.requestCalls.Load())
+	require.Equal(t, 0, db.UsageLog.Query().CountX(ctx))
+	executor.response.Body = []byte(`{"input_tokens":null}`)
+	_, err = processor.Process(ctx, &httpclient.Request{Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hello"}]}`)})
+	require.Error(t, err)
+	charges := db.BudgetCharge.Query().AllX(ctx)
+	require.Len(t, charges, 3)
+	for _, charge := range charges {
+		require.Equal(t, budgetcharge.StatusSettled, charge.Status)
+		require.Zero(t, charge.Estimate)
+		require.NotNil(t, charge.Actual)
+		require.Zero(t, *charge.Actual)
+	}
+	view, err := usage.BudgetService.View(ctx, key.ProjectID, "key", key.ID, "UTC")
+	require.NoError(t, err)
+	require.Equal(t, "0.00000000", view.Windows[0].Settled)
+	require.Equal(t, "0.00000000", view.Windows[0].Reserved)
 }

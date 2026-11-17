@@ -485,3 +485,12 @@ func TestAudioSafeResponseBody(t *testing.T) {
 		require.Equal(t, raw, body)
 	})
 }
+
+func TestTokenCountDoesNotCreateUsageLog(t *testing.T) {
+	// A missing UsageLogService deliberately fails if inference accounting is invoked.
+	middleware := &persistRequestMiddleware{inbound: &PersistentInboundTransformer{state: &PersistenceState{Request: &ent.Request{ID: 1}}}}
+	response := &llm.Response{RequestType: llm.RequestTypeTokenCount, TokenCount: &llm.TokenCountResponse{InputTokens: 123}}
+	result, err := middleware.OnOutboundLlmResponse(t.Context(), response)
+	require.NoError(t, err)
+	require.Same(t, response, result)
+}

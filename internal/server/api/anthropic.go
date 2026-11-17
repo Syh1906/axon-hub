@@ -44,6 +44,7 @@ type AnthropicHandlers struct {
 	ModelService           *biz.ModelService
 	SystemService          *biz.SystemService
 	ChatCompletionHandlers *ChatCompletionHandlers
+	TokenCountHandlers     *ChatCompletionHandlers
 }
 
 func NewAnthropicHandlers(params AnthropicHandlersParams) *AnthropicHandlers {
@@ -75,11 +76,18 @@ func NewAnthropicHandlers(params AnthropicHandlersParams) *AnthropicHandlers {
 		SystemService:  params.SystemService,
 	}
 	handlers.ChatCompletionHandlers.reviewer = newSafeguardsClassifier(handlers.ChatCompletionHandlers.ChatCompletionOrchestrator)
+	countOrchestrator := *handlers.ChatCompletionHandlers.ChatCompletionOrchestrator
+	countOrchestrator.Inbound = anthropic.NewTokenCountInboundTransformer()
+	handlers.TokenCountHandlers = &ChatCompletionHandlers{ChatCompletionOrchestrator: &countOrchestrator}
 	return handlers
 }
 
 func (handlers *AnthropicHandlers) CreateMessage(c *gin.Context) {
 	handlers.ChatCompletionHandlers.ChatCompletion(c)
+}
+
+func (handlers *AnthropicHandlers) CountTokens(c *gin.Context) {
+	handlers.TokenCountHandlers.ChatCompletion(c)
 }
 
 type AnthropicModel struct {

@@ -38,6 +38,10 @@ func injectPrompts(inbound *PersistentInboundTransformer) pipeline.Middleware {
 	matcher := biz.NewPromptMatcher()
 
 	return pipeline.OnLlmRequest("inject-prompts", func(ctx context.Context, llmRequest *llm.Request) (*llm.Request, error) {
+		// Count exactly the submitted native payload; do not inject generation prompts.
+		if llmRequest.RequestType == llm.RequestTypeTokenCount {
+			return llmRequest, nil
+		}
 		projectID, ok := contexts.GetProjectID(ctx)
 		if !ok {
 			log.Debug(ctx, "no project ID in context, skipping prompt injection")

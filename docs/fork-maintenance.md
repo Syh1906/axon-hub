@@ -6,6 +6,17 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
+## 原生 Anthropic Token 计数（2026-11-18，未发布）
+
+- 新增 `/v1/messages/count_tokens` 和 `/anthropic/v1/messages/count_tokens`。复用调用方身份、模型与渠道选择、并发和请求记录；仅使用原生 Anthropic 计数，不回退为生成请求。
+- 计数结果与生成用量分开，不写消费日志或费用结算；保留原生文本、图片、工具和 beta 参数。模型别名仍生效，计数不注入项目生成提示词。
+- 代码归属：`llm/transformer/anthropic/token_count.go`、LLM 请求类型/能力表、`internal/server/api/anthropic.go`、路由与 orchestrator 的候选和计费分支；Vertex 执行器保留计数请求类型。无数据库迁移。
+- 接口契约见[中文参考](zh/api-reference/anthropic-api.md#token-计数)与[英文参考](en/api-reference/anthropic-api.md#token-counting)。Bedrock 暂不支持；真实供应商与 OAuth/Vertex 凭据验收不属于本次合成测试结论。
+- 定向验证通过：原生文本/图片/工具负载、模型映射、非法计数、Vertex 地址转换、两条 HTTP 入口的有效/无效 Key 与模型权限、协议白名单、计数无消费日志、成功/错误时预算零费用收尾；既有生成预算扣费回归通过。使用 Go 测试和合成上游，无真实模型调用。
+- 验证命令（仓库根目录）：`go test -p=1 ./internal/server/orchestrator ./internal/server -run 'TestTokenCount|TestChannelProtocol|TestBudgetPipelineRejectsBeforeTransportAndSettlesActualCost'`；LLM 模块：`go -C llm test -p=1 ./transformer/anthropic ./vertex -run TestTokenCount`。测试进程使用 `GOMAXPROCS=2`，未执行 lint、构建或部署命令。
+- 维护检查：上游新增计数入口时核对原生字段保真、协议白名单、缺失计数报错、计数不收费及预算占用释放。当前分支未发布、未部署。
+
+
 ## 浏览器语言默认与翻译刷新修复（2026-11-17，已随 rc1-fork.9 发布并更新双机）
 
 - 修复请求列表耗时单元格在翻译器替换文字节点后，由空耗时更新到首字／总耗时触发的 `insertBefore` 异常。两行动态文字分别作为完整字符串更新，不覆盖浏览器 DOM 方法、不全站禁用翻译。通用错误页提供中英文说明和重新加载，不再一律显示 500。
