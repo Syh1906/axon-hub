@@ -1,5 +1,10 @@
 # 独立维护、同步上游与发版
 
+2026-11-17：当前正式版及云悠／泉哥运行版本为 [v1.0.0-rc1-fork.8](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.8)，源码 `100e0c3b75bfabeef92793eea1507bccf233c6a9`。[精简发布 44018089295](https://github.com/Syh1906/axon-hub/actions/runs/44018089295)及同提交 Test／Build／Lint／Govulncheck 全部通过，仅双架构镜像与 release.json。性能优化无新增结构或迁移；两机健康、版本、页面资源、配置及结构保持验证通过，重建及健康等待分别 6.577／7.345 秒。
+
+泉哥切换窗口出现 3 条跨机转发请求的重试告警，随后同渠道恢复成功；另有上游 `invalid_encrypted_content` 失败尚未定因。浏览器无登录态，生产统计页面延迟未验，不把基本健康视为性能已验收。未创建数据库备份，两机本轮配置副本及临时进程已清理，旧 fork.7 镜像暂留。详见 [Fork 维护台账](../../fork-maintenance.md)和[本轮记录（本地）](../../../.agent/summary/release-rc1-fork8-20261117.md)。以下保留历史状态。
+
+
 2026-11-17：当前正式版及云悠／泉哥运行版本为 [v1.0.0-rc1-fork.7](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.7)，源码 `6a2788f5ca84c8c9b15035dd169221808e71190f`。[精简发布 43927183251](https://github.com/Syh1906/axon-hub/actions/runs/43927183251)及同提交 Test／Build／Lint／Govulncheck 全部通过，仅双架构镜像与 release.json。两机完成统计新表／字段升级，内外健康、页面资源、配置保持检查通过；重建加健康等待分别 6.690／10.264 秒。泉哥切换窗口影响云悠的 3 条转发请求，窗口后同渠道恢复成功，不宣称零中断。
 
 本轮临时配置副本及部署进程已清理，未创建数据库备份；旧正式 fork.6 镜像暂留。固定摘要、CI、迁移与自然流量证据见 [Fork 维护台账](../../fork-maintenance.md)和[本轮记录（本地）](../../../.agent/summary/release-rc1-fork7-20261117.md)。以下段落保留历史状态，不代表当前版本。
