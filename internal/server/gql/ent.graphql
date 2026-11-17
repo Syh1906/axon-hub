@@ -2079,7 +2079,7 @@ input CreateUserInput {
   email: String!
   status: UserStatus
   """
-  用户偏好语言
+  用户偏好语言：auto 跟随浏览器，en 英文，zh 中文
   """
   preferLanguage: String
   password: String!
@@ -6788,7 +6788,7 @@ input UpdateUserInput {
   email: String
   status: UserStatus
   """
-  用户偏好语言
+  用户偏好语言：auto 跟随浏览器，en 英文，zh 中文
   """
   preferLanguage: String
   password: String
@@ -7340,7 +7340,7 @@ type User implements Node {
   email: String!
   status: UserStatus!
   """
-  用户偏好语言
+  用户偏好语言：auto 跟随浏览器，en 英文，zh 中文
   """
   preferLanguage: String!
   firstName: String!

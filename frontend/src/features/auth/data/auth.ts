@@ -13,6 +13,7 @@ import { authApi } from '@/lib/api-client';
 import i18n from '@/lib/i18n';
 import { isProjectSelectionValid } from '@/lib/project-membership';
 import { consumeOIDCRedirect, getSafeRedirect, storeOIDCRedirect } from '@/lib/auth-redirect';
+import { applyLanguagePreference, restoreBrowserLanguagePreference } from '@/stores/languageStore';
 
 export interface SignInInput {
   email: string;
@@ -40,8 +41,6 @@ export function useMe(enabled = true) {
   // Update auth store when data changes
   useEffect(() => {
     if (query.data) {
-      const userLanguage = query.data.preferLanguage || 'en';
-
       // The selected project is persisted per browser, but only valid for the
       // user it belonged to. Drop any project the current user is not a member
       // of so a stale selection from a previous account is never sent to the
@@ -52,11 +51,6 @@ export function useMe(enabled = true) {
       }
 
       setUser(query.data);
-
-      // Initialize i18n with user's preferred language
-      if (userLanguage !== i18n.language) {
-        i18n.changeLanguage(userLanguage);
-      }
     }
   }, [query.data, setUser]);
 
@@ -75,8 +69,6 @@ export function useSignIn(redirect?: string) {
       // Store token in localStorage
       setTokenToStorage(data.token);
 
-      const userLanguage = data.user.preferLanguage || 'en';
-
       // Update auth store
       setAccessToken(data.token);
       setUser(data.user);
@@ -86,10 +78,7 @@ export function useSignIn(redirect?: string) {
       // against this user's memberships (useMe clears it when stale), so a
       // returning user keeps their last selection while another account's
       // stale selection can never leak into a request.
-      // Initialize i18n with user's preferred language
-      if (userLanguage !== i18n.language) {
-        i18n.changeLanguage(userLanguage);
-      }
+      void applyLanguagePreference(data.user.preferLanguage);
 
       toast.success(i18n.t('common.success.signedIn'));
 
@@ -125,6 +114,7 @@ export function useSignOut() {
 
     // Clear auth store
     reset();
+    void restoreBrowserLanguagePreference();
 
     queryClient.clear();
 
@@ -181,8 +171,6 @@ export function useOIDCExchange() {
       // Store token in localStorage
       setTokenToStorage(data.token);
 
-      const userLanguage = data.user.preferLanguage || 'en';
-
       // Update auth store
       setAccessToken(data.token);
       setUser(data.user);
@@ -192,10 +180,7 @@ export function useOIDCExchange() {
       // against this user's memberships (useMe clears it when stale), so a
       // returning user keeps their last selection while another account's
       // stale selection can never leak into a request.
-      // Initialize i18n with user's preferred language
-      if (userLanguage !== i18n.language) {
-        i18n.changeLanguage(userLanguage);
-      }
+      void applyLanguagePreference(data.user.preferLanguage);
 
       toast.success(i18n.t('common.success.signedIn'));
 

@@ -17,7 +17,7 @@ export const Route = createFileRoute('/self-usage')({
 function UsageRoute() {
   const { groupRef, projectId } = Route.useSearch();
   return groupRef !== undefined && projectId ? (
-    <AuthGuard>
+    <AuthGuard languageSource='browser'>
       <ManagedGroupPage key={`${projectId}:${groupRef}`} groupRef={groupRef} project={projectId} />
     </AuthGuard>
   ) : (

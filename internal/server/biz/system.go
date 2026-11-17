@@ -757,7 +757,7 @@ func (s *SystemService) Initialize(ctx context.Context, params *InitializeSystem
 	// Create owner user.
 	preferLanguage := params.PreferLanguage
 	if preferLanguage == "" {
-		preferLanguage = "en" // Default to English if not specified
+		preferLanguage = "auto"
 	}
 	user, err := tx.User.Create().
 		SetEmail(params.OwnerEmail).

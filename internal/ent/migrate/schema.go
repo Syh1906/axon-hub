@@ -1512,7 +1512,7 @@ var (
 		{Name: "deleted_at", Type: field.TypeInt, Default: 0},
 		{Name: "email", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"activated", "deactivated"}, Default: "activated"},
-		{Name: "prefer_language", Type: field.TypeString, Default: "en"},
+		{Name: "prefer_language", Type: field.TypeString, Default: "auto"},
 		{Name: "password", Type: field.TypeString},
 		{Name: "first_name", Type: field.TypeString, Default: ""},
 		{Name: "last_name", Type: field.TypeString, Default: ""},

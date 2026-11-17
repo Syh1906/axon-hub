@@ -24,10 +24,16 @@ async function setup(t) {
   };
   const pushed = [];
   const navigated = [];
+  const languages = [];
+  const events = [];
   const auth = { setUser() {}, setAccessToken() {} };
   globalThis.authRedirectTest = {
     ...redirects,
     useMutation: (options) => options,
+    useQuery: (options) => options,
+    useEffect() {},
+    ME_QUERY: 'fixture me',
+    graphqlRequest: async () => { events.push('response'); return { me: { preferLanguage: 'auto' } }; },
     useAuthStore: (select) => select({ auth }),
     useRouter: () => ({ history: { push: (path) => pushed.push(path) }, navigate: (options) => navigated.push(options) }),
     setTokenToStorage() {},
@@ -35,6 +41,7 @@ async function setup(t) {
     i18n: { language: 'en', t: (key) => key },
     getHiddenNavItems: () => [],
     pickFallbackNavUrl: (path) => path,
+    applyLanguagePreference: (preference) => { languages.push(preference); events.push('language'); return Promise.resolve(); },
   };
   t.after(() => {
     globalThis.window = previousWindow;
@@ -42,7 +49,7 @@ async function setup(t) {
   });
   const bindings = `const { ${Object.keys(globalThis.authRedirectTest).join(', ')} } = globalThis.authRedirectTest;\n`;
   const module = await import(`data:text/javascript;base64,${Buffer.from(bindings + code).toString('base64')}#${moduleIndex++}`);
-  return { ...module, pushed, navigated };
+  return { ...module, pushed, navigated, languages, events };
 }
 
 const data = { token: 'test-token', user: { isOwner: false, preferLanguage: 'en' } };
@@ -79,4 +86,20 @@ test('failed OIDC exchange preserves the safe destination for another login atte
   auth.useOIDCExchange().onError(new Error('exchange failed'));
   assert.deepEqual(auth.navigated, [{ to: '/sign-in', search: { redirect: '/project/requests' } }]);
   assert.equal(redirects.consumeOIDCRedirect(), undefined);
+});
+
+test('登录和 OIDC 回调保留自动模式，不把当前浏览器语言保存为固定值', async (t) => {
+  const auth = await setup(t);
+  const automatic = { ...data, user: { ...data.user, preferLanguage: 'auto' } };
+  auth.useSignIn().onSuccess(automatic);
+  auth.useOIDCExchange().onSuccess({ data: automatic });
+  assert.deepEqual(auth.languages, ['auto', 'auto']);
+});
+
+test('账号读取仅更新资料，语言来源由页面门禁决定', async (t) => {
+  const auth = await setup(t);
+  const me = await auth.useMe().queryFn({ signal: new AbortController().signal });
+  auth.events.push('page');
+  assert.equal(me.preferLanguage, 'auto');
+  assert.deepEqual(auth.events, ['response', 'page']);
 });

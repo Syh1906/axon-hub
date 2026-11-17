@@ -175,15 +175,18 @@ export function RequestDurationCell({
   const latency = request.metricsLatencyMs;
   const first = request.metricsFirstTokenLatencyMs;
   const speed = getTokensPerSecondValue(request);
+  // Update one complete text value; translators can replace individual text nodes.
+  const duration = [
+    request.stream && first != null ? t('requests.duration.firstToken', { duration: formatDuration(first) }) : undefined,
+    t('requests.duration.total', { duration: latency == null ? '—' : formatDuration(latency) }),
+  ].filter(Boolean).join(' · ');
   return (
     <div className='flex min-w-[150px] flex-col gap-1 text-xs whitespace-nowrap'>
       <span title={t('requests.duration.firstTokenHelp')}>
-        {request.stream && first != null ? `${t('requests.duration.firstToken', { duration: formatDuration(first) })} · ` : ''}
-        {t('requests.duration.total', { duration: latency == null ? '—' : formatDuration(latency) })}
+        {duration}
       </span>
       <span className='text-muted-foreground' title={t('consumption.speedHelp')}>
-        {`${t('requests.duration.outputRate')} `}
-        {speed == null ? '—' : `${Math.round(speed)} tok/s`}
+        {`${t('requests.duration.outputRate')} ${speed == null ? '—' : `${Math.round(speed)} tok/s`}`}
       </span>
     </div>
   );

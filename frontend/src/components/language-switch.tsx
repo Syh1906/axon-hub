@@ -2,18 +2,12 @@ import { IconLanguage } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { normalizeLanguagePreference } from '@/lib/language-preference';
 
-const languages = [
-  { code: 'en', name: 'English' },
-  { code: 'zh', name: '中文' },
-];
-
-export function LanguageSwitch() {
-  const { currentLanguage, changeLanguage, isUpdating } = useLanguage();
+export function LanguageSwitch({ browserOnly = false }: { browserOnly?: boolean } = {}) {
+  const { preference, changeLanguage, isUpdating } = useLanguage({ browserOnly });
   const { t } = useTranslation();
-
-  const currentLanguageInfo = languages.find((lang) => lang.code === currentLanguage) || languages[0];
 
   return (
     <DropdownMenu>
@@ -24,16 +18,11 @@ export function LanguageSwitch() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end'>
-        {languages.map((language) => (
-          <DropdownMenuItem
-            key={language.code}
-            onClick={() => changeLanguage(language.code)}
-            className={currentLanguage === language.code ? 'bg-accent' : ''}
-            disabled={isUpdating}
-          >
-            {language.name}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuRadioGroup value={preference} onValueChange={(value) => void changeLanguage(normalizeLanguagePreference(value))}>
+          <DropdownMenuRadioItem value='auto' disabled={isUpdating}>{t('language.auto')}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value='zh' disabled={isUpdating}>中文</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value='en' disabled={isUpdating}>English</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

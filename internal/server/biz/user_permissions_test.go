@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/samber/lo"
@@ -12,6 +13,35 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/user"
 )
+
+func TestUserLanguagePreferenceReadOnlyAccount(t *testing.T) {
+	svc, client := setupTestUserService(t)
+	defer client.Close()
+	seed := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	actor := client.User.Create().SetEmail("language@example.test").SetPassword("fixture").
+		SetScopes([]string{"read_requests"}).SaveX(seed)
+	require.Equal(t, "auto", actor.PreferLanguage)
+	// A persisted cache from before the reset must not override the migrated row.
+	stale := *actor
+	stale.PreferLanguage = "en"
+	require.NoError(t, svc.UserCache.Set(seed, fmt.Sprintf("user:%d", actor.ID), stale))
+	loaded, err := svc.GetUserByID(seed, actor.ID)
+	require.NoError(t, err)
+	require.Equal(t, "auto", loaded.PreferLanguage)
+	ctx := contexts.WithUser(ent.NewContext(t.Context(), client), actor)
+	ctx, err = authz.WithPrincipal(ctx, authz.Principal{Type: authz.PrincipalTypeUser, UserID: &actor.ID})
+	require.NoError(t, err)
+	for _, language := range []string{"zh", "en", "auto"} {
+		updated, err := svc.UpdateOwnProfile(ctx, ent.UpdateUserInput{PreferLanguage: lo.ToPtr(language)})
+		require.NoError(t, err)
+		require.Equal(t, language, updated.PreferLanguage)
+		loaded, err := svc.GetUserByID(seed, actor.ID)
+		require.NoError(t, err)
+		require.Equal(t, language, loaded.PreferLanguage)
+		require.Equal(t, []string{"read_requests"}, loaded.Scopes)
+		require.False(t, loaded.IsOwner)
+	}
+}
 
 func TestCreateUserGrantPermissions(t *testing.T) {
 	for _, tc := range []struct {

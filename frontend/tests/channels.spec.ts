@@ -1332,7 +1332,7 @@ test.describe('Admin Channels Management', () => {
 
       for (const language of ['en', 'zh']) {
         await page.setViewportSize({ width: 1280, height: 900 })
-        await page.evaluate((lng) => localStorage.setItem('i18nextLng', lng), language)
+        await page.evaluate((lng) => localStorage.setItem('axonhub_language_preference', lng), language)
         // The app applies the signed-in user's preferred language from `me`; override it for
         // this page only so the shared admin profile used by parallel tests stays unchanged.
         await page.unroute('**/admin/graphql')

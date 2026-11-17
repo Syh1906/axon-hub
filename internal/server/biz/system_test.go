@@ -1070,6 +1070,7 @@ func TestSystemService_Initialize_CreatesDefaultProject(t *testing.T) {
 	userProject, err := client.UserProject.Query().First(ctx)
 	require.NoError(t, err)
 	require.True(t, userProject.IsOwner)
+	require.Equal(t, "auto", client.User.GetX(ctx, userProject.UserID).PreferLanguage)
 
 	// Verify default roles were created
 	roles, err := client.Role.Query().All(ctx)

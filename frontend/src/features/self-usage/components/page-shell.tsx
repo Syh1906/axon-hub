@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeSwitch } from '@/components/theme-switch';
+import { LanguageSwitch } from '@/components/language-switch';
 import type { SelfUsageMeta } from '../api';
 
 const pageWidths = { standard: 'max-w-7xl', wide: 'max-w-[1600px]', full: 'max-w-none' };
@@ -61,14 +62,7 @@ export function UsagePageShell({ meta, onLogout, children }: { meta?: SelfUsageM
                 </SelectContent>
               </Select>
             )}
-            <Button
-              variant='outline'
-              size='sm'
-              aria-label={t('selfUsage.language')}
-              onClick={() => void i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en' : 'zh-CN')}
-            >
-              {i18n.language.startsWith('zh') ? 'English' : '中文'}
-            </Button>
+            <LanguageSwitch browserOnly />
             <ThemeSwitch />
             {onLogout && (
               <Button variant='outline' size='sm' onClick={onLogout}>

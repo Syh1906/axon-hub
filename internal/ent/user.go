@@ -28,7 +28,7 @@ type User struct {
 	Email string `json:"email,omitempty"`
 	// Status holds the value of the "status" field.
 	Status user.Status `json:"status,omitempty"`
-	// 用户偏好语言
+	// 用户偏好语言：auto 跟随浏览器，en 英文，zh 中文
 	PreferLanguage string `json:"prefer_language,omitempty"`
 	// Password holds the value of the "password" field.
 	Password string `json:"-"`

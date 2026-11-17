@@ -12,7 +12,7 @@
   "profile.form.fields.email.disabled_description": "Email address cannot be changed.",
   "profile.form.fields.preferLanguage.label": "Preferred Language",
   "profile.form.fields.preferLanguage.placeholder": "Select your preferred language",
-  "profile.form.fields.preferLanguage.description": "Choose your preferred language for the interface.",
+  "profile.form.fields.preferLanguage.description": "Follow the browser language by default, or choose a fixed language for your account.",
   "profile.form.fields.preferLanguage.options.en": "English",
   "profile.form.fields.preferLanguage.options.zh": "中文",
   "profile.form.fields.avatar.label": "Avatar",

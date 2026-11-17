@@ -6,16 +6,19 @@ import { useAuthStore } from '@/stores/authStore';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { loadErrorKey, loadErrorRequestId } from '@/lib/load-error';
 import { isProjectSelectionValid } from '@/lib/project-membership';
+import { normalizeLanguagePreference, resolveLanguage } from '@/lib/language-preference';
+import { applyLanguagePreference, useLanguageStore } from '@/stores/languageStore';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMe } from '@/features/auth/data/auth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  languageSource?: 'account' | 'browser';
 }
 
-export function AuthGuard({ children }: AuthGuardProps) {
-  const { t } = useTranslation();
+export function AuthGuard({ children, languageSource = 'account' }: AuthGuardProps) {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { accessToken } = useAuthStore((state) => state.auth);
   const selectedProjectId = useSelectedProjectId();
@@ -23,6 +26,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // Automatically fetch user info when token is available
   const { isLoading: isMeLoading, error: meError, data: me, refetch, isFetching } = useMe();
   const projectReady = isProjectSelectionValid(me, selectedProjectId);
+  const preference = useLanguageStore((state) => state.preference);
+  const accountPreference = normalizeLanguagePreference(me?.preferLanguage);
+  const languageReady = languageSource === 'browser' ||
+    (preference === accountPreference && i18n.language === resolveLanguage(accountPreference));
+
+  useEffect(() => {
+    // Both cached and newly fetched accounts must set the language before the
+    // management page mounts. Public self-usage pages keep their browser mode.
+    if (accessToken && me && !languageReady) void applyLanguagePreference(accountPreference);
+  }, [accessToken, me, accountPreference, languageReady]);
 
   useEffect(() => {
     // If no token, redirect to sign-in
@@ -89,7 +102,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Show loading while fetching user info or validating the persisted project
-  if (accessToken && (isMeLoading || !projectReady)) {
+  if (accessToken && (isMeLoading || !projectReady || !languageReady)) {
     return (
       <div className='flex h-screen items-center justify-center'>
         <div className='space-y-4'>

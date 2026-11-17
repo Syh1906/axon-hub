@@ -13,8 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMe } from '@/features/auth/data/auth';
+import { normalizeLanguagePreference } from '@/lib/language-preference';
+import { syncCurrentAccountProfile } from '@/lib/account-profile';
 
 type ProfileFormValues = {
   firstName: string;
@@ -63,7 +65,7 @@ export default function ProfileForm() {
       firstName: currentUser?.firstName || '',
       lastName: currentUser?.lastName || '',
       email: currentUser?.email || '',
-      preferLanguage: currentUser?.preferLanguage || 'en',
+      preferLanguage: normalizeLanguagePreference(currentUser?.preferLanguage),
       avatar: currentUser?.avatar || '',
     },
     mode: 'onChange',
@@ -72,6 +74,7 @@ export default function ProfileForm() {
   // Mutation for updating user profile
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
+      await queryClient.cancelQueries({ queryKey: ['me', auth.accessToken] });
       const response = (await graphqlRequest(UPDATE_ME_MUTATION, {
         input: {
           firstName: data.firstName,
@@ -82,18 +85,8 @@ export default function ProfileForm() {
       })) as { updateMe: any };
       return response.updateMe;
     },
-    onSuccess: (updatedUser) => {
-      // Update the auth store with new user data
-      auth.setUser({
-        ...auth.user!,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        preferLanguage: updatedUser.preferLanguage,
-        avatar: updatedUser.avatar,
-      });
-
-      // Invalidate and refetch user data
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+    onSuccess: async (updatedUser) => {
+      if (!await syncCurrentAccountProfile(queryClient, auth.user?.id, updatedUser)) return;
 
       toast.success(t('profile.form.messages.updateSuccess'));
     },
@@ -217,10 +210,11 @@ export default function ProfileForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value='en'>{t('profile.form.fields.preferLanguage.options.en')}</SelectItem>
-                  <SelectItem value='zh'>{t('profile.form.fields.preferLanguage.options.zh')}</SelectItem>
-                  {/* <SelectItem value='ja'>日本語</SelectItem> */}
-                  {/* <SelectItem value='ko'>한국어</SelectItem> */}
+                  <SelectGroup>
+                    <SelectItem value='auto'>{t('language.auto')}</SelectItem>
+                    <SelectItem value='en'>{t('profile.form.fields.preferLanguage.options.en')}</SelectItem>
+                    <SelectItem value='zh'>{t('profile.form.fields.preferLanguage.options.zh')}</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <FormDescription>{t('profile.form.fields.preferLanguage.description')}</FormDescription>

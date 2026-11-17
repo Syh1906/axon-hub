@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import { formatCurrencyValue } from '@/utils/currency-formatter';
+import { languageDetectionOptions, supportedLanguage } from './language-preference';
 
 function mergeTranslations(...translations: Array<Record<string, unknown>>) {
   return Object.assign({}, ...translations);
@@ -36,6 +37,11 @@ const resources = {
   },
 };
 
+// Keep the browser's language declaration consistent with the rendered interface.
+i18n.on('languageChanged', (language) => {
+  document.documentElement.lang = supportedLanguage(language) === 'zh' ? 'zh-CN' : 'en';
+});
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -50,17 +56,7 @@ i18n
 
     },
 
-    detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'],
-      convertDetectedLanguage: (lng: string) => {
-        const normalized = lng.toLowerCase();
-        if (normalized === 'zh-cn' || normalized.startsWith('zh-')) {
-          return 'zh';
-        }
-        return lng;
-      },
-    },
+    detection: languageDetectionOptions,
   }).then(() => {
     i18n.services.formatter?.add('currency', (value, lng, options) =>
       formatCurrencyValue(value, options?.locale || lng, {

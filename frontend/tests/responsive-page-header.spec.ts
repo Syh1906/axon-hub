@@ -261,9 +261,11 @@ test.describe('Responsive Page Header', () => {
     const initialText = (await description.innerText()).replace(/\s+/g, ' ').trim()
     const initialLanguage = /配置请求|可用于/.test(initialText) ? 'zh' : 'en'
     const switcher = page.getByRole('button', { name: /toggle language|切换语言/i }).first()
+    let initialPreference: string | undefined
     try {
       await switcher.click()
-      await page.getByRole('menuitem', { name: initialLanguage === 'zh' ? 'English' : '中文' }).click()
+      initialPreference = await page.getByRole('menuitemradio', { checked: true }).innerText()
+      await page.getByRole('menuitemradio', { name: initialLanguage === 'zh' ? 'English' : '中文' }).click()
       await expect.poll(async () => (await description.innerText()).replace(/\s+/g, ' ').trim()).not.toBe(initialText)
       await expect(toggle).toBeVisible()
       await expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -274,7 +276,8 @@ test.describe('Responsive Page Header', () => {
       await page.keyboard.press('Escape').catch(() => {})
       if ((await description.innerText()).replace(/\s+/g, ' ').trim() !== initialText) {
         await switcher.click()
-        await page.getByRole('menuitem', { name: initialLanguage === 'zh' ? '中文' : 'English' }).click()
+        await page.getByRole('menuitemradio', { name: /跟随浏览器|Follow browser/.test(initialPreference ?? '')
+          ? /跟随浏览器|Follow browser/ : initialPreference ?? (initialLanguage === 'zh' ? '中文' : 'English') }).click()
       }
     }
   })

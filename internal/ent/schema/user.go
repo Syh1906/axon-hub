@@ -38,7 +38,7 @@ func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("email"),
 		field.Enum("status").Values("activated", "deactivated").Default("activated"),
-		field.String("prefer_language").Default("en").Comment("用户偏好语言"),
+		field.String("prefer_language").Default("auto").Comment("用户偏好语言：auto 跟随浏览器，en 英文，zh 中文"),
 		field.String("password").Sensitive(),
 		field.String("first_name").Default(""),
 		field.String("last_name").Default(""),

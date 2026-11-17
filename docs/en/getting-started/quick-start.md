@@ -6,6 +6,16 @@ This guide explains how to configure a channel, create an API key, and make a fi
 
 Prepare a valid API key from an AI provider such as OpenAI or Anthropic.
 
+## Interface language
+
+The language menu and profile settings offer **Follow browser**, **中文**, and **English**. The default follows the browser's language list, choosing the first supported Chinese or English entry and falling back to English when none is supported. The document language follows the rendered interface.
+
+When signed in, the selected mode is saved to the account and survives reloads and sign-ins. **Follow browser** lets each device use its own browser language. Signed-out pages and the API Key self-usage page save the selection only in the current browser and do not modify the admin account.
+
+Upgrading to a version containing the `v1.0.0-rc1-fork.9` language migration resets all existing accounts to **Follow browser** once, including previous manual choices. The old automatic detection cache no longer overrides the selection. Choices made afterward are not reset on subsequent starts. Account permissions are unchanged.
+
+The request list now handles duration updates after a translator replaces its text nodes. If another page repeatedly shows **Page display error**, reload it and try disabling automatic translation for this site in favor of the built-in language menu. This message does not imply an HTTP 500 response from the server.
+
 ## First Steps
 
 ### 1. Configure Your First Channel

@@ -314,7 +314,8 @@ func (s *UserService) GetUserByID(ctx context.Context, id int) (*ent.User, error
 }
 
 func buildUserCacheKey(id int) string {
-	return fmt.Sprintf("user:%d", id)
+	// Old shared caches contain language values from before the one-time auto reset.
+	return fmt.Sprintf("user:v2:%d", id)
 }
 
 // invalidateUserCache removes a user from cache.
