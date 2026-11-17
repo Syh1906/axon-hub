@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,9 +28,11 @@ func (s *ConsumptionService) fillConsumptionSnapshot(ctx context.Context) error 
 // Drain available dates without inserting a scheduler interval between them.
 // The existing worker lock/leases still bound concurrency to one computation.
 func (s *ConsumptionService) fillRequestedConsumptionSnapshots(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
-	defer cancel()
+	until := time.Now().Add(25 * time.Second)
 	for range consumptionSlicePageDays {
+		if time.Now().After(until) {
+			return nil
+		}
 		filled, err := s.fillNextConsumptionSnapshot(ctx)
 		if err != nil || !filled {
 			return err
@@ -48,11 +51,13 @@ func (s *ConsumptionService) fillNextConsumptionSnapshot(ctx context.Context) (b
 
 	defer s.worker.Unlock()
 
-	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	parent := ctx
+	budgetDeadline := time.Now().Add(25 * time.Second)
+	ctx, cancel := context.WithDeadline(ctx, budgetDeadline)
 
 	defer cancel()
 
-	return authz.RunAsHost(ctx, s.client, "consumption-backfill", func(ctx context.Context) (bool, error) {
+	return authz.RunAsHost(ctx, s.client, "consumption-backfill", func(ctx context.Context) (filled bool, runErr error) {
 		ctx = contexts.WithPrimaryRead(ctx)
 
 		now := time.Now().UTC()
@@ -76,6 +81,32 @@ func (s *ConsumptionService) fillNextConsumptionSnapshot(ctx context.Context) (b
 		if err != nil || count == 0 {
 			return false, err
 		}
+
+		// Every error after claiming the job, including publication, must release
+		// or cool down this lease. Maintenance never publishes a canceled payload.
+		defer func() {
+			if runErr == nil {
+				return
+			}
+			filled = false
+			failureCtx, failureCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer failureCancel()
+			// RunAsHost can report Canceled when its callback wins the deadline
+			// timer. Classify against our deadline, not timer callback order.
+			interrupted := errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded)
+			exhausted := interrupted && !time.Now().Before(budgetDeadline) && parent.Err() == nil
+			until := time.Now().UTC().Add(30 * time.Second)
+			if exhausted {
+				until = time.Unix(0, 0).UTC()
+			}
+			_, saveErr := s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token)).
+				SetFailed(!exhausted).SetLeaseUntil(until).Save(failureCtx)
+			if saveErr != nil {
+				runErr = errors.Join(runErr, saveErr)
+			} else if exhausted {
+				runErr = nil
+			}
+		}()
 
 		var query consumptionDayQuery
 
@@ -106,22 +137,7 @@ func (s *ConsumptionService) fillNextConsumptionSnapshot(ctx context.Context) (b
 		}
 
 		if err != nil {
-
-			// 计算超时后仍用有界维护写入记录失败，不能沿用已取消的期限。
-
-			failureCtx, failureCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-
-			defer failureCancel()
-
-			_, saveErr := s.client.ConsumptionSnapshot.Update().Where(consumptionsnapshot.IDEQ(job.ID), consumptionsnapshot.LeaseTokenEQ(token)).
-				SetFailed(true).SetLeaseUntil(time.Now().UTC().Add(30 * time.Second)).Save(failureCtx)
-
-			if saveErr != nil {
-				return false, saveErr
-			}
-
 			return false, err
-
 		}
 
 		if result == nil {
@@ -190,6 +206,11 @@ func (s *ConsumptionService) expireConsumptionSnapshots(ctx context.Context) {
 
 func (s *ConsumptionService) readConsumptionDay(ctx context.Context, query consumptionDayQuery, job *ent.ConsumptionSnapshot) (*ConsumptionResult, string, error) {
 	query.Filter.Uncached, query.Filter.DailySnapshot = true, true
+	// Commit reusable hours separately. A later hour's cancellation must not
+	// discard already completed historical aggregates.
+	if err := s.prepareConsumptionHours(ctx, query, job); err != nil {
+		return nil, "", err
+	}
 
 	var fingerprint string
 	result, err := readStatisticsSnapshot(ctx, s.client, false, func(client *ent.Client) (*ConsumptionResult, error) {
@@ -201,7 +222,11 @@ func (s *ConsumptionService) readConsumptionDay(ctx context.Context, query consu
 		if err != nil || (len(job.Payload) > 0 && fingerprint == job.Fingerprint) {
 			return nil, err
 		}
-		result, err := reader.query(ctx, query.Filter, "snapshot", query.Project)
+		facts, err := reader.consumptionHourlyFacts(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		result, err := reader.queryWithFacts(ctx, query.Filter, "snapshot", query.Project, facts)
 		if err != nil {
 			return nil, err
 		}

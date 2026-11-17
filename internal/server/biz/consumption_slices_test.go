@@ -208,7 +208,7 @@ func TestConsumptionSnapshotActiveMembershipChangeRevokesWriter(t *testing.T) {
 
 	f.client.ConsumptionSnapshot.Use(func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if _, saving := m.Field("payload"); saving && !injected {
+			if _, saving := m.Field("payload"); saving && m.Op().Is(ent.OpUpdate|ent.OpUpdateOne) && !injected {
 
 				injected = true
 
@@ -412,7 +412,7 @@ func TestConsumptionSlicesReuseAndCorrectHistoricalCost(t *testing.T) {
 
 	require.Equal(t, 1, page.Slices[0].Entries[0].Metrics.UnpricedRequestCount)
 
-	row := f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx)
+	row := f.client.ConsumptionSnapshot.Query().Where(consumptionsnapshot.QueryNotNil()).OnlyX(f.ctx)
 
 	old := time.Now().Add(-6 * time.Minute)
 
@@ -422,7 +422,7 @@ func TestConsumptionSlicesReuseAndCorrectHistoricalCost(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Equal(t, old.Unix(), f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx).GeneratedAt.Unix(), "历史没有修正时不重算")
+	require.Equal(t, old.Unix(), f.client.ConsumptionSnapshot.Query().Where(consumptionsnapshot.QueryNotNil()).OnlyX(f.ctx).GeneratedAt.Unix(), "历史没有修正时不重算")
 }
 
 func TestConsumptionSlicesCorrectArchivedOnlyFacts(t *testing.T) {
@@ -466,7 +466,7 @@ func TestConsumptionSnapshotDoesNotPublishAcrossCorrection(t *testing.T) {
 
 	f.client.ConsumptionSnapshot.Use(func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if _, saving := m.Field("payload"); saving && !injected {
+			if _, saving := m.Field("payload"); saving && m.Op().Is(ent.OpUpdate|ent.OpUpdateOne) && !injected {
 
 				injected = true
 
@@ -496,7 +496,7 @@ func TestConsumptionSnapshotDoesNotPublishAcrossCorrection(t *testing.T) {
 
 	require.NoError(t, f.service.fillConsumptionSnapshot(f.ctx))
 
-	snapshot := f.client.ConsumptionSnapshot.Query().OnlyX(f.ctx)
+	snapshot := f.client.ConsumptionSnapshot.Query().Where(consumptionsnapshot.QueryNotNil()).OnlyX(f.ctx)
 	source, err := f.service.consumptionFingerprint(f.ctx, consumptionDayQuery{Project: f.project.ID, Start: snapshot.RangeStart, End: snapshot.RangeEnd})
 	require.NoError(t, err)
 	require.NotEqual(t, source, snapshot.SnapshotVersion)

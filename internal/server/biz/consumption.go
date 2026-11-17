@@ -120,6 +120,10 @@ func usageStatisticsProjectID(ctx context.Context, input ConsumptionFilter) (int
 }
 
 func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter, view string, projectID int) (*ConsumptionResult, error) {
+	return s.queryWithFacts(ctx, input, view, projectID, nil)
+}
+
+func (s *ConsumptionService) queryWithFacts(ctx context.Context, input ConsumptionFilter, view string, projectID int, prepared *consumptionFacts) (*ConsumptionResult, error) {
 	if _, err := consumptionEnum(string(input.Dimension), "USER", "API_KEY", "API_KEY_GROUP", "CHANNEL", "MODEL"); err != nil {
 		return nil, err
 	}
@@ -192,9 +196,13 @@ func (s *ConsumptionService) query(ctx context.Context, input ConsumptionFilter,
 				// 日期 worker 已开启包含指纹与所有显示字段的读取事务。
 				readFacts = s.queryGroupsFactsSnapshot
 			}
-			facts, err := readFacts(ctx, projectID, input, start, end)
-			if err != nil {
-				return nil, err
+			facts := prepared
+			var err error
+			if facts == nil {
+				facts, err = readFacts(ctx, projectID, input, start, end)
+				if err != nil {
+					return nil, err
+				}
 			}
 			rows := facts.rows
 			entries := make([]*ConsumptionEntry, 0)

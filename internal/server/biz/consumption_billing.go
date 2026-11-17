@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -51,6 +52,14 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 			From(u).Join(r).OnP(sql.And(sql.ColumnsEQ(u.C("request_id"), r.C("id")), sql.ColumnsEQ(u.C("project_id"), r.C("project_id")))).
 			Where(sql.And(sql.GT(u.C("channel_id"), 0), sql.Or(sql.IsNull(r.C("channel_id")), sql.ColumnsNEQ(u.C("channel_id"), r.C("channel_id"))), sql.LT(r.C("created_at"), end))).
 			GroupBy(keys...)
+		if q.Dialect() == dialect.Postgres {
+			// Drive the ledger lookup from the bounded request range. Rebuild
+			// the FROM/JOIN so the same ledger is not joined twice.
+			bills := postgresConsumptionUsage(r.C("id"), r.C("project_id"), "billing_usage")
+			units = sql.Dialect(q.Dialect()).Select(u.C("request_id"), u.C("project_id"), u.C("channel_id"), sql.As(model, "model_id")).
+				From(r).Join(bills).OnP(sql.ExprP("TRUE")).
+				Where(sql.And(sql.GT(u.C("channel_id"), 0), sql.Or(sql.IsNull(r.C("channel_id")), sql.ColumnsNEQ(u.C("channel_id"), r.C("channel_id"))), sql.LT(r.C("created_at"), end))).GroupBy(keys...)
+		}
 		if start != nil {
 			units.Where(sql.GTE(r.C("created_at"), *start))
 		}
@@ -76,7 +85,7 @@ func queryAdditionalChannelBilling(ctx context.Context, client *ent.Client, proj
 		}
 		units.AppendSelect(sql.As(sql.Count("*"), "usage_count"), sql.As(sql.Count(u.C("total_cost")), "priced_count"))
 		units.As(usagelog.Table)
-		q.From(units)
+		q.From(units).As(usagelog.Table)
 		selectConsumptionEntity(q, input, q.C("model_id"))
 		cacheRead, cacheWrite := q.C("prompt_cached_tokens"), q.C("prompt_write_cached_tokens")
 		cache := "(" + cacheRead + " > 0 OR " + cacheWrite + " > 0)"

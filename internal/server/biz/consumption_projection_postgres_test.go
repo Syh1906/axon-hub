@@ -45,6 +45,7 @@ fixture_executions(id, request_id, project_id, channel_id, model_id, status, err
 ),
 request_executions AS (
  SELECT e.*, TRUE AS statistics_ready, NULL::jsonb AS selection, TIMESTAMPTZ '2026-11-09T08:00:00Z' AS created_at,
+ NULL::text AS cache_compatibility_key, NULL::text AS cache_ttl_bucket, NULL::bigint AS theoretical_cache_tokens,
  CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_outcome,
  CASE WHEN status='completed' THEN 1.0 ELSE 0.0 END::double precision AS statistics_channel_outcome,
  CASE WHEN stream THEN metrics_first_token_latency_ms END AS statistics_first_token_ms,

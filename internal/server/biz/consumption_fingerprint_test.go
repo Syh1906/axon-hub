@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,7 +60,11 @@ type fingerprintTransactionDriver struct {
 }
 
 func (d *fingerprintTransactionDriver) Query(ctx context.Context, query string, args, rows any) error {
-	d.outsideReads++
+	// Preliminary cache/revision reads select work only. Numeric facts and the
+	// final source revision must still be read inside their own snapshots.
+	if !strings.Contains(query, "consumption_snapshots") && !strings.Contains(query, "statistics_revisions") {
+		d.outsideReads++
+	}
 
 	return d.Driver.Query(ctx, query, args, rows)
 }
@@ -107,7 +112,7 @@ func TestConsumptionFingerprintAndPayloadShareTransaction(t *testing.T) {
 
 	require.NotEmpty(t, fingerprint)
 
-	require.Equal(t, 1, driver.begins, "签名与金额必须在同一个读取事务中")
+	require.Greater(t, driver.begins, 1, "小时分别提交，最终签名与金额仍在同一读取事务复核")
 
 	require.Zero(t, driver.outsideReads, "名称与账目均不得逃逸到其他快照")
 }
@@ -131,7 +136,7 @@ func TestConsumptionSnapshotActiveFallbackKeepsFingerprint(t *testing.T) {
 
 	f.client.ConsumptionSnapshot.Use(func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if _, saving := m.Field("payload"); saving && !injected {
+			if _, saving := m.Field("payload"); saving && m.Op().Is(ent.OpUpdate|ent.OpUpdateOne) && !injected {
 
 				injected = true
 

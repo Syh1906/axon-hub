@@ -24,7 +24,7 @@ type consumptionQueryCapture struct {
 }
 
 func (d *consumptionQueryCapture) Query(_ context.Context, query string, args, rows any) error {
-	if strings.Contains(query, `"statistics_ready"`) && strings.Contains(query, "LIMIT 128") {
+	if strings.Contains(query, `"statistics_ready"`) && strings.Contains(query, "LIMIT 512") {
 		rows.(*sql.Rows).ColumnScanner = emptyStatisticsRows{}
 		return nil
 	}

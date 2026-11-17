@@ -20,7 +20,7 @@ import (
 type consumptionGroup struct {
 	// Channel totals use one billing sample per request/channel, even when a
 	// retried request has charges for several models on that channel.
-	ChannelTotal        *consumptionBillingTotals `json:"-"`
+	ChannelTotal        *consumptionBillingTotals `json:"channelTotal,omitempty"`
 	EntityID            int                       `json:"entity_id"`
 	Name                string                    `json:"name"`
 	FirstName           string                    `json:"first_name"`
@@ -115,9 +115,21 @@ func joinConsumptionUsage(s *sql.Selector, projectID int, start *time.Time, end 
 // Resolve a recorded final execution by primary key. Only published legacy
 // requests without that link need the per-request last-execution lookup.
 func joinConsumptionGroups(s *sql.Selector, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*sql.Selector, *sql.SelectTable, consumptionPerformanceSQL) {
-	u, execution := joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel), joinLatestConsumptionExecution(s)
+	var u *sql.Selector
+	if s.Dialect() == dialect.Postgres {
+		u = joinPostgresConsumptionUsage(s, input.Dimension == ConsumptionDimensionChannel)
+	} else {
+		u = joinConsumptionUsage(s, projectID, start, end, input.Dimension == ConsumptionDimensionChannel)
+	}
+	execution := joinLatestConsumptionExecution(s)
 	if input.Dimension == ConsumptionDimensionChannel || input.OmitPerformance {
 		return u, execution, consumptionPerformanceSQL{}
+	}
+	if input.DailySnapshot {
+		joinExecutionUsage(s, execution)
+		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
+		first := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
+		return u, execution, consumptionPerformanceSQL{outcome: outcome, firstToken: first, speed: speed}
 	}
 	return u, execution, consumptionPerformanceExpressions(u, execution)
 }
@@ -129,8 +141,18 @@ func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 	latest.SetDialect(s.Dialect())
 	resultID, executionID := s.C("result_execution_id"), execution.C("id")
 	legacy := sql.Dialect(s.Dialect()).Select(sql.Max(latest.C("id"))).From(latest).
-		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id")),
-			sql.ExprP(usageanalytics.RequestResultMatchSQL(s.C, latest.C, s.Dialect()))))
+		Where(sql.And(sql.ColumnsEQ(latest.C("request_id"), s.C("id")), sql.ColumnsEQ(latest.C("project_id"), s.C("project_id")), sql.ColumnsEQ(latest.C("channel_id"), s.C("channel_id"))))
+	if s.Dialect() == dialect.Postgres {
+		// Resolve only this request's adopted execution. A normal join can make
+		// PostgreSQL hash every historical execution for a one-hour/date query.
+		legacySQL, _ := legacy.Query()
+		columns := "id, request_id, project_id, channel_id, model_id, statistics_outcome, statistics_first_token_ms, statistics_output_speed, " +
+			"status, error_message, response_status_code, metrics_first_byte_latency_ms, metrics_first_byte_recorded, " +
+			"metrics_first_token_latency_ms, metrics_latency_ms, stream, format, cache_compatibility_key, cache_ttl_bucket, theoretical_cache_tokens"
+		execution = sql.Table("LATERAL (SELECT " + columns + " FROM request_executions WHERE id = COALESCE(" + resultID + ", (" + legacySQL + ")) AND request_id = " + s.C("id") + " AND project_id = " + s.C("project_id") + " AND channel_id = " + s.C("channel_id") + " OFFSET 0) AS execution").Unquote().As("execution")
+		s.LeftJoin(execution).OnP(sql.ExprP("TRUE"))
+		return execution
+	}
 	s.LeftJoin(execution).OnP(sql.And(
 		sql.P(func(b *sql.Builder) {
 			b.WriteString(executionID).WriteString(" = COALESCE(").WriteString(resultID).WriteString(", (").Join(legacy).WriteString("))")
@@ -173,7 +195,7 @@ func (s *ConsumptionService) queryGroupsSnapshot(ctx context.Context, projectID 
 
 func (s *ConsumptionService) queryGroupsFactsSnapshot(ctx context.Context, projectID int, input ConsumptionFilter, start *time.Time, end time.Time) (*consumptionFacts, error) {
 	facts := &consumptionFacts{}
-	if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance {
+	if input.Dimension != ConsumptionDimensionChannel && !input.OmitPerformance && !input.DailySnapshot {
 		if err := prepareStatisticsPerformance(ctx, s.client, projectID, nil, start, end, true); err != nil {
 			return nil, err
 		}

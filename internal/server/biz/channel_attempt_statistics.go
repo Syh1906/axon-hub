@@ -50,8 +50,10 @@ func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectI
 			return queryChannelAttemptGroups(ctx, client, projectID, input, ids, start, end)
 		})
 	}
-	if err := prepareStatisticsPerformance(ctx, client, projectID, ids, start, end, false); err != nil {
-		return nil, err
+	if !input.DailySnapshot {
+		if err := prepareStatisticsPerformance(ctx, client, projectID, ids, start, end, false); err != nil {
+			return nil, err
+		}
 	}
 	end = end.UTC()
 	if start != nil {
@@ -72,8 +74,14 @@ func queryChannelAttemptGroups(ctx context.Context, client *ent.Client, projectI
 	err := query.Modify(func(q *sql.Selector) {
 		excludeArchivedExecutions(q)
 		r := sql.Table(request.Table).As("attempt_request")
-		q.Join(r).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), r.C("id")), sql.ColumnsEQ(q.C("project_id"), r.C("project_id"))))
 		outcome, first, speed := q.C("statistics_channel_outcome"), q.C("statistics_first_token_ms"), q.C("statistics_output_speed")
+		if input.DailySnapshot {
+			// The hour summary already persists these totals. Preparing and
+			// rewriting every execution first is redundant for this reader.
+			outcome, first, speed = channelAttemptExpressions(q)
+		} else {
+			q.Join(r).OnP(sql.And(sql.ColumnsEQ(q.C("request_id"), r.C("id")), sql.ColumnsEQ(q.C("project_id"), r.C("project_id"))))
+		}
 		model := "COALESCE(NULLIF(TRIM(" + q.C("model_id") + "), ''), " + sql.Table(request.Table).As("attempt_request").C("model_id") + ")"
 		selectConsumptionEntity(q, ConsumptionFilter{Dimension: ConsumptionDimensionChannel, Search: input.Search}, model)
 		q.AppendSelect(sql.As("COALESCE(SUM("+outcome+"),0)", "success_count"), sql.As("COUNT("+outcome+")", "outcome_count"),

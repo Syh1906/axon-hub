@@ -18,6 +18,10 @@ var errStatisticsSourceChanged = errors.New("statistics source changed during pr
 // must never publish values computed before a concurrently committed correction.
 func saveStatisticsProjection(ctx context.Context, client *ent.Client, update *sql.UpdateBuilder, expected int) error {
 	query, args := update.Query()
+	return execStatisticsProjection(ctx, client, query, args, expected)
+}
+
+func execStatisticsProjection(ctx context.Context, client *ent.Client, query string, args []any, expected int) error {
 	var result stdsql.Result
 	if err := client.Driver().Exec(ctx, query, args, &result); err != nil {
 		return err
