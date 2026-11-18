@@ -777,7 +777,9 @@ func TestPublicModelAPIs_MappedTargetsRequireEnabledRegistration(t *testing.T) {
 			SetGroup("gpt").
 			SetIcon("openai").
 			SetCreatedAt(createdAt).
-			SetModelCard(&objects.ModelCard{Limit: objects.ModelCardLimit{Context: 12345}}).
+			SetModelCard(&objects.ModelCard{ReleaseDate: "2026-01-05", Reasoning: objects.ModelCardReasoning{Supported: true},
+				ReasoningEfforts: []string{"low", "high"}, Modalities: objects.ModelCardModalities{Input: []string{"text", "image"}},
+				Limit: objects.ModelCardLimit{Context: 12345, Input: lo.ToPtr(11000), Output: 1200}}).
 			SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{
 				Type:         "channel_model",
 				ChannelModel: &objects.ChannelModelAssociation{ChannelID: ch.ID, ModelID: fixture.id},
@@ -815,6 +817,7 @@ func TestPublicModelAPIs_MappedTargetsRequireEnabledRegistration(t *testing.T) {
 	router.GET("/openai/models", openaiHandlers.ListModels)
 	router.GET("/openai/models/*model", openaiHandlers.RetrieveModel)
 	router.GET("/anthropic/models", anthropicHandlers.ListModels)
+	router.GET("/anthropic/models/*model", anthropicHandlers.RetrieveModel)
 	router.GET("/gemini/models", geminiHandlers.ListModels)
 
 	for _, tc := range []struct {
@@ -867,6 +870,85 @@ func TestPublicModelAPIs_MappedTargetsRequireEnabledRegistration(t *testing.T) {
 		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/openai/models/"+id+"?include=all", nil))
 		require.Equal(t, http.StatusNotFound, w.Code)
 	}
+
+	get := func(path string, status int) map[string]any {
+		t.Helper()
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		require.Equal(t, status, w.Code, w.Body.String())
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		return body
+	}
+	included := get("/openai/models/public-alias?include=input_modalities,supported_reasoning_levels,reasoning", 200)
+	require.Equal(t, []any{"low", "high"}, included["supported_reasoning_levels"])
+	require.Equal(t, []any{"text", "image"}, included["input_modalities"])
+	require.Equal(t, true, included["reasoning"])
+	require.NotContains(t, included, "pricing")
+	require.NotContains(t, get("/openai/models/public-alias", 200), "reasoning")
+
+	detail := get("/anthropic/models/public-alias", 200)
+	require.Equal(t, "public-alias", detail["id"])
+	require.Equal(t, "Metadata for target", detail["display_name"])
+	require.Equal(t, "2026-01-05T00:00:00Z", detail["created_at"])
+	require.Equal(t, float64(11000), detail["max_input_tokens"])
+	require.Equal(t, float64(1200), detail["max_tokens"])
+	require.Nil(t, detail["capabilities"])
+	first := get("/anthropic/models?limit=1", 200)
+	require.Equal(t, true, first["has_more"])
+	require.Equal(t, detail, first["data"].([]any)[0])
+	next := get("/anthropic/models?limit=1&after_id=public-alias", 200)
+	require.Equal(t, false, next["has_more"])
+	require.Equal(t, "shadow", next["first_id"])
+	back := get("/anthropic/models?limit=1&before_id=shadow", 200)
+	require.Equal(t, first["data"], back["data"])
+	require.Equal(t, false, back["has_more"])
+	end := get("/anthropic/models?after_id=shadow", 200)
+	require.Empty(t, end["data"])
+	require.Nil(t, end["last_id"])
+	get("/anthropic/models/target", 404)
+	get("/anthropic/models?after_id=target", 400)
+	get("/anthropic/models?limit=1001", 400)
+	get("/anthropic/models?before_id=shadow&after_id=public-alias", 400)
+
+	t.Run("request format rules are applied before duplicate associations are discarded", func(t *testing.T) {
+		association := &objects.ModelAssociation{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: ch.ID, ModelID: "target"}}
+		restricted := *association
+		restricted.When = &objects.ModelAssociationWhen{Enabled: true, Condition: &objects.Condition{
+			Type: objects.ConditionTypeCondition, Field: "request_format", Operator: "eq", Value: "openai/responses",
+		}}
+		for _, tc := range []struct {
+			associations []*objects.ModelAssociation
+			wantLimit    any
+		}{
+			{[]*objects.ModelAssociation{&restricted}, nil},
+			{[]*objects.ModelAssociation{&restricted, association}, float64(11000)},
+		} {
+			_, err := client.Model.Update().Where(model.ModelID("target")).SetSettings(&objects.ModelSettings{Associations: tc.associations}).Save(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantLimit, get("/anthropic/models/public-alias", 200)["max_input_tokens"])
+			require.Equal(t, true, get("/openai/models/public-alias?include=reasoning", 200)["reasoning"])
+		}
+	})
+
+	t.Run("mapped and pass-through associations can reach different upstream models", func(t *testing.T) {
+		updated, err := client.Channel.UpdateOne(ch).SetType(channel.TypeAnthropic).
+			SetSupportedModels([]string{"backend-model"}).
+			SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/chat_completion"}}).
+			SetSettings(&objects.ChannelSettings{
+				ModelMappings:  []objects.ModelMapping{{From: "target", To: "backend-model"}},
+				ModelProtocols: []objects.ModelProtocol{{Model: "backend-model", APIFormats: []string{"openai/chat_completion"}}},
+				ProtocolPolicy: &objects.ChannelProtocolPolicy{SameProtocolOnly: true},
+			}).Save(ctx)
+		require.NoError(t, err)
+		channelSvc.SetEnabledChannelsForTest([]*biz.Channel{{Channel: updated}})
+		_, err = client.Model.Update().Where(model.ModelID("target")).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{
+			{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: ch.ID, ModelID: "target"}},
+			{Type: "channel_request", ChannelRequest: &objects.ChannelRequestAssociation{ChannelID: ch.ID}},
+		}}).Save(ctx)
+		require.NoError(t, err)
+		require.Equal(t, float64(11000), get("/anthropic/models/public-alias", 200)["max_input_tokens"])
+	})
 
 	// A previously valid alias disappears as soon as its registered target is disabled.
 	_, err = client.Model.Update().Where(model.ModelID("target")).SetStatus(model.StatusDisabled).Save(ctx)

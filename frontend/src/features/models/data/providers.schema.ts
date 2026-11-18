@@ -65,6 +65,7 @@ const modelExperimentalSchema = z
 
 // Single model schema
 export const providerModelSchema = z.object({
+  anthropic_capabilities: z.record(z.string(), z.unknown()).nullish(),
   id: z.string(),
   name: z.string().optional(),
   description: z.string().optional(),

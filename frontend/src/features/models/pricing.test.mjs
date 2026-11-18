@@ -18,8 +18,8 @@ const paginationURL = moduleURL('../../gql/pagination.ts');
 const schemaURL = moduleURL('../channels/data/schema.ts', { '@/gql/pagination': paginationURL, '@/features/models/data/context-settings': moduleURL('./data/context-settings.ts') });
 const pricingURL = moduleURL('./data/pricing.ts', { '@/features/channels/data/schema': schemaURL });
 const { multiplyPriceItems, createPriceValidationSchema, priceFromCatalog, hasPriceConfiguration, switchImagePricingMode } = await import(pricingURL);
-const { modelCardFromCatalog } = await import(
-  moduleURL('./data/catalog-card.ts', { './pricing': pricingURL, './providers.schema': moduleURL('./data/providers.schema.ts') })
+const { modelCardFormValues, modelCardFromCatalog } = await import(
+  moduleURL('./data/catalog-card.ts', { './pricing': pricingURL, './reasoning-efforts': moduleURL('./data/reasoning-efforts.ts'), './providers.schema': moduleURL('./data/providers.schema.ts') })
 );
 const priceSchema = createPriceValidationSchema((key) => key);
 const item = (itemCode, amount) => ({ itemCode, pricing: { mode: 'usage_per_unit', usagePerUnit: amount } });
@@ -176,7 +176,8 @@ test('catalog card imports capabilities, modalities, limits, dates and zero pric
       temperature: true,
       reasoning: { supported: true, default: false },
       modalities: { input: ['text', 'image'], output: ['text'] },
-      limit: { context: 128000, output: 16384 },
+      reasoning_options: [{ type: 'effort', values: ['high', 'low'] }],
+      limit: { context: 128000, input: 112000, output: 16384 },
       knowledge: '2025-01',
       release_date: '2026-01-01',
       last_updated: '2026-02-01',
@@ -187,27 +188,30 @@ test('catalog card imports capabilities, modalities, limits, dates and zero pric
   assert.equal(card.toolCall, true);
   assert.equal(card.temperature, true);
   assert.equal(card.vision, true);
-  assert.deepEqual(card.reasoning, { supported: true, default: false });
+  assert.deepEqual(card.reasoning, { supported: true, supportDeclared: true, default: false });
+  assert.deepEqual(card.reasoningEfforts, ['low', 'high']);
   assert.deepEqual(card.modalities, { input: ['text', 'image'], output: ['text'] });
-  assert.deepEqual(card.limit, { context: 128000, output: 16384 });
+  assert.deepEqual(card.limit, { context: 128000, input: 112000, output: 16384 });
   assert.equal(card.knowledge, '2025-01');
   assert.equal(card.releaseDate, '2026-01-01');
   assert.equal(card.lastUpdated, '2026-02-01');
   assert.equal(card.price.items[0].pricing.usagePerUnit, '0');
-  assert.equal(card.price.schedule, null);
+  assert.equal(modelCardFormValues(card).price.schedule, null);
   assert.equal('modelID' in card, false);
   assert.equal('developer' in card, false);
 });
 
 test('catalog cards without pricing remain importable and clear missing card fields', () => {
-  const card = modelCardFromCatalog({ id: 'no-prices' }, 'openai');
+  const card = modelCardFormValues(modelCardFromCatalog({ id: 'no-prices' }, 'openai'));
+  assert.equal(card.reasoning.supportDeclared, false);
+  assert.equal(modelCardFromCatalog({ id: 'off', reasoning: { supported: false } }, 'demo').reasoning.supportDeclared, true);
   assert.deepEqual(card.price.items, []);
   assert.deepEqual(card.price.volumeTiers, []);
-  assert.equal(card.price.schedule, null);
+  assert.equal(modelCardFormValues(card).price.schedule, null);
   assert.equal(card.toolCall, false);
   assert.equal(card.vision, false);
   assert.deepEqual(card.modalities, { input: [], output: [] });
-  assert.deepEqual(card.limit, { context: 0, output: 0 });
+  assert.deepEqual(card.limit, { context: 0, input: null, output: 0 });
 });
 
 test('mode rates preserve zero and reject missing, negative or nonfinite multipliers', () => {

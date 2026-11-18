@@ -14,6 +14,7 @@ export type ModelStatus = z.infer<typeof modelStatusSchema>;
 
 export const modelReasoningSchema = z.object({
   supported: z.boolean(),
+  supportDeclared: z.boolean().optional(),
   default: z.boolean(),
 });
 export type ModelReasoning = z.infer<typeof modelReasoningSchema>;
@@ -34,11 +35,13 @@ export type ModelCost = z.infer<typeof modelCostSchema>;
 
 export const modelLimitSchema = z.object({
   context: z.number(),
+  input: z.number().int().positive().max(2147483647).nullish(),
   output: z.number(),
 });
 export type ModelLimit = z.infer<typeof modelLimitSchema>;
 
 export const modelCardSchema = z.object({
+  anthropicCapabilities: z.record(z.string(), z.unknown()).nullish(),
   reasoning: modelReasoningSchema.optional(),
   reasoningEfforts: z.array(z.string()).optional().nullable(),
   toolCall: z.boolean().optional(),

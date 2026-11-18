@@ -36,17 +36,19 @@ type ProtocolRouteSummary struct {
 // quota reservation or upstream request. Matching and endpoint choice are shared
 // with the live selector. Request-dependent conditions remain explicit.
 func InspectProtocolRoutes(ctx context.Context, settings *biz.SystemModelSettings, model *ent.Model, requestID string, format llm.APIFormat, channels []*biz.Channel) []*ProtocolRoute {
-	req := &llm.Request{Model: requestID, APIFormat: format, RequestType: llm.RequestTypeChat}
-	byID := make(map[int]*biz.Channel, len(channels))
-	for _, ch := range channels {
-		byID[ch.ID] = ch
-	}
 	matches := biz.MatchAssociationsForModel(biz.EffectiveModelAssociationsForRequest(settings, model, requestID), channels, requestID)
+	return InspectMatchedProtocolRoutes(ctx, requestID, format, matches)
+}
+
+// InspectMatchedProtocolRoutes inspects only the associations and channels
+// supplied by the caller, including a public directory's key-scoped matches.
+func InspectMatchedProtocolRoutes(ctx context.Context, requestID string, format llm.APIFormat, matches []*biz.AssociationMatch) []*ProtocolRoute {
+	req := &llm.Request{Model: requestID, APIFormat: format, RequestType: llm.RequestTypeChat}
 	routes := make(map[string][]*ProtocolRoute)
 	settled := make(map[string]bool)
 	for _, match := range matches {
 		for _, conn := range match.Connections {
-			ch := byID[conn.Channel.ID]
+			ch := &biz.Channel{Channel: conn.Channel}
 			for _, entry := range conn.Models {
 				key := strconv.Itoa(ch.ID) + "\x00" + entry.ActualModel
 				if settled[key] {

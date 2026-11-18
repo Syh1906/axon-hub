@@ -305,6 +305,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		anthropicGroup.POST("/messages", handlers.Anthropic.CreateMessage)
 		anthropicGroup.POST("/messages/count_tokens", handlers.Anthropic.CountTokens)
 		anthropicGroup.GET("/models", handlers.Anthropic.ListModels)
+		anthropicGroup.GET("/models/*model", handlers.Anthropic.RetrieveModel)
 	}
 
 	{

@@ -1,5 +1,6 @@
 # ModelCard represents model capabilities and metadata
 type ModelCard {
+  anthropicCapabilities: JSONRawMessage
   reasoning: ModelCardReasoning!
   reasoningEfforts: [String!]
   toolCall: Boolean!
@@ -16,6 +17,7 @@ type ModelCard {
 
 type ModelCardReasoning {
   supported: Boolean!
+  supportDeclared: Boolean!
   default: Boolean!
 }
 
@@ -33,6 +35,7 @@ type ModelCardCost {
 
 type ModelCardLimit {
   context: Int!
+  input: Int
   output: Int!
 }
 
@@ -113,6 +116,7 @@ type ChannelTagsRegexAssociation {
 
 # Input types for mutations
 input ModelCardInput {
+  anthropicCapabilities: JSONRawMessageInput
   reasoning: ModelCardReasoningInput
   reasoningEfforts: [String!]
   toolCall: Boolean
@@ -128,6 +132,7 @@ input ModelCardInput {
 
 input ModelCardReasoningInput {
   supported: Boolean
+  supportDeclared: Boolean
   default: Boolean
 }
 
@@ -138,6 +143,7 @@ input ModelCardModalitiesInput {
 
 input ModelCardLimitInput {
   context: Int
+  input: Int
   output: Int
 }
 

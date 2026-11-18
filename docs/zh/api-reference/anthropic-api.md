@@ -52,6 +52,15 @@ Anthropic Messages 协议的渠道，并请求其 `/messages/count_tokens`；不
 - `POST /anthropic/v1/messages` - 文本生成
 - `POST /v1/messages` - 文本生成 (可选)
 - `GET /anthropic/v1/models` - 列出可用模型
+- `GET /anthropic/v1/models/{id}` - 查询当前密钥可见的单个型号或别名
+
+模型列表按发布日期倒序，同日按对外 ID 排序。每页默认 20 个，`limit` 支持 1–1000。向后翻页传 `after_id=上一页的last_id`，向前传 `before_id=当前页的first_id`；`has_more` 表示请求方向是否还有数据。先按项目和密钥过滤，再分页。
+
+`created_at` 是模型卡精确到日的发布日期或完整时间戳。只知道月份或缺少日期时使用 Unix 纪元。旧字段 `created` 保留平台注册时间。
+
+聊天模型有当前密钥可用的 Messages 路线时，目录分别返回已知的最大输入 `max_input_tokens` 和最大输出 `max_tokens`，未知值为 `null`。目录逐个检查实际型号的协议覆盖和关联中的请求协议条件。只允许 Responses 请求的关联不会为 Messages 提供上限或能力。
+
+模型卡提供完整的 Anthropic 原生声明，且所有可选路线都使用原生 Messages 时，目录才返回 `capabilities`。包含转换路线或缺少完整声明时，该字段为 `null`。如果某条原生路线无法使用服务端工具，目录将 `server_tools` 和 `code_execution` 标为不支持。常规 Messages 转发会重新组装请求，无法完整保留 PDF 文档、文档引文设置和上下文编辑指令，因此目录将 `pdf_input`、`citations` 和 `context_management` 标为不支持。搜索工具返回的来源引用仍按工具结果传递。
 
 **示例请求：**
 ```go

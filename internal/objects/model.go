@@ -9,7 +9,9 @@ import (
 
 type ModelCardReasoning struct {
 	Supported bool `json:"supported"`
-	Default   bool `json:"default"`
+	// Older cards and missing catalog fields both used false for unknown support.
+	SupportDeclared bool `json:"supportDeclared,omitempty"`
+	Default         bool `json:"default"`
 }
 
 type ModelCardModalities struct {
@@ -26,17 +28,20 @@ type ModelCardCost struct {
 }
 
 type ModelCardLimit struct {
-	Context int `json:"context"`
-	Output  int `json:"output"`
+	Context int  `json:"context"`
+	Input   *int `json:"input,omitempty"`
+	Output  int  `json:"output"`
 }
 
 type ModelCard struct {
-	Reasoning        ModelCardReasoning  `json:"reasoning"`
-	ReasoningEfforts []string            `json:"reasoningEfforts"`
-	ToolCall         bool                `json:"toolCall"`
-	Temperature      bool                `json:"temperature"`
-	Modalities       ModelCardModalities `json:"modalities"`
-	Vision           bool                `json:"vision"`
+	// Optional complete native Messages capability declaration supplied with this card.
+	AnthropicCapabilities JSONRawMessage      `json:"anthropicCapabilities,omitempty"`
+	Reasoning             ModelCardReasoning  `json:"reasoning"`
+	ReasoningEfforts      []string            `json:"reasoningEfforts"`
+	ToolCall              bool                `json:"toolCall"`
+	Temperature           bool                `json:"temperature"`
+	Modalities            ModelCardModalities `json:"modalities"`
+	Vision                bool                `json:"vision"`
 	// Price is authoritative. Keep null in JSON to distinguish an unpriced card
 	// from legacy cost-only persisted data, including old cache entries.
 	Price       *ModelPrice    `json:"price"`

@@ -625,13 +625,16 @@ AxonHub 提供增强的 `/v1/models` 端点，可列出可用模型并选择性�
 | `max_output_tokens` | 整数 | 最大输出令牌数 |
 | `modalities` | 对象 | 模型支持的输入输出类型（input, output） |
 | `capabilities` | 对象 | 模型能力（vision, tool_call, reasoning） |
+| `input_modalities` | 字符串数组 | 模型卡声明的输入类型 |
+| `reasoning` | 布尔值 | 已声明的推理支持；旧卡未明确关闭时省略未知值 |
+| `supported_reasoning_levels` | 字符串数组 | 当前密钥可用的 Chat 和 Responses 路线经渠道映射后均能传递的已配置档位。有路线使用无法传递档位的 Ollama Chat 出口时省略 |
 | `pricing` | 对象 | 定价信息（input, output, cache_read, cache_write） |
 | `icon` | 字符串 | 模型图标 URL |
 | `type` | 字符串 | 模型类型（chat, embedding, image, rerank, moderation, tts, stt） |
 
 ### 响应格式（基础 - 默认）
 
-调用时不带 `include` 参数，端点仅返回基础字段：
+未指定 `include` 时，列表遵循模型设置中的「/v1/models 默认返回完整模型信息」。该选项默认关闭。单型号详情默认返回基础字段，使用 `?include=all` 或字段名读取扩展信息。
 
 ```json
 {
@@ -783,7 +786,7 @@ for model in models.data:
 
 ### 字段可用性说明
 
-> **注意：** 扩展字段仅在模型配置了 ModelCard 数据时才会填充。没有 ModelCard 数据的模型将为扩展字段返回 `null`。
+卡片没有声明的顶层输入类型、推理支持和档位会省略。启用模型列表默认扩展信息后，OMP 可在普通查询中发现这些能力。已有嵌套字段继续按原格式返回。
 
 ## 认证
 

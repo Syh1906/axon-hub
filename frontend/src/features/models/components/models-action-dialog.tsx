@@ -30,7 +30,7 @@ import { createPriceValidationSchema, hasPriceConfiguration, priceFromCatalog } 
 import { useDevelopersData } from '../data/providers';
 import { isSuggestedModel, withMiniMaxFlash } from '../data/model-suggestions';
 import { type Provider, type ProviderModel } from '../data/providers.schema';
-import { REASONING_EFFORTS, deriveReasoningEfforts } from '../data/reasoning-efforts';
+import { REASONING_EFFORTS } from '../data/reasoning-efforts';
 import { CreateModelInput, createModelInputSchema, UpdateModelInput, ModelCard, ModelType, modelTypeSchema, normalizeModelRoutingPolicyValue } from '../data/schema';
 import { modelCardInputSchema, modelSettingsSchema } from '../data/schema';
 import { ModelsCatalogImport } from './models-catalog-import';
@@ -253,11 +253,8 @@ export function ModelsActionDialog() {
         if (normalizedType && modelTypeSchema.safeParse(normalizedType).success) {
           form.setValue('type', normalizedType as ModelType);
         }
-        const modelCard: ModelCard = {
-          ...modelCardFromCatalog(selectedModel, selectedProvider),
-          price: hasPriceConfiguration(currentPrice) ? currentPrice : priceFromCatalog(selectedModel, selectedProvider),
-          reasoningEfforts: deriveReasoningEfforts(selectedModel.reasoning_options),
-        };
+        const modelCard = modelCardFromCatalog(selectedModel, selectedProvider);
+        if (hasPriceConfiguration(currentPrice)) modelCard.price = currentPrice;
         // Replacing the card must refresh nested price and tier field arrays together.
         form.reset({ ...form.getValues(), modelCard: modelCardFormValues(modelCard) }, { keepDefaultValues: true });
         setSelectedModelCard(modelCard);
@@ -564,7 +561,13 @@ export function ModelsActionDialog() {
                         render={({ field }) => (
                           <FormItem className='flex items-center space-y-0 space-x-2'>
                             <FormControl>
-                              <Checkbox checked={field.value || false} onCheckedChange={field.onChange} />
+                              <Checkbox
+                                checked={field.value || false}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked === true);
+                                  form.setValue('modelCard.reasoning.supportDeclared', true, { shouldDirty: true });
+                                }}
+                              />
                             </FormControl>
                             <FormLabel className='font-normal'>{t('models.modelCard.reasoningSupported')}</FormLabel>
                           </FormItem>
@@ -693,7 +696,7 @@ export function ModelsActionDialog() {
 
                   <div className='space-y-2'>
                     <FormLabel>{t('modelContext.cardParameters')}</FormLabel>
-                    <div className='grid grid-cols-2 gap-2'>
+                    <div className='grid grid-cols-1 items-start gap-2 sm:grid-cols-3'>
                       <FormField
                         control={form.control}
                         name='modelCard.limit.context'
@@ -719,6 +722,32 @@ export function ModelsActionDialog() {
                             </FormItem>
                           );
                         }}
+                      />
+                      <FormField
+                        control={form.control}
+                        name='modelCard.limit.input'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className='text-xs'>{t('modelContext.cardInput')}</FormLabel>
+                            <FormControl>
+                              <Input
+                                type='number'
+                                min={1}
+                                max={2147483647}
+                                step={1}
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={(event) => field.onChange(event.target.value === '' ? null : event.target.valueAsNumber)}
+                              />
+                            </FormControl>
+                            {!!field.value && (
+                              <p className='text-muted-foreground text-xs'>
+                                {t('modelContext.cardInput')}: {formatNumber(field.value)}
+                              </p>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                       <FormField
                         control={form.control}

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AutoComplete } from '@/components/auto-complete';
 import { useGeneralSettings } from '@/features/system/data/system';
-import { modelCardFromCatalog } from '../data/catalog-card';
+import { modelCardFormValues, modelCardFromCatalog } from '../data/catalog-card';
 import { priceFromCatalog } from '../data/pricing';
 import { useDevelopersData } from '../data/providers';
 import type { CreateModelInput } from '../data/schema';
@@ -29,7 +29,7 @@ export function ModelsCatalogImport({ portalContainer }: { portalContainer: HTML
   const price = priceFromCatalog(selected, developer);
   const importCard = () => {
     if (!selected) return;
-    form.reset({ ...form.getValues(), modelCard: modelCardFromCatalog(selected, developer) }, { keepDefaultValues: true });
+    form.reset({ ...form.getValues(), modelCard: modelCardFormValues(modelCardFromCatalog(selected, developer)) }, { keepDefaultValues: true });
     toast.success(t('models.cardImport.imported'));
   };
   return (
@@ -125,6 +125,9 @@ export function ModelsCatalogImport({ portalContainer }: { portalContainer: HTML
               </p>
               <p>
                 {t('models.cardImport.context')}: {selected.limit?.context?.toLocaleString() ?? '—'}
+              </p>
+              <p>
+                {t('modelContext.cardInput')}: {selected.limit?.input?.toLocaleString() ?? '—'}
               </p>
               <p>
                 {t('models.cardImport.outputLimit')}: {selected.limit?.output?.toLocaleString() ?? '—'}

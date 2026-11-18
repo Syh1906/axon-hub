@@ -668,13 +668,16 @@ AxonHub provides an enhanced `/v1/models` endpoint that lists available models w
 | `max_output_tokens` | integer | Maximum output tokens |
 | `modalities` | object | Model supported input/output types (input, output) |
 | `capabilities` | object | Model capabilities (vision, tool_call, reasoning) |
+| `input_modalities` | string array | Input types declared on the registered model card |
+| `reasoning` | boolean | Declared reasoning support; unknown support is omitted |
+| `supported_reasoning_levels` | string array | Configured effort levels that all eligible Chat and Responses routes can forward after channel mapping. Omitted if a selected outbound uses Ollama Chat, which cannot forward effort levels |
 | `pricing` | object | Pricing information (input, output, cache_read, cache_write) |
 | `icon` | string | Model icon URL |
 | `type` | string | Model type (chat, embedding, image, rerank, moderation, tts, stt) |
 
 ### Response Format (Basic - Default)
 
-When called without the `include` parameter, the endpoint returns only basic fields:
+Without `include`, the list follows the model setting for full model information (off by default). Single-model retrieval returns basic fields unless extended fields are requested.
 
 ```json
 {
@@ -826,7 +829,7 @@ for model in models.data:
 
 ### Field Availability Note
 
-> **Note:** Extended fields are only populated if the model has ModelCard data configured in the database. Models without ModelCard data will return `null` for extended fields.
+Top-level input types, reasoning support and levels are omitted when unknown. Enable full list information by default for clients such as OMP that discover models without an explicit include parameter. Existing nested fields keep their published format.
 
 ## Authentication
 

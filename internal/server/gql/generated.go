@@ -1486,18 +1486,19 @@ type ComplexityRoot struct {
 	}
 
 	ModelCard struct {
-		Cost             func(childComplexity int) int
-		Knowledge        func(childComplexity int) int
-		LastUpdated      func(childComplexity int) int
-		Limit            func(childComplexity int) int
-		Modalities       func(childComplexity int) int
-		Price            func(childComplexity int) int
-		Reasoning        func(childComplexity int) int
-		ReasoningEfforts func(childComplexity int) int
-		ReleaseDate      func(childComplexity int) int
-		Temperature      func(childComplexity int) int
-		ToolCall         func(childComplexity int) int
-		Vision           func(childComplexity int) int
+		AnthropicCapabilities func(childComplexity int) int
+		Cost                  func(childComplexity int) int
+		Knowledge             func(childComplexity int) int
+		LastUpdated           func(childComplexity int) int
+		Limit                 func(childComplexity int) int
+		Modalities            func(childComplexity int) int
+		Price                 func(childComplexity int) int
+		Reasoning             func(childComplexity int) int
+		ReasoningEfforts      func(childComplexity int) int
+		ReleaseDate           func(childComplexity int) int
+		Temperature           func(childComplexity int) int
+		ToolCall              func(childComplexity int) int
+		Vision                func(childComplexity int) int
 	}
 
 	ModelCardCost struct {
@@ -1509,6 +1510,7 @@ type ComplexityRoot struct {
 
 	ModelCardLimit struct {
 		Context func(childComplexity int) int
+		Input   func(childComplexity int) int
 		Output  func(childComplexity int) int
 	}
 
@@ -1518,8 +1520,9 @@ type ComplexityRoot struct {
 	}
 
 	ModelCardReasoning struct {
-		Default   func(childComplexity int) int
-		Supported func(childComplexity int) int
+		Default         func(childComplexity int) int
+		SupportDeclared func(childComplexity int) int
+		Supported       func(childComplexity int) int
 	}
 
 	ModelChannelConnection struct {
@@ -9594,6 +9597,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ModelAssociationWhen.Enabled(childComplexity), true
 
+	case "ModelCard.anthropicCapabilities":
+		if e.complexity.ModelCard.AnthropicCapabilities == nil {
+			break
+		}
+
+		return e.complexity.ModelCard.AnthropicCapabilities(childComplexity), true
 	case "ModelCard.cost":
 		if e.complexity.ModelCard.Cost == nil {
 			break
@@ -9698,6 +9707,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelCardLimit.Context(childComplexity), true
+	case "ModelCardLimit.input":
+		if e.complexity.ModelCardLimit.Input == nil {
+			break
+		}
+
+		return e.complexity.ModelCardLimit.Input(childComplexity), true
 	case "ModelCardLimit.output":
 		if e.complexity.ModelCardLimit.Output == nil {
 			break
@@ -9724,6 +9739,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelCardReasoning.Default(childComplexity), true
+	case "ModelCardReasoning.supportDeclared":
+		if e.complexity.ModelCardReasoning.SupportDeclared == nil {
+			break
+		}
+
+		return e.complexity.ModelCardReasoning.SupportDeclared(childComplexity), true
 	case "ModelCardReasoning.supported":
 		if e.complexity.ModelCardReasoning.Supported == nil {
 			break
@@ -52734,6 +52755,8 @@ func (ec *executionContext) fieldContext_Model_modelCard(_ context.Context, fiel
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "anthropicCapabilities":
+				return ec.fieldContext_ModelCard_anthropicCapabilities(ctx, field)
 			case "reasoning":
 				return ec.fieldContext_ModelCard_reasoning(ctx, field)
 			case "reasoningEfforts":
@@ -53361,6 +53384,35 @@ func (ec *executionContext) fieldContext_ModelAssociationWhen_condition(_ contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelCard_anthropicCapabilities(ctx context.Context, field graphql.CollectedField, obj *objects.ModelCard) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelCard_anthropicCapabilities,
+		func(ctx context.Context) (any, error) {
+			return obj.AnthropicCapabilities, nil
+		},
+		nil,
+		ec.marshalOJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelCard_anthropicCapabilities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelCard",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JSONRawMessage does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ModelCard_reasoning(ctx context.Context, field graphql.CollectedField, obj *objects.ModelCard) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -53387,6 +53439,8 @@ func (ec *executionContext) fieldContext_ModelCard_reasoning(_ context.Context, 
 			switch field.Name {
 			case "supported":
 				return ec.fieldContext_ModelCardReasoning_supported(ctx, field)
+			case "supportDeclared":
+				return ec.fieldContext_ModelCardReasoning_supportDeclared(ctx, field)
 			case "default":
 				return ec.fieldContext_ModelCardReasoning_default(ctx, field)
 			}
@@ -53653,6 +53707,8 @@ func (ec *executionContext) fieldContext_ModelCard_limit(_ context.Context, fiel
 			switch field.Name {
 			case "context":
 				return ec.fieldContext_ModelCardLimit_context(ctx, field)
+			case "input":
+				return ec.fieldContext_ModelCardLimit_input(ctx, field)
 			case "output":
 				return ec.fieldContext_ModelCardLimit_output(ctx, field)
 			}
@@ -53894,6 +53950,35 @@ func (ec *executionContext) fieldContext_ModelCardLimit_context(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelCardLimit_input(ctx context.Context, field graphql.CollectedField, obj *objects.ModelCardLimit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelCardLimit_input,
+		func(ctx context.Context) (any, error) {
+			return obj.Input, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelCardLimit_input(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelCardLimit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ModelCardLimit_output(ctx context.Context, field graphql.CollectedField, obj *objects.ModelCardLimit) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -53998,6 +54083,35 @@ func (ec *executionContext) _ModelCardReasoning_supported(ctx context.Context, f
 }
 
 func (ec *executionContext) fieldContext_ModelCardReasoning_supported(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelCardReasoning",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModelCardReasoning_supportDeclared(ctx context.Context, field graphql.CollectedField, obj *objects.ModelCardReasoning) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelCardReasoning_supportDeclared,
+		func(ctx context.Context) (any, error) {
+			return obj.SupportDeclared, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelCardReasoning_supportDeclared(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ModelCardReasoning",
 		Field:      field,
@@ -117476,13 +117590,20 @@ func (ec *executionContext) unmarshalInputModelCardInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"reasoning", "reasoningEfforts", "toolCall", "temperature", "modalities", "vision", "price", "limit", "knowledge", "releaseDate", "lastUpdated"}
+	fieldsInOrder := [...]string{"anthropicCapabilities", "reasoning", "reasoningEfforts", "toolCall", "temperature", "modalities", "vision", "price", "limit", "knowledge", "releaseDate", "lastUpdated"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "anthropicCapabilities":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("anthropicCapabilities"))
+			data, err := ec.unmarshalOJSONRawMessageInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AnthropicCapabilities = data
 		case "reasoning":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("reasoning"))
 			data, err := ec.unmarshalOModelCardReasoningInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐModelCardReasoning(ctx, v)
@@ -117573,7 +117694,7 @@ func (ec *executionContext) unmarshalInputModelCardLimitInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"context", "output"}
+	fieldsInOrder := [...]string{"context", "input", "output"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -117587,6 +117708,13 @@ func (ec *executionContext) unmarshalInputModelCardLimitInput(ctx context.Contex
 				return it, err
 			}
 			it.Context = data
+		case "input":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Input = data
 		case "output":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("output"))
 			data, err := ec.unmarshalOInt2int(ctx, v)
@@ -117641,7 +117769,7 @@ func (ec *executionContext) unmarshalInputModelCardReasoningInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"supported", "default"}
+	fieldsInOrder := [...]string{"supported", "supportDeclared", "default"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -117655,6 +117783,13 @@ func (ec *executionContext) unmarshalInputModelCardReasoningInput(ctx context.Co
 				return it, err
 			}
 			it.Supported = data
+		case "supportDeclared":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("supportDeclared"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SupportDeclared = data
 		case "default":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("default"))
 			data, err := ec.unmarshalOBoolean2bool(ctx, v)
@@ -148083,6 +148218,8 @@ func (ec *executionContext) _ModelCard(ctx context.Context, sel ast.SelectionSet
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ModelCard")
+		case "anthropicCapabilities":
+			out.Values[i] = ec._ModelCard_anthropicCapabilities(ctx, field, obj)
 		case "reasoning":
 			out.Values[i] = ec._ModelCard_reasoning(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -148212,6 +148349,8 @@ func (ec *executionContext) _ModelCardLimit(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "input":
+			out.Values[i] = ec._ModelCardLimit_input(ctx, field, obj)
 		case "output":
 			out.Values[i] = ec._ModelCardLimit_output(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -148297,6 +148436,11 @@ func (ec *executionContext) _ModelCardReasoning(ctx context.Context, sel ast.Sel
 			out.Values[i] = graphql.MarshalString("ModelCardReasoning")
 		case "supported":
 			out.Values[i] = ec._ModelCardReasoning_supported(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supportDeclared":
+			out.Values[i] = ec._ModelCardReasoning_supportDeclared(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

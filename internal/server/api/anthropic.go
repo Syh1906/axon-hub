@@ -1,15 +1,9 @@
 package api
 
 import (
-	"errors"
-	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
-	"github.com/looplj/axonhub/internal/contexts"
-	entprivacy "github.com/looplj/axonhub/internal/ent/privacy"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/internal/server/plugin"
@@ -88,68 +82,4 @@ func (handlers *AnthropicHandlers) CreateMessage(c *gin.Context) {
 
 func (handlers *AnthropicHandlers) CountTokens(c *gin.Context) {
 	handlers.TokenCountHandlers.ChatCompletion(c)
-}
-
-type AnthropicModel struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	DisplayName string    `json:"display_name"`
-	CreatedAt   time.Time `json:"created"`
-}
-
-// ListModels returns all available models.
-// Only enabled registered models and aliases resolving to them are exposed.
-func (handlers *AnthropicHandlers) ListModels(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	models, err := handlers.ModelService.ListEnabledModels(ctx)
-	if err != nil {
-		requestID, _ := contexts.GetRequestID(ctx)
-		status := http.StatusInternalServerError
-		errorType := "internal_server_error"
-		if errors.Is(err, entprivacy.Deny) {
-			status = http.StatusForbidden
-			errorType = "permission_error"
-		}
-		_ = c.Error(err)
-		c.JSON(status, anthropic.AnthropicError{
-			StatusCode: status,
-			Type:       errorType,
-			RequestID:  requestID,
-			Error: anthropic.ErrorDetail{
-				Type:    errorType,
-				Message: err.Error(),
-			},
-		})
-
-		return
-	}
-
-	anthropicModels := make([]AnthropicModel, 0, len(models))
-	for _, model := range models {
-		anthropicModels = append(anthropicModels, AnthropicModel{
-			ID:          model.ID,
-			Type:        "model",
-			DisplayName: model.DisplayName,
-			CreatedAt:   model.CreatedAt,
-		})
-	}
-
-	var firstID string
-	if len(anthropicModels) > 0 {
-		firstID = anthropicModels[0].ID
-	}
-
-	var lastID string
-	if len(anthropicModels) > 0 {
-		lastID = anthropicModels[len(anthropicModels)-1].ID
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"object":   "list",
-		"data":     anthropicModels,
-		"has_more": false,
-		"first_id": firstID,
-		"last_id":  lastID,
-	})
 }

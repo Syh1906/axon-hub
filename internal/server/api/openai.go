@@ -599,19 +599,22 @@ type Pricing struct {
 }
 
 type OpenAIModel struct {
-	ID              string        `json:"id"`
-	Object          string        `json:"object"`
-	Created         int64         `json:"created"`
-	OwnedBy         string        `json:"owned_by"`
-	Name            string        `json:"name,omitempty"`
-	Description     string        `json:"description,omitempty"`
-	ContextLength   int           `json:"context_length,omitempty"`
-	MaxOutputTokens int           `json:"max_output_tokens,omitempty"`
-	Modalities      *Modalities   `json:"modalities,omitempty"`
-	Capabilities    *Capabilities `json:"capabilities,omitempty"`
-	Pricing         *Pricing      `json:"pricing,omitempty"`
-	Icon            string        `json:"icon,omitempty"`
-	Type            string        `json:"type,omitempty"`
+	ID                       string        `json:"id"`
+	Object                   string        `json:"object"`
+	Created                  int64         `json:"created"`
+	OwnedBy                  string        `json:"owned_by"`
+	Name                     string        `json:"name,omitempty"`
+	Description              string        `json:"description,omitempty"`
+	ContextLength            int           `json:"context_length,omitempty"`
+	MaxOutputTokens          int           `json:"max_output_tokens,omitempty"`
+	Modalities               *Modalities   `json:"modalities,omitempty"`
+	InputModalities          []string      `json:"input_modalities,omitempty"`
+	Reasoning                *bool         `json:"reasoning,omitempty"`
+	SupportedReasoningLevels []string      `json:"supported_reasoning_levels,omitempty"`
+	Capabilities             *Capabilities `json:"capabilities,omitempty"`
+	Pricing                  *Pricing      `json:"pricing,omitempty"`
+	Icon                     string        `json:"icon,omitempty"`
+	Type                     string        `json:"type,omitempty"`
 }
 
 const (
@@ -646,7 +649,10 @@ func parseOpenAIModelInclude(includeParam string, defaultIncludeAll bool) (map[s
 		}
 	}
 
-	extendedFields := []string{"name", "description", "context_length", "max_output_tokens", "modalities", "capabilities", "pricing", "icon", "type"}
+	extendedFields := []string{
+		"name", "description", "context_length", "max_output_tokens", "modalities", "capabilities",
+		"pricing", "icon", "type", "input_modalities", "reasoning", "supported_reasoning_levels",
+	}
 	for _, field := range extendedFields {
 		if include[field] {
 			needFullData = true
@@ -668,11 +674,11 @@ func convertModelFacadeToOpenAIModel(m biz.ModelFacade) OpenAIModel {
 
 // convertModelToOpenAIExtended transforms an ent.Model to OpenAIModel with extended metadata fields.
 // It safely handles absent model cards and unconfigured pricing.
-// The include set specifies which optional fields to populate. If nil or empty, all fields are populated.
-// Supported field names: name, description, context_length, max_output_tokens, modalities, capabilities, pricing, icon, type.
-func convertModelToOpenAIExtended(m *ent.Model, include map[string]bool) OpenAIModel {
+// A nil include set requests all extended fields. Alias metadata comes from its admitted target.
+func convertModelToOpenAIExtended(ctx context.Context, visible biz.ModelFacade, include map[string]bool) OpenAIModel {
+	m := visible.ConfiguredModel
 	result := OpenAIModel{
-		ID:      m.ModelID,
+		ID:      visible.ID,
 		Object:  openAIModelObjectType,
 		Created: m.CreatedAt.Unix(),
 		OwnedBy: m.Developer,
@@ -704,6 +710,24 @@ func convertModelToOpenAIExtended(m *ent.Model, include map[string]bool) OpenAIM
 		}
 	}
 
+	if m.ModelCard != nil && (shouldInclude("input_modalities") || shouldInclude("reasoning") || shouldInclude("supported_reasoning_levels")) {
+		var routes discoveryRoutes
+		isChat := m.Type == "chat"
+		if isChat {
+			routes = modelDiscoveryRoutes(ctx, visible, llm.APIFormatOpenAIChatCompletion, llm.APIFormatOpenAIResponse)
+		}
+		if !isChat || len(routes.channels) > 0 {
+			if shouldInclude("input_modalities") {
+				result.InputModalities = m.ModelCard.Modalities.Input
+			}
+			if shouldInclude("reasoning") && (m.ModelCard.Reasoning.Supported || m.ModelCard.Reasoning.SupportDeclared) {
+				result.Reasoning = lo.ToPtr(m.ModelCard.Reasoning.Supported)
+			}
+			if shouldInclude("supported_reasoning_levels") {
+				result.SupportedReasoningLevels = routes.reasoningLevels(m.ModelCard)
+			}
+		}
+	}
 	if m.ModelCard != nil {
 		// Modalities, Capabilities, ContextLength, MaxOutputTokens, Pricing come from ModelCard
 		if shouldInclude("modalities") {
@@ -836,8 +860,7 @@ func (handlers *OpenAIHandlers) RetrieveModel(c *gin.Context) {
 		return
 	}
 
-	result := convertModelToOpenAIExtended(visibleModel.ConfiguredModel, include)
-	result.ID = visibleModel.ID
+	result := convertModelToOpenAIExtended(ctx, visibleModel, include)
 	c.JSON(http.StatusOK, result)
 }
 
@@ -878,9 +901,7 @@ func (handlers *OpenAIHandlers) ListModels(c *gin.Context) {
 		})
 	} else {
 		openaiModels = lo.Map(visibleModels, func(m biz.ModelFacade, _ int) OpenAIModel {
-			result := convertModelToOpenAIExtended(m.ConfiguredModel, include)
-			result.ID = m.ID
-			return result
+			return convertModelToOpenAIExtended(ctx, m, include)
 		})
 	}
 

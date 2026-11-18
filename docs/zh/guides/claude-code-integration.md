@@ -22,11 +22,13 @@ AxonHub 可以作为 Anthropic 接口的直接替代方案，使 Claude Code 能
    ```bash
    export ANTHROPIC_AUTH_TOKEN="<your-axonhub-api-key>"
    export ANTHROPIC_BASE_URL="http://localhost:8090/anthropic"
-   # 或者使用根路径：
+   # 仅使用 Messages 生成接口时也可用根路径
    # export ANTHROPIC_BASE_URL="http://localhost:8090"
    ```
 2. 启动 Claude Code，程序会自动读取上述变量并将所有 Anthropic 请求代理到 AxonHub。
 3. （可选）触发一次对话并在 AxonHub 的 Traces 页面确认流量已成功记录。
+
+需要网关模型发现时，基础地址应以 `/anthropic` 结尾，并在客户端设置 `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1`。Claude Code 查询 `/v1/models?limit=1000`，当前仅从发现结果展示 ID 中含 `claude` 或 `anthropic` 的型号。国产模型可用 `ANTHROPIC_CUSTOM_MODEL_OPTION` 显式添加网关已公开的 ID。[Claude Code 网关发现规则](https://code.claude.com/docs/en/llm-gateway-protocol#model-discovery)
 
 #### Trace 聚合（重要）
 若希望将 Claude Code 同一次会话的请求聚合到同一条 Trace，可在 `config.yml` 中开启：

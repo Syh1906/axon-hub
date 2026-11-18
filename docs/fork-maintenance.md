@@ -2,6 +2,12 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
+## 通用模型卡与公开目录（未发布）
+
+- OpenAI 扩展列表与详情沿用可见模型卡，包含明确声明的推理支持、可用档位与输入类型。借鉴 ChouUn `fceb30dc`；同步上游时复核普通列表默认开关、Key 别名和渠道协议限制。
+- Anthropic 列表与详情按权限返回原生格式，支持双向分页。总上下文、最大输入与最大输出分别保存。复核逐实际型号的协议覆盖、请求协议条件和原生服务端工具的渠道限制。Codex 完整定义继续独立。
+- 模型卡 JSON 增加可选字段，旧卡按未知处理，无需数据库迁移。复核三个导入入口、显式关闭推理和右侧整卡替换。[模型管理](zh/guides/model-management.md) · [Anthropic 模型接口](zh/api-reference/anthropic-api.md)
+
 ## rc1-fork.11 正式发布与双机更新（2026-11-18）
 
 - 发布范围：相对 fork.10 纳入维护分支的渠道规则匹配、Codex 公开目录、原生计数／文本补全／音频／重排修正，以及分组临时加额（`05f5e070`）。精简正式发布设置为 `prerelease=false`、`publishBinaries=false`，无新增 schema 或数据迁移。

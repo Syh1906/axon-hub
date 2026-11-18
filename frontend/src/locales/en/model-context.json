@@ -1,6 +1,7 @@
 {
   "modelContext": {
     "cardParameters": "Model card parameters",
+    "cardInput": "Max input",
     "cardContext": "Card context",
     "modelTitle": "Model catalog context",
     "channelTitle": "Model context",

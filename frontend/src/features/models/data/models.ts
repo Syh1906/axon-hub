@@ -35,8 +35,10 @@ const MODELS_QUERY = `
           name
           group
           modelCard {
+            anthropicCapabilities
             reasoning {
               supported
+              supportDeclared
               default
             }
             reasoningEfforts
@@ -50,6 +52,7 @@ const MODELS_QUERY = `
             price { ${MODEL_PRICE_FIELDS} }
             limit {
               context
+              input
               output
             }
             knowledge
@@ -166,8 +169,10 @@ const CREATE_MODEL_MUTATION = `
       name
       group
       modelCard {
+        anthropicCapabilities
         reasoning {
           supported
+          supportDeclared
           default
         }
         reasoningEfforts
@@ -181,6 +186,7 @@ const CREATE_MODEL_MUTATION = `
         price { ${MODEL_PRICE_FIELDS} }
         limit {
           context
+          input
           output
         }
         knowledge
@@ -272,8 +278,10 @@ const BULK_CREATE_MODELS_MUTATION = `
       name
       group
       modelCard {
+        anthropicCapabilities
         reasoning {
           supported
+          supportDeclared
           default
         }
         reasoningEfforts
@@ -287,6 +295,7 @@ const BULK_CREATE_MODELS_MUTATION = `
         price { ${MODEL_PRICE_FIELDS} }
         limit {
           context
+          input
           output
         }
         knowledge
@@ -378,8 +387,10 @@ const UPDATE_MODEL_MUTATION = `
       name
       group
       modelCard {
+        anthropicCapabilities
         reasoning {
           supported
+          supportDeclared
           default
         }
         reasoningEfforts
@@ -393,6 +404,7 @@ const UPDATE_MODEL_MUTATION = `
         price { ${MODEL_PRICE_FIELDS} }
         limit {
           context
+          input
           output
         }
         knowledge

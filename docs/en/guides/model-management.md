@@ -9,6 +9,8 @@ The public model catalog loads on demand and reuses results for five minutes. Co
 
 ## Import a model card from the catalog
 
+Single selection, bulk creation and card import use the same capability data. Set or clear the optional maximum input independently of total context. Effort levels are imported only when enumerated. Custom provider entries can supply a full native Anthropic capability object in `anthropic_capabilities`, or administrators can set `modelCard.anthropicCapabilities` through GraphQL. Generic reasoning and tool switches do not imply adaptive thinking or server tools.
+
 The right-side **Model card** header provides **Import model card from catalog**. Select a developer and catalog model, preview capabilities, modalities, limits and prices, then import. It replaces the whole right-side card: tool calling, vision, temperature, reasoning support/default, input/output modalities, pricing, context/output limits, knowledge cutoff and release/update dates. The left-side developer, model ID, matching rules, public IDs, name and group stay unchanged. Save the model to persist.
 
 Missing catalog fields become empty or disabled. Models without catalog prices remain importable and clear current pricing. Prices include base/cache items and catalog volume tiers; old schedules are removed. Selecting a catalog model on the left still automatically fills empty pricing, while existing zero prices, items, tiers and schedules remain. Both entry points share catalog conversion without currency conversion.

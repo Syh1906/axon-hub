@@ -22,11 +22,13 @@ For Anthropic streaming responses whose initial input usage is missing or zero (
    ```bash
    export ANTHROPIC_AUTH_TOKEN="<your-axonhub-api-key>"
    export ANTHROPIC_BASE_URL="http://localhost:8090/anthropic"
-   # Or using the root path:
+   # The root URL also supports message generation
    # export ANTHROPIC_BASE_URL="http://localhost:8090"
    ```
 2. Launch Claude Code. It will read the environment variables and route all Anthropic requests through AxonHub.
 3. (Optional) Confirm the integration by triggering a chat completion and checking AxonHub traces.
+
+For gateway discovery, use the base URL ending in `/anthropic` and set `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` in the client. Claude Code requests `/v1/models?limit=1000` and filters discovered IDs to those containing `claude` or `anthropic`. Set `ANTHROPIC_CUSTOM_MODEL_OPTION` to select another published ID explicitly. [Claude Code gateway discovery](https://code.claude.com/docs/en/llm-gateway-protocol#model-discovery)
 
 #### Trace aggregation (important)
 To aggregate requests from the same Claude Code session into a single trace, enable the following in `config.yml`:

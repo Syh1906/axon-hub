@@ -1,6 +1,7 @@
 {
   "modelContext": {
     "cardParameters": "模型卡片参数",
+    "cardInput": "最大输入",
     "cardContext": "卡片上下文",
     "modelTitle": "模型目录上下文",
     "channelTitle": "模型上下文",

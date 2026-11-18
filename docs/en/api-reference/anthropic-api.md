@@ -65,6 +65,15 @@ but no inference usage log or debit is created. Missing, negative, or invalid
 - `POST /anthropic/v1/messages` - Text generation
 - `POST /v1/messages` - Text generation (alternative)
 - `GET /anthropic/v1/models` - List available models
+- `GET /anthropic/v1/models/{id}` - Retrieve a visible public ID or alias
+
+Models are ordered by descending release date, then by public ID. The default page size is 20; `limit` accepts 1–1000. Use the last ID as `after_id` for the next page or the first ID as `before_id` for the previous page. `has_more` refers to the requested direction. Project and key visibility apply before pagination.
+
+`created_at` uses the model card's release day or timestamp. A month-only or missing date yields the Unix epoch. The legacy `created` field retains the registration time.
+
+Chat models with a Messages route available to the calling key report known `max_input_tokens` and `max_tokens` independently. Unknown limits are null. Discovery checks each upstream model's protocol override and the association's request-format conditions. An association restricted to Responses cannot supply limits or capabilities for Messages.
+
+The `capabilities` object requires a complete native Anthropic declaration and native Messages on every eligible route. A converted route or an incomplete declaration yields null. If any native route cannot carry server tools, `server_tools` and `code_execution` report no support. Ordinary Messages request reconstruction cannot preserve PDF document blocks, document citation settings or context edit directives, so `pdf_input`, `citations` and `context_management` report no support. Search tools can still return source citations.
 
 **Example Request:**
 ```go

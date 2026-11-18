@@ -527,6 +527,10 @@ export function ModelsTable({
                                         <span className='font-mono text-xs'>{modelCard?.limit?.context?.toLocaleString() ?? '-'}</span>
                                       </div>
                                       <div className='flex justify-between'>
+                                        <span className='text-muted-foreground'>{t('modelContext.cardInput')}:</span>
+                                        <span className='font-mono text-xs'>{modelCard?.limit?.input?.toLocaleString() ?? '-'}</span>
+                                      </div>
+                                      <div className='flex justify-between'>
                                         <span className='text-muted-foreground'>{t('models.modelCard.output')}:</span>
                                         <span className='font-mono text-xs'>{modelCard?.limit?.output?.toLocaleString() ?? '-'}</span>
                                       </div>

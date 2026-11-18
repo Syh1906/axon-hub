@@ -1,18 +1,24 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/stretchr/testify/assert"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
+
+func extendedTestModel(m *ent.Model, include map[string]bool) OpenAIModel {
+	return convertModelToOpenAIExtended(context.Background(), biz.ModelFacade{ID: m.ModelID, ConfiguredModel: m}, include)
+}
 
 func TestConvertModelToOpenAIExtended_ModalityPrices(t *testing.T) {
 	price := &objects.ModelPrice{}
@@ -24,7 +30,7 @@ func TestConvertModelToOpenAIExtended_ModalityPrices(t *testing.T) {
 	} {
 		price.Items = append(price.Items, objects.ModelPriceItem{ItemCode: entry.code, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(entry.rate))}})
 	}
-	result := convertModelToOpenAIExtended(&ent.Model{ModelID: "image-test", ModelCard: &objects.ModelCard{Price: price}}, nil)
+	result := extendedTestModel(&ent.Model{ModelID: "image-test", ModelCard: &objects.ModelCard{Price: price}}, nil)
 	assert.Nil(t, result.Pricing.Input)
 	assert.Equal(t, price.Items, result.Pricing.Items)
 	assert.Equal(t, 30.0, result.Pricing.Output)
@@ -48,7 +54,7 @@ func TestConvertModelToOpenAIExtended_NilModelCard(t *testing.T) {
 		ModelCard: nil,
 	}
 
-	result := convertModelToOpenAIExtended(m, nil)
+	result := extendedTestModel(m, nil)
 
 	assert.Equal(t, "gpt-4", result.ID)
 	assert.Equal(t, "GPT-4", result.Name)
@@ -77,7 +83,7 @@ func TestConvertModelToOpenAIExtended_CompleteData(t *testing.T) {
 			Limit:     objects.ModelCardLimit{Context: 8192, Output: 4096}, Price: &objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromFloat(0.03))}}, {ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromFloat(0.06))}}, {ItemCode: objects.PriceItemCodePromptCachedToken, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromFloat(0.015))}}, {ItemCode: objects.PriceItemCodeWriteCachedTokens, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromFloat(0.03))}}}}},
 	}
 
-	result := convertModelToOpenAIExtended(m, nil)
+	result := extendedTestModel(m, nil)
 
 	assert.Equal(t, "gpt-4", result.ID)
 	assert.Equal(t, "GPT-4", result.Name)
@@ -109,7 +115,7 @@ func TestConvertModelToOpenAIExtended_NilRemark(t *testing.T) {
 		ModelCard: nil,
 	}
 
-	result := convertModelToOpenAIExtended(m, nil)
+	result := extendedTestModel(m, nil)
 	assert.Equal(t, "", result.Description)
 	assert.Nil(t, result.Capabilities)
 	assert.Nil(t, result.Pricing)
@@ -124,12 +130,12 @@ func TestConvertModelToOpenAIExtended_PriceAuthority(t *testing.T) {
 		Cost: objects.ModelCardCost{Input: lo.ToPtr(99.0)},
 	}
 	m := &ent.Model{ModelID: "free", ModelCard: card}
-	result := convertModelToOpenAIExtended(m, nil)
+	result := extendedTestModel(m, nil)
 	if assert.NotNil(t, result.Pricing) {
 		assert.Zero(t, *result.Pricing.Input)
 	}
 	card.Price = nil
-	assert.Nil(t, convertModelToOpenAIExtended(m, nil).Pricing)
+	assert.Nil(t, extendedTestModel(m, nil).Pricing)
 	card.Price = &objects.ModelPrice{Items: []objects.ModelPriceItem{}}
-	assert.Nil(t, convertModelToOpenAIExtended(m, nil).Pricing)
+	assert.Nil(t, extendedTestModel(m, nil).Pricing)
 }

@@ -2,6 +2,8 @@ package biz
 
 import (
 	"context"
+	"math"
+	"strconv"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -14,6 +16,25 @@ import (
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
 )
+
+func TestValidateModelCardDiscoveryFields(t *testing.T) {
+	for _, raw := range []string{"", "null", "{}", `{"thinking":{"supported":true}}`} {
+		require.NoError(t, validateModelCard(&objects.ModelCard{AnthropicCapabilities: objects.JSONRawMessage(raw)}))
+	}
+	for _, raw := range []string{"true", "[]", `"text"`} {
+		require.Error(t, validateModelCard(&objects.ModelCard{AnthropicCapabilities: objects.JSONRawMessage(raw)}), raw)
+	}
+	for _, limit := range []int{1, math.MaxInt32} {
+		require.NoError(t, validateModelCard(&objects.ModelCard{Limit: objects.ModelCardLimit{Input: &limit}}))
+	}
+	for _, limit := range []int{0, -1} {
+		require.Error(t, validateModelCard(&objects.ModelCard{Limit: objects.ModelCardLimit{Input: &limit}}))
+	}
+	if strconv.IntSize > 32 {
+		limit := int64(math.MaxInt32) + 1
+		require.Error(t, validateModelCard(&objects.ModelCard{Limit: objects.ModelCardLimit{Input: lo.ToPtr(int(limit))}}))
+	}
+}
 
 func TestValidateModelAssociationWhen_ReasoningEffort(t *testing.T) {
 	for _, tc := range []struct {

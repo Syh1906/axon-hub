@@ -12,12 +12,11 @@ import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useModels } from '../context/models-context';
 import { DEVELOPER_IDS, DEVELOPER_ICONS } from '../data/constants';
 import { useBulkCreateModels } from '../data/models';
-import { priceFromCatalog } from '../data/pricing';
+import { modelCardFromCatalog } from '../data/catalog-card';
 import { useDevelopersData } from '../data/providers';
 import { isSuggestedModel, withMiniMaxFlash } from '../data/model-suggestions';
-import { type Provider, type ProviderModel, resolveVision } from '../data/providers.schema';
-import { deriveReasoningEfforts } from '../data/reasoning-efforts';
-import { ModelCard, ModelType, modelTypeSchema } from '../data/schema';
+import type { Provider, ProviderModel } from '../data/providers.schema';
+import { type CreateModelInput, type ModelCard, type ModelType, modelTypeSchema } from '../data/schema';
 
 interface ModelRow {
   id: string;
@@ -150,28 +149,7 @@ export function ModelsBatchCreateDialog() {
 
           const selectedModel = provider.models.find((m: ProviderModel) => m.id === modelId);
           if (selectedModel) {
-            const modelCard: ModelCard = {
-              reasoning: {
-                supported: selectedModel.reasoning?.supported || false,
-                default: selectedModel.reasoning?.default || false,
-              },
-              reasoningEfforts: deriveReasoningEfforts(selectedModel.reasoning_options),
-              toolCall: selectedModel.tool_call || false,
-              temperature: selectedModel.temperature || false,
-              modalities: {
-                input: selectedModel.modalities?.input || [],
-                output: selectedModel.modalities?.output || [],
-              },
-              vision: resolveVision(selectedModel),
-              price: priceFromCatalog(selectedModel, row.developer),
-              limit: {
-                context: selectedModel.limit?.context || 0,
-                output: selectedModel.limit?.output || 0,
-              },
-              knowledge: selectedModel.knowledge,
-              releaseDate: selectedModel.release_date,
-              lastUpdated: selectedModel.last_updated,
-            };
+            const modelCard = modelCardFromCatalog(selectedModel, row.developer);
             const normalizedType = selectedModel.type?.replace(/-/g, '_');
             const modelType =
               normalizedType && modelTypeSchema.safeParse(normalizedType).success ? (normalizedType as ModelType) : ('chat' as ModelType);
@@ -266,14 +244,14 @@ export function ModelsBatchCreateDialog() {
       return;
     }
 
-    const inputs = validRows.map((row) => ({
+    const inputs = validRows.map((row): CreateModelInput => ({
       developer: row.developer,
       modelID: row.modelId,
       type: row.type,
       name: row.name,
       icon: row.icon,
       group: row.group,
-      modelCard: row.modelCard || {
+      modelCard: row.modelCard ?? {
         reasoning: { supported: false, default: false },
         toolCall: false,
         temperature: false,
@@ -283,13 +261,13 @@ export function ModelsBatchCreateDialog() {
       },
       settings: {
         disableDeveloperSettingsInheritance: false,
-        modelProtocols: [],
         loadBalancerStrategy: 'default',
         traceStickyMode: 'default',
         associations: [
           {
             type: 'model',
             priority: 0,
+            disabled: false,
             modelId: {
               modelId: row.modelId,
             },
@@ -299,7 +277,7 @@ export function ModelsBatchCreateDialog() {
     }));
 
     try {
-      await bulkCreateModels.mutateAsync(inputs as any);
+      await bulkCreateModels.mutateAsync(inputs);
       handleClose();
     } catch (_error) {
       // Error is handled by mutation

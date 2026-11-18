@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -374,6 +375,15 @@ func filterConditionValueToInt64(condition objects.Condition) (int64, bool, erro
 func validateModelCard(card *objects.ModelCard) error {
 	if card == nil {
 		return nil
+	}
+	if input := card.Limit.Input; input != nil && (*input <= 0 || *input > math.MaxInt32) {
+		return fmt.Errorf("model card input limit must be between 1 and %d", math.MaxInt32)
+	}
+	if len(card.AnthropicCapabilities) > 0 {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(card.AnthropicCapabilities, &fields); err != nil {
+			return fmt.Errorf("model card Anthropic capabilities must be a JSON object or null: %w", err)
+		}
 	}
 	if card.Price != nil {
 		if card.Price.Multiplier != nil {
@@ -817,6 +827,7 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 				(!systemSettings.HideUnroutableModelsInList || hasCapableEndpointForModel(matched, connections)) {
 				result = append(result, ModelFacade{
 					ID: requestID, TargetID: targetID, DisplayName: requestID, CreatedAt: matched.CreatedAt, Connections: connections,
+					associations: associations, discoveryChannels: channels,
 					Created: matched.CreatedAt.Unix(), OwnedBy: "configured", ConfiguredModel: matched,
 				})
 			}
@@ -979,9 +990,11 @@ type UnassociatedChannel struct {
 }
 
 type ModelFacade struct {
-	Connections []*ModelChannelConnection `json:"-"`
-	ID          string                    `json:"id"`
-	TargetID    string                    `json:"-"`
+	associations      []*objects.ModelAssociation
+	discoveryChannels []*Channel                // Enabled channels already restricted to the calling project and key.
+	Connections       []*ModelChannelConnection `json:"-"`
+	ID                string                    `json:"id"`
+	TargetID          string                    `json:"-"`
 	// Display name, for user-friendly display from anthropic API.
 	DisplayName string `json:"display_name"`
 	// Created time in seconds.
