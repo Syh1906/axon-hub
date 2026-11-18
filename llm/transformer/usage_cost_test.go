@@ -73,9 +73,17 @@ func TestProtocolUsageCost(t *testing.T) {
 					}
 				})
 			}
-			t.Run("invalid_tokens_still_fail", func(t *testing.T) {
+			t.Run("invalid_tokens", func(t *testing.T) {
 				body := fmt.Sprintf(`{"%s":"invalid","cost":"0.1"}`, protocol.tokenField)
-				require.Error(t, json.Unmarshal([]byte(body), protocol.newUsage()))
+				usage := protocol.newUsage()
+				err := json.Unmarshal([]byte(body), usage)
+				if completion, ok := usage.(*openai.CompletionUsage); ok {
+					// Completions preserve valid choices and discard the entire invalid measurement.
+					require.NoError(t, err)
+					require.Equal(t, openai.CompletionUsage{}, *completion)
+					return
+				}
+				require.Error(t, err)
 			})
 			t.Run("missing_cost", func(t *testing.T) {
 				usage := protocol.newUsage()
