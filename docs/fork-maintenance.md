@@ -27,6 +27,7 @@ fork 改动，由用户决定。
 
 - 新增 `/v1/messages/count_tokens` 和 `/anthropic/v1/messages/count_tokens`。复用调用方身份、模型与渠道选择、并发和请求记录；仅使用原生 Anthropic 计数，不回退为生成请求。
 - 计数结果与生成用量分开，不写消费日志或费用结算；保留原生文本、图片、工具和 beta 参数。模型别名仍生效，计数不注入项目生成提示词。
+- 出站插件按 `anthropic/count_tokens` 保护已选模型和非流式语义。回归同时检查每个已注册协议都有明确策略，以及计数请求不能被插件改换模型或启用流式。
 - 代码归属：`llm/transformer/anthropic/token_count.go`、LLM 请求类型/能力表、`internal/server/api/anthropic.go`、路由与 orchestrator 的候选和计费分支；Vertex 执行器保留计数请求类型。无数据库迁移。
 - 接口契约见[中文参考](zh/api-reference/anthropic-api.md#token-计数)与[英文参考](en/api-reference/anthropic-api.md#token-counting)。Bedrock 暂不支持；真实供应商与 OAuth/Vertex 凭据验收不属于本次合成测试结论。
 - 定向验证通过：原生文本/图片/工具负载、模型映射、非法计数、Vertex 地址转换、两条 HTTP 入口的有效/无效 Key 与模型权限、协议白名单、计数无消费日志、成功/错误时预算零费用收尾；既有生成预算扣费回归通过。使用 Go 测试和合成上游，无真实模型调用。

@@ -38,6 +38,7 @@ var attemptProtocolControls = map[llm.APIFormat]protocolControls{
 	llm.APIFormatOpenAICompletion:     chatControls,
 	llm.APIFormatOpenAIResponse:       chatControls,
 	llm.APIFormatAnthropicMessage:     chatControls,
+	llm.APIFormatAnthropicTokenCount:  chatControls,
 	// ollama/outbound.go explicitly writes false because Ollama defaults to true.
 	llm.APIFormatOllamaChat: {exact: []string{"model"}, defaults: map[string]json.RawMessage{"stream": json.RawMessage("true")}},
 	// responses/protocol_codec.go and buildWebSocketCreatePayload normalize the frame.

@@ -21,6 +21,8 @@ func TestAttemptProtectionByProtocol(t *testing.T) {
 		{name: "chat absent false equivalent", format: llm.APIFormatOpenAIChatCompletion, before: `{"model":"m"}`, after: `{"model":"m","stream":false}`},
 		{name: "chat true removal", format: llm.APIFormatOpenAIChatCompletion, before: `{"model":"m","stream":true}`, after: `{"model":"m"}`, fields: []string{"stream"}},
 		{name: "model removal", format: llm.APIFormatAnthropicMessage, before: `{"model":"m"}`, after: `{}`, fields: []string{"model"}},
+		{name: "token count model is fixed", format: llm.APIFormatAnthropicTokenCount, before: `{"model":"m"}`, after: `{"model":"other"}`, fields: []string{"model"}},
+		{name: "token count cannot enable streaming", format: llm.APIFormatAnthropicTokenCount, before: `{"model":"m"}`, after: `{"model":"m","stream":true}`, fields: []string{"stream"}},
 		{name: "anthropic business fields", format: llm.APIFormatAnthropicMessage, before: `{"model":"m","type":"a"}`, after: `{"model":"m","type":"b","generate":false,"stream_format":"custom"}`},
 		{name: "gemini business fields", format: llm.APIFormatGeminiContents, before: `{"contents":[],"type":"a"}`, after: `{"contents":[],"type":"b","generate":false}`, url: "https://example.com/models/m:generateContent"},
 		{name: "gemini conflicting model", format: llm.APIFormatGeminiContents, before: `{"contents":[]}`, after: `{"contents":[],"model":"other"}`, fields: []string{"model"}},
