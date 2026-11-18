@@ -79,6 +79,10 @@ func hasResponseContent(resp *llm.Response) bool {
 		return false
 	}
 
+	if resp.TokenCount != nil {
+		return true // An explicit count of zero is also a complete response.
+	}
+
 	if resp.Moderation != nil && len(resp.Moderation.Results) > 0 {
 		return true
 	}

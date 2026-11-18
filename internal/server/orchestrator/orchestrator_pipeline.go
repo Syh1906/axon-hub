@@ -133,6 +133,7 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 		captureResponsesProvider(outbound),
 		// Run first on raw responses (reverse order), before capture fan-out.
 		closeCompletedAnthropicStream(outbound),
+		validateAudioStreamTerminals(outbound),
 	)
 
 	pipelineOpts = append(pipelineOpts, pipeline.WithMiddlewares(middlewares...))

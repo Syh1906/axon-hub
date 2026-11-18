@@ -334,7 +334,7 @@ func rawPromptTextFields(body []byte, apiFormat llm.APIFormat) ([]rawPromptTextF
 		return openAIChatPromptTextFields(body), nil
 	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatOpenAIResponseCompact:
 		return openAIResponsesPromptTextFields(body), nil
-	case llm.APIFormatAnthropicMessage:
+	case llm.APIFormatAnthropicMessage, llm.APIFormatAnthropicTokenCount:
 		return anthropicPromptTextFields(body), nil
 	case llm.APIFormatGeminiContents:
 		return geminiPromptTextFields(body), nil

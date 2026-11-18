@@ -46,6 +46,8 @@ AxonHub supports document reranking through Jina AI rerank API, allowing you to 
 
 ## Response Format
 
+For metering, the gateway uses an explicit input count, including zero, and falls back to the total when no input count is reported. If the selected input count or the total is negative, rerank results are still usable but token usage is unknown; negative counts are not recorded.
+
 ```json
 {
   "model": "jina-reranker-v1-base-en",

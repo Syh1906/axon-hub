@@ -14,8 +14,7 @@ import (
 
 func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.StreamEvent) ([]byte, llm.ResponseMeta, error) {
 	if len(chunks) == 0 {
-		data, err := json.Marshal(&llm.Response{})
-		return data, llm.ResponseMeta{}, err
+		return nil, llm.ResponseMeta{}, nil
 	}
 
 	var (
@@ -24,7 +23,7 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 		model             string
 		created           int64
 		usage             *llm.Usage
-		choices           = make(map[int]*llm.CompletionChoice)
+		choices           = make(map[int]*CompletionChoice)
 	)
 
 	for _, chunk := range chunks {
@@ -52,7 +51,7 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 		for _, choice := range compResp.Choices {
 			combined := choices[choice.Index]
 			if combined == nil {
-				combined = &llm.CompletionChoice{Index: choice.Index}
+				combined = &CompletionChoice{Index: choice.Index}
 				choices[choice.Index] = combined
 			}
 			combined.Text += choice.Text
@@ -66,32 +65,24 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 	}
 
 	if lastChunkResponse == nil {
-		data, err := json.Marshal(&llm.Response{})
-		return data, llm.ResponseMeta{}, err
+		return nil, llm.ResponseMeta{}, nil
 	}
 
 	completed := len(choices) > 0
 	indexes := lo.Keys(choices)
 	sort.Ints(indexes)
-	merged := make([]llm.CompletionChoice, 0, len(choices))
+	merged := make([]CompletionChoice, 0, len(choices))
 	for _, index := range indexes {
 		choice := choices[index]
 		if choice.FinishReason == nil {
 			completed = false
-			choice.FinishReason = lo.ToPtr("stop")
 		}
 		merged = append(merged, *choice)
 	}
 
-	response := &llm.Response{
-		ID:          id,
-		Model:       model,
-		Object:      "text_completion",
-		Created:     created,
-		Completion:  &llm.CompletionResponse{Choices: merged},
-		Usage:       usage,
-		RequestType: llm.RequestTypeCompletion,
-		APIFormat:   llm.APIFormatOpenAICompletion,
+	response := CompletionResponse{
+		ID: id, Model: model, Object: "text_completion", Created: created,
+		Choices: merged, Usage: completionUsageFromLLM(usage),
 	}
 
 	data, err := json.Marshal(response)

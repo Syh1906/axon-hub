@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/stretchr/testify/require"
@@ -62,11 +61,12 @@ func TestCompletionAggregateRetainsChoiceIndexes(t *testing.T) {
 	}
 	body, meta, err := AggregateCompletionStreamChunks(t.Context(), chunks)
 	require.NoError(t, err)
-	var result llm.Response
+	var result CompletionResponse
 	require.NoError(t, json.Unmarshal(body, &result))
-	require.Len(t, result.Completion.Choices, 2)
-	require.Equal(t, "A1A2", result.Completion.Choices[0].Text)
-	require.Equal(t, "B1B2", result.Completion.Choices[1].Text)
+	require.Len(t, result.Choices, 2)
+	require.Equal(t, "A1A2", result.Choices[0].Text)
+	require.Equal(t, "B1B2", result.Choices[1].Text)
+	require.Equal(t, "length", *result.Choices[1].FinishReason)
 	require.True(t, meta.Completed)
 }
 
@@ -79,7 +79,7 @@ func TestCompletionRejectsInvalidPromptForms(t *testing.T) {
 }
 
 func TestCompletionPartialUsageRemainsUnknown(t *testing.T) {
-	for _, usage := range []string{`{}`, `{"prompt_tokens":3}`, `{"completion_tokens":2}`, `{"total_tokens":5}`, `{"prompt_tokens":null,"completion_tokens":2}`} {
+	for _, usage := range []string{`{}`, `{"prompt_tokens":3}`, `{"completion_tokens":2}`, `{"total_tokens":5}`, `{"prompt_tokens":null,"completion_tokens":2}`, `{"prompt_tokens":"unknown","completion_tokens":2}`, `"unavailable"`} {
 		var provider CompletionResponse
 		require.NoError(t, json.Unmarshal([]byte(`{"choices":[{"text":"hello","index":0}],"usage":`+usage+`}`), &provider))
 		normalized := completionResponseToLLM(&provider)

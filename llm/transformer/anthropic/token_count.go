@@ -62,12 +62,24 @@ func (t *TokenCountInboundTransformer) TransformResponse(_ context.Context, resp
 	return &httpclient.Response{StatusCode: http.StatusOK, Headers: http.Header{"Content-Type": []string{"application/json"}}, Body: body}, nil
 }
 
+// ValidateTokenCountEndpoint lets routing skip an unsupported Messages
+// endpoint before it claims an attempt that another channel can serve.
+func (t *OutboundTransformer) ValidateTokenCountEndpoint() error {
+	if t.config.Type == PlatformBedrock {
+		return fmt.Errorf("%w: native Anthropic token counting is not supported by the Bedrock Messages endpoint", transformer.ErrUnsupportedConversion)
+	}
+	if path := t.config.EndpointPath; path != "" && !strings.HasSuffix(path, "/messages") {
+		return fmt.Errorf("%w: token counting requires a native messages endpoint", transformer.ErrUnsupportedConversion)
+	}
+	return nil
+}
+
 func (t *OutboundTransformer) transformTokenCountRequest(ctx context.Context, req *llm.Request) (*httpclient.Request, error) {
 	if req.TokenCount == nil || len(req.TokenCount.Body) == 0 || req.Model == "" {
 		return nil, fmt.Errorf("%w: native token count body and model are required", transformer.ErrInvalidRequest)
 	}
-	if t.config.Type == PlatformBedrock {
-		return nil, fmt.Errorf("%w: native Anthropic token counting is not supported by the Bedrock Messages endpoint", transformer.ErrUnsupportedConversion)
+	if err := t.ValidateTokenCountEndpoint(); err != nil {
+		return nil, err
 	}
 	body, err := sjson.SetBytes(bytes.Clone(req.TokenCount.Body), "model", req.Model)
 	if err != nil {
@@ -76,9 +88,6 @@ func (t *OutboundTransformer) transformTokenCountRequest(ctx context.Context, re
 	endpoint := t.config.EndpointPath
 	if endpoint == "" {
 		endpoint = "/messages"
-	}
-	if !strings.HasSuffix(endpoint, "/messages") {
-		return nil, fmt.Errorf("%w: token counting requires a native messages endpoint", transformer.ErrUnsupportedConversion)
 	}
 	target := t.config.BaseURL + endpoint + "/count_tokens"
 	version := "2023-06-01"

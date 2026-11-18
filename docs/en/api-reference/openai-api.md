@@ -19,11 +19,12 @@ AxonHub provides OpenAI-compatible interfaces for accessing multiple providers t
 The `prompt` shape is preserved as a string, a string array, token IDs, or an array
 of token-ID arrays in one provider request. Independent prompts are not joined
 into a chat message. JSON and SSE responses retain `choices[].index`; aggregation
-keeps each choice and its finish reason separate.
+returns each choice and its finish reason in the top-level `choices` array when a
+stream-only channel serves a client requesting an ordinary JSON response.
 
 Usage is known only when the provider supplies both input and output token
 counts. Explicit zeros remain valid. Missing, partial, or invalid usage remains
-unknown instead of becoming zero tokens during conversion. Preserve this
+unknown: valid choices are returned without a `usage` field. Preserve this
 distinction with or without body pass-through so downstream consumers can detect
 missing metering. Model support, provider options, and actual costs still require
 validation for the selected channel.
@@ -31,6 +32,10 @@ validation for the selected channel.
 ### Streaming speech
 
 With a compatible channel, `POST /v1/audio/speech` accepts `stream_format: "audio"` for raw audio chunks or `"sse"` for speech events. For raw audio, check that the response body finished reading successfully: a provider failure after the first chunk interrupts the HTTP stream even though the response has already started with a success status. A failure before the first audio chunk can still return a JSON error.
+
+An SSE terminal event must be fully framed and agree with its payload type. If
+the provider sends a conflicting terminal after audio has started, the client
+receives a stream error even with pass-through enabled.
 
 ### OpenAI Chat Completions API
 

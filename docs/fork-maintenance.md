@@ -10,6 +10,17 @@ Codex 公开目录同步：同步上游时检查匿名获取、周期与手动�
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
+## 长期保留：原生计数、文本补全、音频流和重排计量
+
+[Issue #6](https://github.com/Syh1906/axon-hub/issues/6) 的维护决定：四项能力均纳入 `release/v1.0.x`，后续发版和同步上游时逐项复核。首次发布为 `v1.0.0-rc1-fork.10`；下表包含此后在维护线上补齐的行为，不代表原镜像已更新。无新增数据库迁移。
+
+| 能力 | 发版和上游同步时要保持的行为 | 定向回归 |
+| --- | --- | --- |
+| [Anthropic 输入计数](zh/api-reference/anthropic-api.md#token-计数) | 只调用可用的原生计数出口；跳过 Bedrock Messages。权限、并发、模型映射、脱敏与非流式约束继续生效；即使开启透传和空回复检测，零也是有效结果，不记生成消费。 | `TestTokenCountAuthenticatedPipeline`、`TestTokenCountProtectedRoute`、`TestTokenCountBudgetClosesAtZero` |
+| [旧版文本补全](zh/api-reference/openai-api.md#旧版文本-completions-api) | 批量输入不拆分，按索引保留答案。仅支持流式的渠道也能向普通客户端返回顶层 `choices`；开启或关闭透传时，非法计量不丢答案，未知与明确零不混记。 | `TestCompletionNativeHTTPContract`、`TestCompletionAggregateRetainsChoiceIndexes` |
+| [音频流](zh/api-reference/openai-api.md#流式语音合成) | 二进制音频首片后断流必须体现为读取失败；不完整或类型冲突的 SSE 结束事件不能透传为成功，渠道执行和客户端请求的状态与实际结果一致。 | `TestWriteBinaryStream_TruncatedAfterFirstChunk`、`TestAudioSSERequiresCompleteEvent`、`TestAudioTerminalHTTPContract` |
+| [Jina 重排](zh/api-reference/rerank-api.md#响应格式) | 只有总数时计为输入；明确的输入零保留，缺失或负数不当作有效 Token 记录，不影响排序结果。 | `TestRerankUsageInputAccounting`、`TestRerankNegativeUsageDoesNotEnterLedger` |
+
 ## 旧版 Completions 原生输入与用量（2026-11-18，rc1-fork.10）
 
 同批协议修复涵盖两项独立的客户端行为：

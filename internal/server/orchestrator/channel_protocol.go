@@ -34,6 +34,12 @@ func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIF
 		if target != "" && target != llm.APIFormatAnthropicMessage {
 			return "no_compatible_endpoint"
 		}
+		if target == llm.APIFormatAnthropicMessage {
+			out := selectOutboundForCandidate(&ChannelModelsCandidate{Channel: ch, APIFormat: target.String()})
+			if endpoint, ok := out.(interface{ ValidateTokenCountEndpoint() error }); ok && endpoint.ValidateTokenCountEndpoint() != nil {
+				return "no_compatible_endpoint"
+			}
+		}
 	}
 	if !policy.AllowsClient(clientFormat) {
 		return "client_protocol_denied"

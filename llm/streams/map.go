@@ -43,6 +43,9 @@ type mapErrStream[T, R any] struct {
 }
 
 func (s *mapErrStream[T, R]) Next() bool {
+	if s.err != nil {
+		return false
+	}
 	if s.stream.Next() {
 		cur, err := s.mapper(s.stream.Current())
 		if err != nil {

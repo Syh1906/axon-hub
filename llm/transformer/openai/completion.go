@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/looplj/axonhub/llm"
 )
@@ -50,6 +52,23 @@ type CompletionUsage struct {
 	CompletionTokens *int64   `json:"completion_tokens"`
 	TotalTokens      *int64   `json:"total_tokens"`
 	Cost             *float64 `json:"cost,omitempty"`
+}
+
+// WithoutInvalidCompletionUsage keeps provider extensions in a pass-through
+// response, removing only metering that the gateway cannot interpret.
+func WithoutInvalidCompletionUsage(data []byte) ([]byte, error) {
+	field := gjson.GetBytes(data, "usage")
+	if !field.Exists() {
+		return data, nil
+	}
+	var usage CompletionUsage
+	if err := json.Unmarshal([]byte(field.Raw), &usage); err != nil {
+		return nil, err
+	}
+	if completionUsageToLLM(&usage) != nil {
+		return data, nil
+	}
+	return sjson.DeleteBytes(data, "usage")
 }
 
 func completionUsageFromLLM(u *llm.Usage) *CompletionUsage {

@@ -52,6 +52,7 @@ func TestMapErr_WithErrorStopsIteration(t *testing.T) {
 	}
 
 	require.Equal(t, []int{10}, result)
+	require.False(t, mapped.Next(), "a tail drain must not read past a rejected event")
 	require.Equal(t, errTest, mapped.Err())
 	require.NoError(t, mapped.Close())
 }

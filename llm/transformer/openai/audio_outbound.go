@@ -381,6 +381,36 @@ func resolveAudioEventType(payload *string, event string) error {
 	return nil
 }
 
+// ValidateAudioTerminal checks a purported final SSE event with the same
+// decoder as the client response, before raw capture can acknowledge it.
+func ValidateAudioTerminal(format llm.APIFormat, event *httpclient.StreamEvent) error {
+	want := "transcript.text.done"
+	if format == llm.APIFormatOpenAISpeech {
+		want = "speech.audio.done"
+	}
+	if bytes.Equal(event.Data, llm.DoneStreamEvent.Data) && (event.Type == "" || event.Type == "message" || event.Type == want) {
+		return nil
+	}
+	if format == llm.APIFormatOpenAISpeech {
+		resp, err := transformSpeechStreamChunk(event)
+		if err != nil {
+			return err
+		}
+		if resp != nil && resp.SpeechStreamEvent != nil && resp.SpeechStreamEvent.Type == want {
+			return nil
+		}
+	} else {
+		resp, err := transformTranscriptionStreamChunkFor(format)(event)
+		if err != nil {
+			return err
+		}
+		if resp != nil && resp.TranscriptionStreamEvent != nil && resp.TranscriptionStreamEvent.Type == want {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid audio terminal event for %s", format)
+}
+
 func speechStreamChunkTransformFor(_ *httpclient.Request) func(*httpclient.StreamEvent) (*llm.Response, error) {
 	return func(event *httpclient.StreamEvent) (*llm.Response, error) {
 		if isSpeechBinaryStreamEvent(event) {

@@ -9,6 +9,7 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/anthropic"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )
@@ -209,4 +210,17 @@ func TestTokenCountRequiresNativeAllowedChannel(t *testing.T) {
 	require.Empty(t, selectEndpointAPIFormat([]objects.ChannelEndpoint{{APIFormat: llm.APIFormatOpenAIChatCompletion.String()}}, req, false))
 	ch.Settings.ProtocolPolicy.AllowedProtocols = []string{llm.APIFormatOpenAIChatCompletion.String()}
 	require.Error(t, validateChannelProtocol(ch, req, llm.APIFormatAnthropicMessage))
+}
+
+func TestTokenCountUsesResolvedEndpointCapability(t *testing.T) {
+	bedrock, err := anthropic.NewOutboundTransformerWithConfig(&anthropic.Config{Type: anthropic.PlatformBedrock})
+	require.NoError(t, err)
+	direct, err := anthropic.NewOutboundTransformer("https://example.invalid/v1", "synthetic")
+	require.NoError(t, err)
+	format := llm.APIFormatAnthropicMessage
+	ch := &biz.Channel{Channel: &ent.Channel{Type: channel.TypeAnthropicAWS}, Outbound: bedrock}
+	req := &llm.Request{RequestType: llm.RequestTypeTokenCount, APIFormat: llm.APIFormatAnthropicTokenCount}
+	require.Equal(t, "no_compatible_endpoint", channelProtocolRejection(ch, req, format))
+	ch.Outbounds = map[string]transformer.Outbound{format.String(): direct}
+	require.Empty(t, channelProtocolRejection(ch, req, format))
 }

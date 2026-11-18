@@ -24,7 +24,7 @@ func (u *RerankUsage) UnmarshalJSON(data []byte) error {
 	if input == nil {
 		input = aux.Total
 	}
-	if input == nil {
+	if input == nil || *input < 0 || (aux.Total != nil && *aux.Total < 0) {
 		u.missingTokens = true
 		return nil
 	}

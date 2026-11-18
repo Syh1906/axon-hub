@@ -55,6 +55,15 @@ func protectPrompts(inbound *PersistentInboundTransformer) pipeline.Middleware {
 				raw:      llmRequest.RawRequest,
 				expected: protectedTexts,
 			}
+			// The count encoder sends native JSON, not Messages. Carry the mask
+			// into that JSON before selecting a provider or copying it for retries.
+			if protected.TokenCount != nil {
+				body, err := patchPassThroughPromptProtection(protected.TokenCount.Body, protected.APIFormat, matchedRules)
+				if err != nil || inbound.state.PromptProtectionBodyCheck.validate(ctx, body) != nil {
+					return nil, fmt.Errorf("%w: cannot safely apply prompt protection to token count", transformer.ErrInvalidRequest)
+				}
+				protected.TokenCount = &llm.TokenCountRequest{Body: body}
+			}
 		}
 		inbound.state.LlmRequest = protected
 

@@ -41,12 +41,13 @@ Caller API keys retain project, model, channel protocol, and concurrency checks.
 Only native Anthropic Messages channels are eligible. The gateway calls their
 `/messages/count_tokens` endpoint without converting to generation or returning
 a fixed/local estimate. Providers without native counting return an error;
-Bedrock Messages is currently unsupported. Vertex uses its dedicated counting
-endpoint; real provider credentials and service behavior require separate validation.
+Bedrock Messages endpoints are skipped, leaving other eligible endpoints for the
+same model available. Vertex uses its dedicated counting endpoint.
 
-The submitted native payload is preserved except for model alias mapping, and
-Anthropic beta headers are forwarded. Project generation prompts are not injected.
-The count estimates this submitted payload, not necessarily a later generation
+Native fields and Anthropic beta headers are preserved. The provider receives the
+mapped model name and text subject to the enabled prompt protection rules, even
+with body pass-through. Project generation prompts are not injected.
+The count estimates the payload sent to the provider, not necessarily a later generation
 request after prompt injection or tool processing. Request diagnostics are retained,
 but no inference usage log or debit is created. Missing, negative, or invalid
 `input_tokens` is an upstream error.

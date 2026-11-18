@@ -24,14 +24,17 @@ func (u *EmbeddingUsage) UnmarshalJSON(data []byte) error {
 func (u *CompletionUsage) UnmarshalJSON(data []byte) error {
 	type alias CompletionUsage
 	aux := struct {
-		*alias
+		alias
 
 		Cost json.RawMessage `json:"cost"`
-	}{alias: (*alias)(u)}
+	}{}
 	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+		// A bad optional measurement does not invalidate the generated choices.
+		*u = CompletionUsage{}
+		return nil
 	}
 
+	*u = CompletionUsage(aux.alias)
 	u.Cost = xjson.ParseOptionalFloat64(aux.Cost)
 	return nil
 }

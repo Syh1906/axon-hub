@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/openai"
 	responsestransformer "github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
@@ -347,6 +348,10 @@ func mergePassThroughRequestBody(rawBody []byte, apiFormat llm.APIFormat, model 
 func passThroughBodySupported(llmReq *llm.Request) bool {
 	//nolint:exhaustive // only multipart formats are excluded or content-type checked.
 	switch llmReq.APIFormat {
+	case llm.APIFormatAnthropicTokenCount:
+		// The count encoder already preserves native fields and applies prompt
+		// masks, the selected model and provider-specific fields (e.g. Vertex).
+		return false
 	case llm.APIFormatOpenAITranscription,
 		llm.APIFormatOpenAITranslation,
 		llm.APIFormatOpenAIImageVariation:
@@ -476,6 +481,13 @@ func applyPassThroughResponse(outbound *PersistentOutboundTransformer) pipeline.
 
 		if outbound.isPassThroughEnabled() || responsesIdentityPreservationEnabled(outbound) {
 			cloned := *rawResp
+			if outbound.state.LlmRequest.APIFormat == llm.APIFormatOpenAICompletion {
+				body, err := openai.WithoutInvalidCompletionUsage(cloned.Body)
+				if err != nil {
+					return nil, err
+				}
+				cloned.Body = body
+			}
 			if responsesIdentityPreservationEnabled(outbound) {
 				cloned.Body = preserveResponsesModel(rawResp.Body, responsesClientModel(outbound))
 			}
@@ -536,6 +548,17 @@ func applyPassThroughStream(outbound *PersistentOutboundTransformer) pipeline.Mi
 		)
 
 		rawStream := streams.Stream[*httpclient.StreamEvent](&passThroughStream{transformed: stream, recorder: recorder})
+		if outbound.state.LlmRequest.APIFormat == llm.APIFormatOpenAICompletion {
+			rawStream = streams.MapErr(rawStream, func(event *httpclient.StreamEvent) (*httpclient.StreamEvent, error) {
+				body, err := openai.WithoutInvalidCompletionUsage(event.Data)
+				if err != nil {
+					return nil, err
+				}
+				copy := *event
+				copy.Data = body
+				return &copy, nil
+			})
+		}
 		if adaptResponses {
 			rawStream = &responsesTransportStream{
 				stream: rawStream,

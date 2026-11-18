@@ -18,6 +18,9 @@ func TestRerankUsageInputAccounting(t *testing.T) {
 		{"explicit zero", `{"prompt_tokens":0,"total_tokens":5}`, 0, false},
 		{"input only", `{"input_tokens":7}`, 7, false},
 		{"missing", `{"cost":0}`, 0, true},
+		{"negative total only", `{"total_tokens":-1}`, 0, true},
+		{"negative total with input", `{"input_tokens":0,"total_tokens":-1}`, 0, true},
+		{"negative input", `{"input_tokens":-1,"total_tokens":5}`, 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			upstream := &httpclient.Response{Body: []byte(`{"model":"rank","results":[],"usage":` + tc.usage + `}`)}

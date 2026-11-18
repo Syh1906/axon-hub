@@ -556,3 +556,27 @@ func TestAudioStreaming_PropagatesErrorEvent(t *testing.T) {
 		require.Contains(t, llmStream.Err().Error(), "rate limited")
 	})
 }
+
+func TestAudioStreaming_ValidateTerminalBeforeCapture(t *testing.T) {
+	for _, tc := range []struct {
+		format llm.APIFormat
+		event  string
+		data   string
+		ok     bool
+	}{
+		{llm.APIFormatOpenAISpeech, "speech.audio.done", `{}`, true},
+		{llm.APIFormatOpenAISpeech, "speech.audio.done", `{"type":"speech.audio.delta"}`, false},
+		{llm.APIFormatOpenAITranscription, "", `{"type":"transcript.text.done","text":"hi"}`, true},
+		{llm.APIFormatOpenAITranslation, "transcript.text.delta", `{"type":"transcript.text.done"}`, false},
+		{llm.APIFormatOpenAITranslation, "speech.audio.done", `{"type":"speech.audio.done"}`, false},
+		{llm.APIFormatOpenAISpeech, "", "[DONE]", true},
+		{llm.APIFormatOpenAISpeech, "", "[DONE]extra", false},
+	} {
+		err := ValidateAudioTerminal(tc.format, &httpclient.StreamEvent{Type: tc.event, Data: []byte(tc.data)})
+		if tc.ok {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err, "%s: %s", tc.event, tc.data)
+		}
+	}
+}
