@@ -5,6 +5,7 @@ input BudgetRuleInput { restoreCalendar: Boolean! = false period: BudgetPeriod! 
 input BudgetSettingsInput { rules: [BudgetRuleInput!]! timezone: String! expiresAt: Time revision: Int! operationID: String! }
 input BudgetResetInput { periods: [BudgetPeriod!]! resetCycle: Boolean! revision: Int! operationID: String! }
 type BudgetWindow {
+ temporaryAmount: String! temporaryUntil: Time
  period: BudgetPeriod! mode: BudgetMode! minute: Int! limit: String! settled: String! reserved: String! available: String!
  windowStart: Time windowEnd: Time nextReleaseAt: Time resetAt: Time canResetCycle: Boolean!
  effectiveSchedule: String! timezone: String! pendingRule: BudgetRule pendingAt: Time

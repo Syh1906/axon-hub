@@ -86,11 +86,7 @@ func (s *APIKeyService) budgetSummaryViews(ctx context.Context, projectID int, k
 						return nil, err
 					}
 					if !w.Empty {
-						if w.Start == nil || w.Start.Before(a.State.Policy.StartedAt) {
-							at := a.State.Policy.StartedAt
-							w.Start = &at
-							w.StartExclusive = false
-						}
+						w = budgetPostingWindow(w, a.State.Policy.StartedAt)
 						terms[rule.Period] = append(terms[rule.Period], term{a.ID, w, clock.ResetVersion, rule.Mode == budget.Rolling})
 						if earliest == nil || w.Start.Before(*earliest) {
 							earliest = w.Start

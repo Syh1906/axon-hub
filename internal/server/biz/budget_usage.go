@@ -16,6 +16,22 @@ var budgetVersionColumns = map[budget.Period]string{
 	budget.Weekly: budgetposting.FieldWeeklyVersion, budget.Monthly: budgetposting.FieldMonthlyVersion, budget.Total: budgetposting.FieldTotalVersion,
 }
 
+// Postings are persisted in UTC. Keep calendar bounds local for display, but
+// bind UTC instants to SQL: SQLite compares stored timestamps as text.
+func budgetPostingWindow(w budget.Window, startedAt time.Time) budget.Window {
+	if w.Start == nil || w.Start.Before(startedAt) {
+		w.Start = &startedAt
+		w.StartExclusive = false
+	}
+	start := w.Start.UTC()
+	w.Start = &start
+	if w.End != nil {
+		end := w.End.UTC()
+		w.End = &end
+	}
+	return w
+}
+
 // budgetUsage aggregates all required rolling windows in one indexed scan.
 // A missing fixed counter is rebuilt from the durable ledger, never request logs.
 func budgetUsage(ctx context.Context, client *ent.Client, account *ent.BudgetAccount, now time.Time) (map[budget.Period]budget.Usage, error) {
@@ -47,11 +63,7 @@ func budgetUsage(ctx context.Context, client *ent.Client, account *ent.BudgetAcc
 		if rule.Mode == budget.Fixed && exists {
 			u.Settled = counter.Amount
 		} else if !w.Empty && !state.Policy.StartedAt.IsZero() {
-			if w.Start == nil || w.Start.Before(state.Policy.StartedAt) {
-				start := state.Policy.StartedAt
-				w.Start = &start
-				w.StartExclusive = false
-			}
+			w = budgetPostingWindow(w, state.Policy.StartedAt)
 			terms = append(terms, term{rule, w, clock.ResetVersion})
 			if w.Start == nil {
 				unbounded = true

@@ -45,6 +45,13 @@ func (a Amount) Decimal() decimal.Decimal { return decimal.NewFromInt(int64(a)).
 
 func (a Amount) String() string { return a.Decimal().StringFixed(8) }
 
+func (a Amount) Add(b Amount) (Amount, error) {
+	if a < 0 || b < 0 || a > math.MaxInt64-b {
+		return 0, fmt.Errorf("budget amount exceeds storage range")
+	}
+	return a + b, nil
+}
+
 // Fits uses subtraction to avoid overflow when limits are near the storage bound.
 // A zero limit means unlimited; settled and reserved amounts remain accounted for.
 func Fits(limit, settled, reserved, estimate Amount) bool {

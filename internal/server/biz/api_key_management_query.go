@@ -53,7 +53,13 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 	if err := managementPage(offset, limit); err != nil {
 		return nil, err
 	}
-	db := s.entFromContext(ctx)
+	return readBudgetSnapshot(ctx, s.entFromContext(ctx), func(ctx context.Context, db *ent.Client) (*ManagedKeyGroups, error) {
+		return s.managedKeyGroupsSnapshot(ctx, db, projectID, search, status, offset, limit, descending)
+	})
+}
+
+func (s *APIKeyService) managedKeyGroupsSnapshot(ctx context.Context, db *ent.Client, projectID int, search, status string, offset, limit int, descending bool) (*ManagedKeyGroups, error) {
+	var err error
 	q := db.APIKeyGroup.Query().Where(apikeygroup.ProjectIDEQ(projectID))
 	if search != "" {
 		keys, err := db.APIKey.Query().Where(apikey.ProjectIDEQ(projectID), apikey.NameContainsFold(search), apikey.GroupRefNotNil()).Select(apikey.FieldGroupRef).All(ctx)
@@ -101,15 +107,21 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 	if err != nil {
 		return nil, err
 	}
-	views, err := s.groupBudgetViews(ctx, projectID, ids, time.Now().UTC())
+	now := time.Now().UTC()
+	views, err := s.groupBudgetViews(ctx, projectID, ids, now)
 	if err != nil {
 		return nil, err
 	}
 	items := []*ManagedKeyGroup{}
+	var nextGrantExpiry *time.Time
 	for _, group := range groups {
 		view := views[group.ID]
 		exhausted := false
 		for _, window := range view.Windows {
+			// A currently excluded group can enter the exhausted filter when its grant ends.
+			if at := window.TemporaryUntil; at != nil && (nextGrantExpiry == nil || at.Before(*nextGrantExpiry)) {
+				nextGrantExpiry = at
+			}
 			limit, _ := budget.ParseAmount(window.Limit)
 			available, _ := budget.ParseAmount(window.Available)
 			if limit > 0 && available == 0 {
@@ -163,5 +175,5 @@ func (s *APIKeyService) ManagedKeyGroups(ctx context.Context, search, status str
 			item.KeyCount = countByID[item.ID]
 		}
 	}
-	return &ManagedKeyGroups{Items: items, Total: total, UngroupedCount: ungrouped}, nil
+	return &ManagedKeyGroups{Items: items, Total: total, UngroupedCount: ungrouped, ServerTime: now, NextGrantExpiry: nextGrantExpiry}, nil
 }

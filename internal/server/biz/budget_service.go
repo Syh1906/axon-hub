@@ -112,11 +112,15 @@ func advanceBudget(account *ent.BudgetAccount, now time.Time) error {
 		state.Pending = map[budget.Period]budget.PendingRule{}
 	}
 	for i, rule := range state.Policy.Rules {
+		if g, ok := state.Policy.Temporary[rule.Period]; ok && !now.Before(g.Until) {
+			delete(state.Policy.Temporary, rule.Period)
+		}
 		if pending, ok := state.Pending[rule.Period]; ok && !now.Before(pending.At) {
 			// Normal policy transition retains accounting versions. Historical
 			// postings supply the new mode's usage; callers rebuild the counter.
 			state.Policy.Rules[i] = pending.Rule
 			delete(state.Pending, rule.Period)
+			delete(state.Policy.Temporary, rule.Period)
 			rule = pending.Rule
 			delete(state.Counters, rule.Period)
 			clock := state.Policy.Clocks[rule.Period]

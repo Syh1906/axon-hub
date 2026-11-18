@@ -4,10 +4,12 @@ import { useSelectedProjectId } from '@/stores/projectStore';
 import { buildGUID } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { budgetFields, type BudgetView, type BudgetRule } from '@/features/budgets/data';
+import { grantRefreshDelay } from '@/features/budgets/grant-refresh';
 
 export type BudgetPatch = { rules?: BudgetRule[]; timezone?: string; setExpiry?: boolean; expiresAt?: string | null; revision?: number };
 export type KeyInput = { name: string; type: string; scopes?: string[]; allowedIPs?: string[]; templateID?: number; budget?: BudgetPatch };
 export type ManagementRow = {
+  grant?: { period: BudgetRule['period']; amount: string; until: string; revision: number };
   rowID: string;
   action: string;
   targetID?: number;
@@ -46,6 +48,7 @@ export type Member = {
   allowedIps: string[];
   profiles: { activeProfile: string } | null;
 };
+type GroupPage = { items: Group[]; total: number; ungroupedCount: number; serverTime: string; nextGrantExpiry: string | null };
 export const memberFields = 'id name type status updatedAt groupRef allowedIps profiles { activeProfile }';
 const resultFields = 'rowID success error groupID keyIDs';
 export function useManagementAPI() {
@@ -133,13 +136,17 @@ export function useManagementAPI() {
 export function useManagedGroups(search: string, status: string, offset: number, limit: number, descending: boolean) {
   const project = useSelectedProjectId();
   const { user } = usePermissions();
-  return useQuery({
+  return useQuery<GroupPage>({
     queryKey: ['managedKeyGroups', user?.id, project, search, status, offset, limit, descending],
     enabled: !!project,
+    refetchInterval: ({ state }) => {
+      if (!state.data || state.status !== 'success') return false;
+      return grantRefreshDelay(state.data.serverTime, state.data.nextGrantExpiry, state.dataUpdatedAt);
+    },
     queryFn: async ({ signal }) =>
       (
-        await graphqlRequest<{ managedKeyGroups: { items: Group[]; total: number; ungroupedCount: number } }>(
-          `query ManagedGroups($search:String!,$status:String!,$offset:Int!,$limit:Int!,$descending:Boolean!){managedKeyGroups(search:$search,status:$status,offset:$offset,limit:$limit,descending:$descending){total ungroupedCount items{id name note enabled showChannelInSelfUsage revision keyCount createdAt budget{${budgetFields}}}}}`,
+        await graphqlRequest<{ managedKeyGroups: GroupPage }>(
+          `query ManagedGroups($search:String!,$status:String!,$offset:Int!,$limit:Int!,$descending:Boolean!){managedKeyGroups(search:$search,status:$status,offset:$offset,limit:$limit,descending:$descending){total ungroupedCount serverTime nextGrantExpiry items{id name note enabled showChannelInSelfUsage revision keyCount createdAt budget{${budgetFields}}}}}`,
           { search, status, offset, limit, descending },
           { 'X-Project-ID': project! },
           { signal }

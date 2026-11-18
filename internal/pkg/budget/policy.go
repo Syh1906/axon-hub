@@ -8,11 +8,27 @@ import (
 // Policy is persisted independently of routing profiles. The service assigns
 // StartedAt once and does not change it when limits are disabled or re-enabled.
 type Policy struct {
-	Rules     []Rule           `json:"rules"`
-	Timezone  string           `json:"timezone"`
-	ExpiresAt *time.Time       `json:"expiresAt,omitempty"`
-	StartedAt time.Time        `json:"startedAt"`
-	Clocks    map[Period]Clock `json:"clocks"`
+	Rules     []Rule                 `json:"rules"`
+	Timezone  string                 `json:"timezone"`
+	ExpiresAt *time.Time             `json:"expiresAt,omitempty"`
+	StartedAt time.Time              `json:"startedAt"`
+	Clocks    map[Period]Clock       `json:"clocks"`
+	Temporary map[Period]WindowGrant `json:"temporary,omitempty"`
+}
+
+// WindowGrant increases only this window's spending capacity. Its deadline is
+// fixed at grant time, including for a rolling window's first release.
+type WindowGrant struct {
+	Amount Amount    `json:"amount"`
+	Until  time.Time `json:"until"`
+}
+
+func (p Policy) ActiveGrant(rule Rule, now time.Time) WindowGrant {
+	g := p.Temporary[rule.Period]
+	if rule.Limit > 0 && now.Before(g.Until) {
+		return g
+	}
+	return WindowGrant{}
 }
 
 func (p Policy) Validate() error {
@@ -67,7 +83,11 @@ func Check(now time.Time, scope string, policy Policy, usage map[Period]Usage, e
 		if used.Settled < 0 || used.Reserved < 0 {
 			return nil, fmt.Errorf("negative budget accounting")
 		}
-		if !Fits(rule.Limit, used.Settled, used.Reserved, estimate) {
+		limit, err := rule.Limit.Add(policy.ActiveGrant(rule, now).Amount)
+		if err != nil {
+			return nil, err
+		}
+		if !Fits(limit, used.Settled, used.Reserved, estimate) {
 			return &Blocked{Scope: scope, Period: rule.Period, Reason: "insufficient_budget"}, nil
 		}
 	}

@@ -28,6 +28,8 @@ type BudgetSettingsInput struct {
 }
 
 type BudgetWindowView struct {
+	TemporaryAmount   string           `json:"temporaryAmount"`
+	TemporaryUntil    *time.Time       `json:"temporaryUntil,omitempty"`
 	Period            budget.Period    `json:"period"`
 	Mode              budget.Mode      `json:"mode"`
 	Minute            int              `json:"minute"`
@@ -87,14 +89,29 @@ func buildBudgetViewWithUsage(ctx context.Context, db *ent.Client, account *ent.
 		}
 		u := usage[rule.Period]
 		available := budget.Amount(0)
-		if rule.Limit > u.Settled && rule.Limit-u.Settled > u.Reserved {
-			available = rule.Limit - u.Settled - u.Reserved
+		grant := state.Policy.ActiveGrant(rule, now)
+		limit, err := rule.Limit.Add(grant.Amount)
+		if err != nil {
+			return nil, err
+		}
+		if limit > u.Settled && limit-u.Settled > u.Reserved {
+			available = limit - u.Settled - u.Reserved
 		}
 		item := &BudgetWindowView{Period: rule.Period, Mode: rule.Mode, Minute: rule.Minute, Limit: rule.Limit.String(), Settled: u.Settled.String(), Reserved: u.Reserved.String(), Available: available.String(),
 			WindowStart: w.Start, WindowEnd: w.End, ResetAt: clock.ResetAt, CanResetCycle: rule.CanRestartCycle(), Timezone: loc.String()}
+		item.TemporaryAmount = grant.Amount.String()
+		if grant.Amount > 0 {
+			item.TemporaryUntil = &grant.Until
+		}
 		if includeRelease && rule.Mode == budget.Rolling && u.Settled > 0 {
-			query := db.BudgetPosting.Query().Where(budgetposting.ProjectIDEQ(account.ProjectID), budgetposting.AccountIDEQ(account.ID), budgetposting.SettledAtGT(now.Add(-rule.Duration())), budgetposting.AmountGT(0)).
+			postings := budgetPostingWindow(w, state.Policy.StartedAt)
+			query := db.BudgetPosting.Query().Where(budgetposting.ProjectIDEQ(account.ProjectID), budgetposting.AccountIDEQ(account.ID), budgetposting.SettledAtLTE(*postings.End), budgetposting.AmountGT(0)).
 				Where(func(s *sql.Selector) { s.Where(sql.EQ(s.C(budgetVersionColumns[rule.Period]), clock.ResetVersion)) }).Order(ent.Asc(budgetposting.FieldSettledAt))
+			if postings.StartExclusive {
+				query.Where(budgetposting.SettledAtGT(*postings.Start))
+			} else {
+				query.Where(budgetposting.SettledAtGTE(*postings.Start))
+			}
 			first, err := query.First(ctx)
 			if err != nil && !ent.IsNotFound(err) {
 				return nil, err

@@ -1,3 +1,9 @@
+input GroupWindowGrantInput {
+  period: BudgetPeriod!
+  amount: String!
+  until: Time!
+  revision: Int!
+}
 input KeyBudgetPatch {
   rules: [BudgetRuleInput!]
   timezone: String
@@ -14,6 +20,7 @@ input ManagedKeyInput {
   budget: KeyBudgetPatch
 }
 input KeyManagementRow {
+  grant: GroupWindowGrantInput
   rowID: String!
   action: String!
   targetID: Int
@@ -48,7 +55,7 @@ type ManagedKeyGroup {
   createdAt: Time!
   budget: BudgetView!
 }
-type ManagedKeyGroups { items: [ManagedKeyGroup!]!, total: Int!, ungroupedCount: Int! }
+type ManagedKeyGroups { items: [ManagedKeyGroup!]!, total: Int!, ungroupedCount: Int!, serverTime: Time!, nextGrantExpiry: Time }
 type ManagedKeyPage { items: [APIKey!]!, total: Int! }
 extend type Query {
   managedKeyGroups(search: String! = "", status: String! = "all", offset: Int! = 0, limit: Int! = 20, descending: Boolean! = true): ManagedKeyGroups!

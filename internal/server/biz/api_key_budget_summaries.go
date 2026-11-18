@@ -29,9 +29,19 @@ func (s *APIKeyService) KeyBudgetSummaries(ctx context.Context, ownerIDs []int, 
 	if len(ids) == 0 {
 		return []*BudgetView{}, nil
 	}
-	client := s.entFromContext(ctx)
-	if _, transactional := client.Driver().(dialect.Tx); transactional {
+	return readBudgetSnapshot(ctx, s.entFromContext(ctx), func(ctx context.Context, _ *ent.Client) ([]*BudgetView, error) {
 		return s.keyBudgetSummariesSnapshot(ctx, projectID, ids, includeGroups)
+	})
+}
+
+// Reservations and settled postings must be read from the same instant.
+// Management writes already have a transaction; keep their uncommitted view.
+func readBudgetSnapshot[T any](ctx context.Context, client *ent.Client, read func(context.Context, *ent.Client) (T, error)) (T, error) {
+	if parent := ent.TxFromContext(ctx); parent != nil {
+		client = parent.Client()
+	}
+	if _, transactional := client.Driver().(dialect.Tx); transactional {
+		return read(ent.NewContext(ctx, client), client)
 	}
 	options := &stdsql.TxOptions{ReadOnly: true, Isolation: stdsql.LevelRepeatableRead}
 	if client.Driver().Dialect() == dialect.SQLite {
@@ -39,10 +49,11 @@ func (s *APIKeyService) KeyBudgetSummaries(ctx context.Context, ownerIDs []int, 
 	}
 	tx, err := client.BeginTx(ctx, options)
 	if err != nil {
-		return nil, err
+		var zero T
+		return zero, err
 	}
 	defer tx.Rollback()
-	return s.keyBudgetSummariesSnapshot(ent.NewContext(ctx, tx.Client()), projectID, ids, includeGroups)
+	return read(ent.NewContext(ctx, tx.Client()), tx.Client())
 }
 
 // Accounts, rolling postings and shared groups must describe one database

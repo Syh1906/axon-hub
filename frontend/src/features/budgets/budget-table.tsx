@@ -81,6 +81,10 @@ export function BudgetTable({ view, currency, onlyLimited = false, currencyDispl
                 <TableCell className='text-center break-words'>
                   {amount(w.settled)}
                   <div className='text-muted-foreground text-xs'>/ {Number(w.limit) > 0 ? amount(w.limit) : t('budgets.unlimited')}</div>
+                  {w.temporaryUntil && <div className='text-muted-foreground text-xs'>
+                    {t('kg.quick.temporary')} +{amount(w.temporaryAmount)} · {t('kg.quick.until')}{' '}
+                    <BudgetTime value={w.temporaryUntil} timezone={w.timezone} />
+                  </div>}
                 </TableCell>
                 <TableCell className='text-center break-words'>{amount(w.reserved)}</TableCell>
                 <TableCell className='text-center break-words'>{Number(w.limit) > 0 ? amount(w.available) : '—'}</TableCell>

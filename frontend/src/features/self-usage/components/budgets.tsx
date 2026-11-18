@@ -4,9 +4,14 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { BudgetTable, BudgetTime } from '@/features/budgets/budget-table';
-import { hasBudgetLimits } from '@/features/budgets/data';
+import { hasBudgetLimits, type BudgetView, type BudgetWindow } from '@/features/budgets/data';
+import { budgetGrantRefresh } from '@/features/budgets/grant-refresh';
 import { fetchBudgets, SelfUsageError, type SelfUsageMeta } from '../api';
 import { PageError } from './page-error';
+
+function remainingFraction(w: BudgetWindow) {
+  return Number(w.available) / (Number(w.limit) + Number(w.temporaryAmount));
+}
 
 export function SelfUsageBudgets({
   keyValue,
@@ -19,12 +24,15 @@ export function SelfUsageBudgets({
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const query = useQuery({
+  const query = useQuery<BudgetView[]>({
     queryKey: ['selfUsage', 'budgets'],
     queryFn: ({ signal }) => fetchBudgets(keyValue, signal),
     staleTime: 0,
     gcTime: 0,
-    refetchInterval: 30_000,
+    refetchInterval: ({ state }) => {
+      const expiry = state.data && state.status === 'success' && budgetGrantRefresh(state.data, state.dataUpdatedAt);
+      return Math.min(30_000, expiry || 30_000);
+    },
   });
   useEffect(() => {
     if (query.error instanceof SelfUsageError && query.error.status === 401) onUnauthorized();
@@ -51,12 +59,12 @@ export function SelfUsageBudgets({
           {views.map((view) => {
             const tightest = view.windows
               .filter((w) => Number(w.limit) > 0)
-              .reduce((a, b) => (Number(a.available) / Number(a.limit) < Number(b.available) / Number(b.limit) ? a : b));
+              .reduce((a, b) => (remainingFraction(a) < remainingFraction(b) ? a : b));
             return (
               <div key={view.ownerKind} className='space-y-1'>
                 <div className='font-medium'>
                   {t(view.ownerKind === 'group' ? 'budgets.groupBudget' : 'budgets.keyBudget')} · {t('budgets.periods.' + tightest.period)}{' '}
-                  {t('budgets.remainingPercent', { percent: Math.floor((Number(tightest.available) / Number(tightest.limit)) * 100) })}
+                  {t('budgets.remainingPercent', { percent: Math.floor(remainingFraction(tightest) * 100) })}
                 </div>
                 {view.expiresAt && (
                   <div className={view.expired ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'}>

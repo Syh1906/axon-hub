@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { usePermissions } from '@/hooks/usePermissions';
+import { budgetGrantRefresh } from './grant-refresh';
 
 export type BudgetPeriod = 'five_hour' | 'daily' | 'weekly' | 'monthly' | 'total';
 export type BudgetRule = { period: BudgetPeriod; mode: 'fixed' | 'rolling'; limit: string; minute: number; restoreCalendar?: boolean };
 export type BudgetWindow = BudgetRule & {
+  temporaryAmount: string;
+  temporaryUntil: string | null;
   settled: string;
   reserved: string;
   available: string;
@@ -32,14 +35,15 @@ export type BudgetView = {
   windows: BudgetWindow[];
 };
 export type BudgetTarget = { kind: 'key' | 'group'; ownerID: number; name: string; groupID?: number };
-export const budgetFields = `ownerKind ownerID revision timezone expiresAt accountingStartedAt serverTime hasLimits expired windows { period mode minute limit settled reserved available windowStart windowEnd nextReleaseAt resetAt canResetCycle effectiveSchedule timezone pendingRule { period mode minute limit } pendingAt }`;
+export const budgetFields = `ownerKind ownerID revision timezone expiresAt accountingStartedAt serverTime hasLimits expired windows { period mode minute limit temporaryAmount temporaryUntil settled reserved available windowStart windowEnd nextReleaseAt resetAt canResetCycle effectiveSchedule timezone pendingRule { period mode minute limit } pendingAt }`;
 export function useBudgetSummaries(ownerIDs: number[], includeGroups = false) {
   const project = useSelectedProjectId();
   const { user } = usePermissions();
-  return useQuery({
+  return useQuery<BudgetView[]>({
     queryKey: ['keyBudgets', user?.id, project, 'summaries', ownerIDs, includeGroups],
     enabled: !!project && !!user && ownerIDs.length > 0,
     staleTime: 30_000,
+    refetchInterval: ({ state }) => state.data && state.status === 'success' ? budgetGrantRefresh(state.data, state.dataUpdatedAt) : false,
     queryFn: async ({ signal }) =>
       (
         await graphqlRequest<{ apiKeyBudgetSummaries: BudgetView[] }>(
@@ -52,14 +56,15 @@ export function useBudgetSummaries(ownerIDs: number[], includeGroups = false) {
   });
 }
 
-export function useBudget(target: BudgetTarget, enabled = true, projectId?: string) {
+export function useBudget(target: BudgetTarget, enabled = true, projectId?: string, staleTime = 30_000) {
   const selectedProject = useSelectedProjectId();
   const project = projectId ?? selectedProject;
   const { user } = usePermissions();
-  return useQuery({
+  return useQuery<BudgetView>({
     queryKey: ['keyBudgets', user?.id, project, target.kind, target.ownerID],
     enabled: enabled && !!project && !!user && target.ownerID > 0,
-    staleTime: 30_000,
+    staleTime,
+    refetchInterval: ({ state }) => state.data && state.status === 'success' ? budgetGrantRefresh([state.data], state.dataUpdatedAt) : false,
     queryFn: async ({ signal }) =>
       (
         await graphqlRequest<{ apiKeyBudget: BudgetView }>(

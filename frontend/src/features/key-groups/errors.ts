@@ -2,6 +2,10 @@ import i18n from '@/lib/i18n';
 
 export function managementError(message: string) {
   const known: Record<string, string> = {
+    'budget schedule changes before the grant deadline': 'grantScheduleChange',
+    'temporary budget window changed; reopen before saving': 'windowChanged',
+    'invalid temporary amount': 'invalidGrant',
+    'budget amount exceeds storage range': 'invalidGrant',
     'group name already exists': 'duplicateGroup',
     'group changed; reload before saving': 'stale',
     'key changed; reload before saving': 'stale',

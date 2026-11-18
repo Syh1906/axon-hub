@@ -64,6 +64,131 @@ func budgetAmount(t *testing.T, value string) budget.Amount {
 	return a
 }
 
+func TestGroupWindowGrant(t *testing.T) {
+	for _, mode := range []budget.Mode{budget.Fixed, budget.Rolling} {
+		t.Run(string(mode), func(t *testing.T) {
+			f := newBudgetFixture(t)
+			rules := []*BudgetRuleInput{}
+			for _, r := range initialBudgetRules() {
+				input := &BudgetRuleInput{Period: r.Period, Mode: r.Mode, Limit: "0"}
+				if r.Period == budget.Weekly {
+					input.Mode, input.Limit = mode, "150"
+				}
+				rules = append(rules, input)
+			}
+			view, err := f.admin.SaveBudget(f.ctx, "group", f.group.ID, BudgetSettingsInput{Rules: rules, Timezone: "Asia/Singapore", OperationID: uuid.NewString()})
+			require.NoError(t, err)
+			weekly := func(v *BudgetView) *BudgetWindowView {
+				for _, w := range v.Windows {
+					if w.Period == budget.Weekly {
+						return w
+					}
+				}
+				t.Fatal("missing weekly window")
+				return nil
+			}
+			load := func() *BudgetView {
+				v, err := f.admin.Budget(f.ctx, "group", f.group.ID)
+				require.NoError(t, err)
+				return v
+			}
+			post := func(id int, value string) {
+				cost := budgetAmount(t, value)
+				require.NoError(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, id, id, cost, nil))
+				require.NoError(t, f.service.MarkSent(f.ctx, id))
+				_, handled, err := f.service.Settle(f.ctx, id, &cost, nil)
+				require.NoError(t, err)
+				require.True(t, handled)
+			}
+			if mode == budget.Rolling {
+				require.Nil(t, weekly(view).NextReleaseAt)
+				// Only the older charge should leave at the first release.
+				account := f.db.BudgetAccount.Query().Where(budgetaccount.OwnerKindEQ(budgetaccount.OwnerKindGroup)).OnlyX(f.ctx)
+				account.State.Policy.StartedAt = time.Now().UTC().Add(-8 * 24 * time.Hour)
+				f.db.BudgetAccount.UpdateOneID(account.ID).SetState(account.State).ExecX(f.ctx)
+				f.db.BudgetPosting.Create().SetAccountID(account.ID).SetProjectID(f.key.ProjectID).SetChargeID(99).
+					SetAmount(int64(budgetAmount(t, "20"))).SetSettledAt(time.Now().UTC().Add(-7*24*time.Hour + time.Hour)).
+					SetFiveHourVersion(0).SetDailyVersion(0).SetWeeklyVersion(0).SetMonthlyVersion(0).SetTotalVersion(0).SaveX(f.ctx)
+				post(2, "130")
+			} else {
+				post(1, "100")
+				post(2, "50")
+			}
+			until := weekly(load()).WindowEnd
+			if mode == budget.Rolling {
+				until = weekly(load()).NextReleaseAt
+			}
+			require.NotNil(t, until)
+			require.Equal(t, "0.00000000", weekly(load()).Available)
+			beforeGrant, err := f.admin.groupBudgetViews(f.ctx, f.key.ProjectID, []int{f.group.ID}, time.Now().UTC())
+			require.NoError(t, err)
+			require.Equal(t, "0.00000000", weekly(beforeGrant[f.group.ID]).Available)
+			require.Error(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, 3, 3, budgetAmount(t, "1"), nil))
+			grant := &GroupWindowGrantInput{Period: budget.Weekly, Amount: "100", Until: *until, Revision: view.Revision}
+			row := &KeyManagementRow{RowID: "week", Action: "grantGroupWindow", TargetID: &f.group.ID, Revision: &f.group.Revision, Grant: grant}
+			id := uuid.NewString()
+			apply := func(op string) *KeyManagementResult {
+				rows, err := f.admin.ApplyKeyManagement(f.ctx, nil, op, []*KeyManagementRow{row})
+				require.NoError(t, err)
+				return rows[0]
+			}
+			result := apply(id)
+			require.True(t, result.Success, result.Error)
+			require.True(t, apply(id).Success)
+			w := weekly(load())
+			require.Equal(t, "150.00000000", w.Limit)
+			require.Equal(t, "100.00000000", w.Available)
+			require.Equal(t, "100.00000000", w.TemporaryAmount)
+			empty, err := f.admin.ManagedKeyGroups(f.ctx, "", "exhausted", 0, 20, false)
+			require.NoError(t, err)
+			require.Empty(t, empty.Items)
+			require.NotNil(t, empty.NextGrantExpiry, "an excluded group can become exhausted at expiry")
+			require.True(t, until.Equal(*empty.NextGrantExpiry))
+			post(3, "40")
+			require.Equal(t, "60.00000000", weekly(load()).Available)
+			require.Error(t, f.service.Reserve(f.ctx, f.key.ProjectID, f.key.ID, 4, 4, budgetAmount(t, "61"), nil))
+			summary, err := f.admin.groupBudgetViews(f.ctx, f.key.ProjectID, []int{f.group.ID}, time.Now().UTC())
+			require.NoError(t, err)
+			require.Equal(t, w.Limit, weekly(summary[f.group.ID]).Limit)
+			require.Equal(t, "60.00000000", weekly(summary[f.group.ID]).Available)
+			account := f.db.BudgetAccount.Query().Where(budgetaccount.OwnerKindEQ(budgetaccount.OwnerKindGroup)).OnlyX(f.ctx)
+			v, err := buildBudgetView(f.ctx, f.db, account, *until)
+			require.NoError(t, err)
+			require.Nil(t, weekly(v).TemporaryUntil)
+			want := "150.00000000"
+			if mode == budget.Rolling {
+				want = "0.00000000" // Only 20 releases; 130 + 40 remain against the base limit of 150.
+			}
+			require.Equal(t, want, weekly(v).Available)
+			usage, err := budgetUsage(f.ctx, f.db, account, *until)
+			require.NoError(t, err)
+			blocked, err := budget.Check(*until, "group", account.State.Policy, usage, budgetAmount(t, want)+1)
+			require.NoError(t, err)
+			require.NotNil(t, blocked, "new requests may not use expired capacity")
+			require.Equal(t, budget.Weekly, blocked.Period)
+			grant.Revision = load().Revision
+			grant.Until = until.Add(time.Second)
+			require.False(t, apply(uuid.NewString()).Success)
+			require.Equal(t, "60.00000000", weekly(load()).Available)
+		})
+	}
+}
+
+func TestGrantBeforeScheduledRuleChange(t *testing.T) {
+	now := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
+	switchAt, release := now.Add(24*time.Hour), now.Add(48*time.Hour)
+	w := &BudgetWindowView{Period: budget.Weekly, Mode: budget.Rolling, Limit: "150", TemporaryAmount: "0",
+		NextReleaseAt: &release, PendingAt: &switchAt}
+	view := &BudgetView{ServerTime: now, Windows: []*BudgetWindowView{w}}
+	input := GroupWindowGrantInput{Period: budget.Weekly, Amount: "100", Until: release}
+	_, err := input.resolve(view)
+	require.EqualError(t, err, "budget schedule changes before the grant deadline")
+	w.PendingAt = &release // A switch at the same instant does not shorten a grant.
+	grant, err := input.resolve(view)
+	require.NoError(t, err)
+	require.Equal(t, release, grant.Until)
+}
+
 func TestBudgetAtomicAdmissionAndIdempotentSettlement(t *testing.T) {
 	f := newBudgetFixture(t)
 	f.configure(t, "key", f.key.ID, "10")

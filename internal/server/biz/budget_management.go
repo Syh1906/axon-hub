@@ -46,28 +46,28 @@ func (s *APIKeyService) Budget(ctx context.Context, kind string, ownerID int) (*
 	if err != nil {
 		return nil, err
 	}
-	return NewBudgetService(s.db).View(ctx, projectID, kind, ownerID, s.SystemService.TimeLocation(ctx).String())
+	return NewBudgetService(s.entFromContext(ctx)).View(ctx, projectID, kind, ownerID, s.SystemService.TimeLocation(ctx).String())
 }
 
 // View is used only after explicit management or self-usage authorization.
 // It computes a display snapshot without creating accounts or changing versions.
-func (s *BudgetService) View(ctx context.Context, projectID int, kind string, ownerID int, defaultTimezone string) (view *BudgetView, err error) {
-	err = s.transaction(ctx, func(ctx context.Context, db *ent.Client) error {
-		account, err := db.BudgetAccount.Query().Where(budgetaccount.ProjectIDEQ(projectID), budgetaccount.OwnerKindEQ(budgetaccount.OwnerKind(kind)), budgetaccount.OwnerIDEQ(ownerID)).Only(ctx)
-		if ent.IsNotFound(err) {
-			state := budget.NewState()
-			state.Policy.Rules = initialBudgetRules()
-			account = &ent.BudgetAccount{ProjectID: projectID, OwnerKind: budgetaccount.OwnerKind(kind), OwnerID: ownerID, State: state}
-		} else if err != nil {
-			return err
-		}
-		if account.Revision == 0 {
-			account.State.Policy.Timezone = defaultTimezone
-		}
-		view, err = buildBudgetView(ctx, db, account, time.Now().UTC())
-		return err
+func (s *BudgetService) View(ctx context.Context, projectID int, kind string, ownerID int, defaultTimezone string) (*BudgetView, error) {
+	return readBudgetSnapshot(ctx, s.db, func(ctx context.Context, db *ent.Client) (*BudgetView, error) {
+		return authz.RunAsHost(ctx, db, "budget-view", func(ctx context.Context) (*BudgetView, error) {
+			account, err := db.BudgetAccount.Query().Where(budgetaccount.ProjectIDEQ(projectID), budgetaccount.OwnerKindEQ(budgetaccount.OwnerKind(kind)), budgetaccount.OwnerIDEQ(ownerID)).Only(ctx)
+			if ent.IsNotFound(err) {
+				state := budget.NewState()
+				state.Policy.Rules = initialBudgetRules()
+				account = &ent.BudgetAccount{ProjectID: projectID, OwnerKind: budgetaccount.OwnerKind(kind), OwnerID: ownerID, State: state}
+			} else if err != nil {
+				return nil, err
+			}
+			if account.Revision == 0 {
+				account.State.Policy.Timezone = defaultTimezone
+			}
+			return buildBudgetView(ctx, db, account, time.Now().UTC())
+		})
 	})
-	return
 }
 
 func cloneBudgetState(state budget.State) (budget.State, error) {
@@ -166,6 +166,11 @@ func (s *APIKeyService) SaveBudget(ctx context.Context, kind string, ownerID int
 			for i, current := range state.Policy.Rules {
 				if current.Period != desired.Period {
 					continue
+				}
+				if desired.Limit == 0 {
+					delete(state.Policy.Temporary, desired.Period)
+				} else if _, err := desired.Limit.Add(state.Policy.ActiveGrant(current, now).Amount); err != nil {
+					return err
 				}
 				oldZone := current.Timezone
 				if oldZone == "" {
@@ -306,6 +311,7 @@ func applyBudgetReset(account *ent.BudgetAccount, input BudgetResetInput, now ti
 				return err
 			}
 			state.Policy.Clocks[period] = clock
+			delete(state.Policy.Temporary, period)
 			window, err := rule.Bounds(now, clock, loc)
 			if err != nil {
 				return err

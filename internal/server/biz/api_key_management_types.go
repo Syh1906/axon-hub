@@ -5,6 +5,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
+	"github.com/looplj/axonhub/internal/pkg/budget"
 )
 
 type KeyBudgetPatch struct {
@@ -22,22 +23,29 @@ type ManagedKeyInput struct {
 	TemplateID *int            `json:"templateID"`
 	Budget     *KeyBudgetPatch `json:"budget"`
 }
+type GroupWindowGrantInput struct {
+	Period   budget.Period `json:"period"`
+	Amount   string        `json:"amount"`
+	Until    time.Time     `json:"until"`
+	Revision int           `json:"revision"`
+}
 type KeyManagementRow struct {
-	RowID                  string             `json:"rowID"`
-	Action                 string             `json:"action"`
-	TargetID               *int               `json:"targetID"`
-	GroupRef               *int               `json:"groupRef"`
-	Name                   *string            `json:"name"`
-	Note                   *string            `json:"note"`
-	Enabled                *bool              `json:"enabled"`
-	ShowChannelInSelfUsage *bool              `json:"showChannelInSelfUsage,omitempty"`
-	Revision               *int               `json:"revision"`
-	UpdatedAt              *time.Time         `json:"updatedAt"`
-	Budget                 *KeyBudgetPatch    `json:"budget"`
-	Keys                   []*ManagedKeyInput `json:"keys"`
-	TemplateID             *int               `json:"templateID"`
-	AllowedIPs             []string           `json:"allowedIPs"`
-	SetAllowedIPs          bool               `json:"setAllowedIPs"`
+	Grant                  *GroupWindowGrantInput `json:"grant,omitempty"`
+	RowID                  string                 `json:"rowID"`
+	Action                 string                 `json:"action"`
+	TargetID               *int                   `json:"targetID"`
+	GroupRef               *int                   `json:"groupRef"`
+	Name                   *string                `json:"name"`
+	Note                   *string                `json:"note"`
+	Enabled                *bool                  `json:"enabled"`
+	ShowChannelInSelfUsage *bool                  `json:"showChannelInSelfUsage,omitempty"`
+	Revision               *int                   `json:"revision"`
+	UpdatedAt              *time.Time             `json:"updatedAt"`
+	Budget                 *KeyBudgetPatch        `json:"budget"`
+	Keys                   []*ManagedKeyInput     `json:"keys"`
+	TemplateID             *int                   `json:"templateID"`
+	AllowedIPs             []string               `json:"allowedIPs"`
+	SetAllowedIPs          bool                   `json:"setAllowedIPs"`
 }
 type KeyManagementResult struct {
 	RowID   string `json:"rowID"`
@@ -58,9 +66,11 @@ type ManagedKeyGroup struct {
 	Budget                 *BudgetView `json:"budget"`
 }
 type ManagedKeyGroups struct {
-	Items          []*ManagedKeyGroup `json:"items"`
-	Total          int                `json:"total"`
-	UngroupedCount int                `json:"ungroupedCount"`
+	ServerTime      time.Time          `json:"serverTime"`
+	NextGrantExpiry *time.Time         `json:"nextGrantExpiry,omitempty"`
+	Items           []*ManagedKeyGroup `json:"items"`
+	Total           int                `json:"total"`
+	UngroupedCount  int                `json:"ungroupedCount"`
 }
 type ManagedKeyPage struct {
 	Items []*ent.APIKey `json:"items"`

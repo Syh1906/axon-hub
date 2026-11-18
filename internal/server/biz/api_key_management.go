@@ -130,6 +130,9 @@ func (s *APIKeyService) applyManagementRow(ctx context.Context, templates *APIKe
 	actor, _ := contexts.GetUser(ctx)
 	operation := managementDigest([]any{projectID, actor.ID, operationID, row.RowID})
 	switch row.Action {
+	case "grantGroupWindow":
+		result.GroupID = *row.TargetID
+		return s.grantGroupWindow(ctx, projectID, result.GroupID, actor.ID, operation, row.Grant)
 	case "createGroup":
 		group, err := s.SaveAPIKeyGroup(ctx, nil, *row.Name)
 		if err != nil {

@@ -433,6 +433,8 @@ type ComplexityRoot struct {
 		Reserved          func(childComplexity int) int
 		ResetAt           func(childComplexity int) int
 		Settled           func(childComplexity int) int
+		TemporaryAmount   func(childComplexity int) int
+		TemporaryUntil    func(childComplexity int) int
 		Timezone          func(childComplexity int) int
 		WindowEnd         func(childComplexity int) int
 		WindowStart       func(childComplexity int) int
@@ -1430,9 +1432,11 @@ type ComplexityRoot struct {
 	}
 
 	ManagedKeyGroups struct {
-		Items          func(childComplexity int) int
-		Total          func(childComplexity int) int
-		UngroupedCount func(childComplexity int) int
+		Items           func(childComplexity int) int
+		NextGrantExpiry func(childComplexity int) int
+		ServerTime      func(childComplexity int) int
+		Total           func(childComplexity int) int
+		UngroupedCount  func(childComplexity int) int
 	}
 
 	ManagedKeyPage struct {
@@ -5365,6 +5369,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BudgetWindow.Settled(childComplexity), true
+	case "BudgetWindow.temporaryAmount":
+		if e.complexity.BudgetWindow.TemporaryAmount == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.TemporaryAmount(childComplexity), true
+	case "BudgetWindow.temporaryUntil":
+		if e.complexity.BudgetWindow.TemporaryUntil == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.TemporaryUntil(childComplexity), true
 	case "BudgetWindow.timezone":
 		if e.complexity.BudgetWindow.Timezone == nil {
 			break
@@ -9338,6 +9354,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ManagedKeyGroups.Items(childComplexity), true
+	case "ManagedKeyGroups.nextGrantExpiry":
+		if e.complexity.ManagedKeyGroups.NextGrantExpiry == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroups.NextGrantExpiry(childComplexity), true
+	case "ManagedKeyGroups.serverTime":
+		if e.complexity.ManagedKeyGroups.ServerTime == nil {
+			break
+		}
+
+		return e.complexity.ManagedKeyGroups.ServerTime(childComplexity), true
 	case "ManagedKeyGroups.total":
 		if e.complexity.ManagedKeyGroups.Total == nil {
 			break
@@ -19587,6 +19615,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputGCSInput,
 		ec.unmarshalInputGetCacheDiagnosticsInput,
 		ec.unmarshalInputGetChannelProbeDataInput,
+		ec.unmarshalInputGroupWindowGrantInput,
 		ec.unmarshalInputHeaderEntryInput,
 		ec.unmarshalInputHealthGatePolicyInput,
 		ec.unmarshalInputImageConditionDraftInput,
@@ -30729,6 +30758,10 @@ func (ec *executionContext) fieldContext_BudgetView_windows(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "temporaryAmount":
+				return ec.fieldContext_BudgetWindow_temporaryAmount(ctx, field)
+			case "temporaryUntil":
+				return ec.fieldContext_BudgetWindow_temporaryUntil(ctx, field)
 			case "period":
 				return ec.fieldContext_BudgetWindow_period(ctx, field)
 			case "mode":
@@ -30763,6 +30796,64 @@ func (ec *executionContext) fieldContext_BudgetView_windows(_ context.Context, f
 				return ec.fieldContext_BudgetWindow_pendingAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BudgetWindow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_temporaryAmount(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_temporaryAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.TemporaryAmount, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_temporaryAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_temporaryUntil(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_temporaryUntil,
+		func(ctx context.Context) (any, error) {
+			return obj.TemporaryUntil, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_temporaryUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -52040,6 +52131,64 @@ func (ec *executionContext) fieldContext_ManagedKeyGroups_ungroupedCount(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroups_serverTime(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroups_serverTime,
+		func(ctx context.Context) (any, error) {
+			return obj.ServerTime, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroups_serverTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ManagedKeyGroups_nextGrantExpiry(ctx context.Context, field graphql.CollectedField, obj *biz.ManagedKeyGroups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ManagedKeyGroups_nextGrantExpiry,
+		func(ctx context.Context) (any, error) {
+			return obj.NextGrantExpiry, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ManagedKeyGroups_nextGrantExpiry(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ManagedKeyGroups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -79487,6 +79636,10 @@ func (ec *executionContext) fieldContext_Query_managedKeyGroups(ctx context.Cont
 				return ec.fieldContext_ManagedKeyGroups_total(ctx, field)
 			case "ungroupedCount":
 				return ec.fieldContext_ManagedKeyGroups_ungroupedCount(ctx, field)
+			case "serverTime":
+				return ec.fieldContext_ManagedKeyGroups_serverTime(ctx, field)
+			case "nextGrantExpiry":
+				return ec.fieldContext_ManagedKeyGroups_nextGrantExpiry(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ManagedKeyGroups", field.Name)
 		},
@@ -116136,6 +116289,54 @@ func (ec *executionContext) unmarshalInputGetChannelProbeDataInput(ctx context.C
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGroupWindowGrantInput(ctx context.Context, obj any) (biz.GroupWindowGrantInput, error) {
+	var it biz.GroupWindowGrantInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"period", "amount", "until", "revision"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "period":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("period"))
+			data, err := ec.unmarshalNBudgetPeriod2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋpkgᚋbudgetᚐPeriod(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Period = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		case "until":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("until"))
+			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Until = data
+		case "revision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("revision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Revision = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputHeaderEntryInput(ctx context.Context, obj any) (objects.HeaderEntry, error) {
 	var it objects.HeaderEntry
 	asMap := map[string]any{}
@@ -116656,13 +116857,20 @@ func (ec *executionContext) unmarshalInputKeyManagementRow(ctx context.Context, 
 		asMap["setAllowedIPs"] = false
 	}
 
-	fieldsInOrder := [...]string{"rowID", "action", "targetID", "groupRef", "name", "note", "enabled", "showChannelInSelfUsage", "revision", "budget", "updatedAt", "keys", "templateID", "allowedIPs", "setAllowedIPs"}
+	fieldsInOrder := [...]string{"grant", "rowID", "action", "targetID", "groupRef", "name", "note", "enabled", "showChannelInSelfUsage", "revision", "budget", "updatedAt", "keys", "templateID", "allowedIPs", "setAllowedIPs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "grant":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("grant"))
+			data, err := ec.unmarshalOGroupWindowGrantInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐGroupWindowGrantInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Grant = data
 		case "rowID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rowID"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -139261,6 +139469,13 @@ func (ec *executionContext) _BudgetWindow(ctx context.Context, sel ast.Selection
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BudgetWindow")
+		case "temporaryAmount":
+			out.Values[i] = ec._BudgetWindow_temporaryAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "temporaryUntil":
+			out.Values[i] = ec._BudgetWindow_temporaryUntil(ctx, field, obj)
 		case "period":
 			out.Values[i] = ec._BudgetWindow_period(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -147281,6 +147496,13 @@ func (ec *executionContext) _ManagedKeyGroups(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "serverTime":
+			out.Values[i] = ec._ManagedKeyGroups_serverTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nextGrantExpiry":
+			out.Values[i] = ec._ManagedKeyGroups_nextGrantExpiry(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -180730,6 +180952,14 @@ func (ec *executionContext) unmarshalOGetCacheDiagnosticsInput2ᚖgithubᚗcom�
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputGetCacheDiagnosticsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOGroupWindowGrantInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐGroupWindowGrantInput(ctx context.Context, v any) (*biz.GroupWindowGrantInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputGroupWindowGrantInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 

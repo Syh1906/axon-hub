@@ -85,6 +85,8 @@ type ComplexityRoot struct {
 		Reserved          func(childComplexity int) int
 		ResetAt           func(childComplexity int) int
 		Settled           func(childComplexity int) int
+		TemporaryAmount   func(childComplexity int) int
+		TemporaryUntil    func(childComplexity int) int
 		Timezone          func(childComplexity int) int
 		WindowEnd         func(childComplexity int) int
 		WindowStart       func(childComplexity int) int
@@ -480,6 +482,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BudgetWindow.Settled(childComplexity), true
+	case "BudgetWindow.temporaryAmount":
+		if e.complexity.BudgetWindow.TemporaryAmount == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.TemporaryAmount(childComplexity), true
+	case "BudgetWindow.temporaryUntil":
+		if e.complexity.BudgetWindow.TemporaryUntil == nil {
+			break
+		}
+
+		return e.complexity.BudgetWindow.TemporaryUntil(childComplexity), true
 	case "BudgetWindow.timezone":
 		if e.complexity.BudgetWindow.Timezone == nil {
 			break
@@ -1574,6 +1588,7 @@ input BudgetRuleInput { restoreCalendar: Boolean! = false period: BudgetPeriod! 
 input BudgetSettingsInput { rules: [BudgetRuleInput!]! timezone: String! expiresAt: Time revision: Int! operationID: String! }
 input BudgetResetInput { periods: [BudgetPeriod!]! resetCycle: Boolean! revision: Int! operationID: String! }
 type BudgetWindow {
+ temporaryAmount: String! temporaryUntil: Time
  period: BudgetPeriod! mode: BudgetMode! minute: Int! limit: String! settled: String! reserved: String! available: String!
  windowStart: Time windowEnd: Time nextReleaseAt: Time resetAt: Time canResetCycle: Boolean!
  effectiveSchedule: String! timezone: String! pendingRule: BudgetRule pendingAt: Time
@@ -2116,6 +2131,10 @@ func (ec *executionContext) fieldContext_BudgetView_windows(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "temporaryAmount":
+				return ec.fieldContext_BudgetWindow_temporaryAmount(ctx, field)
+			case "temporaryUntil":
+				return ec.fieldContext_BudgetWindow_temporaryUntil(ctx, field)
 			case "period":
 				return ec.fieldContext_BudgetWindow_period(ctx, field)
 			case "mode":
@@ -2150,6 +2169,64 @@ func (ec *executionContext) fieldContext_BudgetView_windows(_ context.Context, f
 				return ec.fieldContext_BudgetWindow_pendingAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BudgetWindow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_temporaryAmount(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_temporaryAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.TemporaryAmount, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_temporaryAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BudgetWindow_temporaryUntil(ctx context.Context, field graphql.CollectedField, obj *biz.BudgetWindowView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BudgetWindow_temporaryUntil,
+		func(ctx context.Context) (any, error) {
+			return obj.TemporaryUntil, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BudgetWindow_temporaryUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BudgetWindow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9202,6 +9279,13 @@ func (ec *executionContext) _BudgetWindow(ctx context.Context, sel ast.Selection
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BudgetWindow")
+		case "temporaryAmount":
+			out.Values[i] = ec._BudgetWindow_temporaryAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "temporaryUntil":
+			out.Values[i] = ec._BudgetWindow_temporaryUntil(ctx, field, obj)
 		case "period":
 			out.Values[i] = ec._BudgetWindow_period(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

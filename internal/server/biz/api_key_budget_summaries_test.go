@@ -109,6 +109,12 @@ func TestKeyBudgetSummariesIncludeSharedGroupOnce(t *testing.T) {
 }
 
 func TestKeyBudgetSummariesKeepOneSettlementSnapshot(t *testing.T) {
+	for _, source := range []string{"key summaries", "group list", "group detail"} {
+		t.Run(source, func(t *testing.T) { checkSettlementSnapshot(t, source) })
+	}
+}
+
+func checkSettlementSnapshot(t *testing.T, source string) {
 	// WAL permits a writer to commit while a read transaction is open. Prepare
 	// the real settlement before the summary starts, then commit it exactly
 	// between the account and rolling-posting reads, without timing sleeps.
@@ -147,10 +153,27 @@ func TestKeyBudgetSummariesKeepOneSettlementSnapshot(t *testing.T) {
 			return value, err
 		})
 	}))
-	views, err := admin.KeyBudgetSummaries(ent.NewContext(ctx, reader), []int{key.ID}, true)
+	read := func() ([]*BudgetView, error) {
+		readCtx := ent.NewContext(ctx, reader)
+		switch source {
+		case "group list":
+			page, err := admin.ManagedKeyGroups(readCtx, "", "all", 0, 10, false)
+			if err != nil {
+				return nil, err
+			}
+			require.Len(t, page.Items, 1)
+			return []*BudgetView{page.Items[0].Budget}, nil
+		case "group detail":
+			view, err := NewBudgetService(reader).View(readCtx, project.ID, "group", group.ID, "UTC")
+			return []*BudgetView{view}, err
+		default:
+			return admin.KeyBudgetSummaries(readCtx, []int{key.ID}, true)
+		}
+	}
+	views, err := read()
 	require.NoError(t, err)
 	require.True(t, committed, "settlement must commit between the two summary reads")
-	require.Len(t, views, 2)
+	require.NotEmpty(t, views)
 	for _, view := range views {
 		for _, window := range view.Windows {
 			if window.Period == budget.FiveHour {
@@ -159,7 +182,7 @@ func TestKeyBudgetSummariesKeepOneSettlementSnapshot(t *testing.T) {
 		}
 	}
 	// A later read sees the settlement and released hold, with the same balance.
-	views, err = admin.KeyBudgetSummaries(ent.NewContext(ctx, reader), []int{key.ID}, true)
+	views, err = read()
 	require.NoError(t, err)
 	for _, view := range views {
 		for _, window := range view.Windows {

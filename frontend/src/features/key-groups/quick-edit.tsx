@@ -10,7 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import type { BudgetPeriod, BudgetView } from '@/features/budgets/data';
+import { useBudget, type BudgetPeriod, type BudgetView } from '@/features/budgets/data';
+import { BudgetTime } from '@/features/budgets/budget-table';
 import { extendBudgetExpiry } from '@/features/budgets/expiry';
 import { useGeneralSettings } from '@/features/system/data/system';
 import { useCurrencyDisplayDecimals } from '@/hooks/use-currency-display';
@@ -217,24 +218,36 @@ function QuickForm({
   const { data: settings } = useGeneralSettings();
   const basic = kind === 'name' || kind === 'note';
   const expiry = kind === 'expiry';
-  const window = snapshot.budget?.windows.find((w) => w.period === kind);
+  const initialWindow = snapshot.budget?.windows.find((w) => w.period === kind);
   const [name, setName] = useState(snapshot.name);
   const [note, setNote] = useState(snapshot.note ?? '');
   const [mode, setMode] = useState('set');
-  const [amount, setAmount] = useState(window?.limit ?? '0');
+  const temporary = mode === 'temporary';
+  const detail = useBudget({ kind: snapshot.kind, ownerID: snapshot.row.targetID!, name: snapshot.name }, temporary, undefined, 0);
+  // Keep the deadline the administrator actually saw, even if a query refreshes while typing.
+  const [grantView, setGrantView] = useState<BudgetView | null>(null);
+  useEffect(() => {
+    if (temporary && !grantView && detail.data && !detail.isFetching && !detail.isError) setGrantView(detail.data);
+  }, [temporary, grantView, detail.data, detail.isFetching, detail.isError]);
+  const window = temporary ? grantView?.windows.find((w) => w.period === kind) : initialWindow;
+  const until = window?.mode === 'rolling' ? window.nextReleaseAt : window?.windowEnd;
+  const scheduleChangesFirst = !!until && !!window?.pendingAt && Date.parse(window.pendingAt) < Date.parse(until);
+  const [amount, setAmount] = useState(initialWindow?.limit ?? '0');
   const [date, setDate] = useState(toLocal(snapshot.budget?.expiresAt ?? null));
   const [never, setNever] = useState(!snapshot.budget?.expiresAt);
   const parsedExpiry = expiryInstant(date, snapshot.budget?.expiresAt);
   const validExpiry = Number.isFinite(parsedExpiry.getTime());
   const validAmount = /^\d+(\.\d{1,8})?$/.test(amount);
-  const limit = validAmount ? new Decimal(amount).plus(mode === 'add' ? (window?.limit ?? '0') : '0').toFixed() : null;
-  const remaining = limit && window ? new Decimal(limit).minus(window.settled).minus(window.reserved) : null;
+  const limit = validAmount ? new Decimal(amount).plus(mode === 'set' ? '0' : (window?.limit ?? '0')).toFixed() : null;
+  const remaining = limit && window ? new Decimal(limit).plus(window.temporaryAmount).minus(window.settled).minus(window.reserved) : null;
   const available = remaining?.isNegative() ? '0' : (remaining?.toFixed() ?? null);
   const valid = basic
     ? !!name.trim() && [...name.trim()].length <= 128 && [...note].length <= 1024
     : expiry
       ? never || (!!date && validExpiry)
-      : !!limit && (mode !== 'add' || new Decimal(amount).greaterThan(0));
+      : !!limit &&
+        (mode === 'set' || new Decimal(amount).greaterThan(0)) &&
+        (!temporary || (!!until && !!grantView && !grantView.expired && !scheduleChangesFirst && Number(window?.limit) > 0));
   const title = basic
     ? t(snapshot.kind === 'group' ? 'kg.quick.basic' : 'kg.keyName')
     : expiry
@@ -258,7 +271,9 @@ function QuickForm({
       void flow.save({
         budget: { revision: snapshot.budget?.revision, setExpiry: true, expiresAt: never ? null : parsedExpiry.toISOString() },
       });
-    else if (window && limit !== null)
+    else if (temporary && window && grantView && until)
+      void flow.save({ action: 'grantGroupWindow', grant: { period: window.period, amount, until, revision: grantView.revision } });
+    else if (!temporary && window && limit !== null)
       void flow.save({
         budget: {
           revision: snapshot.budget?.revision,
@@ -379,17 +394,31 @@ function QuickForm({
                 value={mode}
                 onValueChange={(v) => {
                   setMode(v);
-                  setAmount(v === 'add' ? '' : (window?.limit ?? '0'));
+                  setGrantView(null);
+                  setAmount(v === 'set' ? (initialWindow?.limit ?? '0') : '');
                 }}
               >
                 <TabsList className='w-full'>
                   <TabsTrigger value='set'>{t('kg.quick.set')}</TabsTrigger>
                   <TabsTrigger value='add'>{t('kg.quick.add')}</TabsTrigger>
+                  {snapshot.kind === 'group' && initialWindow?.period !== 'total' && Number(initialWindow?.limit) > 0 && !snapshot.budget?.expired && (
+                    <TabsTrigger value='temporary'>{t('kg.quick.temporary')}</TabsTrigger>
+                  )}
                 </TabsList>
               </Tabs>
-              <Label htmlFor={id + 'amount'}>{t('kg.limit')}</Label>
+              <Label htmlFor={id + 'amount'}>{t(temporary ? 'kg.quick.temporaryAmount' : 'kg.limit')}</Label>
               <Input id={id + 'amount'} inputMode='decimal' autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />
-              {limit !== null && (
+              {temporary && !grantView && (detail.isError ? (
+                <Button type='button' variant='outline' onClick={() => void detail.refetch()}>{t('kg.reload')}</Button>
+              ) : <p role='status' className='text-muted-foreground text-xs'>{t('budgets.loading')}</p>)}
+              {temporary && window && (
+                <div className='space-y-1 text-sm tabular-nums'>
+                  <p>{t('kg.quick.baseUnchanged', { amount: money(window.limit) })}</p>
+                  <p>{t('kg.quick.available')}: {money(window.available)}{until && !scheduleChangesFirst && available !== null && ` → ${money(available)}`}</p>
+                  {until && !scheduleChangesFirst && <p>{t('kg.quick.until')}: <BudgetTime value={until} timezone={window.timezone} /> ({window.timezone})</p>}
+                </div>
+              )}
+              {!temporary && limit !== null && (
                 <div className='text-sm tabular-nums'>
                   <p>
                     {t('kg.limit')}: {money(window?.limit ?? '0')} → {Number(limit) === 0 ? t('budgets.notConfigured') : money(limit)}
@@ -400,8 +429,13 @@ function QuickForm({
                   </p>
                 </div>
               )}
-              <p className='text-muted-foreground text-xs'>{t('kg.quick.quotaHelp')}</p>
-              <Button
+              {(!temporary || window) && (
+                <p className='text-muted-foreground text-xs'>
+                  {t(!temporary ? 'kg.quick.quotaHelp' : !until ? 'kg.quick.noBoundary' : scheduleChangesFirst
+                    ? 'kg.error.grantScheduleChange' : window?.mode === 'rolling' ? 'kg.quick.releaseHelp' : 'kg.quick.refreshHelp')}
+                </p>
+              )}
+              {!temporary && <Button
                 type='button'
                 variant='ghost'
                 onClick={() => {
@@ -410,7 +444,7 @@ function QuickForm({
                 }}
               >
                 {t('kg.quick.clearLimit')}
-              </Button>
+              </Button>}
             </>
           )}
         </fieldset>

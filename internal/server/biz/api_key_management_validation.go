@@ -41,7 +41,28 @@ func (s *APIKeyService) validateManagementRow(ctx context.Context, projectID int
 	if row.GroupRef != nil && *row.GroupRef < 0 {
 		return fmt.Errorf("invalid group")
 	}
+	if (row.Action == "grantGroupWindow") != (row.Grant != nil) {
+		return fmt.Errorf("temporary amount requires a group grant")
+	}
 	switch row.Action {
+	case "grantGroupWindow":
+		if row.TargetID == nil || *row.TargetID <= 0 {
+			return fmt.Errorf("target required")
+		}
+		group, err := db.APIKeyGroup.Query().Where(apikeygroup.ProjectIDEQ(projectID), apikeygroup.IDEQ(*row.TargetID)).Only(ctx)
+		if err != nil {
+			return err
+		}
+		if row.Revision == nil || *row.Revision != group.Revision {
+			return fmt.Errorf("group changed; reload before saving")
+		}
+		// Apply repeats the budget checks under the accounting lock.
+		view, err := s.Budget(ctx, "group", group.ID)
+		if err != nil {
+			return err
+		}
+		_, err = row.Grant.resolve(view)
+		return err
 	case "createGroup":
 		if row.Name == nil {
 			return fmt.Errorf("group name required")

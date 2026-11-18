@@ -413,7 +413,7 @@ function GroupPage() {
                                 {w && Number(w.limit) > 0 ? (
                                   <span>
                                     {currency(w.available)}
-                                    <span className='text-muted-foreground block'>/ {currency(w.limit)}</span>
+                                    <span className='text-muted-foreground block'>/ {currency(w.limit)}{w.temporaryUntil && <span title={t('kg.quick.temporary')}> +{currency(w.temporaryAmount)}</span>}</span>
                                   </span>
                                 ) : (
                                   t('budgets.notConfigured')

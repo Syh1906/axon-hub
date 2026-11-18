@@ -1090,6 +1090,9 @@ models:
     model:
       - github.com/looplj/axonhub/internal/server/biz.BudgetView
 
+  GroupWindowGrantInput:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.GroupWindowGrantInput
   KeyBudgetPatch:
     model:
       - github.com/looplj/axonhub/internal/server/biz.KeyBudgetPatch
