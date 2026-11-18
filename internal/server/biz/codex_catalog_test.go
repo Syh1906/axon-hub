@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,6 +19,48 @@ import (
 )
 
 const catalogFixture = `{"models":[{"slug":"test-model","display_name":"Test","description":"fixture","supported_reasoning_levels":[{"effort":"medium","description":"Medium"}],"default_reasoning_level":"medium","shell_type":"shell_command","visibility":"list","supported_in_api":true,"priority":1,"base_instructions":"Fixture model instructions","support_verbosity":false,"truncation_policy":{"mode":"tokens","limit":10000},"experimental_supported_tools":[],"input_modalities":["text"],"context_window":32000,"upgrade":null}]}`
+
+func TestCodexCatalogOverlappingRulesRespectChannelScope(t *testing.T) {
+	ctx, client, models, channels, _ := setupListEnabledModelsTest(t)
+	const id = "test-model"
+	for _, tag := range []string{"Codex", "OpenAI"} {
+		body := strings.Replace(catalogFixture, "Fixture model instructions", tag+" instructions", 1)
+		client.Channel.Create().SetType(channel.TypeOpenaiResponses).SetName(tag).SetTags([]string{tag}).
+			SetBaseURL("http://127.0.0.1:1").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).
+			SetSupportedModels([]string{id}).SetDefaultTestModel(id).SetStatus(channel.StatusEnabled).
+			SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: []byte(body)}}).SaveX(ctx)
+	}
+	reloadEnabledChannels(t, ctx, client, channels)
+	exact := createRoutingRule(t, ctx, models, "exact", id, objects.ModelMatchExact, 0, []string{id}, &objects.ModelSettings{
+		Associations: []*objects.ModelAssociation{{Type: "channel_tags_model", ChannelTagsModel: &objects.ChannelTagsModelAssociation{ChannelTags: []string{"OpenAI"}, ModelID: id}}},
+	})
+	createRoutingRule(t, ctx, models, "regex", "^test-.*$", objects.ModelMatchRegex, 0, []string{id}, &objects.ModelSettings{
+		Associations: []*objects.ModelAssociation{{Type: "channel_tags_regex", ChannelTagsRegex: &objects.ChannelTagsRegexAssociation{ChannelTags: []string{"Codex"}, Pattern: "^test-.*$"}}},
+	})
+	catalog := NewCodexCatalogService(models, channels)
+	read := func(tags ...string) map[string]map[string]any {
+		t.Helper()
+		key := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "only", Profiles: []objects.APIKeyProfile{{Name: "only", ChannelTags: tags}}}}
+		body, omitted, err := catalog.Models(contexts.WithAPIKey(ctx, key), "0.162.1")
+		require.NoError(t, err)
+		require.Zero(t, omitted)
+		result, err := parseCodexCatalog(body)
+		require.NoError(t, err)
+		return result
+	}
+	require.Equal(t, "Codex instructions", read("Codex")[id]["base_instructions"])
+	require.Equal(t, "OpenAI instructions", read("OpenAI")[id]["base_instructions"])
+	require.Equal(t, "OpenAI instructions", read("Codex", "OpenAI")[id]["base_instructions"])
+	client.Model.UpdateOne(exact).SetPublicModelIds([]string{}).SaveX(ctx)
+	require.Empty(t, read("OpenAI", "Codex"), "the regex must not publish a hidden in-scope exact model")
+	require.Contains(t, read("Codex"), id)
+	client.Model.UpdateOne(exact).SetPublicModelIds([]string{id}).SaveX(ctx)
+	openAI := client.Channel.Query().Where(channel.NameEQ("OpenAI")).OnlyX(ctx)
+	client.Channel.UpdateOne(openAI).SetSupportedModels([]string{"different-model"}).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, client, channels)
+	require.Empty(t, read("OpenAI", "Codex"), "a missing upstream model must not switch configurations")
+	require.Contains(t, read("Codex"), id)
+}
 
 func TestCodexCatalogPreservesMetadataFiltersAndVersionCache(t *testing.T) {
 	ctx, client, models, channels, _ := setupListEnabledModelsTest(t)

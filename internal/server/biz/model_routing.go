@@ -3,11 +3,15 @@ package biz
 import (
 	"context"
 	"fmt"
+	"iter"
 	"slices"
+	"sync"
 
 	"github.com/samber/lo"
 
+	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
 )
@@ -15,23 +19,104 @@ import (
 // ResolveModel keeps exact model lookups indexed. Other enabled rules are
 // evaluated in priority/ID order, so overlaps are deterministic, not errors.
 func (svc *ModelService) ResolveModel(ctx context.Context, requestID string) (*ent.Model, error) {
-	exact, err := svc.GetModelByModelID(ctx, requestID, model.StatusEnabled)
-	if err == nil || !ent.IsNotFound(err) {
-		return exact, err
-	}
-	rules, err := svc.entFromContext(ctx).Model.Query().Where(
-		model.StatusEQ(model.StatusEnabled),
-		model.MatchTypeNEQ(objects.ModelMatchExact),
-	).Order(model.ByMatchPriority(), model.ByID()).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, rule := range rules {
-		if matches, _ := objects.MatchModelID(rule.MatchType, rule.ModelID, requestID); matches {
-			return rule, nil
-		}
+	for matched, err := range svc.MatchingModels(ctx, requestID) {
+		return matched, err
 	}
 	return nil, &ent.NotFoundError{}
+}
+
+func (svc *ModelService) MatchingModels(ctx context.Context, requestID string) iter.Seq2[*ent.Model, error] {
+	return func(yield func(*ent.Model, error) bool) {
+		exact, err := svc.GetModelByModelID(ctx, requestID, model.StatusEnabled)
+		switch {
+		case err == nil:
+			if !yield(exact, nil) {
+				return
+			}
+		case !ent.IsNotFound(err):
+			yield(nil, err)
+			return
+		}
+		rules, err := svc.entFromContext(ctx).Model.Query().Where(
+			model.StatusEQ(model.StatusEnabled),
+			model.MatchTypeNEQ(objects.ModelMatchExact),
+		).Order(model.ByMatchPriority(), model.ByID()).All(ctx)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
+		for rule := range matchingModelRules(rules, requestID) {
+			if !yield(rule, nil) {
+				return
+			}
+		}
+	}
+}
+
+func matchingModelRules(rules []*ent.Model, requestID string) iter.Seq[*ent.Model] {
+	return func(yield func(*ent.Model) bool) {
+		for _, rule := range rules {
+			if matched, _ := objects.MatchModelID(rule.MatchType, rule.ModelID, requestID); matched && !yield(rule) {
+				return
+			}
+		}
+	}
+}
+
+type ModelChannelScope struct {
+	allows  func(*ent.Channel) bool
+	targets func() ([]*ent.Channel, error)
+}
+
+func (svc *ModelService) ModelChannelScope(ctx context.Context, key *ent.APIKey) *ModelChannelScope {
+	if key == nil {
+		return nil
+	}
+	project := key.Edges.Project.GetActiveProfile()
+	profile := key.GetActiveProfile()
+	if (project == nil || len(project.ChannelIDs)+len(project.ChannelTags) == 0) &&
+		(profile == nil || len(profile.ChannelIDs)+len(profile.ChannelTags) == 0) {
+		return nil
+	}
+	return &ModelChannelScope{
+		allows: func(ch *ent.Channel) bool {
+			return (project == nil || (len(project.ChannelIDs) == 0 || slices.Contains(project.ChannelIDs, ch.ID)) && project.MatchChannelTags(ch.Tags)) &&
+				(profile == nil || (len(profile.ChannelIDs) == 0 || slices.Contains(profile.ChannelIDs, ch.ID)) && profile.MatchChannelTags(ch.Tags))
+		},
+		targets: sync.OnceValues(func() ([]*ent.Channel, error) {
+			client := svc.entFromContext(ctx)
+			return authz.RunAsHost(ctx, client, "model-association-channel-scope", func(hostCtx context.Context) ([]*ent.Channel, error) {
+				return client.Channel.Query().Where(channel.StatusIn(channel.StatusEnabled, channel.StatusDisabled)).
+					Select(channel.FieldID, channel.FieldName, channel.FieldTags).All(hostCtx)
+			})
+		}),
+	}
+}
+
+func (scope *ModelChannelScope) Allows(ch *ent.Channel) bool {
+	return scope.allows(ch)
+}
+
+func (scope *ModelChannelScope) ExcludesAllTargets(associations []*objects.ModelAssociation) (bool, error) {
+	if !lo.ContainsBy(associations, func(assoc *objects.ModelAssociation) bool { return !assoc.Disabled }) {
+		return false, nil
+	}
+	channels, err := scope.targets()
+	if err != nil {
+		return false, fmt.Errorf("query model association channel targets: %w", err)
+	}
+	hasTarget := false
+	for _, ch := range channels {
+		if lo.ContainsBy(associations, func(assoc *objects.ModelAssociation) bool {
+			return !assoc.Disabled && associationTargetsChannel(assoc, ch)
+		}) {
+			if scope.Allows(ch) {
+				return false, nil
+			}
+			hasTarget = true
+		}
+	}
+	return hasTarget, nil
 }
 
 func validateModelIdentity(kind objects.ModelMatchType, pattern string, publicIDs []string) error {
@@ -103,15 +188,19 @@ func newModelResolver(models []*ent.Model) modelResolver {
 }
 
 func (r modelResolver) resolve(requestID string) *ent.Model {
-	if exact := r.exact[requestID]; exact != nil {
-		return exact
-	}
-	for _, rule := range r.rules {
-		if matched, _ := objects.MatchModelID(rule.MatchType, rule.ModelID, requestID); matched {
-			return rule
-		}
+	for matched := range r.matching(requestID) {
+		return matched
 	}
 	return nil
+}
+
+func (r modelResolver) matching(requestID string) iter.Seq[*ent.Model] {
+	return func(yield func(*ent.Model) bool) {
+		if exact := r.exact[requestID]; exact != nil && !yield(exact) {
+			return
+		}
+		matchingModelRules(r.rules, requestID)(yield)
+	}
 }
 
 func normalizePublicModelIDs(ids []string) []string {

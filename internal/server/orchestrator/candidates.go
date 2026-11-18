@@ -129,14 +129,39 @@ func (s *DefaultSelector) Select(ctx context.Context, req *llm.Request) ([]*Chan
 }
 
 func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Request) ([]*ChannelModelsCandidate, error) {
-	model, err := s.ModelService.ResolveModel(ctx, req.Model)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query AxonHub Model: %w", err)
+	key, _ := contexts.GetAPIKey(ctx)
+	scope := s.ModelService.ModelChannelScope(ctx, key)
+	settings := s.modelSettings(ctx)
+	for model, err := range s.ModelService.MatchingModels(ctx, req.Model) {
+		if err != nil {
+			return nil, fmt.Errorf("failed to query AxonHub Model: %w", err)
+		}
+		associations := biz.EffectiveModelAssociationsForRequest(settings, model, req.Model)
+		resolved, err := s.modelAssociationsForRequest(ctx, model, settings, req.Model, associations)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve associations: %w", err)
+		}
+		if scope != nil {
+			resolved = lo.Filter(resolved, func(candidate *resolvedAssociationCandidate, _ int) bool {
+				return scope.Allows(candidate.channel.Channel)
+			})
+			if len(resolved) == 0 {
+				excluded, err := scope.ExcludesAllTargets(associations)
+				if err != nil {
+					return nil, err
+				}
+				if excluded {
+					continue
+				}
+			}
+		}
+		return candidatesForMatchedModel(ctx, req, model, resolved), nil
 	}
+	return nil, &ent.NotFoundError{}
+}
 
-	systemSettings := s.modelSettings(ctx)
+func (s *DefaultSelector) modelAssociationsForRequest(ctx context.Context, model *ent.Model, systemSettings *biz.SystemModelSettings, requestModel string, associations []*objects.ModelAssociation) ([]*resolvedAssociationCandidate, error) {
 	developerAssociationCount, modelAssociationCount, developerInheritanceDisabled := effectiveAssociationSourceCounts(systemSettings, model)
-	associations := biz.EffectiveModelAssociationsForRequest(systemSettings, model, req.Model)
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "computed effective model associations",
 			log.String("model", model.ModelID),
@@ -149,25 +174,24 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 	}
 	if len(associations) == 0 {
 		if log.DebugEnabled(ctx) {
-			log.Debug(ctx, "model has no associations", log.String("model", req.Model))
+			log.Debug(ctx, "model has no associations", log.String("model", requestModel))
 		}
 
-		return []*ChannelModelsCandidate{}, nil
+		return nil, nil
 	}
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "model associations found",
-			log.String("model", req.Model),
+			log.String("model", requestModel),
 			log.Int("association_count", len(associations)),
 			log.Any("associations", associations),
 		)
 	}
 
-	resolvedCandidates, err := s.resolveAssociationsForRequest(ctx, model, associations, req.Model)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve associations: %w", err)
-	}
+	return s.resolveAssociationsForRequest(ctx, model, associations, requestModel)
+}
 
+func candidatesForMatchedModel(ctx context.Context, req *llm.Request, model *ent.Model, resolvedCandidates []*resolvedAssociationCandidate) []*ChannelModelsCandidate {
 	candidates := filterResolvedCandidatesForRequest(ctx, req, resolvedCandidates)
 	if len(candidates) == 0 {
 		if log.DebugEnabled(ctx) {
@@ -176,7 +200,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 			)
 		}
 
-		return []*ChannelModelsCandidate{}, nil
+		return candidates
 	}
 
 	strategy := objects.RoutingPolicyDefault
@@ -204,7 +228,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 		)
 	}
 
-	return candidates, nil
+	return candidates
 }
 
 // resolveAssociations resolves model associations into an intermediate form that

@@ -747,51 +747,20 @@ func (svc *ModelService) ListModels(ctx context.Context, statusIn []model.Status
 // When HideUnroutableModelsInList is true, configured models with no capable
 // endpoint on the key-scoped channels are omitted from this public list.
 func (svc *ModelService) ListEnabledModels(ctx context.Context) ([]ModelFacade, error) {
-	var (
-		channels = svc.channelService.GetEnabledChannels()
-		profile  *objects.APIKeyProfile
-	)
-
 	ctx = authz.WithScopeDecision(ctx, scopes.ScopeReadChannels)
-
-	if apiKey, ok := contexts.GetAPIKey(ctx); ok && apiKey != nil {
-		// Project-level profile filtering (upper boundary)
-		if projectProfile := apiKey.Edges.Project.GetActiveProfile(); projectProfile != nil {
-			if len(projectProfile.ChannelIDs) > 0 {
-				channels = lo.Filter(channels, func(ch *Channel, _ int) bool {
-					return lo.Contains(projectProfile.ChannelIDs, ch.ID)
-				})
-			}
-
-			if len(projectProfile.ChannelTags) > 0 {
-				channels = lo.Filter(channels, func(ch *Channel, _ int) bool {
-					return projectProfile.MatchChannelTags(ch.Tags)
-				})
-			}
-		}
-
-		// Key-level profile filtering (narrows further within project scope)
-		profile = apiKey.GetActiveProfile()
-
-		if profile != nil && len(profile.ChannelIDs) > 0 {
-			channels = lo.Filter(channels, func(ch *Channel, _ int) bool {
-				return lo.Contains(profile.ChannelIDs, ch.ID)
-			})
-		}
-
-		if profile != nil && len(profile.ChannelTags) > 0 {
-			channels = lo.Filter(channels, func(ch *Channel, _ int) bool {
-				return profile.MatchChannelTags(ch.Tags)
-			})
-		}
+	key, _ := contexts.GetAPIKey(ctx)
+	channels := svc.channelService.GetEnabledChannels()
+	scope := svc.ModelChannelScope(ctx, key)
+	if scope != nil {
+		channels = lo.Filter(channels, func(ch *Channel, _ int) bool { return scope.Allows(ch.Channel) })
 	}
 
-	return svc.queryConfiguredModelFacades(ctx, profile, channels)
+	return svc.queryConfiguredModelFacades(ctx, key.GetActiveProfile(), channels, scope)
 }
 
 // queryConfiguredModelFacades queries enabled Model entities and returns them as
 // ModelFacades filtered by public model IDs and effective channel associations.
-func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profile *objects.APIKeyProfile, channels []*Channel) ([]ModelFacade, error) {
+func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profile *objects.APIKeyProfile, channels []*Channel, scope *ModelChannelScope) ([]ModelFacade, error) {
 	var allowedModelIDs []string
 	if profile != nil {
 		allowedModelIDs = profile.ModelIDs
@@ -832,21 +801,27 @@ func (svc *ModelService) queryConfiguredModelFacades(ctx context.Context, profil
 		}
 		seen[requestID] = true
 		targetID := profile.MapModel(requestID)
-		m := resolver.resolve(targetID)
-		if m == nil || !lo.Contains(PublicModelIDs(m), targetID) {
-			continue
+		for matched := range resolver.matching(targetID) {
+			associations := EffectiveModelAssociationsForRequest(systemSettings, matched, targetID)
+			connections := MatchConnectionsForModel(associations, channels, targetID)
+			if scope != nil && len(connections) == 0 {
+				excluded, err := scope.ExcludesAllTargets(associations)
+				if err != nil {
+					return nil, err
+				}
+				if excluded {
+					continue
+				}
+			}
+			if len(connections) != 0 && lo.Contains(PublicModelIDs(matched), targetID) &&
+				(!systemSettings.HideUnroutableModelsInList || hasCapableEndpointForModel(matched, connections)) {
+				result = append(result, ModelFacade{
+					ID: requestID, TargetID: targetID, DisplayName: requestID, CreatedAt: matched.CreatedAt, Connections: connections,
+					Created: matched.CreatedAt.Unix(), OwnedBy: "configured", ConfiguredModel: matched,
+				})
+			}
+			break
 		}
-		connections := MatchConnectionsForModel(EffectiveModelAssociationsForRequest(systemSettings, m, targetID), channels, targetID)
-		if len(connections) == 0 {
-			continue
-		}
-		if systemSettings.HideUnroutableModelsInList && !hasCapableEndpointForModel(m, connections) {
-			continue
-		}
-		result = append(result, ModelFacade{
-			ID: requestID, TargetID: targetID, DisplayName: requestID, CreatedAt: m.CreatedAt, Connections: connections,
-			Created: m.CreatedAt.Unix(), OwnedBy: "configured", ConfiguredModel: m,
-		})
 	}
 
 	return result, nil

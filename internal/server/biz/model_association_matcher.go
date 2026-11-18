@@ -156,6 +156,31 @@ func matchSingleAssociation(
 	return connections
 }
 
+func associationTargetsChannel(assoc *objects.ModelAssociation, ch *ent.Channel) bool {
+	switch assoc.Type {
+	case "channel_model":
+		return assoc.ChannelModel != nil && assoc.ChannelModel.ChannelID == ch.ID
+	case "channel_request":
+		return assoc.ChannelRequest != nil && assoc.ChannelRequest.ChannelID == ch.ID
+	case "channel_regex":
+		return assoc.ChannelRegex != nil && assoc.ChannelRegex.ChannelID == ch.ID
+	case "channel_tags_model":
+		return assoc.ChannelTagsModel != nil && hasAssociationTag(assoc.ChannelTagsModel.ChannelTags, ch.Tags)
+	case "channel_tags_regex":
+		return assoc.ChannelTagsRegex != nil && hasAssociationTag(assoc.ChannelTagsRegex.ChannelTags, ch.Tags)
+	case "model":
+		return assoc.ModelID != nil && !shouldExcludeChannel(ch, assoc.ModelID.Exclude)
+	case "regex":
+		return assoc.Regex != nil && !shouldExcludeChannel(ch, assoc.Regex.Exclude)
+	default:
+		return false
+	}
+}
+
+func hasAssociationTag(targets, tags []string) bool {
+	return lo.ContainsBy(targets, func(tag string) bool { return lo.Contains(tags, tag) })
+}
+
 // A pass-through association explicitly accepts the request ID, including IDs
 // not yet present in a provider's discovery list. Channel/endpoint permissions
 // are still enforced by the regular candidate filters.
@@ -163,7 +188,7 @@ func matchChannelRequest(assoc *objects.ModelAssociation, channels []*Channel, t
 	if assoc.ChannelRequest == nil {
 		return nil
 	}
-	ch, found := lo.Find(channels, func(c *Channel) bool { return c.ID == assoc.ChannelRequest.ChannelID })
+	ch, found := lo.Find(channels, func(c *Channel) bool { return associationTargetsChannel(assoc, c.Channel) })
 	if !found || !tracker.Add(ch.ID, requestModelID) {
 		return nil
 	}
@@ -181,7 +206,7 @@ func matchChannelModel(assoc *objects.ModelAssociation, channels []*Channel, tra
 	}
 
 	ch, found := lo.Find(channels, func(c *Channel) bool {
-		return c.ID == assoc.ChannelModel.ChannelID
+		return associationTargetsChannel(assoc, c.Channel)
 	})
 	if !found {
 		return nil
@@ -216,7 +241,7 @@ func matchChannelRegex(assoc *objects.ModelAssociation, channels []*Channel, tra
 	}
 
 	ch, found := lo.Find(channels, func(c *Channel) bool {
-		return c.ID == assoc.ChannelRegex.ChannelID
+		return associationTargetsChannel(assoc, c.Channel)
 	})
 	if !found {
 		return nil
@@ -250,7 +275,7 @@ func matchRegex(assoc *objects.ModelAssociation, channels []*Channel, tracker *D
 
 	for _, ch := range channels {
 		// Check if channel should be excluded
-		if shouldExcludeChannel(ch, assoc.Regex.Exclude) {
+		if !associationTargetsChannel(assoc, ch.Channel) {
 			continue
 		}
 
@@ -284,7 +309,7 @@ func matchModel(assoc *objects.ModelAssociation, channels []*Channel, tracker *D
 
 	for _, ch := range channels {
 		// Check if channel should be excluded
-		if shouldExcludeChannel(ch, assoc.ModelID.Exclude) {
+		if !associationTargetsChannel(assoc, ch.Channel) {
 			continue
 		}
 
@@ -312,7 +337,7 @@ func matchModel(assoc *objects.ModelAssociation, channels []*Channel, tracker *D
 }
 
 // shouldExcludeChannel checks if a channel should be excluded based on exclude rules.
-func shouldExcludeChannel(ch *Channel, excludes []*objects.ExcludeAssociation) bool {
+func shouldExcludeChannel(ch *ent.Channel, excludes []*objects.ExcludeAssociation) bool {
 	if len(excludes) == 0 {
 		return false
 	}
@@ -361,16 +386,7 @@ func matchChannelTagsModel(assoc *objects.ModelAssociation, channels []*Channel,
 
 	for _, ch := range channels {
 		// Check if channel has any of the specified tags (OR logic)
-		hasTag := false
-
-		for _, tag := range assoc.ChannelTagsModel.ChannelTags {
-			if lo.Contains(ch.Tags, tag) {
-				hasTag = true
-				break
-			}
-		}
-
-		if !hasTag {
+		if !associationTargetsChannel(assoc, ch.Channel) {
 			continue
 		}
 
@@ -413,16 +429,7 @@ func matchChannelTagsRegex(assoc *objects.ModelAssociation, channels []*Channel,
 
 	for _, ch := range channels {
 		// Check if channel has any of the specified tags (OR logic)
-		hasTag := false
-
-		for _, tag := range assoc.ChannelTagsRegex.ChannelTags {
-			if lo.Contains(ch.Tags, tag) {
-				hasTag = true
-				break
-			}
-		}
-
-		if !hasTag {
+		if !associationTargetsChannel(assoc, ch.Channel) {
 			continue
 		}
 

@@ -175,8 +175,9 @@ Prefixes and suffixes are literal strings. Regex matches the full ID; for exampl
 The test model ID uses the same backend matcher as routing and reports match, no match, or invalid expression without saving or calling a provider.
 Testing is optional. **Create** saves the model and returns to the list by default. Choose **Create and associate** from the adjacent creation-options menu to continue into the association dialog. Enable the model when configuration is ready.
 
-Enabled exact entries take precedence. Otherwise, the first matching enabled rule wins by ascending match priority, then ascending configuration ID.
-Disabled and archived configurations do not participate. If the selected configuration has no usable association, the request fails instead of trying lower-priority rules.
+Requests and model discovery prefer an enabled exact entry, then other enabled rules by ascending priority and configuration ID. Skip a configuration only if the project or API key excludes all its target channels by ID or tag. If it has no targets, or its in-scope targets are disabled or lack the specified model, the request fails and discovery omits the ID instead of switching configurations. Disabled and archived model configurations do not participate.
+
+For example, an exact `gpt-6-astra` configuration can target that model on channels tagged `OpenAI`, while an overlapping Astra regex prefers newer versions on channels tagged `Codex`. An OpenAI-only key uses the specified model; a Codex-only key uses the regex and its existing per-channel version order. If both routes are in scope, the exact configuration wins. Ordinary model lists and the Codex catalog read public IDs from the selected configuration; Codex still requires usable metadata. Request conditions, quota limits, and upstream failures do not trigger selection of another configuration.
 
 **Public model IDs** is a separate list of zero, one, or multiple concrete IDs. Every ID must match the configuration's rule.
 An empty list hides the configuration from model discovery and detail endpoints while matching requests can still call it.
