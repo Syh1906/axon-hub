@@ -152,7 +152,7 @@ Local base prices must match the upstream base pricing and exclude group multipl
 
 ### Model Pricing
 
-Request pricing first uses the channel price for the actual outbound model. When that channel entry is absent, it uses the standard price of the model resolved for the request. Both exact and regex matching are supported, including when routing maps the model to a different upstream ID. An explicit zero channel price still takes precedence. If neither source has a price, cost remains unknown rather than zero.
+A channel price for the upstream model selected by the association and channel mapping takes precedence, including an explicit zero. Without a channel override, each model association can use the requested model’s standard price (default) or the actual routed model’s standard price. For Luna routed to Terra, the latter looks up the enabled Terra card, with an exact ID first and other matching rules in their configured order. A missing price on the winning card leaves the attempt unpriced. Budget limits apply the existing admission and retry policy to unquotable candidates. Each attempt freezes its own pricing for budget admission and settlement.
 
 Maintain default prices on the **Models** page. To override a price for a channel:
 

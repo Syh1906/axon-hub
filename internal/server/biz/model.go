@@ -682,6 +682,10 @@ func (svc *ModelService) QueryModelChannelConnections(ctx context.Context, assoc
 }
 
 func (svc *ModelService) QueryModelChannelConnectionsForModel(ctx context.Context, associations []*objects.ModelAssociation, requestModelID string) ([]*ModelChannelConnection, error) {
+	return svc.PreviewModelChannelConnections(ctx, associations, requestModelID, nil)
+}
+
+func (svc *ModelService) PreviewModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID string, previewModelID *objects.GUID) ([]*ModelChannelConnection, error) {
 	if len(associations) == 0 {
 		return []*ModelChannelConnection{}, nil
 	}
@@ -708,7 +712,21 @@ func (svc *ModelService) QueryModelChannelConnectionsForModel(ctx context.Contex
 	wrappedChannels := lo.Map(channels, func(ch *ent.Channel, _ int) *Channel { return &Channel{Channel: ch} })
 
 	// Use the shared MatchAssociations function
-	return appendVersionPreviewWarnings(MatchConnectionsForModel(associations, wrappedChannels, requestModelID), associations, wrappedChannels), nil
+	var connections []*ModelChannelConnection
+	if previewModelID != nil {
+		// Keep conditional alternatives until their pricing sources are known.
+		matches := MatchAssociationsForModel(associations, wrappedChannels, requestModelID)
+		for _, match := range matches {
+			connections = append(connections, match.Connections...)
+		}
+		if err := svc.previewAssociationPrices(ctx, connections, previewModelID.ID); err != nil {
+			return nil, err
+		}
+		connections = mergeAssociationPricePreviews(matches)
+	} else {
+		connections = MatchConnectionsForModel(associations, wrappedChannels, requestModelID)
+	}
+	return appendVersionPreviewWarnings(connections, associations, wrappedChannels), nil
 }
 
 // GetModelByModelID retrieves a model by its modelId and status.

@@ -43,6 +43,7 @@ import { ModelAssociation, normalizeModelRoutingPolicyValue } from '../data/sche
 import { AssociationBulkPicker } from './association-bulk-picker';
 import { ChannelModelsList } from './channel-models-list';
 import { ModelMatchTest } from './models-match-fields';
+import { AssociationPriceEditor } from './association-price-editor';
 import { VersionOrderEditor } from './version-order-editor';
 
 const requestFormatConditionOptions = [
@@ -408,6 +409,7 @@ const associationFormSchema = z.object({
         channelTags: z.array(z.string()).optional(),
         modelId: z.string().optional(),
         pattern: z.string().optional(),
+        useActualModelPrice: z.boolean().default(false),
         preferLatestVersion: z.boolean().default(false),
         excludeChannelNamePattern: z.string().optional(),
         excludeChannelIds: z.array(z.number()).optional(),
@@ -540,6 +542,7 @@ function formAssociationToInput(assoc: AssociationFormRow, inheritedModelID?: st
   const base = {
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    useActualModelPrice: Boolean(assoc.useActualModelPrice),
     preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: buildAssociationWhen(assoc.whenEnabled, assoc.whenCondition) || undefined,
   };
@@ -619,6 +622,7 @@ function formAssociationToModelAssociation(assoc: AssociationFormRow): ModelAsso
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    useActualModelPrice: Boolean(assoc.useActualModelPrice),
     preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: input?.when ? { enabled: Boolean(input.when.enabled), condition: input.when.condition ?? null } : null,
     channelRequest: input?.channelRequest || null,
@@ -655,6 +659,7 @@ function modelAssociationToInput(assoc: ModelAssociation, inheritedModelID?: str
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    useActualModelPrice: Boolean(assoc.useActualModelPrice),
     preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     when: assoc.when
       ? {
@@ -679,6 +684,7 @@ function modelAssociationToFormRow(assoc: ModelAssociation, inheritModel = false
     type: assoc.type,
     priority: assoc.priority ?? 0,
     disabled: assoc.disabled ?? false,
+    useActualModelPrice: Boolean(assoc.useActualModelPrice),
     preferLatestVersion: assoc.type.includes('regex') && Boolean(assoc.preferLatestVersion),
     inheritModel,
     whenEnabled: promptTokensCondition.enabled,
@@ -757,7 +763,7 @@ export function ModelsAssociationDialog() {
   const [requestModelID, setRequestModelID] = useState('');
   const [bulkPicking, setBulkPicking] = useState(false);
   const debouncedRequestModelID = useDebounce(requestModelID, 350);
-  const { mutateAsync: queryConnections } = useQueryModelChannelConnections(debouncedRequestModelID || undefined);
+  const { mutateAsync: queryConnections } = useQueryModelChannelConnections(debouncedRequestModelID || undefined, currentRow?.id);
   const [connections, setConnections] = useState<ModelChannelConnection[]>([]);
   const [previewError, setPreviewError] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -992,6 +998,7 @@ export function ModelsAssociationDialog() {
     const currentAssociations = form.getValues('associations') || [];
 
     append({
+      useActualModelPrice: false,
       preferLatestVersion: false,
       type: 'channel_model',
       priority: nextAssociationPriority(currentAssociations.map((a) => a.priority)),
@@ -1807,6 +1814,15 @@ function AssociationRow({
         </div>
       )}
 
+      {!isDeveloperMode && (
+        <div className='ml-0 sm:ml-[6.25rem]'>
+          <FormField
+            control={form.control}
+            name={`associations.${index}.useActualModelPrice`}
+            render={({ field }) => <AssociationPriceEditor value={field.value} onChange={field.onChange} />}
+          />
+        </div>
+      )}
       <div className='ml-0 border-t pt-2 sm:ml-[6.25rem]'>
         <Button
           type='button'

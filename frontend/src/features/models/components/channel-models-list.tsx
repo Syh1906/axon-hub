@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
-import { groupChannelModels } from '../utils/group-channel-models';
+import { groupChannelModels, previewModelKey } from '../utils/group-channel-models';
 
 interface ChannelModel {
+  previewPriceSource?: string;
+  previewPriceModel?: string;
   requestModel: string;
   actualModel?: string;
   priority?: number;
@@ -111,7 +113,7 @@ export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListP
           )}
           <div className='space-y-1'>
             {conn.models.map((model) => (
-              <div key={model.requestModel} className='bg-muted rounded px-2 py-1 text-xs'>
+              <div key={previewModelKey(model)} className='bg-muted rounded px-2 py-1 text-xs'>
                 {model.priority !== undefined && (
                   <span className='text-muted-foreground mr-2'>
                     {t('models.dialogs.association.versionOrder.priority')} {model.priority}
@@ -125,6 +127,11 @@ export function ChannelModelsList({ channels, emptyMessage }: ChannelModelsListP
                   <Badge variant='secondary' className='ml-2 text-[10px]'>
                     {t(`models.dialogs.association.versionOrder.${model.rank === 0 ? 'first' : 'fallback'}`)}
                   </Badge>
+                )}
+                {model.previewPriceSource && (
+                  <p className='text-muted-foreground mt-1'>
+                    {t(`models.dialogs.association.pricing.${model.previewPriceSource}`, { model: model.previewPriceModel })}
+                  </p>
                 )}
               </div>
             ))}

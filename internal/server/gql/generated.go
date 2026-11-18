@@ -595,9 +595,11 @@ type ComplexityRoot struct {
 	}
 
 	ChannelModelEntry struct {
-		ActualModel  func(childComplexity int) int
-		RequestModel func(childComplexity int) int
-		Source       func(childComplexity int) int
+		ActualModel        func(childComplexity int) int
+		PreviewPriceModel  func(childComplexity int) int
+		PreviewPriceSource func(childComplexity int) int
+		RequestModel       func(childComplexity int) int
+		Source             func(childComplexity int) int
 	}
 
 	ChannelModelPrice struct {
@@ -1477,6 +1479,7 @@ type ComplexityRoot struct {
 		Priority            func(childComplexity int) int
 		Regex               func(childComplexity int) int
 		Type                func(childComplexity int) int
+		UseActualModelPrice func(childComplexity int) int
 		When                func(childComplexity int) int
 	}
 
@@ -2369,7 +2372,7 @@ type ComplexityRoot struct {
 		ProvidersCatalog                func(childComplexity int, filtered *bool) int
 		ProxyPresets                    func(childComplexity int) int
 		QueryChannels                   func(childComplexity int, input biz.QueryChannelsInput) int
-		QueryModelChannelConnections    func(childComplexity int, associations []*objects.ModelAssociation, requestModelID *string) int
+		QueryModelChannelConnections    func(childComplexity int, associations []*objects.ModelAssociation, requestModelID *string, previewModelID *objects.GUID) int
 		QueryModels                     func(childComplexity int, input QueryModelsInput) int
 		QueryUnassociatedChannels       func(childComplexity int) int
 		QuotaRoutingSettings            func(childComplexity int) int
@@ -2491,11 +2494,12 @@ type ComplexityRoot struct {
 	}
 
 	RequestCostSnapshot struct {
-		Applied          func(childComplexity int) int
-		KeyLabel         func(childComplexity int) int
-		ManualMultiplier func(childComplexity int) int
-		PriceReferenceID func(childComplexity int) int
-		PricedAt         func(childComplexity int) int
+		Applied              func(childComplexity int) int
+		KeyLabel             func(childComplexity int) int
+		ManualMultiplier     func(childComplexity int) int
+		PriceReferenceID     func(childComplexity int) int
+		PricedAt             func(childComplexity int) int
+		StandardPriceModelID func(childComplexity int) int
 	}
 
 	RequestEdge struct {
@@ -3897,7 +3901,7 @@ type QueryResolver interface {
 	MatchModelStandardPrices(ctx context.Context, modelIDs []string) ([]*biz.ModelStandardPriceMatch, error)
 	FetchModels(ctx context.Context, input biz.FetchModelsInput) (*FetchModelsPayload, error)
 	QueryModels(ctx context.Context, input QueryModelsInput) ([]*biz.ModelIdentityWithStatus, error)
-	QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID *string) ([]*biz.ModelChannelConnection, error)
+	QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID *string, previewModelID *objects.GUID) ([]*biz.ModelChannelConnection, error)
 	TestModelMatch(ctx context.Context, matchType objects.ModelMatchType, pattern string, modelID string) (*objects.ModelMatchTest, error)
 	QueryUnassociatedChannels(ctx context.Context) ([]*biz.UnassociatedChannel, error)
 	AutoBackupSettings(ctx context.Context) (*biz.AutoBackupSettings, error)
@@ -6049,6 +6053,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelModelEntry.ActualModel(childComplexity), true
+	case "ChannelModelEntry.previewPriceModel":
+		if e.complexity.ChannelModelEntry.PreviewPriceModel == nil {
+			break
+		}
+
+		return e.complexity.ChannelModelEntry.PreviewPriceModel(childComplexity), true
+	case "ChannelModelEntry.previewPriceSource":
+		if e.complexity.ChannelModelEntry.PreviewPriceSource == nil {
+			break
+		}
+
+		return e.complexity.ChannelModelEntry.PreviewPriceSource(childComplexity), true
 	case "ChannelModelEntry.requestModel":
 		if e.complexity.ChannelModelEntry.RequestModel == nil {
 			break
@@ -9577,6 +9593,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ModelAssociation.Type(childComplexity), true
+	case "ModelAssociation.useActualModelPrice":
+		if e.complexity.ModelAssociation.UseActualModelPrice == nil {
+			break
+		}
+
+		return e.complexity.ModelAssociation.UseActualModelPrice(childComplexity), true
 	case "ModelAssociation.when":
 		if e.complexity.ModelAssociation.When == nil {
 			break
@@ -14556,7 +14578,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.QueryModelChannelConnections(childComplexity, args["associations"].([]*objects.ModelAssociation), args["requestModelID"].(*string)), true
+		return e.complexity.Query.QueryModelChannelConnections(childComplexity, args["associations"].([]*objects.ModelAssociation), args["requestModelID"].(*string), args["previewModelID"].(*objects.GUID)), true
 	case "Query.queryModels":
 		if e.complexity.Query.QueryModels == nil {
 			break
@@ -15314,6 +15336,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestCostSnapshot.PricedAt(childComplexity), true
+	case "RequestCostSnapshot.standardPriceModelID":
+		if e.complexity.RequestCostSnapshot.StandardPriceModelID == nil {
+			break
+		}
+
+		return e.complexity.RequestCostSnapshot.StandardPriceModelID(childComplexity), true
 
 	case "RequestEdge.cursor":
 		if e.complexity.RequestEdge.Cursor == nil {
@@ -23742,6 +23770,11 @@ func (ec *executionContext) field_Query_queryModelChannelConnections_args(ctx co
 		return nil, err
 	}
 	args["requestModelID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "previewModelID", ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["previewModelID"] = arg2
 	return args, nil
 }
 
@@ -33062,6 +33095,10 @@ func (ec *executionContext) fieldContext_Channel_allModelEntries(_ context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "previewPriceSource":
+				return ec.fieldContext_ChannelModelEntry_previewPriceSource(ctx, field)
+			case "previewPriceModel":
+				return ec.fieldContext_ChannelModelEntry_previewPriceModel(ctx, field)
 			case "requestModel":
 				return ec.fieldContext_ChannelModelEntry_requestModel(ctx, field)
 			case "actualModel":
@@ -34968,6 +35005,64 @@ func (ec *executionContext) fieldContext_ChannelModelContext_maxContextWindow(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelModelEntry_previewPriceSource(ctx context.Context, field graphql.CollectedField, obj *biz.ChannelModelEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelModelEntry_previewPriceSource,
+		func(ctx context.Context) (any, error) {
+			return obj.PreviewPriceSource, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelModelEntry_previewPriceSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelModelEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelModelEntry_previewPriceModel(ctx context.Context, field graphql.CollectedField, obj *biz.ChannelModelEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelModelEntry_previewPriceModel,
+		func(ctx context.Context) (any, error) {
+			return obj.PreviewPriceModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelModelEntry_previewPriceModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelModelEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -48932,6 +49027,8 @@ func (ec *executionContext) fieldContext_DeveloperModelSettings_associations(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "useActualModelPrice":
+				return ec.fieldContext_ModelAssociation_useActualModelPrice(ctx, field)
 			case "preferLatestVersion":
 				return ec.fieldContext_ModelAssociation_preferLatestVersion(ctx, field)
 			case "type":
@@ -52918,6 +53015,35 @@ func (ec *executionContext) fieldContext_Model_associatedChannelCount(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelAssociation_useActualModelPrice(ctx context.Context, field graphql.CollectedField, obj *objects.ModelAssociation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ModelAssociation_useActualModelPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.UseActualModelPrice, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ModelAssociation_useActualModelPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelAssociation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ModelAssociation_preferLatestVersion(ctx context.Context, field graphql.CollectedField, obj *objects.ModelAssociation) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -54336,6 +54462,10 @@ func (ec *executionContext) fieldContext_ModelChannelConnection_models(_ context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "previewPriceSource":
+				return ec.fieldContext_ChannelModelEntry_previewPriceSource(ctx, field)
+			case "previewPriceModel":
+				return ec.fieldContext_ChannelModelEntry_previewPriceModel(ctx, field)
 			case "requestModel":
 				return ec.fieldContext_ChannelModelEntry_requestModel(ctx, field)
 			case "actualModel":
@@ -55719,6 +55849,8 @@ func (ec *executionContext) fieldContext_ModelSettings_associations(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "useActualModelPrice":
+				return ec.fieldContext_ModelAssociation_useActualModelPrice(ctx, field)
 			case "preferLatestVersion":
 				return ec.fieldContext_ModelAssociation_preferLatestVersion(ctx, field)
 			case "type":
@@ -78148,7 +78280,7 @@ func (ec *executionContext) _Query_queryModelChannelConnections(ctx context.Cont
 		ec.fieldContext_Query_queryModelChannelConnections,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().QueryModelChannelConnections(ctx, fc.Args["associations"].([]*objects.ModelAssociation), fc.Args["requestModelID"].(*string))
+			return ec.resolvers.Query().QueryModelChannelConnections(ctx, fc.Args["associations"].([]*objects.ModelAssociation), fc.Args["requestModelID"].(*string), fc.Args["previewModelID"].(*objects.GUID))
 		},
 		nil,
 		ec.marshalNModelChannelConnection2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐModelChannelConnectionᚄ,
@@ -82589,6 +82721,35 @@ func (ec *executionContext) fieldContext_RequestConnection_totalCount(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestCostSnapshot_standardPriceModelID(ctx context.Context, field graphql.CollectedField, obj *objects.RequestCostSnapshot) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestCostSnapshot_standardPriceModelID,
+		func(ctx context.Context) (any, error) {
+			return obj.StandardPriceModelID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestCostSnapshot_standardPriceModelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestCostSnapshot",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestCostSnapshot_priceReferenceId(ctx context.Context, field graphql.CollectedField, obj *objects.RequestCostSnapshot) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -83237,6 +83398,8 @@ func (ec *executionContext) fieldContext_RequestExecution_costSnapshot(_ context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "standardPriceModelID":
+				return ec.fieldContext_RequestCostSnapshot_standardPriceModelID(ctx, field)
 			case "priceReferenceId":
 				return ec.fieldContext_RequestCostSnapshot_priceReferenceId(ctx, field)
 			case "pricedAt":
@@ -85820,6 +85983,8 @@ func (ec *executionContext) fieldContext_RequestSessionExecution_costSnapshot(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "standardPriceModelID":
+				return ec.fieldContext_RequestCostSnapshot_standardPriceModelID(ctx, field)
 			case "priceReferenceId":
 				return ec.fieldContext_RequestCostSnapshot_priceReferenceId(ctx, field)
 			case "pricedAt":
@@ -101517,6 +101682,8 @@ func (ec *executionContext) fieldContext_UsageLog_costSnapshot(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "standardPriceModelID":
+				return ec.fieldContext_RequestCostSnapshot_standardPriceModelID(ctx, field)
 			case "priceReferenceId":
 				return ec.fieldContext_RequestCostSnapshot_priceReferenceId(ctx, field)
 			case "pricedAt":
@@ -117452,13 +117619,20 @@ func (ec *executionContext) unmarshalInputModelAssociationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"preferLatestVersion", "type", "priority", "disabled", "when", "channelModel", "channelRegex", "regex", "modelId", "channelTagsModel", "channelTagsRegex", "channelRequest"}
+	fieldsInOrder := [...]string{"useActualModelPrice", "preferLatestVersion", "type", "priority", "disabled", "when", "channelModel", "channelRegex", "regex", "modelId", "channelTagsModel", "channelTagsRegex", "channelRequest"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "useActualModelPrice":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("useActualModelPrice"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UseActualModelPrice = data
 		case "preferLatestVersion":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("preferLatestVersion"))
 			data, err := ec.unmarshalOBoolean2bool(ctx, v)
@@ -141409,6 +141583,16 @@ func (ec *executionContext) _ChannelModelEntry(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ChannelModelEntry")
+		case "previewPriceSource":
+			out.Values[i] = ec._ChannelModelEntry_previewPriceSource(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "previewPriceModel":
+			out.Values[i] = ec._ChannelModelEntry_previewPriceModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "requestModel":
 			out.Values[i] = ec._ChannelModelEntry_requestModel(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -148107,6 +148291,11 @@ func (ec *executionContext) _ModelAssociation(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ModelAssociation")
+		case "useActualModelPrice":
+			out.Values[i] = ec._ModelAssociation_useActualModelPrice(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "preferLatestVersion":
 			out.Values[i] = ec._ModelAssociation_preferLatestVersion(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -158591,6 +158780,11 @@ func (ec *executionContext) _RequestCostSnapshot(ctx context.Context, sel ast.Se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RequestCostSnapshot")
+		case "standardPriceModelID":
+			out.Values[i] = ec._RequestCostSnapshot_standardPriceModelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "priceReferenceId":
 			out.Values[i] = ec._RequestCostSnapshot_priceReferenceId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

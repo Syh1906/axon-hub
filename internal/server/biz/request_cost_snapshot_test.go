@@ -124,3 +124,66 @@ func TestModelPriceFallbackPreservesExplicitChannelPrices(t *testing.T) {
 	})
 	require.Nil(t, cost, "an empty price configuration is not an explicit zero price")
 }
+
+func TestAssociationPriceFollowsEachExecution(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(ent.NewContext(f.ctx, f.client))
+	card := func(rate int64, limit int) *objects.ModelCard {
+		return &objects.ModelCard{Price: &objects.ModelPrice{Items: []objects.ModelPriceItem{
+			{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(rate))}},
+		}}, Limit: objects.ModelCardLimit{Output: limit}}
+	}
+	entrance := card(1, 8000)
+	target := f.client.Model.Create().SetModelID("-terra").SetMatchType(objects.ModelMatchSuffix).SetDeveloper("test").
+		SetName("Terra").SetIcon("test").SetGroup("test").SetStatus(model.StatusEnabled).SetSettings(&objects.ModelSettings{}).SetModelCard(card(10, 30000)).SaveX(ctx)
+	service := NewUsageLogService(f.client, f.service.system, NewChannelServiceForTest(f.client))
+	ch := &Channel{Channel: &ent.Channel{Settings: &objects.ChannelSettings{}}}
+	for _, tc := range []struct {
+		actual bool
+		want   float64
+	}{{false, 1}, {true, 10}} {
+		snap, err := captureExecutionCostSnapshot(ctx, f.client, ch, "gpt-6.1-terra", entrance, &objects.RequestExecutionSelection{UseActualModelPrice: tc.actual})
+		require.NoError(t, err)
+		require.EqualValues(t, 8000, snap.ModelOutputLimit)
+		if tc.actual {
+			require.Equal(t, target.ModelID, snap.StandardPriceModelID)
+		}
+		usage := &llm.Usage{PromptTokens: 1000000, TotalTokens: 1000000}
+		quote, err := service.BudgetService.Estimate(ctx, &ent.RequestExecution{CostSnapshot: snap}, &llm.Request{}, nil, usage.PromptTokens)
+		require.NoError(t, err)
+		settled, err := service.actualBudgetCost(ctx, usage, snap)
+		require.NoError(t, err)
+		require.Equal(t, quote, *settled)
+		_, cost, _ := service.computeSnapshotUsageCost(ctx, usage, snap)
+		require.NotNil(t, cost)
+		require.Equal(t, tc.want, *cost)
+		require.Equal(t, tc.want, settled.Decimal().InexactFloat64())
+	}
+	// A budgeted client may omit an output cap. A routed family card can
+	// supply the estimate even when the price itself comes from the channel.
+	outputCard := card(10, 30000)
+	outputCard.Price.Items[0].ItemCode = objects.PriceItemCodeCompletion
+	target.Update().SetModelCard(outputCard).SaveX(ctx)
+	routed := &objects.RequestExecutionSelection{UseActualModelPrice: true}
+	for _, override := range []bool{false, true} {
+		if override {
+			ch.cachedModelPrices = map[string]*ent.ChannelModelPrice{"gpt-6.1-terra": {Price: *outputCard.Price}}
+		}
+		snap, err := captureExecutionCostSnapshot(ctx, f.client, ch, "gpt-6.1-terra", nil, routed)
+		require.NoError(t, err)
+		quote, err := service.BudgetService.Estimate(ctx, &ent.RequestExecution{CostSnapshot: snap, ModelID: "gpt-6.1-terra", Selection: routed}, &llm.Request{}, nil, 1000)
+		require.NoError(t, err)
+		require.Equal(t, "0.30000000", quote.String())
+	}
+	ch.cachedModelPrices = nil
+	target.Update().SetStatus(model.StatusDisabled).SaveX(ctx)
+	sel := &objects.RequestExecutionSelection{UseActualModelPrice: true}
+	missing, err := captureExecutionCostSnapshot(ctx, f.client, ch, "gpt-6.1-terra", entrance, sel)
+	require.NoError(t, err)
+	require.Nil(t, missing.CurrentPrice())
+	ch.cachedModelPrices = map[string]*ent.ChannelModelPrice{"gpt-6.1-terra": {ReferenceID: "free", Price: *card(0, 1).Price}}
+	free, err := captureExecutionCostSnapshot(ctx, f.client, ch, "gpt-6.1-terra", entrance, sel)
+	require.NoError(t, err)
+	require.Equal(t, "free", free.PriceReferenceID)
+	require.Nil(t, free.ModelPrice)
+}

@@ -147,6 +147,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
 	}
 	selection := executionSelection(ctx, state)
+	selection.UseActualModelPrice = entry.UseActualModelPrice
 	selection.Dispatch = objects.RequestExecutionDispatchPending
 	if isResponsesFormat(format) {
 		selection.UpstreamRef = biz.ResponsesUpstreamRef(request.URL, request.Headers)

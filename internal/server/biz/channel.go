@@ -37,6 +37,11 @@ import (
 
 // ChannelModelEntry represents a model that the channel can handle.
 type ChannelModelEntry struct {
+	UseActualModelPrice bool
+	// Populated only by the model association pricing preview.
+	PreviewPriceSource string
+	PreviewPriceModel  string
+	previewPriceCardID int
 	// RequestModel is the model name that can be used in requests
 	RequestModel string
 

@@ -116,10 +116,7 @@ export type FilterCondition = {
 export const filterConditionSchema: z.ZodType<FilterCondition> = z.object({
   type: z.enum(['condition', 'group']).default('condition'),
   logic: z.string().optional(),
-  conditions: z
-    .array(z.lazy(() => filterConditionSchema))
-    .optional()
-    .default([]),
+  conditions: z.array(z.lazy(() => filterConditionSchema)).nullish().transform((children) => children ?? []),
   field: z.string().optional(),
   operator: z.string().optional(),
   value: z.any().optional(),
@@ -132,6 +129,7 @@ export const modelAssociationWhenSchema = z.object({
 export type ModelAssociationWhen = z.infer<typeof modelAssociationWhenSchema>;
 
 export const modelAssociationSchema = z.object({
+  useActualModelPrice: z.boolean().optional(),
   preferLatestVersion: z.boolean().optional(),
   type: z.enum(['channel_request', 'channel_model', 'channel_regex', 'model', 'regex', 'channel_tags_model', 'channel_tags_regex']),
   priority: z.number().int().min(0).max(10).optional().default(0),

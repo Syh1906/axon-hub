@@ -199,12 +199,12 @@ func (r *queryResolver) QueryModels(ctx context.Context, input QueryModelsInput)
 }
 
 // QueryModelChannelConnections is the resolver for the queryModelChannelConnections field.
-func (r *queryResolver) QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID *string) ([]*biz.ModelChannelConnection, error) {
+func (r *queryResolver) QueryModelChannelConnections(ctx context.Context, associations []*objects.ModelAssociation, requestModelID *string, previewModelID *objects.GUID) ([]*biz.ModelChannelConnection, error) {
 	modelID := ""
 	if requestModelID != nil {
 		modelID = *requestModelID
 	}
-	return r.modelService.QueryModelChannelConnectionsForModel(ctx, associations, modelID)
+	return r.modelService.PreviewModelChannelConnections(ctx, associations, modelID, previewModelID)
 }
 
 // TestModelMatch is the resolver for the testModelMatch field.

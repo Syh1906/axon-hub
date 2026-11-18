@@ -417,6 +417,7 @@ func writeAssociationSignature(h hash.Hash64, assoc *objects.ModelAssociation) {
 	writeSignatureInt(h, assoc.Priority)
 	writeSignatureBool(h, assoc.Disabled)
 	writeSignatureBool(h, assoc.PreferLatestVersion)
+	writeSignatureBool(h, assoc.UseActualModelPrice)
 	writeAssociationWhenSignature(h, assoc.When)
 	if assoc.ChannelRequest != nil {
 		writeSignatureString(h, "channelRequest")

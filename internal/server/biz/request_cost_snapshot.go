@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/samber/lo"
@@ -10,11 +11,39 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channelmodelpriceversion"
+	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm"
 )
+
+// Capture the price for this attempt before budget admission. Routing limits still
+// belong to the entrance model even when another model supplies its price.
+func captureExecutionCostSnapshot(ctx context.Context, db *ent.Client, ch *Channel, actualModel string, entrance *objects.ModelCard, selection *objects.RequestExecutionSelection) (*objects.RequestCostSnapshot, error) {
+	if _, override := ch.cachedModelPrices[actualModel]; override || selection == nil || !selection.UseActualModelPrice {
+		return captureRequestCostSnapshot(ctx, db, ch, actualModel, entrance), nil
+	}
+	matches, err := authz.RunAsHost(ctx, db, "execution-model-standard-price", func(ctx context.Context) ([]*ModelStandardPriceMatch, error) {
+		return matchModelStandardPrices(ctx, db, []string{actualModel}, model.StatusEnabled)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("resolve standard price for %q: %w", actualModel, err)
+	}
+	var card *objects.ModelCard
+	if len(matches) > 0 {
+		card = matches[0].Model.ModelCard
+	}
+	snapshot := captureRequestCostSnapshot(ctx, db, ch, actualModel, card)
+	// Only the budget estimate uses this limit. Prefer the entrance cap when present.
+	if entrance != nil && entrance.Limit.Output > 0 {
+		snapshot.ModelOutputLimit = int64(entrance.Limit.Output)
+	}
+	if snapshot.ModelPrice != nil {
+		snapshot.StandardPriceModelID = matches[0].Model.ModelID
+	}
+	return snapshot, nil
+}
 
 func captureRequestCostSnapshot(ctx context.Context, db *ent.Client, ch *Channel, model string, modelCard *objects.ModelCard) *objects.RequestCostSnapshot {
 	now := time.Now().UTC()

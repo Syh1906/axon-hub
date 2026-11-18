@@ -30,7 +30,7 @@ func TestTaggedModelRulesRouteAndList(t *testing.T) {
 			SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{association}}).SaveX(ctx)
 	}
 	rule := create(pattern, objects.ModelMatchRegex, []string{older, newer}, &objects.ModelAssociation{
-		Type: "channel_tags_regex", PreferLatestVersion: true,
+		Type: "channel_tags_regex", PreferLatestVersion: true, UseActualModelPrice: true,
 		ChannelTagsRegex: &objects.ChannelTagsRegexAssociation{ChannelTags: []string{"Codex"}, Pattern: pattern},
 	})
 	for _, id := range []string{older, newer} {
@@ -82,6 +82,7 @@ func TestTaggedModelRulesRouteAndList(t *testing.T) {
 				require.Len(t, candidates[0].Models, len(expected))
 				for index, actual := range expected {
 					require.Equal(t, actual, candidates[0].Models[index].ActualModel)
+					require.Equal(t, tc.wantChannel == "Codex", candidates[0].Models[index].UseActualModelPrice)
 				}
 				item, found := lo.Find(listed, func(item biz.ModelFacade) bool { return item.ID == id })
 				require.True(t, found, "missing %s", id)

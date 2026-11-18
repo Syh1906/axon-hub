@@ -50,6 +50,7 @@ type ModelSettings {
 }
 
 type ModelAssociation {
+  useActualModelPrice: Boolean!
   preferLatestVersion: Boolean!
   type: String!
   priority: Int!
@@ -167,6 +168,7 @@ input ModelContextSettingsInput {
 }
 
 input ModelAssociationInput {
+  useActualModelPrice: Boolean
   preferLatestVersion: Boolean
   type: String!
   priority: Int
@@ -235,6 +237,8 @@ type ModelChannelConnection {
 }
 
 type ChannelModelEntry {
+  previewPriceSource: String!
+  previewPriceModel: String!
   requestModel: String!
   actualModel: String!
   source: String!
@@ -262,6 +266,7 @@ extend type Query {
   queryModelChannelConnections(
     associations: [ModelAssociationInput!]!
     requestModelID: String
+    previewModelID: ID
   ): [ModelChannelConnection!]!
   testModelMatch(matchType: ModelMatchType!, pattern: String!, modelID: String!): ModelMatchTest!
   queryUnassociatedChannels: [UnassociatedChannel!]!

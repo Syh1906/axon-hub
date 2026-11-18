@@ -171,6 +171,7 @@ const (
 )
 
 type ModelAssociation struct {
+	UseActualModelPrice bool `json:"useActualModelPrice,omitempty"`
 	PreferLatestVersion bool `json:"preferLatestVersion,omitempty"`
 	// channel_model: the specified model id in the specified channel
 	// channel_regex: the specified pattern in the specified channel

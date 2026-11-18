@@ -8,6 +8,7 @@ export function clampAssociationPriority(value: number) {
 export function sameAssociation(a: ModelAssociation, b: ModelAssociation) {
   if (a.disabled || a.when?.enabled) return false;
   if (a.type !== b.type) return false;
+  if (Boolean(a.useActualModelPrice) !== Boolean(b.useActualModelPrice)) return false;
   if (Boolean(a.preferLatestVersion) !== Boolean(b.preferLatestVersion)) return false;
   const excludes = a.regex?.exclude ?? a.modelId?.exclude;
   if (excludes?.some((item) => item.channelIds?.length || item.channelTags?.length || item.channelNamePattern)) return false;

@@ -112,11 +112,15 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 		output = snap.ModelOutputLimit
 	}
 	if needsOutput && output == 0 {
-		var card *ent.Model
-		_, err := authz.RunWithSystemBypass(ctx, "budget-output-limit", func(ctx context.Context) (bool, error) {
-			var err error
-			card, err = s.db.Model.Query().Where(model.ModelIDEQ(execution.ModelID)).Only(ctx)
-			return true, err
+		card, err := authz.RunAsHost(ctx, s.db, "budget-output-limit", func(ctx context.Context) (*ent.Model, error) {
+			if execution.Selection != nil && execution.Selection.UseActualModelPrice {
+				matches, err := matchModelStandardPrices(ctx, s.db, []string{execution.ModelID}, model.StatusEnabled)
+				if err != nil || len(matches) == 0 {
+					return nil, err
+				}
+				return matches[0].Model, nil
+			}
+			return s.db.Model.Query().Where(model.ModelIDEQ(execution.ModelID)).Only(ctx)
 		})
 		if err != nil && !ent.IsNotFound(err) {
 			return 0, err

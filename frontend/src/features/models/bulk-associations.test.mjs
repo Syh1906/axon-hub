@@ -66,6 +66,11 @@ test('same-channel preview merges distinct models without mutating inputs or rep
   );
   assert.deepEqual(input, copy);
 });
+test('preview keeps pass-through and mapped routes sharing the same alias', () => {
+  const routed = { requestModel: 'luna', actualModel: 'terra' };
+  const connections = [{ channel: { id: 1 }, models: [{ requestModel: 'luna' }, routed, routed] }];
+  assert.deepEqual(groupChannelModels(connections)[0].models, [{ requestModel: 'luna' }, routed]);
+});
 test('appending preserves all nested condition data, including disabled conditions', () => {
   const existing = {
     ...rule(1, 'a'),

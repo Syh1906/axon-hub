@@ -137,6 +137,7 @@ type RefreshChannelUpstreamsResult {
 }
 
 type RequestCostSnapshot {
+  standardPriceModelID: String!
   priceReferenceId: String!
   pricedAt: Time!
   keyLabel: String!

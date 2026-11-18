@@ -434,12 +434,15 @@ func (s *RequestService) CreateRequestExecution(
 
 	client := s.entFromContext(ctx)
 
+	costSnapshot, err := captureExecutionCostSnapshot(ctx, client, channel, modelID, modelCard, selection)
+	if err != nil {
+		return nil, err
+	}
+
 	requestBodyForDB := payloadMarker(requestPayloadReference{State: "disabled"})
 	if storeRequestBody {
 		requestBodyForDB = s.PayloadService.saveRequestDebug(ctx, requestBodyBytes)
 	}
-
-	costSnapshot := captureRequestCostSnapshot(ctx, client, channel, modelID, modelCard)
 	if len(serviceTier) > 0 && serviceTier[0] != nil {
 		evidence := *serviceTier[0]
 		if channel.Settings != nil && channel.Settings.ServiceTierBilling != nil {

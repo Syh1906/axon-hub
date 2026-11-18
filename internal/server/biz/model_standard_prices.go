@@ -16,35 +16,38 @@ type ModelStandardPriceMatch struct {
 }
 
 func (svc *ModelService) MatchModelStandardPrices(ctx context.Context, modelIDs []string) ([]*ModelStandardPriceMatch, error) {
-	return matchModelStandardPrices(ctx, svc.entFromContext(ctx), modelIDs)
+	return matchModelStandardPrices(ctx, svc.entFromContext(ctx), modelIDs, model.StatusEnabled, model.StatusDisabled)
 }
 
 // Manual price matching includes disabled catalog entries. It never writes a
 // channel override; runtime routing remains enabled-only.
-func matchModelStandardPrices(ctx context.Context, db *ent.Client, modelIDs []string) ([]*ModelStandardPriceMatch, error) {
+func matchModelStandardPrices(ctx context.Context, db *ent.Client, modelIDs []string, statuses ...model.Status) ([]*ModelStandardPriceMatch, error) {
 	modelIDs = uniqueNonEmptyModelIDs(modelIDs)
 	result := make([]*ModelStandardPriceMatch, 0, len(modelIDs))
 	if len(modelIDs) == 0 {
 		return result, nil
 	}
-	catalog, err := db.Model.Query().Where(
-		model.MatchTypeNEQ(objects.ModelMatchExact),
-		model.StatusIn(model.StatusEnabled, model.StatusDisabled),
-	).All(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var catalog []*ent.Model
 	for start := 0; start < len(modelIDs); start += channelModelPriceQueryBatchSize {
 		end := min(start+channelModelPriceQueryBatchSize, len(modelIDs))
 		exact, err := db.Model.Query().Where(
 			model.ModelIDIn(modelIDs[start:end]...),
 			model.MatchTypeEQ(objects.ModelMatchExact),
-			model.StatusIn(model.StatusEnabled, model.StatusDisabled),
+			model.StatusIn(statuses...),
 		).All(ctx)
 		if err != nil {
 			return nil, err
 		}
 		catalog = append(catalog, exact...)
+	}
+	if len(catalog) < len(modelIDs) {
+		rules, err := db.Model.Query().Where(
+			model.MatchTypeNEQ(objects.ModelMatchExact), model.StatusIn(statuses...),
+		).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		catalog = append(catalog, rules...)
 	}
 	resolver := newModelResolver(catalog)
 	for _, id := range modelIDs {

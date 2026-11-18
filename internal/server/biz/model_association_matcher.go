@@ -153,6 +153,11 @@ func matchSingleAssociation(
 		connections = matchChannelTagsRegex(assoc, channels, tracker)
 	}
 
+	for _, conn := range connections {
+		for i := range conn.Models {
+			conn.Models[i].UseActualModelPrice = assoc.UseActualModelPrice
+		}
+	}
 	return connections
 }
 

@@ -66,6 +66,7 @@ const MODELS_QUERY = `
             loadBalancerStrategy
             traceStickyMode
             associations {
+              useActualModelPrice
               preferLatestVersion
               type
               priority
@@ -200,6 +201,7 @@ const CREATE_MODEL_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          useActualModelPrice
           preferLatestVersion
           type
           priority
@@ -309,6 +311,7 @@ const BULK_CREATE_MODELS_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          useActualModelPrice
           preferLatestVersion
           type
           priority
@@ -418,6 +421,7 @@ const UPDATE_MODEL_MUTATION = `
         loadBalancerStrategy
         traceStickyMode
         associations {
+          useActualModelPrice
           preferLatestVersion
           type
           priority
@@ -791,6 +795,7 @@ export interface UnassociatedChannel {
 }
 
 export interface ModelAssociationInput {
+  useActualModelPrice?: boolean;
   preferLatestVersion?: boolean;
   type: 'channel_request' | 'channel_model' | 'channel_regex' | 'regex' | 'model' | 'channel_tags_model' | 'channel_tags_regex';
   priority?: number;
@@ -842,6 +847,8 @@ export interface FilterConditionInput {
 }
 
 export interface ChannelModelEntry {
+  previewPriceSource?: string;
+  previewPriceModel?: string;
   requestModel: string;
   actualModel: string;
   source: string;
@@ -873,8 +880,8 @@ export function useQueryUnassociatedChannels() {
 }
 
 const MODEL_CHANNEL_CONNECTIONS_QUERY = `
-  query QueryModelChannelConnections($associations: [ModelAssociationInput!]!, $requestModelID: String) {
-    queryModelChannelConnections(associations: $associations, requestModelID: $requestModelID) {
+  query QueryModelChannelConnections($associations: [ModelAssociationInput!]!, $requestModelID: String, $previewModelID: ID) {
+    queryModelChannelConnections(associations: $associations, requestModelID: $requestModelID, previewModelID: $previewModelID) {
       unrankedModelIDs
       priority
       preferLatestVersion
@@ -889,6 +896,8 @@ const MODEL_CHANNEL_CONNECTIONS_QUERY = `
         requestModel
         actualModel
         source
+        previewPriceSource
+        previewPriceModel
       }
     }
   }
@@ -896,17 +905,19 @@ const MODEL_CHANNEL_CONNECTIONS_QUERY = `
 
 export async function queryModelChannelConnections(
   associations: ModelAssociationInput[] | import('./schema').ModelAssociation[],
-  requestModelID?: string
+  requestModelID?: string,
+  previewModelID?: string
 ) {
   const data = await graphqlRequest<{ queryModelChannelConnections: ModelChannelConnection[] }>(MODEL_CHANNEL_CONNECTIONS_QUERY, {
     associations,
     requestModelID,
+    previewModelID,
   });
   return data.queryModelChannelConnections;
 }
 
-export function useQueryModelChannelConnections(requestModelID?: string) {
-  return useMutation({ mutationFn: (associations: ModelAssociationInput[]) => queryModelChannelConnections(associations, requestModelID) });
+export function useQueryModelChannelConnections(requestModelID?: string, previewModelID?: string) {
+  return useMutation({ mutationFn: (associations: ModelAssociationInput[]) => queryModelChannelConnections(associations, requestModelID, previewModelID) });
 }
 
 // Re-read before appending so unrelated settings and recently added rules survive.

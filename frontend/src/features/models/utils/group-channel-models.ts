@@ -1,23 +1,25 @@
-// A channel can occur once per association in the preview response.
-export function groupChannelModels<C extends { id: string | number }, M extends { requestModel: string }>(
+type PreviewModel = { requestModel: string; actualModel?: string };
+
+export function previewModelKey(model: PreviewModel) {
+  return JSON.stringify([model.requestModel, model.actualModel ?? model.requestModel]);
+}
+
+// A pass-through rule and a mapped alias can have the same requested ID but
+// different outbound models, even on the same channel.
+export function groupChannelModels<C extends { id: string | number }, M extends PreviewModel>(
   connections: { channel: C; models: M[] }[]
 ) {
-  const grouped = new Map<C['id'], { channel: C; models: M[] }>();
+  const grouped = new Map<C['id'], { channel: C; models: Map<string, M> }>();
   for (const connection of connections) {
-    const existing = grouped.get(connection.channel.id);
-    if (!existing)
-      grouped.set(connection.channel.id, {
-        channel: connection.channel,
-        models: [...new Map(connection.models.map((model) => [model.requestModel, model])).values()],
-      });
-    else {
-      const names = new Set(existing.models.map((model) => model.requestModel));
-      for (const model of connection.models)
-        if (!names.has(model.requestModel)) {
-          existing.models.push(model);
-          names.add(model.requestModel);
-        }
+    let group = grouped.get(connection.channel.id);
+    if (!group) {
+      group = { channel: connection.channel, models: new Map() };
+      grouped.set(connection.channel.id, group);
+    }
+    for (const model of connection.models) {
+      const key = previewModelKey(model);
+      if (!group.models.has(key)) group.models.set(key, model);
     }
   }
-  return [...grouped.values()];
+  return [...grouped.values()].map(({ channel, models }) => ({ channel, models: [...models.values()] }));
 }
