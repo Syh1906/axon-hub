@@ -2,15 +2,63 @@ package api
 
 import (
 	"errors"
-	"github.com/looplj/axonhub/internal/ent/privacy"
 	"net/http"
 	"regexp"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/ent/privacy"
+	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/looplj/axonhub/internal/server/biz"
 )
 
 var codexClientVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
+
+func (h *CodexHandlers) PublicCatalog(c *gin.Context) {
+	ctx := c.Request.Context()
+	scope := scopes.ScopeReadSettings
+	if c.Request.Method != http.MethodGet {
+		scope = scopes.ScopeWriteSettings
+	}
+	if err := authz.RequireScope(ctx, scope); err != nil {
+		JSONError(c, http.StatusForbidden, err)
+		return
+	}
+	var err error
+	switch c.Request.Method {
+	case http.MethodPut:
+		var schedule biz.PublicCatalogSchedule
+		if err := c.ShouldBindJSON(&schedule); err != nil {
+			JSONError(c, http.StatusBadRequest, err)
+			return
+		}
+		err = h.snapshots.SetPublicSchedule(ctx, schedule)
+	case http.MethodPost:
+		err = h.snapshots.CheckPublicCatalog(ctx)
+	}
+	if err != nil {
+		code := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, biz.ErrPublicCatalogDisabled):
+			code = http.StatusConflict
+		case errors.Is(err, biz.ErrPublicCatalogInterval):
+			code = http.StatusBadRequest
+		case c.Request.Method == http.MethodPost:
+			code = http.StatusBadGateway
+		}
+		JSONError(c, code, err)
+		return
+	}
+	status, err := h.snapshots.PublicStatus(ctx)
+	if err != nil {
+		JSONError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, status)
+}
 
 func (h *OpenAIHandlers) ListCodexModels(c *gin.Context) {
 	version := c.Query("client_version")

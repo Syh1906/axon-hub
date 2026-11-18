@@ -14,6 +14,7 @@ import (
 // differ. Client profiles remain explicit; actual routing must still support
 // their selected tool protocols.
 type codexModelProfile struct {
+	SourceSHA256    string         `json:"sourceSHA256,omitempty"`
 	SourceKind      string         `json:"sourceKind,omitempty"`
 	SnapshotVersion string         `json:"snapshotVersion,omitempty"`
 	SourceChannelID int            `json:"sourceChannelId"`
@@ -114,7 +115,7 @@ func orderedCodexConnections(connections []*ModelChannelConnection) []*ModelChan
 	return ordered
 }
 
-func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, version string, snapshot *codexSnapshot, inherited *codexDefinition) (map[string]any, error) {
+func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, snapshot *codexSnapshot, inherited *codexDefinition) (*codexModelProfile, []*ModelChannelConnection, error) {
 	target := m.TargetID
 	var overrides map[string]any
 	if inherited != nil {
@@ -179,33 +180,41 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		hasMetadata = true
 		pinned := inherited != nil && inherited.SnapshotVersion != ""
 		if (!codexProfileRequiresResponses(official.Model, overrides) || canUseResponses) &&
-			(pinned || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
+			(pinned || official.SourceKind == "official_public" || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
 			profile = official
 		}
 	}
 	if inherited != nil && inherited.SnapshotVersion != "" && (profile == nil || profile.SourceKind != "official_snapshot") {
-		return nil, fmt.Errorf("pinned official Codex profile unavailable for %s", target)
+		return nil, nil, fmt.Errorf("pinned official Codex profile unavailable for %s", target)
 	}
 	if profile == nil {
 		if hasMetadata {
-			return nil, fmt.Errorf("no visible route")
+			return nil, nil, fmt.Errorf("no visible route")
 		}
-		return nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
+		return nil, nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
 	}
 	if inherited != nil {
 		patched, err := applyCodexProfileOverrides(profile.Model, inherited.Overrides)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		copyProfile := *profile
 		copyProfile.Model = patched
 		profile = &copyProfile
 	}
+	return profile, connections, nil
+}
+
+func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any, channels map[int]*Channel, version string, snapshot *codexSnapshot, inherited *codexDefinition) (map[string]any, error) {
+	profile, metadataConnections, err := selectCodexProfile(ctx, m, connections, sources, channels, snapshot, inherited)
+	if err != nil {
+		return nil, err
+	}
 	// Use all source metadata for actual-model capabilities, even when its client
 	// tools cannot serve this caller. Profile filtering must not erase an alias's
 	// context limit. Explicit associations can include plain-list-only providers.
 	byActualModel := make(map[string]map[string]any)
-	for _, connection := range orderedCodexConnections(connections) {
+	for _, connection := range orderedCodexConnections(metadataConnections) {
 		for _, entry := range connection.Models {
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
 			if metadata != nil && byActualModel[entry.ActualModel] == nil {
@@ -213,31 +222,29 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 			}
 		}
 	}
-	d := codexDefinition{ClientVersion: version, Model: profile.Model}
-	var eligible []*ModelChannelConnection
+	d := codexDefinition{ClientVersion: version, SourceKind: profile.SourceKind, Model: profile.Model}
 	for _, connection := range m.Connections {
-		ch := channels[connection.Channel.ID]
-		if ch == nil {
-			// The enabled-channel snapshot can change after listing visible models.
-			continue
-		}
-		copyConnection := *connection
-		copyConnection.Models = nil
 		for _, entry := range connection.Models {
-			if codexProfileRequiresResponses(profile.Model, nil) && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
-				continue
-			}
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
 			if metadata == nil {
 				metadata = byActualModel[entry.ActualModel]
 			}
-			if metadata == nil && snapshot != nil {
-				metadata = snapshot.Models[entry.ActualModel]
+			if actual := snapshotCodexProfile(snapshot, entry.ActualModel); actual != nil {
+				if metadata == nil {
+					metadata = actual.Model
+				}
 			}
 			if metadata == nil {
 				metadata = profile.Model
 			}
 			capabilities := codexRouteCapabilities(metadata)
+			if profile.SourceKind == "official_public" && entry.ActualModel == profile.SourceModelID {
+				for _, field := range []string{"context_window", "max_context_window"} {
+					if value, exists := profile.Model[field]; exists {
+						capabilities[field] = value
+					}
+				}
+			}
 			if inherited != nil {
 				for _, field := range codexCapabilityFields {
 					if _, overridden := inherited.Overrides[field]; !overridden {
@@ -254,14 +261,12 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 				ChannelID: connection.Channel.ID, ModelID: entry.ActualModel,
 				Capabilities: capabilities,
 			})
-			copyConnection.Models = append(copyConnection.Models, entry)
-		}
-		if len(copyConnection.Models) > 0 {
-			eligible = append(eligible, &copyConnection)
 		}
 	}
-	m.Connections = eligible
-	result, err := d.catalogModel(m, false)
+	result, err := d.catalogModel(ctx, m, channels, false)
+	if err == nil && profile.SourceKind == "official_public" {
+		result["axonhub_catalog"] = map[string]any{"source": profile.SourceKind, "sha256": profile.SourceSHA256, "client_version": version}
+	}
 	if err == nil && profile.SourceKind == "official_snapshot" {
 		result["axonhub_catalog"] = map[string]any{"source": profile.SourceKind, "version": profile.SnapshotVersion, "client_version": version}
 	}

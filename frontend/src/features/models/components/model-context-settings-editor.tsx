@@ -1,4 +1,4 @@
-import { type Control, useWatch } from 'react-hook-form';
+import { type Control } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,6 @@ import { type CreateModelInput } from '../data/schema';
 
 export function ModelContextSettingsEditor({ control }: { control: Control<CreateModelInput> }) {
   const { t } = useTranslation();
-  const maximum = useWatch({ control, name: 'settings.contextSettings.maxContextWindow' });
   return (
     <section className='flex flex-col gap-3 rounded-md border p-4'>
       <p className='text-sm font-medium'>{t('modelContext.modelTitle')}</p>
@@ -27,7 +26,7 @@ export function ModelContextSettingsEditor({ control }: { control: Control<Creat
                     max={2147483647}
                     step={1}
                     value={field.value ?? ''}
-                    placeholder={t(name === 'defaultContextWindow' && maximum ? 'modelContext.useMaximum' : 'modelContext.upstream')}
+                    placeholder={t('modelContext.upstream')}
                     onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
                   />
                 </FormControl>
@@ -37,7 +36,6 @@ export function ModelContextSettingsEditor({ control }: { control: Control<Creat
           />
         ))}
       </div>
-      <p className='text-muted-foreground text-xs'>{t('modelContext.defaultFallback')}</p>
       <p className='text-muted-foreground text-xs'>{t('modelContext.modelScope')}</p>
     </section>
   );

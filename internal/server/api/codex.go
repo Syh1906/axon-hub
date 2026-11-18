@@ -15,6 +15,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
+	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/oauth"
 	"github.com/looplj/axonhub/llm/transformer/openai/codex"
@@ -22,12 +23,14 @@ import (
 
 type CodexHandlersParams struct {
 	fx.In
+	Snapshots *biz.CodexSnapshotService
 
 	CacheConfig xcache.Config
 	HttpClient  *httpclient.HttpClient
 }
 
 type CodexHandlers struct {
+	snapshots       *biz.CodexSnapshotService
 	stateCache      xcache.Cache[codexOAuthState]
 	httpClient      *httpclient.HttpClient
 	exchangeLocksMu sync.Mutex
@@ -41,6 +44,7 @@ type codexExchangeLock struct {
 
 func NewCodexHandlers(params CodexHandlersParams) *CodexHandlers {
 	return &CodexHandlers{
+		snapshots:     params.Snapshots,
 		stateCache:    xcache.NewFromConfig[codexOAuthState](params.CacheConfig),
 		httpClient:    params.HttpClient,
 		exchangeLocks: make(map[string]*codexExchangeLock),

@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -84,6 +85,10 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	}
 	for id, profile := range d.Models {
 		official := profile.SourceKind == "official_snapshot" && validCodexSnapshotVersion(profile.SnapshotVersion) && profile.SourceChannelID == 0
+		if profile.SourceKind == "official_public" {
+			digest, err := hex.DecodeString(profile.SourceSHA256)
+			official = err == nil && len(digest) == 32 && profile.SourceChannelID == 0
+		}
 		if id == "" || (!official && profile.SourceChannelID <= 0) || profile.SourceModelID == "" {
 			return nil, fmt.Errorf("Codex model profiles require a public ID and source")
 		}
@@ -162,7 +167,7 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 
 // The saved model profile supplies the baseline for every caller-visible route.
 // Saved route entries only refine capabilities for the channel/model pairs they match.
-func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool) (map[string]any, error) {
+func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, channels map[int]*Channel, preserveKnownContext bool) (map[string]any, error) {
 	// ClientVersion records import provenance, not a client allowlist. Schema
 	// validation and declared model capabilities are independent of version equality.
 	canonical := d.Model
@@ -182,8 +187,16 @@ func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool)
 		bindings[ChannelModelKey{ChannelID: r.ChannelID, ModelID: r.ModelID}] = r
 	}
 	var variants []map[string]any
+	requiresResponses := codexProfileRequiresResponses(canonical, nil)
 	for _, connection := range m.Connections {
+		ch := channels[connection.Channel.ID]
+		if ch == nil {
+			continue
+		}
 		for _, entry := range connection.Models {
+			if requiresResponses && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+				continue
+			}
 			r := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
 			variant := make(map[string]any, len(canonical))
 			for k, v := range canonical {
@@ -217,7 +230,11 @@ func (d *codexDefinition) catalogModel(m ModelFacade, preserveKnownContext bool)
 			if err != nil {
 				return nil, err
 			}
-			variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
+			if d.SourceKind == "official_public" && !preserveKnownContext {
+				variants = append(variants, applyPublicCodexContext(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
+			} else {
+				variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
+			}
 		}
 	}
 	if len(variants) == 0 {
@@ -291,12 +308,9 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 	snapshot := snapshots[""]
 	d := codexDefinition{ClientVersion: version, Models: make(map[string]codexModelProfile)}
 	for _, publicID := range PublicModelIDs(m) {
-		profile, _ := previewCodexModelProfile(publicID, byPublicID[publicID], sources)
-		if official := snapshotCodexProfile(snapshot, publicID); official != nil &&
-			(profile == nil || profile.SourceModelID != publicID || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
-			profile = official
-		}
-		if profile == nil {
+		facade := ModelFacade{ID: publicID, TargetID: publicID, ConfiguredModel: m, Connections: byPublicID[publicID]}
+		profile, _, err := selectCodexProfile(ctx, facade, facade.Connections, sources, channels, snapshot, nil)
+		if err != nil {
 			continue
 		}
 		d.Models[publicID] = *profile

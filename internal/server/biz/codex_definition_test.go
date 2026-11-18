@@ -500,6 +500,14 @@ func TestCodexDefinitionHeterogeneousPublicProfiles(t *testing.T) {
 	require.Equal(t, "code_mode_only", parsed["client-alias"]["tool_mode"])
 }
 
+func catalogTestChannels(m ModelFacade) map[int]*Channel {
+	channels := make(map[int]*Channel, len(m.Connections))
+	for _, connection := range m.Connections {
+		channels[connection.Channel.ID] = &Channel{Channel: connection.Channel}
+	}
+	return channels
+}
+
 func TestCodexDefinitionReasoningUsesClientProfile(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
@@ -551,7 +559,7 @@ func TestCodexDefinitionReasoningUsesClientProfile(t *testing.T) {
 			}}
 			before, err := json.Marshal(d)
 			require.NoError(t, err)
-			result, err := d.catalogModel(m, true)
+			result, err := d.catalogModel(t.Context(), m, catalogTestChannels(m), true)
 			require.NoError(t, err)
 			var efforts []string
 			for _, level := range result["supported_reasoning_levels"].([]any) {
@@ -613,7 +621,7 @@ func TestCodexDefinitionUltraRespectsExplicitLimits(t *testing.T) {
 			before, err := json.Marshal(d)
 			require.NoError(t, err)
 			for _, preserveContext := range []bool{false, true} {
-				result, err := d.catalogModel(m, preserveContext)
+				result, err := d.catalogModel(t.Context(), m, catalogTestChannels(m), preserveContext)
 				require.NoError(t, err)
 				var efforts []string
 				for _, item := range result["supported_reasoning_levels"].([]any) {

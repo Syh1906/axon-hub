@@ -34,16 +34,19 @@ type CodexCatalogConfig struct {
 }
 
 type codexSnapshot struct {
-	Version string                    `json:"version"`
-	Source  string                    `json:"source"`
-	SHA256  string                    `json:"sha256"`
-	Body    []byte                    `json:"body"`
-	Models  map[string]map[string]any `json:"-"`
+	public        *publicCatalogArchive
+	clientVersion string
+	Version       string                    `json:"version"`
+	Source        string                    `json:"source"`
+	SHA256        string                    `json:"sha256"`
+	Body          []byte                    `json:"body"`
+	Models        map[string]map[string]any `json:"-"`
 }
 
 // CodexSnapshotService owns credential-free official metadata, independently of
 // inference channels. Release snapshots are immutable and archived by version.
 type CodexSnapshotService struct {
+	public      codexPublicSync
 	config      CodexCatalogConfig
 	db          *ent.Client
 	httpClient  *http.Client
@@ -133,6 +136,25 @@ func parseCodexSnapshot(version, source, hash string, body []byte) (*codexSnapsh
 // Load uses an exact release when available, otherwise the newest verified
 // snapshot no newer than the client. A configured/per-model pin never drifts.
 func (s *CodexSnapshotService) Load(ctx context.Context, clientVersion, pin string) *codexSnapshot {
+	release := s.loadRelease(ctx, clientVersion, pin)
+	if s.config.Disabled || pin != "" || s.config.Version != "" || !validCodexSnapshotVersion(clientVersion) {
+		return release
+	}
+	s.public.mu.RLock()
+	current := s.public.archive
+	s.public.mu.RUnlock()
+	if current == nil {
+		return release
+	}
+	view := codexSnapshot{}
+	if release != nil {
+		view = *release
+	}
+	view.public, view.clientVersion = current, clientVersion
+	return &view
+}
+
+func (s *CodexSnapshotService) loadRelease(ctx context.Context, clientVersion, pin string) *codexSnapshot {
 	if s.config.Disabled || !validCodexSnapshotVersion(clientVersion) {
 		return nil
 	}

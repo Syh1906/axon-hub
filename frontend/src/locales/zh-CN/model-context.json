@@ -4,7 +4,7 @@
     "cardContext": "卡片上下文",
     "modelTitle": "模型目录上下文",
     "channelTitle": "模型上下文",
-    "modelDescription": "设置网关下发的上下文，渠道可单独覆盖。未配置时沿用上游目录。",
+    "modelDescription": "使用 Codex 同步目录时，已填写的字段优先，留空的字段使用对应的上游值。默认上下文不能超过最大上下文。",
     "defaultContextWindow": "默认上下文（Token）",
     "maxContextWindow": "最大支持上下文（Token）",
     "defaultFallback": "未填写默认上下文时，使用生效的最大上下文；默认上下文不能超过最大支持上下文。",

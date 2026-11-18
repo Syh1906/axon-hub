@@ -38,6 +38,9 @@ var Module = fx.Module("biz",
 	fx.Provide(NewChannelOverrideTemplateService),
 	fx.Provide(NewModelService),
 	fx.Provide(NewCodexSnapshotService),
+	fx.Invoke(func(lc fx.Lifecycle, svc *CodexSnapshotService, sched *scheduler.Scheduler) {
+		lc.Append(fx.Hook{OnStart: func(ctx context.Context) error { return svc.startPublicCatalog(ctx, sched) }})
+	}),
 	fx.Provide(NewChannelProbeService),
 	fx.Provide(NewPromptService),
 	fx.Provide(NewPromptProtectionRuleService),

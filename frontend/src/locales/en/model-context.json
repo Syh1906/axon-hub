@@ -4,7 +4,7 @@
     "cardContext": "Card context",
     "modelTitle": "Model catalog context",
     "channelTitle": "Model context",
-    "modelDescription": "Configure context limits published by the gateway. Channels can override them. Leave unconfigured to use the upstream catalog.",
+    "modelDescription": "For a synced Codex model, each value set here takes priority. Leave a field blank to use that field from the upstream catalog. The default cannot exceed the maximum.",
     "defaultContextWindow": "Default context (tokens)",
     "maxContextWindow": "Maximum supported context (tokens)",
     "defaultFallback": "When no default is configured, use the effective maximum. The default cannot exceed the maximum supported context.",

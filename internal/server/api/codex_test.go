@@ -20,6 +20,16 @@ import (
 
 type roundTripperFunc func(req *http.Request) (*http.Response, error)
 
+func TestPublicCodexCatalogRequiresPermission(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodPost} {
+		recorder := httptest.NewRecorder()
+		router := gin.New()
+		router.Handle(method, "/catalog", (&CodexHandlers{}).PublicCatalog)
+		router.ServeHTTP(recorder, httptest.NewRequest(method, "/catalog", nil))
+		require.Equal(t, http.StatusForbidden, recorder.Code)
+	}
+}
+
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }

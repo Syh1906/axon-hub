@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { NO_CODEX_CHANNEL_VALUE, channelSelectValue, codexAccess, codexFormControls, codexSettingsViewState, parseChannelSelectValue, resolveSelection, toUpdateInput, type CodexChannelStatus, type CodexCompatibilitySettings as CodexSettingsValue } from '../data/codex-compatibility';
 import { useCodexCatalogChannels, useCodexCatalogTest, useCodexCompatibilitySettings, useUpdateCodexCompatibilitySettings } from '../data/codex-compatibility-api';
 import { CodexCatalogTestPanel } from './codex-catalog-test-panel';
+import { CodexPublicCatalogPanel } from './codex-public-catalog-panel';
 
 const STATUS_BADGE_CLASS: Record<CodexChannelStatus, string> = {
   enabled: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800',
@@ -22,6 +23,16 @@ const STATUS_BADGE_CLASS: Record<CodexChannelStatus, string> = {
 };
 
 export function CodexCompatibilitySettings() {
+  const { hasSystemScope } = usePermissions();
+  return (
+    <div className='space-y-4'>
+      <CompatibilityCard />
+      {hasSystemScope('read_settings') && <CodexPublicCatalogPanel canEdit={hasSystemScope('write_settings')} />}
+    </div>
+  );
+}
+
+function CompatibilityCard() {
   const { t } = useTranslation();
   const { hasSystemScope } = usePermissions();
   const canReadSettings = hasSystemScope('read_settings');

@@ -175,7 +175,7 @@ func TestCodexReasoningProfileDeclaredUltraWithoutSelectableUnderlyingEffort(t *
 	m := ModelFacade{ID: "test-model", ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
 		{Channel: &ent.Channel{ID: 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
 	}}
-	result, err := definition.catalogModel(m, false)
+	result, err := definition.catalogModel(t.Context(), m, catalogTestChannels(m), false)
 	require.NoError(t, err)
 	require.Equal(t, profile["supported_reasoning_levels"], result["supported_reasoning_levels"], "an unchanged profile is not an explicit limit")
 }

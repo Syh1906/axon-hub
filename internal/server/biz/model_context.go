@@ -8,6 +8,30 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 )
 
+func applyPublicCodexContext(metadata map[string]any, settings *objects.ModelSettings, channelSettings *objects.ChannelSettings, actualModel string) map[string]any {
+	result := maps.Clone(metadata)
+	if settings != nil && settings.ContextSettings != nil {
+		if value := settings.ContextSettings.DefaultContextWindow; value != nil {
+			result["context_window"] = float64(*value)
+		}
+		if value := settings.ContextSettings.MaxContextWindow; value != nil {
+			result["max_context_window"] = float64(*value)
+		}
+	}
+	if channelSettings != nil {
+		for _, route := range channelSettings.ModelContexts {
+			if route.ModelID == actualModel && route.MaxContextWindow != nil {
+				limit := float64(*route.MaxContextWindow)
+				if maximum, ok := result["max_context_window"].(float64); !ok || maximum > limit {
+					result["max_context_window"] = limit
+				}
+				break
+			}
+		}
+	}
+	return applyCodexContextSettings(result, nil, nil, "")
+}
+
 func validateChannelModelContexts(settings *objects.ChannelSettings) error {
 	seen := make(map[string]bool)
 	for _, value := range settings.ModelContexts {

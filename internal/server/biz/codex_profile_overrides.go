@@ -6,7 +6,17 @@ import (
 )
 
 func snapshotCodexProfile(snapshot *codexSnapshot, modelID string) *codexModelProfile {
-	if snapshot == nil || snapshot.Models[modelID] == nil {
+	if snapshot == nil {
+		return nil
+	}
+	if snapshot.public != nil {
+		entry := snapshot.public.models[modelID]
+		minimum, _ := entry["minimal_client_version"].(string)
+		if validCodexSnapshotVersion(minimum) && compareCodexVersions(minimum, snapshot.clientVersion) <= 0 {
+			return &codexModelProfile{SourceKind: "official_public", SourceSHA256: snapshot.public.SHA256, SourceModelID: modelID, Model: entry}
+		}
+	}
+	if snapshot.Models[modelID] == nil {
 		return nil
 	}
 	return &codexModelProfile{SourceKind: "official_snapshot", SnapshotVersion: snapshot.Version, SourceModelID: modelID, Model: snapshot.Models[modelID]}

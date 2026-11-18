@@ -197,6 +197,14 @@ Automatic results are not stored in `settings.codexCatalog`. New associations, k
 
 ### Official release snapshots and rollback
 
+For a synchronized public entry, the model page sets the default and maximum context independently. An explicit maximum on a visible route's actual model (including a channel alias) caps both advertised values. For example, a route limited to 128,000 cannot advertise an upstream maximum of 872,000. Admin previews and automatic catalogs select profiles using the same tool protocol requirements. A saved definition is also checked against the caller's current routes before publication: a chat-only route cannot advertise Responses-only tools.
+
+The last check records the most recent attempt, including unchanged or failed checks, and survives a restart. Neither case rewrites the catalog body. When the panel reads a later successful result, it clears the earlier check error.
+
+Under **Integrations → Codex compatibility → Official model catalog sync**, Axon anonymously checks the [public Codex model file](https://github.com/openai/codex/blob/main/codex-rs/models-manager/models.json). Checks default to every 15 minutes; choose 5, 15, 30 or 60 minutes, or turn them off. **Check now** works independently of the schedule. Only a fully validated file replaces the saved copy. The panel shows upstream context, available reasoning levels and the default level; it does not represent an account-specific catalog or prove what a provider accepts.
+
+Automatic discovery prefers an exact public model entry if it declares a compatible minimum client version and its tool protocol works on a visible route. Default and maximum context independently use the value on the model page, inheriting each blank field from upstream without writing to the model. Manual definitions, pins and caller visibility still apply. Changes appear on the next client fetch; the public source reports `official_public` and the content digest.
+
 Available since `v1.0.0-beta10-fork.7.syh.19`. Existing automatic catalog configurations need no reimport: the rules below apply after upgrading. Complete third-party definitions remain supported.
 
 AxonHub bundles the complete `models.json` from OpenAI Codex release tags 0.166.0 and 0.167.0. Original bytes, source URLs and SHA-256 digests are in `internal/server/biz/codexdata/`. No OpenAI credential or metadata-bearing inference channel is required. These are release snapshots, not the authenticated service's live catalog or a grant of model access.
@@ -216,7 +224,7 @@ codex_catalog:
   version: ""
 ```
 
-`offline: true` uses bundled and archived snapshots without public downloads. `disabled: true` disables official snapshots. `version: "0.166.0"` pins the official source; an unavailable or too-new pin does not float to another official version, while channel metadata can still be used. Environment equivalents are `AXONHUB_CODEX_CATALOG_DISABLED`, `AXONHUB_CODEX_CATALOG_OFFLINE` and `AXONHUB_CODEX_CATALOG_VERSION`. Updates are request-triggered, with no separate scheduled process. An unchanged client version does not select a newer release snapshot.
+`offline: true` uses bundled and archived snapshots without public downloads. `disabled: true` disables official snapshots. `version: "0.166.0"` pins the official source; an unavailable or too-new pin does not float to another official version, while channel metadata can still be used. Environment equivalents are `AXONHUB_CODEX_CATALOG_DISABLED`, `AXONHUB_CODEX_CATALOG_OFFLINE` and `AXONHUB_CODEX_CATALOG_VERSION`. Offline, disabled and server-pinned modes do not poll the public repository.
 
 ### Keep custom changes while following source updates
 
@@ -247,7 +255,7 @@ The following workflow is optional.
 
 Set the default and maximum supported context windows in **Models → Edit → Model catalog context**, in tokens. Settings apply to every public ID under the model rule. These are independent of the model card's descriptive limits and do not require a complete manual Codex definition.
 
-Use **Channels → More → Model context** to override each field for a specific channel model. Channel values take precedence; blank fields dynamically inherit the model rule matched by the request. Clear an override or choose **Restore inheritance** to follow subsequent model changes. With neither layer configured, preserve upstream catalog behavior. A maximum-only configuration uses the effective maximum as its default; an upstream maximum also supplies a missing upstream default. The default must not exceed the maximum. An inherited default above a channel maximum is reduced to that maximum.
+For legacy channel catalogs and fixed definitions that do not use a synchronized public entry: Use **Channels → More → Model context** to override each field for a specific channel model. Channel values take precedence; blank fields dynamically inherit the model rule matched by the request. Clear an override or choose **Restore inheritance** to follow subsequent model changes. With neither layer configured, preserve upstream catalog behavior. A maximum-only configuration uses the effective maximum as its default; an upstream maximum also supplies a missing upstream default. The default must not exceed the maximum. An inherited default above a channel maximum is reduced to that maximum.
 
 The gateway resolves each available route before merging their common capabilities for the requesting API key. In manual catalogs, missing context metadata on one route does not erase window limits or compaction thresholds declared by other visible routes. The model and channel context settings apply to automatic catalogs and existing manual definitions, changing only `context_window` and `max_context_window`. Clients see updates when they next fetch the catalog.
 

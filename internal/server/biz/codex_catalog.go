@@ -105,7 +105,7 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 		if definitionErr != nil || (definition != nil && definition.Mode != "inherit") {
 			var merged map[string]any
 			if definitionErr == nil {
-				merged, definitionErr = definition.catalogModel(m, true)
+				merged, definitionErr = definition.catalogModel(ctx, m, channels, true)
 			}
 			if definitionErr != nil {
 				omitted++
