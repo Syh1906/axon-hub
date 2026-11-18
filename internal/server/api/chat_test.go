@@ -883,6 +883,24 @@ func TestWriteBinaryStream_ErrorBeforeFirstChunkReturnsJSON(t *testing.T) {
 	require.Equal(t, "req_1", body["request_id"])
 }
 
+func TestWriteBinaryStream_TruncatedAfterFirstChunk(t *testing.T) {
+	router := gin.New()
+	router.GET("/", func(c *gin.Context) {
+		WriteBinaryStream(c, &errorAfterStream{
+			items: []*httpclient.StreamEvent{{Type: "audio/wav", Data: []byte("first")}},
+			err:   io.ErrUnexpectedEOF,
+		})
+	})
+	server := httptest.NewServer(router)
+	defer server.Close()
+	resp, err := server.Client().Get(server.URL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.Equal(t, "first", string(body))
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+}
+
 func TestWriteBinaryStream_WriteErrorStopsConsuming(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

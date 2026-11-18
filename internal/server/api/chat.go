@@ -760,7 +760,7 @@ func WriteBinaryStream(c *gin.Context, stream streams.Stream[*httpclient.StreamE
 	for {
 		if !stream.Next() {
 			if err := stream.Err(); err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+				if errors.Is(ctx.Err(), context.Canceled) {
 					clientDisconnected = true
 
 					// Keep genuine upstream failures visible even when the client is gone.
@@ -775,6 +775,7 @@ func WriteBinaryStream(c *gin.Context, stream streams.Stream[*httpclient.StreamE
 
 						return
 					}
+					panic(http.ErrAbortHandler)
 				}
 			} else if errors.Is(ctx.Err(), context.Canceled) {
 				clientDisconnected = true

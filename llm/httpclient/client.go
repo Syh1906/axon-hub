@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -457,6 +458,28 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 
 	// Determine content type and select appropriate decoder
 	contentType := rawResp.Header.Get("Content-Type")
+	audio := request.RequestType == "speech" || request.RequestType == "transcription" || request.RequestType == "translation"
+	if audio {
+		media, _, _ := mime.ParseMediaType(contentType)
+		binary := false
+		if request.RequestType == "speech" {
+			var speech struct {
+				StreamFormat string `json:"stream_format"`
+			}
+			if err := json.Unmarshal(request.Body, &speech); err != nil {
+				_ = rawResp.Body.Close()
+				return nil, fmt.Errorf("invalid speech stream request: %w", err)
+			}
+			binary = strings.EqualFold(strings.TrimSpace(speech.StreamFormat), "audio")
+		}
+		if rawResp.StatusCode != http.StatusOK || (binary && !strings.HasPrefix(media, "audio/") && media != "application/octet-stream") || (!binary && media != "text/event-stream") {
+			_ = rawResp.Body.Close()
+			return nil, fmt.Errorf("invalid audio stream response: HTTP %d, media type %q", rawResp.StatusCode, media)
+		}
+		if !binary {
+			rawResp.Body = newAudioSSEFrameReader(rawResp.Body)
+		}
+	}
 	if contentType == "" {
 		contentType = "text/event-stream" // Default to SSE
 	}
@@ -467,6 +490,9 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 		if mediaType, _, err := mime.ParseMediaType(contentType); err == nil {
 			decoderFactory, exists = GetDecoder(mediaType)
 		}
+	}
+	if !exists && audio && strings.HasPrefix(strings.ToLower(contentType), "audio/") {
+		decoderFactory, exists = NewBinaryChunkDecoder(contentType), true
 	}
 	if !exists {
 		// Fallback to default SSE decoder

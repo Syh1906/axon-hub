@@ -53,8 +53,8 @@ func (t *CompletionInboundTransformer) TransformRequest(
 		return nil, fmt.Errorf("%w: model is required", transformer.ErrInvalidRequest)
 	}
 
-	if compReq.Prompt == "" {
-		return nil, fmt.Errorf("%w: prompt is required", transformer.ErrInvalidRequest)
+	if err := validateCompletionPrompt(compReq.Prompt); err != nil {
+		return nil, fmt.Errorf("%w: %w", transformer.ErrInvalidRequest, err)
 	}
 
 	llmReq := &llm.Request{

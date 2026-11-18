@@ -13,6 +13,22 @@ AxonHub 提供 OpenAI 兼容接口，可通过 OpenAI 客户端 SDK 访问多个
 
 ## 支持的端点
 
+### 旧版文本 Completions API
+
+`POST /v1/completions` 使用支持原生 `openai/completions` 的渠道。`prompt` 保留
+字符串、字符串数组、Token ID 数组或 Token ID 数组列表的原始形状，一次请求直接交给
+供应商；不把多个提示词合成一条聊天消息。普通响应和 SSE 保留 `choices[].index`，
+聚合时分别保存每条结果及其结束原因。
+
+只有供应商同时提供输入与输出 Token 计数时，才作为已知用量；明确的两项零值仍然
+有效。缺省、部分缺失或非法用量保持未知，转换器不补成 0 Token。这个区别在开启或
+关闭原样透传时都应保留，以便下游识别缺失计量。实际模型、供应商选项及费用仍需按
+所选渠道验证。
+
+### 流式语音合成
+
+渠道支持时，`POST /v1/audio/speech` 可用 `stream_format: "audio"` 逐段接收原始音频，或用 `"sse"` 接收语音事件。接收二进制音频时请检查正文是否完整读完：首片后的供应商故障会中断 HTTP 传输，即使响应已经返回成功状态也不能使用截断文件。首片前仍可收到 JSON 错误。
+
 ### OpenAI Chat Completions API
 
 **端点：**

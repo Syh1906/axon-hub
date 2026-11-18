@@ -67,6 +67,9 @@ func (t *CompletionOutboundTransformer) TransformRequest(
 		return nil, fmt.Errorf("model is required")
 	}
 
+	if err := validateCompletionPrompt(llmReq.Completion.Prompt); err != nil {
+		return nil, fmt.Errorf("%w: %w", transformer.ErrInvalidRequest, err)
+	}
 	compReq := CompletionRequest{
 		Model:            llmReq.Model,
 		Prompt:           llmReq.Completion.Prompt,
@@ -184,13 +187,7 @@ func completionResponseToLLM(compResp *CompletionResponse) *llm.Response {
 		},
 	}
 
-	if compResp.Usage.PromptTokens > 0 || compResp.Usage.TotalTokens > 0 {
-		llmResp.Usage = &llm.Usage{
-			PromptTokens:     compResp.Usage.PromptTokens,
-			CompletionTokens: compResp.Usage.CompletionTokens,
-			TotalTokens:      compResp.Usage.TotalTokens,
-		}
-	}
+	llmResp.Usage = completionUsageToLLM(compResp.Usage)
 
 	return llmResp
 }

@@ -30,9 +30,10 @@ type RerankDocument struct {
 }
 
 type RerankUsage struct {
-	PromptTokens int      `json:"prompt_tokens"`
-	TotalTokens  int      `json:"total_tokens"`
-	Cost         *float64 `json:"cost,omitempty"`
+	PromptTokens  int      `json:"prompt_tokens"`
+	TotalTokens   int      `json:"total_tokens"`
+	Cost          *float64 `json:"cost,omitempty"`
+	missingTokens bool
 }
 
 type EmbeddingRequest struct {

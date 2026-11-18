@@ -14,6 +14,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAudioSSERequiresCompleteEvent(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		ok         bool
+	}{
+		{"lf", "data: done\n\n", true},
+		{"crlf", "data: done\r\n\r\n", true},
+		{"no blank line", "data: done\n", false},
+		{"no newline", "data: done", false},
+		{"partial trailing field", "data: done\nid: unfinished", false},
+		{"cr", "data: done\r\r", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := newAudioSSEFrameReader(io.NopCloser(strings.NewReader(tc.body)))
+			decoder := NewDefaultSSEDecoder(t.Context(), body)
+			defer decoder.Close()
+			require.Equal(t, tc.ok, decoder.Next())
+			if !tc.ok {
+				require.Error(t, decoder.Err())
+			}
+		})
+	}
+}
+
 // TestDefaultSSEDecoder_TerminalEventAtUnterminatedEOF pins the synthetic.new
 // shape: the upstream ends the body with "data: [DONE]" and no trailing
 // newline. The final field is never terminated, so go-sse's field parser never

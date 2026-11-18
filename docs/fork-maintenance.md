@@ -6,6 +6,19 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
+## 旧版 Completions 原生输入与用量（2026-11-18，未发布）
+
+同批协议修复涵盖两项独立的客户端行为：
+
+- 二进制语音已传出首片时，供应商读错会中断 HTTP 传输，避免客户端接受截断文件；首片前仍返回结构化错误。归属：`internal/server/api/chat.go` 与 HTTP recovery。带真实 HTTP 读取的截断回归和隔离上游验证通过。
+- Jina 重排的上游若只报告总 Token，转换后的输入用量取该数；显式输入零与缺失的计数保持区分。归属：`llm/transformer/jina/`。已验证上游报告 5 个 Token 时转换后仍为 5；不需要数据库迁移。
+
+- 修复原生 `prompt` 数组无法进入转换器的问题，统一结构保留 JSON 原形并在一次供应商请求中转发；支持文本、文本数组、Token ID 与 Token ID 数组列表，不新增拆请求引擎。
+- 修复关闭原样透传时，缺失或不完整用量被序列化为 0 Token 的问题。显式零与未知用量分别处理，普通响应、SSE 和聚合保持一致；聚合保留多条 choice 的索引、文本和停止原因。
+- 归属：`llm/completion.go` 与 `llm/transformer/openai/completion*`。无数据库迁移。契约见[中文 OpenAI 参考](zh/api-reference/openai-api.md#旧版文本-completions-api)和[英文参考](en/api-reference/openai-api.md#legacy-text-completions-api)。
+- 已新增可捕捉原缺陷的原生往返、缺量/零量、数组、多 choice 与 HTTP 请求回归；真实供应商及整体运行环境仍待验证。本条源码尚未发布。
+
+
 ## 原生 Anthropic Token 计数（2026-11-18，未发布）
 
 - 新增 `/v1/messages/count_tokens` 和 `/anthropic/v1/messages/count_tokens`。复用调用方身份、模型与渠道选择、并发和请求记录；仅使用原生 Anthropic 计数，不回退为生成请求。

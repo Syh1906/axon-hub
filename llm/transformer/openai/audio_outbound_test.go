@@ -506,6 +506,18 @@ func TestAudioStreaming_Transcription(t *testing.T) {
 // TestAudioStreaming_PropagatesErrorEvent verifies upstream stream-level errors arriving
 // after a 200 are surfaced as stream errors instead of being decoded as empty audio events.
 func TestAudioStreaming_PropagatesErrorEvent(t *testing.T) {
+	emptyError := &httpclient.StreamEvent{Type: "error"}
+	_, speechErr := transformSpeechStreamChunk(emptyError)
+	require.Error(t, speechErr)
+	_, transcriptErr := transformTranscriptionStreamChunkFor(llm.APIFormatOpenAITranscription)(emptyError)
+	require.Error(t, transcriptErr)
+	_, nullErr := transformSpeechStreamChunk(&httpclient.StreamEvent{Type: "speech.audio.done", Data: []byte("null")})
+	require.Error(t, nullErr)
+	_, mismatchErr := transformSpeechStreamChunk(&httpclient.StreamEvent{Type: "speech.audio.delta", Data: []byte(`{"type":"speech.audio.done"}`)})
+	require.Error(t, mismatchErr)
+	named, err := transformSpeechStreamChunk(&httpclient.StreamEvent{Type: "speech.audio.done", Data: []byte("{}")})
+	require.NoError(t, err)
+	require.Equal(t, "speech.audio.done", named.SpeechStreamEvent.Type)
 	outbound := newAudioOutbound(t)
 
 	t.Run("speech", func(t *testing.T) {

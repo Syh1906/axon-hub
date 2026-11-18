@@ -1,9 +1,11 @@
 package llm
 
+import "encoding/json"
+
 // CompletionRequest represents the completion request model.
 // Note: Common fields like Stream and StreamOptions are in the parent Request struct, not here.
 type CompletionRequest struct {
-	Prompt           string           `json:"prompt"`
+	Prompt           json.RawMessage  `json:"prompt"`
 	Suffix           string           `json:"suffix,omitempty"`
 	MaxTokens        *int64           `json:"max_tokens,omitempty"`
 	Temperature      *float64         `json:"temperature,omitempty"`

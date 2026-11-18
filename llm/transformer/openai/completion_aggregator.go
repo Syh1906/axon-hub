@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"sort"
 
 	"github.com/samber/lo"
 
@@ -23,8 +24,7 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 		model             string
 		created           int64
 		usage             *llm.Usage
-		accumulatedText   string
-		finishReason      *string
+		choices           = make(map[int]*llm.CompletionChoice)
 	)
 
 	for _, chunk := range chunks {
@@ -50,18 +50,18 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 		}
 
 		for _, choice := range compResp.Choices {
-			accumulatedText += choice.Text
+			combined := choices[choice.Index]
+			if combined == nil {
+				combined = &llm.CompletionChoice{Index: choice.Index}
+				choices[choice.Index] = combined
+			}
+			combined.Text += choice.Text
 			if choice.FinishReason != nil {
-				finishReason = choice.FinishReason
+				combined.FinishReason = choice.FinishReason
 			}
 		}
-
-		if compResp.Usage.PromptTokens > 0 || compResp.Usage.TotalTokens > 0 {
-			usage = &llm.Usage{
-				PromptTokens:     compResp.Usage.PromptTokens,
-				CompletionTokens: compResp.Usage.CompletionTokens,
-				TotalTokens:      compResp.Usage.TotalTokens,
-			}
+		if parsed := completionUsageToLLM(compResp.Usage); parsed != nil {
+			usage = parsed
 		}
 	}
 
@@ -70,25 +70,25 @@ func AggregateCompletionStreamChunks(ctx context.Context, chunks []*httpclient.S
 		return data, llm.ResponseMeta{}, err
 	}
 
-	completed := finishReason != nil
-	if finishReason == nil {
-		finishReason = lo.ToPtr("stop")
+	completed := len(choices) > 0
+	indexes := lo.Keys(choices)
+	sort.Ints(indexes)
+	merged := make([]llm.CompletionChoice, 0, len(choices))
+	for _, index := range indexes {
+		choice := choices[index]
+		if choice.FinishReason == nil {
+			completed = false
+			choice.FinishReason = lo.ToPtr("stop")
+		}
+		merged = append(merged, *choice)
 	}
 
 	response := &llm.Response{
-		ID:      id,
-		Model:   model,
-		Object:  "text_completion",
-		Created: created,
-		Completion: &llm.CompletionResponse{
-			Choices: []llm.CompletionChoice{
-				{
-					Text:         accumulatedText,
-					Index:        0,
-					FinishReason: finishReason,
-				},
-			},
-		},
+		ID:          id,
+		Model:       model,
+		Object:      "text_completion",
+		Created:     created,
+		Completion:  &llm.CompletionResponse{Choices: merged},
 		Usage:       usage,
 		RequestType: llm.RequestTypeCompletion,
 		APIFormat:   llm.APIFormatOpenAICompletion,

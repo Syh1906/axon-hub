@@ -327,7 +327,7 @@ func (t *OutboundTransformer) transformRerankResponse(
 	}
 
 	// Set usage on Response
-	if jinaResp.Usage != nil {
+	if jinaResp.Usage != nil && !jinaResp.Usage.missingTokens {
 		llmResp.Usage = &llm.Usage{
 			PromptTokens: int64(jinaResp.Usage.PromptTokens),
 			TotalTokens:  int64(jinaResp.Usage.TotalTokens),

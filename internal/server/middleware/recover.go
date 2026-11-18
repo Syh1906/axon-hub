@@ -24,6 +24,9 @@ func RecoveryWithWriter() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
+				if err == http.ErrAbortHandler {
+					panic(err)
+				}
 				// Get stack trace
 				stack := stack(3)
 

@@ -7,17 +7,32 @@ import (
 )
 
 func (u *RerankUsage) UnmarshalJSON(data []byte) error {
-	type alias RerankUsage
-	aux := struct {
-		*alias
-
-		Cost json.RawMessage `json:"cost"`
-	}{alias: (*alias)(u)}
+	var aux struct {
+		Input  *int            `json:"input_tokens"`
+		Prompt *int            `json:"prompt_tokens"`
+		Total  *int            `json:"total_tokens"`
+		Cost   json.RawMessage `json:"cost"`
+	}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
-	u.Cost = xjson.ParseOptionalFloat64(aux.Cost)
+	*u = RerankUsage{Cost: xjson.ParseOptionalFloat64(aux.Cost)}
+	input := aux.Input
+	if input == nil {
+		input = aux.Prompt
+	}
+	if input == nil {
+		input = aux.Total
+	}
+	if input == nil {
+		u.missingTokens = true
+		return nil
+	}
+	u.PromptTokens = *input
+	u.TotalTokens = *input
+	if aux.Total != nil {
+		u.TotalTokens = *aux.Total
+	}
 	return nil
 }
 

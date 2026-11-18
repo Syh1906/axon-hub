@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -267,6 +268,9 @@ func (t *OutboundTransformer) buildAudioURL(defaultPath string) string {
 // Lines like `data: {...}` have already been split by the SSE decoder; the Data field
 // is the raw JSON payload of the event.
 func transformSpeechStreamChunk(event *httpclient.StreamEvent) (*llm.Response, error) {
+	if streamErr := parseStreamErrorEvent(event); streamErr != nil {
+		return nil, streamErr
+	}
 	if event == nil || len(event.Data) == 0 {
 		//nolint:nilnil // skip empty heartbeats
 		return nil, nil
@@ -276,22 +280,21 @@ func transformSpeechStreamChunk(event *httpclient.StreamEvent) (*llm.Response, e
 		return llm.DoneResponse, nil
 	}
 
-	// Reuse the chat-stream error-event detector so upstream `event: error` or
-	// `{"error":{...}}` payloads arriving after a 200 are surfaced as stream errors
-	// rather than silently decoded into empty audio events.
-	if streamErr := parseStreamErrorEvent(event); streamErr != nil {
-		return nil, streamErr
-	}
-
-	var ev llm.SpeechStreamEvent
+	var ev *llm.SpeechStreamEvent
 	if err := json.Unmarshal(event.Data, &ev); err != nil {
 		return nil, fmt.Errorf("failed to decode speech stream event: %w", err)
+	}
+	if ev == nil {
+		return nil, fmt.Errorf("speech stream event must be an object")
+	}
+	if err := resolveAudioEventType(&ev.Type, event.Type); err != nil {
+		return nil, err
 	}
 
 	return &llm.Response{
 		RequestType:       llm.RequestTypeSpeech,
 		APIFormat:         llm.APIFormatOpenAISpeech,
-		SpeechStreamEvent: &ev,
+		SpeechStreamEvent: ev,
 		Usage:             ev.Usage,
 	}, nil
 }
@@ -335,6 +338,9 @@ func transformTranscriptionStreamChunkFor(apiFormat llm.APIFormat) func(*httpcli
 	requestType := requestTypeForAudioFormat(apiFormat)
 
 	return func(event *httpclient.StreamEvent) (*llm.Response, error) {
+		if streamErr := parseStreamErrorEvent(event); streamErr != nil {
+			return nil, streamErr
+		}
 		if event == nil || len(event.Data) == 0 {
 			//nolint:nilnil // skip empty heartbeats
 			return nil, nil
@@ -344,22 +350,35 @@ func transformTranscriptionStreamChunkFor(apiFormat llm.APIFormat) func(*httpcli
 			return llm.DoneResponse, nil
 		}
 
-		if streamErr := parseStreamErrorEvent(event); streamErr != nil {
-			return nil, streamErr
-		}
-
-		var ev llm.TranscriptionStreamEvent
+		var ev *llm.TranscriptionStreamEvent
 		if err := json.Unmarshal(event.Data, &ev); err != nil {
 			return nil, fmt.Errorf("failed to decode transcription stream event: %w", err)
+		}
+		if ev == nil {
+			return nil, fmt.Errorf("transcription stream event must be an object")
+		}
+		if err := resolveAudioEventType(&ev.Type, event.Type); err != nil {
+			return nil, err
 		}
 
 		return &llm.Response{
 			RequestType:              requestType,
 			APIFormat:                apiFormat,
-			TranscriptionStreamEvent: &ev,
+			TranscriptionStreamEvent: ev,
 			Usage:                    ev.Usage,
 		}, nil
 	}
+}
+
+func resolveAudioEventType(payload *string, event string) error {
+	if event == "" || event == "message" {
+		return nil
+	}
+	if *payload != "" && *payload != event {
+		return fmt.Errorf("audio event type does not match its payload")
+	}
+	*payload = event
+	return nil
 }
 
 func speechStreamChunkTransformFor(_ *httpclient.Request) func(*httpclient.StreamEvent) (*llm.Response, error) {
@@ -376,8 +395,9 @@ func speechStreamChunkTransformFor(_ *httpclient.Request) func(*httpclient.Strea
 // The audio bytes are passed through untouched.
 func transformSpeechResponse(httpResp *httpclient.Response) (*llm.Response, error) {
 	contentType := httpResp.Headers.Get("Content-Type")
-	if contentType == "" {
-		contentType = "audio/mpeg"
+	media, _, err := mime.ParseMediaType(contentType)
+	if httpResp.StatusCode != http.StatusOK || err != nil || (!strings.HasPrefix(media, "audio/") && media != "application/octet-stream") || len(httpResp.Body) == 0 {
+		return nil, fmt.Errorf("incomplete or invalid upstream speech response")
 	}
 
 	return &llm.Response{
@@ -393,6 +413,9 @@ func transformSpeechResponse(httpResp *httpclient.Response) (*llm.Response, erro
 // transformTranscriptionResponse transforms the STT response into a unified llm.Response.
 // JSON formats (json/verbose_json) are parsed; other formats (text/srt/vtt) are passed through raw.
 func transformTranscriptionResponse(httpResp *httpclient.Response, apiFormat llm.APIFormat) (*llm.Response, error) {
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("incomplete upstream transcription response: HTTP %d", httpResp.StatusCode)
+	}
 	contentType := httpResp.Headers.Get("Content-Type")
 
 	resp := &llm.Response{
