@@ -58,6 +58,16 @@ func TestResponsesServiceTierOverrideGraphQLRoundTrip(t *testing.T) {
 	}
 	_, err = ec.unmarshalInputUpdateChannelSettingsInput(ctx, map[string]any{"responsesServiceTierOverride": "BOGUS"})
 	require.Error(t, err)
+	for _, supportFast := range []bool{true, false} {
+		patch, err := ec.unmarshalInputUpdateChannelSettingsInput(ctx, map[string]any{"responsesServiceTierOverride": "SUPPORTED",
+			"responsesTierSupport": map[string]any{"fast": supportFast, "ultrafast": false, "allowDowngrade": supportFast}})
+		require.NoError(t, err)
+		_, err = resolver.UpdateChannelSettings(ctx, objects.GUID{Type: "Channel", ID: created.ID}, patch)
+		require.NoError(t, err)
+		read := client.Channel.GetX(ctx, created.ID)
+		require.Equal(t, objects.ResponsesServiceTierSupported, read.Settings.ResponsesServiceTierOverride)
+		require.Equal(t, &objects.ResponsesTierSupport{Fast: supportFast, AllowDowngrade: supportFast}, read.Settings.ResponsesTierSupport)
+	}
 	_, err = service.UpdateChannelSettings(ctx, created.ID, &biz.UpdateChannelSettingsInput{ResponsesServiceTierOverride: lo.ToPtr(objects.ResponsesServiceTierOverride("invalid"))})
 	require.Error(t, err)
 	// Full updates are used by the editor when clearing an optional timeout.

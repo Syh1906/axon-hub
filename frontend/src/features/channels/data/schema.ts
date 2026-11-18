@@ -457,10 +457,16 @@ export const channelAddressSchema = z.object({
 });
 export type ChannelAddress = z.infer<typeof channelAddressSchema>;
 // Channel Settings
-export const responsesServiceTierOverrideSchema = z.enum(['INHERIT', 'STANDARD', 'FAST', 'ULTRAFAST']);
+export const responsesServiceTierOverrideSchema = z.enum(['INHERIT', 'STANDARD', 'FAST', 'ULTRAFAST', 'SUPPORTED']);
+export const responsesTierSupportSchema = z.object({
+  fast: z.boolean(),
+  ultrafast: z.boolean(),
+  allowDowngrade: z.boolean(),
+});
 export const channelSettingsSchema = z.object({
   protocolPolicy: z.object({ allowedProtocols: z.array(z.string()), sameProtocolOnly: z.boolean() }).nullish(),
   responsesServiceTierOverride: responsesServiceTierOverrideSchema.optional(),
+  responsesTierSupport: responsesTierSupportSchema.nullish(),
   upstreamAddresses: z.array(channelAddressSchema).optional(),
   addressFailover: z.boolean().optional(),
   tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })).optional(),

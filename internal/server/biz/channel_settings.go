@@ -29,6 +29,7 @@ import (
 type UpdateChannelSettingsInput struct {
 	ProtocolPolicy                  *objects.ChannelProtocolPolicy        `json:"protocolPolicy"`
 	ResponsesServiceTierOverride    *objects.ResponsesServiceTierOverride `json:"responsesServiceTierOverride"`
+	ResponsesTierSupport            *objects.ResponsesTierSupport         `json:"responsesTierSupport"`
 	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
 	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
 	DisableSessionReuse             *bool                                 `json:"disableSessionReuse"`
@@ -72,6 +73,9 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 	}
 	if i.ResponsesServiceTierOverride != nil {
 		merged.ResponsesServiceTierOverride = *i.ResponsesServiceTierOverride
+	}
+	if i.ResponsesTierSupport != nil {
+		merged.ResponsesTierSupport = i.ResponsesTierSupport
 	}
 	if i.StreamFirstEventTimeoutSeconds != nil {
 		merged.StreamFirstEventTimeoutSeconds = i.StreamFirstEventTimeoutSeconds

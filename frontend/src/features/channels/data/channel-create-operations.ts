@@ -38,6 +38,7 @@ export const CREATE_CHANNEL_MUTATION = `
         disableSessionReuse
         allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -156,6 +157,7 @@ export const DUPLICATE_CHANNEL_MUTATION = `
         disableSessionReuse
         allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -274,6 +276,7 @@ export const BULK_CREATE_CHANNELS_MUTATION = `
         disableSessionReuse
         allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover

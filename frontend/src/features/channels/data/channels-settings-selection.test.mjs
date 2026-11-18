@@ -57,6 +57,7 @@ test('渠道请求设置的读写返回都包含模式覆写', () => {
   assert.ok(blocks.length > 0);
   for (const block of blocks) {
     assert.match(block.body, /\bresponsesServiceTierOverride\b/, block.name);
+    assert.match(block.body, /responsesTierSupport\s*\{\s*fast ultrafast allowDowngrade\s*\}/, block.name);
   }
   const selections = readFileSync(join(import.meta.dirname, 'channel-query-fields.ts'), 'utf8');
   assert.equal((selections.match(/\ballowImageGenerationTool\b/g) ?? []).length,
@@ -74,6 +75,9 @@ test('清空超时和保存其他设置保留模式，恢复默认保留通用�
   assert.deepEqual(reset.bodyOverrideOperations, rules);
   assert.equal(reset.streamFirstEventTimeoutSeconds, 120);
   assert.equal(mergeChannelSettingsForUpdate(undefined, {}).responsesServiceTierOverride, 'INHERIT');
+  const standardOnly = { fast: false, ultrafast: false, allowDowngrade: false };
+  const configured = mergeChannelSettingsForUpdate(existing, { responsesServiceTierOverride: 'SUPPORTED', responsesTierSupport: standardOnly });
+  assert.deepEqual(mergeChannelSettingsForUpdate(configured, { streamFirstEventTimeoutSeconds: null }).responsesTierSupport, standardOnly);
 });
 
 

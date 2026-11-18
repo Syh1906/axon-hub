@@ -6,17 +6,19 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useUpdateChannelSettings } from '../data/channels';
-import { responsesServiceTierOverrideSchema, type Channel } from '../data/schema';
+import { responsesServiceTierOverrideSchema, responsesTierSupportSchema, type Channel } from '../data/schema';
 
 const timeoutField = z.union([z.number().int().nonnegative(), z.literal('')]);
 const requestSettingsSchema = z.object({
   responsesServiceTierOverride: responsesServiceTierOverrideSchema,
+  responsesTierSupport: responsesTierSupportSchema,
   streamFirstEventTimeoutSeconds: timeoutField,
   nonStreamResponseTimeoutSeconds: timeoutField,
   disableSessionReuse: z.boolean(),
@@ -27,6 +29,7 @@ type RequestSettings = z.infer<typeof requestSettingsSchema>;
 function valuesFromChannel(channel: Channel): RequestSettings {
   return {
     responsesServiceTierOverride: channel.settings?.responsesServiceTierOverride ?? 'INHERIT',
+    responsesTierSupport: channel.settings?.responsesTierSupport ?? { fast: false, ultrafast: false, allowDowngrade: false },
     streamFirstEventTimeoutSeconds: channel.settings?.streamFirstEventTimeoutSeconds ?? '',
     nonStreamResponseTimeoutSeconds: channel.settings?.nonStreamResponseTimeoutSeconds ?? '',
     disableSessionReuse: channel.settings?.disableSessionReuse ?? false,
@@ -55,6 +58,7 @@ export function ChannelsRequestSettingsDialog({
         id: currentRow.id,
         patch: {
           responsesServiceTierOverride: values.responsesServiceTierOverride,
+          ...(values.responsesServiceTierOverride === 'SUPPORTED' && { responsesTierSupport: values.responsesTierSupport }),
           streamFirstEventTimeoutSeconds: values.streamFirstEventTimeoutSeconds === '' ? null : values.streamFirstEventTimeoutSeconds,
           nonStreamResponseTimeoutSeconds: values.nonStreamResponseTimeoutSeconds === '' ? null : values.nonStreamResponseTimeoutSeconds,
           disableSessionReuse: values.disableSessionReuse,
@@ -129,6 +133,36 @@ export function ChannelsRequestSettingsDialog({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                    {field.value === 'SUPPORTED' && (
+                      <>
+                        <fieldset className='flex flex-col gap-2'>
+                          <legend className='mb-2 text-sm font-medium'>{t('channels.requestSettings.supportedTiers')}</legend>
+                          <div className='flex gap-6'>
+                            {(['fast', 'ultrafast'] as const).map((tier) => (
+                              <FormField key={tier} control={form.control} name={`responsesTierSupport.${tier}`} render={({ field: choice }) => (
+                                <FormItem className='flex items-center gap-2'>
+                                  <FormControl><Checkbox checked={choice.value} onCheckedChange={(value) => choice.onChange(value === true)} /></FormControl>
+                                  <FormLabel>{tier === 'fast' ? 'Fast' : 'Ultrafast'}</FormLabel>
+                                </FormItem>
+                              )} />
+                            ))}
+                          </div>
+                        </fieldset>
+                        <FormField control={form.control} name='responsesTierSupport.allowDowngrade' render={({ field: fallback }) => (
+                          <FormItem>
+                            <FormLabel>{t('channels.requestSettings.unsupportedTier')}</FormLabel>
+                            <Select value={fallback.value ? 'downgrade' : 'skip'} onValueChange={(value) => fallback.onChange(value === 'downgrade')}>
+                              <FormControl><SelectTrigger className='w-full'><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value='skip'>{t('channels.requestSettings.skipChannel')}</SelectItem>
+                                <SelectItem value='downgrade'>{t('channels.requestSettings.allowDowngrade')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>{t('channels.requestSettings.standardUnchanged')}</FormDescription>
+                          </FormItem>
+                        )} />
+                      </>
+                    )}
                     {field.value === 'ULTRAFAST' && (
                       <p className='text-muted-foreground text-xs'>{t('channels.requestSettings.responsesServiceTierUltrafastHelp')}</p>
                     )}

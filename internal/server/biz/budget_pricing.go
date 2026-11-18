@@ -85,13 +85,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 	price := *currentPrice
 	estimatedUsage := &llm.Usage{PromptTokens: promptTokens, CompletionTokens: output, TotalTokens: promptTokens + output}
 	effective, overrides, contextPrice := selectedModelPricing(estimatedUsage, price, snap.PricedAt)
-	var estimateEvidence *objects.ServiceTierEvidence
-	if snap.ServiceTier != nil {
-		copy := *snap.ServiceTier
-		copy.Settings.Basis = objects.ServiceTierBasisClient
-		estimateEvidence = &copy
-	}
-	decision := estimateEvidence.Decision()
+	decision := snap.ServiceTier.RequestDecision()
 	resolve := func(item objects.ModelPriceItem, variant objects.PromptWriteCacheVariantCode) (objects.Pricing, bool) {
 		variant = snap.CacheWriteBilling.PricingVariant(variant)
 		base := item.Pricing

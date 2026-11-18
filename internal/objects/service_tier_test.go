@@ -44,6 +44,29 @@ func TestServiceTierDecision(t *testing.T) {
 	require.Equal(t, "1", rate.String())
 }
 
+func TestServiceTierOutboundEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		client, sent, returned string
+		conflict               bool
+		mode, reason           string
+	}{
+		{"default", "priority", "", false, "fast", "outbound_missing_upstream"},
+		{"ultrafast", "priority", "wrong", false, "fast", "outbound_invalid_upstream"},
+		{"priority", "", "ultrafast", true, "standard", "outbound_conflicting_upstream"},
+		{"ultrafast", "auto", "", false, "standard", "outbound_missing_upstream"},
+	} {
+		e := &ServiceTierEvidence{Client: tc.client, Outbound: tc.sent, UseOutboundTier: true, Settings: ServiceTierSettings{Enabled: true, Basis: ServiceTierBasisUpstream}, Conflict: tc.conflict}
+		e.Upstream, e.Observed = tc.returned, tc.returned != ""
+		d := e.Decision()
+		require.Equal(t, tc.mode, d.Mode)
+		require.Equal(t, tc.reason, d.Reason)
+		require.Equal(t, "outbound", d.Basis)
+		require.False(t, d.Confirmed)
+		e.UseOutboundTier = false
+		require.Equal(t, "client", e.Decision().Basis)
+	}
+}
+
 func TestServiceTierEvidencePreservesInvalidAndConflictingDeclarations(t *testing.T) {
 	e := &ServiceTierEvidence{}
 	e.Observe([]byte(`{"service_tier":42}`))

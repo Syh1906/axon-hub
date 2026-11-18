@@ -16,12 +16,10 @@ export function CostPricingDetails({ evidence }: { evidence: CostPricingEvidence
         <span>{t('serviceTier.cost.client')}</span>
         <span>{tier.client || t('serviceTier.cost.missing')}</span>
       </div>
-      {tier.outbound !== tier.client && (
-        <div className='flex justify-between gap-3'>
-          <span>{t('serviceTier.cost.outbound')}</span>
-          <span>{tier.outbound || t('serviceTier.cost.missing')}</span>
-        </div>
-      )}
+      <div className='flex justify-between gap-3'>
+        <span>{t('serviceTier.cost.outbound')}</span>
+        <span>{tier.outbound || t('serviceTier.cost.missing')}</span>
+      </div>
       <div className='flex justify-between gap-3'>
         <span>{t('serviceTier.cost.upstream')}</span>
         <span>{tier.upstream || t('serviceTier.cost.missing')}</span>

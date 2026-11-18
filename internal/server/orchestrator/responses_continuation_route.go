@@ -5,13 +5,16 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/biz/upstream"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 type responsesContinuationRouteProvider interface {
@@ -129,7 +132,8 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		}
 		return nil, true, continuationRouteError(route.UnavailableCode, message)
 	}
-	var source *ChannelModelsCandidate
+	tierRouting := usesTierRouting(req, candidates)
+	var sources []*ChannelModelsCandidate
 	for _, candidate := range candidates {
 		if candidate.Channel.ID != route.ChannelID {
 			continue
@@ -153,25 +157,52 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		} else if candidate.APIFormat != "" && !isResponsesFormat(llm.APIFormat(candidate.APIFormat)) {
 			continue
 		}
-		if source == nil || candidate.Priority < source.Priority {
-			source = candidate
+		if tierRouting || len(sources) == 0 {
+			sources = append(sources, candidate)
+		} else if candidate.Priority < sources[0].Priority {
+			sources[0] = candidate
 		}
 	}
-	if source != nil {
-		selected := *source
-		selected.continuationBound = true
-		selected.continuationStrict = strict
-		selected.continuationKeyRef = route.KeyRef
-		selected.continuationKeyHint = route.KeyHint
-		selected.continuationUpstreamRef = route.UpstreamRef
-		selected.TraceSticky = true
-		selected.SessionState = "reused"
-		result := []*ChannelModelsCandidate{&selected}
-		if !strict {
-			for _, candidate := range candidates {
-				if candidate.Channel.ID != source.Channel.ID {
-					result = append(result, candidate)
+	if len(sources) > 0 {
+		allowAlternatives := !strict
+		if strict && tierRouting && req.RawRequest != nil {
+			// A complete history from this lane can be replayed on a different
+			// eligible Responses endpoint. An ID alone must stay on its origin.
+			if lane := shared.GetResponsesLane(ctx); lane != nil {
+				record := lane.Record()
+				if record.ID == previousID && record.Origin.ChannelID == route.ChannelID && record.Snapshot != nil &&
+					responsesReplayFits(record.Snapshot.Size(), len(gjson.GetBytes(req.RawRequest.Body, "input").Raw)) {
+					allowAlternatives = true
+					candidates = responsesContinuationCandidates(ctx, req, candidates)
 				}
+			}
+		}
+		result := make([]*ChannelModelsCandidate, 0, len(sources))
+		for _, source := range sources {
+			selected := *source
+			selected.continuationBound = true
+			selected.continuationStrict = strict
+			selected.continuationKeyRef = route.KeyRef
+			selected.continuationKeyHint = route.KeyHint
+			selected.continuationUpstreamRef = route.UpstreamRef
+			selected.TraceSticky = true
+			selected.SessionState = "reused"
+			result = append(result, &selected)
+		}
+		if allowAlternatives {
+			mode, _ := objects.NormalizeServiceTier(lo.FromPtr(req.ServiceTier))
+			sourceRank, sourceAllowed := candidateTierPreference(sources[0].Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode)
+			for _, candidate := range candidates {
+				if candidate.Channel.ID == route.ChannelID {
+					continue
+				}
+				if strict {
+					rank, allowed := candidateTierPreference(candidate.Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode)
+					if !allowed || (sourceAllowed && rank >= sourceRank) {
+						continue
+					}
+				}
+				result = append(result, candidate)
 			}
 		}
 		return result, true, nil

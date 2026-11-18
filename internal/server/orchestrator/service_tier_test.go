@@ -61,6 +61,12 @@ func TestServiceTierCancelledResponseUsesUpstreamAndInvalidFallsBack(t *testing.
 }
 
 func TestServiceTierRecoveryUsesFrozenFinalEvidenceAndRemainsIdempotent(t *testing.T) {
+	t.Run("legacy-final", func(t *testing.T) { checkServiceTierRecovery(t, false) })
+	t.Run("new-outbound", func(t *testing.T) { checkServiceTierRecovery(t, true) })
+}
+
+func checkServiceTierRecovery(t *testing.T, outbound bool) {
+	t.Helper()
 	ctx, db, ch, _, _, usage, key := setupBudgetRequest(t)
 	req := db.Request.Create().SetRequestBody([]byte(`{}`)).SetProjectID(key.ProjectID).SetAPIKeyID(key.ID).SetModelID("gpt-4").SetFormat(string(llm.APIFormatOpenAIResponse)).SetStatus(request.StatusCompleted).SaveX(ctx)
 	price := &objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(2))}}}, ServiceTiers: &objects.ServiceTierPrices{Fast: &objects.ServiceTierPrice{Source: objects.ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.NewFromInt(2))}}}
@@ -68,7 +74,12 @@ func TestServiceTierRecoveryUsesFrozenFinalEvidenceAndRemainsIdempotent(t *testi
 	exec := db.RequestExecution.Create().SetRequestBody([]byte(`{}`)).SetProjectID(key.ProjectID).SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("gpt-4").SetFormat(string(llm.APIFormatOpenAIResponse)).SetCostSnapshot(snapshot).SetStatus(requestexecution.StatusCompleted).SaveX(ctx)
 	require.NoError(t, usage.BudgetService.Reserve(ctx, key.ProjectID, key.ID, req.ID, exec.ID, 10000000, nil))
 	require.NoError(t, usage.BudgetService.MarkSent(ctx, exec.ID))
-	snapshot.ServiceTier.Observe([]byte(`{"service_tier":"default"}`))
+	if outbound {
+		snapshot.ServiceTier.UseOutboundTier = true
+		snapshot.ServiceTier.Outbound = "default"
+	} else {
+		snapshot.ServiceTier.Observe([]byte(`{"service_tier":"default"}`))
+	}
 	require.NoError(t, usage.BudgetService.RecordUsage(ctx, exec.ID, &llm.Usage{PromptTokens: 10000, TotalTokens: 10000}, snapshot, nil))
 	// Simulate a process boundary: discard in-memory objects and re-read durable evidence.
 	snapshot.ServiceTier.Upstream = "priority"
@@ -77,7 +88,11 @@ func TestServiceTierRecoveryUsesFrozenFinalEvidenceAndRemainsIdempotent(t *testi
 	require.NotNil(t, charge.Usage)
 	require.NotNil(t, charge.CostSnapshot)
 	require.NotNil(t, charge.CostSnapshot.ModelPrice)
-	require.Equal(t, "default", charge.CostSnapshot.ServiceTier.Upstream)
+	if outbound {
+		require.Equal(t, "outbound", charge.CostSnapshot.ServiceTier.Decision().Basis)
+	} else {
+		require.Equal(t, "default", charge.CostSnapshot.ServiceTier.Upstream)
+	}
 	require.NotNil(t, db.Request.GetX(ctx, req.ID))
 	require.NotNil(t, db.RequestExecution.GetX(ctx, exec.ID))
 	db.BudgetCharge.UpdateOneID(charge.ID).SetCheckAfter(time.Now().UTC().Add(-time.Minute)).ExecX(ctx)

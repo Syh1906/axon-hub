@@ -784,6 +784,7 @@ type ComplexityRoot struct {
 		QuotaRoutingMode                func(childComplexity int) int
 		RateLimit                       func(childComplexity int) int
 		ResponsesServiceTierOverride    func(childComplexity int) int
+		ResponsesTierSupport            func(childComplexity int) int
 		RetryableErrorPatterns          func(childComplexity int) int
 		RetryableStatusCodes            func(childComplexity int) int
 		ServiceTierBilling              func(childComplexity int) int
@@ -2663,6 +2664,12 @@ type ComplexityRoot struct {
 		TotalTokens                        func(childComplexity int) int
 		UnpricedRecords                    func(childComplexity int) int
 		UsageRecords                       func(childComplexity int) int
+	}
+
+	ResponsesTierSupport struct {
+		AllowDowngrade func(childComplexity int) int
+		Fast           func(childComplexity int) int
+		Ultrafast      func(childComplexity int) int
 	}
 
 	RestorePayload struct {
@@ -6793,6 +6800,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.ResponsesServiceTierOverride(childComplexity), true
+	case "ChannelSettings.responsesTierSupport":
+		if e.complexity.ChannelSettings.ResponsesTierSupport == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.ResponsesTierSupport(childComplexity), true
 	case "ChannelSettings.retryableErrorPatterns":
 		if e.complexity.ChannelSettings.RetryableErrorPatterns == nil {
 			break
@@ -16001,6 +16014,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RequestUsageSummary.UsageRecords(childComplexity), true
 
+	case "ResponsesTierSupport.allowDowngrade":
+		if e.complexity.ResponsesTierSupport.AllowDowngrade == nil {
+			break
+		}
+
+		return e.complexity.ResponsesTierSupport.AllowDowngrade(childComplexity), true
+	case "ResponsesTierSupport.fast":
+		if e.complexity.ResponsesTierSupport.Fast == nil {
+			break
+		}
+
+		return e.complexity.ResponsesTierSupport.Fast(childComplexity), true
+	case "ResponsesTierSupport.ultrafast":
+		if e.complexity.ResponsesTierSupport.Ultrafast == nil {
+			break
+		}
+
+		return e.complexity.ResponsesTierSupport.Ultrafast(childComplexity), true
+
 	case "RestorePayload.message":
 		if e.complexity.RestorePayload.Message == nil {
 			break
@@ -19686,6 +19718,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRequestLogTimeRangeInput,
 		ec.unmarshalInputRequestOrder,
 		ec.unmarshalInputRequestWhereInput,
+		ec.unmarshalInputResponsesTierSupportInput,
 		ec.unmarshalInputRestoreOptionsInput,
 		ec.unmarshalInputRetryableErrorPatternInput,
 		ec.unmarshalInputRoleOrder,
@@ -32368,6 +32401,8 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_protocolPolicy(ctx, field)
 			case "responsesServiceTierOverride":
 				return ec.fieldContext_ChannelSettings_responsesServiceTierOverride(ctx, field)
+			case "responsesTierSupport":
+				return ec.fieldContext_ChannelSettings_responsesTierSupport(ctx, field)
 			case "cacheWriteBilling":
 				return ec.fieldContext_ChannelSettings_cacheWriteBilling(ctx, field)
 			case "modelContexts":
@@ -38096,6 +38131,43 @@ func (ec *executionContext) fieldContext_ChannelSettings_responsesServiceTierOve
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ResponsesServiceTierOverride does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_responsesTierSupport(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_responsesTierSupport,
+		func(ctx context.Context) (any, error) {
+			return obj.ResponsesTierSupport, nil
+		},
+		nil,
+		ec.marshalOResponsesTierSupport2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_responsesTierSupport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "fast":
+				return ec.fieldContext_ResponsesTierSupport_fast(ctx, field)
+			case "ultrafast":
+				return ec.fieldContext_ResponsesTierSupport_ultrafast(ctx, field)
+			case "allowDowngrade":
+				return ec.fieldContext_ResponsesTierSupport_allowDowngrade(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ResponsesTierSupport", field.Name)
 		},
 	}
 	return fc, nil
@@ -86543,6 +86615,93 @@ func (ec *executionContext) fieldContext_RequestUsageSummary_costPriceMultiplier
 	return fc, nil
 }
 
+func (ec *executionContext) _ResponsesTierSupport_fast(ctx context.Context, field graphql.CollectedField, obj *objects.ResponsesTierSupport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ResponsesTierSupport_fast,
+		func(ctx context.Context) (any, error) {
+			return obj.Fast, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ResponsesTierSupport_fast(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponsesTierSupport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponsesTierSupport_ultrafast(ctx context.Context, field graphql.CollectedField, obj *objects.ResponsesTierSupport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ResponsesTierSupport_ultrafast,
+		func(ctx context.Context) (any, error) {
+			return obj.Ultrafast, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ResponsesTierSupport_ultrafast(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponsesTierSupport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ResponsesTierSupport_allowDowngrade(ctx context.Context, field graphql.CollectedField, obj *objects.ResponsesTierSupport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ResponsesTierSupport_allowDowngrade,
+		func(ctx context.Context) (any, error) {
+			return obj.AllowDowngrade, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ResponsesTierSupport_allowDowngrade(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ResponsesTierSupport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RestorePayload_success(ctx context.Context, field graphql.CollectedField, obj *RestorePayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -111609,7 +111768,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -111630,6 +111789,13 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.ResponsesServiceTierOverride = data
+		case "responsesTierSupport":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTierSupport"))
+			data, err := ec.unmarshalOResponsesTierSupportInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesTierSupport = data
 		case "cacheWriteBilling":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cacheWriteBilling"))
 			data, err := ec.unmarshalOCacheWriteBilling2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐCacheWriteBilling(ctx, v)
@@ -126961,6 +127127,47 @@ func (ec *executionContext) unmarshalInputRequestWhereInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputResponsesTierSupportInput(ctx context.Context, obj any) (objects.ResponsesTierSupport, error) {
+	var it objects.ResponsesTierSupport
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"fast", "ultrafast", "allowDowngrade"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "fast":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fast"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Fast = data
+		case "ultrafast":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ultrafast"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Ultrafast = data
+		case "allowDowngrade":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowDowngrade"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowDowngrade = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputRestoreOptionsInput(ctx context.Context, obj any) (backup.RestoreOptions, error) {
 	var it backup.RestoreOptions
 	asMap := map[string]any{}
@@ -130663,7 +130870,7 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -130684,6 +130891,13 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 				return it, err
 			}
 			it.ResponsesServiceTierOverride = data
+		case "responsesTierSupport":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTierSupport"))
+			data, err := ec.unmarshalOResponsesTierSupportInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ResponsesTierSupport = data
 		case "streamFirstEventTimeoutSeconds":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("streamFirstEventTimeoutSeconds"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -142684,6 +142898,8 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "responsesTierSupport":
+			out.Values[i] = ec._ChannelSettings_responsesTierSupport(ctx, field, obj)
 		case "cacheWriteBilling":
 			out.Values[i] = ec._ChannelSettings_cacheWriteBilling(ctx, field, obj)
 		case "modelContexts":
@@ -159718,6 +159934,55 @@ func (ec *executionContext) _RequestUsageSummary(ctx context.Context, sel ast.Se
 			out.Values[i] = ec._RequestUsageSummary_costItems(ctx, field, obj)
 		case "costPriceMultiplier":
 			out.Values[i] = ec._RequestUsageSummary_costPriceMultiplier(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var responsesTierSupportImplementors = []string{"ResponsesTierSupport"}
+
+func (ec *executionContext) _ResponsesTierSupport(ctx context.Context, sel ast.SelectionSet, obj *objects.ResponsesTierSupport) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, responsesTierSupportImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ResponsesTierSupport")
+		case "fast":
+			out.Values[i] = ec._ResponsesTierSupport_fast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ultrafast":
+			out.Values[i] = ec._ResponsesTierSupport_ultrafast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "allowDowngrade":
+			out.Values[i] = ec._ResponsesTierSupport_allowDowngrade(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -184165,6 +184430,21 @@ func (ec *executionContext) marshalOResponsesServiceTierOverride2ᚖgithubᚗcom
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOResponsesTierSupport2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx context.Context, sel ast.SelectionSet, v *objects.ResponsesTierSupport) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ResponsesTierSupport(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOResponsesTierSupportInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx context.Context, v any) (*objects.ResponsesTierSupport, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputResponsesTierSupportInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalORetryableErrorPattern2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRetryableErrorPatternᚄ(ctx context.Context, sel ast.SelectionSet, v []objects.RetryableErrorPattern) graphql.Marshaler {

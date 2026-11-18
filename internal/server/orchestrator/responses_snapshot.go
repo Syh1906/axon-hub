@@ -7,13 +7,17 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
+func responsesReplayFits(historyBytes, inputBytes int) bool {
+	return inputBytes <= (128<<20)-historyBytes
+}
+
 // Only recovery expands old turns. Healthy native WS requests keep their delta.
 func expandResponsesSnapshot(body []byte, snapshot *shared.ResponsesSnapshot) ([]byte, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, err
 	}
-	if snapshot.Size()+len(payload["input"]) > 128<<20 {
+	if !responsesReplayFits(snapshot.Size(), len(payload["input"])) {
 		return nil, shared.ResponsesRecoveryError()
 	}
 	items := snapshot.Items()

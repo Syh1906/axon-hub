@@ -230,6 +230,12 @@ func (s *QuotaRoutingSelector) Select(ctx context.Context, req *llm.Request) ([]
 	if err != nil {
 		return nil, err
 	}
+	if usesTierRouting(req, candidates) {
+		candidates, err = rankResponsesTiers(ctx, req, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return s.gate.Filter(ctx, candidates, req, 0), nil
 }

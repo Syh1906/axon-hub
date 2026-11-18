@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 )
 
 type codexDefinition struct {
@@ -187,6 +188,7 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 		bindings[ChannelModelKey{ChannelID: r.ChannelID, ModelID: r.ModelID}] = r
 	}
 	var variants []map[string]any
+	var tierRoutes []codexTierRoute
 	requiresResponses := codexProfileRequiresResponses(canonical, nil)
 	for _, connection := range m.Connections {
 		ch := channels[connection.Channel.ID]
@@ -194,7 +196,10 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			continue
 		}
 		for _, entry := range connection.Models {
-			if requiresResponses && !codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+			responsesEndpoint := codexRouteSupportsResponses(ctx, ch, entry, m.TargetID)
+			tierRoute := codexTierRoute{settings: ch.Settings, responses: responsesEndpoint && (ch.Settings == nil || ch.Settings.ProtocolPolicy.AllowsClient(llm.APIFormatOpenAIResponse))}
+			if requiresResponses && !responsesEndpoint {
+				tierRoutes = append(tierRoutes, tierRoute)
 				continue
 			}
 			r := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
@@ -230,6 +235,8 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			if err != nil {
 				return nil, err
 			}
+			tierRoute.model = effective
+			tierRoutes = append(tierRoutes, tierRoute)
 			if d.SourceKind == "official_public" && !preserveKnownContext {
 				variants = append(variants, applyPublicCodexContext(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
 			} else {
@@ -244,6 +251,7 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 	if err != nil {
 		return nil, err
 	}
+	applyCodexRouteTiers(result, tierRoutes)
 	constrainCodexReasoningProfile(result, canonical)
 	if !preserveKnownContext {
 		return result, nil

@@ -271,6 +271,49 @@ func TestCodexDefinitionImportedCapabilitiesStayKeyScoped(t *testing.T) {
 	}
 }
 
+func TestCodexCatalogSupportedTiersRespectVisibleRoutes(t *testing.T) {
+	ctx, client, models, channels, _ := setupListEnabledModelsTest(t)
+	body := strings.Replace(catalogFixture, `"upgrade":null`, `"upgrade":null,"default_service_tier":"ultrafast","service_tiers":[{"id":"priority","name":"Fast","description":"Fast"},{"id":"ultrafast","name":"Ultrafast","description":"Ultrafast"}],"additional_speed_tiers":["fast","ultrafast"]`, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }))
+	defer server.Close()
+	var ids []int
+	for _, name := range []string{"only-fast", "both", "chat-inbound-only", "chat-outbound-only"} {
+		settings := &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{Fast: true, Ultrafast: name != "only-fast", AllowDowngrade: true}}
+		switch name {
+		case "chat-inbound-only":
+			settings.ProtocolPolicy = &objects.ChannelProtocolPolicy{AllowedProtocols: []string{"openai/chat_completions"}}
+		case "chat-outbound-only":
+			settings.ModelProtocols = []objects.ModelProtocol{{Model: "test-model", APIFormats: []string{"openai/chat_completions"}}}
+		}
+		ch := client.Channel.Create().SetType(channel.TypeOpenai).SetName(name).SetBaseURL(server.URL).SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SetSupportedModels([]string{"test-model"}).SetDefaultTestModel("test-model").SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses"}}).SetSettings(settings).SetStatus(channel.StatusEnabled).SaveX(ctx)
+		ids = append(ids, ch.ID)
+	}
+	createConfiguredModel(t, ctx, client, "test-model", model.TypeChat, &objects.ModelAssociation{Type: "model", ModelID: &objects.ModelIDAssociation{ModelID: "test-model"}})
+	reloadEnabledChannels(t, ctx, client, channels)
+	service := NewCodexCatalogService(models, channels)
+	for _, tc := range []struct {
+		visible []int
+		tiers   int
+	}{
+		{ids[:1], 1}, {ids[:2], 2}, {[]int{ids[0], ids[2]}, 1}, {ids[3:], 0},
+	} {
+		key := &ent.APIKey{Profiles: &objects.APIKeyProfiles{ActiveProfile: "visible", Profiles: []objects.APIKeyProfile{{Name: "visible", ChannelIDs: tc.visible}}}}
+		raw, _, err := service.Models(contexts.WithAPIKey(ctx, key), "0.166.0")
+		require.NoError(t, err)
+		entries, err := parseCodexCatalog(raw)
+		require.NoError(t, err)
+		m := entries["test-model"]
+		require.NotNil(t, m)
+		require.Len(t, m["service_tiers"], tc.tiers)
+		require.Equal(t, []any{"fast", "ultrafast"}[:tc.tiers], m["additional_speed_tiers"])
+		if tc.tiers < 2 {
+			require.Nil(t, m["default_service_tier"])
+		} else {
+			require.Equal(t, "ultrafast", m["default_service_tier"])
+		}
+	}
+}
+
 func TestCodexDefinitionRejectsMalformedKnownFieldsAndDefaults(t *testing.T) {
 	parsed, err := parseCodexCatalog([]byte(catalogFixture))
 	require.NoError(t, err)

@@ -18,7 +18,8 @@ func TestBackupDuplicateChannelsRoundTrip(t *testing.T) {
 	source, svc, ctx := setupBackupTest(t)
 	a := createBackupTestChannel(t, source, ctx, "same", channel.TypeOpenai)
 	b := createBackupTestChannel(t, source, ctx, "same", channel.TypeOpenai)
-	source.Channel.UpdateOne(a).SetTags([]string{"小为"}).SaveX(ctx)
+	settings := &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{Fast: true, AllowDowngrade: true}}
+	source.Channel.UpdateOne(a).SetTags([]string{"小为"}).SetSettings(settings).SaveX(ctx)
 	source.Channel.UpdateOne(b).SetTags([]string{"裂魂"}).SaveX(ctx)
 	pa := createBackupTestChannelModelPrice(t, source, ctx, a.ID, "gpt-4")
 	pa = source.ChannelModelPrice.UpdateOne(pa).SetReferenceID("ref-first-gpt-4").SaveX(ctx)
@@ -59,6 +60,9 @@ func TestBackupDuplicateChannelsRoundTrip(t *testing.T) {
 		ids[ch.Tags[0]] = ch.ID
 	}
 	require.NotEqual(t, ids["小为"], ids["裂魂"])
+	restored := target.Channel.GetX(targetCtx, ids["小为"]).Settings
+	require.Equal(t, settings.ResponsesServiceTierOverride, restored.ResponsesServiceTierOverride)
+	require.Equal(t, settings.ResponsesTierSupport, restored.ResponsesTierSupport)
 	for tag, expected := range map[string]float64{"小为": 0.42, "裂魂": 0.9} {
 		logs := target.UsageLog.Query().Where(usagelog.ChannelIDEQ(ids[tag])).AllX(targetCtx)
 		require.Len(t, logs, 1)

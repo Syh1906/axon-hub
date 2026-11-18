@@ -498,13 +498,15 @@ Open **Request settings** from a channel row's action menu.
 
 - **Stream first response timeout** waits for the first upstream stream event. It does not limit later event gaps or specifically measure the first visible token.
 - **Non-stream response timeout** waits for the complete non-streaming response.
-- **Responses mode override** defaults to no override and can force standard, Fast, or Ultrafast for outgoing Responses HTTP/WebSocket requests on this channel.
+- **Responses mode override** defaults to no override. Force standard, Fast, or Ultrafast, or choose **Use supported tiers** and select the accelerated tiers supported by this channel for outgoing Responses HTTP/WebSocket requests.
 - **Do not reuse session channel** prevents session-based preference or ownership binding to this channel. Normal selection can still choose it.
 - **Allow built-in image generation** is enabled by default. When disabled, requests containing the `image_generation` tool skip this channel and continue selecting another permitted channel. The tool remains in the request.
 
 Mode overrides run after generic request body overrides. Standard, Fast, and Ultrafast send `service_tier: "default"`, `"priority"`, and `"ultrafast"`, including when the client omitted the field. They also apply to pass-through bodies. Each channel attempt uses its own setting; resetting to no override preserves existing generic body rules. Chat Completions, standalone image endpoints, and `/responses/compact` are unaffected. Ultrafast requires upstream support and may otherwise return an error.
 
-Request mode overrides neither enable accelerated billing nor change its basis. Records retain the original client tier, outbound tier, and upstream response tier separately. Upstream-first billing still falls back to the original client tier when no valid upstream tier is returned. For example, a client Fast request forced to standard can still be billed as Fast if the upstream omits its tier.
+With **Use supported tiers**, leaving both boxes unchecked declares standard only. Checking only Fast preserves standard and Fast requests and skips this channel for Ultrafast by default. **Allow downgrade** permits this channel to send Fast for Ultrafast after eligible matches for the requested tier, subject to retry limits. Downgrading to standard omits `service_tier`. Configure all candidate channels for a model when accelerated requests must only use known capabilities. Existing channels keep their saved mode.
+
+When accelerated billing uses **Prefer upstream response**, budgets use the tier sent on this attempt. A reliable final upstream tier determines the charge. An absent, invalid or conflicting response tier uses the tier sent upstream and is marked unconfirmed. **Client request** uses the original client tier for both estimates and settlement even after an override.
 
 Tool permission filtering stays within the project and API key's channel scope and applies regardless of request body pass-through.
 If every eligible candidate disables the tool, the gateway returns HTTP `503` with code `image_generation_tool_not_allowed` and message `没有允许内置生图工具的可用渠道。` (no available channel allows the built-in image generation tool). The request is recorded as a routing failure without an upstream attempt.

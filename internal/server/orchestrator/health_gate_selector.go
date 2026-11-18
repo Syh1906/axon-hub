@@ -85,7 +85,8 @@ func (s *LoadBalancedSelector) selectHealthGated(
 				continue
 			}
 			decision.record.Skipped = append(decision.record.Skipped, combo)
-			if lastResort == nil || healthGateLastResortBefore(view, lastResort.view) {
+			if lastResort == nil || candidate.tierPreference < lastResort.candidate.tierPreference ||
+				(candidate.tierPreference == lastResort.candidate.tierPreference && healthGateLastResortBefore(view, lastResort.view)) {
 				lastResort = &gatedModel{candidate: candidate, index: index, view: view}
 			}
 		}
@@ -115,7 +116,7 @@ func (s *LoadBalancedSelector) selectHealthGated(
 		requiredCount += policy.MaxChannelRetries
 	}
 	for index, candidate := range filtered {
-		if candidate.continuationBound {
+		if candidate.continuationBound && preferredTierAmong(candidate, filtered) {
 			preferred := candidate
 			remaining := append(append([]*ChannelModelsCandidate{}, filtered[:index]...), filtered[index+1:]...)
 			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), requiredCount, false)
@@ -124,7 +125,7 @@ func (s *LoadBalancedSelector) selectHealthGated(
 		}
 	}
 	if decision.sticky && decision.found && ownerAllowed {
-		if sticky, remaining := extractStickyCandidate(filtered, decision.owner.ChannelID); sticky != nil {
+		if sticky, remaining := extractStickyCandidate(filtered, decision.owner.ChannelID); preferredTierAmong(sticky, filtered) {
 			sticky.TraceSticky = true
 			fallbacks := s.sortCandidates(ctx, lb, remaining, req, max(requiredCount-1, 0), requiredCount, false)
 			lb.TrackSelection(sticky)

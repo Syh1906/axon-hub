@@ -22,6 +22,7 @@ func requestServiceTier(state *PersistenceState, request *httpclient.Request, fo
 		body = request.JSONBody
 	}
 	e.Outbound = objects.ServiceTierValue(body)
+	e.UseOutboundTier = responsesTierFormat(format)
 	return e
 }
 

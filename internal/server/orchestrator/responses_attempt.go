@@ -7,6 +7,7 @@ import (
 	"maps"
 
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -193,6 +194,9 @@ func selectResponsesContinuationCandidate(ctx context.Context, p *PersistentOutb
 		if candidate == nil || candidate.Channel == nil || len(candidate.Models) == 0 {
 			continue
 		}
+		if c.owner.Snapshot != nil && candidate.tierPreference > p.state.ChannelModelsCandidates[p.state.CurrentCandidateIndex].tierPreference {
+			continue
+		}
 		for modelIndex := range candidate.Models {
 			p.refreshCandidateAPIFormat(ctx, candidate, modelIndex, request)
 			origin := shared.ResponsesOrigin{
@@ -342,6 +346,16 @@ func verifyResponsesAttempt(p *PersistentOutboundTransformer) pipeline.Middlewar
 		origin := shared.ResponsesOrigin{ChannelID: p.GetCurrentChannel().ID, Endpoint: request.URL, Format: request.APIFormat, Model: p.GetCurrentModelID(), Auth: responses.ContinuationAuthIdentity(request)}
 		if model := gjson.GetBytes(request.Body, "model").String(); model != "" {
 			origin.Model = model
+		}
+		if c.complete && c.previous != "" && c.owner != nil && origin.ChannelID != c.owner.Origin.ChannelID &&
+			gjson.GetBytes(request.Body, "previous_response_id").String() == c.previous {
+			// The full input already contains this history. A later template must
+			// not put the old provider's response ID back on a different channel.
+			body, err := sjson.DeleteBytes(request.Body, "previous_response_id")
+			if err != nil {
+				return nil, err
+			}
+			request.Body = body
 		}
 		if c.previous != "" && !c.complete {
 			if gjson.GetBytes(request.Body, "previous_response_id").String() != c.previous || !forwardsResponsesID(p.wrapped) {

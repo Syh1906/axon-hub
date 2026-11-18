@@ -119,14 +119,17 @@ func (p *ServiceTierPrice) equals(other *ServiceTierPrice) bool {
 
 // ServiceTierEvidence is persisted with settlement, not exposed as provider usage.
 type ServiceTierEvidence struct {
-	Settings  ServiceTierSettings `json:"settings"`
-	Client    string              `json:"client"`
-	Outbound  string              `json:"outbound"`
-	Upstream  string              `json:"upstream"`
-	Observed  bool                `json:"observed"`
-	Conflict  bool                `json:"conflict"`
-	Terminal  bool                `json:"terminal,omitempty"`
-	LastValid string              `json:"lastValid,omitempty"`
+	Settings ServiceTierSettings `json:"settings"`
+	Client   string              `json:"client"`
+	Outbound string              `json:"outbound"`
+	// New Responses attempts price the finalized wire request, including an omitted tier.
+	// Historical snapshots retain their original client-based fallback on replay.
+	UseOutboundTier bool   `json:"useOutboundTier,omitempty"`
+	Upstream        string `json:"upstream"`
+	Observed        bool   `json:"observed"`
+	Conflict        bool   `json:"conflict"`
+	Terminal        bool   `json:"terminal,omitempty"`
+	LastValid       string `json:"lastValid,omitempty"`
 }
 
 func ServiceTierValue(body []byte) string {
@@ -194,7 +197,7 @@ type ServiceTierDecision struct {
 	Version        string `json:"version"`
 }
 
-func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
+func (e *ServiceTierEvidence) RequestDecision() ServiceTierDecision {
 	d := ServiceTierDecision{Mode: "standard", Basis: "disabled", Reason: "disabled"}
 	if e == nil {
 		d.Reason = "legacy"
@@ -202,6 +205,13 @@ func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
 	}
 	d.Client, d.Outbound, d.Upstream = e.Client, e.Outbound, e.Upstream
 	if !e.Settings.Enabled {
+		return d
+	}
+	if e.UseOutboundTier && e.Settings.Basis != ServiceTierBasisClient {
+		d.Basis, d.Reason = "outbound", "outbound_missing_upstream"
+		if mode, valid := NormalizeServiceTier(e.Outbound); valid {
+			d.Mode = mode
+		}
 		return d
 	}
 	d.Basis = "client"
@@ -215,7 +225,16 @@ func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
 	}
 	if e.Settings.Basis == ServiceTierBasisClient {
 		d.Reason = "channel_client"
-	} else if mode, valid := NormalizeServiceTier(e.Upstream); valid && !e.Conflict {
+	}
+	return d
+}
+
+func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
+	d := e.RequestDecision()
+	if e == nil || !e.Settings.Enabled || e.Settings.Basis == ServiceTierBasisClient {
+		return d
+	}
+	if mode, valid := NormalizeServiceTier(e.Upstream); valid && !e.Conflict {
 		d.Mode = mode
 		d.Basis = "upstream"
 		d.Confirmed = true
@@ -225,8 +244,8 @@ func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
 	} else if e.Observed {
 		d.Reason = "invalid_upstream"
 	}
-	if d.Mode != "fast" && d.Mode != "ultrafast" {
-		return d
+	if d.Basis == "outbound" && (e.Conflict || e.Observed) {
+		d.Reason = "outbound_" + d.Reason
 	}
 	return d
 }

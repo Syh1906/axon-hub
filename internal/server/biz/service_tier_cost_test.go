@@ -83,6 +83,34 @@ func TestServiceTierBudgetEstimateUsesClientAndRejectsMissingRate(t *testing.T) 
 	require.ErrorContains(t, err, "service tier")
 }
 
+func TestServiceTierOutboundBudgetAndSettlement(t *testing.T) {
+	price := serviceTierTestPrice()
+	// An unpriced client tier must not prevent sending a priced lower tier.
+	price.ServiceTiers.Ultrafast = nil
+	e := &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}, Client: "ultrafast", Outbound: "priority", UseOutboundTier: true}
+	snap := &objects.RequestCostSnapshot{ModelPrice: &price, ServiceTier: e, Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+	req := &llm.Request{MaxTokens: lo.ToPtr(int64(2000))}
+	estimate := func() (int64, error) {
+		v, err := (&BudgetService{}).Estimate(t.Context(), &ent.RequestExecution{CostSnapshot: snap}, req, nil, 10000)
+		return int64(v), err
+	}
+	usage := &llm.Usage{PromptTokens: 10000, CompletionTokens: 2000}
+	fast, err := estimate()
+	require.NoError(t, err)
+	_, total := computeCostFromSnapshot(usage, price, snap)
+	require.Equal(t, "0.08", total.String())
+	e.Observe([]byte(`{"service_tier":"default"}`))
+	_, total = computeCostFromSnapshot(usage, price, snap)
+	require.Equal(t, "0.04", total.String())
+	e.Outbound = ""
+	standard, err := estimate()
+	require.NoError(t, err)
+	require.Equal(t, standard*2, fast)
+	e.Settings.Basis = objects.ServiceTierBasisClient
+	_, err = estimate()
+	require.ErrorContains(t, err, "service tier")
+}
+
 func TestServiceTierScheduleOverridesContextAndFixedFeesIgnoreMode(t *testing.T) {
 	price := serviceTierTestPrice()
 	snapshot := &objects.RequestCostSnapshot{PricedAt: time.Now(), Applied: objects.AppliedCostMultiplier{Value: decimal.RequireFromString("0.8")}, ManualMultiplier: decimal.RequireFromString("0.8"), ServiceTier: &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisClient}, Client: "ultrafast"}}

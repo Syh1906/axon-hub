@@ -55,6 +55,7 @@ const CHANNEL_FIELDS_FRAGMENT = `
         disableSessionReuse
         allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -334,6 +335,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           disableSessionReuse
           allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -589,6 +591,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           disableSessionReuse
           allowImageGenerationTool
         responsesServiceTierOverride
+        responsesTierSupport { fast ultrafast allowDowngrade }
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover

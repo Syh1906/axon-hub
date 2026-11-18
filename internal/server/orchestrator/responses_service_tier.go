@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
 	"github.com/tidwall/sjson"
 
 	"github.com/looplj/axonhub/internal/objects"
@@ -17,14 +18,28 @@ import (
 func applyResponsesServiceTierOverride(outbound *PersistentOutboundTransformer) pipeline.Middleware {
 	return pipeline.OnRawRequest("responses-service-tier-override", func(_ context.Context, request *httpclient.Request) (*httpclient.Request, error) {
 		format := llm.APIFormat(request.APIFormat)
-		if format != llm.APIFormatOpenAIResponse && format != llm.APIFormatOpenAIResponseWebSocket {
+		if !responsesTierFormat(format) {
 			return request, nil
 		}
 		settings := outbound.GetCurrentChannel().Settings
 		if settings == nil || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit {
 			return request, nil
 		}
-		body, err := sjson.SetBytes(request.Body, "service_tier", string(settings.ResponsesServiceTierOverride))
+		requested := ""
+		if req := outbound.state.LlmRequest; req != nil {
+			requested = lo.FromPtr(req.ServiceTier)
+		}
+		tier, allowed := settings.ResponsesTierForRequest(requested)
+		if !allowed {
+			return nil, unsupportedResponsesTier(requested)
+		}
+		var body []byte
+		var err error
+		if tier == "" {
+			body, err = sjson.DeleteBytes(request.Body, "service_tier")
+		} else {
+			body, err = sjson.SetBytes(request.Body, "service_tier", tier)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("override Responses service tier: %w", err)
 		}

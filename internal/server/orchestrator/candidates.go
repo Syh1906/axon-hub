@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"hash"
@@ -31,6 +32,7 @@ type ChannelModelsCandidate struct {
 	// Models are retried in order, so the candidate-level APIFormat is updated
 	// from this slice whenever the current model changes.
 	modelAPIFormats    []string
+	tierPreference     tierPreference
 	healthGate         *healthGateCandidateInfo
 	SessionState       string // captured session selection, not prompt cache use
 	TraceSticky        bool   // selected from the last successful trace or thread channel
@@ -550,13 +552,14 @@ func aggregateChannelModelCandidates(ctx context.Context, req *llm.Request, reso
 	}
 
 	type channelModelKey struct {
-		channelID   int
-		actualModel string
+		channelID int
+		tierModelKey
 	}
 
 	candidates := make([]*ChannelModelsCandidate, 0, len(resolvedCandidates))
 	candidateIndexByKey := make(map[candidateKey]int, len(resolvedCandidates))
 	seenChannelModels := make(map[channelModelKey]struct{}, len(resolvedCandidates))
+	preserveTierAliases := acceleratedChatRequest(req)
 
 	for _, resolved := range resolvedCandidates {
 		if resolved == nil || resolved.channel == nil {
@@ -575,9 +578,9 @@ func aggregateChannelModelCandidates(ctx context.Context, req *llm.Request, reso
 		modelsToAppend := make([]biz.ChannelModelEntry, 0, len(selected[0].Models))
 		formatsToAppend := make([]string, 0, len(selected[0].Models))
 		for modelIndex, entry := range selected[0].Models {
-			modelKey := channelModelKey{
-				channelID:   resolved.channel.ID,
-				actualModel: entry.ActualModel,
+			modelKey := channelModelKey{channelID: resolved.channel.ID, tierModelKey: tierModelKey{model: entry.ActualModel}}
+			if preserveTierAliases {
+				modelKey.tierModelKey = selected[0].tierModelKey(modelIndex)
 			}
 			if _, exists := seenChannelModels[modelKey]; exists {
 				continue
@@ -775,16 +778,38 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		*s.effectiveRoutingPolicy = resolvedPolicy
 		traceStickyMode = resolvedPolicy.TraceStickyMode
 	}
+	// Resolve the legal history source before applying tier eligibility. An
+	// unrelated exact channel cannot continue an origin-bound response ID.
+	tierRouting := usesTierRouting(req, candidates)
+	var selected []*ChannelModelsCandidate
+	var handled bool
+	if tierRouting {
+		selected, handled, err = selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider)
+		if err != nil {
+			return nil, err
+		}
+		if selected != nil {
+			candidates = selected
+		}
+		candidates, err = rankResponsesTiers(ctx, req, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if s.quotaGate != nil {
 		stickyID := 0
 		if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
-			if selected, _, _ := s.selectTraceStickyCandidate(ctx, candidates); selected != nil {
+			if selected, _, _ := s.selectTraceStickyCandidate(ctx, candidates); preferredTierAmong(selected, candidates) {
 				stickyID = selected.Channel.ID
 			}
 		}
 		candidates = s.quotaGate.Filter(ctx, candidates, req, stickyID)
 	}
-	selected, handled, err := selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider)
+	if tierRouting {
+		selected = selectBoundTierAssociation(candidates)
+	} else {
+		selected, handled, err = selectResponsesContinuation(ctx, req, candidates, s.previousChannelProvider)
+	}
 	if handled || err != nil {
 		if err != nil || loadBalancer == nil {
 			return selected, err
@@ -796,7 +821,7 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 		if retryPolicy.Enabled {
 			requiredCount += retryPolicy.MaxChannelRetries
 		}
-		if len(selected) > 0 && selected[0].continuationBound {
+		if len(selected) > 0 && selected[0].continuationBound && preferredTierAmong(selected[0], selected) {
 			fallbacks := s.sortCandidates(ctx, loadBalancer, selected[1:], req, max(requiredCount-1, 0), requiredCount, false)
 			loadBalancer.TrackSelection(selected[0])
 			return append(selected[:1:1], fallbacks...), nil
@@ -821,7 +846,7 @@ func (s *LoadBalancedSelector) Select(ctx context.Context, req *llm.Request) ([]
 	if traceStickyMode == biz.TraceStickyPreferPreviousChannel {
 		stickyCandidate, remainingCandidates, sessionState := s.selectTraceStickyCandidate(ctx, candidates)
 		markCandidateSessionState(candidates, sessionState)
-		if stickyCandidate != nil {
+		if preferredTierAmong(stickyCandidate, candidates) {
 			stickyCandidate.TraceSticky = true
 
 			fallbackCount := max(requiredCount-1, 0)
@@ -914,7 +939,8 @@ func extractStickyCandidate(
 			continue
 		}
 
-		if stickyCandidate == nil || candidate.Priority < stickyCandidate.Priority {
+		if stickyCandidate == nil || candidate.tierPreference < stickyCandidate.tierPreference ||
+			(candidate.tierPreference == stickyCandidate.tierPreference && candidate.Priority < stickyCandidate.Priority) {
 			stickyCandidate = candidate
 		}
 	}
@@ -951,16 +977,26 @@ func (s *LoadBalancedSelector) sortCandidates(
 	}
 
 	// Group candidates by priority first (lower priority value = higher priority)
-	priorityGroups := make(map[int][]*ChannelModelsCandidate)
+	type groupKey struct {
+		tier     tierPreference
+		priority int
+	}
+	priorityGroups := make(map[groupKey][]*ChannelModelsCandidate)
 	for _, c := range candidates {
-		priorityGroups[c.Priority] = append(priorityGroups[c.Priority], c)
+		key := groupKey{c.tierPreference, c.Priority}
+		priorityGroups[key] = append(priorityGroups[key], c)
 	}
 
 	// Get sorted priority keys (lower priority value = higher priority)
 	priorities := lo.Keys(priorityGroups)
 
 	// Sort priorities: lower value = higher priority
-	slices.Sort(priorities)
+	slices.SortFunc(priorities, func(a, b groupKey) int {
+		if a.tier != b.tier {
+			return cmp.Compare(a.tier, b.tier)
+		}
+		return cmp.Compare(a.priority, b.priority)
+	})
 
 	// For each priority group, apply load balancing to sort candidates within the group
 	// Stop early if we have collected enough candidates

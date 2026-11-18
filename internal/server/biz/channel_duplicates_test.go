@@ -30,8 +30,12 @@ func TestChannelDuplicateNamesLifecycle(t *testing.T) {
 	b, err := svc.CreateChannel(ctx, input)
 	require.NoError(t, err)
 	require.NotEqual(t, a.ID, b.ID)
+	tierSettings := &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{Fast: true}}
+	client.Channel.UpdateOne(a).SetSettings(tierSettings).SaveX(ctx)
 	c, err := svc.DuplicateChannel(ctx, a.ID, input)
 	require.NoError(t, err)
+	require.Equal(t, tierSettings.ResponsesServiceTierOverride, c.Settings.ResponsesServiceTierOverride)
+	require.Equal(t, tierSettings.ResponsesTierSupport, c.Settings.ResponsesTierSupport)
 	require.Equal(t, a.Name, c.Name)
 	require.NotEqual(t, a.ID, c.ID)
 	_, err = svc.UpdateChannel(ctx, b.ID, &ent.UpdateChannelInput{Name: lo.ToPtr("other")})

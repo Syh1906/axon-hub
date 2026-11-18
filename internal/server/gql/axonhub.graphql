@@ -206,11 +206,25 @@ enum ResponsesServiceTierOverride {
   STANDARD
   FAST
   ULTRAFAST
+  SUPPORTED
+}
+
+type ResponsesTierSupport {
+  fast: Boolean!
+  ultrafast: Boolean!
+  allowDowngrade: Boolean!
+}
+
+input ResponsesTierSupportInput {
+  fast: Boolean!
+  ultrafast: Boolean!
+  allowDowngrade: Boolean!
 }
 
 type ChannelSettings {
   protocolPolicy: ChannelProtocolPolicy
   responsesServiceTierOverride: ResponsesServiceTierOverride!
+  responsesTierSupport: ResponsesTierSupport
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContext!]
   serviceTierBilling: ServiceTierSettings
@@ -317,6 +331,7 @@ input ModelMappingInput {
 input ChannelSettingsInput {
   protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
+  responsesTierSupport: ResponsesTierSupportInput
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContextInput!]
   upstreamAddresses: [ChannelUpstreamAddressInput!]
@@ -370,6 +385,7 @@ input ChannelModelContextInput {
 input UpdateChannelSettingsInput {
   protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
+  responsesTierSupport: ResponsesTierSupportInput
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean

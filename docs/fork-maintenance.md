@@ -978,6 +978,7 @@ fork 改动，由用户决定。
 - 加速分项及刷新交互（2026-10-31，待提交）：在上述模式能力上增加默认倍率、Token 分项倍率／指定单价／明确未配置和档位覆盖；官方比例／绝对单价主动预览应用，冻结模型／版本／日期／范围及各项最终价格。预算和恢复共用解析，自助及管理 GraphQL 共用证据；渠道复制独立，时间段替代上下文。仅扩展既有 JSON，无新迁移。请求／线程／追踪共用刷新控件在定时期间仍能手动刷新，关闭移至下拉。维护时核对四级继承、0 与空、官方范围、缓存变体、旧快照及定时保留语义，见[分项验收](../output/implementation/axon-item-pricing-20261031/verification.md)。
 - 加速模式及上下文证据（2026-10-31，待提交）：模型与渠道价格共用 Fast / Ultrafast 官方版本和自定义倍率；渠道启用并选择上游优先或客户端依据，参考价仍为复制语义。有效终局优先，缺失按客户端；保存执行时价格与最终依据，预算预估 / 结算 / 恢复及成本悬浮一致。成本金额旁显示模式及实际命中的 `1M`，固定费用不乘模式；0 倍率保留基础项目和分段单价。新增 `objects/service_tier.go`、`biz/service_tier_cost.go`、`orchestrator/service_tier.go` 与共享前端价格 / 证据组件，GraphQL 由生成器更新。仅扩展既有 JSON，无 schema/data migration；旧模式计费默认关闭，导出 v3 读取兼容旧格式。测试及本地接口 / UI 证据见[本轮方案与验收](solutions/openai-service-tier-billing-20261031.md#12-实现与验收结果)。
 - Responses 渠道模式覆写（2026-11-16，已随 rc1-fork.7 发布并更新双机）：请求设置新增不覆写／标准／Fast／Ultrafast，专用配置优先于通用请求体覆盖，作用于实际出站 Responses HTTP／WebSocket，换渠道重新取值；不作用于 compact。保留原始请求与三方档位证据，计费依据不变。扩展现有渠道 JSON 与 GraphQL，无数据库迁移；同步补齐同一弹窗的局部保存输入。使用说明见[渠道请求设置](zh/guides/channel-management.md)。维护时核对四档回读、透传、覆写顺序、重试隔离及默认恢复；定向用例位于 `orchestrator/responses_service_tier_test.go`、`gql/channel_service_tier_override_test.go` 和前端 `channels-settings-selection.test.mjs`，本地接口与页面保存回读已验收，未调用真实上游。
+- Responses 渠道加速档位（2026-11-18，本地实现）：保留原有四档覆写，新增独立 Fast／Ultrafast 能力及跳过或降档策略。核对逐次选路、重试、Codex 可见目录、按最终发送档位预留与结算、旧快照恢复和设置回读。扩展现有 JSON 与 GraphQL，未新增数据库迁移。见[方案与验收](solutions/responses-channel-service-tiers-20261118.md)。
 
 - 行为：渠道定价引用模型模块维护的完整价格，支持按渠道模型 ID 一键匹配，也可为
   指定渠道模型选择其他标准价格；带入基础单价、全量阶梯、缓存变体及时间覆盖，

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -52,6 +53,9 @@ func isCodexTitleRequest(request *httpclient.Request) bool {
 func canHedgeTitle(ctx context.Context, state *PersistenceState, request *llm.Request, policy *biz.RetryPolicy) bool {
 	return state.titleTask && request.Stream != nil && *request.Stream &&
 		policy.Enabled && policy.MaxChannelRetries > 0 && len(state.ChannelModelsCandidates) > 1 &&
+		!slices.ContainsFunc(state.ChannelModelsCandidates[1:], func(c *ChannelModelsCandidate) bool {
+			return c.tierPreference != state.ChannelModelsCandidates[0].tierPreference
+		}) &&
 		!shared.IsResponsesWebSocket(ctx) && (request.PreviousResponseID == nil || *request.PreviousResponseID == "")
 }
 

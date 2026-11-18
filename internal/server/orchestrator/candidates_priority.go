@@ -82,7 +82,7 @@ func applyChannelPriorities(candidates []*ChannelModelsCandidate, priorities []o
 	}
 	type key struct{ channelID, priority int }
 	positions := make(map[key]int)
-	seenModels := make(map[key]map[string]bool)
+	seenModels := make(map[key]map[tierModelKey]bool)
 	result := make([]*ChannelModelsCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		priority := candidate.Priority
@@ -99,23 +99,24 @@ func applyChannelPriorities(candidates []*ChannelModelsCandidate, priorities []o
 			position = len(result)
 			positions[identity] = position
 			result = append(result, &copy)
-			seenModels[identity] = make(map[string]bool, len(copy.Models))
-			for _, entry := range copy.Models {
-				seenModels[identity][entry.ActualModel] = true
+			seenModels[identity] = make(map[tierModelKey]bool, len(copy.Models))
+			for i := range copy.Models {
+				seenModels[identity][copy.tierModelKey(i)] = true
 			}
 			continue
 		}
 		target := result[position]
 		haveFormats := len(target.modelAPIFormats) == len(target.Models) && len(candidate.modelAPIFormats) == len(candidate.Models)
 		for index, entry := range candidate.Models {
-			if !seenModels[identity][entry.ActualModel] {
+			modelKey := candidate.tierModelKey(index)
+			if !seenModels[identity][modelKey] {
 				target.Models = append(target.Models, entry)
 				if haveFormats {
 					target.modelAPIFormats = append(target.modelAPIFormats, candidate.modelAPIFormats[index])
 				} else {
 					target.modelAPIFormats = nil
 				}
-				seenModels[identity][entry.ActualModel] = true
+				seenModels[identity][modelKey] = true
 			}
 		}
 	}

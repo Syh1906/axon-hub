@@ -176,6 +176,7 @@ func (m ModelProtocol) IsEnabled() bool {
 
 type ChannelSettings struct {
 	ResponsesServiceTierOverride ResponsesServiceTierOverride `json:"responsesServiceTierOverride,omitempty"`
+	ResponsesTierSupport         *ResponsesTierSupport        `json:"responsesTierSupport,omitempty"`
 	CacheWriteBilling            *CacheWriteBilling           `json:"cacheWriteBilling,omitempty"`
 	ModelContexts                []ChannelModelContext        `json:"modelContexts,omitempty"`
 	ServiceTierBilling           *ServiceTierSettings         `json:"serviceTierBilling,omitempty"`
