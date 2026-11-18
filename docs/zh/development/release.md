@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-18：[rc1-fork.11 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.11) 已通过精简工作流发布，云悠和泉哥均从 fork.9 更新至该版，内外健康及版本核对通过。源码为 `0c87d028cceaa9d88fdf5e1a25dceb898544b9e2`，仅提供双架构镜像和 `release.json`。固定摘要、切换时间及验收边界见 [Fork 维护台账](../../fork-maintenance.md)。以下为历史状态。
+
 2026-11-17：当前正式版及云悠／泉哥运行版本为 [v1.0.0-rc1-fork.9](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.9)，源码 `e5d3f1e84e70761a12bd4515d274fae3e345e8ce`。[精简发布 44063632868](https://github.com/Syh1906/axon-hub/actions/runs/44063632868)及同提交 Test／Build／Lint／Govulncheck 全部通过，正式/latest，仅双架构镜像与 `release.json`。翻译刷新修复和浏览器语言默认已上线；两机共 5 个老账号迁移为 `auto`，权限和更新时间保持，后续手选继续保留。
 
 两机内外健康、版本／提交、页面资源、语言迁移和配置保持检查通过，重建及健康等待分别 6.818／7.172 秒。泉哥切换窗口内，云悠 1 条转发流中断失败并出现重试，之后同渠道已有 16 次成功执行，不是零中断部署。生产使用者原始报错现场及全部翻译插件尚未复验。未创建数据库备份，本轮远端临时文件已清理，旧 fork.8 镜像保留；仅换回旧镜像不能恢复迁移前语言偏好。固定摘要与验收边界见 [Fork 维护台账](../../fork-maintenance.md)和[本轮记录（本地）](../../../.agent/summary/release-rc1-fork9-20261117.md)。以下保留历史状态，不代表当前运行版本。
