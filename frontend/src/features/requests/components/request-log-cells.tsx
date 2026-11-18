@@ -166,6 +166,22 @@ export function RequestCacheCell({ request }: { request: { usageSummary?: Reques
   );
 }
 
+const latencyColors = {
+  good: { text: 'text-emerald-700 dark:text-emerald-400', bar: 'var(--color-emerald-500)' },
+  warn: { text: 'text-amber-700 dark:text-amber-400', bar: 'var(--color-amber-400)' },
+  slow: { text: 'text-orange-700 dark:text-orange-400', bar: 'var(--color-orange-500)' },
+  critical: { text: 'text-red-700 dark:text-red-400', bar: 'var(--color-red-500)' },
+};
+
+function latencyColor(ms: number | null | undefined, metric: 'firstToken' | 'total') {
+  if (ms == null) return undefined;
+  const [warn, slow, critical] = metric === 'firstToken' ? [10_000, 30_000, 60_000] : [60_000, 180_000, 300_000];
+  if (ms >= critical) return latencyColors.critical;
+  if (ms >= slow) return latencyColors.slow;
+  if (ms >= warn) return latencyColors.warn;
+  return latencyColors.good;
+}
+
 export function RequestDurationCell({
   request,
 }: {
@@ -173,21 +189,25 @@ export function RequestDurationCell({
 }) {
   const { t } = useTranslation();
   const latency = request.metricsLatencyMs;
-  const first = request.metricsFirstTokenLatencyMs;
+  const first = request.stream ? request.metricsFirstTokenLatencyMs : null;
   const speed = getTokensPerSecondValue(request);
-  // Update one complete text value; translators can replace individual text nodes.
-  const duration = [
-    request.stream && first != null ? t('requests.duration.firstToken', { duration: formatDuration(first) }) : undefined,
-    t('requests.duration.total', { duration: latency == null ? '—' : formatDuration(latency) }),
-  ].filter(Boolean).join(' · ');
+  const firstColor = latencyColor(first, 'firstToken');
+  const totalColor = latencyColor(latency, 'total');
+  const bar = firstColor && totalColor
+    ? `linear-gradient(to bottom, ${firstColor.bar} 40%, ${totalColor.bar} 60%)`
+    : (firstColor ?? totalColor)?.bar;
+
   return (
-    <div className='flex min-w-[150px] flex-col gap-1 text-xs whitespace-nowrap'>
-      <span title={t('requests.duration.firstTokenHelp')}>
-        {duration}
-      </span>
-      <span className='text-muted-foreground' title={t('consumption.speedHelp')}>
-        {`${t('requests.duration.outputRate')} ${speed == null ? '—' : `${Math.round(speed)} tok/s`}`}
-      </span>
+    <div className='flex min-w-[150px] gap-2 text-xs whitespace-nowrap'>
+      <span aria-hidden='true' className='w-1 shrink-0 rounded-full' style={{ background: bar }} />
+      <dl className='text-muted-foreground grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 tabular-nums'>
+        <dt title={t('requests.duration.firstTokenHelp')}>{t('requests.duration.firstTokenLabel')}</dt>
+        <dd title={t('requests.duration.firstTokenHelp')} className={firstColor && `font-medium ${firstColor.text}`}>{first == null ? '—' : formatDuration(first)}</dd>
+        <dt>{t('requests.duration.totalLabel')}</dt>
+        <dd className={totalColor && `font-medium ${totalColor.text}`}>{latency == null ? '—' : formatDuration(latency)}</dd>
+        <dt title={t('consumption.speedHelp')}>{t('requests.duration.outputRate')}</dt>
+        <dd title={t('consumption.speedHelp')} className={speed == null ? undefined : 'text-foreground'}>{speed == null ? '—' : `${Math.round(speed)} tok/s`}</dd>
+      </dl>
     </div>
   );
 }

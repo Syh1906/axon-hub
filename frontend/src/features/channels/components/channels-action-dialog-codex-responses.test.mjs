@@ -65,6 +65,7 @@ test('non-Codex channels keep their stored Base URL, including OpenAI Responses 
 
 test('Codex form state recalls persisted WebSocket capability and canonical endpoints', async () => {
   const { getResponsesTransportFromChannel } = await loadDialogHelpers();
+  assert.equal(getResponsesTransportFromChannel(undefined), 'websocket');
   assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [] }), 'websocket');
   assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses' }] }), 'http');
   assert.equal(getResponsesTransportFromChannel({ type: 'codex', baseURL: CODEX_BASE, endpoints: [{ apiFormat: 'openai/responses', supportsWebSockets: false }] }), 'http');

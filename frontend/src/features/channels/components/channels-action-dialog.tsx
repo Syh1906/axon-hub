@@ -295,17 +295,16 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
             setApiKeyRoundRobinSwitchAfter(initialRow?.settings?.apiKeyRoundRobinSwitchAfter ?? 1);
 
             // Reset provider and API format state
+            setResponsesTransport(getResponsesTransportFromChannel(initialRow));
             if (initialRow) {
               setSelectedProvider(getProviderFromChannelType(initialRow.type) || 'openai');
               setSelectedApiFormat(getInitialApiFormatForRow(initialRow));
-              setResponsesTransport(getResponsesTransportFromChannel(initialRow));
               setUseGeminiVertex(initialRow.type === 'gemini_vertex');
               setUseAnthropicAws(initialRow.type === 'anthropic_aws');
               setUseKimiCoding(initialRow.type === 'moonshot_coding');
             } else {
               setSelectedProvider('openai');
               setSelectedApiFormat(OPENAI_CHAT_COMPLETIONS);
-              setResponsesTransport('http');
               setUseGeminiVertex(false);
               setUseAnthropicAws(false);
               setUseKimiCoding(false);
@@ -453,7 +452,7 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                           </div>
                         </FormItem>
                       )}
-                      {selectedApiFormat === OPENAI_RESPONSES && (
+                      {selectedApiFormat === OPENAI_RESPONSES && !isXAISubscriptionType && (
                         <FormItem className='grid grid-cols-1 items-start gap-x-6 gap-y-2 md:grid-cols-8'>
                           <FormLabel className='pt-2 font-medium md:col-span-2 md:text-right'>Responses</FormLabel>
                           <div className='flex flex-col gap-2 md:col-span-6'>
@@ -881,7 +880,11 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                                 { shouldDirty: true }
                               );
                               if (format === OPENAI_RESPONSES) {
-                                setResponsesTransport(getResponsesTransportFromChannel({ type: selectedType || derivedChannelType, baseURL: watchedBaseURL, endpoints: initialRow?.defaultEndpoints ?? [] }));
+                                setResponsesTransport(getResponsesTransportFromChannel(initialRow && {
+                                  type: selectedType || derivedChannelType,
+                                  baseURL: watchedBaseURL,
+                                  endpoints: initialRow.defaultEndpoints ?? [],
+                                }));
                               }
                             }}
                             onManageAddresses={openAddresses}

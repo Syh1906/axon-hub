@@ -108,8 +108,9 @@ export function parseRetryableErrorPatternsInput(value: string): RetryableErrorP
 }
 
 export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'type' | 'baseURL' | 'endpoints'>): ResponsesTransport {
-  if (channel?.type === 'codex') return getCodexResponsesWebSocketState(channel).enabled ? 'websocket' : 'http';
-  return channel && getResponsesWebSocketEnabled(channel) ? 'websocket' : 'http';
+  if (!channel) return 'websocket';
+  if (channel.type === 'codex') return getCodexResponsesWebSocketState(channel).enabled ? 'websocket' : 'http';
+  return getResponsesWebSocketEnabled(channel) ? 'websocket' : 'http';
 }
 
 export function getResponsesWebSocketBaseURL(channelType: ChannelType): string | undefined {

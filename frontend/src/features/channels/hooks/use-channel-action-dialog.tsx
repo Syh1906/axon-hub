@@ -21,7 +21,7 @@ import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecod
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
 import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
 import { PROVIDER_CONFIGS, getProviderFromChannelType, getApiFormatsForProvider, getChannelTypeForApiFormat, getBaseChannelTypeForProvider } from '../data/config_providers';
-import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, setResponsesWebSocketSupport, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, setResponsesWebSocketSupport, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
@@ -232,8 +232,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     initialRow ? getInitialApiFormatForRow(initialRow) : OPENAI_CHAT_COMPLETIONS
   );
   const [responsesTransport, setResponsesTransport] = useState<ResponsesTransport>(() => getResponsesTransportFromChannel(initialRow));
-  const initialCodexResponses = useMemo(() => getCodexResponsesWebSocketState(initialRow), [initialRow]);
-  const setCodexResponsesWebSocket = (enabled: boolean) => setResponsesTransport(enabled ? 'websocket' : 'http');
   const [useGeminiVertex, setUseGeminiVertex] = useState(() => {
     if (initialRow) {
       return initialRow.type === 'gemini_vertex';
@@ -265,7 +263,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     setSelectedProvider(provider);
     setSelectedApiFormat(getInitialApiFormatForRow(initialRow));
     setResponsesTransport(getResponsesTransportFromChannel(initialRow));
-    if (initialRow.type === 'codex') setCodexResponsesWebSocket(getCodexResponsesWebSocketState(initialRow).enabled);
     setUseGeminiVertex(initialRow.type === 'gemini_vertex');
     setUseAnthropicAws(initialRow.type === 'anthropic_aws');
     setUseKimiCoding(initialRow.type === 'moonshot_coding');
@@ -287,10 +284,10 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       resetXaiOAuth();
       setCodexAuthJSONText('');
       codexThirdPartyBaseURLRef.current = '';
-      setCodexResponsesWebSocket(initialCodexResponses.enabled);
+      setResponsesTransport(getResponsesTransportFromChannel(initialRow));
       setXaiSSOToken('');
     }
-  }, [open, resetCodexOAuth, resetClaudecodeOAuth, resetAntigravityOAuth, resetXaiOAuth, initialCodexResponses.enabled]);
+  }, [open, resetCodexOAuth, resetClaudecodeOAuth, resetAntigravityOAuth, resetXaiOAuth, initialRow]);
 
   useEffect(() => {
     if (!open) {
@@ -633,7 +630,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
 
       if (provider === 'xai_subscription') {
         setSelectedApiFormat(OPENAI_RESPONSES);
-        setResponsesTransport('http');
         form.setValue('type', 'xai_subscription');
         if (!isEdit) {
           const baseURL = getDefaultBaseURL('xai_subscription');
@@ -705,7 +701,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       const nextResponsesTransport = formatOption === OPENAI_RESPONSES_WEBSOCKET ? 'websocket' : 'http';
 
       setSelectedApiFormat(format);
-      setResponsesTransport(nextResponsesTransport);
+      if (isEdit || isDuplicate || formatOption === OPENAI_RESPONSES_WEBSOCKET) {
+        setResponsesTransport(nextResponsesTransport);
+      }
 
       // Reset vertex checkbox if not gemini/contents
       if (format !== 'gemini/contents') {
@@ -1152,7 +1150,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
 
       if (isCodexType) {
         dataWithModels.endpoints = buildCodexResponsesEndpoints(dataWithModels.endpoints, responsesTransport === 'websocket');
-      } else if (selectedApiFormat === OPENAI_RESPONSES) {
+      } else if (selectedApiFormat === OPENAI_RESPONSES && !isXAISubscriptionType) {
         dataWithModels.baseURL = dataWithModels.baseURL?.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
         dataWithModels.endpoints = setResponsesWebSocketSupport(dataWithModels.endpoints, responsesTransport === 'websocket');
       }
