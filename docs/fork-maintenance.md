@@ -6,7 +6,7 @@
 同步上游时核对。这里只记录已确认的行为、代码归属和证据；是否保留、调整或删除
 fork 改动，由用户决定。
 
-## 旧版 Completions 原生输入与用量（2026-11-18，未发布）
+## 旧版 Completions 原生输入与用量（2026-11-18，rc1-fork.10）
 
 同批协议修复涵盖两项独立的客户端行为：
 
@@ -16,10 +16,10 @@ fork 改动，由用户决定。
 - 修复原生 `prompt` 数组无法进入转换器的问题，统一结构保留 JSON 原形并在一次供应商请求中转发；支持文本、文本数组、Token ID 与 Token ID 数组列表，不新增拆请求引擎。
 - 修复关闭原样透传时，缺失或不完整用量被序列化为 0 Token 的问题。显式零与未知用量分别处理，普通响应、SSE 和聚合保持一致；聚合保留多条 choice 的索引、文本和停止原因。
 - 归属：`llm/completion.go` 与 `llm/transformer/openai/completion*`。无数据库迁移。契约见[中文 OpenAI 参考](zh/api-reference/openai-api.md#旧版文本-completions-api)和[英文参考](en/api-reference/openai-api.md#legacy-text-completions-api)。
-- 已新增可捕捉原缺陷的原生往返、缺量/零量、数组、多 choice 与 HTTP 请求回归；真实供应商及整体运行环境仍待验证。本条源码尚未发布。
+- 协议修复提交 `ea99341d`。原生往返、缺量/零量、数组、多 choice 与 HTTP 请求回归使用隔离上游。发布说明与生产实例更新分别维护。
 
 
-## 原生 Anthropic Token 计数（2026-11-18，未发布）
+## 原生 Anthropic Token 计数（2026-11-18，rc1-fork.10）
 
 - 新增 `/v1/messages/count_tokens` 和 `/anthropic/v1/messages/count_tokens`。复用调用方身份、模型与渠道选择、并发和请求记录；仅使用原生 Anthropic 计数，不回退为生成请求。
 - 计数结果与生成用量分开，不写消费日志或费用结算；保留原生文本、图片、工具和 beta 参数。模型别名仍生效，计数不注入项目生成提示词。
@@ -27,7 +27,7 @@ fork 改动，由用户决定。
 - 接口契约见[中文参考](zh/api-reference/anthropic-api.md#token-计数)与[英文参考](en/api-reference/anthropic-api.md#token-counting)。Bedrock 暂不支持；真实供应商与 OAuth/Vertex 凭据验收不属于本次合成测试结论。
 - 定向验证通过：原生文本/图片/工具负载、模型映射、非法计数、Vertex 地址转换、两条 HTTP 入口的有效/无效 Key 与模型权限、协议白名单、计数无消费日志、成功/错误时预算零费用收尾；既有生成预算扣费回归通过。使用 Go 测试和合成上游，无真实模型调用。
 - 验证命令（仓库根目录）：`go test -p=1 ./internal/server/orchestrator ./internal/server -run 'TestTokenCount|TestChannelProtocol|TestBudgetPipelineRejectsBeforeTransportAndSettlesActualCost'`；LLM 模块：`go -C llm test -p=1 ./transformer/anthropic ./vertex -run TestTokenCount`。测试进程使用 `GOMAXPROCS=2`，未执行 lint、构建或部署命令。
-- 维护检查：上游新增计数入口时核对原生字段保真、协议白名单、缺失计数报错、计数不收费及预算占用释放。当前分支未发布、未部署。
+- 协议实现提交 `7a1d2307`。上游新增计数入口时核对原生字段保真、协议白名单、缺失计数报错、计数不收费及预算占用释放。
 
 
 ## 浏览器语言默认与翻译刷新修复（2026-11-17，已随 rc1-fork.9 发布并更新双机）
