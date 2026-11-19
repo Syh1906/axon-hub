@@ -21,22 +21,20 @@ import { createPriceValidationSchema, isValidPriceMultiplier } from '@/features/
 import { appliedModelPrice } from '@/features/models/data/service-tier';
 import { useChannels } from '../context/channels-context';
 import { useChannelModelPrices, useSaveChannelModelPrices } from '../data/channels';
-import { cacheWriteBillingSchema, serviceTierSettingsSchema, type CacheWriteBilling, type ServiceTierSettings } from '../data/schema';
+import { cacheWriteBillingSchema, type CacheWriteBilling } from '../data/schema';
 import { modelPriceInputSchema, saveChannelModelPriceInputSchema, type Channel, type ModelPrice, type SaveChannelModelPriceInput } from '../data/schema';
 
 const multiplierSchema = z.string().trim().refine(isValidPriceMultiplier);
 const importSchema = z.union([
   z.object({
-    version: z.literal(4),
+    version: z.union([z.literal(4), z.literal(5)]),
     multiplier: multiplierSchema,
-    serviceTierBilling: serviceTierSettingsSchema,
     cacheWriteBilling: cacheWriteBillingSchema,
     prices: z.array(saveChannelModelPriceInputSchema),
   }),
   z.object({
     version: z.literal(3),
     multiplier: multiplierSchema,
-    serviceTierBilling: serviceTierSettingsSchema,
     prices: z.array(saveChannelModelPriceInputSchema),
   }),
   z.array(saveChannelModelPriceInputSchema),
@@ -48,7 +46,6 @@ function createFormSchema(t: (key: string) => string) {
   return z
     .object({
       cacheWriteBilling: cacheWriteBillingSchema,
-      serviceTierBilling: serviceTierSettingsSchema,
       multiplier: z.string().trim().refine(isValidPriceMultiplier, t('price.validation.multiplier')),
       prices: z.array(
         saveChannelModelPriceInputSchema.extend({
@@ -72,7 +69,6 @@ function createFormSchema(t: (key: string) => string) {
 }
 type PriceFormData = {
   cacheWriteBilling: CacheWriteBilling;
-  serviceTierBilling: ServiceTierSettings;
   multiplier: string;
   prices: SaveChannelModelPriceInput[];
 };
@@ -186,7 +182,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     mode: 'onChange',
     defaultValues: {
       cacheWriteBilling: 'reported',
-      serviceTierBilling: { enabled: false, basis: 'upstream' },
       multiplier: '1',
       prices: [],
     },
@@ -232,7 +227,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
       reset({
         cacheWriteBilling: currentPricing.data.cacheWriteBilling,
         multiplier: currentPricing.data.multiplier,
-        serviceTierBilling: currentPricing.data.serviceTierBilling,
         prices: currentPricing.data.prices.map((price) => ({ modelId: price.modelID, price: modelPriceInputSchema.parse(price.price) })),
       });
       setInitialized(true);
@@ -311,9 +305,8 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
     if (!(await form.trigger()) || !activeRef.current) return;
     const values = schema.parse(getValues());
     const payload = {
-      version: 4,
+      version: 5,
       cacheWriteBilling: values.cacheWriteBilling,
-      serviceTierBilling: values.serviceTierBilling,
       multiplier: values.multiplier,
       prices: values.prices,
     };
@@ -359,13 +352,9 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
         return;
       }
       reset({
-        cacheWriteBilling: !Array.isArray(imported) && imported.version === 4 ? imported.cacheWriteBilling : getValues('cacheWriteBilling'),
+        cacheWriteBilling: !Array.isArray(imported) && (imported.version === 4 || imported.version === 5) ? imported.cacheWriteBilling : getValues('cacheWriteBilling'),
         multiplier: importedMultiplier,
         prices: filtered,
-        serviceTierBilling:
-          !Array.isArray(imported) && (imported.version === 3 || imported.version === 4)
-            ? imported.serviceTierBilling
-            : { enabled: false, basis: 'upstream' },
       });
       priceListRef.current?.scrollTo({ top: 0 });
       const skipped = prices.length - filtered.length;
@@ -381,7 +370,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
         channelId: channel.id,
         input: data.prices,
         multiplier: data.multiplier,
-        serviceTierBilling: data.serviceTierBilling,
       });
       if (activeRef.current) handleClose();
     } catch {
@@ -497,38 +485,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
             <fieldset disabled={busy} className='flex flex-wrap items-start gap-3 rounded-md border p-3'>
               <FormField
                 control={control}
-                name='serviceTierBilling.enabled'
-                render={({ field }) => (
-                  <FormItem className='flex items-center gap-2'>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} aria-label={t('serviceTier.settings.enabled')} />
-                    </FormControl>
-                    <FormLabel>{t('serviceTier.settings.enabled')}</FormLabel>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name='serviceTierBilling.basis'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('serviceTier.settings.basis')}</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent container={dialogContent}>
-                        <SelectItem value='upstream'>{t('serviceTier.settings.upstream')}</SelectItem>
-                        <SelectItem value='client'>{t('serviceTier.settings.client')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
                 name='cacheWriteBilling'
                 render={({ field }) => (
                   <FormItem className='min-w-0 flex-1 basis-72'>
@@ -546,7 +502,6 @@ function ChannelPriceDialog({ channel, onClose }: { channel: Channel; onClose: (
                   </FormItem>
                 )}
               />
-              <p className='text-muted-foreground w-full text-xs'>{t('serviceTier.settings.fallback')}</p>
             </fieldset>
             <div data-testid='price-list' ref={priceListRef} className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2'>
               {!initialized && (

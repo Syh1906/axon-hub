@@ -1,4 +1,6 @@
 {
+  "serviceTier.settings.fixed": "固定档位",
+  "serviceTier.reason.channel_fixed": "按渠道指定的固定档位计费",
   "serviceTier.items.prompt_text_tokens": "文字输入 Token（未缓存）",
   "serviceTier.items.prompt_image_tokens": "图片输入 Token（未缓存）",
   "serviceTier.items.prompt_text_cached_tokens": "文字缓存输入 Token",

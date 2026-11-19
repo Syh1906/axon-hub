@@ -1,6 +1,9 @@
 enum ServiceTierBasis {
   upstream
   client
+  fixed_standard
+  fixed_fast
+  fixed_ultrafast
 }
 
 type ServiceTierSettings {

@@ -651,6 +651,9 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 		if err := ValidateChannelResponseTimeouts(input.Settings); err != nil {
 			return nil, err
 		}
+		if err := input.Settings.ServiceTierBilling.Validate(); err != nil {
+			return nil, err
+		}
 		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
 			return nil, err
 		}
@@ -715,6 +718,7 @@ func (svc *ChannelService) createChannel(ctx context.Context, input ent.CreateCh
 
 // CreateChannel creates a new channel with the provided input.
 func (svc *ChannelService) CreateChannel(ctx context.Context, input ent.CreateChannelInput) (*ent.Channel, error) {
+	input.Settings = newChannelSettings(input.Settings)
 	var created *ent.Channel
 	err := svc.RunInTransaction(ctx, func(ctx context.Context) error {
 		channel, err := svc.createChannel(ctx, input)
@@ -935,6 +939,18 @@ func normalizeAutoDisableRules(rules []objects.APIKeyAutoDisableRule, allowDelet
 // the update is then optimistic-locked against that version and fails with
 // ErrChannelUpdatedConcurrently when the channel was updated concurrently.
 func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent.UpdateChannelInput) (*ent.Channel, error) {
+	// A full update can also carry the request settings form when clearing a timeout.
+	if s := input.Settings; s != nil && s.ServiceTierBilling != nil && s.ResponsesServiceTierOverride != objects.ResponsesServiceTierInherit {
+		settings := *s
+		settings.ResponsesTierRoutingEnabled = true
+		copied := *input
+		copied.Settings = &settings
+		input = &copied
+	}
+	return svc.updateChannel(ctx, id, input)
+}
+
+func (svc *ChannelService) updateChannel(ctx context.Context, id int, input *ent.UpdateChannelInput) (*ent.Channel, error) {
 	log.Debug(ctx, "UpdateChannel", log.Int("id", id))
 	expectedUpdatedAt, _ := ctx.Value(channelExpectedVersionKey{}).(*time.Time)
 	// Snapshot the provider identity before normalizing Command Code settings.
@@ -1057,6 +1073,9 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 		if err := ValidateChannelResponseTimeouts(input.Settings); err != nil {
 			return nil, err
 		}
+		if err := input.Settings.ServiceTierBilling.Validate(); err != nil {
+			return nil, err
+		}
 		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
 			return nil, err
 		}
@@ -1172,7 +1191,6 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			}
 			settings := *input.Settings
 			settings.ModelPriceMultiplier = nil
-			settings.ServiceTierBilling = nil
 			settings.CacheWriteBilling = nil
 			settings.TagPriorities = nil
 			settings.GlobalPriority = nil
@@ -1180,8 +1198,11 @@ func (svc *ChannelService) UpdateChannel(ctx context.Context, id int, input *ent
 			settings.KeySettings = nil
 			settings.DisableKeySessionReuse = false
 			if existingSettings.Settings != nil {
+				settings.ResponsesTierRoutingEnabled = settings.ResponsesTierRoutingEnabled || existingSettings.Settings.ResponsesTierRoutingEnabled
 				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
-				settings.ServiceTierBilling = existingSettings.Settings.ServiceTierBilling
+				if settings.ServiceTierBilling == nil {
+					settings.ServiceTierBilling = existingSettings.Settings.ServiceTierBilling
+				}
 				settings.CacheWriteBilling = existingSettings.Settings.CacheWriteBilling
 				settings.TagPriorities = existingSettings.Settings.TagPriorities
 				settings.GlobalPriority = existingSettings.Settings.GlobalPriority

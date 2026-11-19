@@ -112603,7 +112603,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -112624,6 +112624,13 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.ResponsesServiceTierOverride = data
+		case "serviceTierBilling":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceTierBilling"))
+			data, err := ec.unmarshalOServiceTierSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierSettings(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ServiceTierBilling = data
 		case "responsesTierSupport":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTierSupport"))
 			data, err := ec.unmarshalOResponsesTierSupportInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx, v)
@@ -131733,7 +131740,7 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -131754,6 +131761,13 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 				return it, err
 			}
 			it.ResponsesServiceTierOverride = data
+		case "serviceTierBilling":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceTierBilling"))
+			data, err := ec.unmarshalOServiceTierSettingsInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierSettings(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ServiceTierBilling = data
 		case "responsesTierSupport":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responsesTierSupport"))
 			data, err := ec.unmarshalOResponsesTierSupportInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐResponsesTierSupport(ctx, v)

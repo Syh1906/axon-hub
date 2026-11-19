@@ -18,18 +18,26 @@ import (
 func applyResponsesServiceTierOverride(outbound *PersistentOutboundTransformer) pipeline.Middleware {
 	return pipeline.OnRawRequest("responses-service-tier-override", func(_ context.Context, request *httpclient.Request) (*httpclient.Request, error) {
 		format := llm.APIFormat(request.APIFormat)
-		if !responsesTierFormat(format) {
+		if !responsesTierFormat(format) && format != llm.APIFormatOpenAIChatCompletion && !standardChatFormat(format) {
 			return request, nil
 		}
-		settings := outbound.GetCurrentChannel().Settings
+		channel := outbound.GetCurrentChannel()
+		if channel == nil {
+			return request, nil
+		}
+		settings := channel.Settings
+		req := outbound.state.LlmRequest
+		if !responsesTierFormat(format) && (req == nil || !convertedResponsesTier(settings, req.APIFormat, format)) {
+			return request, nil
+		}
 		if settings == nil || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit {
 			return request, nil
 		}
 		requested := ""
-		if req := outbound.state.LlmRequest; req != nil {
+		if req != nil {
 			requested = lo.FromPtr(req.ServiceTier)
 		}
-		tier, allowed := settings.ResponsesTierForRequest(requested)
+		tier, allowed := outboundServiceTier(settings, format, requested)
 		if !allowed {
 			return nil, unsupportedResponsesTier(requested)
 		}

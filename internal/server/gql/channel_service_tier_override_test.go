@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -26,10 +27,21 @@ func TestResponsesServiceTierOverrideGraphQLRoundTrip(t *testing.T) {
 	created, err := resolver.CreateChannel(ctx, ent.CreateChannelInput{
 		Type: channel.TypeOpenaiResponses, Name: "Tier override", Credentials: objects.ChannelCredentials{APIKey: "fixture"},
 		SupportedModels: []string{"test-model"}, DefaultTestModel: "test-model",
-		Settings: &objects.ChannelSettings{ExtraModelPrefix: "preserved", ServiceTierBilling: &objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisClient}},
+		Settings: &objects.ChannelSettings{ExtraModelPrefix: "preserved"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, objects.ResponsesServiceTierInherit, created.Settings.ResponsesServiceTierOverride)
+	require.Equal(t, objects.ResponsesServiceTierSupported, created.Settings.ResponsesServiceTierOverride)
+	require.Equal(t, &objects.ResponsesTierSupport{AllowDowngrade: true}, created.Settings.ResponsesTierSupport)
+	require.Equal(t, &objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}, created.Settings.ServiceTierBilling)
+	require.True(t, created.Settings.ResponsesTierRoutingEnabled)
+	// Simulate an existing channel written before the new request settings were introduced.
+	old := *created.Settings
+	old.ResponsesTierRoutingEnabled = false
+	old.ResponsesServiceTierOverride = objects.ResponsesServiceTierFast
+	client.Channel.UpdateOneID(created.ID).SetSettings(&old).ExecX(ctx)
+	_, err = resolver.UpdateChannelSettings(ctx, objects.GUID{Type: "Channel", ID: created.ID}, biz.UpdateChannelSettingsInput{DisableSessionReuse: lo.ToPtr(true)})
+	require.NoError(t, err)
+	require.False(t, client.Channel.GetX(ctx, created.ID).Settings.ResponsesTierRoutingEnabled)
 	for _, tc := range []struct {
 		gql    string
 		stored objects.ResponsesServiceTierOverride
@@ -71,11 +83,26 @@ func TestResponsesServiceTierOverrideGraphQLRoundTrip(t *testing.T) {
 	_, err = service.UpdateChannelSettings(ctx, created.ID, &biz.UpdateChannelSettingsInput{ResponsesServiceTierOverride: lo.ToPtr(objects.ResponsesServiceTierOverride("invalid"))})
 	require.Error(t, err)
 	// Full updates are used by the editor when clearing an optional timeout.
-	settings, err := ec.unmarshalInputChannelSettingsInput(ctx, map[string]any{"responsesServiceTierOverride": "FAST", "streamFirstEventTimeoutSeconds": nil})
+	settings, err := ec.unmarshalInputChannelSettingsInput(ctx, map[string]any{"responsesServiceTierOverride": "FAST", "serviceTierBilling": map[string]any{"enabled": true, "basis": "fixed_ultrafast"}, "streamFirstEventTimeoutSeconds": nil})
 	require.NoError(t, err)
 	_, err = resolver.UpdateChannel(ctx, objects.GUID{Type: "Channel", ID: created.ID}, ent.UpdateChannelInput{Settings: &settings})
 	require.NoError(t, err)
 	read := client.Channel.GetX(ctx, created.ID)
 	require.Equal(t, objects.ResponsesServiceTierFast, read.Settings.ResponsesServiceTierOverride)
 	require.Nil(t, read.Settings.StreamFirstEventTimeoutSeconds)
+	require.True(t, read.Settings.ResponsesTierRoutingEnabled)
+	require.Equal(t, objects.ServiceTierBasisFixedUltrafast, read.Settings.ServiceTierBilling.Basis)
+	patch, err := ec.unmarshalInputUpdateChannelSettingsInput(ctx, map[string]any{"serviceTierBilling": map[string]any{"enabled": true, "basis": "fixed_fast"}})
+	require.NoError(t, err)
+	_, err = resolver.UpdateChannelSettings(ctx, objects.GUID{Type: "Channel", ID: created.ID}, patch)
+	require.NoError(t, err)
+	require.Equal(t, objects.ServiceTierBasisFixedFast, client.Channel.GetX(ctx, created.ID).Settings.ServiceTierBilling.Basis)
+	// The released price dialog always sent its cached channel billing settings.
+	multiplier := decimal.NewFromInt(2)
+	_, err = resolver.SaveChannelModelPrices(ctx, objects.GUID{Type: "Channel", ID: created.ID}, nil, &multiplier, &objects.ServiceTierSettings{Enabled: false, Basis: objects.ServiceTierBasisUpstream}, nil)
+	require.NoError(t, err)
+	require.Equal(t, objects.ServiceTierBasisFixedFast, client.Channel.GetX(ctx, created.ID).Settings.ServiceTierBilling.Basis)
+
+	require.Equal(t, "2", client.Channel.GetX(ctx, created.ID).Settings.ModelPriceMultiplier.String())
+
 }

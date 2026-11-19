@@ -250,9 +250,11 @@ func TestChannelService_DuplicateChannelCopiesModelPrices(t *testing.T) {
 
 	price.ServiceTiers = serviceTierTestPrice().ServiceTiers
 	tierSettings := &objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisClient}
+	_, err = svc.UpdateChannelSettings(ctx, source.ID, &UpdateChannelSettingsInput{ServiceTierBilling: tierSettings})
+	require.NoError(t, err)
 	sourcePrices, err := svc.SaveChannelModelPrices(ctx, source.ID, []SaveChannelModelPriceInput{
 		{ModelID: "gpt-4", Price: price},
-	}, loToDecimalPtr("0.15"), ChannelPricingSettings{ServiceTierBilling: tierSettings, CacheWriteBilling: lo.ToPtr(objects.CacheWriteBillingSwap)})
+	}, loToDecimalPtr("0.15"), ChannelPricingSettings{CacheWriteBilling: lo.ToPtr(objects.CacheWriteBillingSwap)})
 	require.NoError(t, err)
 	require.Len(t, sourcePrices, 1)
 

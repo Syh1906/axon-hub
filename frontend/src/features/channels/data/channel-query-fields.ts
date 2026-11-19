@@ -40,6 +40,7 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }
+            serviceTierBilling { enabled basis }
             modelContexts { modelId defaultContextWindow maxContextWindow }
             upstreamAddresses { id name url priority enabled }
             addressFailover
@@ -196,6 +197,7 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }
+            serviceTierBilling { enabled basis }
             modelContexts { modelId defaultContextWindow maxContextWindow }
             upstreamAddresses { id name url priority enabled }
             addressFailover
@@ -237,6 +239,7 @@ export const CHANNEL_QUERY_PROXY_SELECTION = `
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }
+            serviceTierBilling { enabled basis }
             modelContexts { modelId defaultContextWindow maxContextWindow }
             upstreamAddresses { id name url priority enabled }
             addressFailover

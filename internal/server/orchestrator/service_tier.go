@@ -10,7 +10,8 @@ import (
 )
 
 func requestServiceTier(state *PersistenceState, request *httpclient.Request, format llm.APIFormat) *objects.ServiceTierEvidence {
-	if format != llm.APIFormatOpenAIChatCompletion && format != llm.APIFormatOpenAIResponse && format != llm.APIFormatOpenAIResponseWebSocket {
+	converted := state.LlmRequest != nil && state.CurrentCandidate != nil && convertedResponsesTier(state.CurrentCandidate.Channel.Settings, state.LlmRequest.APIFormat, format)
+	if !converted && format != llm.APIFormatOpenAIChatCompletion && !responsesTierFormat(format) {
 		return nil
 	}
 	e := &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Basis: objects.ServiceTierBasisUpstream}}
@@ -27,7 +28,7 @@ func requestServiceTier(state *PersistenceState, request *httpclient.Request, fo
 			e.Client = objects.ServiceTierValue(inbound)
 		}
 	}
-	e.UseOutboundTier = responsesTierFormat(format)
+	e.UseOutboundTier = responsesTierFormat(format) || converted
 	return e
 }
 
@@ -36,6 +37,14 @@ func observeServiceTier(execution *ent.RequestExecution, body []byte, stream boo
 		return
 	}
 	e := execution.CostSnapshot.ServiceTier
+	if execution.Format == string(llm.APIFormatAnthropicMessage) {
+		usage := gjson.GetBytes(body, "usage")
+		if stream && gjson.GetBytes(body, "type").String() == "message_start" {
+			usage = gjson.GetBytes(body, "message.usage")
+		}
+		e.ObserveValue(usage.Get("service_tier").String())
+		return
+	}
 	if !stream {
 		e.Observe(body)
 		return

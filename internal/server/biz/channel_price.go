@@ -186,8 +186,7 @@ func calculatePriceChanges(prices []*ent.ChannelModelPrice, inputs []SaveChannel
 }
 
 type ChannelPricingSettings struct {
-	ServiceTierBilling *objects.ServiceTierSettings
-	CacheWriteBilling  *objects.CacheWriteBilling
+	CacheWriteBilling *objects.CacheWriteBilling
 }
 
 func (svc *ChannelService) SaveChannelModelPrices(
@@ -238,9 +237,6 @@ func (svc *ChannelService) saveChannelModelPrices(
 	if len(pricingSettings) > 0 {
 		pricing = pricingSettings[0]
 	}
-	if err := pricing.ServiceTierBilling.Validate(); err != nil {
-		return nil, err
-	}
 	if pricing.CacheWriteBilling != nil {
 		if err := pricing.CacheWriteBilling.Validate(); err != nil {
 			return nil, err
@@ -279,10 +275,6 @@ func (svc *ChannelService) saveChannelModelPrices(
 		settings := objects.ChannelSettings{}
 		if ch.Settings != nil {
 			settings = *ch.Settings
-		}
-		if pricing.ServiceTierBilling != nil {
-			copy := *pricing.ServiceTierBilling
-			settings.ServiceTierBilling = &copy
 		}
 		if pricing.CacheWriteBilling != nil {
 			settings.CacheWriteBilling = lo.ToPtr(*pricing.CacheWriteBilling)

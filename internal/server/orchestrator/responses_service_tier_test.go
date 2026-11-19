@@ -29,6 +29,8 @@ import (
 	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/anthropic"
+	"github.com/looplj/axonhub/llm/transformer/openai"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
@@ -153,6 +155,75 @@ func attachTierBudget(t *testing.T, ctx context.Context, processor *ChatCompleti
 	return contexts.WithAPIKey(ctx, key)
 }
 
+func TestResponsesTierConvertedChatDowngrade(t *testing.T) {
+	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIChatCompletion, llm.APIFormatAnthropicMessage} {
+		t.Run(format.String(), func(t *testing.T) {
+			response := `{"id":"chat-1","model":"gpt-4","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`
+			factory := openai.NewOutboundTransformer
+			if format == llm.APIFormatAnthropicMessage {
+				factory = anthropic.NewOutboundTransformer
+				response = `{"id":"msg-1","type":"message","role":"assistant","model":"gpt-4","content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`
+			}
+			executor := &mockExecutor{response: &httpclient.Response{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}}, Body: []byte(response)}}
+			ctx, processor, client, candidate := responsesOriginGateway(t, executor)
+			chat, err := factory("https://fixture.invalid/v1", "fixture")
+			require.NoError(t, err)
+			settings := &objects.ChannelSettings{ResponsesTierRoutingEnabled: true, ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{AllowDowngrade: true}}
+			candidate.APIFormat = string(chat.APIFormat())
+			candidate.Channel.Outbound = chat
+			candidate.Channel.Settings = settings
+			ctx = attachTierBudget(t, ctx, processor, client, candidate)
+			body := []byte(`{"model":"gpt-4","input":"hello","service_tier":"priority","max_output_tokens":10}`)
+			run := func() error {
+				_, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: body, JSONBody: body})
+				return err
+			}
+			require.NoError(t, run())
+			require.Equal(t, string(chat.APIFormat()), executor.lastRequest.APIFormat)
+			if format == llm.APIFormatAnthropicMessage {
+				require.Equal(t, "standard_only", objects.ServiceTierValue(executor.lastRequest.Body))
+			} else {
+				require.False(t, gjson.GetBytes(executor.lastRequest.Body, "service_tier").Exists())
+			}
+			evidence := client.RequestExecution.Query().OnlyX(ctx).CostSnapshot.ServiceTier
+			require.Equal(t, "priority", evidence.Client)
+			require.Equal(t, "standard", evidence.Decision().Mode)
+			require.Equal(t, "outbound", evidence.Decision().Basis)
+			charge := client.BudgetCharge.Query().OnlyX(ctx)
+			require.EqualValues(t, 10000, charge.Estimate)
+			require.EqualValues(t, 1000, *charge.Actual)
+			settings.ResponsesTierSupport.AllowDowngrade = false
+			require.ErrorContains(t, run(), "fast")
+			require.EqualValues(t, 1, executor.requestCalls.Load())
+		})
+	}
+}
+
+func TestResponsesTierForcedExactBeforeForcedStandard(t *testing.T) {
+	req := &llm.Request{APIFormat: llm.APIFormatOpenAIResponse, ServiceTier: lo.ToPtr("priority")}
+	var candidates []*ChannelModelsCandidate
+	for _, mode := range []objects.ResponsesServiceTierOverride{objects.ResponsesServiceTierStandard, objects.ResponsesServiceTierFast} {
+		candidates = append(candidates, &ChannelModelsCandidate{Channel: &biz.Channel{Channel: &ent.Channel{Settings: &objects.ChannelSettings{ResponsesServiceTierOverride: mode}}}, APIFormat: string(req.APIFormat), Models: []biz.ChannelModelEntry{{ActualModel: "m"}}})
+	}
+	require.False(t, usesTierRouting(req, candidates), "historical forced channels must keep their priority order")
+	// An ineligible new channel must not change the relative order of older channels.
+	third := *candidates[0]
+	third.APIFormat = string(llm.APIFormatAnthropicMessage)
+	third.Channel = &biz.Channel{Channel: &ent.Channel{Settings: &objects.ChannelSettings{ResponsesTierRoutingEnabled: true, ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{}}}}
+	mixed, err := rankResponsesTiers(t.Context(), req, append(slices.Clone(candidates), &third))
+	require.NoError(t, err)
+	require.Len(t, mixed, 2)
+	require.Equal(t, mixed[0].tierPreference, mixed[1].tierPreference)
+	require.Equal(t, objects.ResponsesServiceTierStandard, mixed[0].Channel.Settings.ResponsesServiceTierOverride)
+	for _, c := range candidates {
+		c.Channel.Settings.ResponsesTierRoutingEnabled = true
+	}
+	require.True(t, usesTierRouting(req, candidates))
+	ranked, err := rankResponsesTiers(t.Context(), req, candidates)
+	require.NoError(t, err)
+	require.Equal(t, objects.ResponsesServiceTierFast, ranked[0].Channel.Settings.ResponsesServiceTierOverride)
+}
+
 func TestResponsesSupportedTierRetryAndSkip(t *testing.T) {
 	executor := &serviceTierCaptureExecutor{}
 	ctx, processor, client, exact := responsesOriginGateway(t, executor)
@@ -201,6 +272,17 @@ func TestResponsesSupportedTierRetryAndSkip(t *testing.T) {
 	require.Len(t, executor.requests, 2)
 	require.NoError(t, run(`{"model":"gpt-4","input":"test","max_output_tokens":10}`))
 	require.False(t, gjson.GetBytes(executor.requests[2].Body, "service_tier").Exists())
+	// Both eligible channels only support standard. The higher client tier must
+	// neither reach the provider nor be charged when the provider omits its tier.
+	exact.Channel.Settings.ResponsesTierSupport = &objects.ResponsesTierSupport{AllowDowngrade: true}
+	backup.Channel.Settings.ResponsesTierSupport = &objects.ResponsesTierSupport{AllowDowngrade: true}
+	processor.channelSelector = &staticChannelSelector{candidates: []*ChannelModelsCandidate{&backup, exact}}
+	require.NoError(t, run(`{"model":"gpt-4","input":"test","service_tier":"priority","max_output_tokens":10}`))
+	require.False(t, gjson.GetBytes(executor.requests[len(executor.requests)-1].Body, "service_tier").Exists())
+	last := client.RequestExecution.Query().Order(ent.Desc("id")).FirstX(ctx)
+	require.Equal(t, "priority", last.CostSnapshot.ServiceTier.Client)
+	require.Equal(t, "standard", last.CostSnapshot.ServiceTier.Decision().Mode)
+	require.Equal(t, "outbound", last.CostSnapshot.ServiceTier.Decision().Basis)
 }
 
 func TestResponsesTierWebSocketSettlement(t *testing.T) {

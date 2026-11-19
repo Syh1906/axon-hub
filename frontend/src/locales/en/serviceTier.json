@@ -1,4 +1,6 @@
 {
+  "serviceTier.settings.fixed": "Fixed tier",
+  "serviceTier.reason.channel_fixed": "Billed at the tier fixed for this channel",
   "serviceTier.items.prompt_text_tokens": "Text input tokens (uncached)",
   "serviceTier.items.prompt_image_tokens": "Image input tokens (uncached)",
   "serviceTier.items.prompt_text_cached_tokens": "Cached text input tokens",

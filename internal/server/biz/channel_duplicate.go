@@ -40,6 +40,7 @@ func (svc *ChannelService) DuplicateChannel(ctx context.Context, sourceID int, i
 		settings.ServiceTierBilling = nil
 		settings.CacheWriteBilling = nil
 		if source.Settings != nil {
+			settings.ResponsesTierRoutingEnabled = source.Settings.ResponsesTierRoutingEnabled
 			settings.ModelPriceMultiplier = source.Settings.ModelPriceMultiplier
 			settings.ServiceTierBilling = source.Settings.ServiceTierBilling
 			settings.CacheWriteBilling = source.Settings.CacheWriteBilling

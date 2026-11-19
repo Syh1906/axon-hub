@@ -48,6 +48,11 @@ func TestChannelDuplicateNamesLifecycle(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 2, imported.Created)
+	for _, row := range imported.Channels {
+		require.Equal(t, a.Settings.ResponsesTierSupport, row.Settings.ResponsesTierSupport)
+		require.Equal(t, a.Settings.ServiceTierBilling, row.Settings.ServiceTierBilling)
+		require.Equal(t, objects.ResponsesServiceTierSupported, row.Settings.ResponsesServiceTierOverride)
+	}
 	require.Zero(t, imported.Failed)
 	require.Equal(t, 5, client.Channel.Query().CountX(ctx))
 	require.Empty(t, client.Channel.GetX(ctx, a.ID).Tags)

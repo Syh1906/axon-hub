@@ -16,8 +16,11 @@ import (
 type ServiceTierBasis string
 
 const (
-	ServiceTierBasisUpstream ServiceTierBasis = "upstream"
-	ServiceTierBasisClient   ServiceTierBasis = "client"
+	ServiceTierBasisUpstream       ServiceTierBasis = "upstream"
+	ServiceTierBasisClient         ServiceTierBasis = "client"
+	ServiceTierBasisFixedStandard  ServiceTierBasis = "fixed_standard"
+	ServiceTierBasisFixedFast      ServiceTierBasis = "fixed_fast"
+	ServiceTierBasisFixedUltrafast ServiceTierBasis = "fixed_ultrafast"
 )
 
 type ServiceTierPriceSource string
@@ -34,10 +37,15 @@ type ServiceTierSettings struct {
 }
 
 func (s *ServiceTierSettings) Validate() error {
-	if s != nil && s.Basis != ServiceTierBasisUpstream && s.Basis != ServiceTierBasisClient {
+	if s == nil {
+		return nil
+	}
+	switch s.Basis {
+	case ServiceTierBasisUpstream, ServiceTierBasisClient, ServiceTierBasisFixedStandard, ServiceTierBasisFixedFast, ServiceTierBasisFixedUltrafast:
+		return nil
+	default:
 		return fmt.Errorf("invalid service tier billing basis")
 	}
-	return nil
 }
 
 type ServiceTierPrice struct {
@@ -235,6 +243,12 @@ func (e *ServiceTierEvidence) RequestDecision() ServiceTierDecision {
 	if !e.Settings.Enabled {
 		return d
 	}
+	switch e.Settings.Basis {
+	case ServiceTierBasisFixedStandard, ServiceTierBasisFixedFast, ServiceTierBasisFixedUltrafast:
+		d.Mode = strings.TrimPrefix(string(e.Settings.Basis), "fixed_")
+		d.Basis, d.Reason = "fixed", "channel_fixed"
+		return d
+	}
 	if e.UseOutboundTier && e.Settings.Basis != ServiceTierBasisClient {
 		d.Basis, d.Reason = "outbound", "outbound_missing_upstream"
 		if mode, valid := NormalizeServiceTier(e.Outbound); valid {
@@ -259,7 +273,7 @@ func (e *ServiceTierEvidence) RequestDecision() ServiceTierDecision {
 
 func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
 	d := e.RequestDecision()
-	if e == nil || !e.Settings.Enabled || e.Settings.Basis == ServiceTierBasisClient {
+	if e == nil || !e.Settings.Enabled || e.Settings.Basis != ServiceTierBasisUpstream {
 		return d
 	}
 	if mode, valid := NormalizeServiceTier(e.Upstream); valid && !e.Conflict {

@@ -194,13 +194,14 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 		}
 		if allowAlternatives {
 			mode, _ := objects.NormalizeServiceTier(lo.FromPtr(req.ServiceTier))
-			sourceRank, sourceAllowed := candidateTierPreference(sources[0].Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode)
+			legacySupport := legacySupportPolicyPresent(candidates)
+			sourceRank, sourceAllowed := candidateTierPreference(sources[0].Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode, legacySupport)
 			for _, candidate := range candidates {
 				if candidate.Channel.ID == route.ChannelID {
 					continue
 				}
 				if strict {
-					rank, allowed := candidateTierPreference(candidate.Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode)
+					rank, allowed := candidateTierPreference(candidate.Channel.Settings, req.APIFormat, llm.APIFormatOpenAIResponse, mode, legacySupport)
 					if !allowed || (sourceAllowed && rank >= sourceRank) {
 						continue
 					}

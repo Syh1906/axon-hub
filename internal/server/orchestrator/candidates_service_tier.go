@@ -16,8 +16,10 @@ type tierPreference int
 
 const (
 	tierExact tierPreference = iota
+	tierConvertedExact
 	tierUndeclared
 	tierFallback
+	tierPreferenceCount
 )
 
 func responsesTierFormat(format llm.APIFormat) bool {
@@ -27,18 +29,22 @@ func responsesTierFormat(format llm.APIFormat) bool {
 // Alternate aliases may map to the same upstream model through different
 // protocols. Keep both until capability filtering has chosen a legal endpoint.
 type tierModelKey struct {
-	model     string
-	responses bool
+	model  string
+	format llm.APIFormat
 }
 
 func (c *ChannelModelsCandidate) tierModelKey(index int) tierModelKey {
 	key := tierModelKey{model: c.Models[index].ActualModel}
-	if c.Channel.Settings != nil && c.Channel.Settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported {
+	if settings := c.Channel.Settings; settings != nil && (settings.ResponsesTierRoutingEnabled || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported) {
 		format := c.APIFormat
 		if len(c.modelAPIFormats) == len(c.Models) {
 			format = c.modelAPIFormats[index]
 		}
-		key.responses = responsesTierFormat(llm.APIFormat(format))
+		if responsesTierFormat(llm.APIFormat(format)) {
+			key.format = llm.APIFormatOpenAIResponse
+		} else if settings.ResponsesTierRoutingEnabled && llm.APIFormat(format) == llm.APIFormatOpenAIChatCompletion {
+			key.format = llm.APIFormatOpenAIChatCompletion
+		}
 	}
 	return key
 }
@@ -58,16 +64,30 @@ func acceleratedChatRequest(req *llm.Request) bool {
 }
 
 func usesTierRouting(req *llm.Request, candidates []*ChannelModelsCandidate) bool {
-	return acceleratedChatRequest(req) && slices.ContainsFunc(candidates, func(c *ChannelModelsCandidate) bool {
-		return c.Channel.Settings != nil && c.Channel.Settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported
+	if !acceleratedChatRequest(req) {
+		return false
+	}
+	return slices.ContainsFunc(candidates, func(c *ChannelModelsCandidate) bool {
+		settings := c.Channel.Settings
+		return settings != nil && (settings.ResponsesTierRoutingEnabled || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported)
+	})
+}
+
+// Historically, forced channels were ranked by tier only when a channel
+// using the earlier supported-tier policy participated in the request.
+func legacySupportPolicyPresent(candidates []*ChannelModelsCandidate) bool {
+	return slices.ContainsFunc(candidates, func(c *ChannelModelsCandidate) bool {
+		s := c.Channel.Settings
+		return s != nil && !s.ResponsesTierRoutingEnabled && s.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported
 	})
 }
 
 func rankResponsesTiers(ctx context.Context, req *llm.Request, candidates []*ChannelModelsCandidate) ([]*ChannelModelsCandidate, error) {
 	mode, _ := objects.NormalizeServiceTier(lo.FromPtr(req.ServiceTier))
-	var groups [3][]*ChannelModelsCandidate
+	legacySupport := legacySupportPolicyPresent(candidates)
+	var groups [tierPreferenceCount][]*ChannelModelsCandidate
 	for _, c := range candidates {
-		var indices [3][]int
+		var indices [tierPreferenceCount][]int
 		for i := range c.Models {
 			format := c.APIFormat
 			if len(c.modelAPIFormats) == len(c.Models) {
@@ -78,7 +98,7 @@ func rankResponsesTiers(ctx context.Context, req *llm.Request, candidates []*Cha
 					format = string(c.Channel.Outbound.APIFormat())
 				}
 			}
-			rank, allowed := candidateTierPreference(c.Channel.Settings, req.APIFormat, llm.APIFormat(format), mode)
+			rank, allowed := candidateTierPreference(c.Channel.Settings, req.APIFormat, llm.APIFormat(format), mode, legacySupport)
 			if allowed {
 				indices[rank] = append(indices[rank], i)
 			}
@@ -91,25 +111,61 @@ func rankResponsesTiers(ctx context.Context, req *llm.Request, candidates []*Cha
 			}
 		}
 	}
-	result := slices.Concat(groups[0], groups[1], groups[2])
+	result := slices.Concat(groups[:]...)
 	if len(result) == 0 && len(candidates) > 0 {
 		return nil, unsupportedResponsesTier(mode)
 	}
 	return result, nil
 }
 
-func candidateTierPreference(settings *objects.ChannelSettings, input, target llm.APIFormat, mode string) (tierPreference, bool) {
-	if settings == nil || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit {
+// Apply the policy to an eligible chat adapter only for opted-in Responses routes.
+func convertedResponsesTier(settings *objects.ChannelSettings, input, target llm.APIFormat) bool {
+	return settings != nil && settings.ResponsesTierRoutingEnabled && settings.ResponsesServiceTierOverride != objects.ResponsesServiceTierInherit &&
+		responsesTierFormat(input) && (target == llm.APIFormatOpenAIChatCompletion || standardChatFormat(target))
+}
+
+// These chat adapters cannot encode OpenAI Fast or Ultrafast on the wire.
+func standardChatFormat(format llm.APIFormat) bool {
+	return format == llm.APIFormatAnthropicMessage || format == llm.APIFormatGeminiContents || format == llm.APIFormatOllamaChat
+}
+
+func outboundServiceTier(settings *objects.ChannelSettings, target llm.APIFormat, requested string) (string, bool) {
+	if !standardChatFormat(target) {
+		return settings.ResponsesTierForRequest(requested)
+	}
+	mode, _ := objects.NormalizeServiceTier(requested)
+	switch settings.ResponsesServiceTierOverride {
+	case objects.ResponsesServiceTierSupported:
+		if (mode == "fast" || mode == "ultrafast") && (settings.ResponsesTierSupport == nil || !settings.ResponsesTierSupport.AllowDowngrade) {
+			return "", false
+		}
+	case objects.ResponsesServiceTierStandard:
+	default:
+		return "", false
+	}
+	if target == llm.APIFormatAnthropicMessage {
+		return "standard_only", true
+	}
+	return "", true
+}
+
+func candidateTierPreference(settings *objects.ChannelSettings, input, target llm.APIFormat, mode string, legacySupport bool) (tierPreference, bool) {
+	if settings == nil || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit || (!settings.ResponsesTierRoutingEnabled && !legacySupport) {
 		return tierUndeclared, true
 	}
-	if !responsesTierFormat(target) {
+	converted := convertedResponsesTier(settings, input, target)
+
+	if !responsesTierFormat(target) && !converted {
 		return tierUndeclared, !(responsesTierFormat(input) && settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierSupported)
 	}
-	wire, allowed := settings.ResponsesTierForRequest(mode)
+	wire, allowed := outboundServiceTier(settings, target, mode)
 	if !allowed {
 		return tierFallback, false
 	}
 	if actual, _ := objects.NormalizeServiceTier(wire); actual == mode {
+		if converted {
+			return tierConvertedExact, true
+		}
 		return tierExact, true
 	}
 	return tierFallback, true

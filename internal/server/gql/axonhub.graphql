@@ -331,6 +331,7 @@ input ModelMappingInput {
 input ChannelSettingsInput {
   protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
+  serviceTierBilling: ServiceTierSettingsInput
   responsesTierSupport: ResponsesTierSupportInput
   cacheWriteBilling: CacheWriteBilling
   modelContexts: [ChannelModelContextInput!]
@@ -385,6 +386,7 @@ input ChannelModelContextInput {
 input UpdateChannelSettingsInput {
   protocolPolicy: ChannelProtocolPolicyInput
   responsesServiceTierOverride: ResponsesServiceTierOverride
+  serviceTierBilling: ServiceTierSettingsInput
   responsesTierSupport: ResponsesTierSupportInput
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int

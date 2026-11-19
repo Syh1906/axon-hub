@@ -119,6 +119,7 @@ export function mergeChannelSettingsForUpdate(
   return {
     streamFirstEventTimeoutSeconds: pick('streamFirstEventTimeoutSeconds', existing?.streamFirstEventTimeoutSeconds ?? null),
     responsesServiceTierOverride: pick('responsesServiceTierOverride', existing?.responsesServiceTierOverride ?? 'INHERIT'),
+    ...(patch.serviceTierBilling && { serviceTierBilling: patch.serviceTierBilling }),
     responsesTierSupport: pick('responsesTierSupport', existing?.responsesTierSupport ?? null),
     modelContexts: pick('modelContexts', existing?.modelContexts ?? []),
     nonStreamResponseTimeoutSeconds: pick('nonStreamResponseTimeoutSeconds', existing?.nonStreamResponseTimeoutSeconds ?? null),

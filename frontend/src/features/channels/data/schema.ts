@@ -463,10 +463,13 @@ export const responsesTierSupportSchema = z.object({
   ultrafast: z.boolean(),
   allowDowngrade: z.boolean(),
 });
+export const serviceTierBasisSchema = z.enum(['upstream', 'client', 'fixed_standard', 'fixed_fast', 'fixed_ultrafast']);
+export const serviceTierSettingsSchema = z.object({ enabled: z.boolean(), basis: serviceTierBasisSchema });
 export const channelSettingsSchema = z.object({
   protocolPolicy: z.object({ allowedProtocols: z.array(z.string()), sameProtocolOnly: z.boolean() }).nullish(),
   responsesServiceTierOverride: responsesServiceTierOverrideSchema.optional(),
   responsesTierSupport: responsesTierSupportSchema.nullish(),
+  serviceTierBilling: serviceTierSettingsSchema.nullish(),
   upstreamAddresses: z.array(channelAddressSchema).optional(),
   addressFailover: z.boolean().optional(),
   tagPriorities: z.array(z.object({ tag: z.string(), priority: z.number().int() })).optional(),
@@ -811,10 +814,8 @@ export const overrideWhenSchema = z.object({
 });
 export type OverrideWhen = z.infer<typeof overrideWhenSchema>;
 
-export const serviceTierSettingsSchema = z.object({ enabled: z.boolean(), basis: z.enum(['upstream', 'client']) });
 export const cacheWriteBillingSchema = z.enum(['reported', 'swap_5m_1h']);
 export type CacheWriteBilling = z.infer<typeof cacheWriteBillingSchema>;
-export type ServiceTierSettings = z.infer<typeof serviceTierSettingsSchema>;
 export const serviceTierItemRuleSchema = z.object({
   referenceBasePrice: z.union([z.string(), z.number()]).nullable().optional(),
   referenceModePrice: z.union([z.string(), z.number()]).nullable().optional(),

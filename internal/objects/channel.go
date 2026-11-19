@@ -175,6 +175,9 @@ func (m ModelProtocol) IsEnabled() bool {
 }
 
 type ChannelSettings struct {
+	// Set on creation or when the request-tier and billing policies are explicitly saved together.
+	// Older forced policies keep their original routing order until then.
+	ResponsesTierRoutingEnabled  bool                         `json:"responsesTierRoutingEnabled,omitempty"`
 	ResponsesServiceTierOverride ResponsesServiceTierOverride `json:"responsesServiceTierOverride,omitempty"`
 	ResponsesTierSupport         *ResponsesTierSupport        `json:"responsesTierSupport,omitempty"`
 	CacheWriteBilling            *CacheWriteBilling           `json:"cacheWriteBilling,omitempty"`

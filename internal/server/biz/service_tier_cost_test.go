@@ -106,6 +106,12 @@ func TestServiceTierOutboundBudgetAndSettlement(t *testing.T) {
 	standard, err := estimate()
 	require.NoError(t, err)
 	require.Equal(t, standard*2, fast)
+	e.Settings.Basis = objects.ServiceTierBasisFixedFast
+	fixed, err := estimate()
+	require.NoError(t, err)
+	require.Equal(t, fast, fixed)
+	_, total = computeCostFromSnapshot(usage, price, snap)
+	require.Equal(t, "0.08", total.String())
 	e.Settings.Basis = objects.ServiceTierBasisClient
 	_, err = estimate()
 	require.ErrorContains(t, err, "service tier")

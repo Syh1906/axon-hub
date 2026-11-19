@@ -42,6 +42,9 @@ func TestServiceTierDecision(t *testing.T) {
 		conflict               bool
 		mode, rate, reason     string
 	}{
+		{"fixed-standard", "ultrafast", "fast", ServiceTierBasisFixedStandard, false, "standard", "1", "channel_fixed"},
+		{"fixed-fast", "ultrafast", "default", ServiceTierBasisFixedFast, false, "fast", "1.6", "channel_fixed"},
+		{"fixed-ultrafast", "default", "", ServiceTierBasisFixedUltrafast, false, "ultrafast", "6", "channel_fixed"},
 		{"downgrade", "priority", "default", ServiceTierBasisUpstream, false, "standard", "1", "upstream"},
 		{"ultra-to-fast", "ultrafast", "Priority", ServiceTierBasisUpstream, false, "fast", "1.6", "upstream"},
 		{"missing", "ultrafast", "", ServiceTierBasisUpstream, false, "ultrafast", "6", "missing_upstream"},

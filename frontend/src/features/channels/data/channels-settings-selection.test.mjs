@@ -57,6 +57,7 @@ test('渠道请求设置的读写返回都包含模式覆写', () => {
   assert.ok(blocks.length > 0);
   for (const block of blocks) {
     assert.match(block.body, /\bresponsesServiceTierOverride\b/, block.name);
+    assert.match(block.body, /serviceTierBilling\s*\{\s*enabled basis\s*\}/, block.name);
     assert.match(block.body, /responsesTierSupport\s*\{\s*fast ultrafast allowDowngrade\s*\}/, block.name);
   }
   const selections = readFileSync(join(import.meta.dirname, 'channel-query-fields.ts'), 'utf8');

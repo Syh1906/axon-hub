@@ -94,9 +94,9 @@ func (s *PersistenceState) contentRoute(ctx context.Context, c *ChannelModelsCan
 	if req.ServiceTier != nil {
 		tier = *req.ServiceTier
 	}
-	if responsesTierFormat(llm.APIFormat(c.APIFormat)) {
+	if responsesTierFormat(llm.APIFormat(c.APIFormat)) || convertedResponsesTier(ch.Settings, req.APIFormat, llm.APIFormat(c.APIFormat)) {
 		var ok bool
-		tier, ok = ch.Settings.ResponsesTierForRequest(tier)
+		tier, ok = outboundServiceTier(ch.Settings, llm.APIFormat(c.APIFormat), tier)
 		if !ok {
 			return firstContentRoute{}, false
 		}

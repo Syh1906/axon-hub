@@ -14,6 +14,26 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
+// Store new-channel defaults explicitly. Existing channels and their duplicates
+// retain the routing and pricing policy they were created with.
+func newChannelSettings(settings *objects.ChannelSettings) *objects.ChannelSettings {
+	var result objects.ChannelSettings
+	if settings != nil {
+		result = *settings
+	}
+	result.ResponsesTierRoutingEnabled = true
+	if result.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit {
+		result.ResponsesServiceTierOverride = objects.ResponsesServiceTierSupported
+	}
+	if result.ResponsesTierSupport == nil {
+		result.ResponsesTierSupport = &objects.ResponsesTierSupport{AllowDowngrade: true}
+	}
+	if result.ServiceTierBilling == nil {
+		result.ServiceTierBilling = &objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}
+	}
+	return &result
+}
+
 // UpdateChannelSettingsInput patches a channel's settings. Only fields present
 // in the request are applied: absent fields keep their stored values, so a
 // caller can change one setting without resubmitting the whole object. Nested
@@ -29,6 +49,7 @@ import (
 type UpdateChannelSettingsInput struct {
 	ProtocolPolicy                  *objects.ChannelProtocolPolicy        `json:"protocolPolicy"`
 	ResponsesServiceTierOverride    *objects.ResponsesServiceTierOverride `json:"responsesServiceTierOverride"`
+	ServiceTierBilling              *objects.ServiceTierSettings          `json:"serviceTierBilling"`
 	ResponsesTierSupport            *objects.ResponsesTierSupport         `json:"responsesTierSupport"`
 	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
 	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
@@ -72,7 +93,13 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 		merged.ProtocolPolicy = i.ProtocolPolicy
 	}
 	if i.ResponsesServiceTierOverride != nil {
+		if i.ServiceTierBilling != nil {
+			merged.ResponsesTierRoutingEnabled = true
+		}
 		merged.ResponsesServiceTierOverride = *i.ResponsesServiceTierOverride
+	}
+	if i.ServiceTierBilling != nil {
+		merged.ServiceTierBilling = i.ServiceTierBilling
 	}
 	if i.ResponsesTierSupport != nil {
 		merged.ResponsesTierSupport = i.ResponsesTierSupport
@@ -202,7 +229,7 @@ func (svc *ChannelService) UpdateChannelSettings(ctx context.Context, id int, in
 
 		merged := input.Apply(existing.Settings)
 
-		updated, err := svc.UpdateChannel(withChannelExpectedVersion(ctx, existing.UpdatedAt), id, &ent.UpdateChannelInput{Settings: &merged})
+		updated, err := svc.updateChannel(withChannelExpectedVersion(ctx, existing.UpdatedAt), id, &ent.UpdateChannelInput{Settings: &merged})
 		if err == nil {
 			return updated, nil
 		}

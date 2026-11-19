@@ -13,7 +13,7 @@ import { invalidateChannelIdentityQueries } from './channel-identity-cache';
 import { shouldNotifyChannelQueryError } from './channel-query-error';
 import { invalidateChannelUpstreamStates } from './channel-upstream-refresh';
 import { CHANNEL_QUERY_FULL_NODE_SELECTION, CHANNEL_QUERY_LIST_NODE_BASE_SELECTION, CHANNEL_QUERY_SUPPORTED_MODELS_SELECTION, CHANNEL_QUERY_TAGS_SELECTION, CHANNEL_QUERY_PROXY_SELECTION, CHANNEL_QUERY_ORDERING_WEIGHT_SELECTION, CHANNEL_QUERY_LOAD_SELECTION, CHANNEL_QUERY_QUOTA_SELECTION } from './channel-query-fields';
-import { cacheWriteBillingSchema, type CacheWriteBilling, type ServiceTierSettings } from './schema';
+import { cacheWriteBillingSchema, type CacheWriteBilling } from './schema';
 import { Channel, ChannelConnection, ChannelSummaryConnection, CreateChannelInput, UpdateChannelInput, channelConnectionSchema, channelSchema, channelHealthGateStatusSchema, disabledAPIKeySchema, channelEndpointsResponseSchema, BulkImportChannelsInput, BulkImportChannelsResult, bulkImportChannelsResultSchema, BulkUpdateChannelOrderingInput, BulkUpdateChannelOrderingResult, bulkUpdateChannelOrderingResultSchema, BulkUpdateChannelAutoDisableInput, BulkUpdateChannelAutoDisablePayload, bulkUpdateChannelAutoDisablePayloadSchema, ChannelAutoDisableCopySource, channelAutoDisableCopySourceSchema, channelSummaryConnectionSchema, ChannelSettings, ProxyConfig, ChannelPolicies, ChannelModelPrice, SaveChannelModelPriceInput, channelModelPriceSchema, saveChannelModelPriceInputSchema, channelSettingsInputSchema, TestChannelAPIKeysPayload, testChannelAPIKeysPayloadSchema, TestAPIKeyResult, testAPIKeyResultSchema, DetectedChannelEndpoint, detectedChannelEndpointSchema } from './schema';
 
 const CHANNEL_FIELDS_FRAGMENT = `
@@ -56,6 +56,7 @@ const CHANNEL_FIELDS_FRAGMENT = `
         allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
+        serviceTierBilling { enabled basis }
         modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -336,6 +337,7 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
+        serviceTierBilling { enabled basis }
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -517,7 +519,7 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
     node(id: $id) {
     ... on Channel {
       id
-      settings { modelPriceMultiplier healthGateFailureThreshold cacheWriteBilling serviceTierBilling { enabled basis } }
+      settings { modelPriceMultiplier healthGateFailureThreshold cacheWriteBilling }
       channelModelPrices {
         id
         modelID
@@ -532,8 +534,8 @@ const GET_CHANNEL_MODEL_PRICES_QUERY = `
 `;
 
 const SAVE_CHANNEL_MODEL_PRICES_MUTATION = `
-  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal, $serviceTierBilling: ServiceTierSettingsInput, $cacheWriteBilling: CacheWriteBilling) {
-    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier, serviceTierBilling: $serviceTierBilling, cacheWriteBilling: $cacheWriteBilling) {
+  mutation SaveChannelModelPrices($channelId: ID!, $input: [SaveChannelModelPriceInput!]!, $multiplier: Decimal, $cacheWriteBilling: CacheWriteBilling) {
+    saveChannelModelPrices(channelId: $channelId, input: $input, multiplier: $multiplier, cacheWriteBilling: $cacheWriteBilling) {
       id
       modelID
       price {
@@ -592,6 +594,7 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
+        serviceTierBilling { enabled basis }
           modelContexts { modelId defaultContextWindow maxContextWindow }
         upstreamAddresses { id name url priority enabled }
         addressFailover
@@ -877,7 +880,6 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
           node: {
             settings?: {
               cacheWriteBilling?: CacheWriteBilling | null;
-              serviceTierBilling?: ServiceTierSettings | null;
               modelPriceMultiplier?: string | number | null;
             } | null;
             channelModelPrices: ChannelModelPrice[];
@@ -886,7 +888,6 @@ export function useChannelModelPrices(channelId: string, enabled = true) {
         return {
           prices: (data.node?.channelModelPrices || []).map((p) => channelModelPriceSchema.parse(p)),
           multiplier: String(data.node?.settings?.modelPriceMultiplier ?? '1'),
-          serviceTierBilling: data.node?.settings?.serviceTierBilling ?? { enabled: false, basis: 'upstream' as const },
           cacheWriteBilling: cacheWriteBillingSchema.parse(data.node?.settings?.cacheWriteBilling ?? 'reported'),
         };
       } catch (error) {
@@ -908,13 +909,11 @@ export function useSaveChannelModelPrices() {
       channelId,
       input,
       multiplier,
-      serviceTierBilling,
       cacheWriteBilling,
     }: {
       channelId: string;
       input: SaveChannelModelPriceInput[];
       multiplier?: string;
-      serviceTierBilling?: ServiceTierSettings;
       cacheWriteBilling?: CacheWriteBilling;
     }) => {
       try {
@@ -922,7 +921,6 @@ export function useSaveChannelModelPrices() {
           channelId,
           input: input.map((price) => saveChannelModelPriceInputSchema.parse(price)),
           multiplier,
-          serviceTierBilling,
           cacheWriteBilling,
         });
         return data.saveChannelModelPrices.map((p) => channelModelPriceSchema.parse(p));

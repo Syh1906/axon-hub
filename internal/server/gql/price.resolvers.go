@@ -21,5 +21,6 @@ func (r *mutationResolver) SaveChannelModelPrices(ctx context.Context, channelID
 		return *i
 	})
 
-	return r.channelService.SaveChannelModelPrices(ctx, channelID.ID, inputs, multiplier, biz.ChannelPricingSettings{ServiceTierBilling: serviceTierBilling, CacheWriteBilling: cacheWriteBilling})
+	// Released price editors submit a cached serviceTierBilling value. Only request settings write that policy.
+	return r.channelService.SaveChannelModelPrices(ctx, channelID.ID, inputs, multiplier, biz.ChannelPricingSettings{CacheWriteBilling: cacheWriteBilling})
 }

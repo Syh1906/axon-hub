@@ -99,7 +99,7 @@ func (svc *ChannelService) BulkCreateChannels(ctx context.Context, input BulkCre
 				Tags:                    tagsToUse,
 				DefaultTestModel:        input.DefaultTestModel,
 				Policies:                input.Policies,
-				Settings:                input.Settings,
+				Settings:                newChannelSettings(input.Settings),
 				OrderingWeight:          input.OrderingWeight,
 				Remark:                  input.Remark,
 			}
@@ -494,6 +494,7 @@ func (svc *ChannelService) BulkImportChannels(ctx context.Context, items []*Bulk
 				SetCredentials(objects.ChannelCredentials{APIKey: *item.APIKey}).
 				SetSupportedModels(item.SupportedModels).
 				SetDefaultTestModel(item.DefaultTestModel).
+				SetSettings(newChannelSettings(nil)).
 				Save(ctx)
 			if err != nil {
 				return err
