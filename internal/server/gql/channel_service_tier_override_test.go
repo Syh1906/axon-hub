@@ -104,5 +104,4 @@ func TestResponsesServiceTierOverrideGraphQLRoundTrip(t *testing.T) {
 	require.Equal(t, objects.ServiceTierBasisFixedFast, client.Channel.GetX(ctx, created.ID).Settings.ServiceTierBilling.Basis)
 
 	require.Equal(t, "2", client.Channel.GetX(ctx, created.ID).Settings.ModelPriceMultiplier.String())
-
 }

@@ -248,3 +248,76 @@ func (svc *ChannelService) UpdateChannelSettings(ctx context.Context, id int, in
 
 	return nil, lastErr
 }
+
+func validateUpdatedChannelSettings(settings *objects.ChannelSettings, effectiveType channel.Type) error {
+	if settings == nil {
+		return nil
+	}
+	if err := validateChannelAddresses(settings, effectiveType); err != nil {
+		return err
+	}
+	if settings.BodyOverrideOperations != nil {
+		if err := ValidateBodyOverrideOperations(settings.BodyOverrideOperations); err != nil {
+			return fmt.Errorf("invalid body override operations: %w", err)
+		}
+	}
+
+	if settings.HeaderOverrideOperations != nil {
+		if err := ValidateOverrideHeaders(settings.HeaderOverrideOperations); err != nil {
+			return fmt.Errorf("invalid header override operations: %w", err)
+		}
+	}
+
+	if err := ValidateRateLimit(settings.RateLimit); err != nil {
+		return fmt.Errorf("invalid rate limit: %w", err)
+	}
+	if err := ValidateChannelResponseTimeouts(settings); err != nil {
+		return err
+	}
+	if err := settings.ServiceTierBilling.Validate(); err != nil {
+		return err
+	}
+	if err := settings.ResponsesServiceTierOverride.Validate(); err != nil {
+		return err
+	}
+
+	if err := NormalizeRetryableStatusCodes(settings); err != nil {
+		return err
+	}
+
+	if err := NormalizeRetryableErrorPatterns(settings); err != nil {
+		return err
+	}
+	return validateChannelModelContexts(settings)
+}
+
+// Preserve fields owned by other channel settings operations during a full update.
+func mergeUpdatedChannelSettings(input, stored *objects.ChannelSettings) objects.ChannelSettings {
+	settings := *input
+	settings.ModelPriceMultiplier = nil
+	settings.CacheWriteBilling = nil
+	settings.TagPriorities = nil
+	settings.GlobalPriority = nil
+	settings.Upstream = nil
+	settings.KeySettings = nil
+	settings.DisableKeySessionReuse = false
+	if stored != nil {
+		settings.ResponsesTierRoutingEnabled = settings.ResponsesTierRoutingEnabled || stored.ResponsesTierRoutingEnabled
+		settings.ModelPriceMultiplier = stored.ModelPriceMultiplier
+		if settings.ServiceTierBilling == nil {
+			settings.ServiceTierBilling = stored.ServiceTierBilling
+		}
+		settings.CacheWriteBilling = stored.CacheWriteBilling
+		settings.TagPriorities = stored.TagPriorities
+		settings.GlobalPriority = stored.GlobalPriority
+		settings.Upstream = stored.Upstream
+		settings.KeySettings = stored.KeySettings
+		settings.DisableKeySessionReuse = stored.DisableKeySessionReuse
+		if input.UpstreamAddresses == nil {
+			settings.UpstreamAddresses = stored.UpstreamAddresses
+			settings.AddressFailover = stored.AddressFailover
+		}
+	}
+
+	return settings
+}

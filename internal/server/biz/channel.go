@@ -1050,49 +1050,8 @@ func (svc *ChannelService) updateChannel(ctx context.Context, id int, input *ent
 		}
 	}
 
-	if input.Settings != nil {
-		// Always normalize and validate override settings.
-		if err := validateChannelAddresses(input.Settings, effectiveType); err != nil {
-			return nil, err
-		}
-		if input.Settings.BodyOverrideOperations != nil {
-			if err := ValidateBodyOverrideOperations(input.Settings.BodyOverrideOperations); err != nil {
-				return nil, fmt.Errorf("invalid body override operations: %w", err)
-			}
-		}
-
-		if input.Settings.HeaderOverrideOperations != nil {
-			if err := ValidateOverrideHeaders(input.Settings.HeaderOverrideOperations); err != nil {
-				return nil, fmt.Errorf("invalid header override operations: %w", err)
-			}
-		}
-
-		if err := ValidateRateLimit(input.Settings.RateLimit); err != nil {
-			return nil, fmt.Errorf("invalid rate limit: %w", err)
-		}
-		if err := ValidateChannelResponseTimeouts(input.Settings); err != nil {
-			return nil, err
-		}
-		if err := input.Settings.ServiceTierBilling.Validate(); err != nil {
-			return nil, err
-		}
-		if err := input.Settings.ResponsesServiceTierOverride.Validate(); err != nil {
-			return nil, err
-		}
-
-		if err := NormalizeRetryableStatusCodes(input.Settings); err != nil {
-			return nil, err
-		}
-
-		if err := NormalizeRetryableErrorPatterns(input.Settings); err != nil {
-			return nil, err
-		}
-	}
-
-	if input.Settings != nil {
-		if err := validateChannelModelContexts(input.Settings); err != nil {
-			return nil, err
-		}
+	if err := validateUpdatedChannelSettings(input.Settings, effectiveType); err != nil {
+		return nil, err
 	}
 	if input.Settings != nil || input.Endpoints != nil || input.Type != nil || input.BaseURL != nil {
 		existing, err := authz.RunWithScopeDecision(ctx, scopes.ScopeWriteChannels, func(queryCtx context.Context) (*ent.Channel, error) {
@@ -1189,31 +1148,7 @@ func (svc *ChannelService) updateChannel(ctx context.Context, id int, input *ent
 			if err != nil {
 				return fmt.Errorf("failed to load channel pricing settings: %w", err)
 			}
-			settings := *input.Settings
-			settings.ModelPriceMultiplier = nil
-			settings.CacheWriteBilling = nil
-			settings.TagPriorities = nil
-			settings.GlobalPriority = nil
-			settings.Upstream = nil
-			settings.KeySettings = nil
-			settings.DisableKeySessionReuse = false
-			if existingSettings.Settings != nil {
-				settings.ResponsesTierRoutingEnabled = settings.ResponsesTierRoutingEnabled || existingSettings.Settings.ResponsesTierRoutingEnabled
-				settings.ModelPriceMultiplier = existingSettings.Settings.ModelPriceMultiplier
-				if settings.ServiceTierBilling == nil {
-					settings.ServiceTierBilling = existingSettings.Settings.ServiceTierBilling
-				}
-				settings.CacheWriteBilling = existingSettings.Settings.CacheWriteBilling
-				settings.TagPriorities = existingSettings.Settings.TagPriorities
-				settings.GlobalPriority = existingSettings.Settings.GlobalPriority
-				settings.Upstream = existingSettings.Settings.Upstream
-				settings.KeySettings = existingSettings.Settings.KeySettings
-				settings.DisableKeySessionReuse = existingSettings.Settings.DisableKeySessionReuse
-				if input.Settings.UpstreamAddresses == nil {
-					settings.UpstreamAddresses = existingSettings.Settings.UpstreamAddresses
-					settings.AddressFailover = existingSettings.Settings.AddressFailover
-				}
-			}
+			settings := mergeUpdatedChannelSettings(input.Settings, existingSettings.Settings)
 			mut.Where(channel.UpdatedAtEQ(existingSettings.UpdatedAt)).SetSettings(&settings)
 		} else if clearStaleQuotaSettings {
 			// Type change away from the Command Code variants with no settings
