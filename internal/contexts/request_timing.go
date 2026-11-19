@@ -50,10 +50,12 @@ func WithRequestClock(ctx context.Context, bodyRead time.Time) (context.Context,
 	clock := &RequestClock{bodyRead: bodyRead}
 	return context.WithValue(ctx, requestClockKey{}, clock), clock
 }
+
 func GetRequestClock(ctx context.Context) *RequestClock {
 	clock, _ := ctx.Value(requestClockKey{}).(*RequestClock)
 	return clock
 }
+
 func (c *RequestClock) AddAttempt(id, channel int, trace *httpclient.TransportTrace) *AttemptClock {
 	if c == nil {
 		return nil
@@ -64,17 +66,20 @@ func (c *RequestClock) AddAttempt(id, channel int, trace *httpclient.TransportTr
 	c.attempts = append(c.attempts, a)
 	return a
 }
+
 func markClock(v *atomic.Pointer[time.Time]) {
 	if v.Load() == nil {
 		at := time.Now()
 		v.CompareAndSwap(nil, &at)
 	}
 }
+
 func (a *AttemptClock) FirstContent() {
 	if a != nil {
 		markClock(&a.firstContent)
 	}
 }
+
 func (c *RequestClock) Wrote(terminal bool) {
 	if c == nil {
 		return
@@ -84,6 +89,7 @@ func (c *RequestClock) Wrote(terminal bool) {
 		markClock(&c.delivered)
 	}
 }
+
 func (c *RequestClock) Settled(id int) {
 	if c == nil {
 		return
@@ -97,9 +103,11 @@ func (c *RequestClock) Settled(id int) {
 		}
 	}
 }
+
 func (c *RequestClock) ReportAtInfo(failed bool) bool {
 	return failed || c.delivered.Load() == nil || time.Since(c.bodyRead) >= 3*time.Second
 }
+
 func (c *RequestClock) Snapshot() RequestTiming {
 	c.mu.Lock()
 	defer c.mu.Unlock()

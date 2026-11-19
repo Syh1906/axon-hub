@@ -21,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 func TestRequestImageOptimizationPreservesPassThroughAndStoredAttempt(t *testing.T) {
@@ -70,16 +71,26 @@ func TestImageOptimizationUpdatesRecoveredResponsesSnapshot(t *testing.T) {
 	require.NoError(t, (&png.Encoder{CompressionLevel: png.NoCompression}).Encode(&original, image.NewNRGBA(image.Rect(0, 0, 256, 256))))
 	url := "data:image/png;base64," + base64.StdEncoding.EncodeToString(original.Bytes())
 	body := []byte(`{"model":"model","input":[{"type":"function_call_output","call_id":"same","output":[{"type":"input_image","image_url":"` + url + `"}]}]}`)
-	continuation := &responsesContinuation{complete: true, retain: true, effective: body, snapshotBody: body}
-	state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}, ResponsesContinuation: continuation}
-	request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse), Body: body, JSONBody: body}
-	got, err := optimizeRequestImages(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
-	require.NoError(t, err)
-	require.Less(t, len(got.Body), len(body))
-	require.Equal(t, got.Body, got.JSONBody)
-	require.Equal(t, got.Body, continuation.effective)
-	require.Equal(t, got.Body, continuation.snapshotBody)
-	require.Equal(t, gjson.GetBytes(got.Body, "input.0").Raw, string(continuation.input[0]))
+	for _, native := range []bool{false, true} {
+		continuation := &responsesContinuation{complete: true, retain: true, effective: body, snapshotBody: body}
+		if native {
+			continuation.lane = shared.NewResponsesLane("fixture", shared.NewResponsesBudget(8<<20))
+		}
+		state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}, ResponsesContinuation: continuation}
+		request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse), Body: body, JSONBody: body}
+		got, err := optimizeRequestImages(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
+		require.NoError(t, err)
+		require.Less(t, len(got.Body), len(body))
+		require.Equal(t, got.Body, got.JSONBody)
+		require.Equal(t, got.Body, continuation.effective)
+		require.Equal(t, got.Body, continuation.snapshotBody)
+		if native {
+			require.Len(t, continuation.input, 1)
+			require.Equal(t, gjson.GetBytes(got.Body, "input.0").Raw, string(continuation.input[0]))
+		} else {
+			require.Empty(t, continuation.input)
+		}
+	}
 }
 
 func TestTransportFailureIsLoggedAfterHTTP200(t *testing.T) {

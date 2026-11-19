@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"slices"
 	"strconv"
@@ -15,12 +16,13 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
+	"golang.org/x/sync/singleflight"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm/httpclient"
-	"golang.org/x/sync/singleflight"
 )
 
 // ChannelWebSocketEvidence is safe to expose to channel administrators.
@@ -36,6 +38,7 @@ type WebSocketScope struct {
 
 type wsSample struct {
 	ChannelWebSocketEvidence
+
 	started     time.Time
 	mappedModel string
 	handshakes  [32]time.Duration
@@ -66,7 +69,11 @@ func (s *ChannelService) RunWebSocketProbe(ctx context.Context, ch *Channel, mod
 		if result.Err != nil {
 			return nil, result.Err
 		}
-		return result.Val.(*ChannelWebSocketEvidence), nil
+		evidence, ok := result.Val.(*ChannelWebSocketEvidence)
+		if !ok {
+			return nil, fmt.Errorf("unexpected WebSocket probe result %T", result.Val)
+		}
+		return evidence, nil
 	}
 }
 
@@ -113,10 +120,10 @@ func websocketProfile(c *Channel) string {
 	enc := json.NewEncoder(h)
 	_ = enc.Encode(c.Type)
 	_ = enc.Encode(c.BaseURL)
-	_ = enc.Encode(c.Credentials)
+	_ = enc.Encode(c.Credentials) // #nosec G117 -- The encoder writes only to the configuration hash.
 	_ = enc.Encode(c.DisabledAPIKeys)
 	if s := c.Settings; s != nil {
-		_ = enc.Encode(s.Proxy)
+		_ = enc.Encode(s.Proxy) // #nosec G117 -- The encoder writes only to the configuration hash.
 		_ = enc.Encode(s.UpstreamAddresses)
 		_ = enc.Encode(s.HeaderOverrideOperations)
 		_ = enc.Encode(s.OverrideHeaders)
@@ -163,7 +170,8 @@ func (s *ChannelService) WebSocketDecision(key WebSocketScope) (reason string, h
 func (s *ChannelService) LatestWebSocketEvidence(ch *Channel, model string) ChannelWebSocketEvidence {
 	s.wsEvidence.mu.Lock()
 	defer s.wsEvidence.mu.Unlock()
-	latest := wsSample{ChannelWebSocketEvidence: ChannelWebSocketEvidence{State: "unknown", Model: model}}
+	var latest wsSample
+	latest.State, latest.Model = "unknown", model
 	for key, sample := range s.wsEvidence.entries {
 		if key.ChannelID == ch.ID && key.Profile == ch.wsProfile && (key.Model == model || sample.mappedModel == model) && sample.started.After(latest.started) {
 			latest = sample

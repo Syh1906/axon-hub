@@ -164,7 +164,8 @@ func (o *Optimizer) cacheResult(key cacheKey, data string, now time.Time, ttl ti
 	defer o.mu.Unlock()
 	if existing := o.entries[key]; existing != nil {
 		// A concurrent completed compression takes precedence over a timed-out attempt.
-		if ttl == compressionRetryDelay && now.Before(existing.Value.(cacheEntry).expires) {
+		entry, ok := existing.Value.(cacheEntry)
+		if ok && ttl == compressionRetryDelay && now.Before(entry.expires) {
 			return
 		}
 		o.remove(existing)

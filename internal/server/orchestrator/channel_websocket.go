@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/authz/identity"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -21,16 +23,17 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
-	"github.com/tidwall/gjson"
 )
 
-type wsProbeKey struct{}
-type wsProbe struct {
-	mu      sync.Mutex
-	channel *biz.Channel
-	release func()
-	result  biz.ChannelWebSocketEvidence
-}
+type (
+	wsProbeKey struct{}
+	wsProbe    struct {
+		mu      sync.Mutex
+		channel *biz.Channel
+		release func()
+		result  biz.ChannelWebSocketEvidence
+	}
+)
 
 func currentWSProbe(ctx context.Context) *wsProbe {
 	probe, _ := ctx.Value(wsProbeKey{}).(*wsProbe)

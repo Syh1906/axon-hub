@@ -11,14 +11,16 @@ import (
 
 type requestImageSummary = requestpayload.ImageSummary
 
-type bodyInspectionKey struct{}
-type bodyInspection struct {
-	mu      sync.Mutex
-	body    []byte
-	images  *requestpayload.ImageSummary
-	content *requestpayload.ContentSummary
-	marker  objects.JSONRawMessage
-}
+type (
+	bodyInspectionKey struct{}
+	bodyInspection    struct {
+		mu      sync.Mutex
+		body    []byte
+		images  *requestpayload.ImageSummary
+		content *requestpayload.ContentSummary
+		marker  objects.JSONRawMessage
+	}
+)
 
 // WithRequestBodyInspection shares a single immutable body version across audit and admission.
 func WithRequestBodyInspection(ctx context.Context) context.Context {

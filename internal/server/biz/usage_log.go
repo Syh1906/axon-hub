@@ -262,7 +262,7 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 	return s.CreateUsageLogForAttempt(ctx, request, requestExec, usage, false)
 }
 
-// An admission transaction may have established that this execution has no budget charge.
+// CreateUsageLogForAttempt uses the admission decision to skip settlement for an unreserved execution.
 func (s *UsageLogService) CreateUsageLogForAttempt(ctx context.Context, request *ent.Request, requestExec *ent.RequestExecution, usage *llm.Usage, unreserved bool) (*ent.UsageLog, error) {
 	return s.createUsageLogFromRequest(ctx, request, requestExec, usage, nil, unreserved)
 }

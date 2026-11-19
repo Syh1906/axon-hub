@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/looplj/axonhub/internal/contexts"
-
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/events"

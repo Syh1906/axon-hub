@@ -2,10 +2,12 @@ package biz
 
 import (
 	"context"
-	"github.com/looplj/axonhub/llm/httpclient"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 func TestWebSocketEvidenceScopeExpiryAndLateResult(t *testing.T) {

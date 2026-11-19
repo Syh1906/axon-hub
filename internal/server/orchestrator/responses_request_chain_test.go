@@ -3,29 +3,30 @@ package orchestrator
 import (
 	"bytes"
 	"context"
-	"github.com/looplj/axonhub/llm/auth"
-	"github.com/looplj/axonhub/llm/transformer"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
+	"github.com/looplj/axonhub/llm/auth"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
-	"github.com/stretchr/testify/require"
-	"github.com/tidwall/gjson"
 )
 
 func TestRestoredCiphertextCannotFallbackToAnotherHTTPEndpoint(t *testing.T) {
 	var gets, posts atomic.Int32
-	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { gets.Add(1); w.WriteHeader(405) }))
+	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { gets.Add(1); w.WriteHeader(http.StatusMethodNotAllowed) }))
 	defer ws.Close()
-	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { posts.Add(1); w.WriteHeader(200) }))
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { posts.Add(1); w.WriteHeader(http.StatusOK) }))
 	defer other.Close()
 	wsOut, err := responses.NewOutboundTransformerWithConfig(&responses.Config{BaseURL: ws.URL, Transport: responses.TransportWebSocket, APIKeyProvider: auth.NewStaticKeyProvider("test")})
 	require.NoError(t, err)
@@ -37,7 +38,7 @@ func TestRestoredCiphertextCannotFallbackToAnotherHTTPEndpoint(t *testing.T) {
 	ctx := shared.WithResponsesWebSocket(t.Context())
 	state := &PersistenceState{CurrentCandidate: candidate, ChannelService: new(biz.ChannelService), ResponsesContinuation: &responsesContinuation{complete: true, owner: &shared.ResponsesRecord{ID: "old", Origin: shared.ResponsesOrigin{Endpoint: wsOut.ResponsesURL()}}}}
 	p := &PersistentOutboundTransformer{state: state}
-	raw := &httpclient.Request{Method: "POST", URL: wsOut.ResponsesURL(), APIFormat: "openai/responses-ws", Body: []byte(`{"model":"test","input":[{"type":"reasoning","encrypted_content":"only-A-can-read"}]}`)}
+	raw := &httpclient.Request{Method: http.MethodPost, URL: wsOut.ResponsesURL(), APIFormat: "openai/responses-ws", Body: []byte(`{"model":"test","input":[{"type":"reasoning","encrypted_content":"only-A-can-read"}]}`)}
 	exec := &ent.RequestExecution{Selection: &objects.RequestExecutionSelection{}}
 	require.NoError(t, p.configureWebSocket(ctx, raw, exec))
 	require.True(t, raw.ResponsesWebSocket.NativeOnly)
@@ -111,6 +112,7 @@ func nativePassThroughFixture(t testing.TB, size int) (*PersistentOutboundTransf
 	p := &PersistentOutboundTransformer{wrapped: out, state: &PersistenceState{OriginalRequestStream: r.Stream, LlmRequest: r, CurrentCandidate: &ChannelModelsCandidate{Channel: ch}}}
 	return p, r
 }
+
 func TestSparseResponsesTerminalUsesHistoryAggregator(t *testing.T) {
 	// Dropped deltas cannot be reconstructed from an empty terminal array.
 	require.False(t, completeHistoryOutput(gjson.Parse("[]"), nil, true))
@@ -138,6 +140,7 @@ func TestNativePassThroughPreservesBytesAndCredential(t *testing.T) {
 	require.Contains(t, string(req.Body), `"model":"mapped"`)
 	require.Contains(t, string(req.Body), "provider_extension")
 }
+
 func BenchmarkResponsesNativePassThrough(b *testing.B) {
 	for _, fast := range []bool{false, true} {
 		name := "rebuild"

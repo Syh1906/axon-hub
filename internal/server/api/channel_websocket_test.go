@@ -34,7 +34,7 @@ func TestWSOnlyBusinessHandshakeKeepsNativeBudget(t *testing.T) {
 	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Error("unexpected HTTP fallback")
-			w.WriteHeader(405)
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		select {
@@ -65,9 +65,9 @@ func TestOrdinaryChannelTestFinalizesStreamAndJSON(t *testing.T) {
 		t.Run(fmt.Sprint(ws), func(t *testing.T) {
 			var gets, posts atomic.Int32
 			up := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == "GET" {
+				if r.Method == http.MethodGet {
 					gets.Add(1)
-					w.WriteHeader(405)
+					w.WriteHeader(http.StatusMethodNotAllowed)
 					return
 				}
 				posts.Add(1)
@@ -106,9 +106,9 @@ func TestVerifiedChannelLosesWebSocketUsesSavedHTTPForNextTurn(t *testing.T) {
 	var frames, posts atomic.Int32
 	const terminal = `{"type":"response.completed","response":{"id":"proof","object":"response","model":"synthetic-model","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK"}]}]}}`
 	ws := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" || r.URL.Path != "/native" {
+		if r.Method != http.MethodGet || r.URL.Path != "/native" {
 			t.Error("unexpected request to WS endpoint")
-			w.WriteHeader(405)
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)

@@ -49,12 +49,13 @@ type RequestExecutionSelection struct {
 	Dispatch string `json:"dispatch,omitempty"`
 }
 
-// A transport callback may outlive selection/dispatch updates. Copies of the
+// ObserveWebSocket records evidence across selection and dispatch updates. Copies of the
 // selection share only this execution's last immutable observation.
 func (s *RequestExecutionSelection) ObserveWebSocket() func(*ChannelWebSocketEvidence) {
 	s.webSocketObservation = new(atomic.Pointer[ChannelWebSocketEvidence])
 	return s.webSocketObservation.Store
 }
+
 func (s *RequestExecutionSelection) FinalWebSocketSelection() *RequestExecutionSelection {
 	if s == nil || s.webSocketObservation == nil {
 		return nil

@@ -712,4 +712,5 @@ var pluginMutationFieldSnapshot = []string{
 	"updateVideoStorageSettings",
 	"updateWebhookNotifierConfig",
 	"verifyChannelUpstreamAccount",
+	"verifyChannelWebSocket",
 }
