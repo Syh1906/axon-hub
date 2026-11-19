@@ -284,6 +284,7 @@
   "requests.diagnostics.clientTransport": "客户端",
   "requests.diagnostics.upstreamTransport": "上游",
   "requests.diagnostics.transportReasons.websocket_handshake_failed": "WS 建连失败，已回退 HTTPS",
+  "requests.diagnostics.transportReasons.websocket_discovery_in_progress": "同一上游模型正在试连 WS，本次使用 HTTP",
   "requests.diagnostics.transportReasons.websocket_not_enabled": "渠道未声明支持 WS，使用 HTTPS",
   "requests.diagnostics.transportReasons.connection_uses_http_fallback": "此连接继续使用 HTTPS 回退",
   "requests.pagination.mode": "翻页方式",

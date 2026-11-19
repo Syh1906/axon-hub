@@ -114,7 +114,10 @@ func (e *transportExecutor) nativeExecutor(r *httpclient.Request) *WebSocketExec
 
 func (e *transportExecutor) mayFallback(ctx context.Context, r *httpclient.Request, err error) bool {
 	policy := r.ResponsesWebSocket
-	return (policy == nil || (!policy.Probe && !policy.NativeOnly)) && canFallbackWebSocket(ctx, err)
+	if policy != nil && (policy.Probe || policy.NativeOnly) {
+		return false
+	}
+	return canFallbackWebSocket(ctx, err, policy)
 }
 
 func (e *transportExecutor) downgraded(ctx context.Context, r *httpclient.Request) bool {
@@ -189,7 +192,7 @@ func (e *webSocketHandshakeError) Error() string {
 }
 func (e *webSocketHandshakeError) Unwrap() error { return e.cause }
 
-func canFallbackWebSocket(ctx context.Context, err error) bool {
+func canFallbackWebSocket(ctx context.Context, err error, policy *httpclient.ResponsesWebSocketPolicy) bool {
 	var handshake *webSocketHandshakeError
 	if err == nil || ctx.Err() != nil || !errors.As(err, &handshake) {
 		return false
@@ -200,6 +203,10 @@ func canFallbackWebSocket(ctx context.Context, err error) bool {
 	}
 	// Authentication, rate limits and ordinary parameter errors retain their semantics.
 	switch upstream.StatusCode {
+	case http.StatusBadRequest:
+		// Only the Upgrade GET has been sent. Preserve detailed upstream errors.
+		body := strings.TrimSpace(string(upstream.Body))
+		return policy != nil && policy.HTTPURL != "" && (body == "" || body == http.StatusText(http.StatusBadRequest))
 	case http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusUpgradeRequired,
 		http.StatusNotImplemented, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 		return true

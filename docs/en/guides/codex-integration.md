@@ -41,7 +41,7 @@ AxonHub can act as a drop-in replacement for OpenAI endpoints, letting Codex con
 
 #### Client and upstream WebSockets
 
-Codex can keep its connection to AxonHub open while a channel streams over HTTP. On a channel with both transports, new WS turns use HTTP until the selected endpoint, credential and model have fresh evidence of a completed native WS response with meaningful output.
+Codex can keep its connection to AxonHub open while a channel streams over HTTP. On a channel with WS enabled and an HTTP alternative, one incoming WS turn tries native WS when the selected endpoint, credential and model have no fresh result. Other matching turns can use HTTP during discovery and cooldown. A completed native response with meaningful output verifies the model.
 
 Two AxonHub instances can be chained. The first gateway can connect to the second gateway’s `/v1/responses` over WS while the second streams over HTTP to its provider. A successful WS probe at the first gateway verifies the hop to the second. Check the execution at the second gateway for the final transport.
 
@@ -299,9 +299,9 @@ The read-only admin GraphQL query `previewModelCodexCatalog(id, clientVersion)` 
 
 ### WebSocket Capability and HTTP Fallback
 
-The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. For dual-transport channels with the checkbox enabled, a matching verified model can use upstream WS. Otherwise new client WS turns stream over the configured HTTP endpoint.
+The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. For dual-transport channels with the checkbox enabled, new client WS turns can discover upstream WS automatically. Matching turns use HTTP while discovery is pending or the route is cooling down.
 
-Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent independent turns use fresh evidence for the selected endpoint, credential and model.
+Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. A handshake 400 with an empty body or plain `Bad Request` can also fall back when a dual-transport channel has a configured HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent independent turns use fresh evidence for the selected endpoint, credential and model.
 
 Safe fallback reuses the same request and execution record, retaining the fallback reason in the channel process. A successful HTTP result does not create a separate failed request. A `1013: no available account` disconnect after sending leaves the request outcome unknown and is not a pre-send fallback. This close message does not establish that the channel lacks WS support, so it does not permanently disable the channel's WS setting. A new request initiated by the client retains its own record.
 

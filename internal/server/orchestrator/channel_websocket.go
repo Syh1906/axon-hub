@@ -142,7 +142,6 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 	key := biz.WebSocketScope{ChannelID: ch.ID, Profile: ch.WebSocketProfile(), Model: actual, EndpointRef: biz.ResponsesUpstreamRef(raw.URL, raw.Headers), CredentialRef: responses.WebSocketCredentialIdentity(raw)}
 	credential := biz.SafeWebSocketCredential(sel.KeyRemark, sel.KeyHint)
 	service := p.state.ChannelService
-	reason, deadline := service.WebSocketDecision(key)
 	policy := &httpclient.ResponsesWebSocketPolicy{Probe: probe != nil}
 	raw.ResponsesWebSocket = policy
 	sel.WebSocketProfile, sel.WebSocketEndpoint, sel.WebSocketIdentity = key.Profile, key.EndpointRef, key.CredentialRef
@@ -170,7 +169,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 		}
 	}
 	if probe != nil {
-		policy.HandshakeTimeout = deadline
+		_, policy.HandshakeTimeout = service.WebSocketDecision(key)
 		return nil
 	}
 	if target, ok := ch.Outbounds[string(llm.APIFormatOpenAIResponse)].(interface {
@@ -216,8 +215,7 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 			return nil
 		}
 	}
-	policy.HandshakeTimeout = deadline
-	policy.HTTPReason = reason
+	policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketTrafficDecision(ctx, key)
 	return nil
 }
 

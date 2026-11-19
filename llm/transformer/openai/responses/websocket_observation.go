@@ -22,6 +22,8 @@ func reportWebSocketFailure(policy *httpclient.ResponsesWebSocketPolicy, stage s
 	case errors.As(err, &response):
 		result.Status = response.StatusCode
 		switch response.StatusCode {
+		case http.StatusBadRequest:
+			result.Reason = "handshake_bad_request"
 		case http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusNotImplemented, http.StatusUpgradeRequired:
 			result.Reason = "upgrade_rejected"
 		case http.StatusUnauthorized, http.StatusForbidden:

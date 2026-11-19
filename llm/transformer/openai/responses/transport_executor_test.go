@@ -17,6 +17,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestHandshakeBadRequestFallbackScope(t *testing.T) {
+	executor := new(transportExecutor)
+	for _, tc := range []struct {
+		name   string
+		body   string
+		policy *httpclient.ResponsesWebSocketPolicy
+		want   bool
+	}{
+		{"dual, plain rejection", "Bad Request\n", &httpclient.ResponsesWebSocketPolicy{HTTPURL: "https://up.test/responses"}, true},
+		{"dual, provider error", `{"error":{"message":"invalid tenant"}}`, &httpclient.ResponsesWebSocketPolicy{HTTPURL: "https://up.test/responses"}, false},
+		{"probe", "", &httpclient.ResponsesWebSocketPolicy{Probe: true, HTTPURL: "https://up.test/responses"}, false},
+		{"native only", "", &httpclient.ResponsesWebSocketPolicy{NativeOnly: true}, false},
+		{"no policy", "", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &httpclient.Request{ResponsesWebSocket: tc.policy}
+			response := &httpclient.Error{StatusCode: http.StatusBadRequest, Body: []byte(tc.body)}
+			require.Equal(t, tc.want, executor.mayFallback(t.Context(), req, &webSocketHandshakeError{cause: response}))
+			require.False(t, executor.mayFallback(t.Context(), req, response))
+		})
+	}
+}
+
 func TestTransportFollowsClientAndCapability(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
 		for _, clientWS := range []bool{false, true} {

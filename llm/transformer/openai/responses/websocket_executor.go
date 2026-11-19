@@ -1152,7 +1152,7 @@ func newWebSocketDialError(request *httpclient.Request, resp *http.Response, err
 	}
 
 	return &httpclient.Error{
-		Method:     request.Method,
+		Method:     http.MethodGet,
 		URL:        request.URL,
 		StatusCode: resp.StatusCode,
 		Status:     resp.Status,

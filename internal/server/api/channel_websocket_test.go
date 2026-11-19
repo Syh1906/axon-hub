@@ -137,9 +137,6 @@ func TestVerifiedChannelLosesWebSocketUsesSavedHTTPForNextTurn(t *testing.T) {
 		c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", BaseURL: https.URL, Path: "/stream"}, {APIFormat: "openai/responses-ws", BaseURL: ws.URL, Path: "/native"}})
 	})
 	ctx, id, tester := fixtureChannelTester(t.Context(), cl, h, project.ID)
-	v, err := tester.VerifyChannelWebSocket(ctx, id, "synthetic-model", false)
-	require.NoError(t, err)
-	require.Equal(t, "verified", v.State)
 	gateway := responsesIntegrationGateway(t, cl, h, project)
 	turn := func() string {
 		conn := responsesIntegrationDial(t, gateway)
@@ -147,6 +144,11 @@ func TestVerifiedChannelLosesWebSocketUsesSavedHTTPForNextTurn(t *testing.T) {
 		reply := responsesIntegrationTurn(t, conn, `{"type":"response.create","model":"synthetic-model","input":"new independent turn"}`)
 		return gjson.GetBytes(reply, "type").String()
 	}
+	require.Equal(t, "response.completed", turn())
+	v, err := tester.WebSocketEvidence(ctx, id, "synthetic-model")
+	require.NoError(t, err)
+	require.Equal(t, "verified", v.State)
+	require.Equal(t, "traffic", v.Source)
 	require.Contains(t, []string{"error", "response.failed"}, turn())
 	require.EqualValues(t, 2, frames.Load())
 	require.Zero(t, posts.Load())
@@ -161,6 +163,7 @@ func TestChannelWebSocketVerificationAndRouting(t *testing.T) {
 		enabled             bool
 	}{
 		{"refused", "unavailable", "upgrade_rejected", false},
+		{"bad_request", "unavailable", "handshake_bad_request", true},
 		{"empty", "handshake_only", "empty_output", false},
 		{"no_account", "unavailable", "no_available_account", true},
 		{"verified", "verified", "verified", true},
@@ -177,6 +180,10 @@ func TestChannelWebSocketVerificationAndRouting(t *testing.T) {
 					return
 				}
 				handshakes.Add(1)
+				if tc.mode == "bad_request" {
+					http.Error(w, "Bad Request", http.StatusBadRequest)
+					return
+				}
 				if tc.mode == "refused" {
 					w.WriteHeader(http.StatusMethodNotAllowed)
 					return
@@ -228,16 +235,23 @@ func TestChannelWebSocketVerificationAndRouting(t *testing.T) {
 				reply := responsesIntegrationTurn(t, conn, `{"type":"response.create","model":"synthetic-model","input":"hello"}`)
 				require.Equal(t, "r-fixture", gjson.GetBytes(reply, "response.id").String(), string(reply))
 			}
-			turn()
-			require.EqualValues(t, 0, handshakes.Load())
-			require.EqualValues(t, 1, posts.Load())
+			var initialGET, initialPOST int32
+			if !tc.enabled || tc.mode == "bad_request" {
+				turn()
+				initialPOST = 1
+				if tc.enabled {
+					initialGET = 1
+				}
+				require.Equal(t, initialGET, handshakes.Load())
+				require.Equal(t, initialPOST, posts.Load())
+			}
 			res, err := tester.VerifyChannelWebSocket(ctx, id, "synthetic-model", false)
 			require.NoError(t, err)
 			require.Equal(t, tc.reason, res.Reason)
 			require.Equal(t, tc.state, res.State)
-			require.EqualValues(t, 1, handshakes.Load())
-			require.EqualValues(t, 1, posts.Load())
-			if tc.mode == "refused" {
+			require.Equal(t, initialGET+1, handshakes.Load())
+			require.Equal(t, initialPOST, posts.Load())
+			if tc.mode == "refused" || tc.mode == "bad_request" {
 				require.Zero(t, frames.Load())
 			} else {
 				require.EqualValues(t, 1, frames.Load())
@@ -274,11 +288,11 @@ func TestChannelWebSocketVerificationAndRouting(t *testing.T) {
 			}
 			turn()
 			if tc.enabled && tc.state == "verified" {
-				require.EqualValues(t, 2, handshakes.Load())
-				require.EqualValues(t, 1, posts.Load())
+				require.Equal(t, initialGET+2, handshakes.Load())
+				require.Equal(t, initialPOST, posts.Load())
 			} else {
-				require.EqualValues(t, 1, handshakes.Load())
-				require.EqualValues(t, 2, posts.Load())
+				require.Equal(t, initialGET+1, handshakes.Load())
+				require.Equal(t, initialPOST+1, posts.Load())
 			}
 		})
 	}

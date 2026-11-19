@@ -2,6 +2,11 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
+## 待发布 · Responses 上游 WS 自动试连
+
+- 已启用双协议的渠道，首个匹配的客户端 WS 回合在缺少有效记录时尝试原生 WS；同一配置、端点、凭据和模型的并发回合可直接走 HTTP。冷却结束后下一笔业务可再次尝试，成功需取得模型正常完成和有效输出。
+- 核对握手 HTTP 400 和发送后关闭 1013 的区别。手动验证保留上游结果，双协议业务遇到无具体错误信息的握手 400 可安全转用已配置的 HTTP 端点。已发送模型请求后保持原重放边界。
+
 ## rc1-fork.12 正式发布与双机更新（2026-11-19）
 
 - [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.12) 于新加坡时间 09:41:59 发布。[精简发版](https://github.com/Syh1906/axon-hub/actions/runs/44438186552) 以 `ac01e6a4f1d0ad2bca47e34af1b849b0b835b06b` 构建 Linux amd64、arm64 镜像。该提交的 Test、Build、Lint、Govulncheck 全部通过。

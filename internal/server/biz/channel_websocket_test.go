@@ -38,6 +38,29 @@ func TestWebSocketEvidenceScopeExpiryAndLateResult(t *testing.T) {
 	require.Equal(t, "websocket_unverified", reason)
 }
 
+func TestWebSocketTrafficDiscoveryExpiryAndCancellation(t *testing.T) {
+	s := new(ChannelService)
+	key := WebSocketScope{ChannelID: 1, Model: "model"}
+	s.RecordWebSocketObservation(key, key.Model, "", "", "probe", time.Now(), httpclient.WebSocketObservation{Reason: "connection_failed"})
+	reason, _ := s.WebSocketTrafficDecision(t.Context(), key)
+	require.Equal(t, "websocket_temporarily_unavailable", reason)
+	old := s.wsEvidence.entries[key]
+	past := time.Now().Add(-time.Minute)
+	old.ExpiresAt = &past
+	s.wsEvidence.entries[key] = old
+	ctx, cancel := context.WithCancel(t.Context())
+	reason, budget := s.WebSocketTrafficDecision(ctx, key)
+	require.Empty(t, reason)
+	require.Equal(t, 3*time.Second, budget)
+	reason, _ = s.WebSocketTrafficDecision(t.Context(), key)
+	require.Equal(t, "websocket_discovery_in_progress", reason)
+	cancel()
+	require.Eventually(t, func() bool {
+		reason, _ := s.WebSocketTrafficDecision(t.Context(), key)
+		return reason == ""
+	}, time.Second, time.Millisecond)
+}
+
 func TestWebSocketProbeSerializesFinalDestination(t *testing.T) {
 	s := new(ChannelService)
 	release, err := s.AcquireWebSocketProbe(t.Context(), "https://fixture.test/first")

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
@@ -50,6 +51,7 @@ type wsEvidenceCache struct {
 	mu      sync.Mutex
 	entries map[WebSocketScope]wsSample
 	probes  singleflight.Group
+	trials  map[WebSocketScope]struct{}
 	gates   map[string]*wsProbeGate
 }
 
@@ -157,8 +159,36 @@ func (c *Channel) WebSocketProfile() string { return c.wsProfile }
 func (s *ChannelService) WebSocketDecision(key WebSocketScope) (reason string, handshakeTimeout time.Duration) {
 	s.wsEvidence.mu.Lock()
 	defer s.wsEvidence.mu.Unlock()
-	v, found := s.wsEvidence.entries[key]
-	if !found || v.ExpiresAt == nil || !time.Now().Before(*v.ExpiresAt) {
+	return s.wsEvidence.entries[key].decision()
+}
+
+// WebSocketTrafficDecision admits one unknown route per scope until the owning turn ends.
+// Other turns can use HTTP immediately. A model result takes effect as soon as it arrives.
+func (s *ChannelService) WebSocketTrafficDecision(ctx context.Context, key WebSocketScope) (string, time.Duration) {
+	cache := &s.wsEvidence
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	reason, budget := cache.entries[key].decision()
+	if reason != "websocket_unverified" {
+		return reason, budget
+	}
+	if _, active := cache.trials[key]; active {
+		return "websocket_discovery_in_progress", budget
+	}
+	if cache.trials == nil {
+		cache.trials = make(map[WebSocketScope]struct{})
+	}
+	cache.trials[key] = struct{}{}
+	context.AfterFunc(ctx, func() {
+		cache.mu.Lock()
+		defer cache.mu.Unlock()
+		delete(cache.trials, key)
+	})
+	return "", budget
+}
+
+func (v wsSample) decision() (reason string, handshakeTimeout time.Duration) {
+	if v.ExpiresAt == nil || !time.Now().Before(*v.ExpiresAt) {
 		return "websocket_unverified", 3 * time.Second
 	}
 	if v.State != "verified" {
@@ -212,6 +242,9 @@ func (s *ChannelService) LoadWebSocketEvidence(ctx context.Context, ch *Channel,
 		return result, nil
 	}
 	stored := *sel.WebSocketEvidence
+	if stored.Stage == "handshake" && stored.Reason == "connection_failed" && stored.StatusCode == http.StatusBadRequest {
+		stored.Reason = "handshake_bad_request"
+	}
 	key := WebSocketScope{ChannelID: ch.ID, Profile: ch.wsProfile, Model: stored.Model, EndpointRef: sel.WebSocketEndpoint, CredentialRef: sel.WebSocketIdentity}
 	s.wsEvidence.mu.Lock()
 	if old, ok := s.wsEvidence.entries[key]; !ok || old.started.Before(row.CreatedAt) {
