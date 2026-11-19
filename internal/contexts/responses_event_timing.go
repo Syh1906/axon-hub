@@ -8,7 +8,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
-// These observations complement the normalized model-content clock. A stream
+// ObserveResponsesEvent records the first event and first non-empty delta. A stream
 // that only returns completed items has no delta observation.
 func (a *AttemptClock) ObserveResponsesEvent(event *httpclient.StreamEvent) {
 	if a == nil || event == nil || a.firstDelta.Load() != nil {

@@ -29,7 +29,7 @@ type AttemptClock struct {
 	firstEvent, firstDelta atomic.Pointer[TimedStreamEvent]
 }
 
-// Only fixed protocol categories and byte counts are recorded, never event data.
+// TimedStreamEvent records the time, protocol category and byte count of an event.
 type TimedStreamEvent struct {
 	At    time.Time `json:"at"`
 	Type  string    `json:"type"`

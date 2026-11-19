@@ -92,8 +92,12 @@ func TestImageOptimizationUpdatesRecoveredResponsesSnapshot(t *testing.T) {
 		if native {
 			continuation.lane = shared.NewResponsesLane("fixture", shared.NewResponsesBudget(8<<20))
 		}
-		state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}, ResponsesContinuation: continuation,
-			CurrentCandidate: &ChannelModelsCandidate{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1}}}}
+		state := &PersistenceState{
+			Request:               &ent.Request{ProjectID: 1},
+			RequestService:        &biz.RequestService{},
+			ResponsesContinuation: continuation,
+			CurrentCandidate:      &ChannelModelsCandidate{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1}}},
+		}
 		request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse), Body: body, JSONBody: body}
 		got, err := optimizeRequestImages(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
 		require.NoError(t, err)
