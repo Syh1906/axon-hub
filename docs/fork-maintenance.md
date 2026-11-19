@@ -2,9 +2,12 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
-## rc1-fork.14 发布准备（2026-11-19）
+## rc1-fork.14 正式发布与双机更新（2026-11-19）
 
-- 发布范围为 fork.13 之后的维护分支改动，包括首内容、逐跳压缩、新会话选路以及 Responses 渠道档位与计费。精简工作流发布双架构应用镜像和清单。发布与双机运行结果在验收后登记。
+- 发布范围为 fork.13 之后的维护分支改动，包括首内容、逐跳压缩、新会话选路以及 Responses 渠道档位与计费。新加坡时间 22:08:33，[精简工作流](https://github.com/Syh1906/axon-hub/actions/runs/44539412358)以提交 `8d703fd5abb2f6ede68a2ed377a7ba26dc3f7111` 发布 [fork.14 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14)，已设为最新版本。该提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/44538018861)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/44538019032)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/44538019080) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/44538019152) 均通过。
+- 两机使用同一双架构镜像 `ghcr.io/syh1906/axon-hub@sha256:89cfe984dd708370519bc93eb6c2c0dc091f79d2df32486ab363c257b2414ccd`。唯一发布附件 `release.json` 的 SHA-256 为 `18e98fa36ad588eaba5a4a612328d1b45ccd9d82fc5b368be41493e3d899a1d4`，与两台落盘清单相同。
+- 云悠 22:13:12 开始切换，22:13:19 验收完成，重建至健康 6.527 秒。泉哥 22:14:08 创建新容器，6.054 秒后首次健康，22:20:23 完成复核。两站内外健康、版本和源码提交、初始化状态、匿名模型接口鉴权、各 35 项同源页面资源检查通过；应用重启计数均为 0。只更新应用，数据库容器身份保持，无新增数据库迁移，未做数据库备份。
+- 泉哥首次容器配置比对未通过。逐项核对实际挂载来源、目标、读写开关及 8 GiB／2 CPU／256 进程限制，与原 Compose 配置一致；复核期间应用在线，未再次重建。两站已清理临时配置副本，保留旧镜像及本版部署收据 `upgrade-rc1-fork14-20261119.json`。未实测逐请求中断时间或生产费用。
 - 本地已验证默认标准、同档优先、跨协议降档、实际发送档位回退、固定档预算和结算，以及旧渠道和旧价格页兼容。真实上游账单与生产首内容收益未在本地验证。[渠道使用说明](zh/guides/channel-management.md)
 
 ### 通用首内容与逐跳请求编码

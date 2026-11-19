@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-19，[rc1-fork.14 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14) 已通过精简工作流发布，云悠和泉哥均已更新并通过内外验收。镜像摘要、切换时间及验证范围见 [Fork 维护台账](../../fork-maintenance.md)。
+
 2026-11-19，[rc1-fork.13 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.13) 通过精简工作流发布。云悠和泉哥均已更新至同一固定摘要并通过内外验收。切换时刻、在途请求及首字收益的验证范围见 [Fork 维护台账](../../fork-maintenance.md)。
 
 2026-11-19 发布的 [rc1-fork.12 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.12) 已部署至云悠和泉哥。两机均核对了公网版本、源码提交和镜像摘要。实际切换时间和验收记录见 [Fork 维护台账](../../fork-maintenance.md)。

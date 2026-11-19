@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On 2026-11-19, [rc1-fork.14](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14) was published as the latest release. Both production sites run the same image digest and passed internal and public checks. See the [fork maintenance ledger](../../fork-maintenance.md) for deployment timing and verification scope.
+
 On 2026-11-19 the streamlined workflow published [rc1-fork.13](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.13). Both production hosts upgraded to the same pinned image and passed internal and public checks. See the [fork maintenance log](../../fork-maintenance.md) for cutover times, observed request failures and the limits of latency verification.
 
 [rc1-fork.12](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.12) was released on 2026-11-19 and deployed to both Cloud and Quan. Both hosts passed public version, source commit and image digest checks. See the [fork maintenance log](../../fork-maintenance.md) for rollout times and verification results.
