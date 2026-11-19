@@ -202,7 +202,20 @@ func TestChannelWebSocketVerificationAndRouting(t *testing.T) {
 						t.Error("expected response.create")
 						return
 					}
-					frames.Add(1)
+					frame := frames.Add(1)
+					if tc.mode == "verified" && frame == 1 {
+						input := gjson.GetBytes(raw, "input")
+						if !input.IsArray() || input.Get("0.role").String() != "user" ||
+							input.Get("0.content.0.type").String() != "input_text" ||
+							input.Get("0.content.0.text").String() != "Reply OK." {
+							_ = ws.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","error":{"message":"Input must be a list of messages"}}`))
+							return
+						}
+						if gjson.GetBytes(raw, "store").Type != gjson.False {
+							_ = ws.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","error":{"message":"Store must be set to false"}}`))
+							return
+						}
+					}
 					if tc.mode == "no_account" {
 						_ = ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(1013, "no available account"), time.Now().Add(time.Second))
 						return

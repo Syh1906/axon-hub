@@ -237,7 +237,15 @@ func usesResponsesWebSocket(channel *biz.Channel) bool {
 
 func (processor *TestChannelOrchestrator) buildChannelTestInput(ctx context.Context, model string, useStream bool, systemPrompt, userPrompt string, responsesWebSocket bool, apiFormat llm.APIFormat) (transformer.Inbound, []byte, error) {
 	if currentWSProbe(ctx) != nil {
-		body, err := json.Marshal(map[string]any{"model": model, "input": "Reply OK.", "stream": true, "max_output_tokens": 64})
+		content := responses.Input{Items: []responses.Item{{Type: "input_text", Text: lo.ToPtr("Reply OK.")}}}
+		input := []responses.Item{{Type: "message", Role: "user", Content: &content}}
+		body, err := json.Marshal(map[string]any{
+			"model":             model,
+			"input":             input,
+			"store":             false,
+			"stream":            true,
+			"max_output_tokens": 64,
+		})
 		return responses.NewInboundTransformer(), body, err
 	}
 	if apiFormat == llm.APIFormatOpenAIImageGeneration {
