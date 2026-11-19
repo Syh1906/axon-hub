@@ -39,6 +39,20 @@ AxonHub can act as a drop-in replacement for OpenAI endpoints, letting Codex con
    ```
 3. Restart Codex to apply the configuration.
 
+#### Client and upstream WebSockets
+
+Codex can keep its connection to AxonHub open while a channel streams over HTTP. On a channel with both transports, new WS turns use HTTP until the selected endpoint, credential and model have fresh evidence of a completed native WS response with meaningful output.
+
+Two AxonHub instances can be chained. The first gateway can connect to the second gateway’s `/v1/responses` over WS while the second streams over HTTP to its provider. A successful WS probe at the first gateway verifies the hop to the second. Check the execution at the second gateway for the final transport.
+
+Open **Channels → Endpoints and protocols → Upstream endpoints** and expand **Verify model WS**. Opening the panel reads existing evidence. Clicking the verification button can send one billable model request using the saved configuration, even when the WS switch is off. Generic Responses probes request at most 64 output tokens. Native Codex rejects that parameter, so its probe asks for a short `OK` reply and the provider controls the output length. In the bulk health check, select WS verification to choose a model per channel and view the maximum request count. Fresh matching results can be reused.
+
+A successful upgrade or an empty warmup only establishes connection-level evidence. A 1013 close for lack of an available account is a temporary model-stage failure. Native model evidence lasts six hours. The usual cooldown is ten minutes for a rejected upgrade and thirty seconds for transient failures, extended by upstream `Retry-After`. Each instance maintains its own bounded cache. The management view can restore recent records after a restart. Business requests use memory only.
+
+Live native continuation requires the same upstream connection and identity. An HTTP bridge needs recoverable history. WS-only model and endpoint policies retain the native handshake timeout. Explicit probes and new turns with an HTTP alternative use the shorter handshake budget. Eligible handshake failures can use the configured HTTP endpoint before sending a generation frame. After an uncertain send, the gateway does not replay the turn.
+
+For latency analysis, group non-empty `continuation_key` values within the same site, project and API key. Join each request ID to the structured request-delivery and upstream-transport logs. The timestamps distinguish completed intake, upload, HTTP response headers, meaningful model output, gateway event and terminal writes, and a committed budget settlement. Missing timestamps mean the corresponding event was unobserved. Gateway writes measure the server side of delivery.
+
 #### Catalog URL and response format
 
 Place `base_url` and `model_catalog_url` in the selected provider table. The former routes inference, normally ends in `/v1`, and uses `wire_api = "responses"`; the latter must target `/codex/models`, not `/v1/models`. For a static token, replace the example's `env_key` with `experimental_bearer_token = "<AxonHub API Key>"`. Never commit a real key in configuration or documentation.
@@ -285,9 +299,9 @@ The read-only admin GraphQL query `previewModelCodexCatalog(id, clientVersion)` 
 
 ### WebSocket Capability and HTTP Fallback
 
-The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. WS clients use upstream WS only when the checkbox is enabled; otherwise AxonHub streams HTTP responses over the original client WS connection.
+The channel's **Supports WebSocket** checkbox declares capability without forcing client transport or changing the base URL. The client provider's `supports_websockets` setting and client version control whether it uses WS. HTTP clients always use upstream HTTP. For dual-transport channels with the checkbox enabled, a matching verified model can use upstream WS. Otherwise new client WS turns stream over the configured HTTP endpoint.
 
-Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent turns on that client connection retain HTTP for the downgraded upstream.
+Before `response.create` is sent, connection failures and handshake statuses `404/405/426/501/502/503/504` (or a JSON `200`) can fall back to the same channel's HTTP endpoint. Authentication, rate-limit, and ordinary parameter errors do not trigger protocol fallback. Subsequent independent turns use fresh evidence for the selected endpoint, credential and model.
 
 Safe fallback reuses the same request and execution record, retaining the fallback reason in the channel process. A successful HTTP result does not create a separate failed request. A `1013: no available account` disconnect after sending leaves the request outcome unknown and is not a pre-send fallback. This close message does not establish that the channel lacks WS support, so it does not permanently disable the channel's WS setting. A new request initiated by the client retains its own record.
 

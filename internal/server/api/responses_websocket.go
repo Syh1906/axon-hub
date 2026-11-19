@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -243,6 +244,7 @@ func (d *responsesWebSocketDispatcher) lane(streamID string) (*responsesWebSocke
 }
 
 func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, streamID string, message []byte) {
+	bodyRead := time.Now()
 	previous := lane.tail
 	done := make(chan struct{})
 	lane.tail = done
@@ -272,7 +274,7 @@ func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, st
 			return
 		}
 
-		if err := d.processMessage(lane, streamID, message); err != nil {
+		if err := d.processMessage(lane, streamID, message, bodyRead); err != nil {
 			if !errors.Is(err, context.Canceled) && d.ctx.Err() == nil {
 				log.Warn(d.ctx, "Failed to write Responses WebSocket result", log.Cause(err))
 			}
@@ -284,7 +286,7 @@ func (d *responsesWebSocketDispatcher) dispatch(lane *responsesWebSocketLane, st
 	})
 }
 
-func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLane, streamID string, message []byte) error {
+func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLane, streamID string, message []byte, bodyRead time.Time) error {
 	request, warmup, requestErr := lane.session.prepareRequest(d.rawRequest, message)
 	defer lane.session.releaseConsumedWarmup()
 	if requestErr != nil {
@@ -294,7 +296,7 @@ func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLa
 		return writeResponsesWebSocketWarmup(d.writer, warmup, streamID)
 	}
 
-	requestCtx := shared.WithResponsesLane(d.ctx, lane.owner)
+	requestCtx, clock := contexts.WithRequestClock(shared.WithResponsesLane(d.ctx, lane.owner), bodyRead)
 	var cancel context.CancelFunc
 	if d.requestTimeout > 0 {
 		requestCtx, cancel = context.WithTimeout(requestCtx, d.requestTimeout)
@@ -307,6 +309,7 @@ func (d *responsesWebSocketDispatcher) processMessage(lane *responsesWebSocketLa
 	}
 
 	result, processErr := d.process(requestCtx, request)
+	defer reportRequestTiming(requestCtx, clock, result.RequestID, processErr != nil)
 	if processErr != nil {
 		lane.owner.RetireLeases()
 		httpErr := transformResponsesWebSocketError(requestCtx, processErr, d.transformError)
@@ -719,7 +722,11 @@ func writeResponsesWebSocketResult(
 			return err
 		}
 		// 非流式结果也登记响应编号，以确认与完成事件交错到达的中断。
-		return control.write(writer, data)
+		if err := control.write(writer, data); err != nil {
+			return err
+		}
+		contexts.GetRequestClock(ctx).Wrote(true)
+		return nil
 	}
 
 	return writeResponsesWebSocketError(writer, invalidResponsesWebSocketRequest("Responses request returned no result", ""), streamID)

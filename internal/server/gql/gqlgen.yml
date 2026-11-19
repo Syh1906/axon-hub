@@ -16,6 +16,7 @@ schema:
   - backup.graphql
   - channel_probe.graphql
   - channel_health_gate.graphql
+  - channel_websocket.graphql
   - channel_routing.graphql
   - channel_upstream.graphql
   - channel_usage.graphql
@@ -419,6 +420,8 @@ models:
   DetectedChannelEndpoint:
     model:
       - github.com/looplj/axonhub/internal/server/biz.DetectedChannelEndpoint
+  ChannelWebSocketEvidence:
+    model: github.com/looplj/axonhub/internal/objects.ChannelWebSocketEvidence
   DetectChannelEndpointsPayload:
     model:
       - github.com/looplj/axonhub/internal/server/biz.DetectChannelEndpointsPayload

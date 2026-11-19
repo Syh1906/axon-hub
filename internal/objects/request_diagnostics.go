@@ -1,5 +1,23 @@
 package objects
 
+import (
+	"sync/atomic"
+	"time"
+)
+
+type ChannelWebSocketEvidence struct {
+	State      string     `json:"state"`
+	Stage      string     `json:"stage,omitempty"`
+	Reason     string     `json:"reason,omitempty"`
+	Source     string     `json:"source,omitempty"`
+	Model      string     `json:"model"`
+	Endpoint   string     `json:"endpoint,omitempty"`
+	Credential string     `json:"credential,omitempty"`
+	CheckedAt  *time.Time `json:"checked_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	StatusCode int        `json:"status_code,omitempty"`
+}
+
 // RequestExecutionSelection is an immutable, credential-free snapshot of the
 // selected attempt. A later key remark/channel rename cannot rewrite history.
 type RequestExecutionSelection struct {
@@ -18,11 +36,36 @@ type RequestExecutionSelection struct {
 
 	// KeyRef identifies the upstream credential without retaining its value.
 	// It is internal routing metadata and is not exposed by GraphQL.
-	KeyRef      string `json:"key_ref,omitempty"`
-	UpstreamRef string `json:"upstream_ref,omitempty"`
+	KeyRef               string                    `json:"key_ref,omitempty"`
+	UpstreamRef          string                    `json:"upstream_ref,omitempty"`
+	WebSocketProfile     string                    `json:"ws_profile,omitempty"`
+	WebSocketEndpoint    string                    `json:"ws_endpoint,omitempty"`
+	WebSocketIdentity    string                    `json:"ws_identity,omitempty"`
+	WebSocketProbe       bool                      `json:"ws_probe,omitempty"`
+	WebSocketEvidence    *ChannelWebSocketEvidence `json:"ws_evidence,omitempty"`
+	webSocketObservation *atomic.Pointer[ChannelWebSocketEvidence]
 
 	// An empty dispatch value denotes a legacy row without dispatch tracking.
 	Dispatch string `json:"dispatch,omitempty"`
+}
+
+// A transport callback may outlive selection/dispatch updates. Copies of the
+// selection share only this execution's last immutable observation.
+func (s *RequestExecutionSelection) ObserveWebSocket() func(*ChannelWebSocketEvidence) {
+	s.webSocketObservation = new(atomic.Pointer[ChannelWebSocketEvidence])
+	return s.webSocketObservation.Store
+}
+func (s *RequestExecutionSelection) FinalWebSocketSelection() *RequestExecutionSelection {
+	if s == nil || s.webSocketObservation == nil {
+		return nil
+	}
+	value := s.webSocketObservation.Load()
+	if value == nil {
+		return nil
+	}
+	copy := *s
+	copy.WebSocketEvidence = value
+	return &copy
 }
 
 const (

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"github.com/looplj/axonhub/internal/contexts"
 	"io"
 	"sync"
 	"time"
@@ -212,6 +213,9 @@ func (s *streamLifecycle) Deliver(ctx context.Context, write func() (bool, error
 		}
 	}
 	terminal, err := write()
+	if err == nil {
+		contexts.GetRequestClock(ctx).Wrote(terminal)
+	}
 	if err == nil && terminal {
 		s.acknowledged = true
 	}

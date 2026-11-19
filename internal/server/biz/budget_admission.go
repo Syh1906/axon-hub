@@ -47,7 +47,15 @@ func (e *BudgetDenied) Unwrap() error {
 func IsBudgetDenied(err error) bool { var e *BudgetDenied; return errors.As(err, &e) }
 
 func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID, executionID int, estimate budget.Amount, quoteErr error) error {
-	return s.transaction(ctx, func(ctx context.Context, db *ent.Client) error {
+	_, err := s.ReserveAttempt(ctx, projectID, keyID, requestID, executionID, estimate, quoteErr)
+	return err
+}
+
+// ReserveAttempt reports whether the committed admission owns a real charge.
+func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, requestID, executionID int, estimate budget.Amount, quoteErr error) (bool, error) {
+	var held bool
+	err := s.transaction(ctx, func(ctx context.Context, db *ent.Client) error {
+		held = false
 		keyAccount, err := LockBudgetAccount(ctx, db, projectID, budgetaccount.OwnerKindKey, keyID)
 		if err != nil {
 			return err
@@ -64,6 +72,7 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 			if existing.Status != budgetcharge.StatusPrepared {
 				return fmt.Errorf("budget execution already dispatched")
 			}
+			held = true
 			return s.checkAttemptOwner(ctx, db, existing)
 		}
 		if !ent.IsNotFound(err) {
@@ -154,8 +163,10 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 			create.SetGroupID(groupAccount.OwnerID).SetGroupAccountID(groupAccount.ID)
 			groupVersions = chargeVersions(groupAccount.State)
 		}
+		held = true
 		return create.SetGroupVersions(groupVersions).Exec(ctx)
 	})
+	return held && err == nil, err
 }
 
 func chargeVersions(state budget.State) map[budget.Period]int64 {

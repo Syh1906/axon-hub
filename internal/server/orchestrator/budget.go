@@ -26,6 +26,7 @@ func withBudgetAdmission(outbound *PersistentOutboundTransformer) pipeline.Middl
 func (*budgetAdmission) Name() string { return "budget-admission" }
 func (m *budgetAdmission) OnOutboundRawRequest(ctx context.Context, raw *httpclient.Request) (*httpclient.Request, error) {
 	s := m.outbound.state
+	s.budgetUnreserved = false
 	if s.APIKey == nil {
 		return raw, nil
 	}
@@ -38,9 +39,12 @@ func (m *budgetAdmission) OnOutboundRawRequest(ctx context.Context, raw *httpcli
 	if s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
 		estimate, quoteErr = service.Estimate(ctx, s.RequestExec, s.LlmRequest, raw, estimatePromptTokens(s.LlmRequest))
 	}
-	err := service.Reserve(ctx, s.APIKey.ProjectID, s.APIKey.ID, s.Request.ID, s.RequestExec.ID, estimate, quoteErr)
+	held, err := service.ReserveAttempt(ctx, s.APIKey.ProjectID, s.APIKey.ID, s.Request.ID, s.RequestExec.ID, estimate, quoteErr)
 	if err == nil {
-		s.BudgetAttempt = service.KeepAttemptAlive(ctx, s.RequestExec.ID)
+		s.budgetUnreserved = !held
+		if held {
+			s.BudgetAttempt = service.KeepAttemptAlive(ctx, s.RequestExec.ID)
+		}
 		return raw, nil
 	}
 	var denied *biz.BudgetDenied
@@ -63,7 +67,7 @@ func (p *PersistentOutboundTransformer) endBudgetAttempt(ctx context.Context) er
 		p.state.BudgetAttempt.Stop()
 		p.state.BudgetAttempt = nil
 	}
-	if p.state.APIKey == nil || p.state.RequestExec == nil {
+	if p.state.budgetUnreserved || p.state.APIKey == nil || p.state.RequestExec == nil {
 		return nil
 	}
 	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
@@ -81,7 +85,7 @@ func (p *PersistentOutboundTransformer) endBudgetAttempt(ctx context.Context) er
 }
 
 func (s *PersistenceState) settleTokenCountBudget(ctx context.Context) error {
-	if s.APIKey == nil || s.RequestExec == nil || s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
+	if s.budgetUnreserved || s.APIKey == nil || s.RequestExec == nil || s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
 		return nil
 	}
 	zero := budget.Amount(0)
@@ -97,7 +101,7 @@ type budgetExecutor struct {
 }
 
 func (p *PersistentOutboundTransformer) budgetExecutor(executor pipeline.Executor) pipeline.Executor {
-	if p.state.APIKey == nil || p.state.RequestExec == nil {
+	if p.state.budgetUnreserved || p.state.APIKey == nil || p.state.RequestExec == nil {
 		return executor
 	}
 	return &budgetExecutor{executor, p.state.UsageLogService.BudgetService, p.state.RequestExec.ID, p.state.BudgetAttempt}

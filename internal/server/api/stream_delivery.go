@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/looplj/axonhub/internal/contexts"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
@@ -12,6 +13,9 @@ func writeStreamDelivery(ctx context.Context, stream streams.Stream[*httpclient.
 		return boundary.Deliver(ctx, write)
 	}
 	terminal, err := write()
+	if err == nil {
+		contexts.GetRequestClock(ctx).Wrote(terminal)
+	}
 	if err == nil && terminal {
 		if observer, ok := stream.(streams.DeliveryAcknowledger); ok {
 			observer.AcknowledgeDelivery()

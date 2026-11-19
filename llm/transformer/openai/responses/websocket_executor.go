@@ -256,10 +256,12 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		// therefore unsafe, so the dead session is evicted and the error is surfaced
 		// for the caller to decide.
 		lease.release(true)
+		reportWebSocketFailure(request.ResponsesWebSocket, "write", err)
 		return nil, fmt.Errorf("%w: failed to write response.create: %v", httpclient.ErrRequestMayHaveExecuted, err)
 	}
 
-	stream := &webSocketStream{ctx: ctx, lease: lease, done: make(chan struct{}), onFirstResponseByte: request.OnFirstResponseByte}
+	request.TransportTrace.WebSocketFrameWritten()
+	stream := &webSocketStream{ctx: ctx, lease: lease, done: make(chan struct{}), onFirstResponseByte: request.OnFirstResponseByte, evidence: webSocketEvidence{policy: request.ResponsesWebSocket}}
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -527,7 +529,15 @@ func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Reques
 		dialer = websocket.DefaultDialer
 	}
 
-	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
+	dialCtx := ctx
+	policy := request.ResponsesWebSocket
+	if policy != nil && policy.HandshakeTimeout > 0 {
+		var cancel context.CancelFunc
+		dialCtx, cancel = context.WithTimeout(ctx, policy.HandshakeTimeout)
+		defer cancel()
+	}
+	started := time.Now()
+	conn, resp, err := dialer.DialContext(dialCtx, wsURL, headers)
 	if resp != nil {
 		// The WebSocket handshake is an HTTP response. Observe it before
 		// converting a rejected handshake into httpclient.Error so both
@@ -535,12 +545,22 @@ func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Reques
 		request.ObserveResponseHeaders(ctx, resp.Header)
 	}
 	if err != nil {
-		return nil, &webSocketHandshakeError{cause: newWebSocketDialError(request, resp, err)}
+		failure := &webSocketHandshakeError{cause: newWebSocketDialError(request, resp, err)}
+		if ctx.Err() == nil {
+			reportWebSocketFailure(policy, "handshake", failure)
+		}
+		return nil, failure
+	}
+	if policy != nil && policy.Observe != nil {
+		policy.Observe(httpclient.WebSocketObservation{Stage: "handshake", Reason: "accepted", Handshake: time.Since(started)})
 	}
 	return conn, nil
 }
 
 func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (webSocketPoolKey, bool) {
+	if policy := request.ResponsesWebSocket; policy != nil && policy.Probe {
+		return webSocketPoolKey{}, false
+	}
 	sessionID := strings.TrimSpace(headers.Get(webSocketSessionHeader))
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
 		sessionID = lane.ID()
@@ -1142,6 +1162,7 @@ func newWebSocketDialError(request *httpclient.Request, resp *http.Response, err
 }
 
 type webSocketStream struct {
+	evidence            webSocketEvidence
 	ctx                 context.Context
 	lease               *webSocketLease
 	done                chan struct{}
@@ -1189,6 +1210,9 @@ func (s *webSocketStream) Next() bool {
 		if closed {
 			return false
 		}
+		if s.ctx.Err() == nil {
+			reportWebSocketFailure(s.evidence.policy, "model", err)
+		}
 		if websocket.IsCloseError(err, websocket.CloseNormalClosure) || strings.Contains(err.Error(), "use of closed network connection") {
 			if ctxErr := s.ctx.Err(); ctxErr != nil {
 				s.setErr(ctxErr)
@@ -1204,6 +1228,7 @@ func (s *webSocketStream) Next() bool {
 	}
 
 	typ := streamEventType(msg)
+	s.evidence.event(typ, msg)
 	if typ == "error" && isWebSocketRecoveryEvent(msg) {
 		s.setErr(shared.ResponsesRecoveryError())
 		s.finish(true)

@@ -16,6 +16,38 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
+// Recovery uses the input that survived channel and plugin rewrites paired with
+// the output visible to the client. Preserve provider and client IDs when different.
+func (c *responsesContinuation) recordDelivered(ctx context.Context, store *responsesSessionStore, prepared, delivered []byte) {
+	if pending := c.takeHTTPHistory(); pending != nil {
+		providerID := gjson.GetBytes(pending.output, "id").String()
+		if gjson.GetBytes(delivered, "id").String() != providerID || gjson.GetBytes(delivered, "status").String() != "completed" {
+			store.record(ctx, pending.input, pending.output)
+		}
+		prepared = pending.input
+	}
+	store.record(ctx, prepared, delivered)
+}
+
+type responsesHTTPHistory struct{ input, output []byte }
+
+func (c *responsesContinuation) takeHTTPHistory() *responsesHTTPHistory {
+	if c == nil || !c.holdHTTPHistory {
+		return nil
+	}
+	c.capture.mu.Lock()
+	defer c.capture.mu.Unlock()
+	pending := c.pendingHTTPHistory
+	c.pendingHTTPHistory = nil
+	return pending
+}
+
+func (c *responsesContinuation) flushHTTPHistory(ctx context.Context) {
+	if pending := c.takeHTTPHistory(); pending != nil {
+		c.store.continuationRecorder(ctx, pending.input)(pending.output)
+	}
+}
+
 func responsesOriginRecorder(ctx context.Context, state *PersistenceState, requestBody []byte) func([]byte) error {
 	return func(body []byte) error {
 		persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 5*time.Second)
@@ -140,7 +172,7 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 		var retainContinuation func([]byte) error
 		if preparedResponsesBody != nil {
 			// HTTP/restart history retains its existing persistence contract.
-			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream)
+			result.EventStream = processor.responsesSessions.wrapStream(ctx, preparedResponsesBody, result.EventStream, continuation)
 		}
 		if shared.IsResponsesWebSocket(ctx) && continuation != nil {
 			retainContinuation = func(body []byte) error {
@@ -172,7 +204,7 @@ func (processor *ChatCompletionOrchestrator) prepareResponseDelivery(ctx context
 		recordAffinity(result.Response.Body)
 	}
 	if preparedResponsesBody != nil && result.Response != nil {
-		processor.responsesSessions.record(ctx, preparedResponsesBody, result.Response.Body)
+		continuation.recordDelivered(ctx, processor.responsesSessions, preparedResponsesBody, result.Response.Body)
 	}
 
 	return ChatCompletionResult{

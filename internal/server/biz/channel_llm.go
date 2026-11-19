@@ -222,6 +222,8 @@ func (svc *ChannelService) buildChannelWithOutbounds(c *ent.Channel, apiKeyOverr
 	if err != nil {
 		return nil, err
 	}
+	// Compute the scope after resolving endpoint overrides, including early returns.
+	defer func() { ch.wsProfile = websocketProfile(ch); ch.wsAutoHTTP = channelHasWSHTTP(ch) }()
 
 	defaultEndpoints := ch.DefaultEndpoints()
 	rawUserEndpoints := c.Endpoints

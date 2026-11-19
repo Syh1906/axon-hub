@@ -52,7 +52,7 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 							continuation.retentionBytes = len(input.Raw)
 						}
 					}
-					if continuation.retain {
+					if continuation.retain && continuation.lane != nil {
 						continuation.input = responseSessionInputItems([]byte(input.Raw))
 					}
 				}

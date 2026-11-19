@@ -41,18 +41,14 @@ var codexResponsesPassThroughHeaders = []string{
 // The effective flag is the channel-level PassThroughBody when set, otherwise it falls back
 // to the global setting in the request's settings snapshot.
 func (p *PersistentOutboundTransformer) isPassThroughEnabled() bool {
+	raw := p.state.RawProviderRequest
+	return raw != nil && p.passThroughEnabledFor(raw.APIFormat)
+}
+
+func (p *PersistentOutboundTransformer) passThroughEnabledFor(format string) bool {
 	channel := p.GetCurrentChannel()
-	if channel == nil {
-		return false
-	}
-
-	rawReq := p.state.RawProviderRequest
-	if rawReq == nil || rawReq.APIFormat == "" {
-		return false
-	}
-
 	llmReq := p.state.LlmRequest
-	if llmReq == nil || string(llmReq.APIFormat) != rawReq.APIFormat {
+	if channel == nil || format == "" || llmReq == nil || string(llmReq.APIFormat) != format {
 		return false
 	}
 
@@ -65,6 +61,36 @@ func (p *PersistentOutboundTransformer) isPassThroughEnabled() bool {
 	}
 
 	return p.state.settings().PassThrough
+}
+
+func (p *PersistentOutboundTransformer) transformProviderRequest(ctx context.Context, req *llm.Request) (*httpclient.Request, error) {
+	p.preparedPassThrough = false
+	native, ok := p.wrapped.(*responsestransformer.OutboundTransformer)
+	// Image tools change transformer metadata. Provider-specific translators,
+	// protected bodies and request plugins retain their regular conversion path.
+	if ok && req.APIFormat == llm.APIFormatOpenAIResponse && native.APIFormat() == req.APIFormat &&
+		(req.RequestType == llm.RequestTypeChat || req.RequestType == "") && req.RawRequest != nil &&
+		p.state.PluginHooks.Request == nil && p.state.PluginHooks.Attempt == nil && len(p.state.PromptProtectionMaskRules) == 0 &&
+		p.state.PromptProtectionBodyCheck == nil && p.passThroughEnabledFor(string(req.APIFormat)) && !hasImageGenerationTool(req) {
+		raw := effectiveResponsesRequestBody(p.state)
+		if len(raw) > 0 {
+			body, err := mergePassThroughRequestBody(raw, req.APIFormat, p.state.LlmRequest.Model)
+			if err == nil {
+				p.preparedPassThrough = true
+				return native.NewRequestWithBody(ctx, req, body)
+			}
+		}
+	}
+	return p.wrapped.TransformRequest(ctx, req)
+}
+
+func hasImageGenerationTool(req *llm.Request) bool {
+	for _, tool := range req.Tools {
+		if tool.Type == llm.ToolTypeImageGeneration {
+			return true
+		}
+	}
+	return false
 }
 
 func passThroughStreamAligned(originalStream, effectiveStream *bool) bool {
@@ -223,14 +249,13 @@ func applyPassThroughRequestBody(outbound *PersistentOutboundTransformer, hooks 
 			log.String("api_format", request.APIFormat),
 		)
 
-		body, err := mergePassThroughRequestBodyWithPromptProtection(
-			effectiveResponsesRequestBody(outbound.state),
-			llmReq.APIFormat,
-			llmReq.Model,
-			outbound.state.PromptProtectionMaskRules,
-		)
-		if err == nil && outbound.state.PromptProtectionBodyCheck != nil {
-			err = outbound.state.PromptProtectionBodyCheck.validate(ctx, body)
+		body := request.Body
+		var err error
+		if !outbound.preparedPassThrough {
+			body, err = mergePassThroughRequestBodyWithPromptProtection(effectiveResponsesRequestBody(outbound.state), llmReq.APIFormat, llmReq.Model, outbound.state.PromptProtectionMaskRules)
+			if err == nil && outbound.state.PromptProtectionBodyCheck != nil {
+				err = outbound.state.PromptProtectionBodyCheck.validate(ctx, body)
+			}
 		}
 		if err != nil {
 			log.Warn(ctx, "failed to merge pass-through body, keeping outbound body",
@@ -328,7 +353,7 @@ func mergePassThroughRequestBody(rawBody []byte, apiFormat llm.APIFormat, model 
 		return body, nil
 	}
 
-	if model == "" {
+	if current := gjson.GetBytes(body, "model"); model == "" || current.Type == gjson.String && current.String() == model {
 		return body, nil
 	}
 

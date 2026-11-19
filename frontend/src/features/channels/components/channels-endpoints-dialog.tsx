@@ -22,6 +22,7 @@ import { useDetectChannelEndpoints, useUpdateChannelSettings } from '../data/cha
 import { getAvailableProtocolFormats, getConfigurableApiFormatsForChannelType, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, getCodexResponsesWebSocketURL, isResponsesFamilyFormat, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelEndpoint, DetectedChannelEndpoint, ModelProtocol, configurableChannelEndpointApiFormats, configurableChannelEndpointApiFormatSchema } from '../data/schema';
 import { ChannelEndpointEditor } from './channel-endpoint-editor';
+import { ChannelWSVerification } from './channel-ws-verification';
 import { RELAY_PROTOCOL_LABEL_KEYS, getChannelRelayProtocols, isRelayProtocol, type RelayProtocol } from '../data/relay-protocols';
 import { ChatProtocolIcon, MessagesProtocolIcon, ResponsesProtocolIcon } from './endpoint-protocol-icons';
 
@@ -435,18 +436,19 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
             <TabsContent value='upstream' className='flex flex-col gap-6'>
             {isCodexChannel && (
               <div className='space-y-2'>
-                <div className='flex items-center justify-between gap-2'>
+                <ChannelWSVerification channel={channel} container={dialogContentElement}><div className='flex flex-1 items-center justify-between gap-2'>
                   <span>{t('channels.dialogs.fields.apiFormat.formats.openai/responses')}</span>
                   <label className='flex items-center gap-2 text-sm'>
                     <Checkbox data-testid='codex-endpoints-websocket-checkbox' checked={codexResponsesWebSocket} onCheckedChange={(checked) => handleCodexWebSocketChange(checked === true)} />
                     {t('channels.dialogs.fields.apiFormat.codexWebSocket.label')}
                   </label>
-                </div>
+                </div></ChannelWSVerification>
                 {codexResponsesWebSocket && codexWebSocketURL && <p data-testid='codex-endpoints-websocket-url' className='text-muted-foreground break-all text-xs'>{t('channels.dialogs.fields.apiFormat.codexWebSocket.derivedURL', { url: codexWebSocketURL })}</p>}
                 {getCodexResponsesWebSocketState(channel).webSocketOnly && <p data-testid='codex-endpoints-websocket-upgrade-note' className='text-muted-foreground text-xs'>{t('channels.dialogs.fields.apiFormat.codexWebSocket.legacyUpgrade')}</p>}
               </div>
             )}
             <ChannelEndpointEditor
+              verificationChannel={channel}
               defaults={defaultEndpoints}
               endpoints={isCodexChannel ? savedEndpoints.filter((ep) => ep.apiFormat !== OPENAI_RESPONSES_WEBSOCKET) : endpoints}
               showWebSocketOption={!isCodexChannel}

@@ -14,6 +14,7 @@ import (
 
 // Request represents a generic HTTP request that can be adapted to different providers.
 type Request struct {
+	BodyReadAt time.Time `json:"-"`
 	// HTTP basics
 	Method      string      `json:"method"`
 	URL         string      `json:"url"`
@@ -63,6 +64,8 @@ type Request struct {
 	OnFirstResponseByte func(time.Time) `json:"-"`
 	// OnTransportSelected records the actual upstream protocol without credentials.
 	OnTransportSelected func(transport, fallbackReason string) `json:"-"`
+	// ResponsesWebSocket applies to this finalized request and its upstream identity.
+	ResponsesWebSocket *ResponsesWebSocketPolicy `json:"-"`
 	// OnReplayUnsafe is called before delivery can become ambiguous. It also
 	// prevents retries when a timeout or decoder replaces the transport error.
 	OnReplayUnsafe    func()                             `json:"-"`

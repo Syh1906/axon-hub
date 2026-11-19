@@ -917,6 +917,19 @@ type ComplexityRoot struct {
 		Settings         func(childComplexity int) int
 	}
 
+	ChannelWebSocketEvidence struct {
+		CheckedAt  func(childComplexity int) int
+		Credential func(childComplexity int) int
+		Endpoint   func(childComplexity int) int
+		ExpiresAt  func(childComplexity int) int
+		Model      func(childComplexity int) int
+		Reason     func(childComplexity int) int
+		Source     func(childComplexity int) int
+		Stage      func(childComplexity int) int
+		State      func(childComplexity int) int
+		StatusCode func(childComplexity int) int
+	}
+
 	ClaudeCodeSafeguardsConfig struct {
 		AttemptTimeoutSeconds func(childComplexity int) int
 		ClassifierModel       func(childComplexity int) int
@@ -1801,6 +1814,7 @@ type ComplexityRoot struct {
 		UpdateVideoStorageSettings            func(childComplexity int, input biz.VideoStorageSettings) int
 		UpdateWebhookNotifierConfig           func(childComplexity int, input biz.WebhookNotifierConfig) int
 		VerifyChannelUpstreamAccount          func(childComplexity int, channelID objects.GUID, accountToken *string, accountID *int, accountRef *string) int
+		VerifyChannelWebSocket                func(childComplexity int, channelID objects.GUID, modelID string, reuseVerified bool) int
 	}
 
 	OAuthCredentials struct {
@@ -2312,6 +2326,7 @@ type ComplexityRoot struct {
 		ChannelTodayUsageDetails        func(childComplexity int, channelID objects.GUID) int
 		ChannelUpstreamRefreshTargets   func(childComplexity int) int
 		ChannelUpstreamStates           func(childComplexity int, channelIds []*objects.GUID) int
+		ChannelWebSocketEvidence        func(childComplexity int, channelID objects.GUID, modelID string) int
 		Channels                        func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.ChannelOrder, where *ent.ChannelWhereInput) int
 		CheckForUpdate                  func(childComplexity int, includeBeta bool) int
 		ClaudeCodeSafeguardsSettings    func(childComplexity int) int
@@ -3742,6 +3757,7 @@ type MutationResolver interface {
 	UpdateAutoBackupSettings(ctx context.Context, input UpdateAutoBackupSettingsInput) (bool, error)
 	TriggerAutoBackup(ctx context.Context) (*TriggerBackupPayload, error)
 	ResetChannelHealthGate(ctx context.Context, channelID objects.GUID, actualModel *string) (bool, error)
+	VerifyChannelWebSocket(ctx context.Context, channelID objects.GUID, modelID string, reuseVerified bool) (*objects.ChannelWebSocketEvidence, error)
 	UpdateChannelPriorities(ctx context.Context, channelID objects.GUID, input biz.ChannelPrioritiesInput) (*ent.Channel, error)
 	UpdateChannelTagPriorities(ctx context.Context, tag string, input []*biz.ChannelTagPriorityUpdate) ([]*ent.Channel, error)
 	UpdateChannelCostMultiplier(ctx context.Context, channelID objects.GUID, multiplier decimal.Decimal) ([]*ent.ChannelModelPrice, error)
@@ -3906,6 +3922,7 @@ type QueryResolver interface {
 	QueryUnassociatedChannels(ctx context.Context) ([]*biz.UnassociatedChannel, error)
 	AutoBackupSettings(ctx context.Context) (*biz.AutoBackupSettings, error)
 	ChannelProbeData(ctx context.Context, input biz.GetChannelProbeDataInput) ([]*biz.ChannelProbeData, error)
+	ChannelWebSocketEvidence(ctx context.Context, channelID objects.GUID, modelID string) (*objects.ChannelWebSocketEvidence, error)
 	ChannelUpstreamStates(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelUpstreamState, error)
 	ChannelUpstreamRefreshTargets(ctx context.Context) ([]*objects.GUID, error)
 	ChannelTodayUsage(ctx context.Context, channelIds []*objects.GUID) ([]*objects.ChannelTodayUsage, error)
@@ -7372,6 +7389,67 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelUpstreamState.Settings(childComplexity), true
+
+	case "ChannelWebSocketEvidence.checkedAt":
+		if e.complexity.ChannelWebSocketEvidence.CheckedAt == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.CheckedAt(childComplexity), true
+	case "ChannelWebSocketEvidence.credential":
+		if e.complexity.ChannelWebSocketEvidence.Credential == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Credential(childComplexity), true
+	case "ChannelWebSocketEvidence.endpoint":
+		if e.complexity.ChannelWebSocketEvidence.Endpoint == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Endpoint(childComplexity), true
+	case "ChannelWebSocketEvidence.expiresAt":
+		if e.complexity.ChannelWebSocketEvidence.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.ExpiresAt(childComplexity), true
+	case "ChannelWebSocketEvidence.model":
+		if e.complexity.ChannelWebSocketEvidence.Model == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Model(childComplexity), true
+	case "ChannelWebSocketEvidence.reason":
+		if e.complexity.ChannelWebSocketEvidence.Reason == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Reason(childComplexity), true
+	case "ChannelWebSocketEvidence.source":
+		if e.complexity.ChannelWebSocketEvidence.Source == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Source(childComplexity), true
+	case "ChannelWebSocketEvidence.stage":
+		if e.complexity.ChannelWebSocketEvidence.Stage == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.Stage(childComplexity), true
+	case "ChannelWebSocketEvidence.state":
+		if e.complexity.ChannelWebSocketEvidence.State == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.State(childComplexity), true
+	case "ChannelWebSocketEvidence.statusCode":
+		if e.complexity.ChannelWebSocketEvidence.StatusCode == nil {
+			break
+		}
+
+		return e.complexity.ChannelWebSocketEvidence.StatusCode(childComplexity), true
 
 	case "ClaudeCodeSafeguardsConfig.attemptTimeoutSeconds":
 		if e.complexity.ClaudeCodeSafeguardsConfig.AttemptTimeoutSeconds == nil {
@@ -11922,6 +12000,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.VerifyChannelUpstreamAccount(childComplexity, args["channelId"].(objects.GUID), args["accountToken"].(*string), args["accountId"].(*int), args["accountRef"].(*string)), true
+	case "Mutation.verifyChannelWebSocket":
+		if e.complexity.Mutation.VerifyChannelWebSocket == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_verifyChannelWebSocket_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VerifyChannelWebSocket(childComplexity, args["channelID"].(objects.GUID), args["modelID"].(string), args["reuseVerified"].(bool)), true
 
 	case "OAuthCredentials.accessToken":
 		if e.complexity.OAuthCredentials.AccessToken == nil {
@@ -14023,6 +14112,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ChannelUpstreamStates(childComplexity, args["channelIds"].([]*objects.GUID)), true
+	case "Query.channelWebSocketEvidence":
+		if e.complexity.Query.ChannelWebSocketEvidence == nil {
+			break
+		}
+
+		args, err := ec.field_Query_channelWebSocketEvidence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ChannelWebSocketEvidence(childComplexity, args["channelID"].(objects.GUID), args["modelID"].(string)), true
 	case "Query.channels":
 		if e.complexity.Query.Channels == nil {
 			break
@@ -19948,7 +20048,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
+//go:embed "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_websocket.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -19974,6 +20074,7 @@ var sources = []*ast.Source{
 	{Name: "backup.graphql", Input: sourceData("backup.graphql"), BuiltIn: false},
 	{Name: "channel_probe.graphql", Input: sourceData("channel_probe.graphql"), BuiltIn: false},
 	{Name: "channel_health_gate.graphql", Input: sourceData("channel_health_gate.graphql"), BuiltIn: false},
+	{Name: "channel_websocket.graphql", Input: sourceData("channel_websocket.graphql"), BuiltIn: false},
 	{Name: "channel_routing.graphql", Input: sourceData("channel_routing.graphql"), BuiltIn: false},
 	{Name: "channel_upstream.graphql", Input: sourceData("channel_upstream.graphql"), BuiltIn: false},
 	{Name: "channel_usage.graphql", Input: sourceData("channel_usage.graphql"), BuiltIn: false},
@@ -22391,6 +22492,27 @@ func (ec *executionContext) field_Mutation_verifyChannelUpstreamAccount_args(ctx
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_verifyChannelWebSocket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "modelID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["modelID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "reuseVerified", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["reuseVerified"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Project_apiKeyProfileTemplates_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -23027,6 +23149,22 @@ func (ec *executionContext) field_Query_channelUpstreamStates_args(ctx context.C
 		return nil, err
 	}
 	args["channelIds"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_channelWebSocketEvidence_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "channelID", ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID)
+	if err != nil {
+		return nil, err
+	}
+	args["channelID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "modelID", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["modelID"] = arg1
 	return args, nil
 }
 
@@ -42062,6 +42200,296 @@ func (ec *executionContext) fieldContext_ChannelUpstreamState_keys(_ context.Con
 				return ec.fieldContext_ChannelUpstreamKeyState_applied(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ChannelUpstreamKeyState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_state(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_stage(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_stage,
+		func(ctx context.Context) (any, error) {
+			return obj.Stage, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_stage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_reason(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_reason,
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_source(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_model(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_endpoint(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_endpoint,
+		func(ctx context.Context) (any, error) {
+			return obj.Endpoint, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_credential(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_credential,
+		func(ctx context.Context) (any, error) {
+			return obj.Credential, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_credential(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_checkedAt(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_checkedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CheckedAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_checkedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_expiresAt(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_expiresAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelWebSocketEvidence_statusCode(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelWebSocketEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelWebSocketEvidence_statusCode,
+		func(ctx context.Context) (any, error) {
+			return obj.StatusCode, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelWebSocketEvidence_statusCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelWebSocketEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -62660,6 +63088,69 @@ func (ec *executionContext) fieldContext_Mutation_resetChannelHealthGate(ctx con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_verifyChannelWebSocket(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_verifyChannelWebSocket,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().VerifyChannelWebSocket(ctx, fc.Args["channelID"].(objects.GUID), fc.Args["modelID"].(string), fc.Args["reuseVerified"].(bool))
+		},
+		nil,
+		ec.marshalNChannelWebSocketEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelWebSocketEvidence,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_verifyChannelWebSocket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "state":
+				return ec.fieldContext_ChannelWebSocketEvidence_state(ctx, field)
+			case "stage":
+				return ec.fieldContext_ChannelWebSocketEvidence_stage(ctx, field)
+			case "reason":
+				return ec.fieldContext_ChannelWebSocketEvidence_reason(ctx, field)
+			case "source":
+				return ec.fieldContext_ChannelWebSocketEvidence_source(ctx, field)
+			case "model":
+				return ec.fieldContext_ChannelWebSocketEvidence_model(ctx, field)
+			case "endpoint":
+				return ec.fieldContext_ChannelWebSocketEvidence_endpoint(ctx, field)
+			case "credential":
+				return ec.fieldContext_ChannelWebSocketEvidence_credential(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ChannelWebSocketEvidence_checkedAt(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_ChannelWebSocketEvidence_expiresAt(ctx, field)
+			case "statusCode":
+				return ec.fieldContext_ChannelWebSocketEvidence_statusCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelWebSocketEvidence", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_verifyChannelWebSocket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateChannelPriorities(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -78505,6 +78996,69 @@ func (ec *executionContext) fieldContext_Query_channelProbeData(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_channelProbeData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_channelWebSocketEvidence(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_channelWebSocketEvidence,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ChannelWebSocketEvidence(ctx, fc.Args["channelID"].(objects.GUID), fc.Args["modelID"].(string))
+		},
+		nil,
+		ec.marshalNChannelWebSocketEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelWebSocketEvidence,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_channelWebSocketEvidence(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "state":
+				return ec.fieldContext_ChannelWebSocketEvidence_state(ctx, field)
+			case "stage":
+				return ec.fieldContext_ChannelWebSocketEvidence_stage(ctx, field)
+			case "reason":
+				return ec.fieldContext_ChannelWebSocketEvidence_reason(ctx, field)
+			case "source":
+				return ec.fieldContext_ChannelWebSocketEvidence_source(ctx, field)
+			case "model":
+				return ec.fieldContext_ChannelWebSocketEvidence_model(ctx, field)
+			case "endpoint":
+				return ec.fieldContext_ChannelWebSocketEvidence_endpoint(ctx, field)
+			case "credential":
+				return ec.fieldContext_ChannelWebSocketEvidence_credential(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ChannelWebSocketEvidence_checkedAt(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_ChannelWebSocketEvidence_expiresAt(ctx, field)
+			case "statusCode":
+				return ec.fieldContext_ChannelWebSocketEvidence_statusCode(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ChannelWebSocketEvidence", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_channelWebSocketEvidence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -144238,6 +144792,84 @@ func (ec *executionContext) _ChannelUpstreamState(ctx context.Context, sel ast.S
 	return out
 }
 
+var channelWebSocketEvidenceImplementors = []string{"ChannelWebSocketEvidence"}
+
+func (ec *executionContext) _ChannelWebSocketEvidence(ctx context.Context, sel ast.SelectionSet, obj *objects.ChannelWebSocketEvidence) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, channelWebSocketEvidenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChannelWebSocketEvidence")
+		case "state":
+			out.Values[i] = ec._ChannelWebSocketEvidence_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stage":
+			out.Values[i] = ec._ChannelWebSocketEvidence_stage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._ChannelWebSocketEvidence_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._ChannelWebSocketEvidence_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._ChannelWebSocketEvidence_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endpoint":
+			out.Values[i] = ec._ChannelWebSocketEvidence_endpoint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "credential":
+			out.Values[i] = ec._ChannelWebSocketEvidence_credential(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "checkedAt":
+			out.Values[i] = ec._ChannelWebSocketEvidence_checkedAt(ctx, field, obj)
+		case "expiresAt":
+			out.Values[i] = ec._ChannelWebSocketEvidence_expiresAt(ctx, field, obj)
+		case "statusCode":
+			out.Values[i] = ec._ChannelWebSocketEvidence_statusCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var claudeCodeSafeguardsConfigImplementors = []string{"ClaudeCodeSafeguardsConfig"}
 
 func (ec *executionContext) _ClaudeCodeSafeguardsConfig(ctx context.Context, sel ast.SelectionSet, obj *biz.ClaudeCodeSafeguardsConfig) graphql.Marshaler {
@@ -150330,6 +150962,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "resetChannelHealthGate":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_resetChannelHealthGate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "verifyChannelWebSocket":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_verifyChannelWebSocket(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -156743,6 +157382,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_channelProbeData(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "channelWebSocketEvidence":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_channelWebSocketEvidence(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -170925,6 +171586,20 @@ func (ec *executionContext) marshalNChannelUpstreamState2ᚖgithubᚗcomᚋloopl
 		return graphql.Null
 	}
 	return ec._ChannelUpstreamState(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNChannelWebSocketEvidence2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelWebSocketEvidence(ctx context.Context, sel ast.SelectionSet, v objects.ChannelWebSocketEvidence) graphql.Marshaler {
+	return ec._ChannelWebSocketEvidence(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNChannelWebSocketEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelWebSocketEvidence(ctx context.Context, sel ast.SelectionSet, v *objects.ChannelWebSocketEvidence) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ChannelWebSocketEvidence(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNChannelWhereInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannelWhereInput(ctx context.Context, v any) (*ent.ChannelWhereInput, error) {

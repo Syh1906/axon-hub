@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { endpointName, endpointDefaultPath, endpointRequestURL, mergeEndpoints } from '../data/channel-addresses';
-import type { ChannelAddress, ChannelEndpoint } from '../data/schema';
+import type { Channel, ChannelAddress, ChannelEndpoint } from '../data/schema';
 import { getResponsesWebSocketEnabled, setResponsesWebSocketSupport } from '../data/protocol-options';
 import { CodexEndpointOptions } from './codex-endpoint-options';
 
@@ -22,6 +22,7 @@ export function ChannelEndpointEditor({
   onManageAddresses,
   container,
   showWebSocketOption = true,
+  verificationChannel,
 }: {
   defaults: ChannelEndpoint[];
   endpoints: ChannelEndpoint[];
@@ -33,6 +34,7 @@ export function ChannelEndpointEditor({
   onManageAddresses: () => void;
   container?: HTMLElement | null;
   showWebSocketOption?: boolean;
+  verificationChannel?: Channel;
 }) {
   const { t } = useTranslation();
   const all = mergeEndpoints(defaults, endpoints);
@@ -136,7 +138,7 @@ export function ChannelEndpointEditor({
               />
             )}
           </div>
-          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} webSocketEnabled={getResponsesWebSocketEnabled({ baseURL, endpoints, defaultEndpoints: defaults })} onChange={update} showWebSocketOption={showWebSocketOption} />}
+          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} webSocketEnabled={getResponsesWebSocketEnabled({ baseURL, endpoints, defaultEndpoints: defaults })} onChange={update} showWebSocketOption={showWebSocketOption} verificationChannel={verificationChannel} container={container} />}
           <div className='bg-muted/40 flex flex-col gap-2 rounded-md p-3'>
             <p className='text-sm font-medium'>{t('channels.addresses.requestURL')}</p>
             {previewBases.slice(0, 3).map((address) => (

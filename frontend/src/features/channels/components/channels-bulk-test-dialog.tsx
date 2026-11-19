@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IconCheck, IconFlask, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useVerifyChannelWebSocket } from '../data/websocket-evidence';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,6 +32,9 @@ export function ChannelsBulkTestDialog() {
   const { t } = useTranslation();
   const { open, setOpen, selectedChannels, resetRowSelection, setSelectedChannels } = useChannels();
   const testChannel = useTestChannel({ silent: true });
+  const verifyWS = useVerifyChannelWebSocket();
+  const [wsOnly, setWSOnly] = useState(false);
+  const [models, setModels] = useState<Record<string, string>>({});
   const bulkRecoverChannels = useBulkRecoverChannels();
   const [dialogContent, setDialogContent] = useState<HTMLDivElement | null>(null);
   const [results, setResults] = useState<Record<string, BulkTestResult>>({});
@@ -37,8 +43,8 @@ export function ChannelsBulkTestDialog() {
   const isDialogOpen = open === 'bulkTest';
 
   const resolveTestModel = useCallback((channel: Channel) => {
-    return channel.defaultTestModel || channel.supportedModels[0] || '';
-  }, []);
+    return (wsOnly && models[channel.id]) || channel.defaultTestModel || channel.supportedModels[0] || '';
+  }, [wsOnly, models]);
 
   const initializeResults = useCallback(() => {
     const nextResults = selectedChannels.reduce<Record<string, BulkTestResult>>((acc, channel) => {
@@ -85,11 +91,12 @@ export function ChannelsBulkTestDialog() {
   const skippedCount = useMemo(() => resultList.filter((result) => result.status === 'skipped').length, [resultList]);
 
   const recoverableChannels = useMemo(() => {
+    if (wsOnly) return [];
     return selectedChannels.filter((channel) => {
       const result = results[channel.id];
       return result?.status === 'success' && (channel.status === 'disabled' || channel.errorMessage != null);
     });
-  }, [results, selectedChannels]);
+  }, [wsOnly, results, selectedChannels]);
 
   const failedChannels = useMemo(() => {
     return selectedChannels.filter((channel) => results[channel.id]?.status === 'failed');
@@ -123,6 +130,13 @@ export function ChannelsBulkTestDialog() {
       setResultStatus(channel, 'testing', { error: undefined, latency: undefined, modelID });
 
       try {
+        if (wsOnly) {
+          const result = await verifyWS.mutateAsync({ channelID: channel.id, modelID, reuseVerified: true });
+          setResultStatus(channel, result.state === 'verified' ? 'success' : 'failed', {
+            modelID, error: result.state === 'verified' ? undefined : t(`channels.ws.reason.${result.reason || 'not_dispatched'}`),
+          });
+          return;
+        }
         const result = await testChannel.mutateAsync({
           channelID: channel.id,
           modelID,
@@ -140,7 +154,7 @@ export function ChannelsBulkTestDialog() {
         });
       }
     },
-    [resolveTestModel, setResultStatus, t, testChannel]
+    [wsOnly, verifyWS, resolveTestModel, setResultStatus, t, testChannel]
   );
 
   const runBatch = useCallback(
@@ -224,6 +238,8 @@ export function ChannelsBulkTestDialog() {
       }
 
       if (!nextOpen) {
+        setWSOnly(false);
+        setModels({});
         setOpen(null);
         return;
       }
@@ -262,9 +278,14 @@ export function ChannelsBulkTestDialog() {
       <DialogContent ref={setDialogContent} className='flex max-h-[90vh] flex-col sm:max-w-5xl'>
         <DialogHeader className='shrink-0'>
           <DialogTitle>{t('channels.dialogs.bulkTest.title')}</DialogTitle>
-          <DialogDescription>{t('channels.dialogs.bulkTest.description', { count: selectedChannels.length })}</DialogDescription>
+          <DialogDescription>{wsOnly ? t('channels.ws.batchDescription') : t('channels.dialogs.bulkTest.description', { count: selectedChannels.length })}</DialogDescription>
         </DialogHeader>
 
+        <label className='flex items-center gap-2 text-sm'>
+          <Checkbox checked={wsOnly} disabled={isTesting} onCheckedChange={(checked) => setWSOnly(checked === true)} />
+          {t('channels.ws.batch')}
+        </label>
+        {wsOnly && <p className='text-muted-foreground text-xs'>{t('channels.ws.batchCost', { count: selectedChannels.filter(channel => !!resolveTestModel(channel)).length })}</p>}
         <div className='flex min-h-0 flex-1 flex-col'>
           <div className='grid shrink-0 gap-3 border-b pb-4 md:grid-cols-4'>
             <div className='rounded-lg border bg-slate-50 p-3'>
@@ -313,9 +334,12 @@ export function ChannelsBulkTestDialog() {
                           <div className='truncate'>{t(`channels.status.${channel.status}`)}</div>
                         </TableCell>
                         <TableCell className='align-top'>
-                          <div className='truncate' title={result?.modelID || '-'}>
-                            {result?.modelID || '-'}
-                          </div>
+                          {wsOnly && resolveTestModel(channel) ? (
+                            <Select value={resolveTestModel(channel)} disabled={isTesting} onValueChange={value => setModels(previous => ({ ...previous, [channel.id]: value }))}>
+                              <SelectTrigger aria-label={t('channels.ws.model')}><SelectValue /></SelectTrigger>
+                              <SelectContent container={dialogContent}>{[...new Set([resolveTestModel(channel), ...channel.supportedModels])].map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}</SelectContent>
+                            </Select>
+                          ) : <div className='truncate' title={result?.modelID || '-'}>{result?.modelID || '-'}</div>}
                         </TableCell>
                         <TableCell className='align-top'>
                           <div className='space-y-1'>
@@ -350,9 +374,9 @@ export function ChannelsBulkTestDialog() {
 
         <DialogFooter pinned divided layout='content' align='between' className='sm:items-center'>
           <div className='text-muted-foreground min-w-0 text-sm'>
-            {recoverableChannels.length > 0
+            {!wsOnly && (recoverableChannels.length > 0
               ? t('channels.dialogs.bulkTest.recoverButton', { count: recoverableChannels.length })
-              : t('channels.dialogs.bulkTest.noRecoverableChannels')}
+              : t('channels.dialogs.bulkTest.noRecoverableChannels'))}
           </div>
           <div className='flex flex-wrap justify-end gap-2'>
             <Button variant='outline' onClick={() => handleOpenChange(false)} disabled={isTesting || bulkRecoverChannels.isPending}>
@@ -366,10 +390,10 @@ export function ChannelsBulkTestDialog() {
               {isTesting ? <IconLoader2 className='mr-2 h-4 w-4 animate-spin' /> : <IconFlask className='mr-2 h-4 w-4' />}
               {completedCount > 0 ? t('channels.dialogs.bulkTest.runAgainButton') : t('channels.dialogs.bulkTest.runButton', { count: selectedChannels.length })}
             </Button>
-            <Button onClick={handleRecoverChannels} disabled={recoverableChannels.length === 0 || isTesting || bulkRecoverChannels.isPending}>
+            {!wsOnly && <Button onClick={handleRecoverChannels} disabled={recoverableChannels.length === 0 || isTesting || bulkRecoverChannels.isPending}>
               {bulkRecoverChannels.isPending ? <IconLoader2 className='mr-2 h-4 w-4 animate-spin' /> : <IconCheck className='mr-2 h-4 w-4' />}
               {t('channels.dialogs.bulkTest.recoverButton', { count: recoverableChannels.length })}
-            </Button>
+            </Button>}
           </div>
         </DialogFooter>
       </DialogContent>

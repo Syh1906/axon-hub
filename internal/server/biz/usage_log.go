@@ -259,10 +259,15 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 	requestExec *ent.RequestExecution,
 	usage *llm.Usage,
 ) (*ent.UsageLog, error) {
-	return s.createUsageLogFromRequest(ctx, request, requestExec, usage, nil)
+	return s.CreateUsageLogForAttempt(ctx, request, requestExec, usage, false)
 }
 
-func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request *ent.Request, requestExec *ent.RequestExecution, usage *llm.Usage, recordedCost *budget.Amount) (*ent.UsageLog, error) {
+// An admission transaction may have established that this execution has no budget charge.
+func (s *UsageLogService) CreateUsageLogForAttempt(ctx context.Context, request *ent.Request, requestExec *ent.RequestExecution, usage *llm.Usage, unreserved bool) (*ent.UsageLog, error) {
+	return s.createUsageLogFromRequest(ctx, request, requestExec, usage, nil, unreserved)
+}
+
+func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request *ent.Request, requestExec *ent.RequestExecution, usage *llm.Usage, recordedCost *budget.Amount, unreserved bool) (*ent.UsageLog, error) {
 	if request == nil || requestExec == nil {
 		return nil, nil
 	}
@@ -285,6 +290,12 @@ func (s *UsageLogService) createUsageLogFromRequest(ctx context.Context, request
 		cost, err = s.actualBudgetCost(ctx, usage, requestExec.CostSnapshot)
 	}
 	params.SettledCost = cost
+	if unreserved {
+		if err != nil {
+			return nil, err
+		}
+		return s.CreateUsageLog(ctx, params)
+	}
 	if evidenceErr := s.BudgetService.RecordUsage(ctx, requestExec.ID, usage, requestExec.CostSnapshot, cost); evidenceErr != nil {
 		return nil, evidenceErr
 	}

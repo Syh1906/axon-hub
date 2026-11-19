@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/samber/lo"
@@ -36,7 +37,21 @@ func ReadHTTPRequest(rawReq *http.Request) (*Request, error) {
 		RawRequest: rawReq,
 	}
 
+	if prepared, ok := inspectedBody(rawReq); ok {
+		if prepared.err != nil {
+			return nil, prepared.err
+		}
+		req.BodyReadAt = prepared.readAt
+		req.Body = prepared.decoded
+		if prepared.decompressed {
+			req.Headers.Del("Content-Encoding")
+			req.Headers.Del("Content-Length")
+		}
+		_, _ = prepared.Seek(0, io.SeekEnd)
+		return req, nil
+	}
 	body, err := readLimited(rawReq.Body, maxRequestBodySize)
+	req.BodyReadAt = time.Now()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
@@ -51,6 +66,44 @@ func ReadHTTPRequest(rawReq *http.Request) (*Request, error) {
 	req.Body = body
 
 	return req, nil
+}
+
+type inspectedRequestBody struct {
+	*bytes.Reader
+	io.Closer
+	readAt       time.Time
+	decoded      []byte
+	err          error
+	decompressed bool
+	encoding     string
+}
+
+func inspectedBody(r *http.Request) (*inspectedRequestBody, bool) {
+	body, ok := r.Body.(*inspectedRequestBody)
+	return body, ok && int64(body.Len()) == body.Size() && body.encoding == r.Header.Get("Content-Encoding")
+}
+
+// InspectRequestBody shares the bounded, decoded input with the eventual handler.
+// Other readers can still consume the original wire representation.
+func InspectRequestBody(r *http.Request) ([]byte, error) {
+	if body, ok := inspectedBody(r); ok {
+		return body.decoded, body.err
+	}
+	if r.Body == nil {
+		return nil, nil
+	}
+	wire, err := readLimited(r.Body, maxRequestBodySize)
+	readAt := time.Now()
+	encoding := r.Header.Get("Content-Encoding")
+	decoded := wire
+	decompressed := false
+	if err == nil && len(wire) > 0 && encoding != "" {
+		headers := r.Header.Clone()
+		decoded, err = decodeRequestBody(wire, headers)
+		decompressed = err == nil && headers.Get("Content-Encoding") == ""
+	}
+	r.Body = &inspectedRequestBody{Reader: bytes.NewReader(wire), Closer: r.Body, readAt: readAt, decoded: decoded, err: err, decompressed: decompressed, encoding: encoding}
+	return decoded, err
 }
 
 func decodeRequestBody(body []byte, headers http.Header) ([]byte, error) {

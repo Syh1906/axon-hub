@@ -1,0 +1,20 @@
+type ChannelWebSocketEvidence {
+  state: String!
+  stage: String!
+  reason: String!
+  source: String!
+  model: String!
+  endpoint: String!
+  credential: String!
+  checkedAt: Time
+  expiresAt: Time
+  statusCode: Int!
+}
+
+extend type Query {
+  channelWebSocketEvidence(channelID: ID!, modelID: String!): ChannelWebSocketEvidence!
+}
+
+extend type Mutation {
+  verifyChannelWebSocket(channelID: ID!, modelID: String!, reuseVerified: Boolean! = true): ChannelWebSocketEvidence!
+}

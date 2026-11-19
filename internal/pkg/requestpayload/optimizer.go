@@ -17,6 +17,7 @@ const (
 	maxCacheBytes           = 64 << 20
 	maxCacheEntries         = 512
 	cacheTTL                = 5 * time.Minute
+	compressionRetryDelay   = 30 * time.Second
 	maxOptimizationDuration = time.Second
 )
 
@@ -97,6 +98,9 @@ func (o *Optimizer) Optimize(ctx context.Context, project int, body []byte) ([]b
 			if workCtx.Err() != nil {
 				stats.BudgetExhausted = true
 				stats.PreservedImages++
+				if ctx.Err() == nil {
+					o.cacheResult(key, "", time.Now(), compressionRetryDelay)
+				}
 				return
 			}
 			o.put(key, data, time.Now())
@@ -152,9 +156,17 @@ func (o *Optimizer) get(key cacheKey, now time.Time) (string, bool) {
 }
 
 func (o *Optimizer) put(key cacheKey, data string, now time.Time) {
+	o.cacheResult(key, data, now, cacheTTL)
+}
+
+func (o *Optimizer) cacheResult(key cacheKey, data string, now time.Time, ttl time.Duration) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if existing := o.entries[key]; existing != nil {
+		// A concurrent completed compression takes precedence over a timed-out attempt.
+		if ttl == compressionRetryDelay && now.Before(existing.Value.(cacheEntry).expires) {
+			return
+		}
 		o.remove(existing)
 	}
 	if len(data) > maxCacheBytes {
@@ -163,7 +175,7 @@ func (o *Optimizer) put(key cacheKey, data string, now time.Time) {
 	for o.lru.Len() > 0 && (o.bytes+len(data) > maxCacheBytes || o.lru.Len() >= maxCacheEntries || !now.Before(o.lru.Front().Value.(cacheEntry).expires)) {
 		o.remove(o.lru.Front())
 	}
-	o.entries[key] = o.lru.PushBack(cacheEntry{key, data, now.Add(cacheTTL)})
+	o.entries[key] = o.lru.PushBack(cacheEntry{key, data, now.Add(ttl)})
 	o.bytes += len(data)
 }
 

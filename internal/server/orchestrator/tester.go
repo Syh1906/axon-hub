@@ -29,6 +29,7 @@ import (
 	"github.com/looplj/axonhub/llm/transformer"
 	"github.com/looplj/axonhub/llm/transformer/openai"
 	"github.com/looplj/axonhub/llm/transformer/openai/decisions"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 	"github.com/looplj/axonhub/llm/transformer/typesafe"
 )
@@ -235,6 +236,10 @@ func usesResponsesWebSocket(channel *biz.Channel) bool {
 }
 
 func (processor *TestChannelOrchestrator) buildChannelTestInput(ctx context.Context, model string, useStream bool, systemPrompt, userPrompt string, responsesWebSocket bool, apiFormat llm.APIFormat) (transformer.Inbound, []byte, error) {
+	if currentWSProbe(ctx) != nil {
+		body, err := json.Marshal(map[string]any{"model": model, "input": "Reply OK.", "stream": true, "max_output_tokens": 64})
+		return responses.NewInboundTransformer(), body, err
+	}
 	if apiFormat == llm.APIFormatOpenAIImageGeneration {
 		body, err := json.Marshal(buildChannelTestImageRequest(model, userPrompt))
 		return openai.NewImageGenerationInboundTransformer(), body, err
@@ -372,17 +377,26 @@ func (processor *TestChannelOrchestrator) TestChannel(
 		return nil, xerrors.ForbiddenError("channel testing is not available to plugins")
 	}
 
-	channel, err := processor.channelService.GetChannel(ctx, channelID.ID)
-	if err != nil {
-		return nil, err
+	var channel *biz.Channel
+	var err error
+	if probe := currentWSProbe(ctx); probe != nil {
+		channel = probe.channel
+	} else {
+		channel, err = processor.channelService.GetChannel(ctx, channelID.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	testModel := lo.FromPtr(modelID)
 	if testModel == "" {
 		testModel = channel.DefaultTestModel
 	}
-	systemPrompt, userPrompt, err := processor.systemService.ChannelTestPrompts(ctx)
-	if err != nil {
-		return nil, err
+	var systemPrompt, userPrompt string
+	if currentWSProbe(ctx) == nil {
+		systemPrompt, userPrompt, err = processor.systemService.ChannelTestPrompts(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	useStream := channel.Policies.Stream == objects.CapabilityPolicyRequire && !channelUsesImageTest(channel.Settings)
 	apiFormat := channelTestAPIFormat(channel, testModel)
@@ -413,7 +427,7 @@ func (processor *TestChannelOrchestrator) TestChannel(
 		modelCircuitBreaker:        processor.modelCircuitBreaker,
 	}
 
-	if usesResponsesWebSocket(channel) {
+	if usesResponsesWebSocket(channel) || currentWSProbe(ctx) != nil {
 		ctx = shared.WithResponsesWebSocket(ctx)
 	}
 	// Measure latency
@@ -439,6 +453,19 @@ func (processor *TestChannelOrchestrator) TestChannel(
 
 	// Handle streaming response
 	if rawResponse.ChatCompletionStream != nil {
+		if probe := currentWSProbe(ctx); probe != nil {
+			stream := rawResponse.ChatCompletionStream
+			for stream.Next() {
+			}
+			verified := stream.Err() == nil && probe.outcome().State == "verified"
+			if verified {
+				if observer, ok := stream.(streams.DeliveryAcknowledger); ok {
+					observer.AcknowledgeDelivery()
+				}
+			}
+			closeErr := stream.Close()
+			return &TestChannelResult{Success: verified && closeErr == nil, Latency: time.Since(startTime).Seconds()}, closeErr
+		}
 		return processor.handleStreamResponse(ctx, rawResponse.ChatCompletionStream, startTime)
 	}
 	if apiFormat == llm.APIFormatOpenAIDecisions {
@@ -901,6 +928,9 @@ func (processor *TestChannelOrchestrator) testContext(ctx context.Context) (cont
 		return ctx, func() {}
 	}
 
+	if currentWSProbe(ctx) != nil {
+		return context.WithTimeout(ctx, processor.testTimeout)
+	}
 	return xcontext.DetachWithTimeout(ctx, processor.testTimeout)
 }
 

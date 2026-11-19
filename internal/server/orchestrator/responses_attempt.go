@@ -18,20 +18,22 @@ import (
 )
 
 type responsesContinuation struct {
-	store          *responsesSessionStore
-	original       []byte
-	effective      []byte
-	snapshotBody   []byte
-	previous       string
-	input          []json.RawMessage
-	parent         *shared.ResponsesSnapshot
-	complete       bool
-	retain         bool
-	retentionBytes int
-	lane           *shared.ResponsesLane
-	firstOrigin    *shared.ResponsesOrigin
-	owner          *shared.ResponsesRecord
-	capture        *responsesCompletion
+	store              *responsesSessionStore
+	original           []byte
+	effective          []byte
+	snapshotBody       []byte
+	holdHTTPHistory    bool
+	pendingHTTPHistory *responsesHTTPHistory
+	previous           string
+	input              []json.RawMessage
+	parent             *shared.ResponsesSnapshot
+	complete           bool
+	retain             bool
+	retentionBytes     int
+	lane               *shared.ResponsesLane
+	firstOrigin        *shared.ResponsesOrigin
+	owner              *shared.ResponsesRecord
+	capture            *responsesCompletion
 }
 
 func newResponsesContinuation(store *responsesSessionStore, body []byte) *responsesContinuation {
@@ -112,11 +114,7 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 	c.effective = body
 	native := shared.IsResponsesWebSocket(ctx) && target.origin.Format == string(llm.APIFormatOpenAIResponseWebSocket)
 	if c.complete && !native {
-		encoded, err := json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		c.snapshotBody = encoded
+		c.snapshotBody = body
 	}
 	c.input = nil
 	// Only Responses carries lossless input/output items for this recovery
@@ -131,11 +129,6 @@ func prepareResponsesAttemptBodyWithRequest(ctx context.Context, p *PersistentOu
 				c.retentionBytes, c.retain = 0, false
 			}
 		}
-	}
-	// Lane snapshots capture the final input after plugins/overrides. Avoid
-	// decoding and copying the same (potentially large) input a second time.
-	if c.retain && c.lane == nil {
-		c.input = responseSessionInputItems(payload["input"])
 	}
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
 		c.capture.metadataOnly = !c.retain
@@ -394,15 +387,13 @@ func verifyResponsesAttempt(p *PersistentOutboundTransformer) pipeline.Middlewar
 			// Capture the final, plugin/override-adjusted input once. A live native
 			// continuation keeps only this turn; recovery starts a new complete root.
 			c.effective = request.Body
-			if c.retain {
+			if c.retain && c.lane != nil {
 				input := gjson.GetBytes(request.Body, "input")
-				if c.lane != nil && !c.lane.Budget().Replace(c.retentionBytes, len(input.Raw)) {
+				if !c.lane.Budget().Replace(c.retentionBytes, len(input.Raw)) {
 					c.releaseRetention()
 					c.retain, c.input = false, nil
 				} else {
-					if c.lane != nil {
-						c.retentionBytes = len(input.Raw)
-					}
+					c.retentionBytes = len(input.Raw)
 					c.input = responseSessionInputItems([]byte(input.Raw))
 				}
 			}

@@ -42,6 +42,20 @@ func (s *RequestService) SetExecutionSelection(ctx context.Context, id int, sele
 	}).Exec(ctx)
 }
 
+// The existing terminal update also saves the last model observation after the stream drains.
+func attachFinalWebSocketEvidence(update *ent.RequestExecutionUpdate, selection *objects.RequestExecutionSelection) error {
+	selection = selection.FinalWebSocketSelection()
+	if selection == nil {
+		return nil
+	}
+	raw, err := json.Marshal(selection)
+	if err != nil {
+		return err
+	}
+	update.Modify(func(u *sql.UpdateBuilder) { u.Set(requestexecution.FieldSelection, string(raw)) })
+	return nil
+}
+
 func (s *RequestService) SetExecutionRetryDecision(ctx context.Context, executionID int, decision string) error {
 	return s.entFromContext(ctx).RequestExecution.UpdateOneID(executionID).SetRetryDecision(decision).Exec(ctx)
 }

@@ -114,6 +114,8 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 		return
 	}
 	genericReq = prepared
+	ctx, clock := contexts.WithRequestClock(ctx, genericReq.BodyReadAt)
+	c.Request = c.Request.WithContext(ctx)
 
 	processCtx := ctx
 	var abortUpstream context.CancelFunc
@@ -122,6 +124,7 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 		defer abortUpstream()
 	}
 	result, err := handlers.ChatCompletionOrchestrator.Process(processCtx, genericReq)
+	defer reportRequestTiming(ctx, clock, result.RequestID, err != nil)
 	if result.RequestID > 0 {
 		defer func() {
 			// Capture the status actually committed by the HTTP writer, including SSE.
@@ -163,7 +166,11 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 			JSONError(c, http.StatusBadGateway, err)
 			return
 		}
+		errorsBefore := len(c.Errors)
 		c.Data(resp.StatusCode, contentType, body)
+		if c.Writer.Written() && len(c.Errors) == errorsBefore {
+			clock.Wrote(true)
+		}
 
 		return
 	}

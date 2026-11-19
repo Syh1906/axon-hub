@@ -10,6 +10,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/log"
@@ -66,6 +67,8 @@ type persistRequestExecutionMiddleware struct {
 
 	rawResponse    *httpclient.Response
 	headerObserver *executionHeaderObserver
+	cacheSample    *usageanalytics.CacheSample
+	sampled        bool
 }
 
 // executionHeaderObserver keeps the upstream response headers of one execution in
@@ -142,9 +145,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	candidate := state.ChannelModelsCandidates[state.CurrentCandidateIndex]
 	entry := candidate.Models[state.CurrentModelIndex]
 
-	var cacheSample *usageanalytics.CacheSample
-	if state.RawRequest != nil && state.Request != nil {
-		cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
+	if !m.sampled && state.RawRequest != nil && state.Request != nil {
+		m.cacheSample = usageanalytics.CacheSampleFromRequest(state.RawRequest.Body, state.Request.Format, state.Request.ProjectID, state.Request.APIKeyID, state.Request.ModelID)
+		m.sampled = true
 	}
 	selection := executionSelection(ctx, state)
 	selection.UseActualModelPrice = entry.UseActualModelPrice
@@ -163,7 +166,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		*request,
 		format,
 		state.PassThroughApplied,
-		cacheSample,
+		m.cacheSample,
 		selection,
 		candidate.ModelCard,
 		requestServiceTier(state, request, format),
@@ -188,7 +191,21 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 	}
 
 	state.RequestExec = requestExec
+	if err := m.outbound.configureWebSocket(ctx, request, requestExec); err != nil {
+		return nil, err
+	}
+	if probe := currentWSProbe(ctx); probe != nil {
+		if request.ResponsesWebSocket == nil {
+			return nil, errNoWSEndpoint
+		}
+		release, err := state.ChannelService.AcquireWebSocketProbe(ctx, request.URL)
+		if err != nil {
+			return nil, err
+		}
+		probe.release = release
+	}
 	attachExecutionTransport(state, request)
+	state.attemptClock = contexts.GetRequestClock(ctx).AddAttempt(requestExec.ID, requestExec.ChannelID, request.TransportTrace)
 	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {
 		if requestExec.Selection == nil {
@@ -201,6 +218,14 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		}
 		selection.UpstreamTransport = protocol
 		selection.TransportFallbackReason = reason
+		if policy := request.ResponsesWebSocket; protocol == "http" && policy != nil && policy.HTTPURL != "" {
+			selection.UpstreamRef = biz.ResponsesUpstreamRef(policy.HTTPURL, request.Headers)
+			if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
+				origin := attempt.Origin()
+				origin.Endpoint, origin.Format, origin.Generation = policy.HTTPURL, string(llm.APIFormatOpenAIResponse), 0
+				attempt.SetOrigin(origin)
+			}
+		}
 		requestExec.Selection = &selection
 		if err := state.RequestService.SetExecutionSelection(ctx, requestExec.ID, &selection); err != nil {
 			log.Warn(ctx, "Failed to persist selected transport", log.Cause(err))

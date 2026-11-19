@@ -99,7 +99,7 @@ func (m *persistRequestMiddleware) OnOutboundLlmResponse(ctx context.Context, ll
 	}
 	m.injectUsageCost(ctx, llmResp)
 	defer func() {
-		if state.APIKey != nil && state.RequestExec != nil {
+		if !state.budgetUnreserved && state.APIKey != nil && state.RequestExec != nil {
 			if err := state.UsageLogService.BudgetService.EndAttempt(persistCtx, state.RequestExec.ID); err != nil {
 				log.Error(persistCtx, "close completed budget attempt", log.Cause(err))
 			}
@@ -113,7 +113,7 @@ func (m *persistRequestMiddleware) OnOutboundLlmResponse(ctx context.Context, ll
 		return llmResp, nil
 	}
 
-	_, err := state.UsageLogService.CreateUsageLogFromRequest(persistCtx, state.Request, state.RequestExec, usageToLog)
+	_, err := state.UsageLogService.CreateUsageLogForAttempt(persistCtx, state.Request, state.RequestExec, usageToLog, state.budgetUnreserved)
 	if err != nil {
 		log.Warn(persistCtx, "Failed to create usage log from request", log.Cause(err))
 	}

@@ -4,13 +4,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import type { ChannelEndpoint } from '../data/schema';
+import type { Channel, ChannelEndpoint } from '../data/schema';
+import { ChannelWSVerification } from './channel-ws-verification';
 
-export function CodexEndpointOptions({ endpoint, webSocketEnabled, onChange, showWebSocketOption = true }: {
+export function CodexEndpointOptions({ endpoint, webSocketEnabled, onChange, showWebSocketOption = true, verificationChannel, container }: {
   endpoint: ChannelEndpoint;
   webSocketEnabled: boolean;
   onChange: (patch: Partial<ChannelEndpoint>) => void;
   showWebSocketOption?: boolean;
+  verificationChannel?: Channel;
+  container?: HTMLElement | null;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => ({ source: endpoint.catalogJSON, text: endpoint.catalogJSON ? JSON.stringify(endpoint.catalogJSON, null, 2) : '', invalid: false }));
@@ -22,11 +25,10 @@ export function CodexEndpointOptions({ endpoint, webSocketEnabled, onChange, sho
   const { text, invalid } = draft;
   return (
     <div className='flex flex-col gap-3'>
-      {showWebSocketOption && <><div className='flex items-center gap-2'>
+      {showWebSocketOption && <ChannelWSVerification channel={verificationChannel} container={container} hint={t('channels.endpoints.webSocketsHint')}><div className='flex items-center gap-2'>
         <Checkbox id='endpoint-supports-ws' checked={webSocketEnabled} onCheckedChange={(checked) => onChange({ supportsWebSockets: checked === true, transport: '' })} />
         <Label htmlFor='endpoint-supports-ws'>{t('channels.endpoints.supportsWebSockets')}</Label>
-      </div>
-      <p className='text-muted-foreground text-xs'>{t('channels.endpoints.webSocketsHint')}</p></>}
+      </div></ChannelWSVerification>}
       <div className='flex flex-col gap-2'>
         <Label htmlFor='endpoint-catalog-url'>{t('channels.endpoints.catalogURL')}</Label>
         <Input id='endpoint-catalog-url' value={endpoint.catalogURL ?? ''} placeholder={t('channels.endpoints.catalogURLPlaceholder')} onChange={(event) => onChange({ catalogURL: event.target.value })} />

@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/pkg/budget"
@@ -16,7 +17,9 @@ import (
 // EndAttempt releases the independent temporary hold.
 // handled=false means this attempt predates budget activation.
 func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budget.Amount, saveLog func(context.Context, *ent.Client, *ent.UsageLog) (*ent.UsageLog, error)) (result *ent.UsageLog, handled bool, err error) {
+	committed := false
 	err = s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
+		committed = false
 		handled = true
 		if charge.UsageLogID != nil {
 			var err error
@@ -112,7 +115,11 @@ func (s *BudgetService) Settle(ctx context.Context, executionID int, cost *budge
 		if charge.ReservationReleasedAt == nil {
 			update.SetReservationReleasedAt(now)
 		}
+		committed = true
 		return update.SetActual(int64(*cost)).SetStatus(budgetcharge.StatusSettled).SetSettledAt(now).ClearOwnerExpiresAt().Exec(ctx)
 	})
+	if committed && err == nil {
+		contexts.GetRequestClock(ctx).Settled(executionID)
+	}
 	return
 }

@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,44 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestInspectRequestBodySharesDecodedInputAndPreservesWire(t *testing.T) {
+	raw := []byte(`{"input":"fixture"}`)
+	var wire bytes.Buffer
+	zw := gzip.NewWriter(&wire)
+	_, err := zw.Write(raw)
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	newRequest := func() *http.Request {
+		r := httptest.NewRequest("POST", "/", bytes.NewReader(wire.Bytes()))
+		r.Header.Set("Content-Encoding", "gzip")
+		return r
+	}
+	r := newRequest()
+	first, err := InspectRequestBody(r)
+	require.NoError(t, err)
+	require.Equal(t, "gzip", r.Header.Get("Content-Encoding"))
+	preserved, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	require.Equal(t, wire.Bytes(), preserved)
+	r = newRequest()
+	first, err = InspectRequestBody(r)
+	require.NoError(t, err)
+	second, err := InspectRequestBody(r)
+	require.NoError(t, err)
+	require.Same(t, &first[0], &second[0])
+	actual, err := ReadHTTPRequest(r)
+	require.NoError(t, err)
+	require.Same(t, &first[0], &actual.Body[0])
+	require.Equal(t, raw, actual.Body)
+	require.Empty(t, r.Header.Get("Content-Encoding"))
+	bad := httptest.NewRequest("POST", "/", bytes.NewReader([]byte("broken")))
+	bad.Header.Set("Content-Encoding", "gzip")
+	_, err = InspectRequestBody(bad)
+	require.Error(t, err)
+	_, err = ReadHTTPRequest(bad)
+	require.Error(t, err)
+}
 
 func TestReadHTTPRequest_NoContentEncoding(t *testing.T) {
 	body := []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hello"}]}`)

@@ -102,6 +102,9 @@ func (m *performanceRecording) OnOutboundLlmResponse(ctx context.Context, respon
 	if m.outbound.state.Perf == nil {
 		return response, nil
 	}
+	if hasMeaningfulStreamOutput(response) {
+		m.outbound.state.attemptClock.FirstContent()
+	}
 	if m.outbound.state.ResponseTerminalError != nil {
 		m.OnOutboundRawError(ctx, m.outbound.state.ResponseTerminalError)
 	} else {
@@ -112,7 +115,9 @@ func (m *performanceRecording) OnOutboundLlmResponse(ctx context.Context, respon
 		}
 
 		m.outbound.state.Perf.MarkSuccess()
-		m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, m.outbound.state.Perf)
+		if currentWSProbe(ctx) == nil {
+			m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, m.outbound.state.Perf)
+		}
 	}
 
 	return response, nil
@@ -149,7 +154,9 @@ func (m *performanceRecording) OnOutboundRawError(ctx context.Context, err error
 		perf.MarkFailedWithMessage(errorCode, extractErrorMessageForMatching(err))
 	}
 
-	m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, perf)
+	if currentWSProbe(ctx) == nil {
+		m.outbound.state.ChannelService.AsyncRecordPerformance(ctx, perf)
+	}
 }
 
 // recordPerformanceStream records performance metrics for a stream of responses.
@@ -172,6 +179,7 @@ func (s *recordPerformanceStream) Current() *llm.Response {
 
 	if !s.firstTokenSet && s.state.Perf != nil && hasMeaningfulStreamOutput(event) {
 		s.state.Perf.MarkFirstToken()
+		s.state.attemptClock.FirstContent()
 		s.firstTokenSet = true
 	}
 
@@ -209,6 +217,9 @@ func hasMeaningfulStreamOutput(event *llm.Response) bool {
 
 	for _, choice := range event.Choices {
 		delta := choice.Delta
+		if delta == nil {
+			delta = choice.Message
+		}
 		if delta == nil {
 			continue
 		}
@@ -253,7 +264,7 @@ func (s *recordPerformanceStream) Close() error {
 // enqueueCompletedPerformance submits a completed stream only after its normalized
 // events have been consumed, so final usage is visible to the metrics worker.
 func enqueueCompletedPerformance(ctx context.Context, state *PersistenceState) {
-	if state == nil || state.Perf == nil || !state.Perf.RequestCompleted || state.ChannelService == nil {
+	if currentWSProbe(ctx) != nil || state == nil || state.Perf == nil || !state.Perf.RequestCompleted || state.ChannelService == nil {
 		return
 	}
 

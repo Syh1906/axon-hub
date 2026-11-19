@@ -54,6 +54,8 @@ type ChannelModelEntry struct {
 
 type Channel struct {
 	*ent.Channel
+	wsProfile  string
+	wsAutoHTTP bool
 
 	// Outbound is the primary outbound transformer for the channel.
 	// The primary outbound corresponds to the channel's primary default endpoint.
@@ -172,6 +174,7 @@ func (svc *ChannelService) Stop() {
 
 type ChannelService struct {
 	*AbstractService
+	wsEvidence wsEvidenceCache
 
 	SystemService   *SystemService
 	WebhookNotifier *WebhookNotifier

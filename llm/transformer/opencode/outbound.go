@@ -68,6 +68,14 @@ type sessionHeaderOutbound struct {
 	transformer.Outbound
 }
 
+// ResponsesURL forwards the resolved path for channels with separate WS and HTTP endpoints.
+func (t *sessionHeaderOutbound) ResponsesURL() string {
+	if native, ok := t.Outbound.(interface{ ResponsesURL() string }); ok {
+		return native.ResponsesURL()
+	}
+	return ""
+}
+
 // sessionHeaderCustomizedOutbound preserves customized executor behavior for
 // outbounds such as OpenAI Responses while adding OpenCode session affinity.
 type sessionHeaderCustomizedOutbound struct {

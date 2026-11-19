@@ -12,7 +12,6 @@ import (
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/budget"
-	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/shopspring/decimal"
@@ -70,7 +69,7 @@ func (s *BudgetService) Estimate(ctx context.Context, execution *ent.RequestExec
 			}
 			textBytes := len(body)
 			imageTokens := int64(0)
-			if images, content := requestpayload.Inspect(body); images != nil {
+			if images, content := inspectRequestBody(ctx, body); images != nil {
 				textBytes -= content.ImageBytes
 				// Match the normalized request heuristic. Encoding size is not
 				// image token usage; actual provider usage still settles in full.

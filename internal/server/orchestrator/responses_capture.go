@@ -164,7 +164,11 @@ func (c *responsesContinuation) remember(ctx context.Context, body []byte) {
 		if c.capture.overflow {
 			requestBody = []byte(`{"previous_response_id":"unavailable"}`)
 		}
-		c.store.record(ctx, requestBody, body)
+		if c.holdHTTPHistory && !c.capture.overflow {
+			c.pendingHTTPHistory = &responsesHTTPHistory{input: requestBody, output: body}
+		} else {
+			c.store.record(ctx, requestBody, body)
+		}
 		if c.capture.budget != nil {
 			c.capture.budget.Replace(c.capture.retained, 0)
 			c.capture.retained = 0
@@ -229,5 +233,6 @@ func (s *responsesAcceptedStream) Current() *httpclient.StreamEvent { return s.c
 func (s *responsesAcceptedStream) Close() error {
 	defer s.continuation.releaseRetention()
 	defer s.continuation.releaseCapture()
+	defer s.continuation.flushHTTPHistory(s.ctx)
 	return s.Stream.Close()
 }

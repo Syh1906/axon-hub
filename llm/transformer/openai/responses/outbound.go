@@ -236,8 +236,6 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		llmReq.TransformerMetadata = map[string]any{}
 	}
 
-	apiKey := t.config.APIKeyProvider.Get(ctx)
-
 	var tools []Tool
 	namespaceIndexes := make(map[string]int)
 	// Convert tools to Responses API format
@@ -341,6 +339,16 @@ func (t *OutboundTransformer) TransformRequest(ctx context.Context, llmReq *llm.
 		return nil, fmt.Errorf("failed to marshal responses api request: %w", err)
 	}
 
+	return t.NewRequestWithBody(ctx, llmReq, body)
+}
+
+// NewRequestWithBody applies the same URL, credential and metadata as a converted chat
+// request when the caller already validated and prepared the native Responses body.
+func (t *OutboundTransformer) NewRequestWithBody(ctx context.Context, llmReq *llm.Request, body []byte) (*httpclient.Request, error) {
+	if llmReq.TransformerMetadata == nil {
+		llmReq.TransformerMetadata = map[string]any{}
+	}
+	apiKey := t.config.APIKeyProvider.Get(ctx)
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
@@ -379,6 +387,12 @@ func (t *OutboundTransformer) buildFullRequestURL(_ *llm.Request) (string, error
 	}
 
 	return t.config.BaseURL + "/responses", nil
+}
+
+// ResponsesURL returns the configured endpoint without obtaining credentials.
+func (t *OutboundTransformer) ResponsesURL() string {
+	endpoint, _ := t.buildFullRequestURL(nil)
+	return endpoint
 }
 
 // TransformResponse converts an OpenAI Responses API HTTP response to unified llm.Response.

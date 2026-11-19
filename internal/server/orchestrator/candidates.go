@@ -1104,7 +1104,9 @@ func NewSpecifiedChannelSelector(channelService *biz.ChannelService, channelID o
 func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request) ([]*ChannelModelsCandidate, error) {
 	var channel *biz.Channel
 	var err error
-	if s.SelectedAPIKey != "" {
+	if probe := currentWSProbe(ctx); probe != nil && probe.channel.ID == s.ChannelID.ID {
+		channel = probe.channel
+	} else if s.SelectedAPIKey != "" {
 		channel, err = s.ChannelService.GetChannelWithKey(ctx, s.ChannelID.ID, s.SelectedAPIKey)
 	} else {
 		channel, err = s.ChannelService.GetChannel(ctx, s.ChannelID.ID)
@@ -1124,6 +1126,10 @@ func (s *SpecifiedChannelSelector) Select(ctx context.Context, req *llm.Request)
 	}
 
 	apiFormat, _ := selectChannelAPIFormat(ctx, channel, []biz.ChannelModelEntry{entry}, req, req.Model)
+	if probe := currentWSProbe(ctx); probe != nil && apiFormat != string(llm.APIFormatOpenAIResponse) && apiFormat != string(llm.APIFormatOpenAIResponseWebSocket) {
+		probe.record(biz.ChannelWebSocketEvidence{State: "unknown", Stage: "preparation", Reason: "no_endpoint", Source: "probe", Model: entry.ActualModel})
+		return nil, errNoWSEndpoint
+	}
 	if apiFormat == "" && (llm.HasConversionRequirements(req) || requiresChannelProtocolSelection(channel, req)) {
 		return nil, fmt.Errorf("channel %s has no endpoint that can preserve the requested tools or response controls", channel.Name)
 	}

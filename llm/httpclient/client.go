@@ -587,6 +587,9 @@ func (hc *HttpClient) BuildHttpRequest(
 	ctx context.Context,
 	request *Request,
 ) (*http.Request, error) {
+	if request != nil && request.ResponsesWebSocket != nil && request.ResponsesWebSocket.Probe {
+		return nil, fmt.Errorf("model WebSocket verification requires the native transport")
+	}
 	return BuildHttpRequest(ctx, request)
 }
 

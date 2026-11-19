@@ -141,6 +141,22 @@ func TestOptimizerCacheBoundAndExpiry(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestTimedOutImageCooldownExpiresAndKeepsConcurrentSuccess(t *testing.T) {
+	o := &Optimizer{entries: make(map[cacheKey]*list.Element)}
+	k := cacheKey{project: 1}
+	at := time.Now()
+	o.cacheResult(k, "", at, compressionRetryDelay)
+	_, found := o.get(k, at.Add(time.Second))
+	require.True(t, found)
+	_, found = o.get(k, at.Add(compressionRetryDelay))
+	require.False(t, found)
+	o.put(k, "compressed", at)
+	o.cacheResult(k, "", at.Add(time.Second), compressionRetryDelay)
+	value, found := o.get(k, at.Add(compressionRetryDelay))
+	require.True(t, found)
+	require.Equal(t, "compressed", value)
+}
+
 func TestOptimizerBusyPreservesOriginalAndDoesNotFailRequest(t *testing.T) {
 	image := testPNG(t)
 	body := []byte(`{"input":[{"type":"input_image","image_url":"data:image/png;base64,` + base64.StdEncoding.EncodeToString(image) + `"}]}`)

@@ -166,6 +166,22 @@ func (t *OutboundTransformer) TokenProvider() oauth.TokenGetter {
 	return t.tokens
 }
 
+// PrepareResponsesHTTP applies the saved HTTP destination's private-header policy
+// after choosing a different configured URL for the same channel.
+func (t *OutboundTransformer) PrepareResponsesHTTP(req *httpclient.Request) *httpclient.Request {
+	if isOfficialCodexBaseURL(req.URL) || req.Headers.Get(ResponsesLiteHeader) == "" {
+		return req
+	}
+	copy := *req
+	copy.Headers = req.Headers.Clone()
+	copy.Headers.Del(ResponsesLiteHeader)
+	return &copy
+}
+
+func (t *OutboundTransformer) ResponsesURL() string {
+	return t.responsesOutbound.ResponsesURL()
+}
+
 func (t *OutboundTransformer) AllowPassThroughBody(_ context.Context, llmReq *llm.Request, _ *httpclient.Request) bool {
 	if llmReq == nil || (llmReq.APIFormat != llm.APIFormatOpenAIResponse && llmReq.APIFormat != llm.APIFormatOpenAIResponseWebSocket && llmReq.APIFormat != llm.APIFormatOpenAIResponseCompact) || llmReq.RawRequest == nil {
 		return true

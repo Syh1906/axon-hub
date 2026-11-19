@@ -225,7 +225,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx context.Context, request *httpclient.Request, hedgeDelay time.Duration) (completion ChatCompletionResult, processErr error) {
 	lifecycleOwner, executionCtx := newStreamLifecycle(ctx)
-	ctx = executionCtx
+	ctx = biz.WithRequestBodyInspection(executionCtx)
 	var preparedResponsesBody []byte
 	var continuation *responsesContinuation
 	defer func() {
@@ -250,6 +250,11 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	settings := processor.loadRequestSettings(ctx)
 	ctx = withRequestSettings(ctx, settings)
 	retryPolicy := &settings.RetryPolicy
+	if currentWSProbe(ctx) != nil {
+		singleAttempt := *retryPolicy
+		singleAttempt.Enabled = false
+		retryPolicy = &singleAttempt
+	}
 	var healthGateDecision *healthGateRequestDecision
 	ctx = context.WithValue(ctx, healthGateDecisionContextKey{}, &healthGateDecision)
 
@@ -412,10 +417,16 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	if route.Model == "" && state.RequestExec != nil {
 		route.Model = state.RequestExec.ModelID
 	}
-	if continuation != nil && shared.IsResponsesWebSocket(ctx) {
+	if processor.responsesSessions != nil && continuation != nil && shared.IsResponsesWebSocket(ctx) {
 		preparedResponsesBody = continuation.snapshotBody
 	}
 	retainedContinuation := continuation
+	if continuation != nil && preparedResponsesBody != nil && !shared.IsResponsesWebSocket(ctx) {
+		continuation.holdHTTPHistory = true
+		if !result.Stream {
+			defer continuation.flushHTTPHistory(ctx)
+		}
+	}
 	if result.Stream && continuation != nil {
 		source := result.EventStream
 		accepted := &responsesAcceptedStream{Stream: source, ctx: ctx, continuation: continuation}
@@ -441,7 +452,7 @@ func maybeEvaluateChannelAPIKeyRulesOnFailure(
 	outbound *PersistentOutboundTransformer,
 	rawErr error,
 ) {
-	if isLocalAdmissionError(rawErr) {
+	if currentWSProbe(ctx) != nil || isLocalAdmissionError(rawErr) {
 		return
 	}
 	if outbound == nil || outbound.state == nil || outbound.state.ChannelService == nil {

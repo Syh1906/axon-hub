@@ -375,28 +375,33 @@ func (s *responsesSessionStore) wrapStream(
 	ctx context.Context,
 	requestBody []byte,
 	stream streams.Stream[*httpclient.StreamEvent],
+	continuations ...*responsesContinuation,
 ) streams.Stream[*httpclient.StreamEvent] {
 	responseHeaders := httpclient.GetResponseHeaders(stream)
 	wrapped := new(responsesSessionStream)
 	wrapped.ctx = ctx
 	wrapped.store = s
-	wrapped.requestBody = append([]byte(nil), requestBody...)
+	wrapped.requestBody = requestBody
+	if len(continuations) > 0 {
+		wrapped.continuation = continuations[0]
+	}
 	wrapped.inner = stream
 
 	return httpclient.WithResponseHeaders(wrapped, responseHeaders)
 }
 
 type responsesSessionStream struct {
-	ctx         context.Context
-	store       *responsesSessionStore
-	requestBody []byte
-	inner       streams.Stream[*httpclient.StreamEvent]
-	current     *httpclient.StreamEvent
-	chunks      []*httpclient.StreamEvent
-	chunksBytes int
-	terminal    bool
-	recorded    bool
-	overflow    bool
+	continuation *responsesContinuation
+	ctx          context.Context
+	store        *responsesSessionStore
+	requestBody  []byte
+	inner        streams.Stream[*httpclient.StreamEvent]
+	current      *httpclient.StreamEvent
+	chunks       []*httpclient.StreamEvent
+	chunksBytes  int
+	terminal     bool
+	recorded     bool
+	overflow     bool
 }
 
 func (s *responsesSessionStream) AcknowledgeDelivery() {
@@ -444,6 +449,15 @@ func (s *responsesSessionStream) Next() bool {
 
 	s.current = s.inner.Current()
 	if s.current != nil {
+		if IsTerminalStreamEvent(s.current) {
+			s.terminal = true
+			terminal := gjson.GetBytes(s.current.Data, "response")
+			if terminal.Get("status").String() == "completed" && terminal.Get("id").String() != "" && completeHistoryOutput(terminal.Get("output"), s.chunks, s.overflow) {
+				s.recordDelivered([]byte(terminal.Raw))
+				s.chunks = nil
+				return true
+			}
+		}
 		if !s.overflow {
 			s.chunksBytes += len(s.current.Type) + len(s.current.LastEventID) + len(s.current.Data)
 			if s.chunksBytes > responsesSessionMaxResponse {
@@ -458,26 +472,45 @@ func (s *responsesSessionStream) Next() bool {
 				})
 			}
 		}
-		if IsTerminalStreamEvent(s.current) {
-			s.terminal = true
-			// A final Responses event carries the complete output even when the
-			// bounded delta buffer was exceeded. Persist continuation separately.
-			var terminal struct {
-				Response json.RawMessage `json:"response"`
-			}
-			if s.overflow && json.Unmarshal(s.current.Data, &terminal) == nil && len(terminal.Response) > 0 {
-				var complete struct {
-					Output json.RawMessage `json:"output"`
-				}
-				if json.Unmarshal(terminal.Response, &complete) == nil && len(complete.Output) > 0 {
-					s.store.record(s.ctx, s.requestBody, terminal.Response)
-					s.recorded = true
-				}
-			}
+		if s.terminal {
 			s.recordCompleted()
 		}
 	}
 
+	return true
+}
+
+// A sparse terminal is common on relays. Reuse a full snapshot only when it
+// covers the observed items. Otherwise the existing delta aggregator owns recovery.
+func completeHistoryOutput(output gjson.Result, events []*httpclient.StreamEvent, overflow bool) bool {
+	if !output.IsArray() {
+		return false
+	}
+	items := output.Array()
+	if len(items) == 0 {
+		return false
+	}
+	if overflow {
+		return true
+	}
+	for _, ev := range events {
+		kind := ev.Type
+		if kind == "" {
+			kind = gjson.GetBytes(ev.Data, "type").String()
+		}
+		switch kind {
+		case "response.created", "response.in_progress", "response.queued":
+			continue
+		case "response.output_item.done":
+			index := gjson.GetBytes(ev.Data, "output_index").Int()
+			if index < 0 || index >= int64(len(items)) || gjson.GetBytes(ev.Data, "item").Raw != items[index].Raw {
+				return false
+			}
+		default:
+			// The native aggregator owns incremental text, tools and reasoning.
+			return false
+		}
+	}
 	return true
 }
 
@@ -501,8 +534,16 @@ func (s *responsesSessionStream) recordCompleted() {
 		return
 	}
 
-	s.store.record(s.ctx, s.requestBody, body)
+	s.recordDelivered(body)
+}
+
+func (s *responsesSessionStream) recordDelivered(body []byte) {
 	s.recorded = true
+	if s.continuation != nil {
+		s.continuation.recordDelivered(s.ctx, s.store, s.requestBody, body)
+		return
+	}
+	s.store.record(s.ctx, s.requestBody, body)
 }
 
 func cloneResponseSessionPayload(payload map[string]json.RawMessage) map[string]json.RawMessage {

@@ -919,6 +919,9 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	upd := client.RequestExecution.Update().Where(requestexecution.ID(execution.ID)).
 		SetStatus(status).
 		SetExternalID(externalId)
+	if err := attachFinalWebSocketEvidence(upd, execution.Selection); err != nil {
+		return err
+	}
 	if metrics != nil {
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
 	}
@@ -1020,6 +1023,9 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 
 	upd := client.RequestExecution.Update().
 		SetStatus(status)
+	if err := attachFinalWebSocketEvidence(upd, execution.Selection); err != nil {
+		return err
+	}
 	if metrics != nil {
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
 	}

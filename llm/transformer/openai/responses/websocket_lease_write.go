@@ -15,6 +15,11 @@ func ContinuationAuthIdentity(request *httpclient.Request) string {
 	return hashSecret(authPoolIdentity(request.Auth, headers) + "\x00" + headerPoolIdentity(headers) + "\x00" + headers.Get(webSocketAccountIDHeader) + "\x00" + headers.Get(webSocketOrgHeader) + "\x00" + headers.Get(webSocketProjectHeader))
 }
 
+// WebSocketCredentialIdentity intentionally excludes client/session metadata.
+func WebSocketCredentialIdentity(r *httpclient.Request) string {
+	return hashSecret(authPoolIdentity(r.Auth, r.Headers) + "\x00" + r.Headers.Get("Authorization") + "\x00" + r.Headers.Get("X-Api-Key"))
+}
+
 func isWebSocketRecoveryEvent(raw []byte) bool {
 	var event struct {
 		Code  string `json:"code"`

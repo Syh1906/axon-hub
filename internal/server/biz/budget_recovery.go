@@ -146,7 +146,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 				}
 				if req != nil && execution != nil {
 					execution.CostSnapshot = charge.CostSnapshot
-					if _, err := s.createUsageLogFromRequest(ctx, req, execution, charge.Usage, recordedCost); err != nil {
+					if _, err := s.createUsageLogFromRequest(ctx, req, execution, charge.Usage, recordedCost, false); err != nil {
 						return false, err
 					}
 				} else if charge.Actual != nil {

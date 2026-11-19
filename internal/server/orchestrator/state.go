@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"sync"
 
+	"github.com/looplj/axonhub/internal/contexts"
+
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/events"
@@ -55,15 +57,17 @@ type PersistenceState struct {
 	PromptProtectionBodyCheck *promptProtectionBodyCheck
 
 	// Persistence state
-	Request       *ent.Request
-	RequestExec   *ent.RequestExecution
-	FailureStage  string
-	BudgetStop    error
-	BudgetAttempt *biz.BudgetAttempt
+	Request          *ent.Request
+	RequestExec      *ent.RequestExecution
+	FailureStage     string
+	BudgetStop       error
+	BudgetAttempt    *biz.BudgetAttempt
+	budgetUnreserved bool
 	// A non-stream Responses outcome can fail while its HTTP status remains 200.
 	ResponseTerminalError error
 	ExecutionHeaders      *executionHeaderObserver
 	ExecutionTransport    *executionTransport
+	attemptClock          *contexts.AttemptClock
 
 	// ChannelModelsCandidates is the primary state for channel selection
 	ChannelModelsCandidates []*ChannelModelsCandidate

@@ -138,6 +138,28 @@ func (t *TransportTrace) record(phase TransportPhase, at time.Time) {
 	}
 }
 
+// ResponseTimes returns the observed upload and HTTP response headers of the final connection attempt.
+func (t *TransportTrace) ResponseTimes() (uploaded, headers *time.Time) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if at := t.times[TransportUploaded]; !at.IsZero() {
+		uploaded = &at
+	}
+	if at := t.times[TransportHeaders]; !at.IsZero() {
+		headers = &at
+	}
+	return
+}
+
+func (t *TransportTrace) WebSocketFrameWritten() {
+	if t != nil {
+		t.record(TransportUploaded, time.Now())
+	}
+}
+
 func (t *TransportTrace) Snapshot() TransportTimings {
 	if t == nil {
 		return TransportTimings{}

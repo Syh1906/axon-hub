@@ -460,7 +460,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 	costState.RawProviderRequest = ts.rawProviderRequest
 	captureImageCostEvidence(ctx, &costState, responseBody)
 	if usage := meta.Usage; usage != nil && accountingMayBeFinal(ts.apiFormat, meta, sourceEnd) || biz.NeedsUsageLogWithoutTokens(ts.requestExec.CostSnapshot) {
-		_, err := ts.UsageLogService.CreateUsageLogFromRequest(ctx, ts.request, ts.requestExec, usage)
+		_, err := ts.UsageLogService.CreateUsageLogForAttempt(ctx, ts.request, ts.requestExec, usage, ts.state.budgetUnreserved)
 		if err != nil {
 			log.Warn(ctx, "Failed to create usage log from request", log.Cause(err))
 			ts.persistenceErr = errors.Join(ts.persistenceErr, err)
@@ -562,6 +562,7 @@ var errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit bre
 
 // PersistentOutboundTransformer wraps an outbound transformer with shared persistence state.
 type PersistentOutboundTransformer struct {
+	preparedPassThrough           bool
 	wrapped                       transformer.Outbound
 	addressIndex                  int
 	continuationAddresses         []objects.ChannelUpstreamAddress
@@ -688,6 +689,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 
 	p.state.CurrentCandidate = candidate
 	p.state.OutboundAttempt++
+	p.state.budgetUnreserved = false
 	p.state.StreamCompleted = false
 	p.state.StreamTerminalError = nil
 	p.state.ResponseTerminalError = nil
@@ -787,7 +789,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 			ctx = biz.WithFixedChannelAPIKey(ctx, continuationKey)
 		}
 	}
-	httpRequest, err := p.wrapped.TransformRequest(ctx, llmRequest)
+	httpRequest, err := p.transformProviderRequest(ctx, llmRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1308,7 +1310,7 @@ func (ts *OutboundPersistentStream) persistPartialUsage(ctx context.Context) {
 	costState.RequestExec = ts.requestExec
 	costState.RawProviderRequest = ts.rawProviderRequest
 	captureImageCostEvidence(ctx, &costState, body)
-	if _, err = ts.UsageLogService.CreateUsageLogFromRequest(ctx, ts.request, ts.requestExec, meta.Usage); err != nil {
+	if _, err = ts.UsageLogService.CreateUsageLogForAttempt(ctx, ts.request, ts.requestExec, meta.Usage, ts.state.budgetUnreserved); err != nil {
 		log.Warn(ctx, "settle failed stream usage", log.Cause(err))
 	}
 }

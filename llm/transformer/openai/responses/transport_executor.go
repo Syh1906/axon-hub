@@ -42,8 +42,8 @@ func (e *transportExecutor) Do(ctx context.Context, r *httpclient.Request) (*htt
 		return e.doHTTP(ctx, r)
 	}
 	reportTransport(r, TransportWebSocket, "")
-	result, err := e.ws.Do(ctx, r)
-	if !canFallbackWebSocket(ctx, err) {
+	result, err := e.nativeExecutor(r).Do(ctx, r)
+	if !e.mayFallback(ctx, r, err) {
 		return result, err
 	}
 	e.downgrade(ctx, r)
@@ -57,8 +57,8 @@ func (e *transportExecutor) DoStream(ctx context.Context, r *httpclient.Request)
 		return e.streamHTTP(ctx, r)
 	}
 	reportTransport(r, TransportWebSocket, "")
-	result, err := e.ws.DoStream(ctx, r)
-	if !canFallbackWebSocket(ctx, err) {
+	result, err := e.nativeExecutor(r).DoStream(ctx, r)
+	if !e.mayFallback(ctx, r, err) {
 		return result, err
 	}
 	e.downgrade(ctx, r)
@@ -90,7 +90,31 @@ func (e *transportExecutor) checkContinuation(ctx context.Context, r *httpclient
 }
 
 func (e *transportExecutor) useWebSocket(ctx context.Context, r *httpclient.Request) bool {
+	if policy := r.ResponsesWebSocket; policy != nil {
+		if policy.Probe {
+			return true
+		}
+		if policy.HTTPReason != "" {
+			return false
+		}
+		// The gateway's model/identity-scoped decision supersedes the legacy
+		// URL-only connection memory. An existing bound continuation stays native.
+		return e.ws != nil && shared.IsResponsesWebSocket(ctx)
+	}
 	return e.ws != nil && shared.IsResponsesWebSocket(ctx) && !e.downgraded(ctx, r)
+}
+
+func (e *transportExecutor) nativeExecutor(r *httpclient.Request) *WebSocketExecutor {
+	if e.ws == nil && r.ResponsesWebSocket != nil && r.ResponsesWebSocket.Probe {
+		// Probes never enter the connection pool, even when testing an HTTP-only configuration.
+		return NewWebSocketExecutor(e.http)
+	}
+	return e.ws
+}
+
+func (e *transportExecutor) mayFallback(ctx context.Context, r *httpclient.Request, err error) bool {
+	policy := r.ResponsesWebSocket
+	return (policy == nil || (!policy.Probe && !policy.NativeOnly)) && canFallbackWebSocket(ctx, err)
 }
 
 func (e *transportExecutor) downgraded(ctx context.Context, r *httpclient.Request) bool {
@@ -102,12 +126,18 @@ func (e *transportExecutor) downgraded(ctx context.Context, r *httpclient.Reques
 }
 
 func (e *transportExecutor) downgrade(ctx context.Context, r *httpclient.Request) {
+	if r.ResponsesWebSocket != nil {
+		return
+	}
 	if session, ok := ctx.Value(transportSessionKey{}).(*transportSession); ok {
 		session.http.Store(r.URL, true)
 	}
 }
 
 func (e *transportExecutor) reason(ctx context.Context, r *httpclient.Request) string {
+	if policy := r.ResponsesWebSocket; policy != nil && policy.HTTPReason != "" {
+		return policy.HTTPReason
+	}
 	if !shared.IsResponsesWebSocket(ctx) {
 		return ""
 	}
@@ -122,6 +152,14 @@ func (e *transportExecutor) reason(ctx context.Context, r *httpclient.Request) s
 
 func (e *transportExecutor) httpRequest(r *httpclient.Request) *httpclient.Request {
 	result := PrepareHTTPTransportRequest(r, e.stripPrevious)
+	if policy := r.ResponsesWebSocket; policy != nil && policy.HTTPURL != "" {
+		copy := *result
+		copy.URL = policy.HTTPURL
+		result = &copy
+		if policy.PrepareHTTP != nil {
+			result = policy.PrepareHTTP(result)
+		}
+	}
 	u, err := url.Parse(result.URL)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
 		return result
