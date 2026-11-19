@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-19 发布的 [rc1-fork.12 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.12) 已部署至云悠和泉哥。两机均核对了公网版本、源码提交和镜像摘要。实际切换时间和验收记录见 [Fork 维护台账](../../fork-maintenance.md)。
+
 2026-11-18：[rc1-fork.11 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.11) 已通过精简工作流发布，云悠和泉哥均从 fork.9 更新至该版，内外健康及版本核对通过。源码为 `0c87d028cceaa9d88fdf5e1a25dceb898544b9e2`，仅提供双架构镜像和 `release.json`。固定摘要、切换时间及验收边界见 [Fork 维护台账](../../fork-maintenance.md)。以下为历史状态。
 
 2026-11-17：当前正式版及云悠／泉哥运行版本为 [v1.0.0-rc1-fork.9](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.9)，源码 `e5d3f1e84e70761a12bd4515d274fae3e345e8ce`。[精简发布 44063632868](https://github.com/Syh1906/axon-hub/actions/runs/44063632868)及同提交 Test／Build／Lint／Govulncheck 全部通过，正式/latest，仅双架构镜像与 `release.json`。翻译刷新修复和浏览器语言默认已上线；两机共 5 个老账号迁移为 `auto`，权限和更新时间保持，后续手选继续保留。

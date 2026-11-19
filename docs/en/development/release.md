@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+[rc1-fork.12](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.12) was released on 2026-11-19 and deployed to both Cloud and Quan. Both hosts passed public version, source commit and image digest checks. See the [fork maintenance log](../../fork-maintenance.md) for rollout times and verification results.
+
 2026-11-18: [rc1-fork.11](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.11) is the latest stable release. Both production hosts upgraded from fork.9 and passed internal and public health and version checks. The streamlined workflow published Linux amd64/arm64 images and `release.json` from `0c87d028cceaa9d88fdf5e1a25dceb898544b9e2`. See the [fork maintenance log](../../fork-maintenance.md) for the pinned digest, switch times and verification scope. Earlier entries below are historical.
 
 2026-11-17: [v1.0.0-rc1-fork.9](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.9), source `e5d3f1e84e70761a12bd4515d274fae3e345e8ce`, is the current stable release on Cloud and Quan. [Streamlined release 44063632868](https://github.com/Syh1906/axon-hub/actions/runs/44063632868) and source-matched Test, Build, Lint and Govulncheck passed. The release is stable/latest and contains only dual-architecture images and `release.json`. The translation refresh fix and browser language default are deployed; all five existing accounts now use `auto`, with permissions and update timestamps preserved. Subsequent manual language choices remain persistent.
