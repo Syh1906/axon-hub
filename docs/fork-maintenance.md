@@ -2,7 +2,13 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
-## 待发布 · Responses 上游 WS 自动试连
+## rc1-fork.13 · 流式首内容与大请求传输
+
+- Responses 原生 HTTP 可对已验证的完整端点无损压缩请求正文。图片可按本机渠道只复用已有压缩结果。配置默认关闭。合入上游时核对完整历史恢复、真实 HTTP 路径、重定向、写入后重放约束、缓存项目隔离与费用依据。[配置与观测](zh/guides/storage-maintenance.md#图片请求的数字摘要)
+- 请求分段和传输日志使用 `axon_request_id` 表示本站数据库编号，区分请求跟踪字段 `request_id`。Responses 新增首次上游事件、首个非空文本／推理／工具等增量及同类增量首次成功写出的时间、类型和事件字节数。只返回完成事件的响应没有增量时间，仍可有有效模型内容。
+- 渠道间的慢首字差异通过[自然流量对照](../scripts/maintenance/compare-first-content.sql)离线核实。查询按网关选定的端点组合、模型及档位比较同类单次成功执行，保留尝试结局分母。线上沿用已发布的评分和会话归属。新会话灰度前应核实价格及并发条件。[对照口径](zh/guides/load-balance.md#延迟感知策略-latencyaware)
+
+### Responses 上游 WS 自动试连
 
 - 手动验证模型 WS 时，`response.create.input` 使用用户消息列表，文本放在 `content` 的 `input_text` 项中，并显式发送 `store: false` 以兼容要求关闭响应存储的上游。
 - 2026-11-19 用待发布版本在隔离环境中验证了两个渠道的 `gpt-6.2-sol`。此前要求列表输入和关闭存储的渠道通过 WS 返回有效输出并正常完成，全程 2.793 秒；另一渠道在 582 毫秒后返回握手 HTTP 400，模型请求尚未发出。

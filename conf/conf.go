@@ -359,6 +359,8 @@ func setDefaults(v *viper.Viper) {
 	// Cache defaults
 	v.SetDefault("cache.mode", "memory")
 	v.SetDefault("request_payload.directory", "data/request-payloads")
+	v.SetDefault("request_payload.cached_images_only_channels", []int{})
+	v.SetDefault("request_payload.responses_zstd_endpoints", []string{})
 	v.SetDefault("cache.default_expiration", "5m")
 	v.SetDefault("cache.cleanup_interval", "10m")
 	v.SetDefault("cache.redis.addr", "")

@@ -12,6 +12,8 @@
 先阅读[中文运维手册](../docs/zh/guides/storage-maintenance.md)或
 [English guide](../docs/en/guides/storage-maintenance.md)，配置真实卷和迁移空间后使用。
 
+运维侧比较两条 Responses 线路的首内容耗时，使用[只读 PostgreSQL 查询](maintenance/compare-first-content.sql)。参数和统计口径见[负载均衡指南](../docs/zh/guides/load-balance.md#延迟感知策略-latencyaware)。
+
 ### E2E 测试脚本
 
 #### `e2e/fixtures/api-key-analytics.sql`

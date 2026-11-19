@@ -15,6 +15,8 @@ import (
 // Request represents a generic HTTP request that can be adapted to different providers.
 type Request struct {
 	BodyReadAt time.Time `json:"-"`
+	// ZstdEndpoints applies only to an actual HTTP dispatch to an explicitly configured URL.
+	ZstdEndpoints []string `json:"-"`
 	// HTTP basics
 	Method      string      `json:"method"`
 	URL         string      `json:"url"`

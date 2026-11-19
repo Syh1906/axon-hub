@@ -4,15 +4,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
+
+func TestResponsesAttemptClockObservesRawEventsBeforeTransformation(t *testing.T) {
+	ctx, clock := contexts.WithRequestClock(t.Context(), time.Now())
+	state := &PersistenceState{attemptClock: clock.AddAttempt(1, 2, nil)}
+	events := []*httpclient.StreamEvent{
+		{Type: "chunk", Data: []byte(`{"type":"response.metadata","headers":{}}`)},
+		{Type: "response.created", Data: []byte(`{"type":"response.output_text.delta","delta":"x"}`)},
+	}
+	source := NewOutboundPersistentStream(ctx, streams.SliceStream(events), nil, nil, nil, nil, new(responses.OutboundTransformer), nil, state)
+	require.True(t, source.Next())
+	require.Same(t, events[0], source.Current())
+	attempt := clock.Snapshot().Attempts[0]
+	require.Equal(t, "response.metadata", attempt.FirstEvent.Type)
+	require.Nil(t, attempt.FirstDelta)
+	require.True(t, source.Next())
+	require.Same(t, events[1], source.Current())
+	attempt = clock.Snapshot().Attempts[0]
+	require.Equal(t, "response.output_text.delta", attempt.FirstDelta.Type)
+	require.False(t, attempt.FirstDelta.At.Before(attempt.FirstEvent.At))
+	require.Nil(t, clock.Snapshot().FirstWriteDelta)
+}
 
 func TestFailedTerminalPersistsFailureAfterDone(t *testing.T) {
 	ctx, db, _, service, _, _, key := setupBudgetRequest(t)

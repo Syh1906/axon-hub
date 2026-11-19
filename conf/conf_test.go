@@ -185,6 +185,18 @@ func TestCodexCatalogConfig(t *testing.T) {
 	}
 }
 
+func TestRequestPayloadChannelAndEndpointConfig(t *testing.T) {
+	file := writeTestConfig(t, "request_payload:\n  cached_images_only_channels: [3, 19]\n  responses_zstd_endpoints: [https://example.test/v1/responses]\n")
+	cfg, _, err := loadConfig(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(cfg.RequestPayload.CachedImagesOnlyChannels, []int{3, 19}) ||
+		!slices.Equal(cfg.RequestPayload.ResponsesZstdEndpoints, []string{"https://example.test/v1/responses"}) {
+		t.Fatalf("unexpected request payload configuration: %+v", cfg.RequestPayload)
+	}
+}
+
 func TestSafeguardsConfigDefaults(t *testing.T) {
 	cfg, _, err := loadConfig(writeTestConfig(t, ""))
 	if err != nil {

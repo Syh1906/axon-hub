@@ -43,6 +43,7 @@ type Optimizer struct {
 }
 
 type Optimization struct {
+	CachedOnly      bool  `json:"cached_only,omitempty"`
 	InputBytes      int   `json:"input_bytes"`
 	OutputBytes     int   `json:"output_bytes"`
 	OptimizedImages int   `json:"optimized_images"`
@@ -54,12 +55,29 @@ type Optimization struct {
 }
 
 func (o *Optimizer) Optimize(ctx context.Context, project int, body []byte) ([]byte, Optimization) {
+	return o.optimize(ctx, project, body, false)
+}
+
+// OptimizeCached only reuses previously compressed PNGs from this project.
+func (o *Optimizer) OptimizeCached(ctx context.Context, project int, body []byte) ([]byte, Optimization) {
+	return o.optimize(ctx, project, body, true)
+}
+
+func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, cachedOnly bool) ([]byte, Optimization) {
 	start := time.Now()
-	stats := Optimization{InputBytes: len(body), OutputBytes: len(body)}
+	stats := Optimization{InputBytes: len(body), OutputBytes: len(body), CachedOnly: cachedOnly}
 	if len(body) < minImageBytes {
 		return body, stats
 	}
 	o.once.Do(func() { o.entries = make(map[cacheKey]*list.Element); o.workers = make(chan struct{}, 2) })
+	if cachedOnly {
+		o.mu.Lock()
+		empty := o.bytes == 0
+		o.mu.Unlock()
+		if empty {
+			return body, stats
+		}
+	}
 	workCtx, stop := context.WithTimeout(ctx, maxOptimizationDuration)
 	defer stop()
 	type replacement struct {
@@ -81,6 +99,9 @@ func (o *Optimizer) Optimize(ctx context.Context, project int, body []byte) ([]b
 		data, hit := o.get(key, time.Now())
 		if hit {
 			stats.CacheHits++
+		} else if cachedOnly {
+			stats.PreservedImages++
+			return
 		} else {
 			select {
 			case o.workers <- struct{}{}:

@@ -18,7 +18,7 @@ func reportRequestTiming(ctx context.Context, clock *contexts.RequestClock, requ
 		return
 	}
 	timing := clock.Snapshot()
-	fields := []log.Field{log.Int("request_id", requestID), log.Any("timing", timing)}
+	fields := []log.Field{log.Int("axon_request_id", requestID), log.Any("timing", timing)}
 	if info {
 		log.Info(ctx, "请求交付分段计时", fields...)
 	} else {

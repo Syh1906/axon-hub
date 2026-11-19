@@ -104,6 +104,25 @@ func TestOptimizerPreservesSignedGeminiHistory(t *testing.T) {
 	}
 }
 
+func TestCachedOnlyPreservesColdInputAndReusesSameProjectPNG(t *testing.T) {
+	data := base64.StdEncoding.EncodeToString(testPNG(t))
+	body := []byte(`{"input":[{"type":"input_image","image_url":"data:image/png;base64,` + data + `"}]}`)
+	var optimizer Optimizer
+	cold, stats := optimizer.OptimizeCached(t.Context(), 1, body)
+	require.Same(t, &body[0], &cold[0])
+	require.True(t, stats.CachedOnly)
+	require.Empty(t, optimizer.entries)
+	want, stats := optimizer.Optimize(t.Context(), 1, body)
+	require.Equal(t, 1, stats.OptimizedImages)
+	got, stats := optimizer.OptimizeCached(t.Context(), 1, body)
+	require.Equal(t, want, got)
+	require.Equal(t, 1, stats.CacheHits)
+	other, stats := optimizer.OptimizeCached(t.Context(), 2, body)
+	require.Equal(t, body, other)
+	require.Equal(t, 1, stats.PreservedImages)
+	require.Len(t, optimizer.entries, 1)
+}
+
 func TestOptimizerHandlesAntigravityEnvelope(t *testing.T) {
 	data := base64.StdEncoding.EncodeToString(testPNG(t))
 	body := []byte(`{ "project":"test-project", "model":"test-model", "requestType":"agent", "userAgent":"antigravity", "request":{"contents":[{"role":"user","parts":[{"text":"keep"},{"inlineData":{"mimeType":"image/png","data":"` + data + `"}}]}]}}`)

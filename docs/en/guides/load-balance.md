@@ -163,7 +163,12 @@ During Responses stream conversion, tool-input deltas are forwarded incrementall
   - **Non-streaming**: `80 * (1 - latency_ewma / 3000)`, clamped to [0, 80]
 - **EWMA Alpha**: 0.3 (recent requests have higher influence)
 - **Neutral Score**: Channels without latency data receive a neutral score of 40 points
+
 - **Range**: 0-80 points
+
+The [read-only PostgreSQL comparison](../../../scripts/maintenance/compare-first-content.sql) accepts two channel IDs, a requested model, reasoning effort and a time window. The first table counts Responses attempts by outcome. For successful requests whose first content took at least 60 seconds, it reports separate median waits from that threshold to first content and to completion.
+
+The second table pairs successful single-attempt requests with one usage record. Each endpoint pair is grouped by provider-reported model, final effort, ingress and egress transport, project, selected priority and outbound tier. Endpoint identities cover the selected address and any supplied account attribution headers. Multiple keys can share an identity. Accounts internal to a provider and destinations following a redirect need separate verification. Reported tiers are read from the usage records and must agree. Conflicting evidence is excluded. A null `reported_tier` means neither side has evidence confirming its actual tier. Pairs must start within ten minutes of each other, with body size and input tokens each within 20% of the reference side and cache ratios within ten percentage points. Only mutual nearest matches in time are retained. An empty comparison means no matches. A request may appear in more than one endpoint pair. Verify actual prices, concurrency and session ownership before trialing a route for new sessions.
 
 ### Rate Limit Aware Strategy
 - **Purpose**: Respect upstream provider rate limits and prevent 429 errors

@@ -22,6 +22,7 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/openai/codex"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 const (
@@ -330,6 +331,7 @@ func writeEncodedSSEStream(
 
 func writeSSEStreamWithoutHeartbeat(c *gin.Context, stream streams.Stream[*httpclient.StreamEvent], formatErr StreamErrorEncoder) {
 	ctx := c.Request.Context()
+	clock := responsesWriteClock(ctx)
 	clientDisconnected := false
 
 	defer func() {
@@ -381,6 +383,7 @@ func writeSSEStreamWithoutHeartbeat(c *gin.Context, stream streams.Stream[*httpc
 			if err := writeSSEEvent(ctx, c.Writer, cur.Type, cur.Data); err != nil {
 				return false, err
 			}
+			clock.WroteResponsesEvent(cur)
 			terminal := !terminalSeen && terminalTracker.Observe(cur)
 			if terminal {
 				terminalSeen = true
@@ -403,6 +406,13 @@ func streamExpectedChoices(stream streams.Stream[*httpclient.StreamEvent]) int {
 	return 0
 }
 
+func responsesWriteClock(ctx context.Context) *contexts.RequestClock {
+	if shared.IsResponsesAPI(ctx) {
+		return contexts.GetRequestClock(ctx)
+	}
+	return nil
+}
+
 func writeSSEStreamWithHeartbeat(
 	c *gin.Context,
 	stream streams.Stream[*httpclient.StreamEvent],
@@ -421,6 +431,7 @@ func writeEncodedSSEStreamWithHeartbeat(
 	heartbeatFormat sseHeartbeatFormat,
 ) {
 	ctx := c.Request.Context()
+	clock := responsesWriteClock(ctx)
 	clientDisconnected := false
 
 	defer func() {
@@ -484,6 +495,7 @@ func writeEncodedSSEStreamWithHeartbeat(
 				if err := writeSSEEvent(ctx, c.Writer, cur.Type, cur.Data); err != nil {
 					return false, err
 				}
+				clock.WroteResponsesEvent(cur)
 				terminal := !terminalSeen && terminalTracker.Observe(cur)
 				if terminal {
 					terminalSeen = true

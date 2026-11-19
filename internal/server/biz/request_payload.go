@@ -24,18 +24,22 @@ const (
 )
 
 type RequestPayloadConfig struct {
-	Directory string `conf:"directory" yaml:"directory" json:"directory"`
+	Directory                string   `conf:"directory" yaml:"directory" json:"directory"`
+	CachedImagesOnlyChannels []int    `conf:"cached_images_only_channels" yaml:"cached_images_only_channels" json:"cached_images_only_channels"`
+	ResponsesZstdEndpoints   []string `conf:"responses_zstd_endpoints" yaml:"responses_zstd_endpoints" json:"responses_zstd_endpoints"`
 }
 
 // RequestPayloadService separates short debug copies from continuation state.
 // Neither store writes large JSON into request rows or into a database backup.
 type RequestPayloadService struct {
+	config  RequestPayloadConfig
 	debug   *payloadcache.Cache
 	session *payloadcache.Cache
 }
 
 func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadService {
 	return &RequestPayloadService{
+		config: config,
 		debug: payloadcache.New(payloadcache.Directory(config.Directory, "debug"), payloadcache.Limits{
 			TTL: debugPayloadTTL, EntryBytes: debugPayloadMaxBytes, TotalBytes: 256 << 20, Entries: 4096,
 		}),
@@ -43,6 +47,14 @@ func NewRequestPayloadService(config RequestPayloadConfig) *RequestPayloadServic
 			TTL: contextPayloadTTL, EntryBytes: 32 << 20, TotalBytes: 512 << 20, Entries: 2048,
 		}),
 	}
+}
+
+// ResponsesZstdEndpoints lists exact HTTP endpoints confirmed by the operator.
+func (s *RequestPayloadService) ResponsesZstdEndpoints() []string {
+	if s == nil {
+		return nil
+	}
+	return s.config.ResponsesZstdEndpoints
 }
 
 type requestPayloadReference struct {

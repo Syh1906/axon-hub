@@ -114,6 +114,7 @@ func (g *poolGeneration) prepareClose() func() {
 type transportObserverKey struct{}
 
 func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = encodeConfiguredRequest(req)
 	// The enclosing http.Client validates the URL. Paths and credentials do
 	// not participate in the key or in transport diagnostics.
 	origin := strings.ToLower(req.URL.Scheme + "://" + req.URL.Host)
@@ -153,6 +154,10 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	observer, _ := req.Context().Value(transportObserverKey{}).(*TransportTrace)
 	if observer != nil {
 		bodyBytes := req.ContentLength
+		observer.mu.Lock()
+		observer.wireBytes = bodyBytes
+		observer.zstdEncoded = req.Header.Get("Content-Encoding") == "zstd"
+		observer.mu.Unlock()
 		observer.beginPoolAttempt(generation.id, func() (string, func()) {
 			return t.recoverUpload(origin, pool, generation, bodyBytes)
 		}, func() bool {

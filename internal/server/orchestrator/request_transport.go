@@ -28,7 +28,7 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 		if state.Request == nil {
 			return request, nil
 		}
-		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, request.Body)
+		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, outbound.GetCurrentChannel().ID, request.Body)
 		if stats.OutputBytes < stats.InputBytes {
 			if bytes.Equal(request.JSONBody, request.Body) {
 				request.JSONBody = body
@@ -92,7 +92,7 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 		return
 	}
 	t.recorded, t.recordedInfo = true, info
-	fields := []log.Field{log.Int("request_id", t.requestID), log.Int("execution_id", t.executionID), log.Int("channel_id", t.channelID), log.Int("request_bytes", t.bytes), log.Any("transport", timings)}
+	fields := []log.Field{log.Int("axon_request_id", t.requestID), log.Int("execution_id", t.executionID), log.Int("channel_id", t.channelID), log.Int("request_bytes", t.bytes), log.Any("transport", timings)}
 	if t.optimization != nil {
 		fields = append(fields, log.Any("image_optimization", t.optimization))
 	}

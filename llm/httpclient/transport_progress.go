@@ -28,6 +28,8 @@ type TransportTrace struct {
 	protocol           string
 	reused             *bool
 	connectionAttempts int
+	wireBytes          int64
+	zstdEncoded        bool
 	poolRecovery       string
 	poolCount          int
 	poolAction         string
@@ -37,6 +39,8 @@ type TransportTrace struct {
 
 // TransportTimings uses nullable durations: absent evidence is not zero latency.
 type TransportTimings struct {
+	WireBodyBytes      int64  `json:"wire_body_bytes,omitempty"`
+	ZstdEncoded        bool   `json:"zstd_encoded,omitempty"`
 	HTTPObserved       bool   `json:"http_observed"`
 	ConnectMs          *int64 `json:"connect_ms,omitempty"`
 	UploadMs           *int64 `json:"upload_ms,omitempty"`
@@ -174,6 +178,7 @@ func (t *TransportTrace) Snapshot() TransportTimings {
 		return new(b.Sub(a).Milliseconds())
 	}
 	return TransportTimings{
+		WireBodyBytes: t.wireBytes, ZstdEncoded: t.zstdEncoded,
 		HTTPObserved:     !t.times[TransportStarted].IsZero(),
 		ConnectMs:        duration(TransportStarted, TransportConnected),
 		UploadMs:         duration(TransportConnected, TransportUploaded),
@@ -218,6 +223,9 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 		},
 	}
 	ctx := context.WithValue(raw.Context(), transportObserverKey{}, request.TransportTrace)
+	if len(request.ZstdEndpoints) != 0 && len(request.Body) >= minZstdRequestBytes {
+		ctx = context.WithValue(ctx, requestEncodingKey{}, requestEncodingInput{body: request.Body, endpoints: request.ZstdEndpoints})
+	}
 	return raw.WithContext(httptrace.WithClientTrace(ctx, trace))
 }
 

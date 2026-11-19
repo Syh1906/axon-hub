@@ -205,6 +205,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		probe.release = release
 	}
 	attachExecutionTransport(state, request)
+	if format == llm.APIFormatOpenAIResponse || format == llm.APIFormatOpenAIResponseWebSocket {
+		request.ZstdEndpoints = state.RequestService.PayloadService.ResponsesZstdEndpoints()
+	}
 	state.attemptClock = contexts.GetRequestClock(ctx).AddAttempt(requestExec.ID, requestExec.ChannelID, request.TransportTrace)
 	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {

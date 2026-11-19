@@ -8,6 +8,12 @@ codex_catalog:
   offline: false  # Use bundled and archived snapshots only (AXONHUB_CODEX_CATALOG_OFFLINE)
   version: ""    # Pin an official snapshot for rollback, e.g. 0.166.0 (AXONHUB_CODEX_CATALOG_VERSION)
 
+# Optional per-instance trials. Use channel IDs from this instance and exact
+# Responses POST URLs whose operators have confirmed zstd request decoding.
+request_payload:
+  cached_images_only_channels: []
+  responses_zstd_endpoints: []
+
 # Server configuration
 server:
   host: "0.0.0.0"               # Server host (env: AXONHUB_SERVER_HOST)

@@ -680,7 +680,7 @@ func writeResponsesWebSocketResult(
 			eventType := gjson.GetBytes(event.Data, "type").String()
 			status := gjson.GetBytes(event.Data, "response.status").String()
 			if err := writeStreamDelivery(ctx, stream, func() (bool, error) {
-				if err := control.write(writer, data); err != nil {
+				if err := control.write(ctx, writer, data); err != nil {
 					return false, err
 				}
 				terminal := !terminalSeen && terminalTracker.Observe(event)
@@ -722,7 +722,7 @@ func writeResponsesWebSocketResult(
 			return err
 		}
 		// 非流式结果也登记响应编号，以确认与完成事件交错到达的中断。
-		if err := control.write(writer, data); err != nil {
+		if err := control.write(ctx, writer, data); err != nil {
 			return err
 		}
 		contexts.GetRequestClock(ctx).Wrote(true)

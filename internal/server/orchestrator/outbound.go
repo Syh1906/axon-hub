@@ -43,6 +43,7 @@ type OutboundPersistentStream struct {
 	requestExec        *ent.RequestExecution
 	rawProviderRequest *httpclient.Request
 	transport          *executionTransport
+	attemptClock       *contexts.AttemptClock
 
 	transformer    transformer.Outbound
 	apiFormat      llm.APIFormat
@@ -84,6 +85,7 @@ func NewOutboundPersistentStream(
 	s := &OutboundPersistentStream{
 		rawProviderRequest: state.RawProviderRequest,
 		transport:          state.ExecutionTransport,
+		attemptClock:       state.attemptClock,
 		ctx:                ctx,
 		stream:             stream,
 		request:            request,
@@ -137,6 +139,9 @@ func (ts *OutboundPersistentStream) Next() bool {
 func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
+		if ts.apiFormat == llm.APIFormatOpenAIResponse || ts.apiFormat == llm.APIFormatOpenAIResponseWebSocket {
+			ts.attemptClock.ObserveResponsesEvent(event)
+		}
 		observeServiceTier(ts.requestExec, event.Data, true)
 		if string(event.Data) == "[DONE]" || isNonChoiceTerminalEvent(event) {
 			ts.sourceEnd = llm.SourceEndSemantic

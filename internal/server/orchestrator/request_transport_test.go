@@ -45,6 +45,22 @@ func TestRequestImageOptimizationPreservesPassThroughAndStoredAttempt(t *testing
 	require.Equal(t, int64(len(sent.Body)), gjson.GetBytes(execution.RequestBody, "_axon_payload.size").Int())
 	require.True(t, execution.PassThroughApplied)
 	require.NotNil(t, sent.TransportTrace)
+
+	// Enable the trial for the same production entry point.
+	processor.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{
+		Directory: t.TempDir(), CachedImagesOnlyChannels: []int{channel.ID},
+	})
+	// The first call warmed the original image; use a different PNG for a cold miss.
+	var fresh bytes.Buffer
+	require.NoError(t, (&png.Encoder{CompressionLevel: png.NoCompression}).Encode(&fresh, image.NewNRGBA(image.Rect(0, 0, 257, 256))))
+	freshURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(fresh.Bytes())
+	nextBody := bytes.Replace(body, []byte(url), []byte(freshURL), 1)
+	executor.steps = append(executor.steps, executorStep{resp: healthGateResponse()})
+	_, err = processor.Process(processCtx, &httpclient.Request{Method: http.MethodPost, Headers: http.Header{"Content-Type": {"application/json"}}, Body: nextBody})
+	require.NoError(t, err)
+	require.Len(t, executor.requests, 2)
+	require.True(t, bytes.Contains(executor.requests[1].Body, []byte(freshURL)))
+	require.True(t, gjson.Get(executor.requests[1].Metadata[optimizationMetadataKey], "cached_only").Bool())
 }
 
 func TestRequestImageOptimizerSkipsImageEditingAndOpaqueBodies(t *testing.T) {
@@ -76,7 +92,8 @@ func TestImageOptimizationUpdatesRecoveredResponsesSnapshot(t *testing.T) {
 		if native {
 			continuation.lane = shared.NewResponsesLane("fixture", shared.NewResponsesBudget(8<<20))
 		}
-		state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}, ResponsesContinuation: continuation}
+		state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}, ResponsesContinuation: continuation,
+			CurrentCandidate: &ChannelModelsCandidate{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1}}}}
 		request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse), Body: body, JSONBody: body}
 		got, err := optimizeRequestImages(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
 		require.NoError(t, err)

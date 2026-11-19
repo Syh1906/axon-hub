@@ -13,8 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 type deliverySSETrace struct {
@@ -165,6 +167,30 @@ func TestStreamDeliverySSE(t *testing.T) {
 					}
 					t.Logf("driver order: %v", trace.steps)
 				})
+			}
+		}
+	}
+}
+
+func TestResponsesDeltaClockAtSSEFlush(t *testing.T) {
+	for _, heartbeat := range []bool{false, true} {
+		for _, failed := range []bool{false, true} {
+			ctx, clock := contexts.WithRequestClock(shared.WithResponsesAPI(t.Context()), time.Now())
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequestWithContext(ctx, http.MethodPost, "/v1/responses", nil)
+			writer := &deliverySSEWriter{ResponseWriter: c.Writer, trace: &deliverySSETrace{}}
+			if failed {
+				writer.flushErr = io.ErrClosedPipe
+			}
+			c.Writer = writer
+			event := &httpclient.StreamEvent{Data: []byte(`{"type":"response.output_text.delta","delta":"hi"}`)}
+			runDeliverySSE(c, streams.SliceStream([]*httpclient.StreamEvent{event}), heartbeat)
+			got := clock.Snapshot().FirstWriteDelta
+			if failed {
+				require.Nil(t, got)
+			} else {
+				require.NotNil(t, got)
+				require.Equal(t, "response.output_text.delta", got.Type)
 			}
 		}
 	}

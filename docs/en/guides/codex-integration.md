@@ -53,6 +53,10 @@ Live native continuation requires the same upstream connection and identity. An 
 
 For latency analysis, group non-empty `continuation_key` values within the same site, project and API key. Join each request ID to the structured request-delivery and upstream-transport logs. The timestamps distinguish completed intake, upload, HTTP response headers, meaningful model output, gateway event and terminal writes, and a committed budget settlement. Missing timestamps mean the corresponding event was unobserved. Gateway writes measure the server side of delivery.
 
+Configure log collectors to use `axon_request_id` for the local database row ID. Older entries could contain two `request_id` keys in the same line. The numeric value was the database ID and the string was the trace identifier.
+
+For Responses, `first_responses_event` observes the first decoded event the orchestrator reads from the upstream transport. WS control frames handled inside the transport and SSE comments fall outside this observation. `first_responses_delta` and `gateway_first_responses_delta_write` independently observe the first non-empty text, reasoning, tool argument/input or refusal delta read and successfully written. They store the event category, data byte count and timestamp. Streams returning only complete items can have meaningful model output with no delta observation. Measuring rendering requires a client-side clock.
+
 #### Catalog URL and response format
 
 Place `base_url` and `model_catalog_url` in the selected provider table. The former routes inference, normally ends in `/v1`, and uses `wire_api = "responses"`; the latter must target `/codex/models`, not `/v1/models`. For a static token, replace the example's `env_key` with `experimental_bearer_token = "<AxonHub API Key>"`. Never commit a real key in configuration or documentation.

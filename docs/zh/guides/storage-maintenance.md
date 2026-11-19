@@ -25,6 +25,10 @@
 
 ### 图片请求的数字摘要
 
+灰度时可在实例配置 `request_payload.cached_images_only_channels` 中填写本机渠道 ID。命中这些渠道时，网关只复用同项目已有的保真 PNG 压缩结果，缺少结果就发送原图。缓存中没有已压缩的图片时，连这次优化扫描也省去。其他渠道仍可生成缓存，执行日志用 `image_optimization.cached_only` 标识该路径。
+
+另一个独立选项 `request_payload.responses_zstd_endpoints` 接受完整 Responses HTTP POST 地址。配置预览会显示这些地址。仅填写已验证支持 zstd 请求解码、且 URL 内不含凭据的地址。原生 HTTP 发送至少 1 MiB 的 JSON 时尝试压缩，有空闲编码器且编码后变小时才发送压缩正文。网关保留原 JSON 用于账务、恢复和诊断。单次 HTTP 派发收到 415 时，压缩层直接返回错误；配置允许时，网关仍可按原策略尝试其他模型或渠道。307 重定向后的 POST 使用原始 JSON。两个列表默认均为空，按实例启动配置生效。通过 `transport.wire_body_bytes` 和 `transport.zstd_encoded` 核对 HTTP 正文长度及编码。前者不含 HTTP/TLS 帧开销。评估首字收益应同时比较读完请求到首个有效内容的耗时，其中包含编码成本。
+
 聊天正文摘要同时覆盖 Responses 的 `function_call_output` / `custom_tool_call_output` 图片、Anthropic `tool_result` 图片和 Gemini 内嵌图片，包含 Antigravity 的既有请求包装层；Gemini 的 `systemInstruction` / `system_instruction` 系统文本归入普通文字。`images.tool_count` 标识工具图片出现次数；Responses 生成图片结果和带 `thoughtSignature` / `thought_signature` 的 Gemini 图片历史仅计数，不重新编码带身份关系的生成结果。新增 `content` 数字摘要按原始 JSON 字节划分图片、普通文字、工具文字、文件、加密内容和其他结构。不会把工具参数或正文中看起来像 JSON 的字符串当作协议图片，也不会解密历史。旧摘要没有这些字段时表示未知，不能推算为零。
 
 聊天图片在渠道直通、历史恢复和覆盖后统一进行保真优化。当前仅重压缩 64 KiB 以上编码数据、且原图不超过 16 MiB 的静态 PNG：直接重压缩原有扫描行，保留尺寸、像素、透明度、颜色配置和其他块；只采用严格更小的结果。不修改 JPEG/WebP、动画 PNG、带数字签名的 PNG、外链／文件 ID、加密历史、独立生图／编辑／蒙版输入。未通过块结构、CRC 或压缩数据检查、超出处理预算、没有压缩收益或处理并发已满时保留原图，并在执行优化日志中记录保留／繁忙数量；优化器不替代完整图片校验，也不把原本合法的请求变成失败。

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
@@ -24,6 +25,27 @@ func (w *responsesWebSocketDeliveryWriter) SetWriteDeadline(time.Time) error { r
 
 func (w *responsesWebSocketDeliveryWriter) WriteMessage(_ int, data []byte) error {
 	return w.write(data)
+}
+
+func TestResponsesDeltaClockRequiresActualWebSocketWrite(t *testing.T) {
+	ctx, clock := contexts.WithRequestClock(t.Context(), time.Now())
+	control := newDeliveryWebSocketControl("lane-a")
+	var written int
+	writer := &responsesWebSocketWriter{conn: &responsesWebSocketDeliveryWriter{write: func(data []byte) error {
+		written = len(data)
+		return nil
+	}}}
+	delta := []byte(`{"type":"response.output_text.delta","delta":"x"}`)
+	control.requested = true
+	require.NoError(t, control.write(ctx, writer, delta))
+	require.Zero(t, written)
+	require.Nil(t, clock.Snapshot().FirstWriteDelta)
+	control.requested = false
+	require.NoError(t, control.write(ctx, writer, delta))
+	got := clock.Snapshot().FirstWriteDelta
+	require.NotNil(t, got)
+	require.Equal(t, written, got.Bytes)
+	require.Equal(t, "response.output_text.delta", got.Type)
 }
 
 func TestStreamDeliveryWebSocketWriter(t *testing.T) {

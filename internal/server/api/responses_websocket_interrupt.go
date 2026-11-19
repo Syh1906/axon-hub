@@ -10,7 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 // 中断在网关结束当前调用；上游只支持 HTTP 时也不需要转发 WS 控制消息。
@@ -76,7 +78,7 @@ func (r *responsesWebSocketResponse) canInterrupt() bool {
 	return r.requested && !r.terminal && (r.discard || len(r.open) == 0)
 }
 
-func (r *responsesWebSocketResponse) write(writer *responsesWebSocketWriter, data []byte) error {
+func (r *responsesWebSocketResponse) write(ctx context.Context, writer *responsesWebSocketWriter, data []byte) error {
 	var event map[string]json.RawMessage
 	if err := json.Unmarshal(data, &event); err != nil {
 		return err
@@ -135,7 +137,11 @@ func (r *responsesWebSocketResponse) write(writer *responsesWebSocketWriter, dat
 	if err != nil {
 		return err
 	}
-	return writeResponsesWebSocketMessage(writer, websocket.TextMessage, encoded)
+	if err := writeResponsesWebSocketMessage(writer, websocket.TextMessage, encoded); err != nil {
+		return err
+	}
+	contexts.GetRequestClock(ctx).WroteResponsesEvent(&httpclient.StreamEvent{Data: encoded})
+	return nil
 }
 
 func (r *responsesWebSocketResponse) writeInterruption(ctx context.Context, writer *responsesWebSocketWriter, result orchestrator.ChatCompletionResult, transformError responsesWebSocketErrorFunc) (bool, error) {

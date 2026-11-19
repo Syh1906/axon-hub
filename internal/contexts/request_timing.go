@@ -15,32 +15,44 @@ type requestClockKey struct{}
 // Each upstream attempt retains its own clock, including competing title attempts.
 type RequestClock struct {
 	bodyRead              time.Time
+	firstWriteDelta       atomic.Pointer[TimedStreamEvent]
 	firstWrite, delivered atomic.Pointer[time.Time]
 	mu                    sync.Mutex
 	attempts              []*AttemptClock
 }
 
 type AttemptClock struct {
-	ID                    int
-	ChannelID             int
-	Trace                 *httpclient.TransportTrace
-	firstContent, settled atomic.Pointer[time.Time]
+	ID                     int
+	ChannelID              int
+	Trace                  *httpclient.TransportTrace
+	firstContent, settled  atomic.Pointer[time.Time]
+	firstEvent, firstDelta atomic.Pointer[TimedStreamEvent]
+}
+
+// Only fixed protocol categories and byte counts are recorded, never event data.
+type TimedStreamEvent struct {
+	At    time.Time `json:"at"`
+	Type  string    `json:"type"`
+	Bytes int       `json:"event_bytes"`
 }
 
 type AttemptTiming struct {
-	ExecutionID  int        `json:"execution_id"`
-	ChannelID    int        `json:"channel_id"`
-	Uploaded     *time.Time `json:"upload_completed_at,omitempty"`
-	Headers      *time.Time `json:"upstream_headers_at,omitempty"`
-	FirstContent *time.Time `json:"first_model_content_at,omitempty"`
-	Settled      *time.Time `json:"budget_settled_at,omitempty"`
+	FirstEvent   *TimedStreamEvent `json:"first_responses_event,omitempty"`
+	FirstDelta   *TimedStreamEvent `json:"first_responses_delta,omitempty"`
+	ExecutionID  int               `json:"execution_id"`
+	ChannelID    int               `json:"channel_id"`
+	Uploaded     *time.Time        `json:"upload_completed_at,omitempty"`
+	Headers      *time.Time        `json:"upstream_headers_at,omitempty"`
+	FirstContent *time.Time        `json:"first_model_content_at,omitempty"`
+	Settled      *time.Time        `json:"budget_settled_at,omitempty"`
 }
 
 type RequestTiming struct {
-	BodyRead   time.Time       `json:"body_read_at"`
-	FirstWrite *time.Time      `json:"gateway_first_write_at,omitempty"`
-	Delivered  *time.Time      `json:"gateway_terminal_write_at,omitempty"`
-	Attempts   []AttemptTiming `json:"attempts,omitempty"`
+	FirstWriteDelta *TimedStreamEvent `json:"gateway_first_responses_delta_write,omitempty"`
+	BodyRead        time.Time         `json:"body_read_at"`
+	FirstWrite      *time.Time        `json:"gateway_first_write_at,omitempty"`
+	Delivered       *time.Time        `json:"gateway_terminal_write_at,omitempty"`
+	Attempts        []AttemptTiming   `json:"attempts,omitempty"`
 }
 
 func WithRequestClock(ctx context.Context, bodyRead time.Time) (context.Context, *RequestClock) {
@@ -111,10 +123,14 @@ func (c *RequestClock) ReportAtInfo(failed bool) bool {
 func (c *RequestClock) Snapshot() RequestTiming {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	r := RequestTiming{BodyRead: c.bodyRead, FirstWrite: c.firstWrite.Load(), Delivered: c.delivered.Load()}
+	r := RequestTiming{BodyRead: c.bodyRead, FirstWrite: c.firstWrite.Load(), FirstWriteDelta: c.firstWriteDelta.Load(), Delivered: c.delivered.Load()}
 	for _, a := range c.attempts {
 		upload, headers := a.Trace.ResponseTimes()
-		r.Attempts = append(r.Attempts, AttemptTiming{a.ID, a.ChannelID, upload, headers, a.firstContent.Load(), a.settled.Load()})
+		r.Attempts = append(r.Attempts, AttemptTiming{
+			ExecutionID: a.ID, ChannelID: a.ChannelID, Uploaded: upload, Headers: headers,
+			FirstContent: a.firstContent.Load(), Settled: a.settled.Load(),
+			FirstEvent: a.firstEvent.Load(), FirstDelta: a.firstDelta.Load(),
+		})
 	}
 	return r
 }
