@@ -1012,7 +1012,14 @@ func (s *LoadBalancedSelector) sortCandidates(
 		if loadBalancer == nil {
 			sortedCandidates = group
 		} else {
+			state, _ := ctx.Value(firstContentStateKey{}).(*PersistenceState)
+			if state != nil && len(result) == 0 && trackSelection {
+				state.routeSort = newFirstContentSort(ctx, state, req, group)
+			}
 			sortedCandidates = loadBalancer.SortWithoutTracking(ctx, group, req.Model, useStream, sortTopK)
+			if state != nil {
+				state.routeSort = nil
+			}
 		}
 
 		// Add candidates, but stop if we have enough

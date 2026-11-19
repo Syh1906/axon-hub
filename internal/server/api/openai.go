@@ -371,6 +371,7 @@ func NewOpenAIHandlers(params OpenAIHandlersParams) *OpenAIHandlers {
 }
 
 func (handlers *OpenAIHandlers) ChatCompletion(c *gin.Context) {
+	c.Request = c.Request.WithContext(contexts.WithStreamFormat(c.Request.Context(), llm.APIFormatOpenAIChatCompletion))
 	handlers.ChatCompletionHandlers.ChatCompletion(c)
 }
 

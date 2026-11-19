@@ -1747,24 +1747,27 @@ func (s *RequestService) GetTraceFirstSegment(ctx context.Context, traceID int) 
 // The cache is the source of truth; when it expires, trace affinity is reset.
 // Returns 0 if no selected channel is cached.
 func (s *RequestService) GetPreviousChannelID(ctx context.Context, traceID int) (int, error) {
-	cacheKey := buildPreviousTraceChannelCacheKey(traceID)
-	if channelID, err := s.previousChannelCache.Get(ctx, cacheKey); err == nil {
-		return channelID, nil
-	}
-
-	return 0, nil
+	return s.previousChannel(ctx, buildPreviousTraceChannelCacheKey(traceID))
 }
 
 // GetPreviousChannelIDByThread retrieves the most recently selected channel
 // from all traces associated with a thread. The cache is the source of truth;
 // when it expires, thread affinity is reset. Returns 0 if none is cached.
 func (s *RequestService) GetPreviousChannelIDByThread(ctx context.Context, threadID int) (int, error) {
-	cacheKey := buildPreviousThreadChannelCacheKey(threadID)
-	if channelID, err := s.previousChannelCache.Get(ctx, cacheKey); err == nil {
-		return channelID, nil
-	}
+	return s.previousChannel(ctx, buildPreviousThreadChannelCacheKey(threadID))
+}
 
-	return 0, nil
+func (s *RequestService) PreviousChannelCacheEnabled() bool {
+	return s.previousChannelCache != nil && s.previousChannelCache.GetType() != "noop"
+}
+
+func (s *RequestService) previousChannel(ctx context.Context, key string) (int, error) {
+	id, err := s.previousChannelCache.Get(ctx, key)
+	var missing *store.NotFound
+	if errors.As(err, &missing) {
+		return 0, nil
+	}
+	return id, err
 }
 
 func (s *RequestService) cachePreviousChannelForRequest(ctx context.Context, req *ent.Request) {

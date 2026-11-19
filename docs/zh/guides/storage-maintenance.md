@@ -27,7 +27,11 @@
 
 灰度时可在实例配置 `request_payload.cached_images_only_channels` 中填写本机渠道 ID。命中这些渠道时，网关只复用同项目已有的保真 PNG 压缩结果，缺少结果就发送原图。缓存中没有已压缩的图片时，连这次优化扫描也省去。其他渠道仍可生成缓存，执行日志用 `image_optimization.cached_only` 标识该路径。
 
-另一个独立选项 `request_payload.responses_zstd_endpoints` 接受完整 Responses HTTP POST 地址。配置预览会显示这些地址。仅填写已验证支持 zstd 请求解码、且 URL 内不含凭据的地址。原生 HTTP 发送至少 1 MiB 的 JSON 时尝试压缩，有空闲编码器且编码后变小时才发送压缩正文。网关保留原 JSON 用于账务、恢复和诊断。单次 HTTP 派发收到 415 时，压缩层直接返回错误；配置允许时，网关仍可按原策略尝试其他模型或渠道。307 重定向后的 POST 使用原始 JSON。两个列表默认均为空，按实例启动配置生效。通过 `transport.wire_body_bytes` 和 `transport.zstd_encoded` 核对 HTTP 正文长度及编码。前者不含 HTTP/TLS 帧开销。评估首字收益应同时比较读完请求到首个有效内容的耗时，其中包含编码成本。
+原生 Responses HTTP 可以逐跳协商请求压缩。Axon 在成功响应中声明 `Accept-Encoding: zstd`，表示当前 POST 资源能解压后续请求。发送端首次使用普通 JSON，支持声明按传输实例、渠道配置版本、请求 URL 和认证范围保留 10 分钟。配置了请求头覆盖的渠道仅使用显式启用的 URL。对于至少 1 MiB 的 JSON，网关在自然请求上试编码，用同一大小档的原文上传时间、节省的字节和编码时间判断后续是否值得压缩，并定期用原文刷新基线。编码器忙或正文没有变小时发送原文。检查 `transport.wire_body_bytes`、`zstd_encoded`、`request_encode_ms` 和整轮等待可以判断收益。
+
+管理员可在 `request_payload.responses_zstd_endpoints` 填入已验证的完整 POST 地址以显式使用 zstd。`disabled_zstd_endpoints` 可强制指定地址使用原文，优先于显式启用和自动学习。列表默认均为空，配置预览会显示地址，请使用不含内嵌凭据的 URL。入口代理拒绝压缩请求时设置 `disable_zstd_advertisement: true`；发送端设置 `disable_zstd_learning: true` 可只使用显式配置。307 重定向后的 POST 使用原文。压缩请求收到 415 后，当前派发返回错误，后续派发在 10 分钟内使用原文；网关的既有模型及渠道重试策略仍适用。
+
+同一份正文复用其图片位置和内容摘要。PNG 与整包 zstd 共用每实例两个编码工作槽。相似图片已连续三次花费时间且没有缩小，或近期实测的上传节省不足以支付图片编码时间时，接下来一分钟只尝试复用已有的保真结果。网关优先执行预计更省时的单项工作。自动整包压缩会避开已经做过冷 PNG 编码并缩小的请求，显式指定的 zstd 地址仍按管理员配置处理。冷启动、WebSocket 和测不到 HTTP 上传速度的路径沿用已有的有界图片处理。
 
 聊天正文摘要同时覆盖 Responses 的 `function_call_output` / `custom_tool_call_output` 图片、Anthropic `tool_result` 图片和 Gemini 内嵌图片，包含 Antigravity 的既有请求包装层；Gemini 的 `systemInstruction` / `system_instruction` 系统文本归入普通文字。`images.tool_count` 标识工具图片出现次数；Responses 生成图片结果和带 `thoughtSignature` / `thought_signature` 的 Gemini 图片历史仅计数，不重新编码带身份关系的生成结果。新增 `content` 数字摘要按原始 JSON 字节划分图片、普通文字、工具文字、文件、加密内容和其他结构。不会把工具参数或正文中看起来像 JSON 的字符串当作协议图片，也不会解密历史。旧摘要没有这些字段时表示未知，不能推算为零。
 

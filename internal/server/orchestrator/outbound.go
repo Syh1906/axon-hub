@@ -479,6 +479,20 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 	metrics := ts.perf.LatencyMetrics()
 
 	status := ts.terminalState.executionStatus()
+	if ts.state.routeDecision != nil || ts.state.channelDecision != nil {
+		completion := firstContentCompletion{model: ts.upstreamModelID}
+		if usage := meta.Usage; status == requestexecution.StatusCompleted && accountingMayBeFinal(ts.apiFormat, meta, sourceEnd) &&
+			usage != nil && usage.PromptTokens > 0 {
+			cached, reported := reportedCacheTokens(ts.apiFormat, ts.responseChunks)
+			if reported && cached >= 0 && cached <= usage.PromptTokens {
+				completion.tokens, completion.cache, completion.valid = usage.PromptTokens, int(100*cached/usage.PromptTokens), true
+			}
+		}
+		if cost := ts.requestExec.CostSnapshot; cost != nil && cost.ServiceTier != nil && cost.ServiceTier.Observed && !cost.ServiceTier.Conflict {
+			completion.tier, _ = objects.NormalizeServiceTier(cost.ServiceTier.Upstream)
+		}
+		ts.state.routeCompletion = completion
+	}
 	err := ts.RequestService.UpdateRequestExecutionFinalized(
 		ctx,
 		ts.requestExec,
@@ -1277,7 +1291,7 @@ func (p *PersistentOutboundTransformer) CustomizeExecutor(executor pipeline.Exec
 	}
 
 	if execution := p.state.RequestExec; execution != nil && execution.Selection != nil {
-		customizedExecutor = dispatchRecordingExecutor{Executor: customizedExecutor, service: p.state.RequestService, execution: execution}
+		customizedExecutor = dispatchRecordingExecutor{Executor: customizedExecutor, service: p.state.RequestService, execution: execution, clock: p.state.attemptClock}
 	}
 	return p.budgetExecutor(customizedExecutor)
 }

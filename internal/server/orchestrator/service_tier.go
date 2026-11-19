@@ -14,14 +14,19 @@ func requestServiceTier(state *PersistenceState, request *httpclient.Request, fo
 		return nil
 	}
 	e := &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Basis: objects.ServiceTierBasisUpstream}}
-	if state.RawRequest != nil {
-		e.Client = objects.ServiceTierValue(state.RawRequest.Body)
-	}
 	body := request.Body
 	if len(request.JSONBody) > 0 {
 		body = request.JSONBody
 	}
 	e.Outbound = objects.ServiceTierValue(body)
+	if state.RawRequest != nil {
+		inbound := state.RawRequest.Body
+		if len(inbound) == len(body) && (len(body) == 0 || &inbound[0] == &body[0]) {
+			e.Client = e.Outbound
+		} else {
+			e.Client = objects.ServiceTierValue(inbound)
+		}
+	}
 	e.UseOutboundTier = responsesTierFormat(format)
 	return e
 }
@@ -44,16 +49,17 @@ func observeServiceTier(execution *ent.RequestExecution, body []byte, stream boo
 	}
 	// A Chat Completions final usage chunk is authoritative when it declares a
 	// valid tier. Intermediate declarations remain useful if it omits the field.
-	if _, valid := objects.NormalizeServiceTier(objects.ServiceTierValue(body)); valid && gjson.GetBytes(body, "usage.prompt_tokens").Exists() && gjson.GetBytes(body, "choices").IsArray() && len(gjson.GetBytes(body, "choices").Array()) == 0 {
+	value := objects.ServiceTierValue(body)
+	if _, valid := objects.NormalizeServiceTier(value); valid && gjson.GetBytes(body, "usage.prompt_tokens").Exists() && gjson.GetBytes(body, "choices").IsArray() && len(gjson.GetBytes(body, "choices").Array()) == 0 {
 		if !e.Terminal {
 			e.Observed, e.Conflict, e.Upstream, e.LastValid = false, false, "", ""
 		}
 		e.Terminal = true
-		e.Observe(body)
+		e.ObserveValue(value)
 		return
 	}
 	if e.Terminal {
 		return
 	}
-	e.Observe(body)
+	e.ObserveValue(value)
 }

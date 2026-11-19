@@ -1,11 +1,15 @@
 package objects
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/shopspring/decimal"
 )
 
@@ -133,20 +137,40 @@ type ServiceTierEvidence struct {
 }
 
 func ServiceTierValue(body []byte) string {
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(body, &fields) != nil {
-		return ""
-	}
-	value := fields["service_tier"]
-	if len(value) == 0 {
+	// Decode directly from the input slice. Skip large histories without copying
+	// their contents into RawMessages. Like encoding/json, the last exact key wins.
+	d := jsontext.NewDecoder(bytes.NewBuffer(body), jsontext.AllowDuplicateNames(true), jsontext.AllowInvalidUTF8(true))
+	if t, err := d.ReadToken(); err != nil || t.Kind() != '{' {
 		return ""
 	}
 	var tier string
-	if json.Unmarshal(value, &tier) != nil {
-		return "[invalid]"
+	for d.PeekKind() != '}' {
+		name, err := d.ReadToken()
+		if err != nil {
+			return ""
+		}
+		if name.String() != "service_tier" {
+			if err := d.SkipValue(); err != nil {
+				return ""
+			}
+			continue
+		}
+		value, err := d.ReadValue()
+		if err != nil {
+			return ""
+		}
+		tier = ""
+		// A decoded string of at most 128 bytes occupies at most six times
+		// that size in JSON escapes. Avoid allocating arbitrarily long values.
+		if len(value) > 6*128+2 || json.Unmarshal(value, &tier) != nil || len(tier) > 128 {
+			tier = "[invalid]"
+		}
 	}
-	if len(tier) > 128 {
-		return "[invalid]"
+	if _, err := d.ReadToken(); err != nil {
+		return ""
+	}
+	if _, err := d.ReadToken(); !errors.Is(err, io.EOF) {
+		return ""
 	}
 	return strings.TrimSpace(tier)
 }
@@ -167,10 +191,14 @@ func NormalizeServiceTier(value string) (string, bool) {
 }
 
 func (e *ServiceTierEvidence) Observe(body []byte) {
+	e.ObserveValue(ServiceTierValue(body))
+}
+
+// ObserveValue updates settlement evidence from an already inspected tier.
+func (e *ServiceTierEvidence) ObserveValue(value string) {
 	if e == nil {
 		return
 	}
-	value := ServiceTierValue(body)
 	if value == "" {
 		return
 	}

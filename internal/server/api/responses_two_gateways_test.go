@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	"math/rand/v2"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -126,5 +128,48 @@ func TestResponsesTwoGatewaysWebSocketToHTTP(t *testing.T) {
 			}
 		}
 		t.Logf("second turn: inner ingress %d bytes, final HTTP JSON %d bytes, zstd body %d bytes, business posts %d", secondBytes, len(body), wire, posts.Load()-1)
+	})
+}
+
+func TestResponsesHTTPGatewaysNegotiatePerHop(t *testing.T) {
+	var posts atomic.Int32
+	var wireBytes atomic.Int64
+	supplier := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		posts.Add(1)
+		wireBytes.Store(r.ContentLength)
+		_, err := httpclient.ReadHTTPRequest(r)
+		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Accept-Encoding", "zstd")
+		_, _ = io.WriteString(w, `{"id":"r","model":"synthetic-model","object":"response","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":10,"output_tokens":1,"total_tokens":11}}`)
+	}))
+	innerDB, inner, project := newResponsesIntegrationFixture(t, supplier.URL)
+	inner.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()})
+	innerSite := responsesIntegrationGateway(t, innerDB, inner, project)
+	codings := make(chan string, 2)
+	observed := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		codings <- r.Header.Get("Content-Encoding")
+		innerSite.Config.Handler.ServeHTTP(w, r)
+	}))
+	t.Run("outer", func(t *testing.T) {
+		db, h, p := newResponsesIntegrationFixture(t, observed.URL)
+		h.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()})
+		site := responsesIntegrationGateway(t, db, h, p)
+		longInput := strings.Repeat("plain input ", 110000)
+		for _, input := range []string{"small", longInput} {
+			code, b := responsesIntegrationPost(t, site, "/v1/responses", `{"model":"synthetic-model","input":[{"role":"user","content":"`+input+`"}]}`)
+			require.Equal(t, 200, code, string(b))
+		}
+		require.Equal(t, "", <-codings)
+		require.Equal(t, "zstd", <-codings)
+		require.EqualValues(t, 2, posts.Load())
+		require.Less(t, wireBytes.Load(), int64(len(longInput)))
+		t.Logf("two HTTP gateways: final wire body %d bytes for %d bytes of input text", wireBytes.Load(), len(longInput))
+		inner.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir(), DisableZstdAdvertisement: true})
+		res, err := innerSite.Client().Post(innerSite.URL+"/v1/responses", "application/json", strings.NewReader(`{"model":"synthetic-model","input":[{"role":"user","content":"last"}]}`))
+		require.NoError(t, err)
+		defer res.Body.Close()
+		require.Equal(t, 200, res.StatusCode)
+		require.Empty(t, res.Header.Get("Accept-Encoding"), "the supplier's own declaration must never leak across the disabled gateway")
 	})
 }

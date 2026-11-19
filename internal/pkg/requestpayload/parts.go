@@ -3,6 +3,8 @@
 package requestpayload
 
 import (
+	"bytes"
+	"encoding/base64"
 	"strings"
 
 	"github.com/tidwall/gjson"
@@ -34,6 +36,64 @@ type imagePart struct {
 	data   string
 }
 
+// Analysis indexes one immutable body for admission, persistence and optional PNG rewriting.
+type Analysis struct {
+	Images   *ImageSummary
+	Content  *ContentSummary
+	body     []byte
+	pngs     []pngLocation
+	eligible int
+}
+
+type pngLocation struct {
+	start, end int
+	prefix     string
+}
+
+// HasPNG reports whether there is a rewritable inline PNG at a supported protocol position.
+func (a *Analysis) HasPNG() bool { return len(a.pngs) != 0 }
+
+// Analyze keeps offsets into body, without retaining decoded copies of image strings.
+func Analyze(body []byte) *Analysis {
+	a := &Analysis{body: body}
+	var collect func(imagePart)
+	if len(body) >= MinImageBytes {
+		collect = func(p imagePart) {
+			a.eligible++
+			if pos, ok := p.pngLocation(body); ok {
+				a.pngs = append(a.pngs, pos)
+			}
+		}
+	}
+	images, content := walk(body, collect)
+	if images.Count != 0 {
+		a.Images = &images
+	}
+	a.Content = content
+	return a
+}
+
+func (p imagePart) pngLocation(body []byte) (pngLocation, bool) {
+	if p.mime != "image/png" || len(p.data) < MinImageBytes || len(p.data) > base64.StdEncoding.EncodedLen(maxImageBytes) {
+		return pngLocation{}, false
+	}
+	start, end := p.value.Index, p.value.Index+len(p.value.Raw)
+	if start < 0 || end > len(body) || string(body[start:end]) != p.value.Raw {
+		return pngLocation{}, false
+	}
+	// A protocol prefix can alias gjson's entire multi-megabyte source string.
+	// Keep only the short prefix in the per-request index.
+	return pngLocation{start: start, end: end, prefix: strings.Clone(p.prefix)}, true
+}
+
+func (p pngLocation) data(body []byte) []byte {
+	raw := body[p.start+1 : p.end-1]
+	if bytes.IndexByte(raw, '\\') >= 0 {
+		return []byte(gjson.ParseBytes(body[p.start:p.end]).String()[len(p.prefix):])
+	}
+	return raw[len(p.prefix):]
+}
+
 func Inspect(body []byte) (*ImageSummary, *ContentSummary) {
 	images, content := walk(body, nil)
 	if content == nil {
@@ -52,7 +112,7 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 		return images, nil
 	}
 	root := gjson.ParseBytes(body)
-	countImage := func(part, value gjson.Result, mime string, tool bool, dataOnly bool) {
+	countImage := func(part, value gjson.Result, mime string, tool, dataOnly, signed bool) {
 		images.Count++
 		if tool {
 			images.ToolCount++
@@ -78,11 +138,8 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 		images.LargestInlineEncodedBytes = max(images.LargestInlineEncodedBytes, len(data))
 		// Signed native parts are opaque history; preserve the original
 		// encoding even when the decoded pixels would remain identical.
-		if visit != nil {
-			preserve := part.Get("thoughtSignature").Exists() || part.Get("thought_signature").Exists()
-			if !preserve {
-				visit(imagePart{value: value, mime: mime, prefix: prefix, data: data})
-			}
+		if visit != nil && !signed {
+			visit(imagePart{value: value, mime: mime, prefix: prefix, data: data})
 		}
 	}
 	var parts func(gjson.Result, bool)
@@ -108,19 +165,20 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 		// Index each object's fields once. Repeated Get calls for absent fields
 		// otherwise rescan the same multi-megabyte inline image or tool output.
 		fields := part.Map()
+		signed := visit != nil && (fields["thoughtSignature"].Exists() || fields["thought_signature"].Exists())
 		switch fields["type"].String() {
 		case "input_image":
-			countImage(part, fields["image_url"], "", tool, false)
+			countImage(part, fields["image_url"], "", tool, false, signed)
 			return
 		case "image_url":
-			countImage(part, fields["image_url"].Get("url"), "", tool, false)
+			countImage(part, fields["image_url"].Get("url"), "", tool, false, signed)
 			return
 		case "image":
 			source := fields["source"].Map()
 			if source["type"].String() == "base64" {
-				countImage(part, source["data"], source["media_type"].String(), tool, true)
+				countImage(part, source["data"], source["media_type"].String(), tool, true, signed)
 			} else {
-				countImage(part, gjson.Result{}, "", tool, false)
+				countImage(part, gjson.Result{}, "", tool, false, signed)
 			}
 			return
 		case "input_file", "file", "document":
@@ -158,7 +216,7 @@ func walk(body []byte, visit func(imagePart)) (ImageSummary, *ContentSummary) {
 					mime = data["mime_type"].String()
 				}
 				if strings.HasPrefix(mime, "image/") {
-					countImage(part, data["data"], mime, tool, true)
+					countImage(part, data["data"], mime, tool, true, signed)
 				} else {
 					content.FileBytes += len(part.Raw)
 				}

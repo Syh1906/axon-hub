@@ -82,6 +82,11 @@ func (g *responsePhaseGuard) progress(phase httpclient.TransportPhase) {
 		return
 	}
 	switch phase {
+	case httpclient.TransportEncoding:
+		// Local optional encoding still inherits the total request deadline.
+		// Socket upload and response deadlines start with the next network phase.
+		g.phase = phase
+		g.arm(0, nil)
 	case httpclient.TransportStarted:
 		if g.phase == httpclient.TransportStarted {
 			return

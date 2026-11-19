@@ -4,10 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/internal/server/plugin"
 	"github.com/looplj/axonhub/internal/server/safeguards"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/anthropic"
 )
@@ -77,6 +79,7 @@ func NewAnthropicHandlers(params AnthropicHandlersParams) *AnthropicHandlers {
 }
 
 func (handlers *AnthropicHandlers) CreateMessage(c *gin.Context) {
+	c.Request = c.Request.WithContext(contexts.WithStreamFormat(c.Request.Context(), llm.APIFormatAnthropicMessage))
 	handlers.ChatCompletionHandlers.ChatCompletion(c)
 }
 

@@ -87,6 +87,7 @@ func NewChatCompletionOrchestrator(
 	sessions.save = requestService.SaveResponsesContext
 	sessions.known = requestService.HasCompletedResponsesOrigin
 	return &ChatCompletionOrchestrator{
+		firstContentRoutes: new(firstContentRoutes),
 		Inbound:            inbound,
 		RequestService:     requestService,
 		ChannelService:     channelService,
@@ -121,6 +122,7 @@ func NewChatCompletionOrchestrator(
 }
 
 type ChatCompletionOrchestrator struct {
+	firstContentRoutes *firstContentRoutes
 	Inbound            transformer.Inbound
 	RequestService     *biz.RequestService
 	ChannelService     *biz.ChannelService
@@ -265,6 +267,8 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	}
 
 	state := &PersistenceState{
+		routeHistory:          processor.firstContentRoutes,
+		routeLimiter:          processor.channelLimiterManager,
 		titleTask:             isCodexTitleRequest(request),
 		ResponsesContinuation: continuation,
 		APIKey:                apiKey,
@@ -288,6 +292,9 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		Proxy:                 processor.proxy,
 		CurrentCandidateIndex: 0,
 		EventBus:              processor.EventBus,
+	}
+	if state.routeHistory != nil && processor.RequestService != nil && !state.titleTask && currentWSProbe(ctx) == nil {
+		ctx = context.WithValue(ctx, firstContentStateKey{}, state)
 	}
 	defer func() {
 		if processErr != nil && state.Request != nil {
@@ -438,6 +445,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 	source := result.EventStream
 	completion, processErr = processor.prepareResponseDelivery(ctx, state, request, preparedResponsesBody, result, retainedContinuation)
 	if result.Stream && completion.ChatCompletionStream != nil {
+		state.rememberAcceptedAddress(ctx)
 		completion.ChatCompletionStream = httpclient.WithResponseHeaders(preserveDeliveryCapabilities(source, completion.ChatCompletionStream), httpclient.GetResponseHeaders(source))
 	} else {
 		lifecycleOwner.Close()

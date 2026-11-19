@@ -262,6 +262,13 @@ func (lb *LoadBalancer) sortProduction(
 		return lb.compareCandidateScores(a.candidate.Channel, a.score, a.index, a.healthDegraded, b.candidate.Channel, b.score, b.index, b.healthDegraded)
 	})
 
+	if firstContent := currentFirstContentSort(ctx); firstContent != nil {
+		index := firstContent.selectChannel(len(scored), func(i int) (*ChannelModelsCandidate, bool) {
+			s := scored[i]
+			return s.candidate, !s.healthDegraded && !isHardUnavailableScore(s.score)
+		})
+		moveFirstContentChoice(scored, index)
+	}
 	selected := scored[:sortK]
 	if lb.roundRobinHealthFilter != nil {
 		selected = lb.prioritizeHealthyRoundRobinScores(ctx, selected)
@@ -401,6 +408,13 @@ func (lb *LoadBalancer) sortWithDebug(
 		return lb.compareCandidateScores(a.Channel, a.TotalScore, a.OriginalIndex, a.HealthDegraded, b.Channel, b.TotalScore, b.OriginalIndex, b.HealthDegraded)
 	})
 
+	if firstContent := currentFirstContentSort(ctx); firstContent != nil {
+		index := firstContent.selectChannel(len(decisions), func(i int) (*ChannelModelsCandidate, bool) {
+			d := decisions[i]
+			return candidates[d.OriginalIndex], !d.HealthDegraded && !isHardUnavailableScore(d.TotalScore)
+		})
+		moveFirstContentChoice(decisions, index)
+	}
 	selected := decisions[:sortK]
 	if lb.roundRobinHealthFilter != nil {
 		selected = lb.prioritizeHealthyRoundRobinDecisions(ctx, selected)

@@ -14,9 +14,21 @@ import (
 // PersistenceState holds shared state with channel management and retry capabilities.
 // TODO: move the dependencies out of the state to make it a real state.
 type PersistenceState struct {
-	titleTask bool
-	hedge     *titleHedgeAttempt
-	APIKey    *ent.APIKey
+	routeHistory           *firstContentRoutes
+	routeLimiter           *ChannelLimiterManager
+	routeDecision          *firstContentDecision
+	channelDecision        *firstContentDecision
+	routeSort              *firstContentSort
+	routeCompletion        firstContentCompletion
+	routeObserverSet       bool
+	contentBoundHistory    bool
+	contentAddressOwner    string
+	contentAddressPosition int
+	contentAddressChannel  *biz.Channel
+	contentAddressKey      string
+	titleTask              bool
+	hedge                  *titleHedgeAttempt
+	APIKey                 *ent.APIKey
 
 	RequestService    *biz.RequestService
 	UsageLogService   *biz.UsageLogService

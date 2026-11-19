@@ -1,6 +1,7 @@
 package conf
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -194,6 +195,19 @@ func TestRequestPayloadChannelAndEndpointConfig(t *testing.T) {
 	if !slices.Equal(cfg.RequestPayload.CachedImagesOnlyChannels, []int{3, 19}) ||
 		!slices.Equal(cfg.RequestPayload.ResponsesZstdEndpoints, []string{"https://example.test/v1/responses"}) {
 		t.Fatalf("unexpected request payload configuration: %+v", cfg.RequestPayload)
+	}
+}
+
+func TestFirstContentTrialConfiguration(t *testing.T) {
+	for _, percent := range []int{-1, 100} {
+		_, _, err := loadConfig(writeTestConfig(t, fmt.Sprintf("request_payload:\n  first_content_trial_percent: %d\n", percent)))
+		if err == nil {
+			t.Fatalf("unexpected enrollment %d", percent)
+		}
+	}
+	cfg, _, err := loadConfig(writeTestConfig(t, "request_payload:\n  first_content_trial_percent: 5\n  first_content_gain_ms: 2500\n  disable_zstd_learning: true\n  disable_zstd_advertisement: true\n  disabled_zstd_endpoints: [https://a.example/v1/responses]\n"))
+	if err != nil || cfg.RequestPayload.FirstContentTrialPercent != 5 || cfg.RequestPayload.FirstContentGainMs != 2500 || !cfg.RequestPayload.DisableZstdLearning || !cfg.RequestPayload.DisableZstdAdvertisement || len(cfg.RequestPayload.DisabledZstdEndpoints) != 1 {
+		t.Fatalf("trial configuration: %v %#v", err, cfg.RequestPayload)
 	}
 }
 

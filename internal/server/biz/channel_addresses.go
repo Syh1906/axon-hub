@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eko/gocache/lib/v4/store"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
@@ -18,6 +20,23 @@ import (
 	"github.com/looplj/axonhub/llm/transformer"
 	xaisubscription "github.com/looplj/axonhub/llm/transformer/xai/subscription"
 )
+
+// TrialAddress reads a position in a versioned, caller-scoped address list.
+// It shares the cache and expiry used for previous trace and thread channels.
+func (s *RequestService) TrialAddress(ctx context.Context, owner string) int {
+	cacheCtx, cancel := context.WithTimeout(ctx, trialAddressCacheBudget)
+	defer cancel()
+	index, _ := s.previousChannelCache.Get(cacheCtx, "axonhub:routing:trial-address:v1:"+owner)
+	return index
+}
+
+const trialAddressCacheBudget = 25 * time.Millisecond
+
+func (s *RequestService) RememberTrialAddress(ctx context.Context, owner string, position int) {
+	cacheCtx, cancel := context.WithTimeout(ctx, trialAddressCacheBudget)
+	defer cancel()
+	_ = s.previousChannelCache.Set(cacheCtx, "axonhub:routing:trial-address:v1:"+owner, position, store.WithExpiration(30*time.Minute))
+}
 
 func parseChannelAddress(raw string) (*url.URL, error) {
 	value, err := url.Parse(strings.TrimSpace(raw))

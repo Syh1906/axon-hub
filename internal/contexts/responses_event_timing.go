@@ -30,8 +30,56 @@ func (c *RequestClock) WroteResponsesEvent(event *httpclient.StreamEvent) {
 		return
 	}
 	if kind, delta := responsesEventKind(event); delta {
-		c.firstWriteDelta.CompareAndSwap(nil, &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(event.Data)})
+		observation := &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(event.Data)}
+		c.firstWriteContent.CompareAndSwap(nil, observation)
+		c.firstWriteDelta.CompareAndSwap(nil, observation)
+	} else if c.firstWriteContent.Load() == nil && wholeResponsesContent(kind, event.Data) {
+		c.firstWriteContent.CompareAndSwap(nil, &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(event.Data)})
 	}
+}
+
+func wholeResponsesContent(kind string, data []byte) bool {
+	switch kind {
+	case "response.output_text.done", "response.reasoning_text.done", "response.reasoning_summary_text.done":
+		return hasStreamText(gjson.GetBytes(data, "text"))
+	case "response.refusal.done":
+		return hasStreamText(gjson.GetBytes(data, "refusal"))
+	case "response.function_call_arguments.done":
+		return hasStreamText(gjson.GetBytes(data, "arguments"))
+	case "response.custom_tool_call_input.done":
+		return hasStreamText(gjson.GetBytes(data, "input"))
+	case "response.output_item.done":
+		return itemHasResponsesContent(gjson.GetBytes(data, "item"))
+	case "response.completed", "response.done", "response.incomplete":
+		found := false
+		gjson.GetBytes(data, "response.output").ForEach(func(_, item gjson.Result) bool {
+			found = itemHasResponsesContent(item)
+			return !found
+		})
+		return found
+	}
+	return false
+}
+
+func itemHasResponsesContent(item gjson.Result) bool {
+	switch item.Get("type").String() {
+	case "function_call":
+		return hasStreamText(item.Get("arguments"))
+	case "custom_tool_call":
+		return hasStreamText(item.Get("input"))
+	case "message", "reasoning":
+		for _, field := range []string{"content", "summary"} {
+			found := false
+			item.Get(field).ForEach(func(_, part gjson.Result) bool {
+				found = hasStreamText(part.Get("text")) || hasStreamText(part.Get("refusal"))
+				return !found
+			})
+			if found {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func responsesEventKind(event *httpclient.StreamEvent) (string, bool) {
@@ -44,7 +92,9 @@ func responsesEventKind(event *httpclient.StreamEvent) (string, bool) {
 		"response.function_call_arguments.delta", "response.custom_tool_call_input.delta", "response.refusal.delta":
 		delta := gjson.GetBytes(event.Data, "delta")
 		return kind, delta.Type == gjson.String && len(delta.Raw) > 2
-	case "response.created", "response.metadata", "response.queued", "response.in_progress", "response.completed", "response.failed",
+	case "response.output_text.done", "response.reasoning_text.done", "response.reasoning_summary_text.done", "response.refusal.done",
+		"response.function_call_arguments.done", "response.custom_tool_call_input.done",
+		"response.created", "response.metadata", "response.queued", "response.in_progress", "response.completed", "response.failed",
 		"response.done", "response.cancelled", "response.canceled",
 		"response.incomplete", "response.content_part.added", "response.output_item.added", "response.output_item.done", "error":
 		return kind, false

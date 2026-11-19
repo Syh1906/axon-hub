@@ -3,13 +3,16 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
@@ -59,6 +62,92 @@ func TestResponsesProtocolIntegrationHTTPUsesProductionHandlerAndUpstream(t *tes
 	require.NoError(t, json.Unmarshal(<-upstreamRequests, &upstreamBody))
 	require.Equal(t, "synthetic-model", upstreamBody["model"])
 	require.Equal(t, "synthetic-input", upstreamBody["input"])
+}
+
+func TestFirstContentHTTPTrialLearnsOnlyFromDeliveredComparableSessions(t *testing.T) {
+	var posts [2]atomic.Int32
+	var reportCache atomic.Bool
+	reportCache.Store(true)
+	makeEndpoint := func(index int) *httptest.Server {
+		return responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			n := posts[index].Add(1)
+			w.Header().Set("Content-Type", "text/event-stream")
+			details := ""
+			if reportCache.Load() {
+				details = `,"input_tokens_details":{"cached_tokens":0}`
+			}
+			fmt.Fprint(w, "data: "+`{"type":"response.output_text.delta","item_id":"i","output_index":0,"content_index":0,"delta":"hi"}`+"\n\n")
+			fmt.Fprintf(w, "data: "+`{"type":"response.completed","response":{"id":"r%d-%d","object":"response","model":"synthetic-model","service_tier":"default","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hi"}]}],"usage":{"input_tokens":5,"output_tokens":1,"total_tokens":6%s}}}`+"\n\n", index, n, details)
+		}))
+	}
+	a, b := makeEndpoint(0), makeEndpoint(1)
+	db, h, project := newResponsesIntegrationFixture(t, a.URL, func(c *ent.ChannelCreate) {
+		c.SetSettings(&objects.ChannelSettings{AddressFailover: true, UpstreamAddresses: []objects.ChannelUpstreamAddress{
+			{ID: "a", URL: a.URL, Priority: 1, Enabled: true}, {ID: "b", URL: b.URL, Priority: 1, Enabled: true},
+		}})
+	})
+	o := h.ResponseCompletionHandlers.ChatCompletionOrchestrator
+	o.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir(), FirstContentTrialPercent: 10})
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), db))
+	require.NoError(t, o.SystemService.SetRetryPolicy(ctx, &biz.RetryPolicy{TraceStickyMode: biz.TraceStickyPreferPreviousChannel, LoadBalancerStrategy: biz.LoadBalancerStrategyAdaptive}))
+	ctx = contexts.WithProjectID(contexts.WithAPIKey(ctx, db.APIKey.Query().OnlyX(ctx)), project.ID)
+	var traces []*ent.Trace
+	for i := 0; len(traces) < 3; i++ {
+		id := fmt.Sprintf("fixture-session-%d", i)
+		slot := xxhash.Sum64String(id)
+		if slot%100 < 10 && slot/100%2 == 1 {
+			traces = append(traces, db.Trace.Create().SetProjectID(project.ID).SetTraceID(id).SaveX(ctx))
+		}
+	}
+	router := gin.New()
+	router.POST("/v1/responses", h.CreateResponse)
+	send := func(trace *ent.Trace, want int, afterTerminal ...func()) {
+		t.Helper()
+		before := [2]int32{posts[0].Load(), posts[1].Load()}
+		body := `{"model":"synthetic-model","stream":true,"input":[{"role":"user","content":"complete history"}]}`
+		req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
+		req.Header.Set("Session-Id", traces[0].TraceID)
+		req.Header.Set("Content-Type", "application/json")
+		requestCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if trace != nil {
+			requestCtx = contexts.WithTrace(requestCtx, trace)
+		}
+		recorder := httptest.NewRecorder()
+		var writer http.ResponseWriter = recorder
+		if len(afterTerminal) != 0 {
+			writer = &firstContentFlushRecorder{ResponseRecorder: recorder, onTerminal: afterTerminal[0]}
+		}
+		router.ServeHTTP(writer, req.WithContext(requestCtx))
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		require.Contains(t, recorder.Body.String(), "response.completed")
+		require.Equal(t, before[want]+1+int32(len(afterTerminal)), posts[want].Load(), "unexpected primary, trace=%v", trace)
+		require.Equal(t, before[1-want], posts[1-want].Load())
+	}
+	send(nil, 0) // a client-supplied session header alone cannot enter the trial
+	send(traces[0], 1, func() {
+		// Deliver the next full-history request as soon as the client sees
+		// the terminal frame, before the first ServeHTTP can finalize.
+		send(traces[0], 1)
+	})
+	reportCache.Store(false)
+	send(traces[1], 1) // explicitly reported zero on earlier rounds allowed exploration
+	send(traces[2], 0) // missing evidence on the completed round stops further exploration
+	require.Equal(t, 5, db.RequestExecution.Query().CountX(ctx))
+}
+
+type firstContentFlushRecorder struct {
+	*httptest.ResponseRecorder
+	onTerminal func()
+}
+
+func (r *firstContentFlushRecorder) Flush() {
+	r.ResponseRecorder.Flush()
+	if r.onTerminal != nil && strings.Contains(r.Body.String(), "response.completed") {
+		run := r.onTerminal
+		r.onTerminal = nil
+		run()
+	}
 }
 
 func TestResponsesProtocolIntegrationIsolation(t *testing.T) {

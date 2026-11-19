@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
+
+	"github.com/looplj/axonhub/llm/encodingbudget"
 )
 
 func testPNG(t *testing.T) []byte {
@@ -123,6 +125,23 @@ func TestCachedOnlyPreservesColdInputAndReusesSameProjectPNG(t *testing.T) {
 	require.Len(t, optimizer.entries, 1)
 }
 
+func TestAnalyzedImageOffsetsFollowFinalBody(t *testing.T) {
+	data := base64.StdEncoding.EncodeToString(testPNG(t))
+	body := []byte(`{"input":[{"type":"input_image","image_url":"data:image/png;base64,` + data + `"}]}`)
+	info := Analyze(body)
+	require.True(t, info.HasPNG())
+	changed := append([]byte("  "), body...)
+	var optimizer Optimizer
+	out, stats := optimizer.OptimizeAnalyzed(t.Context(), 4, changed, info, false)
+	require.Equal(t, 1, stats.OptimizedImages)
+	require.True(t, bytes.HasPrefix(out, []byte("  ")))
+	require.True(t, json.Valid(out))
+	// A byte-identical copy may reuse the offsets but remains caller-owned.
+	other := bytes.Clone(body)
+	plain, _ := new(Optimizer).OptimizeAnalyzed(t.Context(), 4, other, info, true)
+	require.Same(t, &other[0], &plain[0])
+}
+
 func TestOptimizerHandlesAntigravityEnvelope(t *testing.T) {
 	data := base64.StdEncoding.EncodeToString(testPNG(t))
 	body := []byte(`{ "project":"test-project", "model":"test-model", "requestType":"agent", "userAgent":"antigravity", "request":{"contents":[{"role":"user","parts":[{"text":"keep"},{"inlineData":{"mimeType":"image/png","data":"` + data + `"}}]}]}}`)
@@ -147,7 +166,6 @@ func TestOptimizerCacheBoundAndExpiry(t *testing.T) {
 	var optimizer Optimizer
 	optimizer.once.Do(func() {
 		optimizer.entries = make(map[cacheKey]*list.Element)
-		optimizer.workers = make(chan struct{}, 2)
 	})
 	now := time.Now()
 	for i := 0; i <= maxCacheEntries; i++ {
@@ -180,12 +198,10 @@ func TestOptimizerBusyPreservesOriginalAndDoesNotFailRequest(t *testing.T) {
 	image := testPNG(t)
 	body := []byte(`{"input":[{"type":"input_image","image_url":"data:image/png;base64,` + base64.StdEncoding.EncodeToString(image) + `"}]}`)
 	var optimizer Optimizer
-	optimizer.once.Do(func() {
-		optimizer.entries = make(map[cacheKey]*list.Element)
-		optimizer.workers = make(chan struct{}, 2)
-	})
-	optimizer.workers <- struct{}{}
-	optimizer.workers <- struct{}{}
+	for range encodingbudget.Capacity {
+		require.True(t, encodingbudget.TryAcquire())
+		defer encodingbudget.Release()
+	}
 	result, stats := optimizer.Optimize(context.Background(), 1, body)
 	require.Equal(t, body, result)
 	require.Equal(t, 1, stats.BusyImages)

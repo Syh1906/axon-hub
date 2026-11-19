@@ -27,12 +27,18 @@ type RequestPayloadConfig struct {
 	Directory                string   `conf:"directory" yaml:"directory" json:"directory"`
 	CachedImagesOnlyChannels []int    `conf:"cached_images_only_channels" yaml:"cached_images_only_channels" json:"cached_images_only_channels"`
 	ResponsesZstdEndpoints   []string `conf:"responses_zstd_endpoints" yaml:"responses_zstd_endpoints" json:"responses_zstd_endpoints"`
+	DisabledZstdEndpoints    []string `conf:"disabled_zstd_endpoints" yaml:"disabled_zstd_endpoints" json:"disabled_zstd_endpoints"`
+	DisableZstdAdvertisement bool     `conf:"disable_zstd_advertisement" yaml:"disable_zstd_advertisement" json:"disable_zstd_advertisement"`
+	DisableZstdLearning      bool     `conf:"disable_zstd_learning" yaml:"disable_zstd_learning" json:"disable_zstd_learning"`
+	FirstContentTrialPercent int      `conf:"first_content_trial_percent" yaml:"first_content_trial_percent" json:"first_content_trial_percent"`
+	FirstContentGainMs       int      `conf:"first_content_gain_ms" yaml:"first_content_gain_ms" json:"first_content_gain_ms"`
 }
 
 // RequestPayloadService separates short debug copies from continuation state.
 // Neither store writes large JSON into request rows or into a database backup.
 type RequestPayloadService struct {
 	config  RequestPayloadConfig
+	images  imageWorkHistory
 	debug   *payloadcache.Cache
 	session *payloadcache.Cache
 }
@@ -55,6 +61,36 @@ func (s *RequestPayloadService) ResponsesZstdEndpoints() []string {
 		return nil
 	}
 	return s.config.ResponsesZstdEndpoints
+}
+
+// AdvertiseResponsesZstd reports whether this gateway accepts negotiated request coding.
+func (s *RequestPayloadService) AdvertiseResponsesZstd() bool {
+	return s != nil && !s.config.DisableZstdAdvertisement
+}
+
+// LearnResponsesZstd permits using an upstream's own success response as capability evidence.
+func (s *RequestPayloadService) LearnResponsesZstd() bool {
+	return s != nil && !s.config.DisableZstdLearning
+}
+
+// DisabledResponsesZstdEndpoints overrides both explicit and learned encoding.
+func (s *RequestPayloadService) DisabledResponsesZstdEndpoints() []string {
+	if s == nil {
+		return nil
+	}
+	return s.config.DisabledZstdEndpoints
+}
+
+// FirstContentTrial returns the share of new sessions eligible for a controlled trial.
+func (s *RequestPayloadService) FirstContentTrial() (int, time.Duration) {
+	if s == nil {
+		return 0, time.Second
+	}
+	gain := time.Duration(s.config.FirstContentGainMs) * time.Millisecond
+	if gain <= 0 {
+		gain = time.Second
+	}
+	return s.config.FirstContentTrialPercent, gain
 }
 
 type requestPayloadReference struct {

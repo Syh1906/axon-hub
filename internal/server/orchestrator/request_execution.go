@@ -205,10 +205,8 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		probe.release = release
 	}
 	attachExecutionTransport(state, request)
-	if format == llm.APIFormatOpenAIResponse || format == llm.APIFormatOpenAIResponseWebSocket {
-		request.ZstdEndpoints = state.RequestService.PayloadService.ResponsesZstdEndpoints()
-	}
 	state.attemptClock = contexts.GetRequestClock(ctx).AddAttempt(requestExec.ID, requestExec.ChannelID, request.TransportTrace)
+	state.observeFirstContentChoice(ctx, requestExec)
 	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {
 		if requestExec.Selection == nil {
@@ -247,6 +245,7 @@ type dispatchRecordingExecutor struct {
 	pipeline.Executor
 	service   *biz.RequestService
 	execution *ent.RequestExecution
+	clock     *contexts.AttemptClock
 }
 
 func (e dispatchRecordingExecutor) record(ctx context.Context, err error) {
@@ -267,6 +266,9 @@ func (e dispatchRecordingExecutor) record(ctx context.Context, err error) {
 
 func (e dispatchRecordingExecutor) Do(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
 	active := ctx.Err() == nil
+	if active {
+		e.clock.Dispatch()
+	}
 	response, err := e.Executor.Do(ctx, request)
 	if active {
 		e.record(ctx, err)
@@ -276,6 +278,9 @@ func (e dispatchRecordingExecutor) Do(ctx context.Context, request *httpclient.R
 
 func (e dispatchRecordingExecutor) DoStream(ctx context.Context, request *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
 	active := ctx.Err() == nil
+	if active {
+		e.clock.Dispatch()
+	}
 	stream, err := e.Executor.DoStream(ctx, request)
 	if active {
 		e.record(ctx, err)

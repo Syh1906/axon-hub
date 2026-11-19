@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"reflect"
 	"slices"
 	"time"
 
@@ -60,6 +61,23 @@ func modelCardToChannelModelPrice(card *objects.ModelCard) (objects.ModelPrice, 
 	}
 
 	return *card.Price, true
+}
+
+// SameFirstContentPrice reports static price equivalence for optional new-session selection.
+// Dynamic account pricing and unknown prices stay under the ordinary routing policy.
+func (c *Channel) SameFirstContentPrice(other *Channel, model string, card, otherCard *objects.ModelCard) bool {
+	if c.Settings.UpstreamSettings().Enabled || other.Settings.UpstreamSettings().Enabled {
+		return false
+	}
+	if !channelManualMultiplier(c.Channel).Equal(channelManualMultiplier(other.Channel)) {
+		return false
+	}
+	a, b := c.cachedModelPrices[model], other.cachedModelPrices[model]
+	if a != nil || b != nil {
+		return a != nil && b != nil && reflect.DeepEqual(a.Price, b.Price)
+	}
+	_, ok := modelCardToChannelModelPrice(card)
+	return ok && otherCard != nil && (card == otherCard || reflect.DeepEqual(card.Price, otherCard.Price))
 }
 
 func (svc *ChannelService) createChannelModelPriceVersion(

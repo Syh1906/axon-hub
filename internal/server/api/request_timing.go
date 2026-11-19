@@ -10,6 +10,7 @@ import (
 // A single structured record links all attempts to the persisted request and its
 // existing scoped continuation_key. Header flushes, pings and warmups do not call Wrote.
 func reportRequestTiming(ctx context.Context, clock *contexts.RequestClock, requestID int, failed bool) {
+	clock.Finish(failed)
 	if requestID == 0 {
 		return
 	}

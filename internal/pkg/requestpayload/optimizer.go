@@ -1,6 +1,7 @@
 package requestpayload
 
 import (
+	"bytes"
 	"container/list"
 	"context"
 	"crypto/sha256"
@@ -9,10 +10,13 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/looplj/axonhub/llm/encodingbudget"
 )
 
 const (
-	minImageBytes           = 64 << 10
+	// MinImageBytes is the minimum inline size considered for PNG optimization.
+	MinImageBytes           = 64 << 10
 	maxImageBytes           = 16 << 20
 	maxCacheBytes           = 64 << 20
 	maxCacheEntries         = 512
@@ -39,7 +43,6 @@ type Optimizer struct {
 	entries map[cacheKey]*list.Element
 	lru     list.List
 	bytes   int
-	workers chan struct{}
 }
 
 type Optimization struct {
@@ -48,6 +51,7 @@ type Optimization struct {
 	OutputBytes     int   `json:"output_bytes"`
 	OptimizedImages int   `json:"optimized_images"`
 	CacheHits       int   `json:"cache_hits"`
+	ColdEncodes     int   `json:"cold_encodes,omitempty"`
 	BusyImages      int   `json:"busy_images,omitempty"`
 	PreservedImages int   `json:"preserved_images,omitempty"`
 	BudgetExhausted bool  `json:"budget_exhausted,omitempty"`
@@ -55,28 +59,37 @@ type Optimization struct {
 }
 
 func (o *Optimizer) Optimize(ctx context.Context, project int, body []byte) ([]byte, Optimization) {
-	return o.optimize(ctx, project, body, false)
+	return o.optimize(ctx, project, body, nil, false)
 }
 
 // OptimizeCached only reuses previously compressed PNGs from this project.
 func (o *Optimizer) OptimizeCached(ctx context.Context, project int, body []byte) ([]byte, Optimization) {
-	return o.optimize(ctx, project, body, true)
+	return o.optimize(ctx, project, body, nil, true)
 }
 
-func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, cachedOnly bool) ([]byte, Optimization) {
+func (o *Optimizer) HasCachedImages() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.bytes != 0
+}
+
+// OptimizeAnalyzed reuses the PNG positions recorded for this exact body version.
+func (o *Optimizer) OptimizeAnalyzed(ctx context.Context, project int, body []byte, a *Analysis, cachedOnly bool) ([]byte, Optimization) {
+	if !bytes.Equal(a.body, body) {
+		a = nil
+	}
+	return o.optimize(ctx, project, body, a, cachedOnly)
+}
+
+func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, a *Analysis, cachedOnly bool) ([]byte, Optimization) {
 	start := time.Now()
 	stats := Optimization{InputBytes: len(body), OutputBytes: len(body), CachedOnly: cachedOnly}
-	if len(body) < minImageBytes {
+	if len(body) < MinImageBytes {
 		return body, stats
 	}
-	o.once.Do(func() { o.entries = make(map[cacheKey]*list.Element); o.workers = make(chan struct{}, 2) })
-	if cachedOnly {
-		o.mu.Lock()
-		empty := o.bytes == 0
-		o.mu.Unlock()
-		if empty {
-			return body, stats
-		}
+	o.once.Do(func() { o.entries = make(map[cacheKey]*list.Element) })
+	if cachedOnly && !o.HasCachedImages() {
+		return body, stats
 	}
 	workCtx, stop := context.WithTimeout(ctx, maxOptimizationDuration)
 	defer stop()
@@ -85,17 +98,14 @@ func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, cach
 		data       []byte
 	}
 	var changes []replacement
-	walk(body, func(part imagePart) {
+	visit := func(part pngLocation) {
 		if workCtx.Err() != nil {
 			stats.BudgetExhausted = true
 			stats.PreservedImages++
 			return
 		}
-		if part.mime != "image/png" || len(part.data) < minImageBytes || len(part.data) > base64.StdEncoding.EncodedLen(maxImageBytes) || ctx.Err() != nil {
-			stats.PreservedImages++
-			return
-		}
-		key := cacheKey{project: project, digest: sha256.Sum256([]byte(part.data))}
+		input := part.data(body)
+		key := cacheKey{project: project, digest: sha256.Sum256(input)}
 		data, hit := o.get(key, time.Now())
 		if hit {
 			stats.CacheHits++
@@ -103,19 +113,18 @@ func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, cach
 			stats.PreservedImages++
 			return
 		} else {
-			select {
-			case o.workers <- struct{}{}:
-			default:
+			if !encodingbudget.TryAcquire() {
 				stats.BusyImages++
 				return
 			}
-			decoded, err := base64.StdEncoding.DecodeString(part.data)
+			stats.ColdEncodes++
+			decoded, err := base64.StdEncoding.AppendDecode(nil, input)
 			if err == nil {
 				if optimized := recompressPNG(workCtx, decoded); optimized != nil {
 					data = base64.StdEncoding.EncodeToString(optimized)
 				}
 			}
-			<-o.workers
+			encodingbudget.Release()
 			if workCtx.Err() != nil {
 				stats.BudgetExhausted = true
 				stats.PreservedImages++
@@ -131,13 +140,28 @@ func (o *Optimizer) optimize(ctx context.Context, project int, body []byte, cach
 			return
 		}
 		encoded, _ := json.Marshal(part.prefix + data)
-		pos := part.value.Index
-		if pos < 0 || pos+len(part.value.Raw) > len(body) || string(body[pos:pos+len(part.value.Raw)]) != part.value.Raw || len(encoded) >= len(part.value.Raw) {
+		if len(encoded) >= part.end-part.start {
 			return
 		}
-		changes = append(changes, replacement{pos, pos + len(part.value.Raw), encoded})
+		changes = append(changes, replacement{part.start, part.end, encoded})
 		stats.OptimizedImages++
-	})
+	}
+	if a == nil {
+		// Standalone callers need a single pass, not a persistent offset index.
+		walk(body, func(part imagePart) {
+			pos, ok := part.pngLocation(body)
+			if !ok {
+				stats.PreservedImages++
+				return
+			}
+			visit(pos)
+		})
+	} else {
+		stats.PreservedImages = a.eligible - len(a.pngs)
+		for _, part := range a.pngs {
+			visit(part)
+		}
+	}
 	if len(changes) != 0 && ctx.Err() == nil {
 		sort.Slice(changes, func(i, j int) bool { return changes[i].start < changes[j].start })
 		size := len(body)

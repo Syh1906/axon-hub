@@ -62,6 +62,8 @@ Codex 开启 `supports_websockets` 后可在同一条连接上连续向 AxonHub 
 
 Responses 的 `first_responses_event` 记录编排层从上游传输读到的首个已解码事件。传输层内部处理的 WS 控制帧和 SSE 注释不在观测范围。`first_responses_delta` 和 `gateway_first_responses_delta_write` 分别记录首次读到和首次成功写出的非空文本、推理、工具参数／输入或拒答增量。两侧各自独立，可因协议转换或重试而不同。仅存类型、事件数据字节数和时刻。只发送完整条目或终态时，这两项可为空，原有首内容指标仍有效。客户端渲染时间需在客户端测量。
 
+`attempt_prepared_at` 表示当次上游请求已完成准备，`upstream_dispatch_at` 表示预算和限额准入后进入执行器。与入站读完时刻一起可区分准备和准入耗时。`gateway_first_content_write` 另记成功写出的第一段有效文本、推理、工具或拒答内容，包括仅交付完整条目的响应；其类型可与首次增量不同。 同一字段也覆盖 OpenAI Chat、Anthropic Messages 与 Gemini Contents 的流式输出。
+
 #### 目录地址与返回格式
 
 `base_url` 与 `model_catalog_url` 放在当前选中的 provider 表中，分别控制推理地址和目录地址。前者通常以 `/v1` 结尾，配合 `wire_api = "responses"`；后者必须指向 `/codex/models`，不能填 `/v1/models`。使用静态令牌时，可将示例的 `env_key` 换为 `experimental_bearer_token = "<AxonHub API Key>"`；不要把真实密钥写入可提交的配置或文档。

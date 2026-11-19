@@ -175,6 +175,12 @@ func unmarshal(v *viper.Viper) (Config, error) {
 	}
 
 	config.DisableSSLVerify = config.APIServer.DisableSSLVerify
+	if p := config.RequestPayload.FirstContentTrialPercent; p < 0 || p >= 100 {
+		return Config{}, fmt.Errorf("request_payload.first_content_trial_percent must be between 0 and 99")
+	}
+	if n := config.RequestPayload.FirstContentGainMs; n <= 0 || n > 3600000 {
+		return Config{}, fmt.Errorf("request_payload.first_content_gain_ms must be between 1 and 3600000")
+	}
 	config.AllowNoAuth = config.APIServer.API.Auth.AllowNoAuth
 	config.APIKeyPrefix = config.APIServer.API.Auth.KeyPrefix
 
@@ -361,6 +367,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("request_payload.directory", "data/request-payloads")
 	v.SetDefault("request_payload.cached_images_only_channels", []int{})
 	v.SetDefault("request_payload.responses_zstd_endpoints", []string{})
+	v.SetDefault("request_payload.disabled_zstd_endpoints", []string{})
+	v.SetDefault("request_payload.disable_zstd_advertisement", false)
+	v.SetDefault("request_payload.disable_zstd_learning", false)
+	v.SetDefault("request_payload.first_content_trial_percent", 0)
+	v.SetDefault("request_payload.first_content_gain_ms", 1000)
 	v.SetDefault("cache.default_expiration", "5m")
 	v.SetDefault("cache.cleanup_interval", "10m")
 	v.SetDefault("cache.redis.addr", "")

@@ -28,7 +28,25 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 		if state.Request == nil {
 			return request, nil
 		}
-		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, outbound.GetCurrentChannel().ID, request.Body)
+		channel := outbound.GetCurrentChannel()
+		request.EncodingScope, request.EncodingGeneration = channel.ID, channel.UpdatedAt.UnixNano()
+		if request.APIFormat == string(llm.APIFormatOpenAIResponse) || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
+			payload := state.RequestService.PayloadService
+			request.ZstdEndpoints, request.NoZstdEndpoints = payload.ResponsesZstdEndpoints(), payload.DisabledResponsesZstdEndpoints()
+			request.LearnZstd = payload.LearnResponsesZstd() && len(channel.GetHeaderOverrideOperations()) == 0
+		}
+		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, channel.ID, request.Body, func() httpclient.UploadEstimate {
+			if state.Proxy != nil || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
+				return httpclient.UploadEstimate{}
+			}
+			request.MeasurePlainUpload = true
+			return channel.HTTPClient.EstimateUpload(request)
+		})
+		if stats.ColdEncodes > 0 && stats.OutputBytes < stats.InputBytes {
+			// A cold PNG pass already paid to shrink this request. Use the new
+			// plain-body measurement; a later cache hit can use learned zstd.
+			request.LearnZstd = false
+		}
 		if stats.OutputBytes < stats.InputBytes {
 			if bytes.Equal(request.JSONBody, request.Body) {
 				request.JSONBody = body

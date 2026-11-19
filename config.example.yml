@@ -8,11 +8,15 @@ codex_catalog:
   offline: false  # Use bundled and archived snapshots only (AXONHUB_CODEX_CATALOG_OFFLINE)
   version: ""    # Pin an official snapshot for rollback, e.g. 0.166.0 (AXONHUB_CODEX_CATALOG_VERSION)
 
-# Optional per-instance trials. Use channel IDs from this instance and exact
-# Responses POST URLs whose operators have confirmed zstd request decoding.
+# Optional per-instance overrides. Endpoint entries are exact Responses POST URLs.
 request_payload:
   cached_images_only_channels: []
   responses_zstd_endpoints: []
+  disabled_zstd_endpoints: []          # Always use plain JSON, including after a peer advertises zstd.
+  disable_zstd_advertisement: false   # Set true if the ingress proxy rejects zstd request bodies.
+  disable_zstd_learning: false        # Only explicitly enabled endpoints may then use zstd.
+  first_content_trial_percent: 0      # 0 observes only. 1-99 enrolls a stable share of eligible new sessions.
+  first_content_gain_ms: 1000         # Minimum improvement required for a learned preference.
 
 # Server configuration
 server:

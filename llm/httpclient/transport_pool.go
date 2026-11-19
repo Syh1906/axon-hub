@@ -23,6 +23,7 @@ var nextConnectionID atomic.Uint64
 // HTTP/2 uploads stall. Recovery changes only future requests; an active pool
 // may have at most one old generation draining. Neither mechanism replays work.
 type recoveringTransport struct {
+	encodings requestEncodingCache
 	template  *http.Transport
 	tlsConfig *tls.Config // Immutable policy, separate from Transport's lazy HTTP/2 setup.
 	mu        sync.Mutex
@@ -114,7 +115,7 @@ func (g *poolGeneration) prepareClose() func() {
 type transportObserverKey struct{}
 
 func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = encodeConfiguredRequest(req)
+	req, encoding := t.encodings.prepare(req)
 	// The enclosing http.Client validates the URL. Paths and credentials do
 	// not participate in the key or in transport diagnostics.
 	origin := strings.ToLower(req.URL.Scheme + "://" + req.URL.Host)
@@ -157,6 +158,10 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		observer.mu.Lock()
 		observer.wireBytes = bodyBytes
 		observer.zstdEncoded = req.Header.Get("Content-Encoding") == "zstd"
+		observer.encodeDuration = 0
+		if encoding != nil {
+			observer.encodeDuration = encoding.cpu
+		}
 		observer.mu.Unlock()
 		observer.beginPoolAttempt(generation.id, func() (string, func()) {
 			return t.recoverUpload(origin, pool, generation, bodyBytes)
@@ -206,6 +211,9 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		},
 	}
 	response, err := generation.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), progress)))
+	if encoding != nil {
+		t.encodings.observe(encoding, response, observer)
+	}
 	if err != nil {
 		t.release(origin, pool, generation, upload)
 		return response, err

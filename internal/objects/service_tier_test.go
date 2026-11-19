@@ -1,12 +1,38 @@
 package objects
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
+
+func TestServiceTierValueSkipsHistoryAndPreservesJSONSemantics(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{`{"service_tier":" first ","input":[{"service_tier":"nested"}],"service\u005ftier":" priority "}`, "priority"},
+		{`{"SERVICE_TIER":"wrong case"}`, ""},
+		{`{"service_tier":"default","service_tier":null}`, ""},
+		{`{"service_tier":42}`, "[invalid]"},
+		{`{"service_tier":"default"} false`, ""},
+		{`{"service_tier":"default","input":[}`, ""},
+		{`{"service_tier":"` + string(bytes.Repeat([]byte{'x'}, 129)) + `"}`, "[invalid]"},
+	} {
+		require.Equal(t, tc.want, ServiceTierValue([]byte(tc.body)))
+	}
+}
+
+func BenchmarkServiceTierLargeHistory(b *testing.B) {
+	body := append([]byte(`{"input":"`), bytes.Repeat([]byte{'x'}, 25<<20)...)
+	body = append(body, `","service_tier":"default"}`...)
+	b.ReportAllocs()
+	for b.Loop() {
+		if ServiceTierValue(body) != "default" {
+			b.Fatal("missing outbound tier")
+		}
+	}
+}
 
 func TestServiceTierDecision(t *testing.T) {
 	prices := &ServiceTierPrices{Fast: &ServiceTierPrice{Source: ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.RequireFromString("1.6"))}, Ultrafast: &ServiceTierPrice{Source: ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.NewFromInt(6))}}

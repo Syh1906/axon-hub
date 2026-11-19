@@ -54,7 +54,7 @@ func (p *PersistentOutboundTransformer) CanRetryAfterTimeout(err error) bool {
 }
 
 func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware {
-	return pipeline.OnRawRequest("upstream_address", func(_ context.Context, request *httpclient.Request) (*httpclient.Request, error) {
+	return pipeline.OnRawRequest("upstream_address", func(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
 		addresses := p.upstreamAddresses()
 		if len(addresses) == 0 {
 			return request, nil
@@ -65,10 +65,6 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		channel := p.GetCurrentChannel()
 		format := p.state.CurrentCandidate.APIFormat
 		base, err := url.Parse(channel.NormalizeUpstreamAddress(channel.BaseURL, format))
-		if err != nil {
-			return nil, err
-		}
-		target, err := url.Parse(channel.NormalizeUpstreamAddress(addresses[p.addressIndex].URL, format))
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +79,11 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		basePath := strings.TrimRight(base.Path, "/")
 		if current.Path != basePath && !strings.HasPrefix(current.Path, basePath+"/") {
 			return request, nil
+		}
+		addresses = p.selectContentAddress(ctx, request, addresses)
+		target, err := url.Parse(channel.NormalizeUpstreamAddress(addresses[p.addressIndex].URL, format))
+		if err != nil {
+			return nil, err
 		}
 		current.Scheme, current.Host = target.Scheme, target.Host
 		current.Path = strings.TrimRight(target.Path, "/") + strings.TrimPrefix(current.Path, basePath)
@@ -114,6 +115,20 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		}
 		copy := *request
 		copy.URL = current.String()
+		if p.state.contentAddressOwner != "" {
+			// Retry order may be rotated. Persist the actual successful address
+			// against the original, versioned configuration.
+			p.state.contentAddressPosition = 0
+			for i, configured := range channel.EnabledUpstreamAddresses(format) {
+				if configured.Priority != addresses[0].Priority {
+					break
+				}
+				if configured.URL == addresses[p.addressIndex].URL {
+					p.state.contentAddressPosition = i + 1
+					break
+				}
+			}
+		}
 		return &copy, nil
 	})
 }

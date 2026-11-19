@@ -2,10 +2,12 @@ package biz
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/alicebob/miniredis/v2/server"
 	"github.com/stretchr/testify/require"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -162,4 +164,33 @@ func TestRequestService_PreviousChannelUsesRedisCache(t *testing.T) {
 	channelID, err := service.GetPreviousChannelID(ctx, traceEntity.ID)
 	require.NoError(t, err)
 	require.Equal(t, channelEntity.ID, channelID)
+}
+
+func TestTrialAddressRedisScopeAndDeadline(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client, err := xredis.NewClient(xredis.Config{URL: "redis://" + mr.Addr() + "?context_timeout_enabled=true"})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.Close() })
+	rs := &RequestService{previousChannelCache: xcache.NewRedis[int](client)}
+	ctx := t.Context()
+	rs.RememberTrialAddress(ctx, "tested", 2)
+	require.Equal(t, 2, rs.TrialAddress(ctx, "tested"))
+	require.Zero(t, rs.TrialAddress(ctx, "different"))
+	const simulatedDelay = 200 * time.Millisecond
+	mr.Server().SetPreHook(func(_ *server.Peer, cmd string, _ ...string) bool {
+		if strings.EqualFold(cmd, "GET") {
+			time.Sleep(simulatedDelay)
+		}
+		return false
+	})
+	start := time.Now()
+	require.Zero(t, rs.TrialAddress(ctx, "tested"), "a timed-out address hint falls back to configuration")
+	elapsed := time.Since(start)
+	require.Less(t, elapsed, simulatedDelay)
+	t.Logf("address lookup with a %v Redis delay returned after %v", simulatedDelay, elapsed)
+	mr.Server().SetPreHook(nil)
+	mr.SetError("ERR fixture unavailable")
+	_, err = rs.GetPreviousChannelID(ctx, 1)
+	require.Error(t, err, "an unavailable session cache must not identify a new session")
+	require.False(t, (&RequestService{previousChannelCache: xcache.NewNoop[int]()}).PreviousChannelCacheEnabled())
 }

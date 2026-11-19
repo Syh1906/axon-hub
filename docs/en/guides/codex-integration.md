@@ -57,6 +57,8 @@ Configure log collectors to use `axon_request_id` for the local database row ID.
 
 For Responses, `first_responses_event` observes the first decoded event the orchestrator reads from the upstream transport. WS control frames handled inside the transport and SSE comments fall outside this observation. `first_responses_delta` and `gateway_first_responses_delta_write` independently observe the first non-empty text, reasoning, tool argument/input or refusal delta read and successfully written. They store the event category, data byte count and timestamp. Streams returning only complete items can have meaningful model output with no delta observation. Measuring rendering requires a client-side clock.
 
+`attempt_prepared_at` marks the prepared attempt. `upstream_dispatch_at` marks executor entry after admission. Together with completed intake they distinguish preparation from admission time. `gateway_first_content_write` records the first successfully written text, reasoning, tool or refusal content, including whole-item responses. Its event type can differ from the first delta. The same field also covers streaming OpenAI Chat, Anthropic Messages and Gemini Contents.
+
 #### Catalog URL and response format
 
 Place `base_url` and `model_catalog_url` in the selected provider table. The former routes inference, normally ends in `/v1`, and uses `wire_api = "responses"`; the latter must target `/codex/models`, not `/v1/models`. For a static token, replace the example's `env_key` with `experimental_bearer_token = "<AxonHub API Key>"`. Never commit a real key in configuration or documentation.

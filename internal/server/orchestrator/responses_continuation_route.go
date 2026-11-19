@@ -68,6 +68,9 @@ func selectResponsesContinuation(ctx context.Context, req *llm.Request, candidat
 	if !requiresResponsesContinuationRoute(req) {
 		return nil, false, nil
 	}
+	if state, _ := ctx.Value(firstContentStateKey{}).(*PersistenceState); state != nil {
+		state.contentBoundHistory = true
+	}
 	routes, ok := provider.(responsesContinuationRouteProvider)
 	if !ok {
 		return nil, false, nil

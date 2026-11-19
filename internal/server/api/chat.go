@@ -152,6 +152,13 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 	}
 
 	writeForwardResponseHeaders(c, genericReq, result)
+	if shared.IsResponsesAPI(ctx) && c.Request.Method == http.MethodPost &&
+		(result.ChatCompletionStream != nil || result.ChatCompletion != nil && result.ChatCompletion.StatusCode/100 == 2) &&
+		handlers.ChatCompletionOrchestrator.RequestService.PayloadService.AdvertiseResponsesZstd() {
+		// This header describes this hop's request decoder. Upstream response
+		// headers are filtered independently by writeForwardResponseHeaders.
+		c.Header("Accept-Encoding", "zstd")
+	}
 
 	if result.ChatCompletion != nil {
 		resp := result.ChatCompletion
@@ -331,7 +338,7 @@ func writeEncodedSSEStream(
 
 func writeSSEStreamWithoutHeartbeat(c *gin.Context, stream streams.Stream[*httpclient.StreamEvent], formatErr StreamErrorEncoder) {
 	ctx := c.Request.Context()
-	clock := responsesWriteClock(ctx)
+	clock, format := streamContentWriter(ctx)
 	clientDisconnected := false
 
 	defer func() {
@@ -383,7 +390,7 @@ func writeSSEStreamWithoutHeartbeat(c *gin.Context, stream streams.Stream[*httpc
 			if err := writeSSEEvent(ctx, c.Writer, cur.Type, cur.Data); err != nil {
 				return false, err
 			}
-			clock.WroteResponsesEvent(cur)
+			clock.WroteStreamContent(format, cur)
 			terminal := !terminalSeen && terminalTracker.Observe(cur)
 			if terminal {
 				terminalSeen = true
@@ -406,11 +413,11 @@ func streamExpectedChoices(stream streams.Stream[*httpclient.StreamEvent]) int {
 	return 0
 }
 
-func responsesWriteClock(ctx context.Context) *contexts.RequestClock {
-	if shared.IsResponsesAPI(ctx) {
-		return contexts.GetRequestClock(ctx)
+func streamContentWriter(ctx context.Context) (*contexts.RequestClock, llm.APIFormat) {
+	if format := contexts.StreamFormat(ctx); format != "" {
+		return contexts.GetRequestClock(ctx), format
 	}
-	return nil
+	return nil, ""
 }
 
 func writeSSEStreamWithHeartbeat(
@@ -431,7 +438,7 @@ func writeEncodedSSEStreamWithHeartbeat(
 	heartbeatFormat sseHeartbeatFormat,
 ) {
 	ctx := c.Request.Context()
-	clock := responsesWriteClock(ctx)
+	clock, format := streamContentWriter(ctx)
 	clientDisconnected := false
 
 	defer func() {
@@ -495,7 +502,7 @@ func writeEncodedSSEStreamWithHeartbeat(
 				if err := writeSSEEvent(ctx, c.Writer, cur.Type, cur.Data); err != nil {
 					return false, err
 				}
-				clock.WroteResponsesEvent(cur)
+				clock.WroteStreamContent(format, cur)
 				terminal := !terminalSeen && terminalTracker.Observe(cur)
 				if terminal {
 					terminalSeen = true

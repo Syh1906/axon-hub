@@ -186,6 +186,33 @@ func TestHTTPPoolRecoveryExcludesParentCancellationAndResponseTimeout(t *testing
 	}
 }
 
+func TestLocalEncodingKeepsParentDeadlineAndStartsUploadTimerAtDispatch(t *testing.T) {
+	r := &httpclient.Request{}
+	ctx, guard := newResponsePhaseGuard(t.Context(), r, time.Second, 20*time.Millisecond, ErrStreamFirstEventTimeout)
+	defer guard.stop()
+	r.ReportHTTPProgress(httpclient.TransportStarted, time.Now())
+	r.ReportHTTPProgress(httpclient.TransportEncoding, time.Now())
+	select {
+	case <-ctx.Done():
+		t.Fatal("upload deadline expired during local encoding")
+	case <-time.After(45 * time.Millisecond):
+	}
+	r.ReportHTTPProgress(httpclient.TransportStarted, time.Now())
+	select {
+	case <-ctx.Done():
+		require.ErrorIs(t, context.Cause(ctx), ErrRequestUploadTimeout)
+	case <-time.After(time.Second):
+		t.Fatal("upload timer did not resume")
+	}
+	parent, cancel := context.WithCancel(t.Context())
+	r = &httpclient.Request{}
+	ctx, guard = newResponsePhaseGuard(parent, r, time.Second, time.Second, ErrStreamFirstEventTimeout)
+	defer guard.stop()
+	r.ReportHTTPProgress(httpclient.TransportEncoding, time.Now())
+	cancel()
+	require.ErrorIs(t, context.Cause(ctx), context.Canceled)
+}
+
 func TestResponsePhaseKeepsParentCancellationAndStopsAfterFirstEvent(t *testing.T) {
 	parent, cancel := context.WithCancel(context.Background())
 	request := &httpclient.Request{}

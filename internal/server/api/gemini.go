@@ -9,11 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	entprivacy "github.com/looplj/axonhub/internal/ent/privacy"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/internal/server/plugin"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer/gemini"
@@ -69,6 +71,7 @@ func NewGeminiHandlers(params GeminiHandlersParams) *GeminiHandlers {
 }
 
 func (handlers *GeminiHandlers) GenerateContent(c *gin.Context) {
+	c.Request = c.Request.WithContext(contexts.WithStreamFormat(c.Request.Context(), llm.APIFormatGeminiContents))
 	alt := c.Query("alt")
 	switch alt {
 	case "sse":
@@ -124,6 +127,7 @@ func WriteGeminiStream(c *gin.Context, stream streams.Stream[*httpclient.StreamE
 					if err := flushResponseWriter(c.Writer); err != nil {
 						return false, err
 					}
+					contexts.GetRequestClock(ctx).WroteStreamContent(llm.APIFormatGeminiContents, cur)
 					first = false
 					terminal := terminalTracker.Observe(cur)
 					if terminal {

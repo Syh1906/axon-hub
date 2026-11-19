@@ -11,6 +11,7 @@ import (
 type TransportPhase string
 
 const (
+	TransportEncoding   TransportPhase = "encoding"
 	TransportStarted    TransportPhase = "started"
 	TransportConnected  TransportPhase = "connected"
 	TransportUploaded   TransportPhase = "uploaded"
@@ -30,6 +31,7 @@ type TransportTrace struct {
 	connectionAttempts int
 	wireBytes          int64
 	zstdEncoded        bool
+	encodeDuration     time.Duration
 	poolRecovery       string
 	poolCount          int
 	poolAction         string
@@ -41,6 +43,7 @@ type TransportTrace struct {
 type TransportTimings struct {
 	WireBodyBytes      int64  `json:"wire_body_bytes,omitempty"`
 	ZstdEncoded        bool   `json:"zstd_encoded,omitempty"`
+	EncodeMs           int64  `json:"request_encode_ms,omitempty"`
 	HTTPObserved       bool   `json:"http_observed"`
 	ConnectMs          *int64 `json:"connect_ms,omitempty"`
 	UploadMs           *int64 `json:"upload_ms,omitempty"`
@@ -178,7 +181,7 @@ func (t *TransportTrace) Snapshot() TransportTimings {
 		return new(b.Sub(a).Milliseconds())
 	}
 	return TransportTimings{
-		WireBodyBytes: t.wireBytes, ZstdEncoded: t.zstdEncoded,
+		WireBodyBytes: t.wireBytes, ZstdEncoded: t.zstdEncoded, EncodeMs: t.encodeDuration.Milliseconds(),
 		HTTPObserved:     !t.times[TransportStarted].IsZero(),
 		ConnectMs:        duration(TransportStarted, TransportConnected),
 		UploadMs:         duration(TransportConnected, TransportUploaded),
@@ -223,8 +226,12 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 		},
 	}
 	ctx := context.WithValue(raw.Context(), transportObserverKey{}, request.TransportTrace)
-	if len(request.ZstdEndpoints) != 0 && len(request.Body) >= minZstdRequestBytes {
-		ctx = context.WithValue(ctx, requestEncodingKey{}, requestEncodingInput{body: request.Body, endpoints: request.ZstdEndpoints})
+	if request.LearnZstd || len(request.ZstdEndpoints) != 0 || request.MeasurePlainUpload {
+		ctx = context.WithValue(ctx, requestEncodingKey{}, requestEncodingInput{
+			body: request.Body, endpoints: request.ZstdEndpoints, disabled: request.NoZstdEndpoints,
+			learn: request.LearnZstd, scope: request.EncodingScope, generation: request.EncodingGeneration, measure: request.MeasurePlainUpload,
+			progress: request.OnHTTPProgress,
+		})
 	}
 	return raw.WithContext(httptrace.WithClientTrace(ctx, trace))
 }
