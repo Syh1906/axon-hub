@@ -19,6 +19,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/server/lifecycle"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
@@ -68,6 +69,15 @@ func serveResponsesWebSocket(
 		return
 	}
 	defer conn.Close()
+	if manager := lifecycle.FromContext(ctx); manager != nil {
+		// Upgraded sockets outlive http.Server.Shutdown. Wake the handler so
+		// it can join active turns and retire every upstream lane.
+		stop := context.AfterFunc(manager.Context(), func() {
+			cancelSession()
+			_ = conn.Close()
+		})
+		defer stop()
+	}
 	writer := &responsesWebSocketWriter{conn: conn}
 
 	conn.SetReadLimit(responsesWebSocketMaxMessageSize)

@@ -24,6 +24,7 @@ const (
 )
 
 type RequestPayloadConfig struct {
+	CompactionCooldownMode   string   `conf:"compaction_cooldown_mode" yaml:"compaction_cooldown_mode" json:"compaction_cooldown_mode"`
 	Directory                string   `conf:"directory" yaml:"directory" json:"directory"`
 	CachedImagesOnlyChannels []int    `conf:"cached_images_only_channels" yaml:"cached_images_only_channels" json:"cached_images_only_channels"`
 	ResponsesZstdEndpoints   []string `conf:"responses_zstd_endpoints" yaml:"responses_zstd_endpoints" json:"responses_zstd_endpoints"`
@@ -32,6 +33,14 @@ type RequestPayloadConfig struct {
 	DisableZstdLearning      bool     `conf:"disable_zstd_learning" yaml:"disable_zstd_learning" json:"disable_zstd_learning"`
 	FirstContentTrialPercent int      `conf:"first_content_trial_percent" yaml:"first_content_trial_percent" json:"first_content_trial_percent"`
 	FirstContentGainMs       int      `conf:"first_content_gain_ms" yaml:"first_content_gain_ms" json:"first_content_gain_ms"`
+}
+
+// CompactionCooldownMode selects observation or enforcement for duplicate summary attempts.
+func (s *RequestPayloadService) CompactionCooldownMode() string {
+	if s == nil || s.config.CompactionCooldownMode == "" {
+		return "observe"
+	}
+	return s.config.CompactionCooldownMode
 }
 
 // RequestPayloadService separates short debug copies from continuation state.

@@ -22,6 +22,7 @@ const (
 
 // TransportTrace is local to one attempt. net/http invokes some hooks concurrently.
 type TransportTrace struct {
+	streamStart        *streamStartTrace
 	mu                 sync.Mutex
 	times              map[TransportPhase]time.Time
 	poolGeneration     uint64
@@ -41,24 +42,25 @@ type TransportTrace struct {
 
 // TransportTimings uses nullable durations: absent evidence is not zero latency.
 type TransportTimings struct {
-	WireBodyBytes      int64  `json:"wire_body_bytes,omitempty"`
-	ZstdEncoded        bool   `json:"zstd_encoded,omitempty"`
-	EncodeMs           int64  `json:"request_encode_ms,omitempty"`
-	HTTPObserved       bool   `json:"http_observed"`
-	ConnectMs          *int64 `json:"connect_ms,omitempty"`
-	UploadMs           *int64 `json:"upload_ms,omitempty"`
-	HeadersWaitMs      *int64 `json:"headers_wait_ms,omitempty"`
-	FirstByteWaitMs    *int64 `json:"first_byte_wait_ms,omitempty"`
-	FirstEventWaitMs   *int64 `json:"first_event_wait_ms,omitempty"`
-	UploadCompleted    bool   `json:"upload_completed"`
-	PoolGeneration     uint64 `json:"pool_generation,omitempty"`
-	ConnectionID       uint64 `json:"connection_id,omitempty"`
-	Protocol           string `json:"protocol,omitempty"`
-	Reused             *bool  `json:"connection_reused,omitempty"`
-	ConnectionAttempts int    `json:"connection_attempts,omitempty"`
-	PoolRecovery       string `json:"pool_recovery,omitempty"`
-	PoolCount          int    `json:"pool_count,omitempty"`
-	PoolAction         string `json:"pool_action,omitempty"`
+	StreamStart        *StreamStartTimings `json:"stream_start,omitempty"`
+	WireBodyBytes      int64               `json:"wire_body_bytes,omitempty"`
+	ZstdEncoded        bool                `json:"zstd_encoded,omitempty"`
+	EncodeMs           int64               `json:"request_encode_ms,omitempty"`
+	HTTPObserved       bool                `json:"http_observed"`
+	ConnectMs          *int64              `json:"connect_ms,omitempty"`
+	UploadMs           *int64              `json:"upload_ms,omitempty"`
+	HeadersWaitMs      *int64              `json:"headers_wait_ms,omitempty"`
+	FirstByteWaitMs    *int64              `json:"first_byte_wait_ms,omitempty"`
+	FirstEventWaitMs   *int64              `json:"first_event_wait_ms,omitempty"`
+	UploadCompleted    bool                `json:"upload_completed"`
+	PoolGeneration     uint64              `json:"pool_generation,omitempty"`
+	ConnectionID       uint64              `json:"connection_id,omitempty"`
+	Protocol           string              `json:"protocol,omitempty"`
+	Reused             *bool               `json:"connection_reused,omitempty"`
+	ConnectionAttempts int                 `json:"connection_attempts,omitempty"`
+	PoolRecovery       string              `json:"pool_recovery,omitempty"`
+	PoolCount          int                 `json:"pool_count,omitempty"`
+	PoolAction         string              `json:"pool_action,omitempty"`
 }
 
 func (t *TransportTrace) beginPoolAttempt(generation uint64, recoverUpload func() (string, func()), verifyUpload func() bool) {
@@ -181,6 +183,7 @@ func (t *TransportTrace) Snapshot() TransportTimings {
 		return new(b.Sub(a).Milliseconds())
 	}
 	return TransportTimings{
+		StreamStart:   t.streamStart.snapshot(),
 		WireBodyBytes: t.wireBytes, ZstdEncoded: t.zstdEncoded, EncodeMs: t.encodeDuration.Milliseconds(),
 		HTTPObserved:     !t.times[TransportStarted].IsZero(),
 		ConnectMs:        duration(TransportStarted, TransportConnected),

@@ -414,12 +414,15 @@ func (t *OutboundTransformer) AggregateStreamChunks(ctx context.Context, req *ht
 	return t.responsesOutbound.AggregateStreamChunks(ctx, req, chunks)
 }
 
+// StripPreviousResponseIDForHTTP reports the Codex backend's HTTP continuation policy.
+func (*OutboundTransformer) StripPreviousResponseIDForHTTP() bool { return true }
+
 func (t *OutboundTransformer) CustomizeExecutor(executor pipeline.Executor) pipeline.Executor {
 	var ws *responses.WebSocketExecutor
 	if t != nil && t.transport == responses.TransportWebSocket {
 		ws = t.customizeWebSocketExecutor(executor).(*responses.WebSocketExecutor)
 	}
-	inner := responses.NewTransportExecutor(executor, ws, true)
+	inner := responses.NewTransportExecutor(executor, ws, t.StripPreviousResponseIDForHTTP())
 
 	return &codexExecutor{
 		inner:        inner,

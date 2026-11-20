@@ -106,6 +106,7 @@ func (p *PersistentOutboundTransformer) budgetExecutor(executor pipeline.Executo
 	}
 	return &budgetExecutor{executor, p.state.UsageLogService.BudgetService, p.state.RequestExec.ID, p.state.BudgetAttempt}
 }
+
 func (e *budgetExecutor) Do(ctx context.Context, request *httpclient.Request) (*httpclient.Response, error) {
 	if e.attempt != nil {
 		var cancel context.CancelFunc
@@ -122,7 +123,7 @@ func (e *budgetExecutor) Do(ctx context.Context, request *httpclient.Request) (*
 		}
 		return nil, ownerErr
 	}
-	return response, err
+	return response, e.releaseUnsent(ctx, err)
 }
 func (e *budgetExecutor) DoStream(ctx context.Context, request *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
 	cancel := func() {}
@@ -145,10 +146,25 @@ func (e *budgetExecutor) DoStream(ctx context.Context, request *httpclient.Reque
 		return nil, ownerErr
 	}
 	if err != nil {
+		err = e.releaseUnsent(ctx, err)
 		cancel()
 		return nil, err
 	}
 	return &budgetStream{Stream: stream, ctx: ctx, service: e.service, executionID: e.executionID, attempt: e.attempt, cancel: cancel}, nil
+}
+
+// MarkSent fences the transport before checkout. Only the transport can
+// attest that a local continuation failure occurred before any provider write.
+func (e *budgetExecutor) releaseUnsent(ctx context.Context, cause error) error {
+	if !errors.Is(cause, httpclient.ErrRequestNotSent) {
+		return cause
+	}
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if err := e.service.ReleaseUnwrittenAttempt(persistCtx, e.executionID); err != nil {
+		return errors.Join(cause, &biz.BudgetDenied{Reason: "accounting_unavailable"})
+	}
+	return cause
 }
 
 type budgetStream struct {

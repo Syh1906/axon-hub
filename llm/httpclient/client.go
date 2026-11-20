@@ -392,7 +392,7 @@ func (hc *HttpClient) Do(ctx context.Context, request *Request) (*Response, erro
 
 // DoStream executes a streaming HTTP request using Server-Sent Events.
 func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.Stream[*StreamEvent], error) {
-	rawReq, err := hc.BuildHttpRequest(ctx, request)
+	rawReq, err := BuildStreamHTTPRequest(ctx, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build HTTP request: %w", err)
 	}
@@ -400,17 +400,6 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 		slog.String("method", rawReq.Method),
 		slog.String("url", urlForLog(rawReq.URL)),
 		slog.Int("body_size", len(request.Body)))
-
-	// Add streaming headers. Force SSE Accept unless the outbound transformer
-	// explicitly opted into a non-JSON Accept (e.g. "*/*" for binary TTS chunks),
-	// so chat-style outbounds whose default Accept is application/json still
-	// negotiate SSE for streaming requests.
-	accept := rawReq.Header.Get("Accept")
-	if accept == "" || strings.EqualFold(accept, "application/json") {
-		rawReq.Header.Set("Accept", "text/event-stream")
-	}
-	rawReq.Header.Set("Cache-Control", "no-cache")
-	rawReq.Header.Set("Connection", "keep-alive")
 
 	// Execute request
 	rawResp, err := hc.client.Do(traceHTTPRequest(request, rawReq))
@@ -420,6 +409,10 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 	}
 	if err != nil {
 		return nil, fmt.Errorf("HTTP stream request failed: %w", err)
+	}
+	start := request.TransportTrace.startStream(rawResp)
+	if start != nil {
+		rawResp.Body = &streamStartBody{ReadCloser: rawResp.Body, trace: start}
 	}
 	rawResp.Body = ObserveFirstByte(rawResp.Body, request.observeFirstByte)
 
@@ -502,6 +495,9 @@ func (hc *HttpClient) DoStream(ctx context.Context, request *Request) (streams.S
 	}
 
 	stream := decoderFactory(ctx, rawResp.Body)
+	if start != nil {
+		stream = &streamStartDecoder{StreamDecoder: stream, trace: start}
+	}
 	responseHeaders := make(http.Header)
 	if value := rawResp.Header.Get("X-Codex-Turn-State"); value != "" {
 		responseHeaders.Set("X-Codex-Turn-State", value)
@@ -530,11 +526,38 @@ func urlForLog(value *url.URL) string {
 	return redacted.String()
 }
 
+// BuildStreamHTTPRequest applies the same wire headers used for streaming admission and dispatch.
+func BuildStreamHTTPRequest(ctx context.Context, request *Request) (*http.Request, error) {
+	req, err := buildHTTPRequest(ctx, request, true)
+	if err != nil {
+		return nil, err
+	}
+	// Add streaming headers. Force SSE Accept unless the outbound transformer
+	// explicitly opted into a non-JSON Accept (e.g. "*/*" for binary TTS chunks),
+	// so chat-style outbounds whose default Accept is application/json still
+	// negotiate SSE for streaming requests.
+	accept := req.Header.Get("Accept")
+	if accept == "" || strings.EqualFold(accept, "application/json") {
+		req.Header.Set("Accept", "text/event-stream")
+	}
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
+
+	return req, nil
+}
+
 // BuildHttpRequest builds an HTTP request from Request.
 func BuildHttpRequest(
 	ctx context.Context,
 	request *Request,
 ) (*http.Request, error) {
+	return buildHTTPRequest(ctx, request, false)
+}
+
+func buildHTTPRequest(ctx context.Context, request *Request, requireHTTP bool) (*http.Request, error) {
+	if requireHTTP && request != nil && request.ResponsesWebSocket != nil && request.ResponsesWebSocket.Probe {
+		return nil, fmt.Errorf("model WebSocket verification requires the native transport")
+	}
 	var body io.Reader
 	if len(request.Body) > 0 {
 		body = bytes.NewReader(request.Body)
@@ -587,10 +610,7 @@ func (hc *HttpClient) BuildHttpRequest(
 	ctx context.Context,
 	request *Request,
 ) (*http.Request, error) {
-	if request != nil && request.ResponsesWebSocket != nil && request.ResponsesWebSocket.Probe {
-		return nil, fmt.Errorf("model WebSocket verification requires the native transport")
-	}
-	return BuildHttpRequest(ctx, request)
+	return buildHTTPRequest(ctx, request, true)
 }
 
 // applyAuth applies authentication to the HTTP request.

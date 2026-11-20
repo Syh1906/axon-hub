@@ -10,6 +10,9 @@ import (
 
 // ErrRequestMayHaveExecuted prevents retrying a WS write/read with unknown outcome.
 var ErrRequestMayHaveExecuted = errors.New("upstream request may have executed; automatic replay is unsafe")
+
+// ErrRequestNotSent marks a local failure proven to precede a provider business request.
+var ErrRequestNotSent = errors.New("upstream request was not sent")
 var ErrContinuationUnavailable = errors.New("previous_response_not_found: send complete input to resume this conversation")
 var ErrContinuationRestoreFailed = errors.New("failed to restore Responses history")
 

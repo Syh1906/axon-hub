@@ -5,6 +5,9 @@ import (
 	"context"
 	"sync"
 
+	"entgo.io/ent/dialect/sql"
+	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 )
@@ -71,4 +74,24 @@ func (s *RequestPayloadService) saveRequestDebug(ctx context.Context, body []byt
 func summarizeRequestImages(body []byte) *requestImageSummary {
 	images, _ := requestpayload.Inspect(body)
 	return images
+}
+
+// UpdateRecoveredExecutionBody replaces the delta with the actual outgoing
+// history while honoring both the original and current retention decisions.
+func (s *RequestService) UpdateRecoveredExecutionBody(ctx context.Context, execution *ent.RequestExecution, body []byte) error {
+	ref, ok := parsePayloadMarker(execution.RequestBody)
+	if ok && ref.State == "disabled" {
+		return nil
+	}
+	marker := payloadMarker(requestPayloadReference{State: "disabled"})
+	if policy, err := s.SystemService.StoragePolicy(ctx); err == nil && policy.StoreRequestBody {
+		marker = s.PayloadService.saveRequestDebug(ctx, body)
+	}
+	if err := s.entFromContext(ctx).RequestExecution.UpdateOneID(execution.ID).Where(requestexecution.StatusEQ(requestexecution.StatusProcessing)).Modify(func(u *sql.UpdateBuilder) {
+		u.Set(requestexecution.FieldRequestBody, string(marker))
+	}).Exec(ctx); err != nil {
+		return err
+	}
+	execution.RequestBody = marker
+	return nil
 }

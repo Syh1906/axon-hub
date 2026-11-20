@@ -88,6 +88,7 @@ func NewChatCompletionOrchestrator(
 	sessions.known = requestService.HasCompletedResponsesOrigin
 	return &ChatCompletionOrchestrator{
 		firstContentRoutes: new(firstContentRoutes),
+		compactionCooldown: new(compactionCooldown),
 		Inbound:            inbound,
 		RequestService:     requestService,
 		ChannelService:     channelService,
@@ -122,6 +123,7 @@ func NewChatCompletionOrchestrator(
 }
 
 type ChatCompletionOrchestrator struct {
+	compactionCooldown *compactionCooldown
 	firstContentRoutes *firstContentRoutes
 	Inbound            transformer.Inbound
 	RequestService     *biz.RequestService
@@ -304,6 +306,11 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		}
 	}()
 	if shared.IsResponsesAPI(ctx) && request != nil {
+		// Channel transformers can normalize session headers in place. Attribute a
+		// compaction using the original envelope, before any such changes.
+		if task, ok := compactionTask(request, shared.IsResponsesWebSocket(ctx)); ok {
+			state.compactionTask = &task
+		}
 		// Register the original envelope before history restoration can reject it.
 		// Normal protocols register immediately after parsing, before admission.
 		metadata := &llm.Request{

@@ -2,6 +2,11 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
+## Responses 空闲连接与历史压缩（2026-11-20，待发布）
+
+- 上游 WS 连接在空闲期间回复心跳并发现关闭。同步上游时核对单一读取者、跨执行器的连接代次、写入前恢复完整历史和重新核对预算、写入后禁止重放，以及关停时空闲连接的回收。[连接读取](../llm/transformer/openai/responses/websocket_pool_reader.go)
+- 普通 Responses HTTP 渠道的 Codex 压缩首事件超时支持实例内 30 秒重复派发冷却，默认只观察。严格按当前操作身份和最终请求匹配，过期后只放行一次试探，本地拒绝时归还试探资格。同步时核对 HTTP/WS 同一正文、透传、权限来源和实际供应商调用次数。[配置及诊断](zh/guides/storage-maintenance.md#codex-历史压缩的重复请求)
+
 ## rc1-fork.14 正式发布与双机更新（2026-11-19）
 
 - 发布范围为 fork.13 之后的维护分支改动，包括首内容、逐跳压缩、新会话选路以及 Responses 渠道档位与计费。新加坡时间 22:08:33，[精简工作流](https://github.com/Syh1906/axon-hub/actions/runs/44539412358)以提交 `8d703fd5abb2f6ede68a2ed377a7ba26dc3f7111` 发布 [fork.14 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14)，已设为最新版本。该提交的 [Test](https://github.com/Syh1906/axon-hub/actions/runs/44538018861)、[Build](https://github.com/Syh1906/axon-hub/actions/runs/44538019032)、[Lint](https://github.com/Syh1906/axon-hub/actions/runs/44538019080) 和 [Govulncheck](https://github.com/Syh1906/axon-hub/actions/runs/44538019152) 均通过。

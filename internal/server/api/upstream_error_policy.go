@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,9 @@ import (
 
 func writeOrchestratorError(c *gin.Context, err error, orch *orchestrator.ChatCompletionOrchestrator) {
 	httpErr := transformOrchestratorError(c.Request.Context(), err, orch)
+	if seconds := orchestrator.CompactionRetryAfter(err); seconds > 0 {
+		c.Header("Retry-After", strconv.Itoa(seconds))
+	}
 	if httpErr.StatusCode == http.StatusTooManyRequests {
 		var original *httpclient.Error
 		if errors.As(err, &original) && original.StatusCode == http.StatusTooManyRequests {

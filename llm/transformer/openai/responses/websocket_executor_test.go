@@ -1396,8 +1396,7 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionWriteFailure(t *testing
 	require.NoError(t, first.Close())
 	require.Equal(t, int32(1), upgrades.Load())
 
-	// Kill the pooled socket while the pool still believes it is healthy, so the
-	// next write fails before anything reaches the upstream.
+	// Fail the actual write after checkout, independently of idle-close detection.
 	executor.mu.Lock()
 	var pooled *pooledWebSocketConn
 	for _, candidate := range executor.pool {
@@ -1408,9 +1407,8 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionWriteFailure(t *testing
 	executor.mu.Unlock()
 	require.NotNil(t, pooled)
 	require.False(t, pooled.isClosed())
-	require.NoError(t, pooled.conn.Close())
-
 	secondRequest := *request
+	secondRequest.OnReplayUnsafe = func() { _ = pooled.conn.Close() }
 	secondRequest.Body = []byte(`{"model":"gpt-5","input":[{"id":"first","type":"message"},{"id":"second","type":"message"}]}`)
 	second, err := executor.DoStream(ctx, &secondRequest)
 	require.Error(t, err, "a failed write on a reused session must be surfaced")
@@ -1420,8 +1418,7 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionWriteFailure(t *testing
 		"the request must not be resent on a new upstream connection")
 }
 
-// A reused session that dies without a close frame must also surface the failure
-// rather than silently re-establishing a new upstream connection.
+// Once the peer has read the next create, a missing response is ambiguous.
 func TestWebSocketExecutorDoesNotReplayAfterReusedSessionReadFailure(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	var upgrades atomic.Int32
@@ -1455,7 +1452,10 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionReadFailure(t *testing.
 			}
 		}
 
-		// Drop the peer without a close frame so the client only notices on read.
+		// Accept the second create first. A disconnect after this point must not replay it.
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
 		if tcpConn, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
 			_ = tcpConn.SetLinger(0)
 		}
@@ -1481,8 +1481,6 @@ func TestWebSocketExecutorDoesNotReplayAfterReusedSessionReadFailure(t *testing.
 	require.False(t, first.Next())
 	require.NoError(t, first.Err())
 	require.NoError(t, first.Close())
-
-	time.Sleep(100 * time.Millisecond)
 
 	secondRequest := *request
 	secondRequest.Body = []byte(`{"model":"gpt-5","input":[{"id":"first","type":"message"},{"id":"second","type":"message"}]}`)
@@ -1612,7 +1610,20 @@ func TestWebSocketExecutorCloseClosesIdleConnections(t *testing.T) {
 	require.Equal(t, "response.completed", stream.Current().Type)
 	require.False(t, stream.Next())
 	require.NoError(t, stream.Err())
+	executor.mu.Lock()
+	var exited <-chan struct{}
+	for _, pc := range executor.pool {
+		exited = pc.readerExited
+	}
+	executor.mu.Unlock()
+	require.NotNil(t, exited)
 	require.NoError(t, executor.Close())
+
+	select {
+	case <-exited:
+	default:
+		t.Fatal("idle socket reader still running after executor Close")
+	}
 
 	select {
 	case <-connectionClosed:

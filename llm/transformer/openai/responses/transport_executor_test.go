@@ -234,8 +234,7 @@ func TestTransportMissingContinuationDoesNotSendIncompleteHistory(t *testing.T) 
 }
 
 func TestTransportNormalizesUppercaseWebSocketURLForHTTP(t *testing.T) {
-	e := &transportExecutor{}
 	r := &httpclient.Request{URL: "WSS://example.com/v1/responses"}
-	require.Equal(t, "https://example.com/v1/responses", e.httpRequest(r).URL)
+	require.Equal(t, "https://example.com/v1/responses", PrepareHTTPDispatchRequest(r, false).URL)
 	require.Equal(t, "WSS://example.com/v1/responses", r.URL)
 }

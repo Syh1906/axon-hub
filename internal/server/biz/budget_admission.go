@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeygroup"
@@ -104,35 +106,9 @@ func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, re
 			accounts = append(accounts, groupAccount)
 		}
 
-		active := false
-		usages := make(map[int]map[budget.Period]budget.Usage, len(accounts))
-		// Check all global constraints before classifying a quote-specific rejection.
-		for _, account := range accounts {
-			usage, err := budgetUsage(ctx, db, account, now)
-			if err != nil {
-				return err
-			}
-			usages[account.ID] = usage
-			active = active || !account.State.Policy.StartedAt.IsZero()
-			blocked, err := budget.Check(now, string(account.OwnerKind), account.State.Policy, usage, 0)
-			if err != nil {
-				return err
-			}
-			if blocked != nil {
-				return &BudgetDenied{Scope: blocked.Scope, Period: blocked.Period, Reason: blocked.Reason}
-			}
-		}
-		for _, account := range accounts {
-			if quoteErr != nil && account.State.HasLimits() {
-				return &BudgetDenied{Scope: string(account.OwnerKind), Reason: "pricing_unavailable", CandidateOnly: true}
-			}
-			blocked, err := budget.Check(now, string(account.OwnerKind), account.State.Policy, usages[account.ID], estimate)
-			if err != nil {
-				return err
-			}
-			if blocked != nil {
-				return &BudgetDenied{Scope: blocked.Scope, Period: blocked.Period, Reason: blocked.Reason, CandidateOnly: true}
-			}
+		active, err := checkBudgetAccounts(ctx, db, accounts, estimate, quoteErr, now)
+		if err != nil {
+			return err
 		}
 		if !active {
 			return nil
@@ -169,6 +145,41 @@ func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, re
 	return held && err == nil, err
 }
 
+// Check every global restriction before any quote-specific denial.
+func checkBudgetAccounts(ctx context.Context, db *ent.Client, accounts []*ent.BudgetAccount, estimate budget.Amount, quoteErr error, now time.Time) (bool, error) {
+	active := false
+	usages := make(map[int]map[budget.Period]budget.Usage, len(accounts))
+	// Check all global constraints before classifying a quote-specific rejection.
+	for _, account := range accounts {
+		usage, err := budgetUsage(ctx, db, account, now)
+		if err != nil {
+			return false, err
+		}
+		usages[account.ID] = usage
+		active = active || !account.State.Policy.StartedAt.IsZero()
+		blocked, err := budget.Check(now, string(account.OwnerKind), account.State.Policy, usage, 0)
+		if err != nil {
+			return false, err
+		}
+		if blocked != nil {
+			return false, &BudgetDenied{Scope: blocked.Scope, Period: blocked.Period, Reason: blocked.Reason}
+		}
+	}
+	for _, account := range accounts {
+		if quoteErr != nil && account.State.HasLimits() {
+			return false, &BudgetDenied{Scope: string(account.OwnerKind), Reason: "pricing_unavailable", CandidateOnly: true}
+		}
+		blocked, err := budget.Check(now, string(account.OwnerKind), account.State.Policy, usages[account.ID], estimate)
+		if err != nil {
+			return false, err
+		}
+		if blocked != nil {
+			return false, &BudgetDenied{Scope: blocked.Scope, Period: blocked.Period, Reason: blocked.Reason, CandidateOnly: true}
+		}
+	}
+	return active, nil
+}
+
 func chargeVersions(state budget.State) map[budget.Period]int64 {
 	versions := budgetVersions(state)
 	if state.Policy.StartedAt.IsZero() {
@@ -177,6 +188,71 @@ func chargeVersions(state budget.State) map[budget.Period]int64 {
 		}
 	}
 	return versions
+}
+
+// ResizeUnwrittenAttempt admits the final body of an unsent WS continuation
+// against the same accounts and charge. Settlement/release uses the new hold.
+func (s *BudgetService) ResizeUnwrittenAttempt(ctx context.Context, executionID int, estimate budget.Amount, quoteErr error) error {
+	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
+		if charge.Status != budgetcharge.StatusSent || charge.ReservationReleasedAt != nil || estimate < 0 {
+			return fmt.Errorf("budget attempt cannot be resized")
+		}
+		if err := s.checkAttemptOwner(ctx, db, charge); err != nil {
+			return err
+		}
+		// Remove only this charge's existing hold from the in-memory snapshot.
+		// The database keeps it until all accounts have admitted the new quote.
+		var held []*ent.BudgetAccount
+		for _, account := range accounts {
+			versions := charge.KeyVersions
+			if account.ID != charge.KeyAccountID {
+				versions = charge.GroupVersions
+			}
+			if !maps.Equal(versions, chargeVersions(account.State)) {
+				// Settlement is bound to these versions. A concurrent reset
+				// must not apply a fresh admission to an obsolete period.
+				return &BudgetDenied{Scope: string(account.OwnerKind), Reason: "accounting_unavailable"}
+			}
+			if versions[budget.Total] < 0 {
+				continue
+			}
+			if account.Reserved < charge.Estimate {
+				return fmt.Errorf("inconsistent budget reservation")
+			}
+			account.Reserved -= charge.Estimate
+			held = append(held, account)
+		}
+		if _, err := checkBudgetAccounts(ctx, db, accounts, estimate, quoteErr, time.Now().UTC()); err != nil {
+			return err
+		}
+		for _, account := range held {
+			if account.Reserved > math.MaxInt64-int64(estimate) {
+				return fmt.Errorf("budget reservation overflow")
+			}
+			if err := db.BudgetAccount.UpdateOneID(account.ID).SetState(account.State).SetReserved(account.Reserved + int64(estimate)).Exec(ctx); err != nil {
+				return err
+			}
+		}
+		// Estimate stays immutable to ordinary callers. This locked, owned
+		// charge can be corrected only while the transport proves no frame was sent.
+		return db.BudgetCharge.UpdateOneID(charge.ID).Where(budgetcharge.StatusEQ(budgetcharge.StatusSent)).Modify(func(u *sql.UpdateBuilder) {
+			u.Set(budgetcharge.FieldEstimate, int64(estimate))
+		}).Exec(ctx)
+	})
+}
+
+// ReleaseUnwrittenAttempt uses a transport-confirmed pre-write failure to
+// release a marked-sent hold. It cannot release a settled or revoked charge.
+func (s *BudgetService) ReleaseUnwrittenAttempt(ctx context.Context, executionID int) error {
+	return s.withCharge(ctx, executionID, func(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
+		if charge.Status != budgetcharge.StatusSent || charge.ReservationReleasedAt != nil {
+			return fmt.Errorf("budget attempt is no longer pending transport")
+		}
+		if err := s.checkAttemptOwner(ctx, db, charge); err != nil {
+			return err
+		}
+		return finishBudgetAttempt(ctx, db, charge, accounts, true)
+	})
 }
 
 // MarkBudgetSent runs immediately before invoking the transport, not at queue
@@ -201,11 +277,15 @@ func (s *BudgetService) EndAttempt(ctx context.Context, executionID int) error {
 }
 
 func endBudgetAttempt(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount) error {
+	return finishBudgetAttempt(ctx, db, charge, accounts, charge.Status == budgetcharge.StatusPrepared)
+}
+
+func finishBudgetAttempt(ctx context.Context, db *ent.Client, charge *ent.BudgetCharge, accounts []*ent.BudgetAccount, unsent bool) error {
 	if charge.Status == budgetcharge.StatusSettled || charge.Status == budgetcharge.StatusReleased {
 		return nil
 	}
 	update := db.BudgetCharge.UpdateOneID(charge.ID).ClearOwnerExpiresAt()
-	if charge.Status == budgetcharge.StatusPrepared {
+	if unsent {
 		update.SetStatus(budgetcharge.StatusReleased)
 	} else {
 		update.SetStatus(budgetcharge.StatusUnknown).SetCheckAfter(time.Now().UTC().Add(time.Minute))

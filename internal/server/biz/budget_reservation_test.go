@@ -308,3 +308,25 @@ func TestBudgetRecoveryReleasesLegacyFinishedHoldAndPreservesActiveTasks(t *test
 		}
 	}
 }
+
+func TestResizeUnwrittenResponsesReservation(t *testing.T) {
+	f := newBudgetFixture(t)
+	f.configure(t, "key", f.key.ID, "50")
+	f.configure(t, "group", f.group.ID, "30")
+	_, exec, charge := reserveOwnedBudget(t, f, llm.APIFormatOpenAIResponseWebSocket)
+	require.NoError(t, f.service.MarkSent(f.ctx, exec.ID))
+	require.Error(t, f.service.ResizeUnwrittenAttempt(f.ctx, exec.ID, budgetAmount(t, "31"), nil))
+	check := func(amount string) {
+		for _, account := range f.db.BudgetAccount.Query().AllX(f.ctx) {
+			require.EqualValues(t, budgetAmount(t, amount), account.Reserved)
+		}
+	}
+	check("7")
+	require.NoError(t, f.service.ResizeUnwrittenAttempt(f.ctx, exec.ID, budgetAmount(t, "30"), nil))
+	check("30")
+	require.EqualValues(t, budgetAmount(t, "30"), f.db.BudgetCharge.GetX(f.ctx, charge.ID).Estimate)
+	require.NoError(t, f.service.ReleaseUnwrittenAttempt(f.ctx, exec.ID))
+	check("0")
+	require.Equal(t, budgetcharge.StatusReleased, f.db.BudgetCharge.GetX(f.ctx, charge.ID).Status)
+	require.Error(t, f.service.ResizeUnwrittenAttempt(f.ctx, exec.ID, budgetAmount(t, "5"), nil))
+}

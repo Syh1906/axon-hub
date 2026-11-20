@@ -211,6 +211,19 @@ func TestFirstContentTrialConfiguration(t *testing.T) {
 	}
 }
 
+func TestCompactionCooldownConfiguration(t *testing.T) {
+	for _, mode := range []string{"observe", "off", "enforce", "invalid"} {
+		cfg, _, err := loadConfig(writeTestConfig(t, "request_payload:\n  compaction_cooldown_mode: "+mode+"\n"))
+		if mode == "invalid" {
+			if err == nil {
+				t.Fatal("invalid compaction mode accepted")
+			}
+		} else if err != nil || cfg.RequestPayload.CompactionCooldownMode != mode {
+			t.Fatalf("mode %q: %v", mode, err)
+		}
+	}
+}
+
 func TestSafeguardsConfigDefaults(t *testing.T) {
 	cfg, _, err := loadConfig(writeTestConfig(t, ""))
 	if err != nil {

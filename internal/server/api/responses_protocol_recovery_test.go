@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,11 @@ import (
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/budgetaccount"
+	"github.com/looplj/axonhub/internal/ent/budgetcharge"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/budget"
+	"github.com/looplj/axonhub/internal/server/lifecycle"
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -33,11 +38,32 @@ func TestResponsesProtocolRecoveryAfterAccountHeaderChanges(t *testing.T) {
 	testResponsesProtocolRecovery(t, "account")
 }
 
+func TestResponsesProtocolRecoveryAfterPeerClosesIdleConnection(t *testing.T) {
+	testResponsesProtocolRecovery(t, "peer_close")
+}
+
+func TestResponsesProtocolRecoveryWhenPeerClosesAfterVerification(t *testing.T) {
+	testResponsesProtocolRecovery(t, "after_verify")
+}
+
+func TestResponsesProtocolRecoveryWhileMarkingBudgetSent(t *testing.T) {
+	testResponsesProtocolRecovery(t, "budget")
+}
+
+func TestResponsesProtocolRecoveryRejectedHandshakeReleasesBudget(t *testing.T) {
+	testResponsesProtocolRecovery(t, "rejected_handshake")
+}
+
 func testResponsesProtocolRecovery(t *testing.T, recoveryMode string) {
 	// Given two completed native turns, including the rc1 raw-request plugin stage.
 	var connections, calls atomic.Int32
+	closeIdle := make(chan struct{})
 	frames := make(chan []byte, 4)
 	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if recoveryMode == "rejected_handshake" && connections.Load() > 0 {
+			http.Error(w, "synthetic handshake rejection", http.StatusForbidden)
+			return
+		}
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
 		if err != nil {
 			t.Error(err)
@@ -56,6 +82,13 @@ func testResponsesProtocolRecovery(t *testing.T, recoveryMode string) {
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(event)); err != nil {
 				return
 			}
+			if (recoveryMode == "peer_close" || recoveryMode == "after_verify" || recoveryMode == "budget" || recoveryMode == "rejected_handshake") && n == 2 {
+				select {
+				case <-closeIdle:
+				case <-time.After(5 * time.Second):
+				}
+				return
+			}
 		}
 	}))
 	client, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(create *ent.ChannelCreate) {
@@ -68,6 +101,51 @@ func testResponsesProtocolRecovery(t *testing.T, recoveryMode string) {
 	}
 	if recoveryMode == "account" {
 		hook.accountOn = 3
+	}
+	waitForClose := func(ctx context.Context) error {
+		close(closeIdle)
+		lane := shared.GetResponsesLane(ctx)
+		deadline := time.Now().Add(3 * time.Second)
+		for lane.CanContinue(lane.Record()) {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("upstream close was not observed")
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		return nil
+	}
+	if recoveryMode == "after_verify" {
+		// Execution creation follows final continuation verification, before any
+		// provider data is written. Close the peer at exactly that boundary.
+		client.RequestExecution.Use(func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+				if m.Op() == ent.OpCreate && hook.calls.Load() == 3 {
+					if err := waitForClose(ctx); err != nil {
+						return nil, err
+					}
+				}
+				return next.Mutate(ctx, m)
+			})
+		})
+	}
+	if recoveryMode == "budget" || recoveryMode == "rejected_handshake" {
+		ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+		key := client.APIKey.Query().OnlyX(ctx)
+		state := budget.NewState()
+		state.Policy.StartedAt = time.Now().Add(-time.Second)
+		client.BudgetAccount.Create().SetProjectID(project.ID).SetOwnerKind(budgetaccount.OwnerKindKey).SetOwnerID(key.ID).SetState(state).SaveX(ctx)
+		client.BudgetCharge.Use(func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+				if change, ok := m.(*ent.BudgetChargeMutation); ok && hook.calls.Load() == 3 {
+					if status, set := change.Status(); set && status == budgetcharge.StatusSent {
+						if err := waitForClose(ctx); err != nil {
+							return nil, err
+						}
+					}
+				}
+				return next.Mutate(ctx, m)
+			})
+		})
 	}
 	processor := handlers.ResponseCompletionHandlers.ChatCompletionOrchestrator
 	processor.Plugins.Hooks = hook
@@ -88,7 +166,25 @@ func testResponsesProtocolRecovery(t *testing.T, recoveryMode string) {
 	if recoveryMode == "before" {
 		lane.RetireLeases()
 	}
+	if recoveryMode == "peer_close" {
+		close(closeIdle)
+		require.Eventually(t, func() bool {
+			record := lane.Record()
+			return record.ID == "resp-2" && !lane.CanContinue(record)
+		}, 3*time.Second, 5*time.Millisecond)
+	}
 	third := responsesIntegrationTurn(t, conn, `{"type":"response.create","model":"synthetic-model","store":false,"previous_response_id":"resp-2","service_tier":"priority","input":"recover"}`)
+	if recoveryMode == "rejected_handshake" {
+		require.Equal(t, int64(http.StatusForbidden), gjson.GetBytes(third, "status").Int(), string(third))
+		require.EqualValues(t, 2, calls.Load())
+		ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+		exec := client.RequestExecution.Query().Order(ent.Desc("id")).FirstX(ctx)
+		require.Equal(t, objects.RequestExecutionDispatchPending, exec.Selection.Dispatch)
+		charge := client.BudgetCharge.Query().Where(budgetcharge.ExecutionIDEQ(exec.ID)).OnlyX(ctx)
+		require.Equal(t, budgetcharge.StatusReleased, charge.Status)
+		require.Nil(t, charge.Actual)
+		return
+	}
 	require.Equal(t, "resp-3", gjson.GetBytes(third, "response.id").String(), string(third))
 	recovered := <-frames
 	<-hook.lanes
@@ -102,7 +198,11 @@ func testResponsesProtocolRecovery(t *testing.T, recoveryMode string) {
 		require.Contains(t, string(recovered), text)
 	}
 	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), client))
+	require.Equal(t, 3, client.RequestExecution.Query().CountX(ctx))
 	execution := client.RequestExecution.Query().Order(ent.Desc("id")).FirstX(ctx)
+	if recoveryMode == "budget" {
+		require.Equal(t, 3, client.BudgetCharge.Query().CountX(ctx))
+	}
 	recorded, err := processor.RequestService.LoadRequestExecutionRequestBody(ctx, execution)
 	require.NoError(t, err)
 	require.JSONEq(t, gjson.GetBytes(recovered, "input").Raw, gjson.GetBytes(recorded, "input").Raw)
@@ -160,4 +260,41 @@ func (h *responsesRecoveryHook) Middleware(context.Context) (orchestrator.Reques
 		h.lanes <- shared.GetResponsesLane(ctx)
 		return request, nil
 	})}, nil
+}
+
+func TestResponsesShutdownRetiresIdleUpstream(t *testing.T) {
+	exited := make(chan struct{})
+	upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer close(exited)
+		defer conn.Close()
+		if _, _, err = conn.ReadMessage(); err != nil {
+			return
+		}
+		if err = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":{"id":"resp-shutdown","status":"completed","output":[]}}`)); err != nil {
+			return
+		}
+		_, _, _ = conn.ReadMessage()
+	}))
+	db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+		c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses-ws"}})
+		c.SetSettings(&objects.ChannelSettings{ModelProtocols: []objects.ModelProtocol{{Model: "synthetic-model", APIFormats: []string{"openai/responses-ws"}}}})
+	})
+	manager := lifecycle.New()
+	gateway := responsesIntegrationGateway(t, db, handlers, project, manager)
+	conn := responsesIntegrationDial(t, gateway)
+	body := responsesIntegrationTurn(t, conn, `{"type":"response.create","model":"synthetic-model","input":"test"}`)
+	require.Equal(t, "resp-shutdown", gjson.GetBytes(body, "response.id").String(), string(body))
+	manager.Shutdown(nil)
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("idle provider connection remained open after shutdown")
+	}
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(time.Second)))
+	_, _, err := conn.ReadMessage()
+	require.Error(t, err)
 }

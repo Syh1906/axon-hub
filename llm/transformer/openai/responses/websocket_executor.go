@@ -14,9 +14,11 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -46,6 +48,9 @@ const (
 	minWebSocketCleanupDelay      = 10 * time.Millisecond
 )
 
+// A channel refresh can create a new executor while an older socket is still retiring.
+var webSocketGeneration atomic.Uint64
+
 type WebSocketExecutor struct {
 	inner  pipeline.Executor
 	dialer *websocket.Dialer
@@ -60,7 +65,6 @@ type WebSocketExecutor struct {
 	maxPoolSize      int
 	maxRetainedInput int
 	retainedBudget   *shared.ResponsesBudget
-	generation       uint64
 }
 
 func NewWebSocketExecutor(inner pipeline.Executor) *WebSocketExecutor {
@@ -242,22 +246,38 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 		headers.Set(webSocketSessionHeader, lane.ID())
 	}
 
-	lease, err := e.acquirePreparedLease(ctx, request, wsURL, headers, payload)
+	lease, err := e.acquireAndWrite(ctx, request, wsURL, headers, payload)
+	if errors.Is(err, shared.ErrResponsesContinuationUnavailable) {
+		// Both checkout and the lease's generation check run before WriteJSON.
+		// Rebuild only the original, unsent request. A peer's error frame or a
+		// failed WriteJSON never enters this path.
+		if err := ctx.Err(); err != nil {
+			return nil, errors.Join(httpclient.ErrRequestNotSent, err)
+		}
+		if previous := gjson.GetBytes(request.Body, "previous_response_id").String(); previous != "" {
+			policy := request.ResponsesWebSocket
+			if policy == nil || policy.RestoreBeforeWrite == nil {
+				return nil, err
+			}
+			if err := policy.RestoreBeforeWrite(ctx, request); err != nil {
+				return nil, errors.Join(httpclient.ErrRequestNotSent, err)
+			}
+		}
+		payload, err = buildWebSocketCreatePayload(request.Body)
+		if err != nil || explicitPreviousResponseID(payload) != "" {
+			return nil, errors.Join(httpclient.ErrRequestNotSent, shared.ResponsesRecoveryError())
+		}
+		lease, err = e.acquireAndWrite(ctx, request, wsURL, headers, payload)
+	}
 	if err != nil {
-		return nil, err
-	}
-
-	if request.OnReplayUnsafe != nil {
-		request.OnReplayUnsafe()
-	}
-	if err := lease.write(ctx, payload); err != nil {
 		// A write failure is ambiguous: the upstream may already have accepted and
 		// executed the request. Replaying response.create on a fresh connection is
 		// therefore unsafe, so the dead session is evicted and the error is surfaced
 		// for the caller to decide.
-		lease.release(true)
-		reportWebSocketFailure(request.ResponsesWebSocket, "write", err)
-		return nil, fmt.Errorf("%w: failed to write response.create: %v", httpclient.ErrRequestMayHaveExecuted, err)
+		if errors.Is(err, httpclient.ErrRequestMayHaveExecuted) {
+			reportWebSocketFailure(request.ResponsesWebSocket, "write", err)
+		}
+		return nil, err
 	}
 
 	request.TransportTrace.WebSocketFrameWritten()
@@ -271,6 +291,25 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 	}()
 
 	return stream, nil
+}
+
+func (e *WebSocketExecutor) acquireAndWrite(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
+	lease, err := e.acquirePreparedLease(ctx, request, wsURL, headers, payload)
+	if err == nil {
+		err = lease.write(ctx, payload, request.OnReplayUnsafe)
+		if err != nil {
+			lease.release(true)
+		}
+	}
+	if err != nil {
+		if !errors.Is(err, httpclient.ErrRequestMayHaveExecuted) {
+			// No business frame entered WriteJSON. Keep the handshake error
+			// available to the existing protocol-negotiation policy.
+			return nil, errors.Join(httpclient.ErrRequestNotSent, err)
+		}
+		return nil, err
+	}
+	return lease, nil
 }
 
 func (e *WebSocketExecutor) Inner() pipeline.Executor {
@@ -309,6 +348,11 @@ func (e *WebSocketExecutor) Close() error {
 	for _, pc := range idle {
 		pc.close()
 	}
+	for _, pc := range idle {
+		if pc.readerExited != nil {
+			<-pc.readerExited
+		}
+	}
 	return nil
 }
 
@@ -329,12 +373,16 @@ type webSocketPoolKey struct {
 }
 
 type pooledWebSocketConn struct {
-	key        webSocketPoolKey
-	conn       *websocket.Conn
-	inFlight   chan struct{}
-	createdAt  time.Time
-	lastUsedAt time.Time
-	used       bool
+	key          webSocketPoolKey
+	conn         *websocket.Conn
+	inFlight     chan struct{}
+	createdAt    time.Time
+	lastUsedAt   time.Time
+	used         bool
+	readerDone   chan struct{}
+	readerExited chan struct{}
+	readErr      error
+	readerLease  *webSocketLease
 
 	mu             sync.Mutex
 	closed         bool
@@ -356,6 +404,7 @@ type webSocketLease struct {
 	once          sync.Once
 	generation    uint64
 	native        bool
+	frames        chan pooledWebSocketFrame
 }
 
 func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
@@ -400,12 +449,16 @@ func (e *WebSocketExecutor) acquirePreparedLease(ctx context.Context, request *h
 		origin.Generation = lease.generation
 		attempt.SetOrigin(origin)
 		if lane := shared.GetResponsesLane(ctx); lane != nil && lease.pooled != nil {
-			lease.pooled.mu.Lock()
-			lease.pooled.lane, lease.pooled.origin = lane, origin
-			lease.pooled.mu.Unlock()
-			if !lane.RegisterLease(origin, func(id string) bool {
-				return lease.pooled.canContinue(id, lease.generation, time.Now(), e.idleTTL, e.maxLifetime)
-			}, func() { e.evict(lease.pooled) }) {
+			pc := lease.pooled
+			pc.mu.Lock()
+			registered := !pc.closed && lane.RegisterLease(origin, func(id string) bool {
+				return pc.canContinue(id, origin.Generation, time.Now(), e.idleTTL, e.maxLifetime)
+			}, func() { e.evict(pc) })
+			if registered {
+				pc.lane, pc.origin = lane, origin
+			}
+			pc.mu.Unlock()
+			if !registered {
 				lease.release(true)
 				return nil, shared.ResponsesRecoveryError()
 			}
@@ -486,11 +539,13 @@ func (e *WebSocketExecutor) getOrDialPooled(ctx context.Context, request *httpcl
 	}
 
 	pc := &pooledWebSocketConn{
-		key:        key,
-		conn:       conn,
-		inFlight:   make(chan struct{}, 1),
-		createdAt:  now,
-		lastUsedAt: now,
+		key:          key,
+		conn:         conn,
+		inFlight:     make(chan struct{}, 1),
+		createdAt:    now,
+		lastUsedAt:   now,
+		readerDone:   make(chan struct{}),
+		readerExited: make(chan struct{}),
 	}
 
 	e.mu.Lock()
@@ -514,12 +569,12 @@ func (e *WebSocketExecutor) getOrDialPooled(ctx context.Context, request *httpcl
 		return nil, fmt.Errorf("websocket session pool is full")
 	}
 	e.pool[key] = pc
-	e.generation++
-	pc.generation = e.generation
+	pc.generation = webSocketGeneration.Add(1)
 	pc.budget = e.retainedBudget
 	e.scheduleCleanupLocked(now)
 	e.mu.Unlock()
 
+	go e.readPooledSocket(pc)
 	return pc, nil
 }
 
@@ -745,15 +800,6 @@ func (e *WebSocketExecutor) cleanupExpiredLocked(now time.Time) {
 	}
 }
 
-func (e *WebSocketExecutor) scheduleCleanup() {
-	if e == nil {
-		return
-	}
-	e.mu.Lock()
-	e.scheduleCleanupLocked(time.Now())
-	e.mu.Unlock()
-}
-
 func (e *WebSocketExecutor) scheduleCleanupLocked(now time.Time) {
 	if e.closed || e.cleanupScheduled || len(e.pool) == 0 || (e.idleTTL <= 0 && e.maxLifetime <= 0) {
 		return
@@ -866,11 +912,18 @@ func (pc *pooledWebSocketConn) markUsed() {
 
 func (pc *pooledWebSocketConn) close() {
 	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	pc.closeLocked()
+}
+
+func (pc *pooledWebSocketConn) closeLocked() {
 	if pc.closed {
-		pc.mu.Unlock()
 		return
 	}
 	pc.closed = true
+	if pc.readerDone != nil {
+		close(pc.readerDone)
+	}
 	if pc.lane != nil {
 		pc.lane.ForgetLease(pc.origin)
 	}
@@ -880,7 +933,6 @@ func (pc *pooledWebSocketConn) close() {
 	pc.retainedBytes = 0
 	pc.lastInput = nil
 	pc.lastResponseID = ""
-	pc.mu.Unlock()
 	_ = pc.conn.Close()
 }
 
@@ -899,9 +951,16 @@ func (l *webSocketLease) release(evict bool) {
 			_ = l.conn.Close()
 			return
 		}
+		l.pooled.mu.Lock()
+		if l.pooled.readerLease == l {
+			l.pooled.readerLease = nil
+		}
+		l.pooled.mu.Unlock()
 		if l.owner != nil {
 			l.owner.releasePooled(l.pooled, evict)
-		} else if evict {
+			return
+		}
+		if evict {
 			l.pooled.close()
 		} else {
 			l.pooled.markUsed()
@@ -915,19 +974,20 @@ func (l *webSocketLease) release(evict bool) {
 
 func (e *WebSocketExecutor) releasePooled(pc *pooledWebSocketConn, evict bool) {
 	e.mu.Lock()
-	closed := e.closed
-	if (evict || closed) && e.pool[pc.key] == pc {
+	defer e.mu.Unlock()
+	retire := evict || e.closed || pc.isClosed()
+	if retire && e.pool[pc.key] == pc {
 		delete(e.pool, pc.key)
 	}
-	e.mu.Unlock()
-
-	if evict || closed {
+	if retire {
 		pc.close()
-		return
+	} else {
+		pc.markUsed()
 	}
-
-	pc.markUsed()
-	e.scheduleCleanup()
+	// Hand off the slot before Close inspects the pool, or shutdown can miss
+	// a socket in the gap between completing a turn and becoming idle.
+	<-pc.inFlight
+	e.scheduleCleanupLocked(time.Now())
 }
 
 func toWebSocketURL(rawURL string) (string, error) {
@@ -1189,7 +1249,10 @@ func (s *webSocketStream) Next() bool {
 	s.mu.Unlock()
 	// ReadMessage itself is NextReader + ReadAll. Observe the payload while it
 	// arrives, before waiting for the final WebSocket fragment of this event.
-	_, reader, err := lease.conn.NextReader()
+	reader, consumed, err := lease.nextReader()
+	if consumed != nil {
+		defer close(consumed)
+	}
 	var msg []byte
 	if err == nil {
 		if observer := s.onFirstResponseByte; observer != nil {

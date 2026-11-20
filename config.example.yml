@@ -10,6 +10,7 @@ codex_catalog:
 
 # Optional per-instance overrides. Endpoint entries are exact Responses POST URLs.
 request_payload:
+  compaction_cooldown_mode: observe   # observe | enforce | off. Identical Codex compactions, per instance, 30s after a first-event timeout.
   cached_images_only_channels: []
   responses_zstd_endpoints: []
   disabled_zstd_endpoints: []          # Always use plain JSON, including after a peer advertises zstd.

@@ -172,6 +172,18 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 		_, policy.HandshakeTimeout = service.WebSocketDecision(key)
 		return nil
 	}
+	c := p.state.ResponsesContinuation
+	if c != nil && !c.complete && c.owner != nil && c.owner.Snapshot != nil && c.lane != nil &&
+		c.owner.ID == c.previous && gjson.GetBytes(raw.Body, "previous_response_id").String() == c.previous {
+		if attempt := shared.GetResponsesAttempt(ctx); attempt != nil && c.owner.Origin == attempt.Origin() {
+			// Only the owning native channel can use this ID. Checkout decides
+			// whether it can send the delta or needs the lane's complete copy.
+			policy.NativeOnly = true
+			policy.RestoreBeforeWrite = p.restoreNativeContinuation
+			_, policy.HandshakeTimeout = service.WebSocketDecision(key)
+			return nil
+		}
+	}
 	if target, ok := ch.Outbounds[string(llm.APIFormatOpenAIResponse)].(interface {
 		PrepareResponsesHTTP(*httpclient.Request) *httpclient.Request
 	}); ok {
@@ -187,7 +199,6 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 		return nil
 	}
 	policy.HTTPURL = p.responsesHTTPURL()
-	c := p.state.ResponsesContinuation
 	if policy.HTTPURL != "" && policy.HTTPURL != raw.URL {
 		httpRef := biz.ResponsesUpstreamRef(policy.HTTPURL, raw.Headers)
 		if httpRef != key.EndpointRef {

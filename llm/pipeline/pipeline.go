@@ -31,6 +31,10 @@ type Retryable interface {
 // Observers must not change routing or propagate diagnostic persistence failures.
 type RetryStopObserver interface{ OnRetryStopped(context.Context, string) }
 
+// Called after an attempt has returned its response or its classified timeout,
+// before the retry loop moves to the next candidate.
+type dispatchAttemptObserver interface{ FinishDispatchAttempt(error) }
+
 func (p *pipeline) notifyRetryStopped(ctx context.Context, reason string) {
 	if observer, ok := p.Outbound.(RetryStopObserver); ok {
 		observer.OnRetryStopped(ctx, reason)
@@ -407,11 +411,17 @@ func (p *pipeline) ProcessPrepared(ctx context.Context, llmRequest *llm.Request,
 		llmRequest.Stream = originalStream
 
 		result, err := p.processRequest(ctx, llmRequest)
+		if observer, ok := p.Outbound.(dispatchAttemptObserver); ok {
+			observer.FinishDispatchAttempt(err)
+		}
 		if err == nil {
 			return result, nil
 		}
 
 		lastErr = err
+		if _, stopped := errors.AsType[*DispatchStoppedError](err); stopped {
+			return nil, err
+		}
 		if errors.Is(lastErr, httpclient.ErrContinuationUnavailable) || errors.Is(lastErr, httpclient.ErrContinuationRestoreFailed) {
 			p.notifyRetryStopped(ctx, "continuation_unavailable")
 			return nil, lastErr

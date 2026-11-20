@@ -123,6 +123,9 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 
 func attachExecutionTransport(state *PersistenceState, request *httpclient.Request) {
 	request.TransportTrace = new(httpclient.TransportTrace)
+	if d := state.compactionAttempt; d != nil {
+		d.trace = request.TransportTrace
+	}
 	record := &executionTransport{trace: request.TransportTrace, requestID: state.Request.ID, executionID: state.RequestExec.ID, channelID: state.RequestExec.ChannelID, bytes: len(request.Body)}
 	if raw := request.Metadata[optimizationMetadataKey]; raw != "" {
 		var stats requestpayload.Optimization

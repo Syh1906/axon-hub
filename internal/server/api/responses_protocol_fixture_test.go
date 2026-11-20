@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/server/lifecycle"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -44,11 +45,14 @@ func responsesIntegrationServer(t *testing.T, handler http.Handler) *httptest.Se
 	return server
 }
 
-func responsesIntegrationGateway(t *testing.T, client *ent.Client, handlers *OpenAIHandlers, project *ent.Project) *httptest.Server {
+func responsesIntegrationGateway(t *testing.T, client *ent.Client, handlers *OpenAIHandlers, project *ent.Project, managers ...*lifecycle.Manager) *httptest.Server {
 	t.Helper()
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		ctx := authz.WithTestBypass(ent.NewContext(c.Request.Context(), client))
+		if len(managers) != 0 {
+			ctx = managers[0].Attach(ctx)
+		}
 		ctx = contexts.WithAPIKey(ctx, client.APIKey.Query().OnlyX(ctx))
 		ctx = shared.WithSessionScope(ctx, "api_key:101")
 		c.Request = c.Request.WithContext(contexts.WithProjectID(ctx, project.ID))

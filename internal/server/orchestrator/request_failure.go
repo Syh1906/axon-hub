@@ -54,7 +54,9 @@ func persistRequestFailure(ctx context.Context, state *PersistenceState, err err
 	failure := &objects.RequestFailure{Stage: stage, Message: sanitizeDiagnosticText(ExtractErrorMessage(err), key)}
 	if response, ok := errors.AsType[*llm.ResponseError](err); ok {
 		failure.Code, failure.Type = response.Detail.Code, response.Detail.Type
-		if failure.Code == "continuation_origin_persistence_failed" {
+		if CompactionRetryAfter(err) > 0 {
+			failure.Stage = "admission"
+		} else if failure.Code == "continuation_origin_persistence_failed" {
 			failure.Stage = "origin_persistence"
 		} else if strings.HasPrefix(failure.Code, "continuation_") {
 			failure.Stage = "continuation"

@@ -3,10 +3,10 @@ package responses
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/looplj/axonhub/llm/httpclient"
-
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -30,7 +30,7 @@ func isWebSocketRecoveryEvent(raw []byte) bool {
 	return json.Unmarshal(raw, &event) == nil && (event.Code == "previous_response_not_found" || event.Error.Code == "previous_response_not_found")
 }
 
-func (l *webSocketLease) write(ctx context.Context, payload map[string]any) error {
+func (l *webSocketLease) write(ctx context.Context, payload map[string]any, onWrite func()) error {
 	if l.pooled != nil {
 		l.pooled.mu.Lock()
 		defer l.pooled.mu.Unlock()
@@ -40,6 +40,8 @@ func (l *webSocketLease) write(ctx context.Context, payload map[string]any) erro
 		if id := explicitPreviousResponseID(payload); id != "" && id != l.pooled.lastResponseID {
 			return shared.ResponsesRecoveryError()
 		}
+		l.frames = make(chan pooledWebSocketFrame)
+		l.pooled.readerLease = l
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -53,5 +55,11 @@ func (l *webSocketLease) write(ctx context.Context, payload map[string]any) erro
 	if err := l.conn.SetWriteDeadline(deadline); err != nil {
 		return err
 	}
-	return l.conn.WriteJSON(payload)
+	if onWrite != nil {
+		onWrite()
+	}
+	if err := l.conn.WriteJSON(payload); err != nil {
+		return fmt.Errorf("%w: failed to write response.create: %w", httpclient.ErrRequestMayHaveExecuted, err)
+	}
+	return nil
 }

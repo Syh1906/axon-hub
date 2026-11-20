@@ -175,6 +175,11 @@ func unmarshal(v *viper.Viper) (Config, error) {
 	}
 
 	config.DisableSSLVerify = config.APIServer.DisableSSLVerify
+	switch config.RequestPayload.CompactionCooldownMode {
+	case "observe", "enforce", "off":
+	default:
+		return Config{}, fmt.Errorf("request_payload.compaction_cooldown_mode must be observe, enforce or off")
+	}
 	if p := config.RequestPayload.FirstContentTrialPercent; p < 0 || p >= 100 {
 		return Config{}, fmt.Errorf("request_payload.first_content_trial_percent must be between 0 and 99")
 	}
@@ -371,6 +376,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("request_payload.disable_zstd_advertisement", false)
 	v.SetDefault("request_payload.disable_zstd_learning", false)
 	v.SetDefault("request_payload.first_content_trial_percent", 0)
+	v.SetDefault("request_payload.compaction_cooldown_mode", "observe")
 	v.SetDefault("request_payload.first_content_gain_ms", 1000)
 	v.SetDefault("cache.default_expiration", "5m")
 	v.SetDefault("cache.cleanup_interval", "10m")

@@ -8,5 +8,5 @@ import "github.com/looplj/axonhub/internal/server/biz"
 // plugin overload stops failover and precedes creation of this attempt's record;
 // channel queue/RPM rejection may fail over and has a record to finish.
 func isLocalAdmissionError(err error) bool {
-	return isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isPluginOverloaded(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err)
+	return isChannelQueueError(err) || isLocalRPMExhaustedError(err) || isPluginOverloaded(err) || isChannelCooldownError(err) || biz.IsBudgetDenied(err) || CompactionRetryAfter(err) > 0
 }

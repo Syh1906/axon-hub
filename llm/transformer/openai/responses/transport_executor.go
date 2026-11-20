@@ -70,13 +70,13 @@ func (e *transportExecutor) doHTTP(ctx context.Context, r *httpclient.Request) (
 	if err := e.checkContinuation(ctx, r); err != nil {
 		return nil, err
 	}
-	return e.http.Do(ctx, e.httpRequest(r))
+	return e.http.Do(ctx, PrepareHTTPDispatchRequest(r, e.stripPrevious))
 }
 func (e *transportExecutor) streamHTTP(ctx context.Context, r *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
 	if err := e.checkContinuation(ctx, r); err != nil {
 		return nil, err
 	}
-	return e.http.DoStream(ctx, e.httpRequest(r))
+	return e.http.DoStream(ctx, PrepareHTTPDispatchRequest(r, e.stripPrevious))
 }
 func (e *transportExecutor) checkContinuation(ctx context.Context, r *httpclient.Request) error {
 	// The orchestrator removes previous_response_id only after restoring the history.
@@ -153,8 +153,10 @@ func (e *transportExecutor) reason(ctx context.Context, r *httpclient.Request) s
 	return ""
 }
 
-func (e *transportExecutor) httpRequest(r *httpclient.Request) *httpclient.Request {
-	result := PrepareHTTPTransportRequest(r, e.stripPrevious)
+// PrepareHTTPDispatchRequest returns the exact outgoing request after Responses
+// protocol adaptation, including the effective HTTP URL.
+func PrepareHTTPDispatchRequest(r *httpclient.Request, stripPrevious bool) *httpclient.Request {
+	result := PrepareHTTPTransportRequest(r, stripPrevious)
 	if policy := r.ResponsesWebSocket; policy != nil && policy.HTTPURL != "" {
 		copy := *result
 		copy.URL = policy.HTTPURL

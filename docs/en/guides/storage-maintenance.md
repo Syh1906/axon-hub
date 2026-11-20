@@ -45,6 +45,12 @@ Request rows summarize the inbound body actually retained in the request log; ex
 
 The summary does not expire with the five-minute file: it remains in the database payload marker until body cleanup (seven days by default on new installations) or request deletion. It remains retained if the relevant cleanup is disabled. Disabling request body storage prevents new summaries. Legacy markers without `images` remain readable without migration. Cache capacity is unchanged, but scanning large requests adds transient CPU and memory work proportional to body size.
 
+### Repeated Codex history compactions
+
+`request_payload.compaction_cooldown_mode` defaults to `observe`. If an explicitly identified Codex compaction sent through a Responses HTTP channel times out before the first event, the instance remembers the failure. Observe mode logs matches and continues dispatching. Set `enforce` for a pilot to return 503 with `compaction_cooldown` for matching submissions within 30 seconds of the original failure. HTTP clients also receive `Retry-After`. Observe-mode matches preserve the original window. In enforce mode, one matching request can probe the upstream after expiry. If a local queue or budget rejects that probe, the next request can take its place. Set `off` to disable. Configuration changes take effect on restart.
+
+The match covers caller and task identity, channel revision, destination, model-affecting headers and final body bytes. A WebSocket client must confirm the task identity on the current frame. Unverified requests proceed normally. Logs identify the current and original request. A suppressed request creates no provider execution or usage. Each instance maintains its own cache. Transport logs include `stream_start` with the HTTP status, media type, last body read before the first decoded event, and decoded SSE event count. Check the request clock’s `first_responses_event` and parsing errors to determine whether a valid Responses event arrived.
+
 ## Retention and cleanup
 
 | Resource | New installation default | Effect |

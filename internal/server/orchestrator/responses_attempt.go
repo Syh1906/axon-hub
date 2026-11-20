@@ -3,12 +3,14 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
+	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -381,22 +383,7 @@ func verifyResponsesAttempt(p *PersistentOutboundTransformer) pipeline.Middlewar
 			c.firstOrigin = &origin
 		}
 		if responses.IsResponsesFormat(llm.APIFormat(request.APIFormat)) {
-			if c.complete && !gjson.GetBytes(request.Body, "previous_response_id").Exists() {
-				c.snapshotBody = request.Body
-			}
-			// Capture the final, plugin/override-adjusted input once. A live native
-			// continuation keeps only this turn; recovery starts a new complete root.
-			c.effective = request.Body
-			if c.retain && c.lane != nil {
-				input := gjson.GetBytes(request.Body, "input")
-				if !c.lane.Budget().Replace(c.retentionBytes, len(input.Raw)) {
-					c.releaseRetention()
-					c.retain, c.input = false, nil
-				} else {
-					c.retentionBytes = len(input.Raw)
-					c.input = responseSessionInputItems([]byte(input.Raw))
-				}
-			}
+			c.captureAttemptBody(request.Body)
 		}
 		if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
 			if c.owner != nil && originMatches(c.owner.Origin, origin) && gjson.GetBytes(request.Body, "previous_response_id").Exists() {
@@ -406,4 +393,73 @@ func verifyResponsesAttempt(p *PersistentOutboundTransformer) pipeline.Middlewar
 		}
 		return request, nil
 	})
+}
+
+func (c *responsesContinuation) captureAttemptBody(body []byte) {
+	if c.complete && !gjson.GetBytes(body, "previous_response_id").Exists() {
+		c.snapshotBody = body
+	}
+	// Capture the final, plugin/override-adjusted input once. A live native
+	// continuation keeps only this turn; recovery starts a new complete root.
+	c.effective = body
+	if c.retain && c.lane != nil {
+		input := gjson.GetBytes(body, "input")
+		if !c.lane.Budget().Replace(c.retentionBytes, len(input.Raw)) {
+			c.releaseRetention()
+			c.retain, c.input = false, nil
+		} else {
+			c.retentionBytes = len(input.Raw)
+			c.input = responseSessionInputItems([]byte(input.Raw))
+		}
+	}
+}
+
+// restoreNativeContinuation is invoked only after checkout proved no frame was
+// written. It reuses the plugin-adjusted turn and its original execution.
+func (p *PersistentOutboundTransformer) restoreNativeContinuation(ctx context.Context, raw *httpclient.Request) error {
+	s := p.state
+	c := s.ResponsesContinuation
+	record := c.lane.Record()
+	if record.ID != c.previous || record.Origin != c.owner.Origin || record.Snapshot != c.owner.Snapshot ||
+		gjson.GetBytes(raw.Body, "previous_response_id").String() != record.ID {
+		return shared.ResponsesRecoveryError()
+	}
+	body, err := expandResponsesSnapshot(raw.Body, record.Snapshot)
+	if err != nil {
+		return err
+	}
+	// The snapshot can include history captured before the channel's Page adapter.
+	if ch := p.GetCurrentChannel(); ch.Settings != nil && ch.Settings.TransformOptions.CodexPageContextCompatibility {
+		body, err = normalizeCodexPageContext(body)
+		if err != nil {
+			return err
+		}
+	}
+	restored := *raw
+	restored.Body, restored.JSONBody = body, body
+	if !s.budgetUnreserved && s.APIKey != nil {
+		service := s.UsageLogService.BudgetService
+		estimate, quoteErr := service.Estimate(ctx, s.RequestExec, s.LlmRequest, &restored, estimatePromptTokens(s.LlmRequest))
+		if err := service.ResizeUnwrittenAttempt(ctx, s.RequestExec.ID, estimate, quoteErr); err != nil {
+			denied, ok := errors.AsType[*biz.BudgetDenied](err)
+			if !ok {
+				denied = &biz.BudgetDenied{Reason: "accounting_unavailable"}
+			}
+			if !denied.CandidateOnly {
+				s.BudgetStop = denied
+			}
+			return denied
+		}
+	}
+	if err := s.RequestService.UpdateRecoveredExecutionBody(ctx, s.RequestExec, body); err != nil {
+		return fmt.Errorf("record recovered Responses request: %w", err)
+	}
+	raw.Body, raw.JSONBody = body, body
+	c.complete, c.parent = true, nil
+	c.captureAttemptBody(body)
+	s.CurrentCandidate.continuationStrict = false
+	s.ExecutionTransport.mu.Lock()
+	s.ExecutionTransport.bytes = len(body)
+	s.ExecutionTransport.mu.Unlock()
+	return nil
 }
