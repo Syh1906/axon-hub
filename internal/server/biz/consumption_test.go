@@ -293,7 +293,7 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	require.Zero(t, metrics.UnpricedRequestCount)
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{first.ID})
 	require.NoError(t, err)
-	require.InDelta(t, 100000.0/1200, *speeds[first.ID], 1e-9)
+	require.InDelta(t, 99000.0/500, *speeds[first.ID], 1e-9)
 	usage := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(first.ID)).OnlyX(f.ctx)
 	f.client.UsageLog.UpdateOne(usage).ClearTotalCost().SaveX(f.ctx)
 	rows, err = f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
@@ -322,7 +322,7 @@ func TestConsumptionSpeedUsesMeasuredWindowAndRejectsUnknownArchives(t *testing.
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, ids)
 	require.NoError(t, err)
 	for _, id := range ids {
-		require.InDelta(t, 486000.0/13442, *speeds[id], 1e-8)
+		require.InDelta(t, 485000.0/(13442-700), *speeds[id], 1e-8)
 	}
 	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, ids[:1]))
 	archives := f.client.UsageArchive.Query().Where(usagearchive.RequestIDEQ(ids[0])).AllX(f.ctx)
@@ -555,4 +555,34 @@ func TestConsumptionCacheWindowsWithNonUTCClock(t *testing.T) {
 	require.Equal(t, int64(1), windows[0].EligibleCount)
 	require.Equal(t, int64(800), windows[0].ObservedTokens)
 	require.True(t, windows[0].WindowStart.Equal(at.Truncate(cacheWindowInterval)))
+}
+
+func TestRequestStreamRateRequiresMeasuredTokenInterval(t *testing.T) {
+	f := newConsumptionFixture(t)
+	for _, sample := range []struct {
+		name   string
+		tokens int64
+		first  *int64
+		stream bool
+	}{
+		{"single token", 1, lo.ToPtr(int64(100)), true},
+		{"no token", 0, lo.ToPtr(int64(100)), true},
+		{"missing first token", 101, nil, true},
+		{"zero interval", 101, lo.ToPtr(int64(1200)), true},
+		{"negative first token", 101, lo.ToPtr(int64(-1)), true},
+		{"non-streaming", 101, lo.ToPtr(int64(100)), false},
+	} {
+		t.Run(sample.name, func(t *testing.T) {
+			req := f.client.Request.Create().SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
+				SetModelID("model").SetStream(sample.stream).SetRequestBody([]byte(`{}`)).SetStatus(request.StatusCompleted).SaveX(f.ctx)
+			f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
+				SetModelID("model").SetStream(sample.stream).SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).
+				SetMetricsLatencyMs(1200).SetMetricsFirstByteLatencyMs(10).SetNillableMetricsFirstTokenLatencyMs(sample.first).SaveX(f.ctx)
+			f.client.UsageLog.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(f.channel.ID).
+				SetModelID("model").SetPromptTokens(100).SetCompletionTokens(sample.tokens).SetTotalTokens(100 + sample.tokens).SaveX(f.ctx)
+			speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{req.ID})
+			require.NoError(t, err)
+			require.Nil(t, speeds[req.ID])
+		})
+	}
 }

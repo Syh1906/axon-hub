@@ -52,7 +52,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}})
 	speeds, err := biz.RequestOutputSpeeds(ctx, db, ids)
 	require.NoError(t, err)
-	require.Equal(t, 50.0, *speeds[ids[0]])
+	require.Equal(t, 198.0, *speeds[ids[0]])
 	require.Nil(t, speeds[ids[1]])
 	require.Nil(t, speeds[ids[2]])
 	consumption := biz.NewConsumptionService(db, system, xcache.Config{Mode: xcache.ModeMemory})
@@ -103,7 +103,7 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 			require.Nil(t, edge.Node.OutputRate)
 		}
 	}
-	require.Equal(t, []float64{50}, displayedSpeeds)
+	require.Equal(t, []float64{198}, displayedSpeeds)
 	var result struct{ AnalyticsModelStats []*AnalyticsModelStat }
 	err = graphqlClient.Post(`query { analyticsModelStats { id requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount channels { requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount } } }`, &result)
 	require.NoError(t, err)

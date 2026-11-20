@@ -289,7 +289,7 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	for i, model := range []string{"fallback-model", "executed-model"} {
 		f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(ch.ID).
 			SetModelID(model).SetUpstreamModelID(model).SetFormat("anthropic/messages").SetReasoningEffort("8192").SetResponseStatusCode(201).
-			SetStream(true).SetMetricsLatencyMs(3000).SetMetricsFirstByteLatencyMs(1000).SetStatus("completed").SetPassThroughApplied(true).SetRequestBody([]byte(`{"private":"must not be returned"}`)).
+			SetStream(true).SetMetricsLatencyMs(3000).SetMetricsFirstByteLatencyMs(1000).SetMetricsFirstTokenLatencyMs(2000).SetStatus("completed").SetPassThroughApplied(true).SetRequestBody([]byte(`{"private":"must not be returned"}`)).
 			SetCreatedAt(at.Add(time.Duration(i) * time.Second)).SaveX(ctx)
 	}
 	f.client.UsageLog.Create().SetRequestID(req.ID).SetChannelID(ch.ID).SetProjectID(f.project.ID).SetModelID("executed-model").
@@ -312,7 +312,7 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	require.Equal(t, 200, *row.ClientStatusCode, "the client status takes precedence over upstream status")
 	require.Equal(t, 1, row.RetryCount)
 	require.NotNil(t, row.OutputTokensPerSecond)
-	require.InDelta(t, 200.0/3, *row.OutputTokensPerSecond, 1e-9, "平均输出按最终转发的完整三秒计算")
+	require.InDelta(t, 199.0, *row.OutputTokensPerSecond, 1e-9)
 	require.NotNil(t, row.OutputRate)
 	require.EqualValues(t, 200, row.OutputRate.OutputTokens)
 	require.EqualValues(t, 3000, row.OutputRate.DurationMs)

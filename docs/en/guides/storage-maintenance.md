@@ -75,13 +75,13 @@ The server persists the latest task. Active status polls about every 1.5 seconds
 
 Automatic and manual submissions share one database task slot. Active tasks, including paused tasks, are reused; retrying the last submission key returns its existing result. Processes must share the primary database for mutual exclusion. Batch changes and checkpoints commit together, and an expired 30-second owner lease allows restart recovery. Only the latest task is retained, not a full task history. External deletion cannot be atomic with the database; a retry may delete an already absent object again.
 
-## First token and average output in request logs
+## First token and stream rate in request logs
 
 First token measures the selected upstream attempt until its first answer, reasoning or tool event, including the announcement of an output item. Queuing, keepalives and usage-only frames leave the timer running. Hover over the value to see the event, elapsed time from reading the request to writing usable content and answer text, and time from usable content to completion. Older records retain their original first-token definition.
 
-Average output divides the matched output token count by the full duration of the successful upstream attempt, including upload and waiting. Reasoning tokens already included in the output count contribute once. Failed, canceled, unmetered and media-output requests have no rate. Client rendering and model decoding require measurements at the respective endpoints.
+Stream rate uses the vLLM per-request formula. Divide the successful attempt’s output token count minus one by the seconds from its first meaningful output to completion. Input and cached tokens are excluded. Reasoning tokens included in the reported output count contribute once. Requests with fewer than two tokens, missing usage or timing, non-streaming or media output, and failed or canceled requests have no rate. The first event displayed in the log can precede the first output token if the provider announces a reasoning or tool item.
 
-The average-output tooltip shows the matched output tokens, reported reasoning tokens and attempt duration. A single answer-text batch is labeled as such. When each batch of the same answer has verifiable token counts and the first and last writes are at least one millisecond apart, the text delivery rate uses the tokens after the first batch divided by the interval between writes. Repeated completion events count once. Missing measurements are labeled as unavailable.
+The stream-rate tooltip shows the matched output tokens, reported reasoning tokens and attempt duration. A single answer-text batch is labeled as such. When each batch of the same answer has verifiable token counts and the first and last writes are at least one millisecond apart, the text delivery rate uses the tokens after the first batch divided by the interval between writes. Repeated completion events count once. Missing measurements are labeled as unavailable.
 
 ## Protecting request traffic
 

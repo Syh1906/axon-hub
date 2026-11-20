@@ -49,8 +49,11 @@ func RequestOutputRates(ctx context.Context, client *ent.Client, ids []int) (map
 		tokens := usageanalytics.TextTokensSQL(u.C("completion_tokens"), u.C("cost_snapshot"), u.C("completion_audio_tokens"), q.Dialect())
 		duration := execution.C("metrics_latency_ms")
 		format := "COALESCE(" + execution.C("format") + ", '')"
-		speed := "CASE WHEN " + execution.C("status") + " = 'completed' AND " + duration + " > 0 AND " + tokens + " > 0 AND " +
-			format + " NOT LIKE '%image%' AND " + format + " NOT LIKE '%audio%' AND " + format + " NOT LIKE '%video%' THEN " + tokens + " * 1000.0 / NULLIF(" + duration + ", 0) END"
+		firstToken := execution.C("metrics_first_token_latency_ms")
+		window := "(" + duration + " - " + firstToken + ")"
+		speed := "CASE WHEN " + execution.C("status") + " = 'completed' AND " + execution.C("stream") +
+			" AND " + firstToken + " >= 0 AND " + window + " > 0 AND " + tokens + " > 1 AND " +
+			format + " NOT LIKE '%image%' AND " + format + " NOT LIKE '%audio%' AND " + format + " NOT LIKE '%video%' THEN (" + tokens + " - 1) * 1000.0 / NULLIF(" + window + ", 0) END"
 		q.Select(q.C("id"), sql.As(speed, "speed"), sql.As(u.C("completion_tokens"), "tokens"), sql.As(u.C("completion_reasoning_tokens"), "reasoning"), sql.As(duration, "duration"))
 	}).Scan(ctx, &rows)
 	if err != nil {
