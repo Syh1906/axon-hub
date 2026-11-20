@@ -1,0 +1,108 @@
+name: CodeGateway Seedance 视频联调快照
+on:
+  push:
+    branches: [codex/codegateway-snapshot-87122fce]
+    paths: [.github/workflows/codegateway-snapshot.yml]
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    uses: ./.github/workflows/docker-publish.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      commit: '87122fce67e2936374ad88cb4d3e9d187ba7d57a'
+      image: ghcr.io/syh1906/axon-hub
+      version: v1.0.0-rc1-fork.16+snapshot.87122fce67e2.${{ github.run_id }}.${{ github.run_attempt }}
+      image_tag: snapshot-87122fce67e2-${{ github.run_id }}-${{ github.run_attempt }}
+      snapshot_attempt: ${{ format('{0}', github.run_attempt) }}
+
+  upgrade:
+    name: 验证 CodeGateway 的 PostgreSQL 升级并保存摘要
+    needs: docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: axonhub
+          POSTGRES_DB: axonhub
+          POSTGRES_PASSWORD: snapshot-test-only
+        options: >-
+          --health-cmd "pg_isready -U axonhub -d axonhub"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      IMAGE: ghcr.io/syh1906/axon-hub
+      BASE_DIGEST: sha256:668cd140b841e7a27b183b759b55bb5cda4962a0184f2e68c98d387dda3faab8
+      BASE_COMMIT: 6cb5e4d87ef1fe1888edcf1d0f7fd77423c86d36
+      SOURCE_COMMIT: 87122fce67e2936374ad88cb4d3e9d187ba7d57a
+      IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
+      SNAPSHOT_TAG: snapshot-87122fce67e2-${{ github.run_id }}-${{ github.run_attempt }}
+      VERSION: v1.0.0-rc1-fork.16+snapshot.87122fce67e2.${{ github.run_id }}.${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          persist-credentials: false
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 从固定基线镜像升级并检查数据库
+        shell: bash
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          PG_NETWORK: ${{ job.services.postgres.network }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f cache-upgrade >/dev/null 2>&1 || true' EXIT
+          sql() { docker exec "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U axonhub -d axonhub -Atc "$1"; }
+          start_image() {
+            docker run -d --name cache-upgrade --network "$PG_NETWORK" -p 127.0.0.1:18090:8090 \
+              -e AXONHUB_DB_DIALECT=postgres \
+              -e 'AXONHUB_DB_DSN=postgres://axonhub:snapshot-test-only@postgres:5432/axonhub?sslmode=disable' \
+              "$IMAGE@$1"
+            for attempt in $(seq 1 60); do
+              if curl -fsS http://127.0.0.1:18090/health >/dev/null 2>&1; then break; fi
+              sleep 2
+            done
+            curl -fsS http://127.0.0.1:18090/health
+            test "$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' cache-upgrade)" = "$2"
+            docker exec cache-upgrade /app/axonhub version | grep -Fx "$3"
+          }
+          start_image "$BASE_DIGEST" "$BASE_COMMIT" v1.0.0-rc1-fork.16
+          test "$(sql "SELECT to_regclass('public.gemini_caches') IS NULL")" = t
+          sql "INSERT INTO projects (name) VALUES ('codegateway-upgrade-check')"
+          docker rm -f cache-upgrade
+          start_image "$IMAGE_DIGEST" "$SOURCE_COMMIT" "$VERSION"
+          test "$(sql "SELECT count(*) FROM projects WHERE name='codegateway-upgrade-check'")" = 1
+          test "$(sql 'SELECT count(retain_until) FROM gemini_caches')" = 0
+      - name: 保存 CodeGateway 可引用的镜像清单
+        run: |
+          docker manifest inspect "$IMAGE@$IMAGE_DIGEST" | jq -e \
+            '([.manifests[].platform | .os + "/" + .architecture] | sort) == ["linux/amd64","linux/arm64"]'
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { createSnapshotManifest } from './scripts/release/snapshot.mjs';
+          const e = process.env;
+          const prepared = {
+            config: JSON.parse(readFileSync('release.config.json', 'utf8')),
+            commit: e.SOURCE_COMMIT, baseVersion: 'v1.0.0-rc1-fork.16', baseCommit: e.BASE_COMMIT,
+            imageTag: e.SNAPSHOT_TAG, version: e.VERSION, image: e.IMAGE,
+            runURL: `https://github.com/${e.GITHUB_REPOSITORY}/actions/runs/${e.GITHUB_RUN_ID}/attempts/${e.GITHUB_RUN_ATTEMPT}`
+          };
+          const manifest = createSnapshotManifest(prepared, e.IMAGE_DIGEST);
+          writeFileSync(`${e.RUNNER_TEMP}/snapshot.json`, JSON.stringify(manifest, null, 2) + '\n');
+          console.log(manifest.image);
+          NODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.SNAPSHOT_TAG }}
+          path: ${{ runner.temp }}/snapshot.json
+          if-no-files-found: error
