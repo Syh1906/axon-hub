@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On 2026-11-21 both production sites upgraded to the [fork.17 image-only release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.17). The [deployment ledger](../../fork-maintenance.md) records the image digest, schema and model card checks.
+
 On 2026-11-20, [rc1-fork.16](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.16) was published through the image-only workflow and deployed to both production sites. Local and public checks passed. The [deployment ledger](../../fork-maintenance.md) records request outcomes during the switch.
 
 Every release uses the current maintenance branch and its latest published baseline in this repository. Increment the fork number on that baseline. A normal release verifies this repository’s branch, tags, manifest and recorded upstream provenance. Discovering or merging newer upstream releases is a separate operation performed only when explicitly requested.
