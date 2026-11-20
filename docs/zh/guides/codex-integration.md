@@ -212,7 +212,7 @@ codex_catalog:
 }
 ```
 
-`sourceModelId` 可省略，默认使用对外目标 ID。`overrides` 采用 JSON Merge Patch：对象递归合并、数组整项替换、null 删除字段，其他字段继续继承；`slug` 始终由网关根据可调用名称设置，不允许覆盖；`display_name` 同样使用可调用名称，`upgrade` 固定为空，`prefer_websockets` 由客户端配置决定，覆盖这些字段不会改变最终输出。模型及渠道的独立上下文设置最后生效。工具协议兼容性按应用差异后的声明判断；完整结果在返回前仍须通过目录解析与工具协议检查；错误覆盖只影响该模型，不写坏基础快照。修改现代指令时覆盖其 `model_messages.instructions_template`，不要仅改旧 `base_instructions`。
+`sourceModelId` 可省略，默认使用对外目标 ID。`overrides` 采用 JSON Merge Patch：对象递归合并、数组整项替换、null 删除字段，其他字段继续继承；`slug` 始终由网关根据可调用名称设置，不允许覆盖；`display_name` 使用模型定义或 `overrides` 指定的展示名，缺失或为空白时使用可调用名称。`upgrade` 固定为空，`prefer_websockets` 由客户端配置决定，覆盖这些字段不会改变最终输出。模型及渠道的独立上下文设置最后生效。工具协议兼容性按应用差异后的声明判断；完整结果在返回前仍须通过目录解析与工具协议检查；错误覆盖只影响该模型，不写坏基础快照。修改现代指令时覆盖其 `model_messages.instructions_template`，不要仅改旧 `base_instructions`。
 
 增加 `"snapshotVersion": "0.166.0"` 可将该模型明确固定在某个官方快照，便于回退；此时基础型号必须存在于该版本，缺失时不会退到其他模型或渠道定义。删除该字段恢复随客户端选取版本。原有包含 `clientVersion/model/models/routes` 的完整定义保持固定模式，不自动转换或覆盖；**预览可用目录资料** 返回可保存的完整定义，并标明官方来源与版本。
 

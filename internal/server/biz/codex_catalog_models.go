@@ -27,7 +27,7 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 		if strings.TrimSpace(slug) == "" || result[slug] != nil {
 			return nil, fmt.Errorf("catalog slugs must be unique and nonempty")
 		}
-		for _, field := range []string{"display_name", "shell_type", "visibility"} {
+		for _, field := range []string{"shell_type", "visibility"} {
 			if _, ok := m[field].(string); !ok {
 				return nil, fmt.Errorf("catalog model %q requires %s", slug, field)
 			}
@@ -169,7 +169,9 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 		}
 	}
 	result["slug"] = publicID
-	result["display_name"] = publicID
+	if name, _ := result["display_name"].(string); strings.TrimSpace(name) == "" {
+		result["display_name"] = publicID
+	}
 	result["upgrade"] = nil
 	// A catalog never forces transport. The provider/client chooses HTTP or WS.
 	delete(result, "prefer_websockets")

@@ -103,6 +103,7 @@ func TestCodexCatalogPreservesMetadataFiltersAndVersionCache(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &result))
 	require.Len(t, result.Models, 1)
 	require.Equal(t, "public-alias", result.Models[0]["slug"])
+	require.Equal(t, "Test", result.Models[0]["display_name"])
 	require.Equal(t, int32(2), calls.Load(), "public aliases can share upstream metadata, never visibility")
 	aliasKey.Edges.Project = &ent.Project{Profiles: &objects.ProjectProfiles{
 		ActiveProfile: "restricted", Profiles: []objects.ProjectProfile{{Name: "restricted", ChannelIDs: []int{ch.ID + 1}}},
@@ -134,6 +135,21 @@ func TestCodexCatalogValidationAndCapabilityIntersection(t *testing.T) {
 	require.Equal(t, float64(32000), one["context_window"], "merging must not mutate cached metadata")
 	two["test-model"]["base_instructions"] = "different model"
 	_, err = mergeCodexModels("public-alias", []map[string]any{one, two["test-model"]})
+	require.Error(t, err)
+}
+
+func TestCodexCatalogDisplayNameFallback(t *testing.T) {
+	for _, replacement := range []string{"", `"display_name":null,`, `"display_name":"  ",`} {
+		body := strings.Replace(catalogFixture, `"display_name":"Test",`, replacement, 1)
+		models, err := parseCodexCatalog([]byte(body))
+		require.NoError(t, err)
+		model, err := mergeCodexModels("public-alias", []map[string]any{models["test-model"]})
+		require.NoError(t, err)
+		require.Equal(t, "public-alias", model["display_name"])
+	}
+
+	body := strings.Replace(catalogFixture, `"display_name":"Test"`, `"display_name":123`, 1)
+	_, err := parseCodexCatalog([]byte(body))
 	require.Error(t, err)
 }
 

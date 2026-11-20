@@ -14,6 +14,7 @@ func validateCodexWireModel(m map[string]any) error {
 		return err
 	}
 	var known struct {
+		DisplayName  *string                 `json:"display_name"`
 		Messages     *codexWireModelMessages `json:"model_messages"`
 		Availability *struct {
 			Message *string `json:"message"`
