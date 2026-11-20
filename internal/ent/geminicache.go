@@ -39,6 +39,8 @@ type GeminiCache struct {
 	ExpireTime time.Time `json:"expire_time,omitempty"`
 	// Metadata holds the value of the "metadata" field.
 	Metadata []byte `json:"metadata,omitempty"`
+	// RetainUntil holds the value of the "retain_until" field.
+	RetainUntil *time.Time `json:"retain_until,omitempty"`
 	// Revision holds the value of the "revision" field.
 	Revision     int `json:"revision,omitempty"`
 	selectValues sql.SelectValues
@@ -55,7 +57,7 @@ func (*GeminiCache) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case geminicache.FieldPublicID, geminicache.FieldKeyRef, geminicache.FieldBaseURL, geminicache.FieldUpstreamName, geminicache.FieldModel, geminicache.FieldUpstreamModel:
 			values[i] = new(sql.NullString)
-		case geminicache.FieldExpireTime:
+		case geminicache.FieldExpireTime, geminicache.FieldRetainUntil:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -144,6 +146,13 @@ func (_m *GeminiCache) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.Metadata = *value
 			}
+		case geminicache.FieldRetainUntil:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field retain_until", values[i])
+			} else if value.Valid {
+				_m.RetainUntil = new(time.Time)
+				*_m.RetainUntil = value.Time
+			}
 		case geminicache.FieldRevision:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field revision", values[i])
@@ -218,6 +227,11 @@ func (_m *GeminiCache) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("metadata=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
+	builder.WriteString(", ")
+	if v := _m.RetainUntil; v != nil {
+		builder.WriteString("retain_until=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("revision=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Revision))

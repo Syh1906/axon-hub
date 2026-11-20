@@ -1299,7 +1299,7 @@ func (p *PersistentOutboundTransformer) CustomizeExecutor(executor pipeline.Exec
 		// Use the channel's own HTTP client, which is pre-configured with its proxy settings.
 		customizedExecutor = channel.HTTPClient
 	}
-	if p.state.CurrentCandidate != nil && p.state.CurrentCandidate.geminiCacheBound {
+	if p.state.CurrentCandidate != nil && p.state.CurrentCandidate.geminiCacheBase != "" {
 		if client, ok := customizedExecutor.(*httpclient.HttpClient); ok {
 			customizedExecutor = client.WithRejectRedirects()
 		}

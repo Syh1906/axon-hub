@@ -34,6 +34,8 @@ const (
 	FieldExpireTime = "expire_time"
 	// FieldMetadata holds the string denoting the metadata field in the database.
 	FieldMetadata = "metadata"
+	// FieldRetainUntil holds the string denoting the retain_until field in the database.
+	FieldRetainUntil = "retain_until"
 	// FieldRevision holds the string denoting the revision field in the database.
 	FieldRevision = "revision"
 	// Table holds the table name of the geminicache in the database.
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldUpstreamModel,
 	FieldExpireTime,
 	FieldMetadata,
+	FieldRetainUntil,
 	FieldRevision,
 }
 
@@ -137,6 +140,11 @@ func ByUpstreamModel(opts ...sql.OrderTermOption) OrderOption {
 // ByExpireTime orders the results by the expire_time field.
 func ByExpireTime(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExpireTime, opts...).ToFunc()
+}
+
+// ByRetainUntil orders the results by the retain_until field.
+func ByRetainUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetainUntil, opts...).ToFunc()
 }
 
 // ByRevision orders the results by the revision field.

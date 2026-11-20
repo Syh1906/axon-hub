@@ -49,6 +49,17 @@ type cacheFailure struct {
 	message string
 }
 
+var errCacheMissing = &cacheFailure{http.StatusNotFound, "Cached content not found"}
+
+const cacheRenewalUnknownReason = "GEMINI_CACHE_RENEWAL_OUTCOME_UNKNOWN"
+
+// The integration uses this machine-readable reason to retain its billing recovery record.
+func cacheRenewalUnknown(c *gin.Context) {
+	c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"code": 502, "status": "UNKNOWN", "message": "Cache renewal outcome is unconfirmed", "details": []gin.H{{
+		"@type": "type.googleapis.com/google.rpc.ErrorInfo", "domain": "axonhub", "reason": cacheRenewalUnknownReason,
+	}}}})
+}
+
 func (e *cacheFailure) Error() string { return e.message }
 func cacheError(c *gin.Context, status int, msg string) {
 	code := map[int]string{400: "INVALID_ARGUMENT", 403: "PERMISSION_DENIED", 404: "NOT_FOUND", 409: "ABORTED", 429: "RESOURCE_EXHAUSTED", 501: "UNIMPLEMENTED", 503: "UNAVAILABLE"}[status]
@@ -63,7 +74,7 @@ func reportCacheError(c *gin.Context, err error) {
 	case errors.As(err, &e):
 		cacheError(c, e.status, e.message)
 	case ent.IsNotFound(err):
-		cacheError(c, 404, "Cache not found")
+		cacheError(c, errCacheMissing.status, errCacheMissing.message)
 	default:
 		cacheError(c, 500, "Could not access cache metadata")
 	}
@@ -80,10 +91,15 @@ func (h *GeminiHandlers) cacheCaller(c *gin.Context) *ent.APIKey {
 func ownedCache(db *ent.Client, key *ent.APIKey) *ent.GeminiCacheQuery {
 	return db.GeminiCache.Query().Where(gc.ProjectIDEQ(key.ProjectID), gc.APIKeyIDEQ(key.ID))
 }
-func loadCache(ctx context.Context, key *ent.APIKey, id string) (*ent.GeminiCache, error) {
+func loadCache(ctx context.Context, key *ent.APIKey, id string, cleanup bool) (*ent.GeminiCache, error) {
 	db := ent.FromContext(ctx)
 	return authz.RunAsHost(ctx, db, "gemini-cache-owner", func(host context.Context) (*ent.GeminiCache, error) {
-		return ownedCache(db, key).Where(gc.PublicIDEQ(id), gc.ExpireTimeGT(time.Now().UTC())).Only(contexts.WithPrimaryRead(host))
+		now := time.Now().UTC()
+		active := gc.ExpireTimeGT(now)
+		if cleanup {
+			active = gc.Or(active, gc.RetainUntilGT(now))
+		}
+		return ownedCache(db, key).Where(gc.PublicIDEQ(id), active).Only(contexts.WithPrimaryRead(host))
 	})
 }
 func (h *GeminiHandlers) bindCacheReference(c *gin.Context, body []byte) bool {
@@ -104,7 +120,7 @@ func (h *GeminiHandlers) bindCacheReference(c *gin.Context, body []byte) bool {
 		cacheError(c, 400, "Invalid cache name")
 		return false
 	}
-	row, err := loadCache(c.Request.Context(), key, id)
+	row, err := loadCache(c.Request.Context(), key, id, false)
 	if err != nil {
 		reportCacheError(c, err)
 		return false
@@ -137,13 +153,16 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 		return
 	}
 	var payload map[string]json.RawMessage
+	var requestedExpiry time.Time
 	if method == "POST" || method == "PATCH" {
 		data, err := io.ReadAll(c.Request.Body)
 		if err != nil || json.Unmarshal(data, &payload) != nil || payload == nil {
 			cacheError(c, 400, "Expected a JSON object")
 			return
 		}
-		if !validCacheExpiration(payload) {
+		var valid bool
+		requestedExpiry, valid = parseCacheExpiration(payload)
+		if !valid {
 			cacheError(c, 400, "Supply one positive ttl in seconds or one future expireTime")
 			return
 		}
@@ -152,7 +171,7 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 		h.createCache(c, key, payload)
 		return
 	}
-	row, err := loadCache(ctx, key, id)
+	row, err := loadCache(ctx, key, id, method == http.MethodDelete)
 	if err != nil {
 		reportCacheError(c, err)
 		return
@@ -172,11 +191,24 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 		if mask != "" {
 			path += "?updateMask=" + url.QueryEscape(mask)
 		}
+		// Establish the cleanup horizon before dispatch, including if the process
+		// stops after the provider changes the TTL. Parallel renewals only raise it.
+		if requestedExpiry.After(row.ExpireTime) {
+			until := requestedExpiry.UTC().Add(cacheOperationTimeout)
+			_, err := authz.RunAsHost(ctx, db, "gemini-cache-renewal-retention", func(host context.Context) (int, error) {
+				return db.GeminiCache.Update().Where(gc.IDEQ(row.ID), gc.Or(gc.RetainUntilIsNil(), gc.RetainUntilLT(until))).SetRetainUntil(until).Save(host)
+			})
+			if err != nil {
+				reportCacheError(c, err)
+				return
+			}
+		}
 	}
 	body, _ := json.Marshal(payload)
 	if method == "GET" {
 		m, err := target.send(ctx, method, path, nil)
 		if err != nil {
+			forgetMissingCache(ctx, db, row, err)
 			reportCacheError(c, err)
 			return
 		}
@@ -186,9 +218,23 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 		return
 	}
 	m, err := target.send(ctx, method, path, body)
-	var failure *cacheFailure
-	missing := errors.As(err, &failure) && failure.status == http.StatusNotFound
+	acknowledged := errors.Is(err, errInvalidCacheMetadata)
+	if method == http.MethodPatch && errors.Is(err, errInvalidCacheMetadata) {
+		// The provider acknowledged this renewal. Recover its metadata without issuing a second PATCH.
+		check, cancel := context.WithTimeout(context.WithoutCancel(ctx), cacheOperationTimeout)
+		m, err = target.send(check, http.MethodGet, row.UpstreamName, nil)
+		cancel()
+	}
+	missing := errors.Is(err, errCacheMissing)
 	if err != nil && !(method == "DELETE" && missing) {
+		if missing {
+			forgetMissingCache(ctx, db, row, err)
+		}
+		var failure *cacheFailure
+		if method == http.MethodPatch && !missing && (acknowledged || (errors.As(err, &failure) && failure.status >= 500)) {
+			cacheRenewalUnknown(c)
+			return
+		}
 		reportCacheError(c, err)
 		return
 	}
@@ -225,6 +271,10 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 		}
 	})
 	if err != nil {
+		if method == http.MethodPatch && !errors.Is(err, errCacheMissing) && !ent.IsNotFound(err) {
+			cacheRenewalUnknown(c)
+			return
+		}
 		reportCacheError(c, err)
 		return
 	}
@@ -235,24 +285,42 @@ func (h *GeminiHandlers) CacheResource(c *gin.Context) {
 	c.JSON(200, result)
 }
 
+// A definitive owner-side 404 invalidates the local listing. A renewal that
+// finished while the upstream lookup was in flight keeps its newer revision.
+func forgetMissingCache(ctx context.Context, db *ent.Client, row *ent.GeminiCache, cause error) {
+	if !errors.Is(cause, errCacheMissing) {
+		return
+	}
+	_, err := authz.RunAsHost(ctx, db, "gemini-cache-not-found", func(host context.Context) (int, error) {
+		return db.GeminiCache.Delete().Where(gc.IDEQ(row.ID), gc.ProjectIDEQ(row.ProjectID), gc.APIKeyIDEQ(row.APIKeyID), gc.RevisionEQ(row.Revision)).Exec(host)
+	})
+	if err != nil {
+		log.Warn(ctx, "Could not remove missing Gemini cache metadata", log.Cause(err))
+	}
+}
+
 var cacheTTLPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,9})?s$`)
 
-func validCacheExpiration(payload map[string]json.RawMessage) bool {
+// CodeGateway's sub2api adapter uses one model path segment for creation and generation.
+var integrationCacheModel = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,128}$`)
+
+func parseCacheExpiration(payload map[string]json.RawMessage) (time.Time, bool) {
 	ttl, hasTTL := payload["ttl"]
 	expire, hasExpire := payload["expireTime"]
 	if hasTTL {
 		var value string
 		if hasExpire || json.Unmarshal(ttl, &value) != nil || !cacheTTLPattern.MatchString(value) {
-			return false
+			return time.Time{}, false
 		}
 		d, err := time.ParseDuration(value)
-		return err == nil && d > 0
+		return time.Now().UTC().Add(d), err == nil && d > 0
 	}
 	if hasExpire {
 		var t time.Time
-		return json.Unmarshal(expire, &t) == nil && t.After(time.Now())
+		err := json.Unmarshal(expire, &t)
+		return t.UTC(), err == nil && t.After(time.Now())
 	}
-	return true
+	return time.Time{}, true
 }
 
 func (h *GeminiHandlers) createCache(c *gin.Context, key *ent.APIKey, payload map[string]json.RawMessage) {
@@ -263,6 +331,10 @@ func (h *GeminiHandlers) createCache(c *gin.Context, key *ent.APIKey, payload ma
 		return
 	}
 	model := strings.TrimPrefix(resource, "models/")
+	if !integrationCacheModel.MatchString(model) || strings.Trim(model, ".") == "" {
+		cacheError(c, 400, "Expected a single CodeGateway model ID after models/")
+		return
+	}
 	target, err := h.cacheTarget(ctx, key, model, nil)
 	if err != nil {
 		reportCacheError(c, err)
@@ -286,8 +358,9 @@ func (h *GeminiHandlers) createCache(c *gin.Context, key *ent.APIKey, payload ma
 	db := ent.FromContext(ctx)
 	_, err = authz.RunAsHost(ctx, db, "gemini-cache-create", func(host context.Context) (*ent.GeminiCache, error) {
 		// Reclaim this owner's expired bindings after any in-flight renewal and reconciliation can finish.
+		cutoff := time.Now().UTC().Add(-2 * cacheOperationTimeout)
 		_, purgeErr := db.GeminiCache.Delete().Where(gc.ProjectIDEQ(key.ProjectID), gc.APIKeyIDEQ(key.ID),
-			gc.ExpireTimeLT(time.Now().UTC().Add(-2*cacheOperationTimeout))).Exec(host)
+			gc.ExpireTimeLT(cutoff), gc.Or(gc.RetainUntilIsNil(), gc.RetainUntilLT(cutoff))).Exec(host)
 		if purgeErr != nil {
 			log.Warn(host, "Gemini cache metadata cleanup failed", log.Cause(purgeErr))
 		}

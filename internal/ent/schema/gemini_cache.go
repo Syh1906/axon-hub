@@ -21,6 +21,9 @@ func (GeminiCache) Fields() []ent.Field {
 		field.String("base_url").Immutable(), field.String("upstream_name").Immutable(),
 		field.String("model").Immutable(), field.String("upstream_model").Immutable(),
 		field.Time("expire_time"), field.Bytes("metadata"),
+		// A renewal may have reached the provider before its response was lost.
+		// Keep its cleanup route without extending the authorized use of the cache.
+		field.Time("retain_until").Optional().Nillable(),
 		field.Int("revision").Default(0),
 	}
 }

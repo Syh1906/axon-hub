@@ -49,6 +49,26 @@ func (_u *GeminiCacheUpdate) SetMetadata(v []byte) *GeminiCacheUpdate {
 	return _u
 }
 
+// SetRetainUntil sets the "retain_until" field.
+func (_u *GeminiCacheUpdate) SetRetainUntil(v time.Time) *GeminiCacheUpdate {
+	_u.mutation.SetRetainUntil(v)
+	return _u
+}
+
+// SetNillableRetainUntil sets the "retain_until" field if the given value is not nil.
+func (_u *GeminiCacheUpdate) SetNillableRetainUntil(v *time.Time) *GeminiCacheUpdate {
+	if v != nil {
+		_u.SetRetainUntil(*v)
+	}
+	return _u
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (_u *GeminiCacheUpdate) ClearRetainUntil() *GeminiCacheUpdate {
+	_u.mutation.ClearRetainUntil()
+	return _u
+}
+
 // SetRevision sets the "revision" field.
 func (_u *GeminiCacheUpdate) SetRevision(v int) *GeminiCacheUpdate {
 	_u.mutation.ResetRevision()
@@ -123,6 +143,12 @@ func (_u *GeminiCacheUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(geminicache.FieldMetadata, field.TypeBytes, value)
 	}
+	if value, ok := _u.mutation.RetainUntil(); ok {
+		_spec.SetField(geminicache.FieldRetainUntil, field.TypeTime, value)
+	}
+	if _u.mutation.RetainUntilCleared() {
+		_spec.ClearField(geminicache.FieldRetainUntil, field.TypeTime)
+	}
 	if value, ok := _u.mutation.Revision(); ok {
 		_spec.SetField(geminicache.FieldRevision, field.TypeInt, value)
 	}
@@ -168,6 +194,26 @@ func (_u *GeminiCacheUpdateOne) SetNillableExpireTime(v *time.Time) *GeminiCache
 // SetMetadata sets the "metadata" field.
 func (_u *GeminiCacheUpdateOne) SetMetadata(v []byte) *GeminiCacheUpdateOne {
 	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// SetRetainUntil sets the "retain_until" field.
+func (_u *GeminiCacheUpdateOne) SetRetainUntil(v time.Time) *GeminiCacheUpdateOne {
+	_u.mutation.SetRetainUntil(v)
+	return _u
+}
+
+// SetNillableRetainUntil sets the "retain_until" field if the given value is not nil.
+func (_u *GeminiCacheUpdateOne) SetNillableRetainUntil(v *time.Time) *GeminiCacheUpdateOne {
+	if v != nil {
+		_u.SetRetainUntil(*v)
+	}
+	return _u
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (_u *GeminiCacheUpdateOne) ClearRetainUntil() *GeminiCacheUpdateOne {
+	_u.mutation.ClearRetainUntil()
 	return _u
 }
 
@@ -274,6 +320,12 @@ func (_u *GeminiCacheUpdateOne) sqlSave(ctx context.Context) (_node *GeminiCache
 	}
 	if value, ok := _u.mutation.Metadata(); ok {
 		_spec.SetField(geminicache.FieldMetadata, field.TypeBytes, value)
+	}
+	if value, ok := _u.mutation.RetainUntil(); ok {
+		_spec.SetField(geminicache.FieldRetainUntil, field.TypeTime, value)
+	}
+	if _u.mutation.RetainUntilCleared() {
+		_spec.ClearField(geminicache.FieldRetainUntil, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Revision(); ok {
 		_spec.SetField(geminicache.FieldRevision, field.TypeInt, value)

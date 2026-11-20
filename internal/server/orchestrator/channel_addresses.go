@@ -22,7 +22,17 @@ func (p *PersistentOutboundTransformer) upstreamAddresses() []objects.ChannelUps
 	if p.state.CurrentCandidate == nil {
 		return nil
 	}
-	return p.state.CurrentCandidate.Channel.EnabledUpstreamAddresses(p.state.CurrentCandidate.APIFormat)
+	candidate := p.state.CurrentCandidate
+	addresses := candidate.Channel.EnabledUpstreamAddresses(candidate.APIFormat)
+	if candidate.geminiCacheBase != "" {
+		for i, address := range addresses {
+			if biz.GeminiCacheAPIBase(address.URL) == candidate.geminiCacheBase {
+				return addresses[i : i+1]
+			}
+		}
+		return nil
+	}
+	return addresses
 }
 
 // Native HTTP has separate upload and first-response allowances. A secondary
@@ -93,7 +103,11 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		}
 		channel := p.GetCurrentChannel()
 		format := p.state.CurrentCandidate.APIFormat
-		base, err := url.Parse(channel.NormalizeUpstreamAddress(channel.BaseURL, format))
+		baseURL := channel.NormalizeUpstreamAddress(channel.BaseURL, format)
+		if p.state.CurrentCandidate.geminiCacheBase != "" {
+			baseURL = biz.GeminiCacheAPIBase(channel.BaseURL)
+		}
+		base, err := url.Parse(baseURL)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +124,11 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 			return request, nil
 		}
 		addresses = p.selectContentAddress(ctx, request, addresses)
-		target, err := url.Parse(channel.NormalizeUpstreamAddress(addresses[p.addressIndex].URL, format))
+		targetURL := channel.NormalizeUpstreamAddress(addresses[p.addressIndex].URL, format)
+		if owner := p.state.CurrentCandidate.geminiCacheBase; owner != "" {
+			targetURL = owner
+		}
+		target, err := url.Parse(targetURL)
 		if err != nil {
 			return nil, err
 		}

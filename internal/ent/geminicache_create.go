@@ -88,6 +88,20 @@ func (_c *GeminiCacheCreate) SetMetadata(v []byte) *GeminiCacheCreate {
 	return _c
 }
 
+// SetRetainUntil sets the "retain_until" field.
+func (_c *GeminiCacheCreate) SetRetainUntil(v time.Time) *GeminiCacheCreate {
+	_c.mutation.SetRetainUntil(v)
+	return _c
+}
+
+// SetNillableRetainUntil sets the "retain_until" field if the given value is not nil.
+func (_c *GeminiCacheCreate) SetNillableRetainUntil(v *time.Time) *GeminiCacheCreate {
+	if v != nil {
+		_c.SetRetainUntil(*v)
+	}
+	return _c
+}
+
 // SetRevision sets the "revision" field.
 func (_c *GeminiCacheCreate) SetRevision(v int) *GeminiCacheCreate {
 	_c.mutation.SetRevision(v)
@@ -260,6 +274,10 @@ func (_c *GeminiCacheCreate) createSpec() (*GeminiCache, *sqlgraph.CreateSpec) {
 		_spec.SetField(geminicache.FieldMetadata, field.TypeBytes, value)
 		_node.Metadata = value
 	}
+	if value, ok := _c.mutation.RetainUntil(); ok {
+		_spec.SetField(geminicache.FieldRetainUntil, field.TypeTime, value)
+		_node.RetainUntil = &value
+	}
 	if value, ok := _c.mutation.Revision(); ok {
 		_spec.SetField(geminicache.FieldRevision, field.TypeInt, value)
 		_node.Revision = value
@@ -337,6 +355,24 @@ func (u *GeminiCacheUpsert) SetMetadata(v []byte) *GeminiCacheUpsert {
 // UpdateMetadata sets the "metadata" field to the value that was provided on create.
 func (u *GeminiCacheUpsert) UpdateMetadata() *GeminiCacheUpsert {
 	u.SetExcluded(geminicache.FieldMetadata)
+	return u
+}
+
+// SetRetainUntil sets the "retain_until" field.
+func (u *GeminiCacheUpsert) SetRetainUntil(v time.Time) *GeminiCacheUpsert {
+	u.Set(geminicache.FieldRetainUntil, v)
+	return u
+}
+
+// UpdateRetainUntil sets the "retain_until" field to the value that was provided on create.
+func (u *GeminiCacheUpsert) UpdateRetainUntil() *GeminiCacheUpsert {
+	u.SetExcluded(geminicache.FieldRetainUntil)
+	return u
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (u *GeminiCacheUpsert) ClearRetainUntil() *GeminiCacheUpsert {
+	u.SetNull(geminicache.FieldRetainUntil)
 	return u
 }
 
@@ -452,6 +488,27 @@ func (u *GeminiCacheUpsertOne) SetMetadata(v []byte) *GeminiCacheUpsertOne {
 func (u *GeminiCacheUpsertOne) UpdateMetadata() *GeminiCacheUpsertOne {
 	return u.Update(func(s *GeminiCacheUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetRetainUntil sets the "retain_until" field.
+func (u *GeminiCacheUpsertOne) SetRetainUntil(v time.Time) *GeminiCacheUpsertOne {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.SetRetainUntil(v)
+	})
+}
+
+// UpdateRetainUntil sets the "retain_until" field to the value that was provided on create.
+func (u *GeminiCacheUpsertOne) UpdateRetainUntil() *GeminiCacheUpsertOne {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.UpdateRetainUntil()
+	})
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (u *GeminiCacheUpsertOne) ClearRetainUntil() *GeminiCacheUpsertOne {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.ClearRetainUntil()
 	})
 }
 
@@ -736,6 +793,27 @@ func (u *GeminiCacheUpsertBulk) SetMetadata(v []byte) *GeminiCacheUpsertBulk {
 func (u *GeminiCacheUpsertBulk) UpdateMetadata() *GeminiCacheUpsertBulk {
 	return u.Update(func(s *GeminiCacheUpsert) {
 		s.UpdateMetadata()
+	})
+}
+
+// SetRetainUntil sets the "retain_until" field.
+func (u *GeminiCacheUpsertBulk) SetRetainUntil(v time.Time) *GeminiCacheUpsertBulk {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.SetRetainUntil(v)
+	})
+}
+
+// UpdateRetainUntil sets the "retain_until" field to the value that was provided on create.
+func (u *GeminiCacheUpsertBulk) UpdateRetainUntil() *GeminiCacheUpsertBulk {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.UpdateRetainUntil()
+	})
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (u *GeminiCacheUpsertBulk) ClearRetainUntil() *GeminiCacheUpsertBulk {
+	return u.Update(func(s *GeminiCacheUpsert) {
+		s.ClearRetainUntil()
 	})
 }
 

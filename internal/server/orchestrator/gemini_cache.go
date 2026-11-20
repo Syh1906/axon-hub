@@ -41,7 +41,7 @@ func (c *ChannelModelsCandidate) ModelAPIFormat(i int) string {
 
 func onlyCacheOwner(candidates []*ChannelModelsCandidate, row *ent.GeminiCache) ([]*ChannelModelsCandidate, error) {
 	for _, candidate := range candidates {
-		if candidate.Channel.ID != row.ChannelID {
+		if candidate.Channel.ID != row.ChannelID || candidate.Channel.GeminiCacheBase(row.BaseURL) == "" {
 			continue
 		}
 		for i, entry := range candidate.Models {
@@ -49,7 +49,7 @@ func onlyCacheOwner(candidates []*ChannelModelsCandidate, row *ent.GeminiCache) 
 				continue
 			}
 			owner := *candidate
-			owner.geminiCacheBound = true
+			owner.geminiCacheBase = row.BaseURL
 			owner.Models = []biz.ChannelModelEntry{entry}
 			owner.APIFormat = string(llm.APIFormatGeminiContents)
 			owner.modelAPIFormats = []string{owner.APIFormat}

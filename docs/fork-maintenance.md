@@ -731,7 +731,7 @@ fork 改动，由用户决定。
 
 ### 模型入口校验与渠道分发
 
-- Gemini 显式缓存（待发布）：CodeGateway 专用 Key 创建、列出、读取、续期和删除自己的缓存。普通与流式生成引用固定到创建时的渠道、原生端点、模型与供应商凭据，客户存储费由 sub2api 结算。Ent 新增 `gemini_caches` 表保存归属、有效期和元数据，已有业务数据无需转换。同步上游时核对双渠道、多凭据、跨身份拒绝、失效后的路由和缓存用量。[Issue #9](https://github.com/Syh1906/axon-hub/issues/9) · [配置与 API](zh/api-reference/gemini-api.md#codegateway-显式缓存) · [供应商适配](../internal/server/api/gemini_cache_provider.go) · [隔离联调测试](../internal/server/gemini_cache_test.go)
+- Gemini 显式缓存（待发布）：CodeGateway 专用 Key 创建、列出、读取、续期和删除自己的缓存。普通与流式生成引用固定到创建时的渠道、原生端点、模型与供应商凭据，客户存储费由 sub2api 结算。Ent 新增 `gemini_caches` 表保存归属、有效期和元数据，已有业务数据无需转换。同步上游时核对双渠道、多凭据、跨身份拒绝、失效后的路由和缓存用量。续期结果未确认时，按已确认的有效期限制读取与生成，`retain_until` 保留原 Key 删除缓存所需的归属。下游恢复记录由 [sub2api #1](https://github.com/Syh1906/sub2api/issues/1) 跟踪。[Issue #9](https://github.com/Syh1906/axon-hub/issues/9) · [配置与 API](zh/api-reference/gemini-api.md#codegateway-显式缓存) · [供应商适配](../internal/server/api/gemini_cache_provider.go) · [隔离联调测试](../internal/server/gemini_cache_test.go)
 
 - 查询与加载（未发布）：渠道按模型筛选遵守 first/last/after/before，保留别名和隐藏规则；调用方遍历 pageInfo，无分页参数仍返回完整匹配结果。同次只读 GraphQL 操作共享模型关联渠道所需字段，不加载凭据。模型全量分组数据分批取回并可取消，游乐场候选仅取 ID／名称；候选缓存离开页面／弹窗后回收。保留完整候选和全局排序，不截断结果。实现为 `channel_query.go`、`model_query_cache.go` 与前端模型查询钩子；无 schema 变更，10001 条完整候选和 SQL 查询次数证据见[追加验收](../.agent/summary/request-followup-verification-20261101.md)。
 

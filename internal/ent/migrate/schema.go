@@ -623,6 +623,7 @@ var (
 		{Name: "upstream_model", Type: field.TypeString},
 		{Name: "expire_time", Type: field.TypeTime},
 		{Name: "metadata", Type: field.TypeBytes},
+		{Name: "retain_until", Type: field.TypeTime, Nullable: true},
 		{Name: "revision", Type: field.TypeInt, Default: 0},
 	}
 	// GeminiCachesTable holds the schema information for the "gemini_caches" table.

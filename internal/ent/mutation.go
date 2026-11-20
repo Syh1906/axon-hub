@@ -19157,6 +19157,7 @@ type GeminiCacheMutation struct {
 	upstream_model *string
 	expire_time    *time.Time
 	metadata       *[]byte
+	retain_until   *time.Time
 	revision       *int
 	addrevision    *int
 	clearedFields  map[string]struct{}
@@ -19719,6 +19720,55 @@ func (m *GeminiCacheMutation) ResetMetadata() {
 	m.metadata = nil
 }
 
+// SetRetainUntil sets the "retain_until" field.
+func (m *GeminiCacheMutation) SetRetainUntil(t time.Time) {
+	m.retain_until = &t
+}
+
+// RetainUntil returns the value of the "retain_until" field in the mutation.
+func (m *GeminiCacheMutation) RetainUntil() (r time.Time, exists bool) {
+	v := m.retain_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetainUntil returns the old "retain_until" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldRetainUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetainUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetainUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetainUntil: %w", err)
+	}
+	return oldValue.RetainUntil, nil
+}
+
+// ClearRetainUntil clears the value of the "retain_until" field.
+func (m *GeminiCacheMutation) ClearRetainUntil() {
+	m.retain_until = nil
+	m.clearedFields[geminicache.FieldRetainUntil] = struct{}{}
+}
+
+// RetainUntilCleared returns if the "retain_until" field was cleared in this mutation.
+func (m *GeminiCacheMutation) RetainUntilCleared() bool {
+	_, ok := m.clearedFields[geminicache.FieldRetainUntil]
+	return ok
+}
+
+// ResetRetainUntil resets all changes to the "retain_until" field.
+func (m *GeminiCacheMutation) ResetRetainUntil() {
+	m.retain_until = nil
+	delete(m.clearedFields, geminicache.FieldRetainUntil)
+}
+
 // SetRevision sets the "revision" field.
 func (m *GeminiCacheMutation) SetRevision(i int) {
 	m.revision = &i
@@ -19809,7 +19859,7 @@ func (m *GeminiCacheMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GeminiCacheMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.public_id != nil {
 		fields = append(fields, geminicache.FieldPublicID)
 	}
@@ -19842,6 +19892,9 @@ func (m *GeminiCacheMutation) Fields() []string {
 	}
 	if m.metadata != nil {
 		fields = append(fields, geminicache.FieldMetadata)
+	}
+	if m.retain_until != nil {
+		fields = append(fields, geminicache.FieldRetainUntil)
 	}
 	if m.revision != nil {
 		fields = append(fields, geminicache.FieldRevision)
@@ -19876,6 +19929,8 @@ func (m *GeminiCacheMutation) Field(name string) (ent.Value, bool) {
 		return m.ExpireTime()
 	case geminicache.FieldMetadata:
 		return m.Metadata()
+	case geminicache.FieldRetainUntil:
+		return m.RetainUntil()
 	case geminicache.FieldRevision:
 		return m.Revision()
 	}
@@ -19909,6 +19964,8 @@ func (m *GeminiCacheMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldExpireTime(ctx)
 	case geminicache.FieldMetadata:
 		return m.OldMetadata(ctx)
+	case geminicache.FieldRetainUntil:
+		return m.OldRetainUntil(ctx)
 	case geminicache.FieldRevision:
 		return m.OldRevision(ctx)
 	}
@@ -19997,6 +20054,13 @@ func (m *GeminiCacheMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetadata(v)
 		return nil
+	case geminicache.FieldRetainUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetainUntil(v)
+		return nil
 	case geminicache.FieldRevision:
 		v, ok := value.(int)
 		if !ok {
@@ -20084,7 +20148,11 @@ func (m *GeminiCacheMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *GeminiCacheMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(geminicache.FieldRetainUntil) {
+		fields = append(fields, geminicache.FieldRetainUntil)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -20097,6 +20165,11 @@ func (m *GeminiCacheMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *GeminiCacheMutation) ClearField(name string) error {
+	switch name {
+	case geminicache.FieldRetainUntil:
+		m.ClearRetainUntil()
+		return nil
+	}
 	return fmt.Errorf("unknown GeminiCache nullable field %s", name)
 }
 
@@ -20136,6 +20209,9 @@ func (m *GeminiCacheMutation) ResetField(name string) error {
 		return nil
 	case geminicache.FieldMetadata:
 		m.ResetMetadata()
+		return nil
+	case geminicache.FieldRetainUntil:
+		m.ResetRetainUntil()
 		return nil
 	case geminicache.FieldRevision:
 		m.ResetRevision()

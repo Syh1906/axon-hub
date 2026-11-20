@@ -109,6 +109,11 @@ func Metadata(v []byte) predicate.GeminiCache {
 	return predicate.GeminiCache(sql.FieldEQ(FieldMetadata, v))
 }
 
+// RetainUntil applies equality check predicate on the "retain_until" field. It's identical to RetainUntilEQ.
+func RetainUntil(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldEQ(FieldRetainUntil, v))
+}
+
 // Revision applies equality check predicate on the "revision" field. It's identical to RevisionEQ.
 func Revision(v int) predicate.GeminiCache {
 	return predicate.GeminiCache(sql.FieldEQ(FieldRevision, v))
@@ -702,6 +707,56 @@ func MetadataLT(v []byte) predicate.GeminiCache {
 // MetadataLTE applies the LTE predicate on the "metadata" field.
 func MetadataLTE(v []byte) predicate.GeminiCache {
 	return predicate.GeminiCache(sql.FieldLTE(FieldMetadata, v))
+}
+
+// RetainUntilEQ applies the EQ predicate on the "retain_until" field.
+func RetainUntilEQ(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldEQ(FieldRetainUntil, v))
+}
+
+// RetainUntilNEQ applies the NEQ predicate on the "retain_until" field.
+func RetainUntilNEQ(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldNEQ(FieldRetainUntil, v))
+}
+
+// RetainUntilIn applies the In predicate on the "retain_until" field.
+func RetainUntilIn(vs ...time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldIn(FieldRetainUntil, vs...))
+}
+
+// RetainUntilNotIn applies the NotIn predicate on the "retain_until" field.
+func RetainUntilNotIn(vs ...time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldNotIn(FieldRetainUntil, vs...))
+}
+
+// RetainUntilGT applies the GT predicate on the "retain_until" field.
+func RetainUntilGT(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldGT(FieldRetainUntil, v))
+}
+
+// RetainUntilGTE applies the GTE predicate on the "retain_until" field.
+func RetainUntilGTE(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldGTE(FieldRetainUntil, v))
+}
+
+// RetainUntilLT applies the LT predicate on the "retain_until" field.
+func RetainUntilLT(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldLT(FieldRetainUntil, v))
+}
+
+// RetainUntilLTE applies the LTE predicate on the "retain_until" field.
+func RetainUntilLTE(v time.Time) predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldLTE(FieldRetainUntil, v))
+}
+
+// RetainUntilIsNil applies the IsNil predicate on the "retain_until" field.
+func RetainUntilIsNil() predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldIsNull(FieldRetainUntil))
+}
+
+// RetainUntilNotNil applies the NotNil predicate on the "retain_until" field.
+func RetainUntilNotNil() predicate.GeminiCache {
+	return predicate.GeminiCache(sql.FieldNotNull(FieldRetainUntil))
 }
 
 // RevisionEQ applies the EQ predicate on the "revision" field.

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
+
 	"regexp"
 	"slices"
 	"strings"
@@ -21,7 +21,6 @@ import (
 	"github.com/looplj/axonhub/internal/server/orchestrator"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
-	"github.com/looplj/axonhub/llm/transformer/gemini"
 )
 
 type cacheTarget struct {
@@ -52,7 +51,11 @@ func (h *GeminiHandlers) cacheTarget(ctx context.Context, key *ent.APIKey, model
 		if ch.Settings != nil && !ch.Settings.ProtocolPolicy.AllowsClient(llm.APIFormatGeminiContents) {
 			continue
 		}
-		base := geminiCacheBase(ch)
+		ownerBase := ""
+		if row != nil {
+			ownerBase = row.BaseURL
+		}
+		base := ch.GeminiCacheBase(ownerBase)
 		if base == "" {
 			continue
 		}
@@ -85,36 +88,9 @@ func (h *GeminiHandlers) cacheTarget(ctx context.Context, key *ent.APIKey, model
 	return nil, &cacheFailure{501, "No selected Gemini channel declares explicit cache support"}
 }
 
-func geminiCacheBase(ch *biz.Channel) string {
-	for _, ep := range ch.ResolveEndpoints() {
-		if ep.APIFormat != string(llm.APIFormatGeminiContents) || ep.Path != "" {
-			continue
-		}
-		base := ep.BaseURL
-		if base == "" {
-			base = ch.BaseURL
-		}
-		if base == "" {
-			base = gemini.DefaultBaseURL
-		}
-		if a := ch.EnabledUpstreamAddresses(ep.APIFormat); len(a) > 0 {
-			base = a[0].URL
-		}
-		base = strings.TrimRight(base, "/")
-		if strings.HasSuffix(base, "/v1") {
-			continue
-		}
-		base = strings.TrimSuffix(base, "/v1beta") + "/v1beta"
-		u, err := url.Parse(base)
-		if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-			continue
-		}
-		return base
-	}
-	return ""
-}
-
 const cacheOperationTimeout = 30 * time.Second
+
+var errInvalidCacheMetadata = &cacheFailure{http.StatusBadGateway, "Invalid cache metadata from provider"}
 
 var cacheNamePattern = regexp.MustCompile(`^cachedContents/[A-Za-z0-9_-]+$`)
 
@@ -143,6 +119,9 @@ func (t *cacheTarget) send(ctx context.Context, method, path string, body []byte
 	if err != nil {
 		var e *httpclient.Error
 		if errors.As(err, &e) && e.StatusCode >= 400 && e.StatusCode <= 599 {
+			if method != http.MethodPost && cacheResourceMissing(e) {
+				return m, errCacheMissing
+			}
 			return m, &cacheFailure{e.StatusCode, "Provider rejected cache operation"}
 		}
 		return m, &cacheFailure{502, "Cache provider unavailable"}
@@ -153,13 +132,41 @@ func (t *cacheTarget) send(ctx context.Context, method, path string, body []byte
 	if method == "DELETE" {
 		return m, nil
 	}
-	if err := json.Unmarshal(r.Body, &m); err != nil || !cacheNamePattern.MatchString(m.Name) || m.Model != "models/"+t.model || m.ExpireTime.IsZero() || m.Usage.Tokens == nil || *m.Usage.Tokens < 0 {
-		return m, &cacheFailure{502, "Invalid cache metadata from provider"}
+	if err := json.Unmarshal(r.Body, &m); err != nil || !cacheNamePattern.MatchString(m.Name) || m.Model != "models/"+t.model || m.ExpireTime.IsZero() || m.Usage.Tokens == nil || *m.Usage.Tokens <= 0 {
+		return m, errInvalidCacheMetadata
 	}
 	if method != "POST" && strings.SplitN(path, "?", 2)[0] != m.Name {
-		return m, &cacheFailure{502, "Provider returned a different cache"}
+		return m, errInvalidCacheMetadata
+	}
+	if !m.ExpireTime.After(time.Now()) {
+		if method == "POST" {
+			return m, &cacheFailure{502, "Provider returned an expired cache"}
+		}
+		return m, errCacheMissing
 	}
 	return m, nil
+}
+
+// AI Studio and Vertex-compatible gateways can use different statuses for expired resources.
+func cacheResourceMissing(e *httpclient.Error) bool {
+	var response struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(e.Body, &response) != nil {
+		return false
+	}
+	msg := strings.ToLower(response.Error.Message)
+	switch e.StatusCode {
+	case http.StatusForbidden:
+		return strings.Contains(msg, "cachedcontent not found")
+	case http.StatusBadRequest:
+		return strings.Contains(msg, "invalid resource state for cache content")
+	case http.StatusNotFound:
+		return strings.Contains(msg, "not found") && (strings.Contains(msg, "cached content") || strings.Contains(msg, "cachedcontent"))
+	}
+	return false
 }
 func (t *cacheTarget) discardCreated(ctx context.Context, name string) {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)

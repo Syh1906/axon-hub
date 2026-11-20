@@ -728,7 +728,7 @@ func init() {
 	// geminicache.PublicIDValidator is a validator for the "public_id" field. It is called by the builders before save.
 	geminicache.PublicIDValidator = geminicacheDescPublicID.Validators[0].(func(string) error)
 	// geminicacheDescRevision is the schema descriptor for revision field.
-	geminicacheDescRevision := geminicacheFields[11].Descriptor()
+	geminicacheDescRevision := geminicacheFields[12].Descriptor()
 	// geminicache.DefaultRevision holds the default value on creation for the revision field.
 	geminicache.DefaultRevision = geminicacheDescRevision.Default.(int)
 	invitationMixin := schema.Invitation{}.Mixin()

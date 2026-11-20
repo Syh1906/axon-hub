@@ -486,6 +486,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			geminicache.FieldUpstreamModel: {Type: field.TypeString, Column: geminicache.FieldUpstreamModel},
 			geminicache.FieldExpireTime:    {Type: field.TypeTime, Column: geminicache.FieldExpireTime},
 			geminicache.FieldMetadata:      {Type: field.TypeBytes, Column: geminicache.FieldMetadata},
+			geminicache.FieldRetainUntil:   {Type: field.TypeTime, Column: geminicache.FieldRetainUntil},
 			geminicache.FieldRevision:      {Type: field.TypeInt, Column: geminicache.FieldRevision},
 		},
 	}
@@ -3891,6 +3892,11 @@ func (f *GeminiCacheFilter) WhereExpireTime(p entql.TimeP) {
 // WhereMetadata applies the entql []byte predicate on the metadata field.
 func (f *GeminiCacheFilter) WhereMetadata(p entql.BytesP) {
 	f.Where(p.Field(geminicache.FieldMetadata))
+}
+
+// WhereRetainUntil applies the entql time.Time predicate on the retain_until field.
+func (f *GeminiCacheFilter) WhereRetainUntil(p entql.TimeP) {
+	f.Where(p.Field(geminicache.FieldRetainUntil))
 }
 
 // WhereRevision applies the entql int predicate on the revision field.

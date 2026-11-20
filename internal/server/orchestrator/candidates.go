@@ -25,11 +25,11 @@ import (
 
 // ChannelModelsCandidate represents a resolved channel and its matched model entries.
 type ChannelModelsCandidate struct {
-	Channel          *biz.Channel
-	Priority         int
-	Models           []biz.ChannelModelEntry
-	APIFormat        string // selected endpoint API format for this candidate
-	geminiCacheBound bool
+	Channel         *biz.Channel
+	Priority        int
+	Models          []biz.ChannelModelEntry
+	APIFormat       string // selected endpoint API format for this candidate
+	geminiCacheBase string
 	// modelAPIFormats stores the selected endpoint format for each model entry.
 	// Models are retried in order, so the candidate-level APIFormat is updated
 	// from this slice whenever the current model changes.

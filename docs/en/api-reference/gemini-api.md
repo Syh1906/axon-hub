@@ -122,6 +122,8 @@ if len(response2.Candidates) > 0 {
 
 ## Explicit caching for CodeGateway
 
+Create caches with a single-segment public model ID such as `models/gemini-2.5-flash`. The gateway records the provider's confirmed expiration and positive token count. An existing cache keeps its original enabled address and credential when address priorities change. A definitive missing-resource response from the owner removes the cache from the local listing.
+
 Set `server.gemini_explicit_cache.api_key_ids` to the database IDs of dedicated AxonHub keys and `channel_ids` to the IDs of cache-capable native `gemini` channels. Restart with the updated configuration. Both lists default to empty. The integration key needs `write_requests` and access to the model. This integration supports AI Studio API keys and compatible native v1beta endpoints. Vertex and OAuth channels are outside its scope.
 
 Configure the corresponding Gemini API key account in sub2api for explicit caching on a custom upstream and configure storage pricing and TTL limits there. Sub2api bills customers for cache storage. AxonHub records ordinary generation usage, including the provider's cached input tokens.
@@ -133,7 +135,9 @@ Configure the corresponding Gemini API key account in sub2api for explicit cachi
 | Renew and delete | Send `{"ttl":"120s"}` to `PATCH /v1beta/{name}?updateMask=ttl`, or update `expireTime`. Use `DELETE /v1beta/{name}` to delete the resource. |
 | Generate | Supply the returned name in `cachedContent` on the same model's `generateContent` or `streamGenerateContent` request. Cache reads appear in `usageMetadata.cachedContentTokenCount`. |
 
-The same operations are available under `/gemini/v1beta`. Hidden, expired and deleted resources return 404. An eligible route without declared cache support returns 501. An unavailable route or original account returns 503. AxonHub stores ownership and metadata locally. The provider holds the cached content.
+The same operations are available under `/gemini/v1beta`. A key outside the integration allowlist receives 403 from cache management endpoints. An integration key receives 404 when reading another key's resource or a deleted or expired resource. An eligible route without declared cache support returns 501. An unavailable route or original account returns 503. The provider holds the cached content.
+
+A renewal can return 502 with `domain=axonhub` and `reason=GEMINI_CACHE_RENEWAL_OUTCOME_UNKNOWN` in `error.details[]`. The provider may already have extended the cache. Callers should retain the pending recovery record and avoid resending the renewal or settling it as rejected. AxonHub uses the last confirmed expiration for reads, listing, and generation. It temporarily retains ownership so the original key can delete the resource. Downstream handling is tracked in [sub2api #1](https://github.com/Syh1906/sub2api/issues/1).
 
 ## API Translation Capabilities
 

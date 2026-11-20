@@ -116,6 +116,8 @@ if len(response2.Candidates) > 0 {
 
 ## CodeGateway 显式缓存
 
+创建缓存时使用单段公开模型名，如 `models/gemini-2.5-flash`。服务以供应商确认的有效期和正数 token 数登记资源。创建地址的优先级调低后，只要该地址和凭据仍启用，已有缓存仍绑定到原处；供应商确认缓存已失效后，AxonHub 会将其移出可见列表。
+
 此入口供由 sub2api 结算缓存存储费的集成使用。将专用 AxonHub Key 的数据库编号写入 `server.gemini_explicit_cache.api_key_ids`，将已确认支持缓存的 `gemini` 渠道编号写入 `channel_ids`，重新加载服务配置。两项默认均为空。专用 Key 需要 `write_requests` 和目标模型的使用权限。支持 AI Studio API Key 及采用相同原生协议的地址，使用标准 v1beta 路径。Vertex、OAuth 和仅支持聊天的转换渠道不在本期范围内。
 
 在 sub2api 为指向 AxonHub 的 Gemini API Key 账号启用 `explicit_cache_upstream`，配置模型存储价格和允许的有效期。客户存储费用由 sub2api 按 token 数及保存时间结算。AxonHub 的普通生成仍沿用现有用量和预算处理。
@@ -127,7 +129,9 @@ if len(response2.Candidates) > 0 {
 | 续期与删除 | `PATCH /v1beta/{name}?updateMask=ttl` 可发送 `{"ttl":"120s"}`，也可更新 `expireTime`。`DELETE /v1beta/{name}` 删除该资源。 |
 | 生成引用 | 在同一模型的 `generateContent` 或 `streamGenerateContent` 正文中将 `cachedContent` 设为创建时返回的完整 `name`。读缓存的 token 数见 `usageMetadata.cachedContentTokenCount`。 |
 
-`/gemini/v1beta` 同样支持上述操作。其他调用方、已删除或已到期的资源返回 404。已授权 Key 的候选渠道未声明缓存能力时返回 501，缺少可用路由或原账号不可用时返回 503。缓存正文保存在供应商侧，AxonHub 只保存资源归属和元数据。
+`/gemini/v1beta` 同样支持上述操作。未列入集成名单的 Key 访问缓存管理接口会收到 403。专用 Key 读取其他 Key 的资源或已删除、已过期的资源时收到 404。候选渠道未声明缓存能力时返回 501，缺少可用路由或原账号不可用时返回 503。缓存正文保存在供应商侧。
+
+续期返回 502 且 `error.details[]` 中包含 `domain=axonhub`、`reason=GEMINI_CACHE_RENEWAL_OUTCOME_UNKNOWN` 时，供应商可能已经延长有效期。调用方应保留本次恢复记录，避免直接重发续期或按失败结算。AxonHub 仍按最近确认的到期时间限制读取、列表和生成，并暂时保留归属，供原 Key 定向删除。sub2api 对该响应的处理见 [sub2api #1](https://github.com/Syh1906/sub2api/issues/1)。
 
 ## API 转换能力
 
