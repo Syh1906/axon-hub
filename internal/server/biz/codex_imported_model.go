@@ -1,6 +1,7 @@
 package biz
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 )
@@ -50,11 +51,23 @@ func mergeImportedCodexRoutes(publicID string, profile map[string]any, routes []
 			}
 			switch allowed := value.(type) {
 			case []any:
-				common[field] = slices.Concat(allowed, next.([]any))
+				options, ok := next.([]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid Codex route choices %s", field)
+				}
+				common[field] = slices.Concat(allowed, options)
 			case float64:
-				common[field] = max(allowed, next.(float64))
+				limit, ok := next.(float64)
+				if !ok {
+					return nil, fmt.Errorf("invalid Codex route limit %s", field)
+				}
+				common[field] = max(allowed, limit)
 			case bool:
-				common[field] = allowed || next.(bool)
+				enabled, ok := next.(bool)
+				if !ok {
+					return nil, fmt.Errorf("invalid Codex route capability %s", field)
+				}
+				common[field] = allowed || enabled
 			}
 		}
 	}

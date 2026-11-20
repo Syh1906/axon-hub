@@ -320,7 +320,7 @@ func normalizeJSONNumberValue(value any) any {
 	}
 }
 
-// Only request_format is known without a concrete request. Three-valued group
+// EvaluateProtocolCondition checks request_format without a concrete request. Three-valued group
 // evaluation preserves AND/OR semantics instead of pretending other fields are false.
 func EvaluateProtocolCondition(c *Condition, format string) (bool, bool) {
 	if c.Type == ConditionTypeGroup || c.Type == "" {

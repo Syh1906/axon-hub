@@ -7,10 +7,11 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
-	"github.com/samber/lo"
 )
 
 func (a *publicCatalogArchive) minimumClientVersion(entry map[string]any) string {

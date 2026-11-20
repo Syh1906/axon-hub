@@ -236,8 +236,13 @@ func TestOfficialCodexDirectoryModelFieldPriority(t *testing.T) {
 			fixed, err := decodeCodexDefinition(preview)
 			require.NoError(t, err)
 			require.NotEmpty(t, fixed.Models[slug].CatalogDefaults)
-			patch := map[string]any{"input_modalities": []any{"audio"}, "context_window": float64(40000), "max_context_window": float64(48000),
-				"supports_search_tool": true, "node_repl_auto_review_required": false}
+			patch := map[string]any{
+				"input_modalities":               []any{"audio"},
+				"context_window":                 float64(40000),
+				"max_context_window":             float64(48000),
+				"supports_search_tool":           true,
+				"node_repl_auto_review_required": false,
+			}
 			entry := fixed.Models[slug]
 			entry.Model["experimental_supported_tools"] = []any{"fixed-tool"}
 			entry.Overrides = patch
