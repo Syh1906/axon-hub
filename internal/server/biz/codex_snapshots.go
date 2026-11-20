@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/log"
@@ -47,9 +48,9 @@ type codexSnapshot struct {
 // CodexSnapshotService owns credential-free official metadata, independently of
 // inference channels. Release snapshots are immutable and archived by version.
 type CodexSnapshotService struct {
-	public           codexPublicSync
-	config           CodexCatalogConfig
-	db               *ent.Client
+	public codexPublicSync
+	config CodexCatalogConfig
+	AbstractService
 	catalogTransport http.RoundTripper
 	httpClient       *http.Client
 	mu               sync.Mutex
@@ -62,7 +63,7 @@ func NewCodexSnapshotService(config CodexCatalogConfig, db *ent.Client) (*CodexS
 	if config.Version != "" && !validCodexSnapshotVersion(config.Version) {
 		return nil, fmt.Errorf("invalid codex_catalog.version")
 	}
-	s := &CodexSnapshotService{config: config, db: db, snapshots: make(map[string]*codexSnapshot), nextAttempt: make(map[string]time.Time),
+	s := &CodexSnapshotService{config: config, AbstractService: AbstractService{db: db}, snapshots: make(map[string]*codexSnapshot), nextAttempt: make(map[string]time.Time),
 		catalogTransport: &http.Transport{DialContext: publicnet.DialContext, DisableKeepAlives: true},
 		httpClient:       &http.Client{Timeout: 1500 * time.Millisecond, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	var manifest []struct{ Version, Source, SHA256 string }
@@ -140,15 +141,17 @@ func parseCodexSnapshot(version, source, hash string, body []byte) (*codexSnapsh
 // snapshot no newer than the client. A configured/per-model pin never drifts.
 func (s *CodexSnapshotService) Load(ctx context.Context, clientVersion, pin string) *codexSnapshot {
 	if s.config.Disabled || pin != "" || s.config.Version != "" || !validCodexSnapshotVersion(clientVersion) {
-		return s.loadRelease(ctx, clientVersion, pin)
+		return s.loadRelease(ctx, clientVersion, pin, !s.config.Offline)
 	}
-	s.public.mu.RLock()
-	current := s.public.archive
-	s.public.mu.RUnlock()
-	if current.source() != "official" {
-		return &codexSnapshot{public: current, clientVersion: clientVersion}
+	state, err := s.readPublicState(ctx)
+	if err != nil {
+		log.Warn(ctx, "Codex catalog state unavailable", log.Cause(err))
+		state = s.cachedPublicState()
 	}
-	release := s.loadRelease(ctx, clientVersion, pin)
+	current := state.archive
+	// An imported source can use compatible local releases without contacting GitHub.
+	allowFetch := err == nil && current.source() == "official" && !s.config.Offline
+	release := s.loadRelease(ctx, clientVersion, pin, allowFetch)
 	if current == nil {
 		return release
 	}
@@ -160,9 +163,13 @@ func (s *CodexSnapshotService) Load(ctx context.Context, clientVersion, pin stri
 	return &view
 }
 
-func (s *CodexSnapshotService) loadRelease(ctx context.Context, clientVersion, pin string) *codexSnapshot {
+func (s *CodexSnapshotService) loadRelease(ctx context.Context, clientVersion, pin string, allowFetch bool) *codexSnapshot {
 	if s.config.Disabled || !validCodexSnapshotVersion(clientVersion) {
 		return nil
+	}
+	if !allowFetch {
+		// With no remote lookup, a lagging replica could hide the only compatible archive.
+		ctx = contexts.WithPrimaryRead(ctx)
 	}
 	if pin == "" {
 		pin = s.config.Version
@@ -181,7 +188,7 @@ func (s *CodexSnapshotService) loadRelease(ctx context.Context, clientVersion, p
 	if exact != nil {
 		return exact
 	}
-	if time.Now().After(next) {
+	if (allowFetch || pin != "") && time.Now().After(next) {
 		_, _, _ = s.flight.Do(version, func() (any, error) {
 			s.mu.Lock()
 			ready, retryAt := s.snapshots[version], s.nextAttempt[version]
@@ -194,7 +201,7 @@ func (s *CodexSnapshotService) loadRelease(ctx context.Context, clientVersion, p
 			if err != nil {
 				log.Warn(ctx, "Codex snapshot archive unavailable", log.Cause(err))
 			}
-			if snapshot == nil && !s.config.Offline {
+			if snapshot == nil && allowFetch {
 				snapshot, err = s.fetch(ctx, version)
 				if err != nil {
 					log.Warn(ctx, "Codex official snapshot refresh failed", log.String("version", version), log.Cause(err))

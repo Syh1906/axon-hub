@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 
 export type CatalogSource = 'official' | 'manual' | 'url';
-type Change = { slug: string; action: 'add' | 'remove' | 'update'; fields?: string[] };
+type Change = { slug: string; action: 'add' | 'remove' | 'update'; fields?: string[]; minimumVersion?: { from: string; to: string } };
 type Preview = { revision: string; changes: Change[] };
 const powershell =
   "$dir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }; Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $dir 'models_cache.json') | ConvertFrom-Json | Select-Object models,client_version,fetched_at | ConvertTo-Json -Depth 100 -Compress | Set-Clipboard";
@@ -77,6 +77,7 @@ export function CodexCatalogImportDialog({
   }
   const fieldNames: Record<string, string> = {
     priority: 'priority',
+    minimal_client_version: 'minimumVersion',
     display_name: 'name',
     description: 'desc',
     additional_speed_tiers: 'speed',
@@ -205,7 +206,17 @@ export function CodexCatalogImportDialog({
                   const changed = row.fields ?? [];
                   const ordered = [...changed.filter((key) => fieldNames[key]), ...changed.filter((key) => !fieldNames[key])];
                   const fields = [
-                    ...new Set(ordered.map((field) => (fieldNames[field] ? t('system.codex.import.field.' + fieldNames[field]) : field))),
+                    ...new Set(
+                      ordered.map((field) => {
+                        if (field === 'minimal_client_version' && row.minimumVersion) {
+                          return t('system.codex.import.minimumVersionChange', {
+                            from: row.minimumVersion.from || t('system.codex.import.unspecified'),
+                            to: row.minimumVersion.to || t('system.codex.import.unspecified'),
+                          });
+                        }
+                        return fieldNames[field] ? t('system.codex.import.field.' + fieldNames[field]) : field;
+                      })
+                    ),
                   ];
                   const summary = fields.slice(0, 2).join(' · ');
                   return (

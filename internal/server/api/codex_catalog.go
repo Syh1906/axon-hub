@@ -42,7 +42,7 @@ func (h *CodexHandlers) PublicCatalog(c *gin.Context) {
 	if err != nil {
 		code := http.StatusInternalServerError
 		switch {
-		case errors.Is(err, biz.ErrPublicCatalogDisabled):
+		case errors.Is(err, biz.ErrPublicCatalogDisabled), errors.Is(err, biz.ErrCatalogPreviewChanged):
 			code = http.StatusConflict
 		case errors.Is(err, biz.ErrPublicCatalogInterval):
 			code = http.StatusBadRequest

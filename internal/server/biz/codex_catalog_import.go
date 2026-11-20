@@ -25,6 +25,11 @@ func (a *publicCatalogArchive) source() string {
 	return a.Source
 }
 
+func (a *publicCatalogArchive) canCheckRemote() bool {
+	source := a.source()
+	return source == "official" || source == "url"
+}
+
 func isPublicCatalogKind(kind string) bool {
 	return kind == "official_public" || kind == "imported_catalog"
 }
@@ -36,10 +41,17 @@ type CatalogImport struct {
 	Catalog   json.RawMessage `json:"catalog,omitempty"`
 	Preview   string          `json:"preview,omitempty"`
 }
+
+type catalogVersionChange struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
 type CatalogChange struct {
-	Slug   string   `json:"slug"`
-	Action string   `json:"action"`
-	Fields []string `json:"fields,omitempty"`
+	MinimumVersion *catalogVersionChange `json:"minimumVersion,omitempty"`
+	Slug           string                `json:"slug"`
+	Action         string                `json:"action"`
+	Fields         []string              `json:"fields,omitempty"`
 }
 type CatalogPreview struct {
 	Revision string          `json:"revision"`
@@ -95,9 +107,16 @@ func catalogChanges(previous, next *publicCatalogArchive) []CatalogChange {
 				fields = append(fields, key)
 			}
 		}
+		var minimumVersion *catalogVersionChange
+		if from, to := previous.minimumClientVersion(old), next.minimumClientVersion(m); from != to {
+			minimumVersion = &catalogVersionChange{From: from, To: to}
+			if !slices.Contains(fields, "minimal_client_version") {
+				fields = append(fields, "minimal_client_version")
+			}
+		}
 		if len(fields) > 0 {
 			slices.Sort(fields)
-			changes = append(changes, CatalogChange{Slug: slug, Action: "update", Fields: fields})
+			changes = append(changes, CatalogChange{Slug: slug, Action: "update", Fields: fields, MinimumVersion: minimumVersion})
 		}
 	}
 	for slug := range before {
@@ -143,9 +162,11 @@ func (s *CodexSnapshotService) ImportCatalog(ctx context.Context, input CatalogI
 	}
 	s.public.update.Lock()
 	defer s.public.update.Unlock()
-	s.public.mu.RLock()
-	previous := s.public.archive
-	s.public.mu.RUnlock()
+	state, err := s.readPublicState(ctx)
+	if err != nil {
+		return CatalogPreview{}, err
+	}
+	previous := state.archive
 	revision := func(a *publicCatalogArchive) string {
 		if a == nil {
 			return ""
@@ -164,7 +185,7 @@ func (s *CodexSnapshotService) ImportCatalog(ctx context.Context, input CatalogI
 		if next.source() != "url" {
 			check.Changed = len(preview.Changes)
 		}
-		return struct{}{}, s.savePublic(host, next, check)
+		return struct{}{}, s.savePublic(host, state, next, check)
 	})
 	return preview, err
 }

@@ -5,19 +5,26 @@ import (
 	"fmt"
 )
 
+func (a *publicCatalogArchive) minimumClientVersion(entry map[string]any) string {
+	if minimum, _ := entry["minimal_client_version"].(string); minimum != "" {
+		return minimum
+	}
+	if a.source() != "official" {
+		return a.ClientVersion
+	}
+	return ""
+}
+
 func snapshotCodexProfile(snapshot *codexSnapshot, modelID string) *codexModelProfile {
 	if snapshot == nil {
 		return nil
 	}
 	if snapshot.public != nil {
 		entry := snapshot.public.models[modelID]
-		minimum, _ := entry["minimal_client_version"].(string)
+		minimum := snapshot.public.minimumClientVersion(entry)
 		kind := "official_public"
 		if snapshot.public.source() != "official" {
 			kind = "imported_catalog"
-			if minimum == "" {
-				minimum = snapshot.public.ClientVersion
-			}
 		}
 		if entry != nil && ((minimum == "" && kind == "imported_catalog") || (validCodexSnapshotVersion(minimum) && compareCodexVersions(minimum, snapshot.clientVersion) <= 0)) {
 			return &codexModelProfile{SourceKind: kind, SourceSHA256: snapshot.public.SHA256, SourceModelID: modelID, Model: entry}

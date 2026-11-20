@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/looplj/axonhub/internal/authz"
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/log"
@@ -66,16 +67,23 @@ type publicCatalogArchive struct {
 }
 
 type codexPublicSync struct {
-	update  sync.Mutex
-	mu      sync.RWMutex
-	archive *publicCatalogArchive
-	check   publicCatalogCheck
+	update sync.Mutex
+	mu     sync.RWMutex
+	publicCatalogState
+}
+
+type publicCatalogState struct {
+	archiveError string
+	archive      *publicCatalogArchive
+	check        publicCatalogCheck
+	stamp        string // exact check row value for conditional writes, including pre-generation records
 }
 
 type publicCatalogCheck struct {
-	CheckedAt time.Time `json:"checkedAt"`
-	Changed   int       `json:"changed"`
-	LastError string    `json:"lastError,omitempty"`
+	Generation uint64    `json:"generation,omitempty"`
+	CheckedAt  time.Time `json:"checkedAt"`
+	Changed    int       `json:"changed"`
+	LastError  string    `json:"lastError,omitempty"`
 }
 
 func (a *publicCatalogArchive) decode() error {
@@ -113,6 +121,7 @@ func (s *CodexSnapshotService) publicBlocked() bool {
 
 func (s *CodexSnapshotService) publicSchedule(ctx context.Context) (PublicCatalogSchedule, error) {
 	return authz.RunAsHost(ctx, s.db, "read-codex-public-schedule", func(host context.Context) (PublicCatalogSchedule, error) {
+		host = contexts.WithPrimaryRead(host)
 		row, err := s.db.System.Query().Where(system.KeyEQ(publicScheduleKey)).Only(host)
 		schedule := PublicCatalogSchedule{Automatic: true, Minutes: 15}
 		if ent.IsNotFound(err) {
@@ -149,52 +158,34 @@ func (s *CodexSnapshotService) SetPublicSchedule(ctx context.Context, schedule P
 func (s *CodexSnapshotService) PublicStatus(ctx context.Context) (PublicCatalogStatus, error) {
 	schedule, err := s.publicSchedule(ctx)
 	result := PublicCatalogStatus{CanImportLocal: !s.config.Disabled && s.config.Version == "", Source: "official", PublicCatalogSchedule: schedule, Blocked: s.publicBlocked(), Entries: []PublicCatalogEntry{}}
-	s.public.mu.RLock()
-	defer s.public.mu.RUnlock()
-	if !s.public.check.CheckedAt.IsZero() {
-		checked := s.public.check.CheckedAt
+	if err != nil || !result.CanImportLocal {
+		return result, err
+	}
+	state, err := s.readPublicState(ctx)
+	if err != nil {
+		return result, err
+	}
+	if !state.check.CheckedAt.IsZero() {
+		checked := state.check.CheckedAt
 		result.CheckedAt = &checked
 	}
-	result.LastError, result.Changed = s.public.check.LastError, s.public.check.Changed
-	if a := s.public.archive; a != nil {
-		result.Entries = a.entries
+	result.LastError, result.Changed = state.check.LastError, state.check.Changed
+	if a := state.archive; a != nil {
+		if state.archiveError != "" {
+			result.LastError = state.archiveError
+		} else {
+			result.Entries = a.entries
+		}
 		result.Source, result.URL = a.source(), a.URL
 	}
-	return result, err
+	return result, nil
 }
 
 func (s *CodexSnapshotService) startPublicCatalog(ctx context.Context, sched *scheduler.Scheduler) error {
 	if s.config.Disabled || s.config.Version != "" {
 		return nil
 	}
-	_, err := authz.RunAsHost(ctx, s.db, "restore-codex-public-catalog", func(host context.Context) (struct{}, error) {
-		rows, err := s.db.System.Query().Where(system.KeyIn(publicArchiveKey, publicCheckKey)).All(host)
-		if err != nil {
-			return struct{}{}, err
-		}
-		var archive *publicCatalogArchive
-		var check publicCatalogCheck
-		for _, row := range rows {
-			if row.Key == publicCheckKey {
-				if err := json.Unmarshal([]byte(row.Value), &check); err != nil {
-					return struct{}{}, err
-				}
-			} else {
-				var saved publicCatalogArchive
-				if err := json.Unmarshal([]byte(row.Value), &saved); err != nil {
-					return struct{}{}, err
-				}
-				if err := saved.decode(); err != nil {
-					return struct{}{}, err
-				}
-				archive = &saved
-			}
-		}
-		s.public.mu.Lock()
-		s.public.archive, s.public.check = archive, check
-		s.public.mu.Unlock()
-		return struct{}{}, nil
-	})
+	_, err := s.readPublicState(ctx)
 	if err != nil {
 		log.Warn(ctx, "Codex public catalog restore failed", log.Cause(err))
 	}
@@ -213,11 +204,11 @@ func (s *CodexSnapshotService) checkPublicIfDue(ctx context.Context) error {
 	if err != nil || !schedule.Automatic {
 		return err
 	}
-	s.public.mu.RLock()
-	manual := s.public.archive.source() == "manual"
-	due := !manual && time.Since(s.public.check.CheckedAt) >= time.Duration(schedule.Minutes)*time.Minute
-	s.public.mu.RUnlock()
-	if due {
+	state, err := s.readPublicState(ctx)
+	if err != nil {
+		return err
+	}
+	if state.archive.canCheckRemote() && time.Since(state.check.CheckedAt) >= time.Duration(schedule.Minutes)*time.Minute {
 		return s.CheckPublicCatalog(ctx)
 	}
 	return nil
@@ -236,11 +227,13 @@ func (s *CodexSnapshotService) CheckPublicCatalog(ctx context.Context) error {
 func (s *CodexSnapshotService) checkAndSavePublic(ctx context.Context) (struct{}, error) {
 	s.public.update.Lock()
 	defer s.public.update.Unlock()
-	s.public.mu.RLock()
-	previous := s.public.archive
-	s.public.mu.RUnlock()
+	state, err := s.readPublicState(ctx)
+	if err != nil {
+		return struct{}{}, err
+	}
+	previous := state.archive
 	source := previous.source()
-	if source == "manual" {
+	if !previous.canCheckRemote() {
 		return struct{}{}, nil
 	}
 	address := publicCatalogURL
@@ -259,33 +252,7 @@ func (s *CodexSnapshotService) checkAndSavePublic(ctx context.Context) (struct{}
 	if source == "url" {
 		next = nil
 	}
-	return struct{}{}, errors.Join(fetchErr, s.savePublic(ctx, next, check))
-}
-
-func (s *CodexSnapshotService) savePublic(ctx context.Context, next *publicCatalogArchive, check publicCatalogCheck) error {
-	var writes []*ent.SystemCreate
-	if next != nil {
-		raw, err := json.Marshal(next)
-		if err != nil {
-			return err
-		}
-		writes = append(writes, s.db.System.Create().SetKey(publicArchiveKey).SetValue(string(raw)))
-	}
-	raw, err := json.Marshal(check)
-	if err != nil {
-		return err
-	}
-	writes = append(writes, s.db.System.Create().SetKey(publicCheckKey).SetValue(string(raw)))
-	if err := s.db.System.CreateBulk(writes...).OnConflictColumns(system.FieldKey).UpdateNewValues().Exec(ctx); err != nil {
-		return err
-	}
-	s.public.mu.Lock()
-	if next != nil {
-		s.public.archive = next
-	}
-	s.public.check = check
-	s.public.mu.Unlock()
-	return nil
+	return struct{}{}, errors.Join(fetchErr, s.savePublic(ctx, state, next, check))
 }
 
 func (s *CodexSnapshotService) fetchPublic(ctx context.Context, previous *publicCatalogArchive, source, address string) (*publicCatalogArchive, error) {

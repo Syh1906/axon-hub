@@ -227,6 +227,8 @@ Open **Integrations → Codex compatibility → Import model catalog**. Previewi
 
 Provide a JSON object with a nonempty `models` array of complete Codex profiles. The catalog limit is 1 MiB. The local command checks `CODEX_HOME` first and then the current user's `.codex` directory. It copies or prints the existing cache without refreshing it. The import stores the model list and optional `client_version`; it does not need account credentials. Imports honor each model's `minimal_client_version`, using the cache's client version when the model omits it. Select **Official repository**, preview and apply to return to the default source.
 
+When an import or subscription changes a model’s effective minimum client version, the preview shows its old and new minimum. Older clients can still use compatible bundled or previously archived releases. Replicas sharing a database use the same saved source. A check started before a source switch cannot overwrite it.
+
 The preview compares baseline profiles. It does not publish model IDs, edit channel permissions or overwrite saved model definitions. A fixed model definition continues to use its saved profile. An inherited model follows the selected baseline with its field overrides, context settings and visible route restrictions. An explicit release pin still selects that release. Changes become visible when the client next requests its catalog.
 
 ### Official release snapshots and rollback

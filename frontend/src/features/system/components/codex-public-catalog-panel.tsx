@@ -13,7 +13,7 @@ import { CodexCatalogImportDialog, type CatalogSource } from './codex-catalog-im
 
 type Schedule = { automatic: boolean; minutes: number };
 type Catalog = Schedule & {
-  source: CatalogSource;
+  source: CatalogSource | 'unavailable';
   url?: string;
   blocked: boolean;
   canImportLocal: boolean;
@@ -74,12 +74,14 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
         {!data && (query.isPending ? t('common.loading') : <p role='alert'>{t('system.codex.public.loadFailed')}</p>)}
         {data && (
           <>
-            <p className='text-sm break-all'>
-              {t('system.codex.import.active')} · {t('system.codex.import.' + data.source)} {data.url}
-            </p>
+            {data.canImportLocal && (
+              <p className='text-sm break-all'>
+                {t('system.codex.import.active')} · {t('system.codex.import.' + data.source)} {data.url}
+              </p>
+            )}
             {importing && (
               <CodexCatalogImportDialog
-                activeSource={data.source}
+                activeSource={data.source === 'unavailable' ? 'manual' : data.source}
                 activeURL={data.url}
                 offline={data.blocked}
                 onClose={() => setImporting(false)}
@@ -89,7 +91,7 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
                 }}
               />
             )}
-            {data.source !== 'manual' && (
+            {(data.source === 'official' || data.source === 'url') && (
               <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4'>
                 <Label htmlFor='public-catalog-auto'>{t('system.codex.public.auto')}</Label>
                 <div className='flex items-center gap-3'>
@@ -133,7 +135,7 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
                   </p>
                 )}
               </div>
-              {data.source !== 'manual' && (
+              {(data.source === 'official' || data.source === 'url') && (
                 <Button type='button' variant='outline' disabled={disabled} onClick={() => action.mutate('check')}>
                   <RefreshCw className={action.isPending && action.variables === 'check' ? 'animate-spin' : ''} />
                   {t(action.isPending && action.variables === 'check' ? 'system.codex.public.checking' : 'system.codex.public.check')}
