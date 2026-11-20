@@ -14,9 +14,11 @@ type requestClockKey struct{}
 // RequestClock follows one inbound HTTP request or one WS generation frame.
 // Each upstream attempt retains its own clock, including competing title attempts.
 type RequestClock struct {
+	answerDelivery        answerDelivery
 	bodyRead              time.Time
 	firstWriteDelta       atomic.Pointer[TimedStreamEvent]
 	firstWriteContent     atomic.Pointer[TimedStreamEvent]
+	firstAnswer           atomic.Pointer[time.Time]
 	firstWrite, delivered atomic.Pointer[time.Time]
 	mu                    sync.Mutex
 	attempts              []*AttemptClock
@@ -29,6 +31,7 @@ type AttemptClock struct {
 	Trace                  *httpclient.TransportTrace
 	firstContent, settled  atomic.Pointer[time.Time]
 	firstEvent, firstDelta atomic.Pointer[TimedStreamEvent]
+	semantic               atomic.Pointer[TimedStreamEvent]
 	prepared               time.Time
 	dispatched             atomic.Pointer[time.Time]
 }
@@ -41,6 +44,7 @@ type TimedStreamEvent struct {
 }
 
 type AttemptTiming struct {
+	Semantic     *TimedStreamEvent `json:"first_output_progress,omitempty"`
 	FirstEvent   *TimedStreamEvent `json:"first_responses_event,omitempty"`
 	FirstDelta   *TimedStreamEvent `json:"first_responses_delta,omitempty"`
 	ExecutionID  int               `json:"execution_id"`
@@ -54,12 +58,15 @@ type AttemptTiming struct {
 }
 
 type RequestTiming struct {
-	FirstWriteDelta   *TimedStreamEvent `json:"gateway_first_responses_delta_write,omitempty"`
-	FirstWriteContent *TimedStreamEvent `json:"gateway_first_content_write,omitempty"`
-	BodyRead          time.Time         `json:"body_read_at"`
-	FirstWrite        *time.Time        `json:"gateway_first_write_at,omitempty"`
-	Delivered         *time.Time        `json:"gateway_terminal_write_at,omitempty"`
-	Attempts          []AttemptTiming   `json:"attempts,omitempty"`
+	SingleAnswerBatch     bool              `json:"single_answer_batch,omitempty"`
+	AnswerTokensPerSecond *float64          `json:"answer_tokens_per_second,omitempty"`
+	FirstAnswer           *time.Time        `json:"first_answer_write_at,omitempty"`
+	FirstWriteDelta       *TimedStreamEvent `json:"gateway_first_responses_delta_write,omitempty"`
+	FirstWriteContent     *TimedStreamEvent `json:"gateway_first_content_write,omitempty"`
+	BodyRead              time.Time         `json:"body_read_at"`
+	FirstWrite            *time.Time        `json:"gateway_first_write_at,omitempty"`
+	Delivered             *time.Time        `json:"gateway_terminal_write_at,omitempty"`
+	Attempts              []AttemptTiming   `json:"attempts,omitempty"`
 }
 
 func WithRequestClock(ctx context.Context, bodyRead time.Time) (context.Context, *RequestClock) {
@@ -160,12 +167,15 @@ func (c *RequestClock) Snapshot() RequestTiming {
 	defer c.mu.Unlock()
 	r := RequestTiming{BodyRead: c.bodyRead, FirstWrite: c.firstWrite.Load(), FirstWriteDelta: c.firstWriteDelta.Load(), Delivered: c.delivered.Load()}
 	r.FirstWriteContent = c.firstWriteContent.Load()
+	r.FirstAnswer = c.firstAnswer.Load()
+	r.SingleAnswerBatch, r.AnswerTokensPerSecond = c.answerDelivery.result()
 	for _, a := range c.attempts {
 		upload, headers := a.Trace.ResponseTimes()
 		r.Attempts = append(r.Attempts, AttemptTiming{
 			ExecutionID: a.ID, ChannelID: a.ChannelID, Uploaded: upload, Headers: headers,
 			FirstContent: a.firstContent.Load(), Settled: a.settled.Load(),
 			FirstEvent: a.firstEvent.Load(), FirstDelta: a.firstDelta.Load(),
+			Semantic: a.semantic.Load(),
 			Prepared: a.prepared, Dispatched: a.dispatched.Load(),
 		})
 	}

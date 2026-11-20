@@ -81,6 +81,9 @@ type Request struct {
 	// TransportTrace and OnHTTPProgress contain timing only, never headers or payloads.
 	TransportTrace *TransportTrace                 `json:"-"`
 	OnHTTPProgress func(TransportPhase, time.Time) `json:"-"`
+	// StartDeadline is the absolute shared upload/first-response deadline for
+	// alternate addresses. It does not limit an already accepted stream.
+	StartDeadline time.Time `json:"-"`
 }
 
 func (r *Request) ObserveResponseHeaders(ctx context.Context, headers http.Header) {

@@ -61,6 +61,7 @@ type SelfUsageRequest struct {
 	CacheWriteTokens5m    int                            `json:"cacheWriteTokens5m"`
 	CacheWriteTokens1h    int                            `json:"cacheWriteTokens1h"`
 	OutputTokensPerSecond *float64                       `json:"outputTokensPerSecond,omitempty"`
+	OutputRate            *biz.RequestOutputRate         `json:"outputRate,omitempty"`
 	APIKeyName            string                         `json:"apiKeyName"`
 	ID                    int                            `json:"id"`
 	CreatedAt             time.Time                      `json:"createdAt"`
@@ -70,6 +71,7 @@ type SelfUsageRequest struct {
 	Stream                bool                           `json:"stream"`
 	LatencyMs             *int                           `json:"latencyMs,omitempty"`
 	FirstTokenLatencyMs   *int                           `json:"firstTokenLatencyMs,omitempty"`
+	StreamTiming          *objects.RequestStreamTiming   `json:"streamTiming,omitempty"`
 	InputTokens           int                            `json:"inputTokens"`
 	OutputTokens          int                            `json:"outputTokens"`
 	CacheReadTokens       int                            `json:"cacheReadTokens"`

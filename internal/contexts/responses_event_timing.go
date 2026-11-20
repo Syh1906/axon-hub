@@ -5,6 +5,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
@@ -26,10 +27,18 @@ func (a *AttemptClock) ObserveResponsesEvent(event *httpclient.StreamEvent) {
 }
 
 func (c *RequestClock) WroteResponsesEvent(event *httpclient.StreamEvent) {
-	if c == nil || event == nil || c.firstWriteDelta.Load() != nil {
+	if c == nil || event == nil {
 		return
 	}
-	if kind, delta := responsesEventKind(event); delta {
+	kind, delta := responsesEventKind(event)
+	c.observeAnswer(llm.APIFormatOpenAIResponse, event, kind)
+	if c.firstWriteDelta.Load() != nil && c.firstAnswer.Load() != nil {
+		return
+	}
+	if c.firstAnswer.Load() == nil && responsesAnswer(kind, event.Data, delta) {
+		markClock(&c.firstAnswer)
+	}
+	if delta && c.firstWriteDelta.Load() == nil {
 		observation := &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(event.Data)}
 		c.firstWriteContent.CompareAndSwap(nil, observation)
 		c.firstWriteDelta.CompareAndSwap(nil, observation)
@@ -40,6 +49,9 @@ func (c *RequestClock) WroteResponsesEvent(event *httpclient.StreamEvent) {
 
 func wholeResponsesContent(kind string, data []byte) bool {
 	switch kind {
+	case "response.content_part.added", "response.content_part.done", "response.reasoning_summary_part.added", "response.reasoning_summary_part.done":
+		part := gjson.GetBytes(data, "part")
+		return hasStreamText(part.Get("text")) || hasStreamText(part.Get("refusal"))
 	case "response.output_text.done", "response.reasoning_text.done", "response.reasoning_summary_text.done":
 		return hasStreamText(gjson.GetBytes(data, "text"))
 	case "response.refusal.done":
@@ -48,7 +60,7 @@ func wholeResponsesContent(kind string, data []byte) bool {
 		return hasStreamText(gjson.GetBytes(data, "arguments"))
 	case "response.custom_tool_call_input.done":
 		return hasStreamText(gjson.GetBytes(data, "input"))
-	case "response.output_item.done":
+	case "response.output_item.added", "response.output_item.done":
 		return itemHasResponsesContent(gjson.GetBytes(data, "item"))
 	case "response.completed", "response.done", "response.incomplete":
 		found := false
@@ -96,7 +108,7 @@ func responsesEventKind(event *httpclient.StreamEvent) (string, bool) {
 		"response.function_call_arguments.done", "response.custom_tool_call_input.done",
 		"response.created", "response.metadata", "response.queued", "response.in_progress", "response.completed", "response.failed",
 		"response.done", "response.cancelled", "response.canceled",
-		"response.incomplete", "response.content_part.added", "response.output_item.added", "response.output_item.done", "error":
+		"response.incomplete", "response.content_part.added", "response.content_part.done", "response.reasoning_summary_part.added", "response.reasoning_summary_part.done", "response.output_item.added", "response.output_item.done", "error":
 		return kind, false
 	default:
 		return "other", false

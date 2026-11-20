@@ -2,6 +2,12 @@
 
 > Parent: [AGENTS.md](../AGENTS.md)
 
+## 请求首字、平均输出与上游续聊（待发布）
+
+- 请求列表与个人用量列表使用最终转发的语义首字和整次转发的平均输出。请求上的可空 `stream_timing` 记录成功写出的首段、正文和尾段，支持旧记录与备份还原。渠道评分与归档报表继续使用原有样本和公式。[计时契约](zh/guides/storage-maintenance.md#请求列表的首字与平均输出)
+- 对 HTTP 入站按已验证模型、出口和凭据选择上游 WS，并在原连接上核对响应编号和连接代次。需要完整历史的提示、保护、插件与条件选路沿用完整输入。无状态出口核对最终正文后共享旧历史，预算从临时占用原子转交给新快照。主备继承请求剩余时限，已知备用上传来不及时终止本次派发。[HTTP 续聊回归](../internal/server/api/responses_protocol_continuation_test.go) · [三轮历史回归](../internal/server/orchestrator/responses_snapshot_test.go)
+- 复核短续聊的三个边界。带额度的调用按完整历史预估，同一密钥改为只允许其他渠道时重走现有选路；上游省略终帧内容时核对已交付的工具项与正文。切换备用地址前被剩余时限阻止时保留上一次真实错误。所有用量列表的悬浮使用同一执行的 token、转发时长与正文批次。[额度回归](../internal/server/orchestrator/budget_test.go) · [正文交付回归](../internal/contexts/responses_event_timing_test.go)
+
 ## Responses 空闲连接与历史压缩（2026-11-20，待发布）
 
 - 上游 WS 连接在空闲期间回复心跳并发现关闭。同步上游时核对单一读取者、跨执行器的连接代次、写入前恢复完整历史和重新核对预算、写入后禁止重放，以及关停时空闲连接的回收。[连接读取](../llm/transformer/openai/responses/websocket_pool_reader.go)

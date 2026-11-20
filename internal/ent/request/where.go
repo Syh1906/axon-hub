@@ -1245,6 +1245,16 @@ func MetricsFirstTokenLatencyMsNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldMetricsFirstTokenLatencyMs))
 }
 
+// StreamTimingIsNil applies the IsNil predicate on the "stream_timing" field.
+func StreamTimingIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldStreamTiming))
+}
+
+// StreamTimingNotNil applies the NotNil predicate on the "stream_timing" field.
+func StreamTimingNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldStreamTiming))
+}
+
 // MetricsReasoningDurationMsEQ applies the EQ predicate on the "metrics_reasoning_duration_ms" field.
 func MetricsReasoningDurationMsEQ(v int64) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldMetricsReasoningDurationMs, v))

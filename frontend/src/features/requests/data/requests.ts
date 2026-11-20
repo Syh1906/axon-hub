@@ -13,6 +13,8 @@ import { requestLogVariables } from './request-log-variables';
 import { Request, RequestConnection, RequestExecutionConnection, requestConnectionSchema, requestExecutionConnectionSchema, requestSchema } from './schema';
 
 const REQUEST_USAGE_SUMMARY_SELECTION = `
+  outputRate { outputTokens reasoningTokens durationMs }
+  streamTiming { firstEvent firstEventMs durationMs contentEvent contentWriteMs afterContentMs answerWriteMs singleAnswerBatch answerTokensPerSecond attempts }
   usageSummary {
     usageRecords archivedRecords unpricedRecords
     promptTokens completionTokens completionReasoningTokens totalTokens

@@ -1,0 +1,18 @@
+type RequestOutputRate {
+  outputTokens: Int!
+  reasoningTokens: Int
+  durationMs: Int!
+}
+
+type RequestStreamTiming {
+  singleAnswerBatch: Boolean!
+  answerTokensPerSecond: Float
+  firstEvent: String!
+  firstEventMs: Int
+  durationMs: Int
+  contentEvent: String!
+  contentWriteMs: Int
+  afterContentMs: Int
+  answerWriteMs: Int
+  attempts: Int!
+}

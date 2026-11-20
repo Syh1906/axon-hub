@@ -1,11 +1,36 @@
 package orchestrator
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
+
+// Verify the final provider input, after prompt, plugin and channel changes,
+// before sharing an immutable prefix. Only new items need independent storage.
+func retainedResponsesSuffix(input gjson.Result, snapshot *shared.ResponsesSnapshot) ([]json.RawMessage, bool) {
+	if !input.IsArray() {
+		return nil, false
+	}
+	prefix := snapshot.Items()
+	var suffix []json.RawMessage
+	index := 0
+	matched := true
+	input.ForEach(func(_, item gjson.Result) bool {
+		if index < len(prefix) {
+			matched = bytes.Equal(prefix[index], []byte(item.Raw))
+		} else {
+			suffix = append(suffix, json.RawMessage(item.Raw))
+		}
+		index++
+		return matched
+	})
+	return suffix, matched && index >= len(prefix)
+}
 
 func responsesReplayFits(historyBytes, inputBytes int) bool {
 	return inputBytes <= (128<<20)-historyBytes

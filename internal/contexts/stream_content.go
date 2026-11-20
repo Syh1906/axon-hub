@@ -38,9 +38,31 @@ func (c *RequestClock) WroteStreamContent(format llm.APIFormat, e *httpclient.St
 		c.WroteResponsesEvent(e)
 		return
 	}
-	if c.firstWriteContent.Load() != nil {
+	eventType := e.Type
+	if format == llm.APIFormatAnthropicMessage && eventType == "" {
+		eventType = gjson.GetBytes(e.Data, "type").String()
+	}
+	c.observeAnswer(format, e, eventType)
+	if c.firstWriteContent.Load() != nil && c.firstAnswer.Load() != nil {
 		return
 	}
+	var kind string
+	var answer bool
+	if format == llm.APIFormatGeminiContents {
+		kind, answer = geminiStreamContent(e, false)
+	} else {
+		kind = streamContentKind(format, e)
+		answer = kind == "chat.content" || kind == "anthropic.text"
+	}
+	if answer {
+		markClock(&c.firstAnswer)
+	}
+	if kind != "" && c.firstWriteContent.Load() == nil {
+		c.firstWriteContent.CompareAndSwap(nil, &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(e.Data)})
+	}
+}
+
+func streamContentKind(format llm.APIFormat, e *httpclient.StreamEvent) string {
 	kind := ""
 	switch format {
 	case llm.APIFormatOpenAIChatCompletion:
@@ -78,6 +100,14 @@ func (c *RequestClock) WroteStreamContent(format llm.APIFormat, e *httpclient.St
 			}
 			return kind == ""
 		})
+		if kind == "" {
+			gjson.GetBytes(e.Data, "choices").ForEach(func(_, choice gjson.Result) bool {
+				if hasStreamText(choice.Get("text")) {
+					kind = "chat.content"
+				}
+				return kind == ""
+			})
+		}
 	case llm.APIFormatAnthropicMessage:
 		event := gjson.GetBytes(e.Data, "type").String()
 		if event == "content_block_delta" || event == "content_block_start" {
@@ -100,24 +130,38 @@ func (c *RequestClock) WroteStreamContent(format llm.APIFormat, e *httpclient.St
 			}
 		}
 	case llm.APIFormatGeminiContents:
-		gjson.GetBytes(e.Data, "candidates").ForEach(func(_, candidate gjson.Result) bool {
-			candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
-				switch {
-				case hasStreamText(part.Get("text")) && part.Get("thought").Bool():
+		kind, _ = geminiStreamContent(e, false)
+	}
+	return kind
+}
+
+// A single Gemini frame can contain both thoughts and the first answer.
+func geminiStreamContent(e *httpclient.StreamEvent, includeToolStart bool) (string, bool) {
+	kind := ""
+	answer := false
+	gjson.GetBytes(e.Data, "candidates").ForEach(func(_, candidate gjson.Result) bool {
+		candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
+			switch {
+			case hasStreamText(part.Get("text")):
+				if !part.Get("thought").Bool() {
+					answer = true
+					if kind == "" {
+						kind = "gemini.text"
+					}
+				} else if kind == "" {
 					kind = "gemini.thought"
-				case hasStreamText(part.Get("text")):
-					kind = "gemini.text"
-				case hasStreamText(part.Get("functionCall.name")):
-					kind = "gemini.function_call"
-				case hasStreamText(part.Get("inlineData.data")):
-					kind = "gemini.inline_data"
 				}
-				return kind == ""
-			})
-			return kind == ""
+			case kind == "" && hasStreamText(part.Get("functionCall.name")):
+				args := part.Get("functionCall.args")
+				if includeToolStart || (args.IsObject() && args.Get("@keys.#").Int() > 0) {
+					kind = "gemini.function_call"
+				}
+			case kind == "" && hasStreamText(part.Get("inlineData.data")):
+				kind = "gemini.inline_data"
+			}
+			return !answer && !(includeToolStart && kind != "")
 		})
-	}
-	if kind != "" {
-		c.firstWriteContent.CompareAndSwap(nil, &TimedStreamEvent{At: time.Now(), Type: kind, Bytes: len(e.Data)})
-	}
+		return !answer && !(includeToolStart && kind != "")
+	})
+	return kind, answer
 }

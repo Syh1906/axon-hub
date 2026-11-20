@@ -74,12 +74,18 @@ func executionSelection(ctx context.Context, state *PersistenceState) *objects.R
 // Retry decisions are captured at the actual transition/stop, never reconstructed
 // later from status codes or from the channel's current policy.
 func (p *PersistentOutboundTransformer) recordRetryDecision(ctx context.Context, decision string) {
-	if p.state.RequestExec == nil {
+	var id int
+	if p.state.RequestExec != nil {
+		id = p.state.RequestExec.ID
+	} else if decision == "insufficient_backup_time" {
+		id = p.backupSourceExecutionID
+	}
+	if id == 0 {
 		return
 	}
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if err := p.state.RequestService.SetExecutionRetryDecision(persistCtx, p.state.RequestExec.ID, decision); err != nil {
+	if err := p.state.RequestService.SetExecutionRetryDecision(persistCtx, id, decision); err != nil {
 		log.Warn(ctx, "failed to persist retry decision", log.Cause(err))
 	}
 }

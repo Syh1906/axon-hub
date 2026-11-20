@@ -28842,6 +28842,7 @@ type RequestMutation struct {
 	addmetrics_latency_ms             *int64
 	metrics_first_token_latency_ms    *int64
 	addmetrics_first_token_latency_ms *int64
+	stream_timing                     **objects.RequestStreamTiming
 	metrics_reasoning_duration_ms     *int64
 	addmetrics_reasoning_duration_ms  *int64
 	content_saved                     *bool
@@ -30431,6 +30432,55 @@ func (m *RequestMutation) ResetMetricsFirstTokenLatencyMs() {
 	delete(m.clearedFields, request.FieldMetricsFirstTokenLatencyMs)
 }
 
+// SetStreamTiming sets the "stream_timing" field.
+func (m *RequestMutation) SetStreamTiming(ost *objects.RequestStreamTiming) {
+	m.stream_timing = &ost
+}
+
+// StreamTiming returns the value of the "stream_timing" field in the mutation.
+func (m *RequestMutation) StreamTiming() (r *objects.RequestStreamTiming, exists bool) {
+	v := m.stream_timing
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStreamTiming returns the old "stream_timing" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldStreamTiming(ctx context.Context) (v *objects.RequestStreamTiming, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStreamTiming is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStreamTiming requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStreamTiming: %w", err)
+	}
+	return oldValue.StreamTiming, nil
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (m *RequestMutation) ClearStreamTiming() {
+	m.stream_timing = nil
+	m.clearedFields[request.FieldStreamTiming] = struct{}{}
+}
+
+// StreamTimingCleared returns if the "stream_timing" field was cleared in this mutation.
+func (m *RequestMutation) StreamTimingCleared() bool {
+	_, ok := m.clearedFields[request.FieldStreamTiming]
+	return ok
+}
+
+// ResetStreamTiming resets all changes to the "stream_timing" field.
+func (m *RequestMutation) ResetStreamTiming() {
+	m.stream_timing = nil
+	delete(m.clearedFields, request.FieldStreamTiming)
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (m *RequestMutation) SetMetricsReasoningDurationMs(i int64) {
 	m.metrics_reasoning_duration_ms = &i
@@ -30982,7 +31032,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 34)
+	fields := make([]string, 0, 35)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -31070,6 +31120,9 @@ func (m *RequestMutation) Fields() []string {
 	if m.metrics_first_token_latency_ms != nil {
 		fields = append(fields, request.FieldMetricsFirstTokenLatencyMs)
 	}
+	if m.stream_timing != nil {
+		fields = append(fields, request.FieldStreamTiming)
+	}
 	if m.metrics_reasoning_duration_ms != nil {
 		fields = append(fields, request.FieldMetricsReasoningDurationMs)
 	}
@@ -31151,6 +31204,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.MetricsLatencyMs()
 	case request.FieldMetricsFirstTokenLatencyMs:
 		return m.MetricsFirstTokenLatencyMs()
+	case request.FieldStreamTiming:
+		return m.StreamTiming()
 	case request.FieldMetricsReasoningDurationMs:
 		return m.MetricsReasoningDurationMs()
 	case request.FieldContentSaved:
@@ -31228,6 +31283,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldMetricsLatencyMs(ctx)
 	case request.FieldMetricsFirstTokenLatencyMs:
 		return m.OldMetricsFirstTokenLatencyMs(ctx)
+	case request.FieldStreamTiming:
+		return m.OldStreamTiming(ctx)
 	case request.FieldMetricsReasoningDurationMs:
 		return m.OldMetricsReasoningDurationMs(ctx)
 	case request.FieldContentSaved:
@@ -31450,6 +31507,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetricsFirstTokenLatencyMs(v)
 		return nil
+	case request.FieldStreamTiming:
+		v, ok := value.(*objects.RequestStreamTiming)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStreamTiming(v)
+		return nil
 	case request.FieldMetricsReasoningDurationMs:
 		v, ok := value.(int64)
 		if !ok {
@@ -31656,6 +31720,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldMetricsFirstTokenLatencyMs) {
 		fields = append(fields, request.FieldMetricsFirstTokenLatencyMs)
 	}
+	if m.FieldCleared(request.FieldStreamTiming) {
+		fields = append(fields, request.FieldStreamTiming)
+	}
 	if m.FieldCleared(request.FieldMetricsReasoningDurationMs) {
 		fields = append(fields, request.FieldMetricsReasoningDurationMs)
 	}
@@ -31735,6 +31802,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldMetricsFirstTokenLatencyMs:
 		m.ClearMetricsFirstTokenLatencyMs()
+		return nil
+	case request.FieldStreamTiming:
+		m.ClearStreamTiming()
 		return nil
 	case request.FieldMetricsReasoningDurationMs:
 		m.ClearMetricsReasoningDurationMs()
@@ -31842,6 +31912,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldMetricsFirstTokenLatencyMs:
 		m.ResetMetricsFirstTokenLatencyMs()
+		return nil
+	case request.FieldStreamTiming:
+		m.ResetStreamTiming()
 		return nil
 	case request.FieldMetricsReasoningDurationMs:
 		m.ResetMetricsReasoningDurationMs()

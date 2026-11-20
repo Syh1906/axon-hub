@@ -52,10 +52,9 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db, CacheConfig: xcache.Config{Mode: xcache.ModeMemory}})
 	speeds, err := biz.RequestOutputSpeeds(ctx, db, ids)
 	require.NoError(t, err)
-	for i, want := range []float64{100, 500, 300} {
-		require.NotNil(t, speeds[ids[i]])
-		require.Equal(t, want, *speeds[ids[i]])
-	}
+	require.Equal(t, 50.0, *speeds[ids[0]])
+	require.Nil(t, speeds[ids[1]])
+	require.Nil(t, speeds[ids[2]])
 	consumption := biz.NewConsumptionService(db, system, xcache.Config{Mode: xcache.ModeMemory})
 	leaderboard, err := consumption.Leaderboard(ctx, biz.ConsumptionFilter{Dimension: biz.ConsumptionDimensionChannel, Metric: biz.ConsumptionMetricCost, Period: biz.ConsumptionPeriodAll})
 	require.NoError(t, err)
@@ -81,19 +80,30 @@ func TestAnalyticsSpeedSamplesMatchRequestAndLeaderboard(t *testing.T) {
 	var logs struct {
 		RequestLogs struct {
 			Edges []struct {
-				Node struct{ OutputTokensPerSecond *float64 }
+				Node struct {
+					OutputTokensPerSecond *float64
+					OutputRate            *struct {
+						OutputTokens, DurationMs int
+						ReasoningTokens          *int
+					}
+				}
 			}
 		}
 	}
-	err = graphqlClient.Post(`query { requestLogs(first: 3) { edges { node { outputTokensPerSecond } } } }`, &logs)
+	err = graphqlClient.Post(`query { requestLogs(first: 3) { edges { node { outputTokensPerSecond outputRate { outputTokens durationMs reasoningTokens } } } } }`, &logs)
 	require.NoError(t, err)
 	require.Len(t, logs.RequestLogs.Edges, 3)
 	var displayedSpeeds []float64
 	for _, edge := range logs.RequestLogs.Edges {
-		require.NotNil(t, edge.Node.OutputTokensPerSecond)
-		displayedSpeeds = append(displayedSpeeds, *edge.Node.OutputTokensPerSecond)
+		if edge.Node.OutputTokensPerSecond != nil {
+			require.Equal(t, 100, edge.Node.OutputRate.OutputTokens)
+			require.Equal(t, 2000, edge.Node.OutputRate.DurationMs)
+			displayedSpeeds = append(displayedSpeeds, *edge.Node.OutputTokensPerSecond)
+		} else {
+			require.Nil(t, edge.Node.OutputRate)
+		}
 	}
-	require.ElementsMatch(t, []float64{100, 500, 300}, displayedSpeeds)
+	require.Equal(t, []float64{50}, displayedSpeeds)
 	var result struct{ AnalyticsModelStats []*AnalyticsModelStat }
 	err = graphqlClient.Post(`query { analyticsModelStats { id requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount channels { requestCount successRate avgFirstTokenLatencyMs avgOutputTokensPerSecond speedSampleCount } } }`, &result)
 	require.NoError(t, err)

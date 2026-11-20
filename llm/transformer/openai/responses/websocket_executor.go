@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -939,7 +940,9 @@ func (pc *pooledWebSocketConn) closeLocked() {
 func (pc *pooledWebSocketConn) previousTurn() ([]json.RawMessage, string) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	return cloneRawMessages(pc.lastInput), pc.lastResponseID
+	// rememberTurn publishes an immutable set; replacing or evicting the
+	// pooled turn never mutates the JSON or its slice.
+	return pc.lastInput, pc.lastResponseID
 }
 
 func (l *webSocketLease) release(evict bool) {
@@ -1135,11 +1138,11 @@ func inputSuffix(previous, current []json.RawMessage) ([]json.RawMessage, bool) 
 		}
 	}
 
-	return cloneRawMessages(current[len(previous):]), true
+	return current[len(previous):], true
 }
 
 func jsonRawEqual(a, b json.RawMessage) bool {
-	return equalJSONValues(string(a), string(b))
+	return bytes.Equal(a, b) || equalJSONValues(string(a), string(b))
 }
 
 func cloneRawMessages(src []json.RawMessage) []json.RawMessage {
@@ -1164,8 +1167,13 @@ func rawMessagesSize(messages []json.RawMessage) int {
 func buildWebSocketCreatePayload(body []byte) (map[string]any, error) {
 	payload := map[string]any{}
 	if len(body) > 0 {
-		if err := json.Unmarshal(body, &payload); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(body))
+		decoder.UseNumber()
+		if err := decoder.Decode(&payload); err != nil {
 			return nil, fmt.Errorf("failed to decode responses request body: %w", err)
+		}
+		if payload == nil || len(bytes.TrimSpace(body[decoder.InputOffset():])) != 0 {
+			return nil, errors.New("expected exactly one responses request object")
 		}
 	}
 
@@ -1222,6 +1230,7 @@ func newWebSocketDialError(request *httpclient.Request, resp *http.Response, err
 }
 
 type webSocketStream struct {
+	historyOutput       HistoryOutput
 	evidence            webSocketEvidence
 	ctx                 context.Context
 	lease               *webSocketLease
@@ -1291,6 +1300,9 @@ func (s *webSocketStream) Next() bool {
 	}
 
 	typ := streamEventType(msg)
+	if !s.lease.native && len(s.lease.nextFullInput) > 0 {
+		s.historyOutput.Observe(typ, msg, nil)
+	}
 	s.evidence.event(typ, msg)
 	if typ == "error" && isWebSocketRecoveryEvent(msg) {
 		s.setErr(shared.ResponsesRecoveryError())
@@ -1320,6 +1332,11 @@ func (s *webSocketStream) Next() bool {
 					s.lease.nextFullInput = nil
 					s.lease.rememberTurn(responseID, nil)
 				} else {
+					if len(s.lease.nextFullInput) > 0 {
+						if _, ok := s.historyOutput.Complete([]byte(gjson.GetBytes(msg, "response").Raw)); !ok {
+							s.lease.nextFullInput = nil
+						}
+					}
 					s.lease.rememberTurn(responseID, responseOutputFromWebSocketEvent(msg))
 				}
 			}

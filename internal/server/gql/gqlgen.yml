@@ -1,5 +1,6 @@
 # schema tells gqlgen where the GraphQL schema is located.
 schema:
+  - request_stream_timing.graphql
   - protocol_routes.graphql
   - maintenance.graphql
   # axonhub.graphql must be loaded before ent.graphql because it defines DisabledAPIKey
@@ -452,6 +453,12 @@ models:
   HealthGatePolicyInput:
     model:
       - github.com/looplj/axonhub/internal/server/biz.HealthGatePolicy
+  RequestStreamTiming:
+    model:
+      - github.com/looplj/axonhub/internal/objects.RequestStreamTiming
+  RequestOutputRate:
+    model:
+      - github.com/looplj/axonhub/internal/server/biz.RequestOutputRate
   RequestRoutingDecision:
     model:
       - github.com/looplj/axonhub/internal/objects.RequestRoutingDecision

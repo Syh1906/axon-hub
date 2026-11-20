@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
@@ -22,6 +23,34 @@ func (p *PersistentOutboundTransformer) upstreamAddresses() []objects.ChannelUps
 		return nil
 	}
 	return p.state.CurrentCandidate.Channel.EnabledUpstreamAddresses(p.state.CurrentCandidate.APIFormat)
+}
+
+// Native HTTP has separate upload and first-response allowances. A secondary
+// address inherits the absolute end of the original pair of allowances.
+func (p *PersistentOutboundTransformer) applyAddressDeadline(ctx context.Context, request *httpclient.Request) {
+	if p.state.CurrentCandidate == nil {
+		return
+	}
+	ch := p.GetCurrentChannel()
+	if ch.Settings == nil || !ch.Settings.AddressFailover || len(p.upstreamAddresses()) < 2 {
+		return
+	}
+	if p.addressDeadlineChannel != ch.ID || p.addressIndex == 0 {
+		p.addressDeadlineChannel = ch.ID
+		p.addressDeadline, _ = ctx.Deadline()
+		first, nonStream := channelResponseTimeouts(&p.state.settings().RetryPolicy, ch)
+		phase := nonStream
+		if p.state.OriginalRequestStream != nil && *p.state.OriginalRequestStream {
+			phase = first
+		}
+		if phase > 0 {
+			end := time.Now().Add(phase).Add(phase)
+			if p.addressDeadline.IsZero() || end.Before(p.addressDeadline) {
+				p.addressDeadline = end
+			}
+		}
+	}
+	request.StartDeadline = p.addressDeadline
 }
 
 func isUpstreamAddressFailure(err error) bool {

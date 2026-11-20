@@ -5,8 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
-
-	"github.com/tidwall/gjson"
+	"time"
 
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
@@ -29,6 +28,7 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 			return request, nil
 		}
 		channel := outbound.GetCurrentChannel()
+		outbound.applyAddressDeadline(ctx, request)
 		request.EncodingScope, request.EncodingGeneration = channel.ID, channel.UpdatedAt.UnixNano()
 		if request.APIFormat == string(llm.APIFormatOpenAIResponse) || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
 			payload := state.RequestService.PayloadService
@@ -56,24 +56,24 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 			// Verification may recover a complete snapshot after plugin overrides.
 			// Optimize that final body and retain exactly the bytes actually sent.
 			if continuation := state.ResponsesContinuation; continuation != nil {
-				continuation.effective = body
-				if continuation.snapshotBody != nil {
-					continuation.snapshotBody = body
-				}
-				if continuation.retain {
-					input := gjson.GetBytes(body, "input")
-					if continuation.lane != nil {
-						if !continuation.lane.Budget().Replace(continuation.retentionBytes, len(input.Raw)) {
-							continuation.releaseRetention()
-							continuation.retain, continuation.input = false, nil
-						} else {
-							continuation.retentionBytes = len(input.Raw)
-						}
-					}
-					if continuation.retain && continuation.lane != nil {
-						continuation.input = responseSessionInputItems([]byte(input.Raw))
-					}
-				}
+				continuation.captureAttemptBody(body)
+			}
+		}
+		// Use the actual outgoing size after image optimization, and the backup's
+		// own observed upload cost. An unmeasured route remains eligible.
+		if limit := request.StartDeadline; !limit.IsZero() && outbound.addressRetryFrom == channel.ID && outbound.addressIndex > 0 &&
+			state.Proxy == nil && request.APIFormat != string(llm.APIFormatOpenAIResponseWebSocket) {
+			estimate := channel.HTTPClient.EstimateUpload(request)
+			remaining := time.Until(limit)
+			var expected time.Duration
+			addresses := outbound.upstreamAddresses()
+			if d := state.routeDecision; d != nil && outbound.addressIndex < len(addresses) && len(d.keys) > 0 &&
+				d.keys[0].channel == channel.ID && d.keys[0].work.model == outbound.GetCurrentModelID() &&
+				d.keys[0].config == channel.UpdatedAt.UnixNano() && d.keys[0].work.size == routeSizeBucket(len(request.Body)) {
+				expected = state.routeHistory.expectedAddressStart(d, addresses[outbound.addressIndex].URL)
+			}
+			if (expected > 0 && expected >= remaining) || addressUploadExceedsDeadline(len(request.Body), estimate, remaining) {
+				return nil, pipeline.ErrBackupStartBudget
 			}
 		}
 		if request.Metadata == nil {
@@ -83,6 +83,20 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 		request.Metadata[optimizationMetadataKey] = string(metadata)
 		return request, nil
 	})
+}
+
+func addressUploadExceedsDeadline(bytes int, estimate httpclient.UploadEstimate, remaining time.Duration) bool {
+	if remaining <= 0 {
+		return true
+	}
+	predicted := float64(bytes) * estimate.NSPerByte
+	if estimate.PreferZstd {
+		if estimate.ZstdSavingsNS <= 0 {
+			return false // No measured compression cost for this route.
+		}
+		predicted -= estimate.ZstdSavingsNS
+	}
+	return predicted > 0 && predicted >= float64(remaining)
 }
 
 type executionTransport struct {

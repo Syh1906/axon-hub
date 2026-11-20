@@ -56,6 +56,12 @@ func (g *responsePhaseGuard) arm(timeout time.Duration, cause error) {
 	if g.timer != nil {
 		g.timer.Stop()
 	}
+	if limit := g.request.StartDeadline; !limit.IsZero() {
+		remaining := max(time.Nanosecond, time.Until(limit))
+		if timeout <= 0 || remaining < timeout {
+			timeout = remaining
+		}
+	}
 	if timeout <= 0 {
 		return
 	}

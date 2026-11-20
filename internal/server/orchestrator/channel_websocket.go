@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -119,13 +120,63 @@ func (p *TestChannelOrchestrator) VerifyChannelWebSocket(ctx context.Context, id
 	return p.channelService.RunWebSocketProbe(ctx, ch, actual, run)
 }
 
+// Background jobs require the HTTP response lifecycle. Check the original
+// request and channel rewrites before choosing the transport or preserving an ID.
+func canUseHTTPResponsesSocket(body []byte, ch *biz.Channel) bool {
+	if gjson.GetBytes(body, "background").Bool() {
+		return false
+	}
+	for _, op := range ch.GetBodyOverrideOperations() {
+		if op.Path == "background" || op.To == "background" {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *PersistentOutboundTransformer) preferVerifiedHTTPWebSocket(ctx context.Context, c *ChannelModelsCandidate, entry biz.ChannelModelEntry, req *llm.Request) {
+	if !shared.IsResponsesAPI(ctx) || shared.IsResponsesWebSocket(ctx) || c.APIFormat != string(llm.APIFormatOpenAIResponse) ||
+		p.state.ChannelService == nil || !c.Channel.SessionReuseEnabled() || req.APIFormat != llm.APIFormatOpenAIResponse ||
+		req.PreviousResponseID != nil && p.state.ResponsesContinuation != nil && p.state.ResponsesContinuation.owner == nil {
+		return
+	}
+	if scope, ok := shared.GetSessionScope(ctx); !ok || scope == "" {
+		return
+	}
+	if turn := p.state.ResponsesContinuation; turn != nil && !canUseHTTPResponsesSocket(turn.original, c.Channel) {
+		return
+	}
+	ws := llm.APIFormatOpenAIResponseWebSocket
+	if c.Channel.Outbounds[string(ws)] == nil || channelProtocolRejection(c.Channel, req, ws) != "" {
+		return
+	}
+	formats := biz.ForcedAPIFormatsForCandidate(c.Channel, []biz.ChannelModelEntry{entry}, p.GetRequestedModel())
+	if len(formats) != 0 && !slices.Contains(formats, string(ws)) {
+		return
+	}
+	// This cheap check nominates the transport. configureWebSocket checks the
+	// exact model, endpoint and credential after all overrides have run.
+	var owner *shared.ResponsesRecord
+	if turn := p.state.ResponsesContinuation; turn != nil {
+		owner = turn.owner
+	}
+	if owner != nil && owner.Origin.ChannelID == c.Channel.ID && owner.Origin.Model == entry.ActualModel &&
+		owner.Origin.Format == string(ws) && owner.Origin.Generation != 0 {
+		c.APIFormat = string(ws)
+		return
+	}
+	if p.state.ChannelService.LatestWebSocketEvidence(c.Channel, entry.ActualModel).State == "verified" {
+		c.APIFormat = string(ws)
+	}
+}
+
 func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, raw *httpclient.Request, execution *ent.RequestExecution) error {
 	sel := execution.Selection
 	if sel == nil {
 		return nil
 	}
 	probe := currentWSProbe(ctx)
-	if !shared.IsResponsesWebSocket(ctx) || !responses.IsResponsesFormat(llm.APIFormat(raw.APIFormat)) {
+	if (!shared.IsResponsesAPI(ctx) && !shared.IsResponsesWebSocket(ctx)) || !responses.IsResponsesFormat(llm.APIFormat(raw.APIFormat)) {
 		return nil
 	}
 	ch := p.GetCurrentChannel()
@@ -171,6 +222,39 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 	if probe != nil {
 		_, policy.HandshakeTimeout = service.WebSocketDecision(key)
 		return nil
+	}
+	httpClient := !shared.IsResponsesWebSocket(ctx)
+	if httpClient {
+		scope, ok := shared.GetSessionScope(ctx)
+		if !ok || strings.TrimSpace(scope) == "" {
+			policy.HTTPReason = "websocket_unverified"
+		} else {
+			policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketDecision(key)
+		}
+		if gjson.GetBytes(raw.Body, "background").Bool() {
+			policy.HTTPReason = "background_requires_http"
+		}
+		policy.VerifiedHTTP = policy.HTTPReason == ""
+		// The HTTP request may carry a stored response ID owned by a different
+		// transport. Only the original socket can consume its own ID.
+		if id := gjson.GetBytes(raw.Body, "previous_response_id").String(); id != "" {
+			c := p.state.ResponsesContinuation
+			if c == nil || c.owner == nil || c.owner.ID != id || c.owner.Origin.Generation == 0 ||
+				c.owner.Origin.Format != string(llm.APIFormatOpenAIResponseWebSocket) {
+				policy.VerifiedHTTP = false
+				policy.HTTPReason = "continuation_uses_http_origin"
+			} else {
+				if policy.HTTPReason == "background_requires_http" {
+					return shared.ResponsesRecoveryError()
+				}
+				// A WS continuation ID is unsafe on the HTTP fallback.
+				policy.NativeOnly = true
+				// Its scoped response ID and generation are direct evidence of a
+				// previously completed turn. Checkout rechecks the live socket.
+				policy.HTTPReason, policy.VerifiedHTTP = "", true
+				policy.RestoreBeforeWrite = p.restoreNativeContinuation
+			}
+		}
 	}
 	c := p.state.ResponsesContinuation
 	if c != nil && !c.complete && c.owner != nil && c.owner.Snapshot != nil && c.lane != nil &&
@@ -226,7 +310,9 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 			return nil
 		}
 	}
-	policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketTrafficDecision(ctx, key)
+	if !httpClient {
+		policy.HTTPReason, policy.HandshakeTimeout = service.WebSocketTrafficDecision(ctx, key)
+	}
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/schema/schematype"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
+	"github.com/looplj/axonhub/internal/objects"
 )
 
 const selfUsageMaxRangeDays = 90
@@ -90,6 +91,7 @@ type SelfUsageRequest struct {
 	CacheWriteTokens5m    int
 	CacheWriteTokens1h    int
 	OutputTokensPerSecond *float64
+	OutputRate            *RequestOutputRate
 	APIKeyName            string
 	ID                    int
 	CreatedAt             time.Time
@@ -99,6 +101,7 @@ type SelfUsageRequest struct {
 	Stream                bool
 	LatencyMs             *int
 	FirstTokenLatencyMs   *int
+	StreamTiming          *objects.RequestStreamTiming
 	InputTokens           int
 	OutputTokens          int
 	CacheReadTokens       int
@@ -477,7 +480,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		}
 		requests, err := query().Select(
 			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
-			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs,
+			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldStreamTiming,
 			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
 			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure,
 		).Order(request.ByCreatedAt(sql.OrderDesc()), request.ByID(sql.OrderDesc())).
@@ -558,6 +561,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			row.Format, row.OutboundFormat = display.Format, display.OutboundFormat
 			row.PassThroughApplied, row.ClientStatusCode = display.PassThroughApplied, display.ClientStatusCode
 			row.RetryCount, row.OutputTokensPerSecond = display.RetryCount, display.OutputTokensPerSecond
+			row.OutputRate = display.OutputRate
 			row.CacheWriteTokens5m, row.CacheWriteTokens1h = cacheWrites[req.ID].CacheWrite5m, cacheWrites[req.ID].CacheWrite1h
 			if key := callers[req.APIKeyID]; key != nil {
 				row.CallerKeyName = key.Name
@@ -587,6 +591,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 				value := int(*req.MetricsFirstTokenLatencyMs)
 				row.FirstTokenLatencyMs = &value
 			}
+			row.StreamTiming = req.StreamTiming
 			result.Items = append(result.Items, row)
 		}
 		return result, nil

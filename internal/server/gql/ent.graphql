@@ -4614,6 +4614,7 @@ type Request implements Node {
   userAgent: String!
   metricsLatencyMs: Int
   metricsFirstTokenLatencyMs: Int
+  streamTiming: RequestStreamTiming
   """
   Reasoning/thinking duration in milliseconds
   """

@@ -136,6 +136,8 @@ func (Request) Fields() []ent.Field {
 		field.Int64("metrics_latency_ms").Optional().Nillable(),
 		// First token latency in milliseconds (only for streaming requests)
 		field.Int64("metrics_first_token_latency_ms").Optional().Nillable(),
+		field.JSON("stream_timing", &objects.RequestStreamTiming{}).Optional().
+			Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)),
 		// Reasoning/thinking duration in milliseconds
 		field.Int64("metrics_reasoning_duration_ms").Optional().Nillable().Comment("Reasoning/thinking duration in milliseconds"),
 

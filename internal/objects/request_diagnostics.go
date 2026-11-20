@@ -5,6 +5,21 @@ import (
 	"time"
 )
 
+// RequestStreamTiming keeps the selected upstream attempt and downstream delivery
+// on their respective clocks. A nil object identifies a legacy request.
+type RequestStreamTiming struct {
+	SingleAnswerBatch     bool     `json:"single_answer_batch,omitempty"`
+	AnswerTokensPerSecond *float64 `json:"answer_tokens_per_second,omitempty"`
+	FirstEvent            string   `json:"first_event,omitempty"`
+	FirstEventMs          *int64   `json:"first_event_ms,omitempty"`
+	DurationMs            *int64   `json:"duration_ms,omitempty"`
+	ContentEvent          string   `json:"content_event,omitempty"`
+	ContentWriteMs        *int64   `json:"content_write_ms,omitempty"`
+	AfterContentMs        *int64   `json:"after_content_ms,omitempty"`
+	AnswerWriteMs         *int64   `json:"answer_write_ms,omitempty"`
+	Attempts              int      `json:"attempts"`
+}
+
 type ChannelWebSocketEvidence struct {
 	State      string     `json:"state"`
 	Stage      string     `json:"stage,omitempty"`

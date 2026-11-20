@@ -185,11 +185,31 @@ function latencyColor(ms: number | null | undefined, metric: 'firstToken' | 'tot
 export function RequestDurationCell({
   request,
 }: {
-  request: Pick<Request, 'stream' | 'metricsLatencyMs' | 'metricsFirstTokenLatencyMs' | 'outputTokensPerSecond'>;
+  request: Pick<Request, 'stream' | 'metricsLatencyMs' | 'metricsFirstTokenLatencyMs' | 'outputTokensPerSecond' | 'streamTiming' | 'outputRate'>;
 }) {
   const { t } = useTranslation();
   const latency = request.metricsLatencyMs;
-  const first = request.stream ? request.metricsFirstTokenLatencyMs : null;
+  const timing = request.streamTiming;
+  const first = request.stream ? (timing ? timing.firstEventMs : request.metricsFirstTokenLatencyMs) : null;
+  const firstHelp = [t(timing || first == null ? 'requests.duration.firstTokenHelp' : 'requests.duration.legacyFirst'),
+    timing?.firstEvent && t('requests.duration.trigger', { event: timing.firstEvent }),
+    timing?.contentWriteMs != null && t('requests.duration.contentWrite', { elapsed: formatDuration(timing.contentWriteMs), event: timing.contentEvent }),
+    timing?.answerWriteMs != null && t('requests.duration.answerWrite', { elapsed: formatDuration(timing.answerWriteMs) }),
+    timing?.afterContentMs != null && t('requests.duration.afterContent', { elapsed: formatDuration(timing.afterContentMs) }),
+    timing && timing.attempts > 1 && t('requests.duration.attempts', { count: timing.attempts }),
+  ].filter(Boolean).join('\n');
+  const rate = request.outputRate;
+  const speedHelp = [t('requests.duration.rateHelp'),
+    rate && t('requests.duration.transferTime', { elapsed: formatDuration(rate.durationMs) }),
+    rate && t('requests.duration.outputUsage', {
+      tokens: rate.outputTokens, reasoning: rate.reasoningTokens ?? '—',
+    }),
+    request.stream && (timing?.singleAnswerBatch
+      ? t('requests.duration.textSingleBatch')
+      : timing?.answerTokensPerSecond != null
+        ? t('requests.duration.textMeasuredRate', { rate: timing.answerTokensPerSecond.toFixed(1) })
+        : t('requests.duration.textRateUnavailable')),
+  ].filter(Boolean).join('\n');
   const speed = getTokensPerSecondValue(request);
   const firstColor = latencyColor(first, 'firstToken');
   const totalColor = latencyColor(latency, 'total');
@@ -201,12 +221,12 @@ export function RequestDurationCell({
     <div className='flex min-w-[150px] gap-2 text-xs whitespace-nowrap'>
       <span aria-hidden='true' className='w-1 shrink-0 rounded-full' style={{ background: bar }} />
       <dl className='text-muted-foreground grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 tabular-nums'>
-        <dt title={t('requests.duration.firstTokenHelp')}>{t('requests.duration.firstTokenLabel')}</dt>
-        <dd title={t('requests.duration.firstTokenHelp')} className={firstColor && `font-medium ${firstColor.text}`}>{first == null ? '—' : formatDuration(first)}</dd>
+        <dt title={firstHelp}>{t('requests.duration.firstTokenLabel')}</dt>
+        <dd title={firstHelp} className={firstColor && `font-medium ${firstColor.text}`}>{first == null ? '—' : formatDuration(first)}</dd>
         <dt>{t('requests.duration.totalLabel')}</dt>
         <dd className={totalColor && `font-medium ${totalColor.text}`}>{latency == null ? '—' : formatDuration(latency)}</dd>
-        <dt title={t('consumption.speedHelp')}>{t('requests.duration.outputRate')}</dt>
-        <dd title={t('consumption.speedHelp')} className={speed == null ? undefined : 'text-foreground'}>{speed == null ? '—' : `${Math.round(speed)} tok/s`}</dd>
+        <dt title={speedHelp}>{t('requests.duration.outputRate')}</dt>
+        <dd title={speedHelp} className={speed == null ? undefined : 'text-foreground'}>{speed == null ? '—' : `${speed.toFixed(1)} tok/s`}</dd>
       </dl>
     </div>
   );

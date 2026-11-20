@@ -87,12 +87,15 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			result[id].Channel = channel
 		}
 	}
-	speeds, err := RequestOutputSpeeds(ctx, s.client, ids)
+	speeds, err := RequestOutputRates(ctx, s.client, ids)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage output speeds: %w", err)
 	}
 	for id, speed := range speeds {
-		result[id].OutputTokensPerSecond = speed
+		result[id].OutputRate = speed
+		if speed != nil {
+			result[id].OutputTokensPerSecond = &speed.TokensPerSecond
+		}
 	}
 	return result, nil
 }

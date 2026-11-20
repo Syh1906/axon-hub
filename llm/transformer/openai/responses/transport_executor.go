@@ -99,7 +99,7 @@ func (e *transportExecutor) useWebSocket(ctx context.Context, r *httpclient.Requ
 		}
 		// The gateway's model/identity-scoped decision supersedes the legacy
 		// URL-only connection memory. An existing bound continuation stays native.
-		return e.ws != nil && shared.IsResponsesWebSocket(ctx)
+		return e.ws != nil && (shared.IsResponsesWebSocket(ctx) || policy.VerifiedHTTP)
 	}
 	return e.ws != nil && shared.IsResponsesWebSocket(ctx) && !e.downgraded(ctx, r)
 }

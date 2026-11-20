@@ -299,6 +299,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		ctx = context.WithValue(ctx, firstContentStateKey{}, state)
 	}
 	defer func() {
+		state.observeRequestDelivery(ctx)
 		if processErr != nil && state.Request != nil {
 			completion.RequestID = state.Request.ID
 			persistRequestFailure(ctx, state, processErr)
@@ -324,11 +325,35 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 			return ChatCompletionResult{}, err
 		}
 		ctx = context.WithValue(ctx, responsesPreviousIDContextKey{}, responsePreviousID(request.Body))
+	}
+	hooks, err := processor.Plugins.RequestHooks(ctx)
+	if err != nil {
+		lifecycleOwner.Close()
+		return ChatCompletionResult{}, err
+	}
+	state.PluginHooks = hooks
+	// Until Prepare takes ownership, an early history error must release the
+	// pinned plugin generation and the request-local lifecycle.
+	preparing := false
+	defer func() {
+		if !preparing {
+			if hooks.Request != nil {
+				hooks.Request.OnProcessEnd()
+			}
+			lifecycleOwner.Close()
+		}
+	}()
+	if shared.IsResponsesAPI(ctx) && request != nil {
 		if processor.responsesSessions != nil && !shared.IsResponsesWebSocket(ctx) {
 			var sessionID string
 			var restoreErr error
-			preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepare(ctx, request.Body)
+			preparedResponsesBody, sessionID, restoreErr = processor.responsesSessions.prepareEnvelope(ctx, request.Body, func(origin shared.ResponsesOrigin) bool {
+				return processor.canInspectHTTPDelta(ctx, state, request.Body, origin)
+			})
 			if restoreErr != nil {
+				if shared.IsResponsesRecoveryError(restoreErr) {
+					return ChatCompletionResult{}, restoreErr
+				}
 				if ctx.Err() != nil {
 					return ChatCompletionResult{}, ctx.Err()
 				}
@@ -341,14 +366,9 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		state.ResponsesContinuation = continuation
 	}
 
-	hooks, err := processor.Plugins.RequestHooks(ctx)
-	if err != nil {
-		lifecycleOwner.Close()
-		return ChatCompletionResult{}, err
-	}
-	state.PluginHooks = hooks
 	pipe, outbound, healthGateTracker := processor.requestPipeline(state, retryPolicy)
 
+	preparing = true
 	prepared, err := pipe.Prepare(ctx, request)
 	var result *pipeline.Result
 	if err == nil && canHedgeTitle(ctx, state, prepared, retryPolicy) {

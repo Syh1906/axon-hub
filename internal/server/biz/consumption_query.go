@@ -90,7 +90,7 @@ func joinExecutionUsage(s *sql.Selector, execution *sql.SelectTable) *sql.Select
 	if s.Dialect() == dialect.Postgres {
 		// 每个已选执行最多查一条账目，防止优化器先物化整批执行×用量再嵌套匹配。
 		id := usageanalytics.ExecutionUsageIDSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"))
-		u := sql.Table("LATERAL (SELECT matched_usage.completion_tokens, matched_usage.cost_snapshot, matched_usage.completion_audio_tokens FROM usage_logs matched_usage WHERE matched_usage.id = " + id +
+		u := sql.Table("LATERAL (SELECT matched_usage.completion_tokens, matched_usage.completion_reasoning_tokens, matched_usage.cost_snapshot, matched_usage.completion_audio_tokens FROM usage_logs matched_usage WHERE matched_usage.id = " + id +
 			" AND matched_usage.request_id = " + execution.C("request_id") + " AND matched_usage.project_id = " + execution.C("project_id") + " AND matched_usage.channel_id = " + execution.C("channel_id") + " OFFSET 0) AS execution_usage").Unquote().As("execution_usage")
 		s.LeftJoin(u).OnP(sql.ExprP("TRUE"))
 		return u

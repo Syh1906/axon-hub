@@ -62,6 +62,12 @@ func newResponsesSessionStore(loaders ...responsesSessionLoadFunc) *responsesSes
 }
 
 func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byte, string, error) {
+	return s.prepareEnvelope(ctx, body, nil)
+}
+
+// A verified HTTP-to-WS turn may keep its ID only while admission can run on
+// the submitted turn. Custom hooks and history-dependent checks get full input.
+func (s *responsesSessionStore) prepareEnvelope(ctx context.Context, body []byte, allowDelta func(shared.ResponsesOrigin) bool) ([]byte, string, error) {
 	sessionID, _ := shared.GetSessionID(ctx)
 	var current map[string]json.RawMessage
 	if json.Unmarshal(body, &current) != nil || current == nil {
@@ -81,11 +87,27 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
 	}
 
+	// A successfully observed upstream socket owns this ID. Preserve the delta
+	// for target selection; a changed or lost socket requires scoped recovery.
+	owner := s.lookup(ctx, previousID)
+	ownsSocket := owner != nil && owner.origin.Generation != 0 && owner.origin.Format == "openai/responses-ws"
+	if ownsSocket && allowDelta != nil && allowDelta(owner.origin) {
+		if owner.sessionID != "" {
+			sessionID = owner.sessionID
+		}
+		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
+	}
 	record, err := s.lookupOrLoad(ctx, previousID)
 	if err != nil {
+		if ownsSocket && allowDelta != nil {
+			return nil, responseSessionID(sessionID), fmt.Errorf("%w: %w", shared.ResponsesRecoveryError(), err)
+		}
 		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), err
 	}
 	if record == nil || !record.complete {
+		if ownsSocket && allowDelta != nil {
+			return nil, responseSessionID(sessionID), shared.ResponsesRecoveryError()
+		}
 		return encodePreparedResponsesBody(body, current, inputChanged), responseSessionID(sessionID), nil
 	}
 	if record.sessionID != "" {
@@ -93,7 +115,7 @@ func (s *responsesSessionStore) prepare(ctx context.Context, body []byte) ([]byt
 	}
 	sessionID = responseSessionID(sessionID)
 
-	merged := cloneResponseSessionPayload(current)
+	merged := current // decoded for this request; retained history stays immutable
 
 	baseItems, _ := normalizeResponseSessionItems(record.input)
 	normalizedOutput, _ := normalizeResponseSessionItems(record.output)
@@ -142,7 +164,7 @@ func (s *responsesSessionStore) lookupOrLoad(ctx context.Context, responseID str
 			if len(turns) == 0 {
 				return cached, nil
 			}
-			base = append(cached.input, cached.output...)
+			base = append(slices.Clone(cached.input), cached.output...)
 			if cached.sessionID != "" {
 				sessionID = cached.sessionID
 			}
@@ -243,9 +265,21 @@ func (s *responsesSessionStore) record(ctx context.Context, requestBody, respons
 	record := &responsesSessionRecord{}
 	if len(responseBody) <= responsesSessionMaxResponse && len(gjson.GetBytes(requestBody, "input").Raw) <= responsesSessionMaxResponse+2 {
 		_, previous, decoded := decodeResponseSessionRecord(requestBody, responseBody)
-		if decoded != nil && previous == "" {
-			record = decoded
-			record.complete = true
+		if decoded != nil {
+			if previous == "" {
+				record = decoded
+				record.complete = true
+			} else if parent := s.lookup(ctx, previous); parent != nil && parent.complete && parent.size+decoded.size <= responsesSessionMaxResponse {
+				// These arrays contain immutable, independently owned JSON items.
+				// A new response ID must retain this turn too when disk storage is off.
+				items := make([]json.RawMessage, 0, len(parent.input)+len(parent.output)+len(decoded.input))
+				items = append(items, parent.input...)
+				items = append(items, parent.output...)
+				decoded.input = append(items, decoded.input...)
+				decoded.size += parent.size
+				decoded.complete = true
+				record = decoded
+			}
 		}
 	}
 	if attempt := shared.GetResponsesAttempt(ctx); attempt != nil {
@@ -281,8 +315,8 @@ func (s *responsesSessionStore) cacheRecord(ctx context.Context, id string, reco
 	if copy.size > responsesSessionMaxResponse {
 		copy.input, copy.output, copy.size, copy.complete = nil, nil, 0, false
 	}
-	copy.input = cloneResponseSessionValues(copy.input)
-	copy.output = cloneResponseSessionValues(copy.output)
+	copy.input = slices.Clone(copy.input)
+	copy.output = slices.Clone(copy.output)
 	copy.updatedAt = now
 	s.byResponse[key] = &copy
 	s.totalBytes += copy.size
@@ -323,15 +357,10 @@ func (s *responsesSessionStore) lookup(ctx context.Context, responseID string) *
 		return nil
 	}
 
-	return &responsesSessionRecord{
-		input:     cloneResponseSessionValues(record.input),
-		output:    cloneResponseSessionValues(record.output),
-		sessionID: record.sessionID,
-		updatedAt: record.updatedAt,
-		size:      record.size,
-		complete:  record.complete,
-		origin:    record.origin,
-	}
+	// Cached item bytes are immutable. Callers allocate their own slice
+	// before appending, so even a metadata lookup does not copy a large image.
+	result := *record
+	return &result
 }
 
 func (s *responsesSessionStore) evictExpiredLocked(now time.Time) {
@@ -483,35 +512,18 @@ func (s *responsesSessionStream) Next() bool {
 // A sparse terminal is common on relays. Reuse a full snapshot only when it
 // covers the observed items. Otherwise the existing delta aggregator owns recovery.
 func completeHistoryOutput(output gjson.Result, events []*httpclient.StreamEvent, overflow bool) bool {
-	if !output.IsArray() {
+	if overflow || !output.IsArray() || output.Get("#").Int() == 0 {
 		return false
 	}
-	items := output.Array()
-	if len(items) == 0 {
-		return false
-	}
-	if overflow {
-		return true
-	}
+	var proof responses.HistoryOutput
 	for _, ev := range events {
 		kind := ev.Type
 		if kind == "" {
 			kind = gjson.GetBytes(ev.Data, "type").String()
 		}
-		switch kind {
-		case "response.created", "response.in_progress", "response.queued":
-			continue
-		case "response.output_item.done":
-			index := gjson.GetBytes(ev.Data, "output_index").Int()
-			if index < 0 || index >= int64(len(items)) || gjson.GetBytes(ev.Data, "item").Raw != items[index].Raw {
-				return false
-			}
-		default:
-			// The native aggregator owns incremental text, tools and reasoning.
-			return false
-		}
+		proof.Observe(kind, ev.Data, nil)
 	}
-	return true
+	return proof.Covers(output)
 }
 
 func (s *responsesSessionStream) Current() *httpclient.StreamEvent { return s.current }
@@ -530,10 +542,9 @@ func (s *responsesSessionStream) recordCompleted() {
 	}
 
 	body, _, err := responses.AggregateStreamChunks(s.ctx, s.chunks)
-	if err != nil {
+	if err != nil || !completeHistoryOutput(gjson.GetBytes(body, "output"), s.chunks, false) {
 		return
 	}
-
 	s.recordDelivered(body)
 }
 
@@ -544,14 +555,6 @@ func (s *responsesSessionStream) recordDelivered(body []byte) {
 		return
 	}
 	s.store.record(s.ctx, s.requestBody, body)
-}
-
-func cloneResponseSessionPayload(payload map[string]json.RawMessage) map[string]json.RawMessage {
-	cloned := make(map[string]json.RawMessage, len(payload))
-	for key, value := range payload {
-		cloned[key] = cloneResponseSessionValue(value)
-	}
-	return cloned
 }
 
 func cloneResponseSessionValue(value json.RawMessage) json.RawMessage {
@@ -594,7 +597,8 @@ func responseSessionInputItems(value json.RawMessage) []json.RawMessage {
 
 	var items []json.RawMessage
 	if json.Unmarshal(value, &items) == nil {
-		return cloneResponseSessionValues(items)
+		// Unmarshal has already copied each RawMessage into its own allocation.
+		return items
 	}
 
 	var text string
@@ -614,6 +618,9 @@ func responseSessionInputItems(value json.RawMessage) []json.RawMessage {
 
 func normalizeResponseSessionInput(value json.RawMessage) (json.RawMessage, bool) {
 	var items []json.RawMessage
+	if !bytes.Contains(value, []byte(`"status"`)) && !bytes.Contains(value, []byte(`\`)) {
+		return value, false
+	}
 	if json.Unmarshal(value, &items) != nil {
 		return value, false
 	}
@@ -634,6 +641,10 @@ func normalizeResponseSessionItems(items []json.RawMessage) ([]json.RawMessage, 
 	normalized := make([]json.RawMessage, 0, len(items))
 	changed := false
 	for _, item := range items {
+		if !bytes.Contains(item, []byte(`"status"`)) && !bytes.Contains(item, []byte(`\`)) {
+			normalized = append(normalized, item)
+			continue
+		}
 		var object map[string]json.RawMessage
 		if json.Unmarshal(item, &object) != nil || object == nil {
 			normalized = append(normalized, cloneResponseSessionValue(item))

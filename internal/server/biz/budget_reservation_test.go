@@ -56,6 +56,18 @@ func TestBudgetFinishedAttemptReleasesHoldAndSettlesLateCost(t *testing.T) {
 	require.Equal(t, budgetcharge.StatusSettled, f.db.BudgetCharge.GetX(f.ctx, charge.ID).Status)
 }
 
+func TestContinuationBudgetUsesCompleteQuoteBeforeReserving(t *testing.T) {
+	f := newBudgetFixture(t)
+	f.configure(t, "group", f.group.ID, "35")
+	held, err := f.service.ReserveAttempt(f.ctx, f.key.ProjectID, f.key.ID, 1, 1, budgetAmount(t, "1"), ErrBudgetNeedsHistoryQuote)
+	require.ErrorIs(t, err, ErrBudgetNeedsHistoryQuote)
+	require.False(t, held)
+	held, err = f.service.ReserveAttempt(f.ctx, f.key.ProjectID, f.key.ID, 1, 1, budgetAmount(t, "40"), nil)
+	require.ErrorContains(t, err, "budget")
+	require.False(t, held)
+	require.Zero(t, f.db.BudgetCharge.Query().CountX(f.ctx))
+}
+
 func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 	for _, status := range []string{"failed", "running", "succeeded"} {
 		t.Run(status, func(t *testing.T) {

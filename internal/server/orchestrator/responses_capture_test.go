@@ -12,6 +12,22 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
+func TestResponsesSparseTerminalKeepsCompletedToolInHistory(t *testing.T) {
+	lane := shared.NewResponsesLane("sparse", shared.NewResponsesBudget(4096))
+	defer lane.Close()
+	c := newResponsesContinuation(nil, []byte(`{"input":"first"}`))
+	c.lane, c.retain, c.complete = lane, true, true
+	c.capture.budget = lane.Budget()
+	item := `{"type":"function_call","call_id":"t","name":"tool","arguments":"{}"}`
+	c.capture.observe(&httpclient.StreamEvent{Data: []byte(`{"type":"response.output_item.done","output_index":0,"item":` + item + `}`)})
+	c.capture.observe(&httpclient.StreamEvent{Data: []byte(`{"type":"response.completed","response":{"id":"previous","status":"completed","output":[]}}`)})
+	c.accept(shared.WithResponsesLane(t.Context(), lane))
+	history := lane.Record().Snapshot
+	require.NotNil(t, history)
+	require.Len(t, history.Output, 1)
+	require.JSONEq(t, item, string(history.Output[0]))
+}
+
 func TestResponsesCaptureCommitsActualProviderIdentity(t *testing.T) {
 	// Given
 	lane := shared.NewResponsesLane("lane", shared.NewResponsesBudget(64<<20))

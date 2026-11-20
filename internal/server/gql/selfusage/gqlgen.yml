@@ -1,5 +1,6 @@
 schema:
   - selfusage.graphql
+  - ../request_stream_timing.graphql
   - ../cost_pricing_evidence.graphql
   - ../budget_types.graphql
 
@@ -22,6 +23,10 @@ autobind:
   - github.com/99designs/gqlgen/graphql/introspection
 
 models:
+  RequestStreamTiming:
+    model: github.com/looplj/axonhub/internal/objects.RequestStreamTiming
+  RequestOutputRate:
+    model: github.com/looplj/axonhub/internal/server/biz.RequestOutputRate
   PromptWriteCacheVariantCode:
     model: github.com/looplj/axonhub/internal/objects.PromptWriteCacheVariantCode
   SelfUsageImageOutput:

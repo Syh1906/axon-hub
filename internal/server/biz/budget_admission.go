@@ -53,6 +53,9 @@ func (s *BudgetService) Reserve(ctx context.Context, projectID, keyID, requestID
 	return err
 }
 
+// ErrBudgetNeedsHistoryQuote asks for a full continuation quote only for an active account.
+var ErrBudgetNeedsHistoryQuote = errors.New("active budget requires complete continuation estimate")
+
 // ReserveAttempt reports whether the committed admission owns a real charge.
 func (s *BudgetService) ReserveAttempt(ctx context.Context, projectID, keyID, requestID, executionID int, estimate budget.Amount, quoteErr error) (bool, error) {
 	var held bool
@@ -166,6 +169,9 @@ func checkBudgetAccounts(ctx context.Context, db *ent.Client, accounts []*ent.Bu
 		}
 	}
 	for _, account := range accounts {
+		if errors.Is(quoteErr, ErrBudgetNeedsHistoryQuote) && !account.State.Policy.StartedAt.IsZero() {
+			return false, ErrBudgetNeedsHistoryQuote
+		}
 		if quoteErr != nil && account.State.HasLimits() {
 			return false, &BudgetDenied{Scope: string(account.OwnerKind), Reason: "pricing_unavailable", CandidateOnly: true}
 		}

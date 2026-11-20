@@ -1148,6 +1148,44 @@ func TestWebSocketExecutorSendsOnlyNewInputOnReusedSession(t *testing.T) {
 	require.Equal(t, int32(1), upgrades.Load())
 }
 
+func TestSparseWebSocketOutputDoesNotAuthorizeImplicitContinuation(t *testing.T) {
+	var requests atomic.Int32
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			var frame map[string]any
+			if conn.ReadJSON(&frame) != nil {
+				return
+			}
+			if requests.Add(1) == 1 {
+				require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","call_id":"omitted","name":"tool","arguments":"{}"}}`)))
+			} else {
+				require.NotContains(t, frame, "previous_response_id")
+				require.Len(t, frame["input"], 2)
+			}
+			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":{"id":"prev","status":"completed","output":[]}}`)))
+		}
+	}))
+	defer server.Close()
+	executor := NewWebSocketExecutor(nil)
+	defer executor.Close()
+	for _, input := range []string{`[{"role":"user","content":"a"}]`, `[{"role":"user","content":"a"},{"role":"user","content":"b"}]`} {
+		result, err := executor.DoStream(webSocketTestContext(), &httpclient.Request{Method: "POST", URL: server.URL, Headers: http.Header{webSocketSessionHeader: []string{"sparse"}}, Body: []byte(`{"model":"gpt-5","input":` + input + `}`)})
+		require.NoError(t, err)
+		for result.Next() {
+			_ = result.Current()
+		}
+		require.NoError(t, result.Err())
+		require.NoError(t, result.Close())
+	}
+	require.EqualValues(t, 2, requests.Load())
+}
+
 func TestWebSocketExecutorKeepsConnectionWhenInputExceedsRetainedLimit(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	var upgrades atomic.Int32

@@ -33,6 +33,7 @@ type firstContentSample struct {
 	at           time.Time
 	session      uint64
 	delay        time.Duration
+	fromDispatch time.Duration
 	failed       bool
 	mismatched   bool
 	unverified   bool
@@ -194,10 +195,36 @@ func distribution(rows []firstContentSample, now time.Time) (routeDistribution, 
 }
 
 type firstContentDecision struct {
+	addresses         map[string]firstContentRoute
 	keys              []firstContentRoute
 	chosen, suggested int
 	mode              string
 	session           uint64
+}
+
+// The historical duration already includes upload. Prediction is available
+// only for the same comparable address/work group used by normal routing.
+func (h *firstContentRoutes) expectedAddressStart(d *firstContentDecision, address string) time.Duration {
+	if h == nil || d == nil {
+		return 0
+	}
+	key, ok := d.addresses[address]
+	if !ok || !h.mu.TryLock() {
+		return 0
+	}
+	defer h.mu.Unlock()
+	rows := slices.Clone(h.groups[key].samples)
+	for i := range rows {
+		rows[i].delay = rows[i].fromDispatch
+		if !rows[i].failed && rows[i].delay <= 0 {
+			rows[i].unverified = true
+		}
+	}
+	dist, ready := distribution(rows, time.Now())
+	if !ready {
+		return 0
+	}
+	return dist.p50
 }
 
 // estimateLocked amortizes quantile sorting over new sessions in a busy group.

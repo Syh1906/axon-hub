@@ -318,6 +318,18 @@ func (_u *RequestUpdate) ClearMetricsFirstTokenLatencyMs() *RequestUpdate {
 	return _u
 }
 
+// SetStreamTiming sets the "stream_timing" field.
+func (_u *RequestUpdate) SetStreamTiming(v *objects.RequestStreamTiming) *RequestUpdate {
+	_u.mutation.SetStreamTiming(v)
+	return _u
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (_u *RequestUpdate) ClearStreamTiming() *RequestUpdate {
+	_u.mutation.ClearStreamTiming()
+	return _u
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (_u *RequestUpdate) SetMetricsReasoningDurationMs(v int64) *RequestUpdate {
 	_u.mutation.ResetMetricsReasoningDurationMs()
@@ -712,6 +724,12 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.MetricsFirstTokenLatencyMsCleared() {
 		_spec.ClearField(request.FieldMetricsFirstTokenLatencyMs, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.StreamTiming(); ok {
+		_spec.SetField(request.FieldStreamTiming, field.TypeJSON, value)
+	}
+	if _u.mutation.StreamTimingCleared() {
+		_spec.ClearField(request.FieldStreamTiming, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.MetricsReasoningDurationMs(); ok {
 		_spec.SetField(request.FieldMetricsReasoningDurationMs, field.TypeInt64, value)
@@ -1171,6 +1189,18 @@ func (_u *RequestUpdateOne) ClearMetricsFirstTokenLatencyMs() *RequestUpdateOne 
 	return _u
 }
 
+// SetStreamTiming sets the "stream_timing" field.
+func (_u *RequestUpdateOne) SetStreamTiming(v *objects.RequestStreamTiming) *RequestUpdateOne {
+	_u.mutation.SetStreamTiming(v)
+	return _u
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (_u *RequestUpdateOne) ClearStreamTiming() *RequestUpdateOne {
+	_u.mutation.ClearStreamTiming()
+	return _u
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (_u *RequestUpdateOne) SetMetricsReasoningDurationMs(v int64) *RequestUpdateOne {
 	_u.mutation.ResetMetricsReasoningDurationMs()
@@ -1595,6 +1625,12 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if _u.mutation.MetricsFirstTokenLatencyMsCleared() {
 		_spec.ClearField(request.FieldMetricsFirstTokenLatencyMs, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.StreamTiming(); ok {
+		_spec.SetField(request.FieldStreamTiming, field.TypeJSON, value)
+	}
+	if _u.mutation.StreamTimingCleared() {
+		_spec.ClearField(request.FieldStreamTiming, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.MetricsReasoningDurationMs(); ok {
 		_spec.SetField(request.FieldMetricsReasoningDurationMs, field.TypeInt64, value)

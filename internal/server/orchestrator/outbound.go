@@ -139,6 +139,7 @@ func (ts *OutboundPersistentStream) Next() bool {
 func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
+		ts.attemptClock.ObserveOutputProgress(ts.apiFormat, event)
 		if ts.apiFormat == llm.APIFormatOpenAIResponse || ts.apiFormat == llm.APIFormatOpenAIResponseWebSocket {
 			ts.attemptClock.ObserveResponsesEvent(event)
 		}
@@ -581,11 +582,15 @@ var errSkipCandidateByCircuitBreaker = errors.New("skip candidate by circuit bre
 
 // PersistentOutboundTransformer wraps an outbound transformer with shared persistence state.
 type PersistentOutboundTransformer struct {
+	backupSourceExecutionID       int
 	preparedPassThrough           bool
 	wrapped                       transformer.Outbound
 	addressIndex                  int
 	continuationAddresses         []objects.ChannelUpstreamAddress
 	retryAddress                  bool
+	addressRetryFrom              int
+	addressDeadline               time.Time
+	addressDeadlineChannel        int
 	addressAPIKey                 string
 	state                         *PersistenceState
 	outboundLlmRequestMiddlewares []pipeline.OutboundLlmRequestMiddleware
@@ -717,6 +722,7 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 	p.state.CleanEOFCompletionEvidence = false
 	p.refreshCandidateAPIFormat(ctx, candidate, p.state.CurrentModelIndex, llmRequest)
 
+	p.preferVerifiedHTTPWebSocket(ctx, candidate, entry, llmRequest)
 	p.wrapped = selectOutboundForCandidate(candidate)
 
 	log.Debug(ctx, "using candidate",
@@ -1190,6 +1196,9 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	decision := "same_channel"
 	if p.retryAddress {
 		decision = "next_address"
+		if p.state.RequestExec != nil {
+			p.backupSourceExecutionID = p.state.RequestExec.ID
+		}
 	} else if !candidate.continuationBound && p.state.CurrentModelIndex+1 < len(candidate.Models) {
 		decision = "next_model"
 	}
@@ -1204,6 +1213,7 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 	p.resetPassThroughStreamState()
 	if p.retryAddress {
 		p.addressIndex++
+		p.addressRetryFrom = p.state.CurrentCandidate.Channel.ID
 		p.retryAddress = false
 		if !candidate.continuationStrict {
 			candidate.continuationUpstreamRef = ""
@@ -1211,6 +1221,7 @@ func (p *PersistentOutboundTransformer) PrepareForRetry(ctx context.Context) err
 		return nil
 	}
 	p.addressIndex = 0
+	p.addressRetryFrom = 0
 	if !candidate.continuationBound {
 		p.addressAPIKey = ""
 	}

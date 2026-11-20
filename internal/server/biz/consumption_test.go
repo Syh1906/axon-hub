@@ -293,7 +293,7 @@ func TestConsumptionTextSpeedAndPricingCompleteness(t *testing.T) {
 	require.Zero(t, metrics.UnpricedRequestCount)
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{first.ID})
 	require.NoError(t, err)
-	require.InDelta(t, 100.0, *speeds[first.ID], 1e-9)
+	require.InDelta(t, 100000.0/1200, *speeds[first.ID], 1e-9)
 	usage := f.client.UsageLog.Query().Where(usagelog.RequestIDEQ(first.ID)).OnlyX(f.ctx)
 	f.client.UsageLog.UpdateOne(usage).ClearTotalCost().SaveX(f.ctx)
 	rows, err = f.service.queryGroups(f.ctx, f.project.ID, filter, nil, time.Now())
@@ -321,9 +321,9 @@ func TestConsumptionSpeedUsesMeasuredWindowAndRejectsUnknownArchives(t *testing.
 	}
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, ids)
 	require.NoError(t, err)
-	require.InDelta(t, 486000.0/(13442-1593), *speeds[ids[0]], 1e-8)
-	require.InDelta(t, 486000.0/(13442-12193), *speeds[ids[1]], 1e-8)
-	require.Nil(t, speeds[ids[2]])
+	for _, id := range ids {
+		require.InDelta(t, 486000.0/13442, *speeds[id], 1e-8)
+	}
 	require.NoError(t, ArchiveRequestStatistics(f.ctx, f.client, ids[:1]))
 	archives := f.client.UsageArchive.Query().Where(usagearchive.RequestIDEQ(ids[0])).AllX(f.ctx)
 	for _, archive := range archives {

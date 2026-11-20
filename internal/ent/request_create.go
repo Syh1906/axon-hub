@@ -364,6 +364,12 @@ func (_c *RequestCreate) SetNillableMetricsFirstTokenLatencyMs(v *int64) *Reques
 	return _c
 }
 
+// SetStreamTiming sets the "stream_timing" field.
+func (_c *RequestCreate) SetStreamTiming(v *objects.RequestStreamTiming) *RequestCreate {
+	_c.mutation.SetStreamTiming(v)
+	return _c
+}
+
 // SetMetricsReasoningDurationMs sets the "metrics_reasoning_duration_ms" field.
 func (_c *RequestCreate) SetMetricsReasoningDurationMs(v int64) *RequestCreate {
 	_c.mutation.SetMetricsReasoningDurationMs(v)
@@ -748,6 +754,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MetricsFirstTokenLatencyMs(); ok {
 		_spec.SetField(request.FieldMetricsFirstTokenLatencyMs, field.TypeInt64, value)
 		_node.MetricsFirstTokenLatencyMs = &value
+	}
+	if value, ok := _c.mutation.StreamTiming(); ok {
+		_spec.SetField(request.FieldStreamTiming, field.TypeJSON, value)
+		_node.StreamTiming = value
 	}
 	if value, ok := _c.mutation.MetricsReasoningDurationMs(); ok {
 		_spec.SetField(request.FieldMetricsReasoningDurationMs, field.TypeInt64, value)
@@ -1217,6 +1227,24 @@ func (u *RequestUpsert) AddMetricsFirstTokenLatencyMs(v int64) *RequestUpsert {
 // ClearMetricsFirstTokenLatencyMs clears the value of the "metrics_first_token_latency_ms" field.
 func (u *RequestUpsert) ClearMetricsFirstTokenLatencyMs() *RequestUpsert {
 	u.SetNull(request.FieldMetricsFirstTokenLatencyMs)
+	return u
+}
+
+// SetStreamTiming sets the "stream_timing" field.
+func (u *RequestUpsert) SetStreamTiming(v *objects.RequestStreamTiming) *RequestUpsert {
+	u.Set(request.FieldStreamTiming, v)
+	return u
+}
+
+// UpdateStreamTiming sets the "stream_timing" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateStreamTiming() *RequestUpsert {
+	u.SetExcluded(request.FieldStreamTiming)
+	return u
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (u *RequestUpsert) ClearStreamTiming() *RequestUpsert {
+	u.SetNull(request.FieldStreamTiming)
 	return u
 }
 
@@ -1726,6 +1754,27 @@ func (u *RequestUpsertOne) UpdateMetricsFirstTokenLatencyMs() *RequestUpsertOne 
 func (u *RequestUpsertOne) ClearMetricsFirstTokenLatencyMs() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetStreamTiming sets the "stream_timing" field.
+func (u *RequestUpsertOne) SetStreamTiming(v *objects.RequestStreamTiming) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetStreamTiming(v)
+	})
+}
+
+// UpdateStreamTiming sets the "stream_timing" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateStreamTiming() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateStreamTiming()
+	})
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (u *RequestUpsertOne) ClearStreamTiming() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearStreamTiming()
 	})
 }
 
@@ -2417,6 +2466,27 @@ func (u *RequestUpsertBulk) UpdateMetricsFirstTokenLatencyMs() *RequestUpsertBul
 func (u *RequestUpsertBulk) ClearMetricsFirstTokenLatencyMs() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetStreamTiming sets the "stream_timing" field.
+func (u *RequestUpsertBulk) SetStreamTiming(v *objects.RequestStreamTiming) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetStreamTiming(v)
+	})
+}
+
+// UpdateStreamTiming sets the "stream_timing" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateStreamTiming() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateStreamTiming()
+	})
+}
+
+// ClearStreamTiming clears the value of the "stream_timing" field.
+func (u *RequestUpsertBulk) ClearStreamTiming() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearStreamTiming()
 	})
 }
 

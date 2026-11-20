@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,55 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
+
+func TestResponsesStatelessHistorySharesVerifiedPrefixAcrossThreeTurns(t *testing.T) {
+	// A 36 MiB input fits the normal 64 MiB lane once, never twice.
+	lane := shared.NewResponsesLane("history", shared.NewResponsesBudget(64<<20))
+	t.Cleanup(lane.Close)
+	origin := shared.ResponsesOrigin{ChannelID: 1, Format: string(llm.APIFormatOpenAIResponse), Model: "model"}
+	ctx := shared.WithSessionScope(shared.WithResponsesLane(shared.WithResponsesWebSocket(t.Context()), lane), "project:1:key:1")
+	ctx = shared.WithResponsesAttempt(ctx, &shared.ResponsesAttempt{})
+	shared.GetResponsesAttempt(ctx).SetOrigin(origin)
+	body := []byte(`{"input":[{"role":"user","content":"` + strings.Repeat("x", 36<<20) + `"}]}`)
+	for i, id := range []string{"one", "two", "three"} {
+		c := newResponsesContinuation(nil, body)
+		p := &PersistentOutboundTransformer{state: &PersistenceState{ResponsesContinuation: c}}
+		full, err := prepareResponsesAttemptBody(ctx, p, responsesAttemptTarget{origin: origin})
+		require.NoError(t, err)
+		require.False(t, gjson.GetBytes(full, "previous_response_id").Exists())
+		require.Equal(t, int64(1+2*i), gjson.GetBytes(full, "input.#").Int())
+		c.captureAttemptBody(full)
+		if i > 0 {
+			require.Same(t, lane.Record().Snapshot, c.parent)
+			require.Len(t, c.input, 1)
+		}
+		c.remember(ctx, []byte(`{"id":"`+id+`","status":"completed","output":[{"type":"message","content":"ack"}]}`))
+		require.NotNil(t, lane.Record().Snapshot)
+		body = []byte(`{"previous_response_id":"` + id + `","input":[{"role":"user","content":"continue"}]}`)
+	}
+	changed := gjson.Parse(`[{"role":"system","content":"replacement"}]`)
+	_, ok := retainedResponsesSuffix(changed, lane.Record().Snapshot)
+	require.False(t, ok)
+}
+
+func TestResponsesRewrittenHistoryReplacesRootOnlyAfterCompletion(t *testing.T) {
+	lane := shared.NewResponsesLane("rewritten", shared.NewResponsesBudget(1500))
+	defer lane.Close()
+	previous := json.RawMessage(`{"role":"user","content":"` + strings.Repeat("a", 800) + `"}`)
+	root := shared.NewResponsesSnapshot(nil, []json.RawMessage{previous}, nil)
+	lane.Remember(shared.ResponsesRecord{ID: "old", Snapshot: root})
+	owner := lane.Record()
+	c := newResponsesContinuation(nil, nil)
+	c.lane, c.owner, c.complete, c.retain = lane, &owner, true, true
+	body := []byte(`{"input":[{"role":"user","content":"` + strings.Repeat("b", 800) + `"}]}`)
+	c.captureAttemptBody(body)
+	require.True(t, c.replaceInputAtCommit)
+	require.Same(t, root, lane.Record().Snapshot)
+	c.remember(shared.WithResponsesLane(t.Context(), lane), []byte(`{"id":"new","status":"completed","output":[]}`))
+	items := lane.Record().Snapshot.Items()
+	require.Len(t, items, 1)
+	require.Equal(t, strings.Repeat("b", 800), gjson.GetBytes(items[0], "content").String())
+}
 
 func TestResponsesRecoveryAfterFinalOriginChanges(t *testing.T) {
 	for _, changed := range []string{"credential", "endpoint"} {

@@ -91,6 +91,13 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 
 		candidates, err := selector.Select(ctx, llmRequest)
 		if err != nil {
+			var recovered bool
+			recovered, err = restoreHTTPRouteAfterOriginLoss(ctx, inbound.state, llmRequest, err)
+			if recovered {
+				candidates, err = selector.Select(ctx, llmRequest)
+			}
+		}
+		if err != nil {
 			return nil, err
 		}
 

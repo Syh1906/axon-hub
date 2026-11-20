@@ -153,8 +153,10 @@ func WithDispatchGuard(guard func() error) Option {
 	return func(p *pipeline) { p.dispatchGuard = guard }
 }
 
-// DispatchStoppedError distinguishes a logical dispatch stop from this lane's
-// last provider outcome, so concurrent callers can finalize health accurately.
+// ErrBackupStartBudget stops before sending a backup that cannot start in time.
+var ErrBackupStartBudget = errors.New("remaining time is insufficient to start the backup address")
+
+// DispatchStoppedError carries the last actual provider outcome for health reporting.
 type DispatchStoppedError struct {
 	Cause            error
 	LastAttemptError error
@@ -418,6 +420,10 @@ func (p *pipeline) ProcessPrepared(ctx context.Context, llmRequest *llm.Request,
 			return result, nil
 		}
 
+		if errors.Is(err, ErrBackupStartBudget) && lastErr != nil {
+			p.notifyRetryStopped(ctx, "insufficient_backup_time")
+			return nil, lastErr
+		}
 		lastErr = err
 		if _, stopped := errors.AsType[*DispatchStoppedError](err); stopped {
 			return nil, err
@@ -553,6 +559,9 @@ func (p *pipeline) processRequest(ctx context.Context, request *llm.Request) (_ 
 	// Apply raw request middlewares
 	httpReq, err = p.applyRawRequestMiddlewares(ctx, httpReq)
 	if err != nil {
+		if errors.Is(err, ErrBackupStartBudget) {
+			return nil, err // no new execution or provider outcome
+		}
 		p.applyRawErrorResponseMiddlewares(ctx, err)
 
 		return nil, fmt.Errorf("failed to apply raw request middlewares: %w", err)

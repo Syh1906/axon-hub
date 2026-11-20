@@ -5,10 +5,34 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
+
+func TestSemanticProgressIsIndependentOfDeliveredContent(t *testing.T) {
+	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
+		_, clock := WithRequestClock(t.Context(), time.Now())
+		attempt := clock.AddAttempt(1, 2, nil)
+		for _, frame := range []string{`{"type":"response.created"}`, `{"type":"response.queued"}`,
+			`{"type":"response.output_text.delta","delta":""}`, `{"type":"unknown"}`, `{"type":"error"}`,
+			`{"type":"response.completed","response":{"output":[],"usage":{"output_tokens":3}}}`} {
+			attempt.ObserveOutputProgress(format, &httpclient.StreamEvent{Data: []byte(frame)})
+		}
+		require.Nil(t, clock.Snapshot().Attempts[0].Semantic)
+		start := &httpclient.StreamEvent{Data: []byte(`{"type":"response.output_item.added","item":{"type":"reasoning","summary":[]}}`)}
+		attempt.ObserveOutputProgress(format, start)
+		clock.WroteResponsesEvent(start)
+		require.Equal(t, "response.output_item.added.reasoning", clock.Snapshot().Attempts[0].Semantic.Type)
+		require.Nil(t, clock.Snapshot().FirstWriteContent)
+		clock.WroteResponsesEvent(&httpclient.StreamEvent{Data: []byte(`{"type":"response.function_call_arguments.delta","delta":"{}"}`)})
+		require.Nil(t, clock.Snapshot().FirstAnswer)
+		clock.WroteResponsesEvent(&httpclient.StreamEvent{Data: []byte(`{"type":"response.completed","response":{"output":[{"type":"message","content":[{"type":"output_text","text":"answer"}]}]}}`)})
+		require.NotNil(t, clock.Snapshot().FirstAnswer)
+		require.Equal(t, "response.function_call_arguments.delta", clock.Snapshot().FirstWriteContent.Type)
+	}
+}
 
 func TestResponsesEventClocksDistinguishStructureAndDeliveredDelta(t *testing.T) {
 	_, clock := WithRequestClock(t.Context(), time.Now())
@@ -72,5 +96,65 @@ func TestFirstWrittenContentFollowsClientProtocol(t *testing.T) {
 			require.Equal(t, tc.kind, c.Snapshot().FirstWriteContent.Type)
 			require.Nil(t, c.Snapshot().FirstWriteDelta)
 		})
+	}
+}
+
+func TestGeminiToolStartAndMixedAnswer(t *testing.T) {
+	_, clock := WithRequestClock(t.Context(), time.Now())
+	attempt := clock.AddAttempt(1, 2, nil)
+	frame := func(parts string) *httpclient.StreamEvent {
+		return &httpclient.StreamEvent{Data: []byte(`{"candidates":[{"content":{"parts":[` + parts + `]}}]}`)}
+	}
+	start := frame(`{"functionCall":{"name":"tool"}}`)
+	attempt.ObserveOutputProgress(llm.APIFormatGeminiContents, start)
+	clock.WroteStreamContent(llm.APIFormatGeminiContents, start)
+	require.Equal(t, "gemini.function_call", clock.Snapshot().Attempts[0].Semantic.Type)
+	require.Nil(t, clock.Snapshot().FirstWriteContent)
+	args := frame(`{"functionCall":{"name":"tool","args":{"n":1}}}`)
+	clock.WroteStreamContent(llm.APIFormatGeminiContents, args)
+	require.Equal(t, "gemini.function_call", clock.Snapshot().FirstWriteContent.Type)
+	_, other := WithRequestClock(t.Context(), time.Now())
+	other.WroteStreamContent(llm.APIFormatGeminiContents, frame(`{"thought":true,"text":"think"},{"text":"answer"}`))
+	require.Equal(t, "gemini.thought", other.Snapshot().FirstWriteContent.Type)
+	require.NotNil(t, other.Snapshot().FirstAnswer)
+}
+
+func TestAnswerDeliveryCountsOnlyNewTextAndMatchedTokenBatches(t *testing.T) {
+	_, clock := WithRequestClock(t.Context(), time.Now())
+	write := func(frame string) { clock.WroteResponsesEvent(&httpclient.StreamEvent{Data: []byte(frame)}) }
+	write(`{"type":"response.reasoning_text.delta","delta":"thinking"}`)
+	write(`{"type":"response.output_text.delta","delta":"ab","logprobs":[{"token":"a"},{"token":"b"}]}`)
+	write(`{"type":"response.output_text.done","text":"ab"}`)
+	write(`{"type":"response.completed","response":{"output":[{"type":"message","content":[{"type":"output_text","text":"ab"}]}]}}`)
+	snapshot := clock.Snapshot()
+	require.True(t, snapshot.SingleAnswerBatch)
+	require.Nil(t, snapshot.AnswerTokensPerSecond)
+
+	clockRate := answerDelivery{}
+	at := time.Now()
+	clockRate.observe(gjson.Parse(`"ab"`), gjson.Parse(`[{"token":"a"},{"token":"b"}]`), 0, 0, false, at)
+	clockRate.observe(gjson.Parse(`"cde"`), gjson.Parse(`[{"token":"c"},{"token":"d"},{"token":"e"}]`), 0, 0, false, at.Add(2*time.Second))
+	single, rate := clockRate.result()
+	require.False(t, single)
+	require.NotNil(t, rate)
+	require.Equal(t, 1.5, *rate)
+	clockRate.observe(gjson.Parse(`"f"`), gjson.Parse(`[{"token":"wrong"}]`), 0, 0, false, at.Add(3*time.Second))
+	_, rate = clockRate.result()
+	require.Nil(t, rate)
+
+	for _, tc := range []struct {
+		format llm.APIFormat
+		frame  string
+	}{
+		{llm.APIFormatAnthropicMessage, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}}`},
+		{llm.APIFormatOpenAIChatCompletion, `{"choices":[{"index":0,"delta":{"content":"hi"}}]}`},
+		{llm.APIFormatGeminiContents, `{"candidates":[{"content":{"parts":[{"thought":true,"text":"thinking"},{"text":"hi"}]}}]}`},
+	} {
+		_, c := WithRequestClock(t.Context(), at)
+		c.WroteStreamContent(tc.format, &httpclient.StreamEvent{Data: []byte(tc.frame)})
+		require.True(t, c.Snapshot().SingleAnswerBatch)
+		c.WroteStreamContent(tc.format, &httpclient.StreamEvent{Data: []byte(tc.frame)})
+		require.False(t, c.Snapshot().SingleAnswerBatch)
+		require.Nil(t, c.Snapshot().AnswerTokensPerSecond)
 	}
 }

@@ -12,6 +12,14 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
+// OutputRate is the resolver for the outputRate field.
+func (r *requestResolver) OutputRate(ctx context.Context, obj *ent.Request) (*biz.RequestOutputRate, error) {
+	if obj.Status != "completed" {
+		return nil, nil
+	}
+	return requestOutputRate(ctx, r.client, obj.ID)
+}
+
 // OutputTokensPerSecond is the resolver for the outputTokensPerSecond field.
 func (r *requestResolver) OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error) {
 	if obj.Status == "pending" || obj.Status == "processing" {

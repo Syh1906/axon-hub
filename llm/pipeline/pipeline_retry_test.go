@@ -995,3 +995,28 @@ func transformLlmContentToEvents(_ context.Context, stream streams.Stream[*llm.R
 		return &httpclient.StreamEvent{Data: []byte("metadata")}
 	}), nil
 }
+
+func TestUnsentBackupKeepsOriginalProviderError(t *testing.T) {
+	providerErr := errors.New("upstream returned 524")
+	calls, prepares, observations := 0, 0, 0
+	p := &pipeline{Inbound: &mockInbound{}, Outbound: &mockOutbound{
+		canRetry:        func(error) bool { return true },
+		prepareForRetry: func(context.Context) error { prepares++; return nil },
+	}, maxSameChannelRetries: 1,
+		middlewares: []Middleware{OnRawRequest("start-budget", func(_ context.Context, r *httpclient.Request) (*httpclient.Request, error) {
+			if prepares > 0 {
+				return nil, ErrBackupStartBudget
+			}
+			return r, nil
+		}), &simpleMiddleware{outboundRawErrorResponseHandler: func(_ context.Context, err error) { observations++; require.ErrorIs(t, err, providerErr) }}},
+		Executor: &mockExecutor{do: func(context.Context, *httpclient.Request) (*httpclient.Response, error) {
+			calls++
+			return nil, providerErr
+		}},
+	}
+	_, err := p.Process(t.Context(), &httpclient.Request{})
+	require.ErrorIs(t, err, providerErr)
+	require.Equal(t, 1, prepares)
+	require.Equal(t, 1, calls)
+	require.Equal(t, 1, observations)
+}

@@ -76,6 +76,8 @@ const (
 	FieldMetricsLatencyMs = "metrics_latency_ms"
 	// FieldMetricsFirstTokenLatencyMs holds the string denoting the metrics_first_token_latency_ms field in the database.
 	FieldMetricsFirstTokenLatencyMs = "metrics_first_token_latency_ms"
+	// FieldStreamTiming holds the string denoting the stream_timing field in the database.
+	FieldStreamTiming = "stream_timing"
 	// FieldMetricsReasoningDurationMs holds the string denoting the metrics_reasoning_duration_ms field in the database.
 	FieldMetricsReasoningDurationMs = "metrics_reasoning_duration_ms"
 	// FieldContentSaved holds the string denoting the content_saved field in the database.
@@ -185,6 +187,7 @@ var Columns = []string{
 	FieldUserAgent,
 	FieldMetricsLatencyMs,
 	FieldMetricsFirstTokenLatencyMs,
+	FieldStreamTiming,
 	FieldMetricsReasoningDurationMs,
 	FieldContentSaved,
 	FieldContentStorageID,

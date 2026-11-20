@@ -75,6 +75,14 @@ The server persists the latest task. Active status polls about every 1.5 seconds
 
 Automatic and manual submissions share one database task slot. Active tasks, including paused tasks, are reused; retrying the last submission key returns its existing result. Processes must share the primary database for mutual exclusion. Batch changes and checkpoints commit together, and an expired 30-second owner lease allows restart recovery. Only the latest task is retained, not a full task history. External deletion cannot be atomic with the database; a retry may delete an already absent object again.
 
+## First token and average output in request logs
+
+First token measures the selected upstream attempt until its first answer, reasoning or tool event, including the announcement of an output item. Queuing, keepalives and usage-only frames leave the timer running. Hover over the value to see the event, elapsed time from reading the request to writing usable content and answer text, and time from usable content to completion. Older records retain their original first-token definition.
+
+Average output divides the matched output token count by the full duration of the successful upstream attempt, including upload and waiting. Reasoning tokens already included in the output count contribute once. Failed, canceled, unmetered and media-output requests have no rate. Client rendering and model decoding require measurements at the respective endpoints.
+
+The average-output tooltip shows the matched output tokens, reported reasoning tokens and attempt duration. A single answer-text batch is labeled as such. When each batch of the same answer has verifiable token counts and the first and last writes are at least one millisecond apart, the text delivery rate uses the tokens after the first batch divided by the interval between writes. Repeated completion events count once. Missing measurements are labeled as unavailable.
+
 ## Protecting request traffic
 
 Defaults are 100 records per batch, 250 ms between batches, 3 seconds per batch, and a 300-second execution slice. Cleanup yields when primary connection use reaches 60% of the configured pool limit. PostgreSQL lock waits are limited to 250 ms per batch; a lock timeout rolls back the current batch, preserves progress, and waits before continuing automatically. Other database errors remain failed and require investigation before resuming. Save limits through **Manual configuration**, then save page settings; a running task keeps its starting settings.

@@ -231,6 +231,20 @@ func TestResponsePhaseKeepsParentCancellationAndStopsAfterFirstEvent(t *testing.
 	guard.cancelStream()
 }
 
+func TestAddressDeadlineCapsUploadAndFirstResponseTogether(t *testing.T) {
+	req := &httpclient.Request{StartDeadline: time.Now().Add(30 * time.Millisecond)}
+	ctx, guard := newResponsePhaseGuard(t.Context(), req, time.Minute, time.Minute, ErrStreamFirstEventTimeout)
+	defer guard.stop()
+	req.ReportHTTPProgress(httpclient.TransportStarted, time.Now())
+	req.ReportHTTPProgress(httpclient.TransportUploaded, time.Now())
+	select {
+	case <-ctx.Done():
+		require.ErrorIs(t, context.Cause(ctx), ErrStreamFirstEventTimeout)
+	case <-time.After(time.Second):
+		t.Fatal("upload completion reset the inherited backup deadline")
+	}
+}
+
 func TestHTTP524IsNotReclassifiedAsLocalTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(524) }))
 	defer server.Close()

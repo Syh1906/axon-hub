@@ -3892,6 +3892,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldMetricsFirstTokenLatencyMs)
 				fieldSeen[request.FieldMetricsFirstTokenLatencyMs] = struct{}{}
 			}
+		case "streamTiming":
+			if _, ok := fieldSeen[request.FieldStreamTiming]; !ok {
+				selectedFields = append(selectedFields, request.FieldStreamTiming)
+				fieldSeen[request.FieldStreamTiming] = struct{}{}
+			}
 		case "metricsReasoningDurationMs":
 			if _, ok := fieldSeen[request.FieldMetricsReasoningDurationMs]; !ok {
 				selectedFields = append(selectedFields, request.FieldMetricsReasoningDurationMs)

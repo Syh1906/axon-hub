@@ -713,6 +713,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldUserAgent:                  {Type: field.TypeString, Column: request.FieldUserAgent},
 			request.FieldMetricsLatencyMs:           {Type: field.TypeInt64, Column: request.FieldMetricsLatencyMs},
 			request.FieldMetricsFirstTokenLatencyMs: {Type: field.TypeInt64, Column: request.FieldMetricsFirstTokenLatencyMs},
+			request.FieldStreamTiming:               {Type: field.TypeJSON, Column: request.FieldStreamTiming},
 			request.FieldMetricsReasoningDurationMs: {Type: field.TypeInt64, Column: request.FieldMetricsReasoningDurationMs},
 			request.FieldContentSaved:               {Type: field.TypeBool, Column: request.FieldContentSaved},
 			request.FieldContentStorageID:           {Type: field.TypeInt, Column: request.FieldContentStorageID},
@@ -5003,6 +5004,11 @@ func (f *RequestFilter) WhereMetricsLatencyMs(p entql.Int64P) {
 // WhereMetricsFirstTokenLatencyMs applies the entql int64 predicate on the metrics_first_token_latency_ms field.
 func (f *RequestFilter) WhereMetricsFirstTokenLatencyMs(p entql.Int64P) {
 	f.Where(p.Field(request.FieldMetricsFirstTokenLatencyMs))
+}
+
+// WhereStreamTiming applies the entql json.RawMessage predicate on the stream_timing field.
+func (f *RequestFilter) WhereStreamTiming(p entql.BytesP) {
+	f.Where(p.Field(request.FieldStreamTiming))
 }
 
 // WhereMetricsReasoningDurationMs applies the entql int64 predicate on the metrics_reasoning_duration_ms field.

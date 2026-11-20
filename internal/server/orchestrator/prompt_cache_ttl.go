@@ -87,4 +87,3 @@ func collectOneHourCacheArray(array gjson.Result, path string, paths *[]string, 
 		return true
 	})
 }
-

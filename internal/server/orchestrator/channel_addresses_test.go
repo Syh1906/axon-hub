@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -20,6 +21,16 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBackupUploadUsesRemainingDeadlineAndRouteEvidence(t *testing.T) {
+	const size = 4 << 20
+	estimate := httpclient.UploadEstimate{NSPerByte: 1000}
+	require.True(t, addressUploadExceedsDeadline(size, estimate, time.Second))
+	require.False(t, addressUploadExceedsDeadline(size, estimate, 6*time.Second))
+	require.False(t, addressUploadExceedsDeadline(size, httpclient.UploadEstimate{}, time.Second))
+	estimate.PreferZstd, estimate.ZstdSavingsNS = true, float64(4*time.Second)
+	require.False(t, addressUploadExceedsDeadline(size, estimate, time.Second))
+}
 
 type addressStreamErrorExecutor struct{ sequenceExecutor }
 

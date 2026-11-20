@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/anthropic"
 	"github.com/looplj/axonhub/llm/transformer/openai"
 	openairesponses "github.com/looplj/axonhub/llm/transformer/openai/responses"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 func setupBudgetRequest(t *testing.T) (context.Context, *ent.Client, *biz.Channel, *biz.RequestService, *biz.SystemService, *biz.UsageLogService, *ent.APIKey) {
@@ -320,4 +322,25 @@ func TestTokenCountBudgetClosesAtZero(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0.00000000", view.Windows[0].Settled)
 	require.Equal(t, "0.00000000", view.Windows[0].Reserved)
+}
+
+func TestBudgetAdmissionPricesHistoryBehindShortHTTPFrame(t *testing.T) {
+	ctx, db, _, _, _, usage, key := setupBudgetRequest(t)
+	rate := decimal.NewFromInt(1000)
+	price := objects.ModelPrice{Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeUsage, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: &rate}}}}
+	snap := &objects.RequestCostSnapshot{Price: &price, PricedAt: time.Now(), ManualMultiplier: decimal.NewFromInt(1), Applied: objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)}}
+	raw := &httpclient.Request{Body: []byte(`{"model":"gpt-4","previous_response_id":"prior","input":"next"}`)}
+	owner := &shared.ResponsesRecord{ID: "prior", Origin: shared.ResponsesOrigin{Generation: 1}, Snapshot: shared.NewResponsesSnapshot(nil, []json.RawMessage{json.RawMessage(`{"role":"user","content":"` + strings.Repeat("a", 12000) + `"}`)}, nil)}
+	state := &PersistenceState{APIKey: key, Request: &ent.Request{ID: 1}, RequestExec: &ent.RequestExecution{ID: 2, CostSnapshot: snap}, LlmRequest: &llm.Request{}, UsageLogService: usage, ResponsesContinuation: &responsesContinuation{owner: owner}}
+	small, err := usage.BudgetService.Estimate(ctx, state.RequestExec, state.LlmRequest, raw, 0)
+	require.NoError(t, err)
+	require.Less(t, small.Decimal().InexactFloat64(), 1.0)
+	got, err := withBudgetAdmission(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(ctx, raw)
+	require.Nil(t, got)
+	var denial *biz.BudgetDenied
+	require.ErrorAs(t, err, &denial)
+	require.True(t, denial.CandidateOnly)
+	require.Equal(t, 0, db.BudgetCharge.Query().CountX(ctx))
+	require.True(t, gjson.GetBytes(raw.Body, "previous_response_id").Exists())
+	require.Less(t, len(raw.Body), 100)
 }

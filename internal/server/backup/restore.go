@@ -1095,6 +1095,7 @@ func (svc *BackupService) restoreUsageRequests(
 			SetNillableExternalID(nilIfEmpty(reqData.ExternalID)).
 			SetNillableMetricsLatencyMs(reqData.MetricsLatencyMs).
 			SetNillableMetricsFirstTokenLatencyMs(reqData.MetricsFirstTokenLatencyMs).
+			SetStreamTiming(reqData.StreamTiming).
 			SetNillableMetricsReasoningDurationMs(reqData.MetricsReasoningDurationMs).
 			SetNillableContentStorageID(reqData.ContentStorageID).
 			SetNillableContentStorageKey(reqData.ContentStorageKey).

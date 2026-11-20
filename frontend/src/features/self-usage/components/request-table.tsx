@@ -153,7 +153,9 @@ export function UsageRequestTable({
                     stream: item.stream,
                     metricsLatencyMs: item.latencyMs,
                     metricsFirstTokenLatencyMs: item.firstTokenLatencyMs,
+                    streamTiming: item.streamTiming,
                     outputTokensPerSecond: item.outputTokensPerSecond,
+                    outputRate: item.outputRate,
                   }}
                 />
               </TableCell>

@@ -50,16 +50,23 @@ func (l *ResponsesLane) Record() ResponsesRecord {
 }
 
 func (l *ResponsesLane) Remember(record ResponsesRecord) {
+	l.RememberReserved(record, 0)
+}
+
+// RememberReserved atomically transfers the in-flight input/output reservation
+// to the completed snapshot. Other lanes cannot acquire these bytes mid-commit.
+func (l *ResponsesLane) RememberReserved(record ResponsesRecord, reserved int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closed {
+		l.budget.Replace(reserved, 0)
 		return
 	}
 	size := record.Snapshot.Size()
-	if !l.budget.Replace(l.size, size) {
+	if !l.budget.Replace(l.size+reserved, size) {
 		record.Snapshot = nil
 		size = 0
-		l.budget.Replace(l.size, 0)
+		l.budget.Replace(l.size+reserved, 0)
 	}
 	l.record, l.size = record, size
 }

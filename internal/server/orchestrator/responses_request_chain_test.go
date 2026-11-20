@@ -123,6 +123,17 @@ func TestSparseResponsesTerminalUsesHistoryAggregator(t *testing.T) {
 	require.True(t, completeHistoryOutput(output, nil, false))
 	done := []*httpclient.StreamEvent{{Type: "response.output_item.done", Data: []byte(`{"output_index":0,"item":` + item + `}`)}}
 	require.True(t, completeHistoryOutput(output, done, false))
+	toolEvents := []*httpclient.StreamEvent{
+		{Data: []byte(`{"type":"response.custom_tool_call_input.delta","delta":"partial"}`)},
+		{Data: []byte(`{"type":"response.custom_tool_call_input.done","input":"partial input"}`)},
+	}
+	require.True(t, completeHistoryOutput(gjson.Parse(`[{"type":"custom_tool_call","input":"partial input"}]`), toolEvents, false))
+	require.False(t, completeHistoryOutput(gjson.Parse(`[{"type":"custom_tool_call","input":"changed"}]`), toolEvents, false))
+	for _, declaration := range []string{`{"type":"response.content_part.done","part":{"type":"output_text","text":"short"}}`, `{"type":"response.output_text.done","text":"short"}`} {
+		chunks := []*httpclient.StreamEvent{{Data: []byte(declaration)}}
+		require.True(t, completeHistoryOutput(output, chunks, false))
+		require.False(t, completeHistoryOutput(gjson.Parse(`[{"type":"message","content":[]}]`), chunks, false))
+	}
 }
 
 func TestNativePassThroughPreservesBytesAndCredential(t *testing.T) {

@@ -36,10 +36,32 @@ func (m *budgetAdmission) OnOutboundRawRequest(ctx context.Context, raw *httpcli
 	service := s.UsageLogService.BudgetService
 	var estimate budget.Amount
 	var quoteErr error
-	if s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
+	continuation := s.ResponsesContinuation
+	needsHistory := continuation != nil && continuation.lane == nil && !continuation.complete && continuation.owner != nil &&
+		continuation.owner.Origin.Generation != 0
+	if needsHistory {
+		quoteErr = biz.ErrBudgetNeedsHistoryQuote
+	} else if s.LlmRequest == nil || s.LlmRequest.RequestType != llm.RequestTypeTokenCount {
 		estimate, quoteErr = service.Estimate(ctx, s.RequestExec, s.LlmRequest, raw, estimatePromptTokens(s.LlmRequest))
 	}
 	held, err := service.ReserveAttempt(ctx, s.APIKey.ProjectID, s.APIKey.ID, s.Request.ID, s.RequestExec.ID, estimate, quoteErr)
+	if errors.Is(err, biz.ErrBudgetNeedsHistoryQuote) {
+		if continuation.owner.Snapshot == nil {
+			quoteErr = continuation.loadHTTPSnapshot(ctx)
+		} else {
+			quoteErr = nil
+		}
+		if quoteErr == nil {
+			full, restoreErr := expandResponsesSnapshot(raw.Body, continuation.owner.Snapshot)
+			quoteErr = restoreErr
+			if restoreErr == nil {
+				input := *raw
+				input.Body, input.JSONBody = full, full
+				estimate, quoteErr = service.Estimate(ctx, s.RequestExec, s.LlmRequest, &input, estimatePromptTokens(s.LlmRequest))
+			}
+		}
+		held, err = service.ReserveAttempt(ctx, s.APIKey.ProjectID, s.APIKey.ID, s.Request.ID, s.RequestExec.ID, estimate, quoteErr)
+	}
 	if err == nil {
 		s.budgetUnreserved = !held
 		if held {

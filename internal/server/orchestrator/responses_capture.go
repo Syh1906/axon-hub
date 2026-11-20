@@ -10,10 +10,12 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
 type responsesCompletion struct {
+	output       responses.HistoryOutput
 	mu           sync.Mutex
 	body         []byte
 	bytes        int
@@ -33,12 +35,33 @@ func (s *responsesCompletion) observe(event *httpclient.StreamEvent) {
 	if s.bytes > responsesSessionMaxResponse {
 		s.overflow = true
 	}
-	if gjson.GetBytes(event.Data, "type").String() == "response.completed" {
+	kind := gjson.GetBytes(event.Data, "type").String()
+	if !s.overflow && !s.metadataOnly {
+		s.output.Observe(kind, event.Data, func(size int) bool {
+			if s.budget != nil {
+				if !s.budget.Replace(s.retained, s.retained+size) {
+					return false
+				}
+				s.retained += size
+			}
+			return true
+		})
+	}
+	if kind == "response.completed" || kind == "response.done" {
 		body := gjson.GetBytes(event.Data, "response")
 		if body.Get("status").String() == "completed" && body.Get("id").String() != "" {
+			var completed []byte
+			if !s.overflow && !s.metadataOnly {
+				var ok bool
+				completed, ok = s.output.Complete([]byte(body.Raw))
+				if !ok {
+					s.metadataOnly = true
+				}
+			}
+			s.output = responses.HistoryOutput{}
 			if !s.overflow && !s.metadataOnly && s.budget != nil {
-				if s.budget.Replace(s.retained, len(body.Raw)) {
-					s.retained = len(body.Raw)
+				if s.budget.Replace(s.retained, len(completed)) {
+					s.retained = len(completed)
 				} else {
 					s.overflow = true
 				}
@@ -49,7 +72,7 @@ func (s *responsesCompletion) observe(event *httpclient.StreamEvent) {
 					Status string `json:"status"`
 				}{body.Get("id").String(), "completed"})
 			} else {
-				s.body = []byte(body.Raw)
+				s.body = completed
 			}
 		}
 	}
@@ -137,7 +160,7 @@ func (c *responsesContinuation) remember(ctx context.Context, body []byte) {
 	if lane := shared.GetResponsesLane(ctx); lane != nil {
 		c.lane = lane
 		record := shared.ResponsesRecord{ID: id, Origin: origin}
-		if c.retain && !c.capture.overflow {
+		if c.retain && !c.capture.overflow && !c.capture.metadataOnly {
 			retained := c.capture.retained == 0 || c.capture.retained == len(body)
 			if c.capture.retained == len(body) {
 				c.retentionBytes += c.capture.retained
@@ -147,24 +170,24 @@ func (c *responsesContinuation) remember(ctx context.Context, body []byte) {
 				Output []json.RawMessage `json:"output"`
 			}
 			if retained && json.Unmarshal(body, &response) == nil {
+				if c.replaceInputAtCommit {
+					c.input = responseSessionInputItems([]byte(gjson.GetBytes(c.effective, "input").Raw))
+				}
 				record.Snapshot = shared.NewResponsesSnapshot(c.parent, c.input, response.Output)
 			}
 		}
-		c.releaseRetention()
-		if c.capture.budget != nil {
-			c.capture.budget.Replace(c.capture.retained, 0)
-			c.capture.retained = 0
-		}
-		lane.Remember(record)
+		reserved := c.retentionBytes + c.capture.retained
+		c.retentionBytes, c.capture.retained = 0, 0
+		lane.RememberReserved(record, reserved)
 	} else if c.store != nil {
 		requestBody := c.effective
 		if c.complete {
 			requestBody = c.snapshotBody
 		}
-		if c.capture.overflow {
+		if c.capture.overflow || c.capture.metadataOnly {
 			requestBody = []byte(`{"previous_response_id":"unavailable"}`)
 		}
-		if c.holdHTTPHistory && !c.capture.overflow {
+		if c.holdHTTPHistory && !c.capture.overflow && !c.capture.metadataOnly {
 			c.pendingHTTPHistory = &responsesHTTPHistory{input: requestBody, output: body}
 		} else {
 			c.store.record(ctx, requestBody, body)

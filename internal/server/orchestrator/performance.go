@@ -178,6 +178,9 @@ func (s *recordPerformanceStream) Current() *llm.Response {
 	}
 
 	if !s.firstTokenSet && s.state.Perf != nil && hasMeaningfulStreamOutput(event) {
+		if exec := s.state.RequestExec; exec != nil {
+			s.state.attemptClock.ObserveNormalizedOutput(llm.APIFormat(exec.Format))
+		}
 		s.state.Perf.MarkFirstToken()
 		s.state.attemptClock.FirstContent()
 		s.firstTokenSet = true

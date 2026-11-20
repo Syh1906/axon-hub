@@ -42,6 +42,9 @@ func applyCodexPageContextCompatibility(p *PersistentOutboundTransformer) pipeli
 		adapted := *request
 		adapted.Body = body
 		adapted.JSONBody = body
+		if continuation := p.state.ResponsesContinuation; continuation != nil {
+			continuation.captureAttemptBody(body)
+		}
 		p.state.RawProviderRequest = &adapted
 		return &adapted, nil
 	})

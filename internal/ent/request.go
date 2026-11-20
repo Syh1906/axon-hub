@@ -82,6 +82,8 @@ type Request struct {
 	MetricsLatencyMs *int64 `json:"metrics_latency_ms,omitempty"`
 	// MetricsFirstTokenLatencyMs holds the value of the "metrics_first_token_latency_ms" field.
 	MetricsFirstTokenLatencyMs *int64 `json:"metrics_first_token_latency_ms,omitempty"`
+	// StreamTiming holds the value of the "stream_timing" field.
+	StreamTiming *objects.RequestStreamTiming `json:"stream_timing,omitempty"`
 	// Reasoning/thinking duration in milliseconds
 	MetricsReasoningDurationMs *int64 `json:"metrics_reasoning_duration_ms,omitempty"`
 	// whether the generated content has been saved to external storage
@@ -202,7 +204,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case request.FieldRequestHeaders, request.FieldRequestBody, request.FieldResponseHeaders, request.FieldResponseBody, request.FieldResponseChunks, request.FieldRoutingDecision, request.FieldFailure:
+		case request.FieldRequestHeaders, request.FieldRequestBody, request.FieldResponseHeaders, request.FieldResponseBody, request.FieldResponseChunks, request.FieldRoutingDecision, request.FieldFailure, request.FieldStreamTiming:
 			values[i] = new([]byte)
 		case request.FieldStream, request.FieldContentSaved:
 			values[i] = new(sql.NullBool)
@@ -426,6 +428,14 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				_m.MetricsFirstTokenLatencyMs = new(int64)
 				*_m.MetricsFirstTokenLatencyMs = value.Int64
 			}
+		case request.FieldStreamTiming:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field stream_timing", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.StreamTiming); err != nil {
+					return fmt.Errorf("unmarshal field stream_timing: %w", err)
+				}
+			}
 		case request.FieldMetricsReasoningDurationMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field metrics_reasoning_duration_ms", values[i])
@@ -627,6 +637,9 @@ func (_m *Request) String() string {
 		builder.WriteString("metrics_first_token_latency_ms=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("stream_timing=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StreamTiming))
 	builder.WriteString(", ")
 	if v := _m.MetricsReasoningDurationMs; v != nil {
 		builder.WriteString("metrics_reasoning_duration_ms=")

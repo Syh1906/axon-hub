@@ -124,6 +124,25 @@ type ComplexityRoot struct {
 		SelfUsageStats    func(childComplexity int, start string, end string, group bool) int
 	}
 
+	RequestOutputRate struct {
+		DurationMs      func(childComplexity int) int
+		OutputTokens    func(childComplexity int) int
+		ReasoningTokens func(childComplexity int) int
+	}
+
+	RequestStreamTiming struct {
+		AfterContentMs        func(childComplexity int) int
+		AnswerTokensPerSecond func(childComplexity int) int
+		AnswerWriteMs         func(childComplexity int) int
+		Attempts              func(childComplexity int) int
+		ContentEvent          func(childComplexity int) int
+		ContentWriteMs        func(childComplexity int) int
+		DurationMs            func(childComplexity int) int
+		FirstEvent            func(childComplexity int) int
+		FirstEventMs          func(childComplexity int) int
+		SingleAnswerBatch     func(childComplexity int) int
+	}
+
 	SelfUsageChannel struct {
 		ChannelType     func(childComplexity int) int
 		Multiplier      func(childComplexity int) int
@@ -211,6 +230,7 @@ type ComplexityRoot struct {
 		Model                 func(childComplexity int) int
 		ModelExecutions       func(childComplexity int) int
 		OutboundFormat        func(childComplexity int) int
+		OutputRate            func(childComplexity int) int
 		OutputTokens          func(childComplexity int) int
 		OutputTokensPerSecond func(childComplexity int) int
 		PassThroughApplied    func(childComplexity int) int
@@ -220,6 +240,7 @@ type ComplexityRoot struct {
 		RetryCount            func(childComplexity int) int
 		Status                func(childComplexity int) int
 		Stream                func(childComplexity int) int
+		StreamTiming          func(childComplexity int) int
 		TotalTokens           func(childComplexity int) int
 		UnpricedRecords       func(childComplexity int) int
 		UsageRecords          func(childComplexity int) int
@@ -664,6 +685,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.SelfUsageStats(childComplexity, args["start"].(string), args["end"].(string), args["group"].(bool)), true
 
+	case "RequestOutputRate.durationMs":
+		if e.complexity.RequestOutputRate.DurationMs == nil {
+			break
+		}
+
+		return e.complexity.RequestOutputRate.DurationMs(childComplexity), true
+	case "RequestOutputRate.outputTokens":
+		if e.complexity.RequestOutputRate.OutputTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestOutputRate.OutputTokens(childComplexity), true
+	case "RequestOutputRate.reasoningTokens":
+		if e.complexity.RequestOutputRate.ReasoningTokens == nil {
+			break
+		}
+
+		return e.complexity.RequestOutputRate.ReasoningTokens(childComplexity), true
+
+	case "RequestStreamTiming.afterContentMs":
+		if e.complexity.RequestStreamTiming.AfterContentMs == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.AfterContentMs(childComplexity), true
+	case "RequestStreamTiming.answerTokensPerSecond":
+		if e.complexity.RequestStreamTiming.AnswerTokensPerSecond == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.AnswerTokensPerSecond(childComplexity), true
+	case "RequestStreamTiming.answerWriteMs":
+		if e.complexity.RequestStreamTiming.AnswerWriteMs == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.AnswerWriteMs(childComplexity), true
+	case "RequestStreamTiming.attempts":
+		if e.complexity.RequestStreamTiming.Attempts == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.Attempts(childComplexity), true
+	case "RequestStreamTiming.contentEvent":
+		if e.complexity.RequestStreamTiming.ContentEvent == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.ContentEvent(childComplexity), true
+	case "RequestStreamTiming.contentWriteMs":
+		if e.complexity.RequestStreamTiming.ContentWriteMs == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.ContentWriteMs(childComplexity), true
+	case "RequestStreamTiming.durationMs":
+		if e.complexity.RequestStreamTiming.DurationMs == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.DurationMs(childComplexity), true
+	case "RequestStreamTiming.firstEvent":
+		if e.complexity.RequestStreamTiming.FirstEvent == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.FirstEvent(childComplexity), true
+	case "RequestStreamTiming.firstEventMs":
+		if e.complexity.RequestStreamTiming.FirstEventMs == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.FirstEventMs(childComplexity), true
+	case "RequestStreamTiming.singleAnswerBatch":
+		if e.complexity.RequestStreamTiming.SingleAnswerBatch == nil {
+			break
+		}
+
+		return e.complexity.RequestStreamTiming.SingleAnswerBatch(childComplexity), true
+
 	case "SelfUsageChannel.channelType":
 		if e.complexity.SelfUsageChannel.ChannelType == nil {
 			break
@@ -1061,6 +1162,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.OutboundFormat(childComplexity), true
+	case "SelfUsageRequest.outputRate":
+		if e.complexity.SelfUsageRequest.OutputRate == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.OutputRate(childComplexity), true
 	case "SelfUsageRequest.outputTokens":
 		if e.complexity.SelfUsageRequest.OutputTokens == nil {
 			break
@@ -1115,6 +1222,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.Stream(childComplexity), true
+	case "SelfUsageRequest.streamTiming":
+		if e.complexity.SelfUsageRequest.StreamTiming == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.StreamTiming(childComplexity), true
 	case "SelfUsageRequest.totalTokens":
 		if e.complexity.SelfUsageRequest.TotalTokens == nil {
 			break
@@ -1533,6 +1646,25 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "selfusage.graphql", Input: sourceData("selfusage.graphql"), BuiltIn: false},
+	{Name: "../request_stream_timing.graphql", Input: `type RequestOutputRate {
+  outputTokens: Int!
+  reasoningTokens: Int
+  durationMs: Int!
+}
+
+type RequestStreamTiming {
+  singleAnswerBatch: Boolean!
+  answerTokensPerSecond: Float
+  firstEvent: String!
+  firstEventMs: Int
+  durationMs: Int
+  contentEvent: String!
+  contentWriteMs: Int
+  afterContentMs: Int
+  answerWriteMs: Int
+  attempts: Int!
+}
+`, BuiltIn: false},
 	{Name: "../cost_pricing_evidence.graphql", Input: `enum PromptWriteCacheVariantCode {
   five_min
   one_hour
@@ -3631,6 +3763,383 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _RequestOutputRate_outputTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestOutputRate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestOutputRate_outputTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestOutputRate_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestOutputRate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestOutputRate_reasoningTokens(ctx context.Context, field graphql.CollectedField, obj *biz.RequestOutputRate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestOutputRate_reasoningTokens,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningTokens, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestOutputRate_reasoningTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestOutputRate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestOutputRate_durationMs(ctx context.Context, field graphql.CollectedField, obj *biz.RequestOutputRate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestOutputRate_durationMs,
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMs, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestOutputRate_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestOutputRate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_singleAnswerBatch(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_singleAnswerBatch,
+		func(ctx context.Context) (any, error) {
+			return obj.SingleAnswerBatch, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_singleAnswerBatch(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_answerTokensPerSecond(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_answerTokensPerSecond,
+		func(ctx context.Context) (any, error) {
+			return obj.AnswerTokensPerSecond, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_answerTokensPerSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_firstEvent(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_firstEvent,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstEvent, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_firstEvent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_firstEventMs(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_firstEventMs,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstEventMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_firstEventMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_durationMs(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_durationMs,
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_contentEvent(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_contentEvent,
+		func(ctx context.Context) (any, error) {
+			return obj.ContentEvent, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_contentEvent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_contentWriteMs(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_contentWriteMs,
+		func(ctx context.Context) (any, error) {
+			return obj.ContentWriteMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_contentWriteMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_afterContentMs(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_afterContentMs,
+		func(ctx context.Context) (any, error) {
+			return obj.AfterContentMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_afterContentMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_answerWriteMs(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_answerWriteMs,
+		func(ctx context.Context) (any, error) {
+			return obj.AnswerWriteMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_answerWriteMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestStreamTiming_attempts(ctx context.Context, field graphql.CollectedField, obj *objects.RequestStreamTiming) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestStreamTiming_attempts,
+		func(ctx context.Context) (any, error) {
+			return obj.Attempts, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestStreamTiming_attempts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestStreamTiming",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageChannel_name(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageChannel) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5389,6 +5898,43 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_outputTokensPerSecond(
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequest_outputRate(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_outputRate,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputRate, nil
+		},
+		nil,
+		ec.marshalORequestOutputRate2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputRate,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_outputRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "outputTokens":
+				return ec.fieldContext_RequestOutputRate_outputTokens(ctx, field)
+			case "reasoningTokens":
+				return ec.fieldContext_RequestOutputRate_reasoningTokens(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_RequestOutputRate_durationMs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestOutputRate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequest_apiKeyName(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5645,6 +6191,57 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_firstTokenLatencyMs(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_streamTiming(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_streamTiming,
+		func(ctx context.Context) (any, error) {
+			return obj.StreamTiming, nil
+		},
+		nil,
+		ec.marshalORequestStreamTiming2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestStreamTiming,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_streamTiming(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "singleAnswerBatch":
+				return ec.fieldContext_RequestStreamTiming_singleAnswerBatch(ctx, field)
+			case "answerTokensPerSecond":
+				return ec.fieldContext_RequestStreamTiming_answerTokensPerSecond(ctx, field)
+			case "firstEvent":
+				return ec.fieldContext_RequestStreamTiming_firstEvent(ctx, field)
+			case "firstEventMs":
+				return ec.fieldContext_RequestStreamTiming_firstEventMs(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_RequestStreamTiming_durationMs(ctx, field)
+			case "contentEvent":
+				return ec.fieldContext_RequestStreamTiming_contentEvent(ctx, field)
+			case "contentWriteMs":
+				return ec.fieldContext_RequestStreamTiming_contentWriteMs(ctx, field)
+			case "afterContentMs":
+				return ec.fieldContext_RequestStreamTiming_afterContentMs(ctx, field)
+			case "answerWriteMs":
+				return ec.fieldContext_RequestStreamTiming_answerWriteMs(ctx, field)
+			case "attempts":
+				return ec.fieldContext_RequestStreamTiming_attempts(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestStreamTiming", field.Name)
 		},
 	}
 	return fc, nil
@@ -6188,6 +6785,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 				return ec.fieldContext_SelfUsageRequest_cacheWriteTokens1h(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_SelfUsageRequest_outputTokensPerSecond(ctx, field)
+			case "outputRate":
+				return ec.fieldContext_SelfUsageRequest_outputRate(ctx, field)
 			case "apiKeyName":
 				return ec.fieldContext_SelfUsageRequest_apiKeyName(ctx, field)
 			case "id":
@@ -6206,6 +6805,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 				return ec.fieldContext_SelfUsageRequest_latencyMs(ctx, field)
 			case "firstTokenLatencyMs":
 				return ec.fieldContext_SelfUsageRequest_firstTokenLatencyMs(ctx, field)
+			case "streamTiming":
+				return ec.fieldContext_SelfUsageRequest_streamTiming(ctx, field)
 			case "inputTokens":
 				return ec.fieldContext_SelfUsageRequest_inputTokens(ctx, field)
 			case "outputTokens":
@@ -9642,6 +10243,118 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	return out
 }
 
+var requestOutputRateImplementors = []string{"RequestOutputRate"}
+
+func (ec *executionContext) _RequestOutputRate(ctx context.Context, sel ast.SelectionSet, obj *biz.RequestOutputRate) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestOutputRateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestOutputRate")
+		case "outputTokens":
+			out.Values[i] = ec._RequestOutputRate_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningTokens":
+			out.Values[i] = ec._RequestOutputRate_reasoningTokens(ctx, field, obj)
+		case "durationMs":
+			out.Values[i] = ec._RequestOutputRate_durationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestStreamTimingImplementors = []string{"RequestStreamTiming"}
+
+func (ec *executionContext) _RequestStreamTiming(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestStreamTiming) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestStreamTimingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestStreamTiming")
+		case "singleAnswerBatch":
+			out.Values[i] = ec._RequestStreamTiming_singleAnswerBatch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "answerTokensPerSecond":
+			out.Values[i] = ec._RequestStreamTiming_answerTokensPerSecond(ctx, field, obj)
+		case "firstEvent":
+			out.Values[i] = ec._RequestStreamTiming_firstEvent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstEventMs":
+			out.Values[i] = ec._RequestStreamTiming_firstEventMs(ctx, field, obj)
+		case "durationMs":
+			out.Values[i] = ec._RequestStreamTiming_durationMs(ctx, field, obj)
+		case "contentEvent":
+			out.Values[i] = ec._RequestStreamTiming_contentEvent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contentWriteMs":
+			out.Values[i] = ec._RequestStreamTiming_contentWriteMs(ctx, field, obj)
+		case "afterContentMs":
+			out.Values[i] = ec._RequestStreamTiming_afterContentMs(ctx, field, obj)
+		case "answerWriteMs":
+			out.Values[i] = ec._RequestStreamTiming_answerWriteMs(ctx, field, obj)
+		case "attempts":
+			out.Values[i] = ec._RequestStreamTiming_attempts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var selfUsageChannelImplementors = []string{"SelfUsageChannel"}
 
 func (ec *executionContext) _SelfUsageChannel(ctx context.Context, sel ast.SelectionSet, obj *biz.SelfUsageChannel) graphql.Marshaler {
@@ -10129,6 +10842,8 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 			}
 		case "outputTokensPerSecond":
 			out.Values[i] = ec._SelfUsageRequest_outputTokensPerSecond(ctx, field, obj)
+		case "outputRate":
+			out.Values[i] = ec._SelfUsageRequest_outputRate(ctx, field, obj)
 		case "apiKeyName":
 			out.Values[i] = ec._SelfUsageRequest_apiKeyName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -10168,6 +10883,8 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 			out.Values[i] = ec._SelfUsageRequest_latencyMs(ctx, field, obj)
 		case "firstTokenLatencyMs":
 			out.Values[i] = ec._SelfUsageRequest_firstTokenLatencyMs(ctx, field, obj)
+		case "streamTiming":
+			out.Values[i] = ec._SelfUsageRequest_streamTiming(ctx, field, obj)
 		case "inputTokens":
 			out.Values[i] = ec._SelfUsageRequest_inputTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -12217,6 +12934,20 @@ func (ec *executionContext) marshalOPromptWriteCacheVariantCode2ᚖgithubᚗcom�
 	_ = ctx
 	res := graphql.MarshalString(string(*v))
 	return res
+}
+
+func (ec *executionContext) marshalORequestOutputRate2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputRate(ctx context.Context, sel ast.SelectionSet, v *biz.RequestOutputRate) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestOutputRate(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORequestStreamTiming2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestStreamTiming(ctx context.Context, sel ast.SelectionSet, v *objects.RequestStreamTiming) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestStreamTiming(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOSelfUsageChannel2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageChannel(ctx context.Context, sel ast.SelectionSet, v *biz.SelfUsageChannel) graphql.Marshaler {

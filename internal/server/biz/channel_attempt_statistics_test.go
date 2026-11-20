@@ -66,7 +66,7 @@ func TestChannelSpeedUsesPersistedExecutionUsageLinks(t *testing.T) {
 	}
 	speeds, err := RequestOutputSpeeds(f.ctx, f.client, []int{req.ID})
 	require.NoError(t, err)
-	require.Equal(t, 500.0, *speeds[req.ID], "last attempt uses its own 1000 tokens, not both attempts' 1100")
+	require.InDelta(t, 1000000.0/2200, *speeds[req.ID], 1e-9, "only the last attempt contributes tokens and duration")
 	groups, err := queryChannelAttemptGroups(f.ctx, f.client, f.project.ID, ConsumptionFilter{}, nil, nil, time.Now())
 	require.NoError(t, err)
 	require.Len(t, groups, 1)

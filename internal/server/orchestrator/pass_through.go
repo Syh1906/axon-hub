@@ -196,7 +196,13 @@ func applyResponsesTransportRequestBody(outbound *PersistentOutboundTransformer)
 			}
 		}
 
-		body, err = responsestransformer.AdaptRequestBody(body, source, target)
+		wireFormat := target
+		if source == llm.APIFormatOpenAIResponse && target == llm.APIFormatOpenAIResponseWebSocket {
+			// The WS executor creates its own envelope. Keep the HTTP view
+			// legal if exact credential verification or the handshake falls back.
+			wireFormat = source
+		}
+		body, err = responsestransformer.AdaptRequestBody(body, source, wireFormat)
 		if err != nil {
 			return nil, err
 		}

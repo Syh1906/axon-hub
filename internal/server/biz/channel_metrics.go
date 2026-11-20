@@ -571,7 +571,16 @@ func (svc *ChannelService) RecordPerformance(ctx context.Context, perf *Performa
 
 // AsyncRecordPerformance records performance metrics to in-memory cache asynchronously.
 func (svc *ChannelService) AsyncRecordPerformance(ctx context.Context, perr *PerformanceRecord) {
-	svc.perfCh <- perr
+	if perr != nil {
+		snapshot := &PerformanceRecord{
+			ChannelID: perr.ChannelID, APIKey: perr.APIKey, StartTime: perr.StartTime, EndTime: perr.EndTime,
+			FirstTokenTime: perr.FirstTokenTime, ReasoningStartTime: perr.ReasoningStartTime, ReasoningEndTime: perr.ReasoningEndTime,
+			Stream: perr.Stream, Success: perr.Success, Canceled: perr.Canceled, RequestCompleted: perr.RequestCompleted,
+			ResponseStatusCode: perr.ResponseStatusCode, ErrorMessage: perr.ErrorMessage, CompletionTokens: perr.CompletionTokens,
+		}
+		snapshot.firstByteLatency.Store(perr.firstByteLatency.Load())
+		svc.perfCh <- snapshot
+	}
 }
 
 // cleanupExpiredSlots removes time slots older than the cutoff time.

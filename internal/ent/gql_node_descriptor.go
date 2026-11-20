@@ -1612,7 +1612,7 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 	node = &Node{
 		ID:     _m.ID,
 		Type:   "Request",
-		Fields: make([]*Field, 31),
+		Fields: make([]*Field, 32),
 		Edges:  make([]*Edge, 7),
 	}
 	var buf []byte
@@ -1824,10 +1824,18 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 		Name:  "metrics_first_token_latency_ms",
 		Value: string(buf),
 	}
-	if buf, err = json.Marshal(_m.MetricsReasoningDurationMs); err != nil {
+	if buf, err = json.Marshal(_m.StreamTiming); err != nil {
 		return nil, err
 	}
 	node.Fields[26] = &Field{
+		Type:  "*objects.RequestStreamTiming",
+		Name:  "stream_timing",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.MetricsReasoningDurationMs); err != nil {
+		return nil, err
+	}
+	node.Fields[27] = &Field{
 		Type:  "int64",
 		Name:  "metrics_reasoning_duration_ms",
 		Value: string(buf),
@@ -1835,7 +1843,7 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.ContentSaved); err != nil {
 		return nil, err
 	}
-	node.Fields[27] = &Field{
+	node.Fields[28] = &Field{
 		Type:  "bool",
 		Name:  "content_saved",
 		Value: string(buf),
@@ -1843,7 +1851,7 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.ContentStorageID); err != nil {
 		return nil, err
 	}
-	node.Fields[28] = &Field{
+	node.Fields[29] = &Field{
 		Type:  "int",
 		Name:  "content_storage_id",
 		Value: string(buf),
@@ -1851,7 +1859,7 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.ContentStorageKey); err != nil {
 		return nil, err
 	}
-	node.Fields[29] = &Field{
+	node.Fields[30] = &Field{
 		Type:  "string",
 		Name:  "content_storage_key",
 		Value: string(buf),
@@ -1859,7 +1867,7 @@ func (_m *Request) Node(ctx context.Context) (node *Node, err error) {
 	if buf, err = json.Marshal(_m.ContentSavedAt); err != nil {
 		return nil, err
 	}
-	node.Fields[30] = &Field{
+	node.Fields[31] = &Field{
 		Type:  "time.Time",
 		Name:  "content_saved_at",
 		Value: string(buf),

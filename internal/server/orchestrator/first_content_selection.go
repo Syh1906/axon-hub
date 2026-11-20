@@ -268,6 +268,10 @@ func (p *PersistentOutboundTransformer) selectContentAddress(ctx context.Context
 		keys = append(keys, key)
 	}
 	d := s.routeHistory.choose(keys, session, percent, gain, time.Now())
+	d.addresses = make(map[string]firstContentRoute, len(keys))
+	for i, key := range keys {
+		d.addresses[addresses[i].URL] = key
+	}
 	s.routeDecision = d
 	if d.chosen > 0 {
 		p.trackContentAddress(owner, keyRef)
@@ -374,6 +378,9 @@ func (s *PersistenceState) observeFirstContentChoice(ctx context.Context, exec *
 		sample := firstContentSample{at: time.Now(), session: d.session, mismatched: !wireMatches}
 		if t.FirstWriteContent != nil {
 			sample.delay = t.FirstWriteContent.At.Sub(t.BodyRead)
+			if len(t.Attempts) == 1 && t.Attempts[0].Dispatched != nil {
+				sample.fromDispatch = t.FirstWriteContent.At.Sub(*t.Attempts[0].Dispatched)
+			}
 		}
 		sample.failed = failed || len(t.Attempts) != 1 || t.Delivered == nil || !s.StreamCompleted || s.StreamTerminalError != nil || sample.delay <= 0
 		if !sample.failed {

@@ -20,6 +20,13 @@ import (
 )
 
 func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T) {
+	verifyOriginSwitch(t, 16<<20)
+}
+func TestResponsesProtocolOriginSwitchRestoresSmallHTTPHistory(t *testing.T) {
+	verifyOriginSwitch(t, 24)
+}
+func verifyOriginSwitch(t *testing.T, historySize int) {
+	t.Helper()
 	var originARequests atomic.Int32
 	var originBRequests atomic.Int32
 	var originBPath atomic.Value
@@ -30,7 +37,7 @@ func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T
 		_, err := io.Copy(io.Discard, r.Body)
 		require.NoError(t, err)
 		w.Header().Set("Content-Type", "application/json")
-		_, err = io.WriteString(w, `{"id":"origin-a-response","object":"response","status":"completed","output":[{"type":"message","id":"origin-a-item"}]}`)
+		_, err = io.WriteString(w, `{"id":"origin-a-response","object":"response","status":"completed","output":[{"type":"message","id":"origin-a-item","role":"assistant","content":[{"type":"output_text","text":"first provider answer"}]}]}`)
 		require.NoError(t, err)
 	}))
 	originB := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +58,7 @@ func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T
 	require.NoError(t, handlers.SystemService.SetStoragePolicy(authz.WithTestBypass(ent.NewContext(t.Context(), client)), &biz.StoragePolicy{}))
 	gateway := responsesIntegrationGateway(t, client, handlers, project)
 
-	firstStatus, firstBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","input":"origin-a-input`+strings.Repeat("x", 16<<20)+`"}`, 60*time.Second)
+	firstStatus, firstBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","input":"origin-a-input`+strings.Repeat("x", historySize)+`"}`, 60*time.Second)
 	require.Equal(t, http.StatusOK, firstStatus, string(firstBody))
 	require.Equal(t, "origin-a-response", gjson.GetBytes(firstBody, "id").String())
 	require.Equal(t, int32(1), originARequests.Load())
@@ -68,6 +75,16 @@ func TestResponsesProtocolIntegrationOriginSwitchRejectsOrphanDelta(t *testing.T
 	require.NoError(t, handlers.ChannelService.ReloadEnabledChannelsCache(ctx))
 
 	staleStatus, staleBody := responsesIntegrationPost(t, gateway, "/v1/responses", `{"model":"synthetic-model","previous_response_id":"origin-a-response","input":"orphan-delta"}`)
+	if historySize < 16<<20 {
+		require.Equal(t, http.StatusOK, staleStatus, string(staleBody))
+		require.EqualValues(t, 1, originBRequests.Load())
+		wire := originBBody.Load().([]byte)
+		require.False(t, gjson.GetBytes(wire, "previous_response_id").Exists())
+		require.Contains(t, string(wire), "origin-a-input")
+		require.Contains(t, string(wire), "first provider answer")
+		require.Contains(t, string(wire), "orphan-delta")
+		return
+	}
 	require.Equal(t, http.StatusConflict, staleStatus, string(staleBody))
 	require.Equal(t, "continuation_credential_unavailable", gjson.GetBytes(staleBody, "error.code").String())
 	require.Equal(t, int32(0), originBRequests.Load(), "stale delta reached the switched origin: %s", staleBody)

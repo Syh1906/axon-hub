@@ -31,6 +31,10 @@ func (s *RequestService) FinalizeRequestMetadata(ctx context.Context, record *en
 	return err
 }
 
+func (s *RequestService) SaveStreamTiming(ctx context.Context, id int, timing *objects.RequestStreamTiming) error {
+	return s.entFromContext(ctx).Request.UpdateOneID(id).SetStreamTiming(timing).Exec(ctx)
+}
+
 func (s *RequestService) SetExecutionSelection(ctx context.Context, id int, selection *objects.RequestExecutionSelection) error {
 	encoded, err := json.Marshal(selection)
 	if err != nil {
