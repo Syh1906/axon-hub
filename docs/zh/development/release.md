@@ -2,6 +2,8 @@
 
 所有发版以本仓库维护分支及该分支最新已发布版本为基线，按当前基线递增 fork 序号。普通发版只核对本仓库分支、标签、发布清单和既有上游来源记录。只有明确要求合并或同步上游时，才单独执行下文的上游合并流程。
 
+2026-11-20，[rc1-fork.15 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.15) 已从本仓库 fork.14 发布并部署至云悠、泉哥。两台均保持官方 Codex 源码为活动目录，版本、健康和资源检查通过。[部署记录](../../fork-maintenance.md)
+
 2026-11-19，[rc1-fork.14 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14) 已通过精简工作流发布，云悠和泉哥均已更新并通过内外验收。镜像摘要、切换时间及验证范围见 [Fork 维护台账](../../fork-maintenance.md)。
 
 2026-11-19，[rc1-fork.13 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.13) 通过精简工作流发布。云悠和泉哥均已更新至同一固定摘要并通过内外验收。切换时刻、在途请求及首字收益的验证范围见 [Fork 维护台账](../../fork-maintenance.md)。

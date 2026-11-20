@@ -1,6 +1,10 @@
 # Fork 维护台账
 
-## rc1-fork.15 发布
+## rc1-fork.15 正式发布与双机更新（2026-11-20）
+
+- [精简发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44718979385) 已从提交 `d3cee468a347bfcdea78c24696eef5bd8bd4bdc1` 发布 [fork.15 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.15)。该提交的 Test、Build、Lint、Govulncheck 全部通过。清单同时覆盖 Linux amd64 和 arm64，固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:faa5522097f0ee5fc8de8c9c92cb51af2c9c8bd6867ee6c1c97970da1254f789`。
+- 新加坡时间 18:32:22 云悠开始切换，重建至健康 7.098 秒；18:32:41 泉哥开始切换，重建至健康 36.995 秒。两台内外版本、提交、健康、初始化、34 项同源静态资源、匿名模型接口 401 均通过。应用重启计数为零，无 OOM，沿用原数据库容器，可空字段 requests.stream_timing 已建立；两台活动目录均为官方源码。
+- 切换开始前 10 秒至本机验收结束的请求创建记录中，云悠无记录；泉哥采样时为完成 4、取消 6、处理中 1。没有重放请求或执行付费推理。此次未新建数据库备份，保留 fork.14 固定镜像；切回旧镜像不会删除新增字段。
 
 基于本仓库 fork.14，纳入 Codex 基础目录订阅、兼容修复和仓库默认目录，以及请求流式计时、Responses 续传和 Alpha Search 修复。结束帧缺少输出时复用经过流事件校验的完整输出项；HTTP 请求在 WebSocket 执行器实际发送时封装。精简发布提供双架构镜像和清单。变更与 schema 说明见 [更新日志](../CHANGELOG.md)。
 
