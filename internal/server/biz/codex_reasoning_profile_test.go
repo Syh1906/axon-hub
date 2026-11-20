@@ -173,7 +173,7 @@ func TestCodexReasoningProfileDeclaredUltraWithoutSelectableUnderlyingEffort(t *
 	profile["multi_agent_reasoning_effort"] = "xhigh"
 	definition := codexDefinition{Model: profile}
 	m := ModelFacade{ID: "test-model", ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
-		{Channel: &ent.Channel{ID: 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
+		{Channel: &ent.Channel{ID: 1, Type: channel.TypeOpenaiResponses}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
 	}}
 	result, err := definition.catalogModel(t.Context(), m, catalogTestChannels(m), false)
 	require.NoError(t, err)

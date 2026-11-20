@@ -597,8 +597,8 @@ func TestCodexDefinitionReasoningUsesClientProfile(t *testing.T) {
 				d.Routes[1].Limits = map[string]any{"supported_reasoning_levels": routeLevels}
 			}
 			m := ModelFacade{ID: "test-model", ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
-				{Channel: &ent.Channel{ID: 2}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
-				{Channel: &ent.Channel{ID: 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
+				{Channel: &ent.Channel{ID: 2, Type: channel.TypeOpenaiResponses}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
+				{Channel: &ent.Channel{ID: 1, Type: channel.TypeOpenaiResponses}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}},
 			}}
 			before, err := json.Marshal(d)
 			require.NoError(t, err)
@@ -656,7 +656,7 @@ func TestCodexDefinitionUltraRespectsExplicitLimits(t *testing.T) {
 				capabilities := codexRouteCapabilities(profile)
 				capabilities["supported_reasoning_levels"] = levels(efforts)
 				d.Routes = append(d.Routes, codexDefinitionRoute{ChannelID: i + 1, ModelID: "test-model", Capabilities: capabilities})
-				m.Connections = append(m.Connections, &ModelChannelConnection{Channel: &ent.Channel{ID: i + 1}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}})
+				m.Connections = append(m.Connections, &ModelChannelConnection{Channel: &ent.Channel{ID: i + 1, Type: channel.TypeOpenaiResponses}, Models: []ChannelModelEntry{{ActualModel: "test-model"}}})
 			}
 			if tc.limits != nil {
 				d.Routes[2].Limits = map[string]any{"supported_reasoning_levels": levels(tc.limits)}

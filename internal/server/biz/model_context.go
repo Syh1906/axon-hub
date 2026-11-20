@@ -8,16 +8,8 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 )
 
-func applyPublicCodexContext(metadata map[string]any, settings *objects.ModelSettings, channelSettings *objects.ChannelSettings, actualModel string) map[string]any {
+func capPublicCodexRouteContext(metadata map[string]any, channelSettings *objects.ChannelSettings, actualModel string) map[string]any {
 	result := maps.Clone(metadata)
-	if settings != nil && settings.ContextSettings != nil {
-		if value := settings.ContextSettings.DefaultContextWindow; value != nil {
-			result["context_window"] = float64(*value)
-		}
-		if value := settings.ContextSettings.MaxContextWindow; value != nil {
-			result["max_context_window"] = float64(*value)
-		}
-	}
 	if channelSettings != nil {
 		for _, route := range channelSettings.ModelContexts {
 			if route.ModelID == actualModel && route.MaxContextWindow != nil {
@@ -30,6 +22,19 @@ func applyPublicCodexContext(metadata map[string]any, settings *objects.ModelSet
 		}
 	}
 	return applyCodexContextSettings(result, nil, nil, "")
+}
+
+// Set the two independent fields before applying the final advertised maximum.
+func setCodexModelWindows(result map[string]any, settings *objects.ModelSettings) {
+	if settings == nil || settings.ContextSettings == nil {
+		return
+	}
+	if value := settings.ContextSettings.DefaultContextWindow; value != nil {
+		result["context_window"] = float64(*value)
+	}
+	if value := settings.ContextSettings.MaxContextWindow; value != nil {
+		result["max_context_window"] = float64(*value)
+	}
 }
 
 func validateChannelModelContexts(settings *objects.ChannelSettings) error {

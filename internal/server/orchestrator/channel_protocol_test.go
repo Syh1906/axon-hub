@@ -123,20 +123,20 @@ func TestProtocolConditionDoesNotInventRequestValues(t *testing.T) {
 	format := objects.Condition{Type: objects.ConditionTypeCondition, Field: "request_format", Operator: "eq", Value: llm.APIFormatAnthropicMessage.String()}
 	unknown := objects.Condition{Type: objects.ConditionTypeCondition, Field: "prompt_tokens", Operator: "gt", Value: 100}
 	c := &objects.Condition{Type: objects.ConditionTypeGroup, Logic: "and", Conditions: []objects.Condition{format, unknown}}
-	known, value := protocolCondition(c, llm.APIFormatOpenAIChatCompletion.String())
+	known, value := objects.EvaluateProtocolCondition(c, llm.APIFormatOpenAIChatCompletion.String())
 	require.True(t, known)
 	require.False(t, value)
-	known, _ = protocolCondition(c, llm.APIFormatAnthropicMessage.String())
+	known, _ = objects.EvaluateProtocolCondition(c, llm.APIFormatAnthropicMessage.String())
 	require.False(t, known)
 	c.Logic = " OR "
-	known, value = protocolCondition(c, llm.APIFormatAnthropicMessage.String())
+	known, value = objects.EvaluateProtocolCondition(c, llm.APIFormatAnthropicMessage.String())
 	require.True(t, known)
 	require.True(t, value)
 	for _, condition := range []objects.Condition{
 		{Type: objects.ConditionTypeGroup, Logic: "or"},
 		{Conditions: []objects.Condition{{Field: "request_format", Operator: "eq", Value: llm.APIFormatAnthropicMessage.String()}}},
 	} {
-		known, value = protocolCondition(&condition, llm.APIFormatAnthropicMessage.String())
+		known, value = objects.EvaluateProtocolCondition(&condition, llm.APIFormatAnthropicMessage.String())
 		require.True(t, known)
 		require.Equal(t, objects.Evaluate(condition, map[string]any{"request_format": llm.APIFormatAnthropicMessage.String()}), value)
 	}

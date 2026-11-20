@@ -1,5 +1,9 @@
 # Fork 维护台账
 
+## rc1-fork.17 发布与双机更新（2026-11-21）
+
+- 本次从 fork.16 递增，包含 Codex 目录字段优先级、Gemini 显式缓存、单批流速统计及视频创建结果修复。数据库增量和回切影响见[更新日志](../CHANGELOG.md)。Codex 目录相关的 143 项本地定向测试通过。
+
 ## rc1-fork.16 正式发布与双机更新（2026-11-20）
 
 - [精简工作流](https://github.com/Syh1906/axon-hub/actions/runs/44742784562) 从 `6cb5e4d87ef1fe1888edcf1d0f7fd77423c86d36` 发布[正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.16)。源提交 Test、Build、Lint、Govulncheck 全部通过。双架构镜像固定摘要为 `sha256:668cd140b841e7a27b183b759b55bb5cda4962a0184f2e68c98d387dda3faab8`。
@@ -90,6 +94,8 @@
 - 分组加额已完成独立审查、定向测试及本地真实页面跨截止点回读。生产不通过实际发放额度来验收；发布和双机部署状态分别据实记录。
 - [正式 Release](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.11) 为 latest，[精简发版 44257997959](https://github.com/Syh1906/axon-hub/actions/runs/44257997959) 成功。源码 `0c87d028cceaa9d88fdf5e1a25dceb898544b9e2`；同提交 Test、Build、Lint、Govulncheck 全部通过。唯一附件 `release.json` 的 SHA-256 为 `6c962c9429e451e0af13e031db871dcf55fa5f732e80a3ea34f076050a5d2481`。
 - 两机从实际运行的 fork.9 依次更新到同一固定镜像 `ghcr.io/syh1906/axon-hub@sha256:33a9491eef0f0d068b1dce6b9dde3550628c73092b6e53db7e9aa927c96dc3af`。云悠／泉哥于新加坡时间 15:31:50／15:34:17 通过基础验收，应用重建及等待健康分别为 6.615／6.803 秒，不是逐请求停机实测。两机内外版本、提交、初始化、首页静态资源和匿名鉴权通过，数据库容器身份未变，未创建数据库备份。远端清单及收据已回读，临时配置副本已清除；保留旧 fork.9 镜像。没有在生产发放额度或主动调用收费模型。
+
+目录优先级复验点：官方源码、官方发布快照、URL、上传或粘贴 JSON，以及官方缺少型号时选中的渠道资料，都优先应用模型页逐字段配置。同步上游时核对外层模型卡和专用上下文优先于手写 Codex 覆写，再核对多渠道人工限制是否一致、Key 与请求协议筛选，以及正则下各型号的来源。详见[选择基础目录来源](zh/guides/codex-integration.md#选择基础目录来源)。
 
 公开目录复验点：实际渠道别名的最大上下文可收紧最终值；预览、固定定义发布和自动目录均尊重可见路线的工具协议；最近一次检查与上次成功下载分别保存，无变化、失败和后续恢复须正确回读。
 

@@ -65,7 +65,7 @@ func InspectMatchedProtocolRoutes(ctx context.Context, requestID string, format 
 					route.State = "converted"
 				}
 				if when := match.Association.When; when != nil && when.Enabled && when.Condition != nil && route.State != "excluded" {
-					known, value := protocolCondition(when.Condition, format.String())
+					known, value := objects.EvaluateProtocolCondition(when.Condition, format.String())
 					if known && !value {
 						route.State, route.Reason, route.Condition = "excluded", "request_condition", when.Condition
 					} else if !known {
@@ -132,41 +132,6 @@ func protocolRouteRank(state string) int {
 	default:
 		return 3
 	}
-}
-
-// Only request_format is known without a concrete request. Three-valued group
-// evaluation preserves AND/OR semantics instead of pretending other fields are false.
-func protocolCondition(c *objects.Condition, format string) (bool, bool) {
-	if c.Type == objects.ConditionTypeGroup || c.Type == "" {
-		// Match objects.ToExpr: an empty root/group imposes no restriction,
-		// including an empty OR group. Untyped child nodes are leaf conditions.
-		if len(c.Conditions) == 0 {
-			return true, true
-		}
-		isOr := strings.EqualFold(strings.TrimSpace(c.Logic), "or")
-		unknown := false
-		for _, child := range c.Conditions {
-			if child.Type == "" {
-				child.Type = objects.ConditionTypeCondition
-			}
-			known, value := protocolCondition(&child, format)
-			if !known {
-				unknown = true
-				continue
-			}
-			if isOr && value {
-				return true, true
-			}
-			if !isOr && !value {
-				return true, false
-			}
-		}
-		return !unknown, !isOr
-	}
-	if strings.TrimSpace(c.Field) != objects.ModelAssociationConditionFieldRequestFormat {
-		return false, false
-	}
-	return true, objects.Evaluate(*c, map[string]any{objects.ModelAssociationConditionFieldRequestFormat: format})
 }
 
 func SummarizeProtocolRoutes(id, name string, routes []*ProtocolRoute) *ProtocolRouteSummary {

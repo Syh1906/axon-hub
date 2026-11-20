@@ -3,6 +3,8 @@ package biz
 import (
 	"slices"
 	"strings"
+	"text/template"
+	"text/template/parse"
 
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/tidwall/gjson"
@@ -13,6 +15,57 @@ type codexTierRoute struct {
 	capabilities, limits map[string]any
 	channel              *Channel
 	responses            bool
+	models               *codexTierModels
+}
+
+type codexTierModels struct {
+	RequestModel, Model string
+}
+
+// Evaluate scalar expressions involving only literals and the two known model
+// names. A request-dependent or more complex template stays unknown. Do not
+// execute general user templates while listing models.
+func (m *codexTierModels) staticValue(raw string) (string, bool) {
+	if !strings.Contains(raw, "{{") || !strings.Contains(raw, "}}") {
+		return raw, true
+	}
+	t, err := template.New("tier").Parse(raw)
+	if err != nil || len(t.Templates()) != 1 {
+		return "", false
+	}
+	for _, node := range t.Tree.Root.Nodes {
+		if node.Type() == parse.NodeText {
+			continue
+		}
+		action, ok := node.(*parse.ActionNode)
+		if !ok || len(action.Pipe.Decl) != 0 {
+			return "", false
+		}
+		for _, cmd := range action.Pipe.Cmds {
+			for _, arg := range cmd.Args {
+				switch v := arg.(type) {
+				case *parse.IdentifierNode:
+					switch v.Ident {
+					case "eq", "ne", "and", "or", "not":
+					default:
+						return "", false
+					}
+				case *parse.FieldNode:
+					if len(v.Ident) != 1 || (v.Ident[0] != "RequestModel" && v.Ident[0] != "Model") {
+						return "", false
+					}
+				case *parse.BoolNode, *parse.StringNode, *parse.NumberNode:
+				default:
+					return "", false
+				}
+			}
+		}
+	}
+	var rendered strings.Builder
+	if err := t.Execute(&rendered, m); err != nil {
+		return "", false
+	}
+	return rendered.String(), true
 }
 
 func codexTierID(value any) string {
@@ -51,7 +104,7 @@ func (r codexTierRoute) supports(id string) bool {
 	requested, _ := objects.NormalizeServiceTier(id)
 	settings := r.channel.Settings
 	if settings == nil || settings.ResponsesServiceTierOverride == objects.ResponsesServiceTierInherit {
-		return declared && overridesPreserveCodexTier(r.channel.GetBodyOverrideOperations(), requested)
+		return declared && overridesPreserveCodexTier(r.channel.GetBodyOverrideOperations(), requested, r.models)
 	}
 	wire, allowed := settings.ResponsesTierForRequest(requested)
 	actual, _ := objects.NormalizeServiceTier(wire)
@@ -80,7 +133,7 @@ func codexTierWriteTarget(path string) (whole, affected bool) {
 
 // Inherit leaves generic body overrides in effect. A later unconditional set
 // can restore the requested tier. Unknown request values cannot attest a tier.
-func overridesPreserveCodexTier(ops []objects.OverrideOperation, requested string) bool {
+func overridesPreserveCodexTier(ops []objects.OverrideOperation, requested string, models *codexTierModels) bool {
 	preserved := true
 	for _, op := range ops {
 		matches := false
@@ -96,8 +149,12 @@ func overridesPreserveCodexTier(ops []objects.OverrideOperation, requested strin
 			if !affected {
 				continue
 			}
-			mode, _ := objects.NormalizeServiceTier(op.Value)
-			matches = whole && mode == requested
+			value, known := op.Value, true
+			if models != nil {
+				value, known = models.staticValue(value)
+			}
+			mode, _ := objects.NormalizeServiceTier(value)
+			matches = whole && (!known || mode == requested)
 		case objects.OverrideOpArrayAppend, objects.OverrideOpArrayPrepend, objects.OverrideOpArrayInsert:
 			// Inserting at the scalar itself fails at runtime. Inserting below
 			// it can create a nested array and replace the selected string.
@@ -116,13 +173,29 @@ func overridesPreserveCodexTier(ops []objects.OverrideOperation, requested strin
 			if (fromTier && toTier) || (!affected && !(op.Op == objects.OverrideOpRename && fromTier)) {
 				continue
 			}
+			if models != nil && !fromTier {
+				// A missing source skips the operation. A present source can
+				// restore the requested string only when writing the whole field.
+				matches = preserved || toTier
+			}
 		default:
 			continue
 		}
 
-		if op.Condition == "" || strings.TrimSpace(op.Condition) == "true" {
+		condition := op.Condition
+		if models != nil && condition != "" {
+			value, known := models.staticValue(condition)
+			if !known {
+				preserved = preserved || matches
+				continue
+			}
+			if strings.TrimSpace(value) != "true" {
+				continue
+			}
+		}
+		if models != nil || condition == "" || strings.TrimSpace(condition) == "true" {
 			preserved = matches
-		} else if strings.Contains(op.Condition, "{{") {
+		} else if strings.Contains(condition, "{{") {
 			preserved = preserved && matches
 		}
 	}
@@ -151,6 +224,9 @@ func applyCodexRouteTiers(result, base map[string]any, routes []codexTierRoute) 
 		}
 		result[field] = values
 	}
+}
+
+func resolveCodexTierDefault(result, base map[string]any) {
 	if id, _ := base["default_service_tier"].(string); acceleratedTier(id) {
 		tiers, _ := result["service_tiers"].([]any)
 		result["default_service_tier"] = nil

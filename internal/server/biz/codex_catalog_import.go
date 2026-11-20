@@ -30,8 +30,10 @@ func (a *publicCatalogArchive) canCheckRemote() bool {
 	return source == "official" || source == "url"
 }
 
+const importedCatalogKind = "imported_catalog"
+
 func isPublicCatalogKind(kind string) bool {
-	return kind == "official_public" || kind == "imported_catalog"
+	return kind == "official_public" || kind == importedCatalogKind
 }
 
 type CatalogImport struct {

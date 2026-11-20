@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/llm"
 )
 
 // A regex publishes concrete IDs whose instructions and local tool policies may
@@ -21,6 +22,8 @@ type codexModelProfile struct {
 	SourceChannelID int            `json:"sourceChannelId"`
 	SourceModelID   string         `json:"sourceModelId"`
 	Model           map[string]any `json:"model"`
+	CatalogDefaults map[string]any `json:"catalogDefaults,omitempty"`
+	Overrides       map[string]any `json:"overrides,omitempty"`
 }
 
 type codexSourceDifference struct {
@@ -137,7 +140,7 @@ func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*Model
 	for _, connection := range m.Connections {
 		if ch := channels[connection.Channel.ID]; ch != nil {
 			for _, entry := range connection.Models {
-				if codexRouteSupportsResponses(ctx, ch, entry, m.TargetID) {
+				if _, native := codexRouteProtocols(ctx, ch, entry, m.TargetID); native {
 					canUseResponses = true
 					break
 				}
@@ -186,8 +189,11 @@ func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*Model
 	if official := snapshotCodexProfile(snapshot, target); official != nil {
 		hasMetadata = true
 		pinned := inherited != nil && inherited.SnapshotVersion != ""
-		if (!codexProfileRequiresResponses(official.Model, overrides) || canUseResponses) &&
-			(pinned || isPublicCatalogKind(official.SourceKind) || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
+		compatible := !codexProfileRequiresResponses(official.Model, overrides) || canUseResponses
+		if official.SourceKind == importedCatalogKind && !compatible {
+			return nil, nil, fmt.Errorf("no visible route")
+		}
+		if compatible && (pinned || isPublicCatalogKind(official.SourceKind) || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
 			profile = official
 		}
 	}
@@ -200,20 +206,6 @@ func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*Model
 		}
 		return nil, nil, fmt.Errorf("%w for model %s", errCodexMetadataUnavailable, m.ID)
 	}
-	if inherited != nil {
-		patched, err := applyCodexProfileOverrides(profile.Model, inherited.Overrides)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, field := range []string{"node_repl_auto_review_required", "node_repl_disabled"} {
-			if profile.Model[field] == true {
-				patched[field] = true
-			}
-		}
-		copyProfile := *profile
-		copyProfile.Model = patched
-		profile = &copyProfile
-	}
 	return profile, connections, nil
 }
 
@@ -221,6 +213,14 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	profile, metadataConnections, err := selectCodexProfile(ctx, m, connections, sources, channels, snapshot, inherited)
 	if err != nil {
 		return nil, err
+	}
+	base := profile.Model
+	if inherited != nil {
+		patched, err := applyCodexProfileOverrides(base, inherited.Overrides)
+		if err != nil {
+			return nil, err
+		}
+		base = patched
 	}
 	// Use all source metadata for actual-model capabilities, even when its client
 	// tools cannot serve this caller. Profile filtering must not erase an alias's
@@ -234,7 +234,10 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 			}
 		}
 	}
-	d := codexDefinition{ClientVersion: version, SourceKind: profile.SourceKind, Model: profile.Model}
+	d := codexDefinition{ClientVersion: version, SourceKind: profile.SourceKind, Model: base}
+	if inherited != nil {
+		d.Overrides = inherited.Overrides
+	}
 	for _, connection := range m.Connections {
 		for _, entry := range connection.Models {
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
@@ -244,7 +247,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 				// attest what this route supports.
 				fallback := byActualModel[entry.ActualModel]
 				if fallback == nil {
-					fallback = profile.Model
+					fallback = base
 					if actual := snapshotCodexProfile(snapshot, entry.ActualModel); actual != nil {
 						fallback = actual.Model
 					}
@@ -257,7 +260,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 			}
 			if isPublicCatalogKind(profile.SourceKind) && entry.ActualModel == profile.SourceModelID {
 				for _, field := range []string{"context_window", "max_context_window"} {
-					if value, exists := profile.Model[field]; exists {
+					if value, exists := base[field]; exists {
 						capabilities[field] = value
 					}
 				}
@@ -269,7 +272,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 					if _, overridden := inherited.Overrides[field]; !overridden {
 						continue
 					}
-					if value, exists := profile.Model[field]; exists {
+					if value, exists := base[field]; exists {
 						capabilities[field] = value
 					} else {
 						delete(capabilities, field)
@@ -303,11 +306,23 @@ func codexProfileRequiresResponses(profile, overrides map[string]any) bool {
 	return patchTool == "freeform" || toolMode == "code_mode_only"
 }
 
-func codexRouteSupportsResponses(ctx context.Context, ch *Channel, entry ChannelModelEntry, target string) bool {
+func codexRouteProtocols(ctx context.Context, ch *Channel, entry ChannelModelEntry, target string) (chat, responses bool) {
+	var policy *objects.ChannelProtocolPolicy
+	if ch.Settings != nil {
+		policy = ch.Settings.ProtocolPolicy
+	}
+	if !policy.AllowsClient(llm.APIFormatOpenAIResponse) {
+		return false, false
+	}
 	endpoints := ApplyForcedAPIFormats(ctx, ch, []ChannelModelEntry{entry}, target, ch.ResolveEndpoints())
-	return slices.ContainsFunc(endpoints, func(ep objects.ChannelEndpoint) bool {
-		return isResponsesEndpoint(ep.APIFormat)
-	})
+	capable := llm.CapableAPIFormats(llm.RequestTypeChat)
+	for _, ep := range endpoints {
+		if _, ok := capable[ep.APIFormat]; ok && policy.AllowsConversion(llm.APIFormatOpenAIResponse, llm.APIFormat(ep.APIFormat)) {
+			chat = true
+			responses = responses || isResponsesEndpoint(ep.APIFormat)
+		}
+	}
+	return chat, responses
 }
 
 // These are client model metadata, not per-route admission constraints. Keep

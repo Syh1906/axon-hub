@@ -319,3 +319,38 @@ func normalizeJSONNumberValue(value any) any {
 		return value
 	}
 }
+
+// Only request_format is known without a concrete request. Three-valued group
+// evaluation preserves AND/OR semantics instead of pretending other fields are false.
+func EvaluateProtocolCondition(c *Condition, format string) (bool, bool) {
+	if c.Type == ConditionTypeGroup || c.Type == "" {
+		// Match ToExpr: an empty root/group imposes no restriction,
+		// including an empty OR group. Untyped child nodes are leaf conditions.
+		if len(c.Conditions) == 0 {
+			return true, true
+		}
+		isOr := strings.EqualFold(strings.TrimSpace(c.Logic), "or")
+		unknown := false
+		for _, child := range c.Conditions {
+			if child.Type == "" {
+				child.Type = ConditionTypeCondition
+			}
+			known, value := EvaluateProtocolCondition(&child, format)
+			if !known {
+				unknown = true
+				continue
+			}
+			if isOr && value {
+				return true, true
+			}
+			if !isOr && !value {
+				return true, false
+			}
+		}
+		return !unknown, !isOr
+	}
+	if strings.TrimSpace(c.Field) != ModelAssociationConditionFieldRequestFormat {
+		return false, false
+	}
+	return true, Evaluate(*c, map[string]any{ModelAssociationConditionFieldRequestFormat: format})
+}

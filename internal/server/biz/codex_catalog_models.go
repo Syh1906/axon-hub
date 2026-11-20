@@ -187,6 +187,14 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 	result["upgrade"] = nil
 	// A catalog never forces transport. The provider/client chooses HTTP or WS.
 	delete(result, "prefer_websockets")
+	clearUnavailableCodexDefaults(result)
+	if err := validateCodexWireModel(result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func clearUnavailableCodexDefaults(result map[string]any) {
 	for field, list := range map[string]string{"default_reasoning_level": "supported_reasoning_levels", "default_service_tier": "service_tiers"} {
 		selected, _ := result[field].(string)
 		if selected == "" {
@@ -203,10 +211,6 @@ func mergeCodexModels(publicID string, variants []map[string]any) (map[string]an
 			result[field] = nil
 		}
 	}
-	if err := validateCodexWireModel(result); err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 // Isolate invalid remote entries; saved model definitions use strict validation.

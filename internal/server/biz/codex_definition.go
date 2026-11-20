@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"slices"
 
 	"github.com/looplj/axonhub/internal/objects"
 )
@@ -104,6 +105,11 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 		if profile.Model == nil {
 			return nil, fmt.Errorf("Codex profile source model does not match its metadata")
 		}
+		if len(profile.Overrides) > 0 {
+			if _, err := applyCodexProfileOverrides(profile.Model, profile.Overrides); err != nil {
+				return nil, err
+			}
+		}
 		d.Models[id] = profile
 	}
 	seen := make(map[ChannelModelKey]bool)
@@ -171,18 +177,39 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 	// ClientVersion records import provenance, not a client allowlist. Schema
 	// validation and declared model capabilities are independent of version equality.
 	canonical := d.Model
+	sourceKind := d.SourceKind
+	var catalogDefaults map[string]any
+	explicit := d.Overrides
 	source := ChannelModelKey{ChannelID: d.SourceChannelID, ModelID: d.SourceModelID}
+	target := m.TargetID
+	if target == "" {
+		target = m.ID
+	}
 	if len(d.Models) > 0 {
-		target := m.TargetID
-		if target == "" {
-			target = m.ID
-		}
 		profile, ok := d.Models[target]
 		if !ok {
 			return nil, fmt.Errorf("unconfirmed Codex public model %s", target)
 		}
 		canonical = profile.Model
+		sourceKind = profile.SourceKind
+		catalogDefaults = profile.CatalogDefaults
+		explicit = profile.Overrides
 		source = ChannelModelKey{ChannelID: profile.SourceChannelID, ModelID: profile.SourceModelID}
+	}
+	if fixedDefinition {
+		var err error
+		canonical, explicit, err = fixedCodexModelFields(canonical, catalogDefaults, explicit)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if page := codexModelPageFields(canonical, m.ConfiguredModel); len(page) > 0 {
+		canonical = maps.Clone(canonical)
+		maps.Copy(canonical, page)
+		for field := range explicit {
+			page[field] = canonical[field]
+		}
+		explicit = page
 	}
 	bindings := make(map[ChannelModelKey]codexDefinitionRoute)
 	for _, r := range d.Routes {
@@ -197,12 +224,16 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			continue
 		}
 		for _, entry := range connection.Models {
-			responsesEndpoint := codexRouteSupportsResponses(ctx, ch, entry, m.TargetID)
-			if requiresResponses && !responsesEndpoint {
+			chatEndpoint, responsesEndpoint := codexRouteProtocols(ctx, ch, entry, m.TargetID)
+			if !chatEndpoint || (requiresResponses && !responsesEndpoint) {
 				continue
 			}
 			key := ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}
 			r := bindings[key]
+			if sourceKind == importedCatalogKind {
+				tierRoutes = append(tierRoutes, importedCodexRoute(ch, target, entry.ActualModel, responsesEndpoint, canonical, r))
+				continue
+			}
 			variant := maps.Clone(canonical)
 			limited := maps.Clone(canonical)
 			for field, value := range r.Capabilities {
@@ -258,39 +289,42 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			}
 			tierRoutes = append(tierRoutes, tierRoute)
 			if isPublicCatalogKind(d.SourceKind) && !fixedDefinition {
-				variants = append(variants, applyPublicCodexContext(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
+				variants = append(variants, capPublicCodexRouteContext(effective, connection.Channel.Settings, entry.ActualModel))
 			} else {
-				variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
+				variants = append(variants, applyCodexContextSettings(effective, nil, connection.Channel.Settings, entry.ActualModel))
 			}
 		}
 	}
-	if len(variants) == 0 {
+	if len(tierRoutes) == 0 {
 		return nil, fmt.Errorf("no visible route")
 	}
-	result, err := mergeCodexModels(m.ID, variants)
+	var result map[string]any
+	var err error
+	if sourceKind == importedCatalogKind {
+		result, err = mergeImportedCodexRoutes(m.ID, canonical, tierRoutes)
+	} else {
+		result, err = mergeCodexModels(m.ID, variants)
+	}
 	if err != nil {
 		return nil, err
 	}
-	applyCodexRouteTiers(result, canonical, tierRoutes)
-	constrainCodexReasoningProfile(result, canonical)
-	if !fixedDefinition {
-		return result, nil
-	}
-
 	// Missing context metadata on a manual route must not erase known windows
 	// or compaction thresholds from other caller-visible routes.
-	for _, field := range []string{"context_window", "max_context_window", "auto_compact_token_limit"} {
-		var bound float64
-		for _, variant := range variants {
-			if value, ok := variant[field].(float64); ok && value > 0 && (bound == 0 || value < bound) {
-				bound = value
+	if fixedDefinition && sourceKind != importedCatalogKind {
+		for _, field := range []string{"context_window", "max_context_window", "auto_compact_token_limit"} {
+			var bound float64
+			for _, variant := range variants {
+				if value, ok := variant[field].(float64); ok && value > 0 && (bound == 0 || value < bound) {
+					bound = value
+				}
+			}
+			if bound > 0 {
+				result[field] = bound
 			}
 		}
-		if bound > 0 {
-			result[field] = bound
-		}
 	}
-	return applyCodexContextSettings(result, nil, nil, ""), nil
+	applyCodexRouteTiers(result, canonical, tierRoutes)
+	return finalizeCodexModelFields(result, canonical, explicit, m.ConfiguredModel.ModelCard), nil
 }
 
 // Preview is read-only. UpdateModel saves the selected model profiles and any
@@ -307,7 +341,9 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 	byPublicID := make(map[string][]*ModelChannelConnection)
 	seenRoutes := make(map[ChannelModelKey]bool)
 	for _, publicID := range PublicModelIDs(m) {
-		matches, queryErr := svc.QueryModelChannelConnectionsForModel(ctx, EffectiveModelAssociationsForRequest(svc.modelSettingsOrDefault(ctx), m, publicID), publicID)
+		associations := EffectiveModelAssociationsForRequest(svc.modelSettingsOrDefault(ctx), m, publicID)
+		associations = slices.DeleteFunc(slices.Clone(associations), excludesCodexRequests)
+		matches, queryErr := svc.QueryModelChannelConnectionsForModel(ctx, associations, publicID)
 		if queryErr != nil {
 			return nil, queryErr
 		}
@@ -341,7 +377,9 @@ func (svc *ModelService) PreviewCodexCatalog(ctx context.Context, id int, versio
 		if err != nil {
 			continue
 		}
-		d.Models[publicID] = *profile
+		saved := *profile
+		saved.CatalogDefaults = codexRouteCapabilities(saved.Model)
+		d.Models[publicID] = saved
 		d.SourceDifferences = append(d.SourceDifferences, codexProfileSourceDifferences(publicID, profile, byPublicID[publicID], sources)...)
 		if d.Model == nil {
 			d.Model = profile.Model

@@ -54,6 +54,22 @@ func NewCodexCatalogService(models *ModelService, channels *ChannelService) *Cod
 	return &CodexCatalogService{models: models, channels: channels, cache: make(map[string]codexCatalogCache)}
 }
 
+// A single catalog serves both Responses transports. Discard an association
+// only if its condition excludes both even before a request body is known.
+func excludesCodexRequests(assoc *objects.ModelAssociation) bool {
+	when := assoc.When
+	if when == nil || !when.Enabled || when.Condition == nil {
+		return false
+	}
+	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
+		known, allowed := objects.EvaluateProtocolCondition(when.Condition, format.String())
+		if !known || allowed {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byte, int, error) {
 	visible, err := s.models.ListEnabledModels(ctx)
 	if err != nil {
@@ -69,6 +85,10 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 	// model, constrain a visible sibling, or turn an empty catalog into an error.
 	allowed := visible[:0]
 	for _, m := range visible {
+		if slices.ContainsFunc(m.associations, excludesCodexRequests) {
+			associations := slices.DeleteFunc(slices.Clone(m.associations), excludesCodexRequests)
+			m.Connections = MatchConnectionsForModel(associations, m.discoveryChannels, m.TargetID)
+		}
 		m.Connections = slices.DeleteFunc(slices.Clone(m.Connections), func(c *ModelChannelConnection) bool {
 			ch := channels[c.Channel.ID]
 			if ch == nil {

@@ -122,23 +122,39 @@ func TestImportedCatalogLeavesFixedDefinitionsAlone(t *testing.T) {
 	definition, err := decodeCodexDefinition(fixed)
 	require.NoError(t, err)
 	require.Equal(t, "imported_catalog", definition.Models[slug].SourceKind)
-	configured.Settings.CodexCatalog = fixed
-	_, err = models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{Settings: configured.Settings})
+	// Edit the same per-model JSON object that the admin preview exposes.
+	require.Equal(t, []any{"text"}, definition.Models[slug].CatalogDefaults["input_modalities"])
+	definition.Models[slug].Model["input_modalities"] = []any{"text", "audio"}
+	edited, err := json.Marshal(definition)
+	require.NoError(t, err)
+	configured.Settings.CodexCatalog = edited
+	_, err = models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{Settings: configured.Settings, ModelCard: &objects.ModelCard{
+		Modalities: objects.ModelCardModalities{Input: []string{"text", "image"}},
+		Limit:      objects.ModelCardLimit{Context: 87000},
+	}})
 	require.NoError(t, err)
 	apply("Second")
-	read := func() string {
+	read := func() map[string]any {
 		raw, omitted, err := NewCodexCatalogService(models, channels).Models(ctx, "0.171.0")
 		require.NoError(t, err)
 		require.Zero(t, omitted)
 		catalog, err := parseCodexCatalog(raw)
 		require.NoError(t, err)
-		return catalog[slug]["display_name"].(string)
+		return catalog[slug]
 	}
-	require.Equal(t, "First", read())
+	got := read()
+	require.Equal(t, "First", got["display_name"])
+	require.Equal(t, []any{"text", "image"}, got["input_modalities"])
+	require.Equal(t, float64(87000), got["max_context_window"])
+	_, err = models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{ModelCard: &objects.ModelCard{}})
+	require.NoError(t, err)
+	require.Equal(t, []any{"text", "audio"}, read()["input_modalities"])
 	configured.Settings.CodexCatalog = nil
 	_, err = models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{Settings: configured.Settings})
 	require.NoError(t, err)
-	require.Equal(t, "Second", read())
+	got = read()
+	require.Equal(t, "Second", got["display_name"])
+	require.Equal(t, []any{"text"}, got["input_modalities"])
 }
 
 func TestImportedCatalogHonorsModelAndChannelOverrides(t *testing.T) {
@@ -164,7 +180,7 @@ func TestImportedCatalogHonorsModelAndChannelOverrides(t *testing.T) {
 	require.Equal(t, "Test", snap.public.models[slug]["display_name"])
 }
 
-func TestImportedCodexProfileMergesOnlyDeclaredRouteCapabilities(t *testing.T) {
+func TestOfficialCodexProfileMergesOnlyDeclaredRouteCapabilities(t *testing.T) {
 	const slug = "test-model"
 	base, err := parseCodexCatalog([]byte(catalogFixture))
 	require.NoError(t, err)
@@ -176,7 +192,8 @@ func TestImportedCodexProfileMergesOnlyDeclaredRouteCapabilities(t *testing.T) {
 	b["additional_speed_tiers"] = []any{"fast"}
 	b["service_tiers"] = []any{map[string]any{"id": "priority", "name": "Base label", "description": "Base description"}}
 	b["default_service_tier"] = "priority"
-	snapshot := &codexSnapshot{clientVersion: "0.171.0", public: &publicCatalogArchive{Source: "url", models: base}}
+	b["minimal_client_version"] = "0.171.0"
+	snapshot := &codexSnapshot{clientVersion: "0.171.0", public: &publicCatalogArchive{Source: "official", models: base}}
 	ch := &ent.Channel{ID: 1, Type: channel.TypeOpenaiResponses, Endpoints: []objects.ChannelEndpoint{{APIFormat: "openai/responses"}}}
 	keyRoute := &ModelChannelConnection{Channel: ch, Models: []ChannelModelEntry{{ActualModel: slug}}}
 	m := ModelFacade{ID: slug, TargetID: slug, ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{keyRoute}}
@@ -204,7 +221,7 @@ func TestImportedCodexProfileMergesOnlyDeclaredRouteCapabilities(t *testing.T) {
 		&codexDefinition{Mode: "inherit", Overrides: map[string]any{"node_repl_auto_review_required": false, "supports_search_tool": true}})
 	require.NoError(t, err)
 	require.Equal(t, true, restricted["node_repl_auto_review_required"])
-	require.Equal(t, false, restricted["supports_search_tool"], "the visible route explicitly disables search")
+	require.Equal(t, true, restricted["supports_search_tool"], "an explicit model override takes precedence over the route report")
 	ch.Settings = nil
 	got = read()
 	require.Equal(t, []any{"text"}, got["input_modalities"])
@@ -219,6 +236,215 @@ func TestImportedCodexProfileMergesOnlyDeclaredRouteCapabilities(t *testing.T) {
 	require.Equal(t, "priority", read()["default_service_tier"], "the default names an actual service tier ID")
 	ch.Settings = &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierStandard}
 	require.Empty(t, read()["service_tiers"])
+}
+
+func TestImportedCatalogUsesModelPageAndAllVisibleRoutes(t *testing.T) {
+	const slug = "test-model"
+	profile := reasoningProfileFixture(t, slug, "low", "high")
+	profile["input_modalities"] = []any{"text", "image", "audio"}
+	profile["supports_search_tool"] = true
+	profile["max_context_window"] = float64(96000)
+	profile["additional_speed_tiers"] = []any{"fast", "ultrafast"}
+	report := reasoningProfileFixture(t, slug, "low")
+	report["input_modalities"] = []any{"text"}
+	report["supports_search_tool"] = false
+	report["context_window"] = float64(1000)
+	ch1 := &ent.Channel{ID: 1, Type: channel.TypeOpenaiResponses, Settings: &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierStandard}}
+	ch2 := &ent.Channel{ID: 2, Type: channel.TypeOpenaiResponses}
+	model := ModelFacade{ID: "key-alias", TargetID: slug, ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
+		{Channel: ch1, Models: []ChannelModelEntry{{ActualModel: slug}}},
+		{Channel: ch2, Models: []ChannelModelEntry{{ActualModel: slug}}},
+	}}
+	sources := map[int]map[string]map[string]any{1: {slug: report}, 2: {slug: report}}
+	for _, source := range []string{"url", "manual"} {
+		t.Run(source, func(t *testing.T) {
+			m := model
+			m.ConfiguredModel = &ent.Model{}
+			snapshot := &codexSnapshot{clientVersion: "0.171.0", public: &publicCatalogArchive{Source: source, models: map[string]map[string]any{slug: profile}}}
+			read := func(inherited *codexDefinition) map[string]any {
+				t.Helper()
+				got, err := automaticCodexModel(t.Context(), m, model.Connections, sources, catalogTestChannels(model), "0.171.0", snapshot, inherited)
+				require.NoError(t, err)
+				return got
+			}
+			got := read(nil)
+			for _, field := range []string{"input_modalities", "supports_search_tool", "context_window", "additional_speed_tiers", "supported_reasoning_levels"} {
+				require.Equal(t, profile[field], got[field], field)
+			}
+			require.Equal(t, m.ID, got["slug"])
+			m.Connections = model.Connections[:1]
+			require.Empty(t, read(nil)["additional_speed_tiers"])
+			forced := read(&codexDefinition{Mode: "inherit", Overrides: map[string]any{"additional_speed_tiers": []any{"fast"}}})
+			require.Equal(t, []any{"fast"}, forced["additional_speed_tiers"])
+			m.Connections = model.Connections[1:]
+			require.Equal(t, profile["additional_speed_tiers"], read(nil)["additional_speed_tiers"])
+			ch2.Settings = &objects.ChannelSettings{BodyOverrideOperations: []objects.OverrideOperation{{
+				Op: objects.OverrideOpSet, Path: "service_tier", Value: "default", Condition: "{{ .Metadata.slow }}",
+			}}}
+			require.Equal(t, profile["additional_speed_tiers"], read(nil)["additional_speed_tiers"])
+			ch2.Settings.BodyOverrideOperations[0].Condition = ""
+			require.Empty(t, read(nil)["additional_speed_tiers"])
+			for _, condition := range []string{"{{true}}", `{{eq .RequestModel "test-model"}}`, `{{eq .Model "test-model"}}`} {
+				ch2.Settings.BodyOverrideOperations[0].Condition = condition
+				require.Empty(t, read(nil)["additional_speed_tiers"], condition)
+			}
+			ch2.Settings.BodyOverrideOperations[0].Condition = `{{eq .RequestModel "key-alias"}}`
+			require.Equal(t, profile["additional_speed_tiers"], read(nil)["additional_speed_tiers"])
+			ch2.Settings.BodyOverrideOperations[0].Condition = "{{false}}"
+			require.Equal(t, profile["additional_speed_tiers"], read(nil)["additional_speed_tiers"])
+			ch2.Settings.BodyOverrideOperations = []objects.OverrideOperation{{Op: objects.OverrideOpSet, Path: "service_tier", Value: `{{if .Metadata.slow}}default{{else}}priority{{end}}`}}
+			require.Contains(t, read(nil)["additional_speed_tiers"], "fast")
+			ch2.Settings.BodyOverrideOperations = []objects.OverrideOperation{{Op: objects.OverrideOpCopy, From: "custom_tier", To: "service_tier"}}
+			require.Contains(t, read(nil)["additional_speed_tiers"], "fast")
+			ch2.Settings = nil
+
+			m.ConfiguredModel.ModelCard = &objects.ModelCard{
+				Modalities:       objects.ModelCardModalities{Input: []string{"text", "image", "pdf"}},
+				ReasoningEfforts: []string{"high"}, Limit: objects.ModelCardLimit{Context: 64000},
+			}
+			m.ConfiguredModel.Settings = &objects.ModelSettings{ContextSettings: &objects.ModelContextSettings{DefaultContextWindow: lo.ToPtr(42000)}}
+			got = read(nil)
+			require.Equal(t, []any{"text", "image"}, got["input_modalities"])
+			require.Equal(t, profile["supported_reasoning_levels"].([]any)[1:], got["supported_reasoning_levels"])
+			require.Equal(t, float64(42000), got["context_window"])
+			require.Equal(t, float64(64000), got["max_context_window"])
+			got = read(&codexDefinition{Mode: "inherit", Overrides: map[string]any{"input_modalities": []any{"audio"}, "max_context_window": float64(48000)}})
+			require.Equal(t, []any{"text", "image"}, got["input_modalities"])
+			require.Equal(t, float64(64000), got["max_context_window"])
+			m.ConfiguredModel.ModelCard.Limit.Context = 0
+			m.ConfiguredModel.Settings.ContextSettings.DefaultContextWindow = lo.ToPtr(120000)
+			got = read(&codexDefinition{Mode: "inherit", Overrides: map[string]any{"max_context_window": float64(128000)}})
+			require.Equal(t, float64(120000), got["context_window"])
+			require.Equal(t, []any{"text", "image", "audio"}, profile["input_modalities"])
+			m.ConfiguredModel.ModelCard.Reasoning = objects.ModelCardReasoning{SupportDeclared: true}
+			got = read(nil)
+			require.Empty(t, got["supported_reasoning_levels"])
+			require.Nil(t, got["default_reasoning_level"])
+		})
+	}
+}
+
+func TestFixedImportedProfileOnlyAppliesUnanimousLimits(t *testing.T) {
+	const slug = "test-model"
+	profile := reasoningProfileFixture(t, slug, "low", "high")
+	profile["input_modalities"] = []any{"text", "image", "audio"}
+	profile["context_window"], profile["max_context_window"] = float64(72000), float64(96000)
+	ch1 := &ent.Channel{ID: 1, Type: channel.TypeOpenaiResponses, Settings: &objects.ChannelSettings{ModelContexts: []objects.ChannelModelContext{{ModelID: slug, MaxContextWindow: lo.ToPtr(16000)}}}}
+	ch2 := &ent.Channel{ID: 2, Type: channel.TypeOpenaiResponses}
+	m := ModelFacade{ID: slug, TargetID: slug, ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{
+		{Channel: ch1, Models: []ChannelModelEntry{{ActualModel: slug}}},
+		{Channel: ch2, Models: []ChannelModelEntry{{ActualModel: slug}}},
+	}}
+	def := codexDefinition{SourceKind: "official_public", Models: map[string]codexModelProfile{slug: {SourceKind: importedCatalogKind, Model: profile, CatalogDefaults: codexRouteCapabilities(profile)}}, Routes: []codexDefinitionRoute{
+		{ChannelID: 1, ModelID: slug, Limits: map[string]any{"input_modalities": []any{"text", "image"}}},
+		{ChannelID: 2, ModelID: slug, Capabilities: map[string]any{"input_modalities": []any{"text"}, "node_repl_auto_review_required": true}},
+	}}
+	read := func() map[string]any {
+		t.Helper()
+		got, err := def.catalogModel(t.Context(), m, catalogTestChannels(m), true)
+		require.NoError(t, err)
+		return got
+	}
+	got := read()
+	require.Equal(t, profile["input_modalities"], got["input_modalities"])
+	require.Equal(t, profile["max_context_window"], got["max_context_window"])
+	require.Equal(t, true, got["node_repl_auto_review_required"])
+	def.Routes[1].Limits = map[string]any{"input_modalities": []any{"text"}, "max_context_window": float64(32000)}
+	got = read()
+	require.Equal(t, []any{"text", "image"}, got["input_modalities"])
+	require.Equal(t, float64(32000), got["max_context_window"])
+	require.Equal(t, float64(32000), got["context_window"])
+	m.Connections = m.Connections[1:]
+	require.Equal(t, []any{"text"}, read()["input_modalities"])
+	perModel := def.Models[slug]
+	perModel.Overrides = map[string]any{"input_modalities": profile["input_modalities"], "context_window": float64(65000)}
+	def.Models[slug] = perModel
+	got = read()
+	require.Equal(t, profile["input_modalities"], got["input_modalities"], "explicit even when identical to the catalog defaults")
+	require.Equal(t, float64(65000), got["context_window"])
+	require.GreaterOrEqual(t, got["max_context_window"].(float64), got["context_window"].(float64))
+	perModel.Overrides = nil
+	def.Models[slug] = perModel
+	delete(def.Routes[1].Limits, "input_modalities")
+	m.ConfiguredModel.ModelCard = &objects.ModelCard{Modalities: objects.ModelCardModalities{Input: []string{"audio"}}}
+	require.Equal(t, []any{"audio"}, read()["input_modalities"], "a saved imported profile uses the current model card")
+	legacy := def.Models[slug]
+	legacy.CatalogDefaults = nil
+	def.Models[slug] = legacy
+	require.Equal(t, []any{"audio"}, read()["input_modalities"], "current model card overrides a legacy fixed definition")
+	m.ConfiguredModel.ModelCard = nil
+	require.Equal(t, profile["input_modalities"], read()["input_modalities"], "old definitions retain their confirmed values when the outer form is empty")
+}
+
+func TestImportedProfileRequiresACompatibleRoute(t *testing.T) {
+	const slug = "test-model"
+	profile := reasoningProfileFixture(t, slug, "high")
+	profile["apply_patch_tool_type"] = "freeform"
+	snapshot := &codexSnapshot{clientVersion: "0.171.0", public: &publicCatalogArchive{Source: "manual", models: map[string]map[string]any{slug: profile}}}
+	ch := &ent.Channel{ID: 1, Type: channel.TypeOpenai, Endpoints: []objects.ChannelEndpoint{{APIFormat: "openai/chat_completions"}}}
+	m := ModelFacade{ID: slug, TargetID: slug, ConfiguredModel: &ent.Model{}, Connections: []*ModelChannelConnection{{Channel: ch, Models: []ChannelModelEntry{{ActualModel: slug}}}}}
+	sources := map[int]map[string]map[string]any{1: {slug: reasoningProfileFixture(t, slug, "low")}}
+	_, err := automaticCodexModel(t.Context(), m, m.Connections, sources, catalogTestChannels(m), "0.171.0", snapshot, nil)
+	require.ErrorContains(t, err, "no visible route")
+}
+
+func TestImportedCatalogCountsOnlyReachableResponsesRoutes(t *testing.T) {
+	ctx, db, models, channels, _ := setupListEnabledModelsTest(t)
+	snapshots, err := NewCodexSnapshotService(CodexCatalogConfig{Offline: true}, db)
+	require.NoError(t, err)
+	models.codexSnapshots = snapshots
+	const slug = "test-model"
+	applyTestCatalog(t, ctx, snapshots, CatalogImport{Source: "manual", Catalog: json.RawMessage(strings.Replace(catalogFixture, `"input_modalities":["text"]`, `"input_modalities":["text","image"]`, 1))})
+	var associations []*objects.ModelAssociation
+	var channelIDs []int
+	for _, name := range []string{"limited", "conditional"} {
+		ch := db.Channel.Create().SetName(name).SetType(channel.TypeOpenaiResponses).SetSupportedModels([]string{slug}).
+			SetDefaultTestModel(slug).SetBaseURL("https://example.invalid").SetStatus(channel.StatusEnabled).
+			SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).
+			SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: []byte(catalogFixture)}, {APIFormat: "openai/chat_completions"}}).SaveX(ctx)
+		channelIDs = append(channelIDs, ch.ID)
+		associations = append(associations, &objects.ModelAssociation{Type: "channel_request", ChannelRequest: &objects.ChannelRequestAssociation{ChannelID: ch.ID}})
+	}
+	reloadEnabledChannels(t, ctx, db, channels)
+	createConfiguredModel(t, ctx, db, slug, model.TypeChat, associations[0])
+	m := db.Model.Query().OnlyX(ctx)
+	m.Settings.Associations = associations
+	m = db.Model.UpdateOne(m).SetSettings(m.Settings).SaveX(ctx)
+	raw, err := models.PreviewCodexCatalog(ctx, m.ID, "0.171.0")
+	require.NoError(t, err)
+	d, err := decodeCodexDefinition(raw)
+	require.NoError(t, err)
+	for i, r := range d.Routes {
+		if r.ChannelID == channelIDs[0] {
+			d.Routes[i].Limits = map[string]any{"input_modalities": []any{"text"}}
+		}
+	}
+	m.Settings.CodexCatalog, err = json.Marshal(d)
+	require.NoError(t, err)
+	read := func(format string) []any {
+		t.Helper()
+		m.Settings.Associations[1].When = &objects.ModelAssociationWhen{Enabled: true, Condition: &objects.Condition{
+			Type: objects.ConditionTypeGroup, Logic: "and", Conditions: []objects.Condition{{
+				Type: objects.ConditionTypeCondition, Field: "request_format", Operator: "eq", Value: format,
+			}},
+		}}
+		_, err = models.UpdateModel(ctx, m.ID, &ent.UpdateModelInput{Settings: m.Settings})
+		require.NoError(t, err)
+		body, omitted, err := NewCodexCatalogService(models, channels).Models(ctx, "0.171.0")
+		require.NoError(t, err)
+		require.Zero(t, omitted)
+		entries, err := parseCodexCatalog(body)
+		require.NoError(t, err)
+		return entries[slug]["input_modalities"].([]any)
+	}
+	require.Equal(t, []any{"text"}, read("anthropic/messages"))
+	require.Equal(t, []any{"text", "image"}, read("openai/responses-ws"))
+	db.Channel.UpdateOneID(channelIDs[1]).SetSettings(&objects.ChannelSettings{
+		ModelProtocols: []objects.ModelProtocol{{Model: slug, APIFormats: []string{"openai/chat_completions"}}},
+		ProtocolPolicy: &objects.ChannelProtocolPolicy{SameProtocolOnly: true},
+	}).SaveX(ctx)
+	reloadEnabledChannels(t, ctx, db, channels)
+	require.Equal(t, []any{"text"}, read("openai/responses"))
 }
 
 func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
@@ -245,7 +471,7 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 	require.NoError(t, err)
 	ch := db.Channel.Create().SetName("fast").SetType(channel.TypeOpenaiResponses).SetSupportedModels([]string{slug, other}).
 		SetDefaultTestModel(slug).SetBaseURL("https://example.invalid").SetStatus(channel.StatusEnabled).
-		SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: []byte(`{"models":[]}`)}}).
+		SetEndpoints([]objects.ChannelEndpoint{{APIFormat: "openai/responses", CatalogJSON: []byte(strings.ReplaceAll(catalogFixture, "test-model", slug))}}).
 		SetSettings(&objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{Fast: true}}).
 		SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SaveX(ctx)
 	for _, id := range []string{slug, other} {
@@ -276,6 +502,19 @@ func TestRepositoryCatalogServesKeyScopedModelAndSpeed(t *testing.T) {
 		values, _ := got[field].([]any)
 		require.Equal(t, expected, append([]any{}, values...), field)
 	}
+	t.Run("model page inputs override the imported repository entry", func(t *testing.T) {
+		configured := db.Model.Query().Where(model.ModelIDEQ(slug)).OnlyX(ctx)
+		_, err := models.UpdateModel(ctx, configured.ID, &ent.UpdateModelInput{ModelCard: &objects.ModelCard{
+			Modalities: objects.ModelCardModalities{Input: []string{"text", "image", "pdf"}},
+		}})
+		require.NoError(t, err)
+		body, omitted, err := NewCodexCatalogService(models, channels).Models(contexts.WithAPIKey(ctx, key), source.ClientVersion)
+		require.NoError(t, err)
+		require.Zero(t, omitted)
+		entries, err := parseCodexCatalog(body)
+		require.NoError(t, err)
+		require.Equal(t, []any{"text", "image"}, entries[slug]["input_modalities"])
+	})
 	t.Run("only channel denies Responses clients", func(t *testing.T) {
 		ch.Settings.ProtocolPolicy = &objects.ChannelProtocolPolicy{AllowedProtocols: []string{"openai/chat_completions"}}
 		db.Channel.UpdateOneID(ch.ID).SetSettings(ch.Settings).SaveX(ctx)

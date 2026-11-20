@@ -96,15 +96,15 @@ func TestCodexCatalogContextOverridesAndInheritance(t *testing.T) {
 			_, err = channels.UpdateChannel(ctx, ids[0], &ent.UpdateChannelInput{Settings: &objects.ChannelSettings{ModelContexts: []objects.ChannelModelContext{{ModelID: "test-model", DefaultContextWindow: lo.ToPtr(24000), MaxContextWindow: lo.ToPtr(64000)}}}})
 			require.NoError(t, err)
 			reloadEnabledChannels(t, ctx, client, channels)
-			read([]int{ids[0]}, 24000, 64000)
-			read(nil, 16000, 64000)
+			read([]int{ids[0]}, 16000, 128000)
+			read(nil, 16000, 128000)
 			_, err = channels.UpdateChannel(ctx, ids[0], &ent.UpdateChannelInput{Settings: &objects.ChannelSettings{ModelContexts: []objects.ChannelModelContext{}}})
 			require.NoError(t, err)
 			reloadEnabledChannels(t, ctx, client, channels)
 			m.Settings.ContextSettings = &objects.ModelContextSettings{MaxContextWindow: lo.ToPtr(96000)}
 			_, err = models.UpdateModel(ctx, m.ID, &ent.UpdateModelInput{Settings: m.Settings})
 			require.NoError(t, err)
-			read(nil, 96000, 96000)
+			read(nil, 32000, 96000)
 		})
 	}
 }
