@@ -477,6 +477,8 @@ AxonHub 可透明转发 Codex/CPA 兼容的 Alpha Search 端点，不解析上�
 
 请求必须包含 `model`，以便 AxonHub 选择渠道。除模型映射会修改顶层 `model` 外，其余 JSON（包括 `commands.search_query`）原样转发；上游响应也原样返回。该端点不属于公开 OpenAI API，只应为确实实现了 `/alpha/search` 的上游（例如 CPA）配置 `openai/alpha_search` endpoint。只有内置 Codex 渠道默认包含该端点；其他渠道（包括 Fenno、OpenAI 和 OpenAI Responses）都需要显式加入。
 
+若当前项目和密钥允许的渠道匹配了模型及本次请求条件，但均未配置可用的 Alpha Search 端点，AxonHub 在请求发往上游前返回 HTTP 422，`error.code` 为 `no_compatible_endpoint`。管理员可核实这些渠道的上游是否提供搜索接口，再为支持它的渠道配置端点。模型未知或超出密钥可见范围时，返回 `invalid_model_error`。
+
 ## 嵌入 API
 
 AxonHub 通过 OpenAI 兼容 API 提供全面的文本和多模态嵌入生成支持。

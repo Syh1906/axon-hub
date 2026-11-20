@@ -50,7 +50,8 @@ func TestChannelProtocolAliasOrder(t *testing.T) {
 				}
 			}
 			req := &llm.Request{Model: "public", RequestType: llm.RequestTypeChat, APIFormat: llm.APIFormatOpenAIChatCompletion, Stream: lo.ToPtr(tc.stream)}
-			selected := filterResolvedCandidatesForRequest(t.Context(), req, resolved)
+			selected, err := candidatesForMatchedModel(t.Context(), req, m, resolved)
+			require.NoError(t, err)
 			require.Len(t, selected, 1)
 			require.Equal(t, tc.format.String(), selected[0].APIFormat)
 			require.Len(t, selected[0].Models, 1)

@@ -60,10 +60,11 @@ func TestFilterResolvedCandidatesForRequest_ReasoningEffort(t *testing.T) {
 					models:   []biz.ChannelModelEntry{{ActualModel: "test-model"}},
 				},
 			}
-			got := filterResolvedCandidatesForRequest(context.Background(), &llm.Request{
+			got, err := candidatesForMatchedModel(context.Background(), &llm.Request{
 				Model:           "test-model",
 				ReasoningEffort: tc.effort,
-			}, candidates)
+			}, &ent.Model{}, candidates)
+			require.NoError(t, err)
 			require.Len(t, got, 1)
 			require.Equal(t, tc.priority, got[0].Priority)
 		})

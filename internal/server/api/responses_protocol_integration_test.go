@@ -189,6 +189,81 @@ func TestResponsesProtocolIntegrationIsolation(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestAlphaSearchRoutingDistinguishesMissingEndpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		model          string
+		enableSearch   bool
+		excludeChannel bool
+		errType        string
+		errCode        string
+	}{
+		{name: "visible model with Responses only", model: "synthetic-model", errType: "invalid_request_error", errCode: "no_compatible_endpoint"},
+		{name: "unknown model", model: "unknown", errType: "invalid_model_error"},
+		{name: "channel outside key scope", model: "synthetic-model", excludeChannel: true, errType: "invalid_model_error"},
+		{name: "configured search endpoint", model: "synthetic-model", enableSearch: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var posts atomic.Int32
+			upstream := responsesIntegrationServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				posts.Add(1)
+				require.Equal(t, http.MethodPost, r.Method)
+				require.Equal(t, "/v1/alpha/search", r.URL.Path)
+				body, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				require.Equal(t, "test query", gjson.GetBytes(body, "commands.search_query.0.q").String())
+				w.Header().Set("Content-Type", "application/json")
+				_, err = io.WriteString(w, `{"results":["fixture"]}`)
+				require.NoError(t, err)
+			}))
+			db, handlers, project := newResponsesIntegrationFixture(t, upstream.URL, func(c *ent.ChannelCreate) {
+				if tc.enableSearch {
+					c.SetEndpoints([]objects.ChannelEndpoint{{APIFormat: llm.APIFormatOpenAIAlphaSearch.String()}})
+				}
+			})
+			ctx := authz.WithTestBypass(ent.NewContext(t.Context(), db))
+			key := db.APIKey.Query().OnlyX(ctx)
+			tag := "synthetic"
+			if tc.excludeChannel {
+				tag = "other"
+			}
+			key = key.Update().SetProfiles(&objects.APIKeyProfiles{
+				ActiveProfile: "search", Profiles: []objects.APIKeyProfile{{Name: "search", ChannelTags: []string{tag}}},
+			}).SaveX(ctx)
+			ctx = contexts.WithProjectID(contexts.WithAPIKey(ctx, key), project.ID)
+			body := fmt.Sprintf(`{"model":%q,"commands":{"search_query":[{"q":"test query"}]}}`, tc.model)
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/v1/alpha/search", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			router := gin.New()
+			router.POST("/v1/alpha/search", handlers.CreateAlphaSearch)
+			router.ServeHTTP(recorder, req)
+
+			if tc.errType == "" {
+				require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+				require.JSONEq(t, `{"results":["fixture"]}`, recorder.Body.String())
+				require.EqualValues(t, 1, posts.Load())
+				require.Equal(t, 1, db.RequestExecution.Query().CountX(ctx))
+				return
+			}
+			require.Equal(t, http.StatusUnprocessableEntity, recorder.Code)
+			reply := gjson.GetBytes(recorder.Body.Bytes(), "error")
+			require.Equal(t, tc.errType, reply.Get("type").String())
+			require.Equal(t, tc.errCode, reply.Get("code").String())
+			require.Zero(t, posts.Load())
+			require.Zero(t, db.RequestExecution.Query().CountX(ctx))
+			if tc.errCode != "" {
+				failure := db.Request.Query().OnlyX(ctx).Failure
+				require.NotNil(t, failure)
+				require.Equal(t, "routing", failure.Stage)
+				require.Equal(t, tc.errCode, failure.Code)
+				require.Equal(t, reply.Get("message").String(), failure.Message)
+				require.Contains(t, failure.Message, "/v1/alpha/search")
+			}
+		})
+	}
+}
+
 func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure ...func(*ent.ChannelCreate)) (*ent.Client, *OpenAIHandlers, *ent.Project) {
 	t.Helper()
 	client := enttest.NewEntClient(t, "sqlite3", "file:"+t.Name()+"?mode=memory&_fk=1")

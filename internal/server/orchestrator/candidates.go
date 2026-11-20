@@ -7,6 +7,7 @@ import (
 	"hash"
 	"hash/fnv"
 	"io"
+	"net/http"
 	"slices"
 	"strconv"
 	"sync"
@@ -157,7 +158,7 @@ func (s *DefaultSelector) selectModelCandidates(ctx context.Context, req *llm.Re
 				}
 			}
 		}
-		return candidatesForMatchedModel(ctx, req, model, resolved), nil
+		return candidatesForMatchedModel(ctx, req, model, resolved)
 	}
 	return nil, &ent.NotFoundError{}
 }
@@ -193,16 +194,31 @@ func (s *DefaultSelector) modelAssociationsForRequest(ctx context.Context, model
 	return s.resolveAssociationsForRequest(ctx, model, associations, requestModel)
 }
 
-func candidatesForMatchedModel(ctx context.Context, req *llm.Request, model *ent.Model, resolvedCandidates []*resolvedAssociationCandidate) []*ChannelModelsCandidate {
-	candidates := filterResolvedCandidatesForRequest(ctx, req, resolvedCandidates)
+func candidatesForMatchedModel(ctx context.Context, req *llm.Request, model *ent.Model, resolvedCandidates []*resolvedAssociationCandidate) ([]*ChannelModelsCandidate, error) {
+	matched := matchAssociationConditions(ctx, req, resolvedCandidates)
+	candidates := aggregateChannelModelCandidates(ctx, req, matched)
 	if len(candidates) == 0 {
+		// A scoped association matched this search, but none of its endpoints can serve it.
+		if req.RequestType == llm.RequestTypeAlphaSearch && slices.ContainsFunc(matched, func(candidate *resolvedAssociationCandidate) bool {
+			return candidate != nil && len(candidate.models) > 0
+		}) {
+			return nil, &llm.ResponseError{
+				StatusCode: http.StatusUnprocessableEntity,
+				Detail: llm.ErrorDetail{
+					Type:    "invalid_request_error",
+					Code:    "no_compatible_endpoint",
+					Message: fmt.Sprintf("No eligible channel for model %q supports the Alpha Search endpoint (/v1/alpha/search).", req.Model),
+				},
+			}
+		}
+
 		if log.DebugEnabled(ctx) {
 			log.Debug(ctx, "no candidates matched request conditions",
 				log.String("model", req.Model),
 			)
 		}
 
-		return candidates
+		return candidates, nil
 	}
 
 	strategy := objects.RoutingPolicyDefault
@@ -230,7 +246,7 @@ func candidatesForMatchedModel(ctx context.Context, req *llm.Request, model *ent
 		)
 	}
 
-	return candidates
+	return candidates, nil
 }
 
 // resolveAssociations resolves model associations into an intermediate form that

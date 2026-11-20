@@ -13,23 +13,17 @@ import (
 	"github.com/looplj/axonhub/llm"
 )
 
-// filterResolvedCandidatesForRequest evaluates `When` only after association
-// resolution. This keeps the matching step focused on static association
-// structure and makes request-dependent filtering easier to follow.
-func filterResolvedCandidatesForRequest(
+// matchAssociationConditions filters resolved associations before endpoint selection.
+func matchAssociationConditions(
 	ctx context.Context,
 	req *llm.Request,
 	resolvedCandidates []*resolvedAssociationCandidate,
-) []*ChannelModelsCandidate {
-	if len(resolvedCandidates) == 0 {
-		return []*ChannelModelsCandidate{}
-	}
-
+) []*resolvedAssociationCandidate {
 	hasConditionalCandidates := lo.ContainsBy(resolvedCandidates, func(candidate *resolvedAssociationCandidate) bool {
 		return candidate != nil && candidate.when != nil
 	})
 	if !hasConditionalCandidates {
-		return aggregateChannelModelCandidates(ctx, req, resolvedCandidates)
+		return resolvedCandidates
 	}
 
 	promptTokens := estimatePromptTokens(req)
@@ -53,8 +47,6 @@ func filterResolvedCandidatesForRequest(
 		filtered = append(filtered, candidate)
 	}
 
-	candidates := aggregateChannelModelCandidates(ctx, req, filtered)
-
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "evaluated conditional associations",
 			log.Int64("estimated_prompt_tokens", promptTokens),
@@ -62,7 +54,7 @@ func filterResolvedCandidatesForRequest(
 		)
 	}
 
-	return candidates
+	return filtered
 }
 
 func populateAPIFormat(ctx context.Context, candidates []*ChannelModelsCandidate, req *llm.Request) []*ChannelModelsCandidate {
