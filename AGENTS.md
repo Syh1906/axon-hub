@@ -12,6 +12,8 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## 仓库维护模式
 
+- 所有发版以本仓库当前维护分支及其最新已发布基线为准，在该基线上递增 fork 版本。普通发版不检查、合并或切换到新的上游版本；只有用户明确要求合并或同步上游时，才单独执行上游同步流程。
+
 - beta12 起直接同步原始上游 [looplj/axonhub](https://github.com/looplj/axonhub) 的 release tag。
   [ChouUn/axon-hub](https://github.com/ChouUn/axon-hub) 作为继承 fork 来源单独追溯，
   不再作为下一次原始上游同步的基线；既有功能和历史仍保留。

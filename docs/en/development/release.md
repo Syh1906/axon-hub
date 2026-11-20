@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+Every release uses the current maintenance branch and its latest published baseline in this repository. Increment the fork number on that baseline. A normal release verifies this repository’s branch, tags, manifest and recorded upstream provenance. Discovering or merging newer upstream releases is a separate operation performed only when explicitly requested.
+
 On 2026-11-19, [rc1-fork.14](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.14) was published as the latest release. Both production sites run the same image digest and passed internal and public checks. See the [fork maintenance ledger](../../fork-maintenance.md) for deployment timing and verification scope.
 
 On 2026-11-19 the streamlined workflow published [rc1-fork.13](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.13). Both production hosts upgraded to the same pinned image and passed internal and public checks. See the [fork maintenance log](../../fork-maintenance.md) for cutover times, observed request failures and the limits of latency verification.
