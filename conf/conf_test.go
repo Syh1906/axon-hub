@@ -198,6 +198,18 @@ func TestRequestPayloadChannelAndEndpointConfig(t *testing.T) {
 	}
 }
 
+func TestGeminiExplicitCacheConfig(t *testing.T) {
+	file := writeTestConfig(t, "server:\n  gemini_explicit_cache:\n    api_key_ids: [7, 11]\n    channel_ids: [23]\n")
+	cfg, _, err := loadConfig(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := cfg.APIServer.GeminiExplicitCache
+	if !slices.Equal(cache.APIKeyIDs, []int{7, 11}) || !slices.Equal(cache.ChannelIDs, []int{23}) {
+		t.Fatalf("unexpected explicit cache configuration: %+v", cache)
+	}
+}
+
 func TestFirstContentTrialConfiguration(t *testing.T) {
 	for _, percent := range []int{-1, 100} {
 		_, _, err := loadConfig(writeTestConfig(t, fmt.Sprintf("request_payload:\n  first_content_trial_percent: %d\n", percent)))

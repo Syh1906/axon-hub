@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/looplj/axonhub/internal/server/api"
 	"github.com/looplj/axonhub/internal/server/safeguards"
 	"github.com/looplj/axonhub/internal/tracing"
 )
@@ -78,9 +79,10 @@ func (m *MemorySize) UnmarshalText(text []byte) error {
 }
 
 type Config struct {
-	Host      string `conf:"host" yaml:"host" json:"host"`
-	Port      int    `conf:"port" yaml:"port" json:"port"`
-	PublicURL string `conf:"public_url" yaml:"public_url" json:"public_url"`
+	GeminiExplicitCache api.GeminiCacheConfig `conf:"gemini_explicit_cache" yaml:"gemini_explicit_cache" json:"gemini_explicit_cache"`
+	Host                string                `conf:"host" yaml:"host" json:"host"`
+	Port                int                   `conf:"port" yaml:"port" json:"port"`
+	PublicURL           string                `conf:"public_url" yaml:"public_url" json:"public_url"`
 	// TrustedProxies contains the proxy networks allowed to provide the
 	// X-Forwarded-For and X-Real-IP headers. An empty list disables proxy header
 	// trust and uses the direct TCP peer address.

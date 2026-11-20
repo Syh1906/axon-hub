@@ -25,6 +25,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/geminicache"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -563,6 +564,33 @@ func (f TraverseDataStorage) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.DataStorageQuery", q)
+}
+
+// The GeminiCacheFunc type is an adapter to allow the use of ordinary function as a Querier.
+type GeminiCacheFunc func(context.Context, *ent.GeminiCacheQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f GeminiCacheFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.GeminiCacheQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.GeminiCacheQuery", q)
+}
+
+// The TraverseGeminiCache type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseGeminiCache func(context.Context, *ent.GeminiCacheQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseGeminiCache) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseGeminiCache) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.GeminiCacheQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.GeminiCacheQuery", q)
 }
 
 // The InvitationFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1196,6 +1224,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ConsumptionSnapshotQuery, predicate.ConsumptionSnapshot, consumptionsnapshot.OrderOption]{typ: ent.TypeConsumptionSnapshot, tq: q}, nil
 	case *ent.DataStorageQuery:
 		return &query[*ent.DataStorageQuery, predicate.DataStorage, datastorage.OrderOption]{typ: ent.TypeDataStorage, tq: q}, nil
+	case *ent.GeminiCacheQuery:
+		return &query[*ent.GeminiCacheQuery, predicate.GeminiCache, geminicache.OrderOption]{typ: ent.TypeGeminiCache, tq: q}, nil
 	case *ent.InvitationQuery:
 		return &query[*ent.InvitationQuery, predicate.Invitation, invitation.OrderOption]{typ: ent.TypeInvitation, tq: q}, nil
 	case *ent.ModelQuery:

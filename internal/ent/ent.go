@@ -29,6 +29,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/geminicache"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -128,6 +129,7 @@ func checkColumn(t, c string) error {
 			channelupstreamstatus.Table:    channelupstreamstatus.ValidColumn,
 			consumptionsnapshot.Table:      consumptionsnapshot.ValidColumn,
 			datastorage.Table:              datastorage.ValidColumn,
+			geminicache.Table:              geminicache.ValidColumn,
 			invitation.Table:               invitation.ValidColumn,
 			model.Table:                    model.ValidColumn,
 			oidcidentity.Table:             oidcidentity.ValidColumn,

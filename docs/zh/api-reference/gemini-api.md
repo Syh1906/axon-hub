@@ -114,6 +114,21 @@ if len(response2.Candidates) > 0 {
 }
 ```
 
+## CodeGateway 显式缓存
+
+此入口供由 sub2api 结算缓存存储费的集成使用。将专用 AxonHub Key 的数据库编号写入 `server.gemini_explicit_cache.api_key_ids`，将已确认支持缓存的 `gemini` 渠道编号写入 `channel_ids`，重新加载服务配置。两项默认均为空。专用 Key 需要 `write_requests` 和目标模型的使用权限。支持 AI Studio API Key 及采用相同原生协议的地址，使用标准 v1beta 路径。Vertex、OAuth 和仅支持聊天的转换渠道不在本期范围内。
+
+在 sub2api 为指向 AxonHub 的 Gemini API Key 账号启用 `explicit_cache_upstream`，配置模型存储价格和允许的有效期。客户存储费用由 sub2api 按 token 数及保存时间结算。AxonHub 的普通生成仍沿用现有用量和预算处理。
+
+| 操作 | 路径与行为 |
+|---|---|
+| 创建 | `POST /v1beta/cachedContents`，发送 `model`、`contents` 和 `ttl` 或 `expireTime`。返回公开的 `name`、供应商报告的到期时间和 `usageMetadata.totalTokenCount`。 |
+| 列表与读取 | `GET /v1beta/cachedContents` 按当前项目和 Key 分页返回有效资源，接受 `pageSize` 和上页的 `nextPageToken`（作为 `pageToken` 传入）。`GET /v1beta/{name}` 读取所属供应商的元数据。 |
+| 续期与删除 | `PATCH /v1beta/{name}?updateMask=ttl` 可发送 `{"ttl":"120s"}`，也可更新 `expireTime`。`DELETE /v1beta/{name}` 删除该资源。 |
+| 生成引用 | 在同一模型的 `generateContent` 或 `streamGenerateContent` 正文中将 `cachedContent` 设为创建时返回的完整 `name`。读缓存的 token 数见 `usageMetadata.cachedContentTokenCount`。 |
+
+`/gemini/v1beta` 同样支持上述操作。其他调用方、已删除或已到期的资源返回 404。已授权 Key 的候选渠道未声明缓存能力时返回 501，缺少可用路由或原账号不可用时返回 503。缓存正文保存在供应商侧，AxonHub 只保存资源归属和元数据。
+
 ## API 转换能力
 
 AxonHub 自动在 API 格式之间进行转换，实现以下强大场景：

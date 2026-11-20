@@ -519,6 +519,30 @@ func (f DataStorageMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mut
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.DataStorageMutation", m)
 }
 
+// The GeminiCacheQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type GeminiCacheQueryRuleFunc func(context.Context, *ent.GeminiCacheQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f GeminiCacheQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.GeminiCacheQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.GeminiCacheQuery", q)
+}
+
+// The GeminiCacheMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type GeminiCacheMutationRuleFunc func(context.Context, *ent.GeminiCacheMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f GeminiCacheMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.GeminiCacheMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.GeminiCacheMutation", m)
+}
+
 // The InvitationQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type InvitationQueryRuleFunc func(context.Context, *ent.InvitationQuery) error
@@ -1116,6 +1140,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 		return q.Filter(), nil
 	case *ent.DataStorageQuery:
 		return q.Filter(), nil
+	case *ent.GeminiCacheQuery:
+		return q.Filter(), nil
 	case *ent.InvitationQuery:
 		return q.Filter(), nil
 	case *ent.ModelQuery:
@@ -1200,6 +1226,8 @@ func mutationFilter(m ent.Mutation) (Filter, error) {
 	case *ent.ConsumptionSnapshotMutation:
 		return m.Filter(), nil
 	case *ent.DataStorageMutation:
+		return m.Filter(), nil
+	case *ent.GeminiCacheMutation:
 		return m.Filter(), nil
 	case *ent.InvitationMutation:
 		return m.Filter(), nil

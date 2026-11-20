@@ -23,6 +23,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/geminicache"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -711,6 +712,25 @@ func init() {
 	datastorageDescPrimary := datastorageFields[2].Descriptor()
 	// datastorage.DefaultPrimary holds the default value on creation for the primary field.
 	datastorage.DefaultPrimary = datastorageDescPrimary.Default.(bool)
+	geminicache.Policy = privacy.NewPolicies(schema.GeminiCache{})
+	geminicache.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := geminicache.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	geminicacheFields := schema.GeminiCache{}.Fields()
+	_ = geminicacheFields
+	// geminicacheDescPublicID is the schema descriptor for public_id field.
+	geminicacheDescPublicID := geminicacheFields[0].Descriptor()
+	// geminicache.PublicIDValidator is a validator for the "public_id" field. It is called by the builders before save.
+	geminicache.PublicIDValidator = geminicacheDescPublicID.Validators[0].(func(string) error)
+	// geminicacheDescRevision is the schema descriptor for revision field.
+	geminicacheDescRevision := geminicacheFields[11].Descriptor()
+	// geminicache.DefaultRevision holds the default value on creation for the revision field.
+	geminicache.DefaultRevision = geminicacheDescRevision.Default.(int)
 	invitationMixin := schema.Invitation{}.Mixin()
 	invitation.Policy = privacy.NewPolicies(schema.Invitation{})
 	invitation.Hooks[0] = func(next ent.Mutator) ent.Mutator {

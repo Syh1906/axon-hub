@@ -102,6 +102,7 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 		// history and pass-through, before recording or sending the attempt.
 		applyCodexPageContextCompatibility(outbound),
 		optimizeRequestImages(outbound),
+		applyGeminiCache(outbound),
 		checkCompactionCooldown(processor.compactionCooldown, outbound),
 
 		// Unified performance tracking middleware.

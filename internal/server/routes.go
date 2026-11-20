@@ -322,6 +322,7 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 }
 
 func registerGeminiRoutes(server *Server, handlers *api.GeminiHandlers, services Services) {
+	handlers = handlers.WithCacheConfig(server.Config.GeminiExplicitCache)
 	for _, prefix := range []string{"/gemini/:gemini-api-version", "/v1beta"} {
 		group := server.Group(prefix,
 			middleware.WithTimeout(server.Config.LLMRequestTimeout),
@@ -335,6 +336,11 @@ func registerGeminiRoutes(server *Server, handlers *api.GeminiHandlers, services
 		group.GET("/models/:model", handlers.RetrieveModel)
 		group.GET("/models/:model/*suffix", handlers.RetrieveModel)
 		group.Use(middleware.RequireInferenceScope)
+		group.POST("/cachedContents", handlers.CacheResource)
+		group.GET("/cachedContents", handlers.CacheResource)
+		group.GET("/cachedContents/:id", handlers.CacheResource)
+		group.PATCH("/cachedContents/:id", handlers.CacheResource)
+		group.DELETE("/cachedContents/:id", handlers.CacheResource)
 		group.Use(requestTracking(server, services)...)
 		group.POST("/models/*action", handlers.GenerateContent)
 	}

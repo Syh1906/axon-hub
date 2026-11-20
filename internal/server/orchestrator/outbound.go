@@ -814,6 +814,13 @@ func (p *PersistentOutboundTransformer) TransformRequest(ctx context.Context, ll
 			ctx = biz.WithFixedChannelAPIKey(ctx, continuationKey)
 		}
 	}
+	if row := boundGeminiCache(ctx); row != nil {
+		key, err := cacheCredential(candidate.Channel, row)
+		if err != nil {
+			return nil, err
+		}
+		ctx = biz.WithFixedChannelAPIKey(ctx, key)
+	}
 	httpRequest, err := p.transformProviderRequest(ctx, llmRequest)
 	if err != nil {
 		return nil, err
@@ -1291,6 +1298,11 @@ func (p *PersistentOutboundTransformer) CustomizeExecutor(executor pipeline.Exec
 	} else if channel.HTTPClient != nil {
 		// Use the channel's own HTTP client, which is pre-configured with its proxy settings.
 		customizedExecutor = channel.HTTPClient
+	}
+	if p.state.CurrentCandidate != nil && p.state.CurrentCandidate.geminiCacheBound {
+		if client, ok := customizedExecutor.(*httpclient.HttpClient); ok {
+			customizedExecutor = client.WithRejectRedirects()
+		}
 	}
 	// 2. Allow the selected outbound transformer (e.g., for AWS signing or Responses WebSocket) to further customize the client.
 	outbound := p.wrapped

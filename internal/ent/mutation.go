@@ -28,6 +28,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channelupstreamstatus"
 	"github.com/looplj/axonhub/internal/ent/consumptionsnapshot"
 	"github.com/looplj/axonhub/internal/ent/datastorage"
+	"github.com/looplj/axonhub/internal/ent/geminicache"
 	"github.com/looplj/axonhub/internal/ent/invitation"
 	"github.com/looplj/axonhub/internal/ent/model"
 	"github.com/looplj/axonhub/internal/ent/oidcidentity"
@@ -82,6 +83,7 @@ const (
 	TypeChannelUpstreamStatus    = "ChannelUpstreamStatus"
 	TypeConsumptionSnapshot      = "ConsumptionSnapshot"
 	TypeDataStorage              = "DataStorage"
+	TypeGeminiCache              = "GeminiCache"
 	TypeInvitation               = "Invitation"
 	TypeModel                    = "Model"
 	TypeOIDCIdentity             = "OIDCIdentity"
@@ -19133,6 +19135,1061 @@ func (m *DataStorageMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DataStorage edge %s", name)
+}
+
+// GeminiCacheMutation represents an operation that mutates the GeminiCache nodes in the graph.
+type GeminiCacheMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	public_id      *string
+	project_id     *int
+	addproject_id  *int
+	api_key_id     *int
+	addapi_key_id  *int
+	channel_id     *int
+	addchannel_id  *int
+	key_ref        *string
+	base_url       *string
+	upstream_name  *string
+	model          *string
+	upstream_model *string
+	expire_time    *time.Time
+	metadata       *[]byte
+	revision       *int
+	addrevision    *int
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*GeminiCache, error)
+	predicates     []predicate.GeminiCache
+}
+
+var _ ent.Mutation = (*GeminiCacheMutation)(nil)
+
+// geminicacheOption allows management of the mutation configuration using functional options.
+type geminicacheOption func(*GeminiCacheMutation)
+
+// newGeminiCacheMutation creates new mutation for the GeminiCache entity.
+func newGeminiCacheMutation(c config, op Op, opts ...geminicacheOption) *GeminiCacheMutation {
+	m := &GeminiCacheMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGeminiCache,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGeminiCacheID sets the ID field of the mutation.
+func withGeminiCacheID(id int) geminicacheOption {
+	return func(m *GeminiCacheMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *GeminiCache
+		)
+		m.oldValue = func(ctx context.Context) (*GeminiCache, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().GeminiCache.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGeminiCache sets the old GeminiCache of the mutation.
+func withGeminiCache(node *GeminiCache) geminicacheOption {
+	return func(m *GeminiCacheMutation) {
+		m.oldValue = func(context.Context) (*GeminiCache, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GeminiCacheMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GeminiCacheMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GeminiCacheMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GeminiCacheMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().GeminiCache.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPublicID sets the "public_id" field.
+func (m *GeminiCacheMutation) SetPublicID(s string) {
+	m.public_id = &s
+}
+
+// PublicID returns the value of the "public_id" field in the mutation.
+func (m *GeminiCacheMutation) PublicID() (r string, exists bool) {
+	v := m.public_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicID returns the old "public_id" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldPublicID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicID: %w", err)
+	}
+	return oldValue.PublicID, nil
+}
+
+// ResetPublicID resets all changes to the "public_id" field.
+func (m *GeminiCacheMutation) ResetPublicID() {
+	m.public_id = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *GeminiCacheMutation) SetProjectID(i int) {
+	m.project_id = &i
+	m.addproject_id = nil
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *GeminiCacheMutation) ProjectID() (r int, exists bool) {
+	v := m.project_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldProjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// AddProjectID adds i to the "project_id" field.
+func (m *GeminiCacheMutation) AddProjectID(i int) {
+	if m.addproject_id != nil {
+		*m.addproject_id += i
+	} else {
+		m.addproject_id = &i
+	}
+}
+
+// AddedProjectID returns the value that was added to the "project_id" field in this mutation.
+func (m *GeminiCacheMutation) AddedProjectID() (r int, exists bool) {
+	v := m.addproject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *GeminiCacheMutation) ResetProjectID() {
+	m.project_id = nil
+	m.addproject_id = nil
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *GeminiCacheMutation) SetAPIKeyID(i int) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *GeminiCacheMutation) APIKeyID() (r int, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldAPIKeyID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *GeminiCacheMutation) AddAPIKeyID(i int) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *GeminiCacheMutation) AddedAPIKeyID() (r int, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *GeminiCacheMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *GeminiCacheMutation) SetChannelID(i int) {
+	m.channel_id = &i
+	m.addchannel_id = nil
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *GeminiCacheMutation) ChannelID() (r int, exists bool) {
+	v := m.channel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldChannelID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// AddChannelID adds i to the "channel_id" field.
+func (m *GeminiCacheMutation) AddChannelID(i int) {
+	if m.addchannel_id != nil {
+		*m.addchannel_id += i
+	} else {
+		m.addchannel_id = &i
+	}
+}
+
+// AddedChannelID returns the value that was added to the "channel_id" field in this mutation.
+func (m *GeminiCacheMutation) AddedChannelID() (r int, exists bool) {
+	v := m.addchannel_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *GeminiCacheMutation) ResetChannelID() {
+	m.channel_id = nil
+	m.addchannel_id = nil
+}
+
+// SetKeyRef sets the "key_ref" field.
+func (m *GeminiCacheMutation) SetKeyRef(s string) {
+	m.key_ref = &s
+}
+
+// KeyRef returns the value of the "key_ref" field in the mutation.
+func (m *GeminiCacheMutation) KeyRef() (r string, exists bool) {
+	v := m.key_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyRef returns the old "key_ref" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldKeyRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyRef: %w", err)
+	}
+	return oldValue.KeyRef, nil
+}
+
+// ResetKeyRef resets all changes to the "key_ref" field.
+func (m *GeminiCacheMutation) ResetKeyRef() {
+	m.key_ref = nil
+}
+
+// SetBaseURL sets the "base_url" field.
+func (m *GeminiCacheMutation) SetBaseURL(s string) {
+	m.base_url = &s
+}
+
+// BaseURL returns the value of the "base_url" field in the mutation.
+func (m *GeminiCacheMutation) BaseURL() (r string, exists bool) {
+	v := m.base_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBaseURL returns the old "base_url" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldBaseURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBaseURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBaseURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBaseURL: %w", err)
+	}
+	return oldValue.BaseURL, nil
+}
+
+// ResetBaseURL resets all changes to the "base_url" field.
+func (m *GeminiCacheMutation) ResetBaseURL() {
+	m.base_url = nil
+}
+
+// SetUpstreamName sets the "upstream_name" field.
+func (m *GeminiCacheMutation) SetUpstreamName(s string) {
+	m.upstream_name = &s
+}
+
+// UpstreamName returns the value of the "upstream_name" field in the mutation.
+func (m *GeminiCacheMutation) UpstreamName() (r string, exists bool) {
+	v := m.upstream_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamName returns the old "upstream_name" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldUpstreamName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamName: %w", err)
+	}
+	return oldValue.UpstreamName, nil
+}
+
+// ResetUpstreamName resets all changes to the "upstream_name" field.
+func (m *GeminiCacheMutation) ResetUpstreamName() {
+	m.upstream_name = nil
+}
+
+// SetModel sets the "model" field.
+func (m *GeminiCacheMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *GeminiCacheMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *GeminiCacheMutation) ResetModel() {
+	m.model = nil
+}
+
+// SetUpstreamModel sets the "upstream_model" field.
+func (m *GeminiCacheMutation) SetUpstreamModel(s string) {
+	m.upstream_model = &s
+}
+
+// UpstreamModel returns the value of the "upstream_model" field in the mutation.
+func (m *GeminiCacheMutation) UpstreamModel() (r string, exists bool) {
+	v := m.upstream_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamModel returns the old "upstream_model" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldUpstreamModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamModel: %w", err)
+	}
+	return oldValue.UpstreamModel, nil
+}
+
+// ResetUpstreamModel resets all changes to the "upstream_model" field.
+func (m *GeminiCacheMutation) ResetUpstreamModel() {
+	m.upstream_model = nil
+}
+
+// SetExpireTime sets the "expire_time" field.
+func (m *GeminiCacheMutation) SetExpireTime(t time.Time) {
+	m.expire_time = &t
+}
+
+// ExpireTime returns the value of the "expire_time" field in the mutation.
+func (m *GeminiCacheMutation) ExpireTime() (r time.Time, exists bool) {
+	v := m.expire_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpireTime returns the old "expire_time" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldExpireTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpireTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpireTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpireTime: %w", err)
+	}
+	return oldValue.ExpireTime, nil
+}
+
+// ResetExpireTime resets all changes to the "expire_time" field.
+func (m *GeminiCacheMutation) ResetExpireTime() {
+	m.expire_time = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *GeminiCacheMutation) SetMetadata(b []byte) {
+	m.metadata = &b
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *GeminiCacheMutation) Metadata() (r []byte, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldMetadata(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *GeminiCacheMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// SetRevision sets the "revision" field.
+func (m *GeminiCacheMutation) SetRevision(i int) {
+	m.revision = &i
+	m.addrevision = nil
+}
+
+// Revision returns the value of the "revision" field in the mutation.
+func (m *GeminiCacheMutation) Revision() (r int, exists bool) {
+	v := m.revision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevision returns the old "revision" field's value of the GeminiCache entity.
+// If the GeminiCache object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GeminiCacheMutation) OldRevision(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevision: %w", err)
+	}
+	return oldValue.Revision, nil
+}
+
+// AddRevision adds i to the "revision" field.
+func (m *GeminiCacheMutation) AddRevision(i int) {
+	if m.addrevision != nil {
+		*m.addrevision += i
+	} else {
+		m.addrevision = &i
+	}
+}
+
+// AddedRevision returns the value that was added to the "revision" field in this mutation.
+func (m *GeminiCacheMutation) AddedRevision() (r int, exists bool) {
+	v := m.addrevision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRevision resets all changes to the "revision" field.
+func (m *GeminiCacheMutation) ResetRevision() {
+	m.revision = nil
+	m.addrevision = nil
+}
+
+// Where appends a list predicates to the GeminiCacheMutation builder.
+func (m *GeminiCacheMutation) Where(ps ...predicate.GeminiCache) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GeminiCacheMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GeminiCacheMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GeminiCache, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GeminiCacheMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GeminiCacheMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (GeminiCache).
+func (m *GeminiCacheMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GeminiCacheMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.public_id != nil {
+		fields = append(fields, geminicache.FieldPublicID)
+	}
+	if m.project_id != nil {
+		fields = append(fields, geminicache.FieldProjectID)
+	}
+	if m.api_key_id != nil {
+		fields = append(fields, geminicache.FieldAPIKeyID)
+	}
+	if m.channel_id != nil {
+		fields = append(fields, geminicache.FieldChannelID)
+	}
+	if m.key_ref != nil {
+		fields = append(fields, geminicache.FieldKeyRef)
+	}
+	if m.base_url != nil {
+		fields = append(fields, geminicache.FieldBaseURL)
+	}
+	if m.upstream_name != nil {
+		fields = append(fields, geminicache.FieldUpstreamName)
+	}
+	if m.model != nil {
+		fields = append(fields, geminicache.FieldModel)
+	}
+	if m.upstream_model != nil {
+		fields = append(fields, geminicache.FieldUpstreamModel)
+	}
+	if m.expire_time != nil {
+		fields = append(fields, geminicache.FieldExpireTime)
+	}
+	if m.metadata != nil {
+		fields = append(fields, geminicache.FieldMetadata)
+	}
+	if m.revision != nil {
+		fields = append(fields, geminicache.FieldRevision)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GeminiCacheMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case geminicache.FieldPublicID:
+		return m.PublicID()
+	case geminicache.FieldProjectID:
+		return m.ProjectID()
+	case geminicache.FieldAPIKeyID:
+		return m.APIKeyID()
+	case geminicache.FieldChannelID:
+		return m.ChannelID()
+	case geminicache.FieldKeyRef:
+		return m.KeyRef()
+	case geminicache.FieldBaseURL:
+		return m.BaseURL()
+	case geminicache.FieldUpstreamName:
+		return m.UpstreamName()
+	case geminicache.FieldModel:
+		return m.Model()
+	case geminicache.FieldUpstreamModel:
+		return m.UpstreamModel()
+	case geminicache.FieldExpireTime:
+		return m.ExpireTime()
+	case geminicache.FieldMetadata:
+		return m.Metadata()
+	case geminicache.FieldRevision:
+		return m.Revision()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GeminiCacheMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case geminicache.FieldPublicID:
+		return m.OldPublicID(ctx)
+	case geminicache.FieldProjectID:
+		return m.OldProjectID(ctx)
+	case geminicache.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case geminicache.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case geminicache.FieldKeyRef:
+		return m.OldKeyRef(ctx)
+	case geminicache.FieldBaseURL:
+		return m.OldBaseURL(ctx)
+	case geminicache.FieldUpstreamName:
+		return m.OldUpstreamName(ctx)
+	case geminicache.FieldModel:
+		return m.OldModel(ctx)
+	case geminicache.FieldUpstreamModel:
+		return m.OldUpstreamModel(ctx)
+	case geminicache.FieldExpireTime:
+		return m.OldExpireTime(ctx)
+	case geminicache.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case geminicache.FieldRevision:
+		return m.OldRevision(ctx)
+	}
+	return nil, fmt.Errorf("unknown GeminiCache field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GeminiCacheMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case geminicache.FieldPublicID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicID(v)
+		return nil
+	case geminicache.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
+		return nil
+	case geminicache.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case geminicache.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case geminicache.FieldKeyRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyRef(v)
+		return nil
+	case geminicache.FieldBaseURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBaseURL(v)
+		return nil
+	case geminicache.FieldUpstreamName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamName(v)
+		return nil
+	case geminicache.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case geminicache.FieldUpstreamModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamModel(v)
+		return nil
+	case geminicache.FieldExpireTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpireTime(v)
+		return nil
+	case geminicache.FieldMetadata:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case geminicache.FieldRevision:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevision(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GeminiCache field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GeminiCacheMutation) AddedFields() []string {
+	var fields []string
+	if m.addproject_id != nil {
+		fields = append(fields, geminicache.FieldProjectID)
+	}
+	if m.addapi_key_id != nil {
+		fields = append(fields, geminicache.FieldAPIKeyID)
+	}
+	if m.addchannel_id != nil {
+		fields = append(fields, geminicache.FieldChannelID)
+	}
+	if m.addrevision != nil {
+		fields = append(fields, geminicache.FieldRevision)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GeminiCacheMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case geminicache.FieldProjectID:
+		return m.AddedProjectID()
+	case geminicache.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case geminicache.FieldChannelID:
+		return m.AddedChannelID()
+	case geminicache.FieldRevision:
+		return m.AddedRevision()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GeminiCacheMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case geminicache.FieldProjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProjectID(v)
+		return nil
+	case geminicache.FieldAPIKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case geminicache.FieldChannelID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannelID(v)
+		return nil
+	case geminicache.FieldRevision:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevision(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GeminiCache numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GeminiCacheMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GeminiCacheMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GeminiCacheMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown GeminiCache nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GeminiCacheMutation) ResetField(name string) error {
+	switch name {
+	case geminicache.FieldPublicID:
+		m.ResetPublicID()
+		return nil
+	case geminicache.FieldProjectID:
+		m.ResetProjectID()
+		return nil
+	case geminicache.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case geminicache.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case geminicache.FieldKeyRef:
+		m.ResetKeyRef()
+		return nil
+	case geminicache.FieldBaseURL:
+		m.ResetBaseURL()
+		return nil
+	case geminicache.FieldUpstreamName:
+		m.ResetUpstreamName()
+		return nil
+	case geminicache.FieldModel:
+		m.ResetModel()
+		return nil
+	case geminicache.FieldUpstreamModel:
+		m.ResetUpstreamModel()
+		return nil
+	case geminicache.FieldExpireTime:
+		m.ResetExpireTime()
+		return nil
+	case geminicache.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case geminicache.FieldRevision:
+		m.ResetRevision()
+		return nil
+	}
+	return fmt.Errorf("unknown GeminiCache field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GeminiCacheMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GeminiCacheMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GeminiCacheMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GeminiCacheMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GeminiCacheMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GeminiCacheMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GeminiCacheMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown GeminiCache unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GeminiCacheMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown GeminiCache edge %s", name)
 }
 
 // InvitationMutation represents an operation that mutates the Invitation nodes in the graph.

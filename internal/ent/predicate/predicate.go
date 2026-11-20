@@ -57,6 +57,9 @@ type ConsumptionSnapshot func(*sql.Selector)
 // DataStorage is the predicate function for datastorage builders.
 type DataStorage func(*sql.Selector)
 
+// GeminiCache is the predicate function for geminicache builders.
+type GeminiCache func(*sql.Selector)
+
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
 

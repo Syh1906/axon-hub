@@ -120,6 +120,21 @@ if len(response2.Candidates) > 0 {
 }
 ```
 
+## Explicit caching for CodeGateway
+
+Set `server.gemini_explicit_cache.api_key_ids` to the database IDs of dedicated AxonHub keys and `channel_ids` to the IDs of cache-capable native `gemini` channels. Restart with the updated configuration. Both lists default to empty. The integration key needs `write_requests` and access to the model. This integration supports AI Studio API keys and compatible native v1beta endpoints. Vertex and OAuth channels are outside its scope.
+
+Configure the corresponding Gemini API key account in sub2api for explicit caching on a custom upstream and configure storage pricing and TTL limits there. Sub2api bills customers for cache storage. AxonHub records ordinary generation usage, including the provider's cached input tokens.
+
+| Operation | Public API |
+|---|---|
+| Create | Send `model`, `contents` and an optional `ttl` or `expireTime` to `POST /v1beta/cachedContents`. Use the returned public `name`, provider expiration and `usageMetadata.totalTokenCount`. |
+| List and read | `GET /v1beta/cachedContents` lists active resources owned by the project and key. Pass `nextPageToken` as `pageToken` on the next request. `GET /v1beta/{name}` reads upstream metadata. |
+| Renew and delete | Send `{"ttl":"120s"}` to `PATCH /v1beta/{name}?updateMask=ttl`, or update `expireTime`. Use `DELETE /v1beta/{name}` to delete the resource. |
+| Generate | Supply the returned name in `cachedContent` on the same model's `generateContent` or `streamGenerateContent` request. Cache reads appear in `usageMetadata.cachedContentTokenCount`. |
+
+The same operations are available under `/gemini/v1beta`. Hidden, expired and deleted resources return 404. An eligible route without declared cache support returns 501. An unavailable route or original account returns 503. AxonHub stores ownership and metadata locally. The provider holds the cached content.
+
 ## API Translation Capabilities
 
 AxonHub automatically translates between API formats, enabling powerful scenarios:

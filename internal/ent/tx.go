@@ -46,6 +46,8 @@ type Tx struct {
 	ConsumptionSnapshot *ConsumptionSnapshotClient
 	// DataStorage is the client for interacting with the DataStorage builders.
 	DataStorage *DataStorageClient
+	// GeminiCache is the client for interacting with the GeminiCache builders.
+	GeminiCache *GeminiCacheClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
 	// Model is the client for interacting with the Model builders.
@@ -238,6 +240,7 @@ func (tx *Tx) init() {
 	tx.ChannelUpstreamStatus = NewChannelUpstreamStatusClient(tx.config)
 	tx.ConsumptionSnapshot = NewConsumptionSnapshotClient(tx.config)
 	tx.DataStorage = NewDataStorageClient(tx.config)
+	tx.GeminiCache = NewGeminiCacheClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Model = NewModelClient(tx.config)
 	tx.OIDCIdentity = NewOIDCIdentityClient(tx.config)

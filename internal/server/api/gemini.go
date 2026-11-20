@@ -41,6 +41,9 @@ type GeminiHandlersParams struct {
 }
 
 type GeminiHandlers struct {
+	cacheConfig            GeminiCacheConfig
+	selector               *orchestrator.DefaultSelector
+	client                 *httpclient.HttpClient
 	ChannelService         *biz.ChannelService
 	ModelService           *biz.ModelService
 	ChatCompletionHandlers *ChatCompletionHandlers
@@ -48,6 +51,7 @@ type GeminiHandlers struct {
 
 func NewGeminiHandlers(params GeminiHandlersParams) *GeminiHandlers {
 	return &GeminiHandlers{
+		selector: params.DefaultSelector, client: params.HttpClient,
 		ChatCompletionHandlers: NewChatCompletionHandlers(
 			orchestrator.NewChatCompletionOrchestrator(
 				params.ChannelService,
@@ -72,12 +76,21 @@ func NewGeminiHandlers(params GeminiHandlersParams) *GeminiHandlers {
 
 func (handlers *GeminiHandlers) GenerateContent(c *gin.Context) {
 	c.Request = c.Request.WithContext(contexts.WithStreamFormat(c.Request.Context(), llm.APIFormatGeminiContents))
+	raw, err := httpclient.ReadHTTPRequest(c.Request)
+	if err != nil {
+		httpErr := handlers.ChatCompletionHandlers.ChatCompletionOrchestrator.Inbound.TransformError(c.Request.Context(), err)
+		c.Data(httpErr.StatusCode, "application/json", httpErr.Body)
+		return
+	}
+	if !handlers.bindCacheReference(c, raw.Body) {
+		return
+	}
 	alt := c.Query("alt")
 	switch alt {
 	case "sse":
-		handlers.ChatCompletionHandlers.WithStreamWriter(WriteSSEStream).ChatCompletion(c)
+		handlers.ChatCompletionHandlers.WithStreamWriter(WriteSSEStream).ChatCompletionWithRequest(c, raw)
 	default:
-		handlers.ChatCompletionHandlers.WithStreamWriter(WriteGeminiStream).ChatCompletion(c)
+		handlers.ChatCompletionHandlers.WithStreamWriter(WriteGeminiStream).ChatCompletionWithRequest(c, raw)
 	}
 }
 

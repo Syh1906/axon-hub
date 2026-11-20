@@ -609,6 +609,35 @@ var (
 			},
 		},
 	}
+	// GeminiCachesColumns holds the columns for the "gemini_caches" table.
+	GeminiCachesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "public_id", Type: field.TypeString, Unique: true, Size: 36},
+		{Name: "project_id", Type: field.TypeInt},
+		{Name: "api_key_id", Type: field.TypeInt},
+		{Name: "channel_id", Type: field.TypeInt},
+		{Name: "key_ref", Type: field.TypeString},
+		{Name: "base_url", Type: field.TypeString},
+		{Name: "upstream_name", Type: field.TypeString},
+		{Name: "model", Type: field.TypeString},
+		{Name: "upstream_model", Type: field.TypeString},
+		{Name: "expire_time", Type: field.TypeTime},
+		{Name: "metadata", Type: field.TypeBytes},
+		{Name: "revision", Type: field.TypeInt, Default: 0},
+	}
+	// GeminiCachesTable holds the schema information for the "gemini_caches" table.
+	GeminiCachesTable = &schema.Table{
+		Name:       "gemini_caches",
+		Columns:    GeminiCachesColumns,
+		PrimaryKey: []*schema.Column{GeminiCachesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "gemini_caches_by_owner_id",
+				Unique:  false,
+				Columns: []*schema.Column{GeminiCachesColumns[2], GeminiCachesColumns[3], GeminiCachesColumns[0]},
+			},
+		},
+	}
 	// InvitationsColumns holds the columns for the "invitations" table.
 	InvitationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1635,6 +1664,7 @@ var (
 		ChannelUpstreamStatusTable,
 		ConsumptionSnapshotsTable,
 		DataStoragesTable,
+		GeminiCachesTable,
 		InvitationsTable,
 		ModelsTable,
 		OidcIdentitiesTable,

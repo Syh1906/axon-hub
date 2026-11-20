@@ -24,6 +24,10 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 		}
 
 		selector := inbound.state.CandidateSelector
+		cache := boundGeminiCache(ctx)
+		if cache != nil {
+			selector = WithSelectedChannelsSelector(selector, []int{cache.ChannelID})
+		}
 
 		// Project-level profile filtering (upper boundary)
 		if inbound.state.APIKey != nil {
@@ -125,12 +129,21 @@ func selectCandidates(inbound *PersistentInboundTransformer, quotaProvider Provi
 		}
 
 		if len(candidates) == 0 {
+			if cache != nil {
+				return nil, errCacheRoute
+			}
 			if gate.DroppedCount() > 0 {
 				return nil, NewQuotaExhaustedError(llmRequest.Model)
 			}
 			return nil, fmt.Errorf("%w: %s", biz.ErrInvalidModel, llmRequest.Model)
 		}
 
+		if cache != nil {
+			candidates, err = onlyCacheOwner(candidates, cache)
+			if err != nil {
+				return nil, err
+			}
+		}
 		// Store candidates directly (no need to extract channels)
 		inbound.state.ChannelModelsCandidates = candidates
 
