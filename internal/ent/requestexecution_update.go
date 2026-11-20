@@ -554,7 +554,9 @@ func (_u *RequestExecutionUpdate) Mutation() *RequestExecutionMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *RequestExecutionUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return 0, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -581,11 +583,15 @@ func (_u *RequestExecutionUpdate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *RequestExecutionUpdate) defaults() {
+func (_u *RequestExecutionUpdate) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		if requestexecution.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized requestexecution.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := requestexecution.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -1391,7 +1397,9 @@ func (_u *RequestExecutionUpdateOne) Select(field string, fields ...string) *Req
 
 // Save executes the query and returns the updated RequestExecution entity.
 func (_u *RequestExecutionUpdateOne) Save(ctx context.Context) (*RequestExecution, error) {
-	_u.defaults()
+	if err := _u.defaults(); err != nil {
+		return nil, err
+	}
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -1418,11 +1426,15 @@ func (_u *RequestExecutionUpdateOne) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *RequestExecutionUpdateOne) defaults() {
+func (_u *RequestExecutionUpdateOne) defaults() error {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		if requestexecution.UpdateDefaultUpdatedAt == nil {
+			return fmt.Errorf("ent: uninitialized requestexecution.UpdateDefaultUpdatedAt (forgotten import ent/runtime?)")
+		}
 		v := requestexecution.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

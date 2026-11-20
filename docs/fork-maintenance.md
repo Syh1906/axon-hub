@@ -1,5 +1,10 @@
 # Fork 维护台账
 
+## CodeGateway 只读运维与 Gemini 模型详情（待发布）
+
+- 项目服务账号使用 `read_requests` 读取本项目的请求和执行尝试，关联渠道名称另需 `read_channels`。模型调用在记录请求和联系供应商前检查 `write_requests`。[Issue #7](https://github.com/Syh1906/axon-hub/issues/7) · [服务账号权限](zh/guides/permissions.md)
+- Gemini 的原生路径和 `/v1beta` 别名均支持按列表返回的名称读取同一目录项。同步上游时用两个可见范围不同的密钥核对列表、详情和生成调用次数。[Issue #8](https://github.com/Syh1906/axon-hub/issues/8) · [接口联调测试](../internal/server/codegateway_integration_test.go)
+
 ## rc1-fork.15 正式发布与双机更新（2026-11-20）
 
 - [精简发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44718979385) 已从提交 `d3cee468a347bfcdea78c24696eef5bd8bd4bdc1` 发布 [fork.15 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.15)。该提交的 Test、Build、Lint、Govulncheck 全部通过。清单同时覆盖 Linux amd64 和 arm64，固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:faa5522097f0ee5fc8de8c9c92cb51af2c9c8bd6867ee6c1c97970da1254f789`。

@@ -14,6 +14,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/scopes"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
@@ -89,6 +90,18 @@ func withAPIKeyConfig(auth *biz.AuthService, config *APIKeyConfig, allowNoAuth b
 
 		c.Next()
 	}
+}
+
+// RequireInferenceScope checks service accounts before a model operation can use host privileges.
+func RequireInferenceScope(c *gin.Context) {
+	ctx := c.Request.Context()
+	if key, ok := contexts.GetAPIKey(ctx); ok && key.Type == apikey.TypeServiceAccount {
+		if err := authz.RequireScope(ctx, scopes.ScopeWriteRequests); err != nil {
+			AbortWithError(c, http.StatusForbidden, err)
+			return
+		}
+	}
+	c.Next()
 }
 
 func WithJWTAuth(auth *biz.AuthService) gin.HandlerFunc {

@@ -20,6 +20,8 @@ AxonHub provides role-based access control (RBAC) so that organizations can tail
 - Enable auditing to capture every administrative change for compliance investigations.
 
 ## Service Account Key Scopes
+
+- Grant `read_requests` to query a project's request list, individual requests, and execution attempts through `/admin/graphql`. Add `read_channels` to include channel names. Model invocation requires `write_requests`, which also retains read access to the key's project requests. The admin GraphQL endpoint accepts only queries from service accounts.
 - A service account key can only carry scopes its creator can grant: project-level scopes held in the key's project, and system-only scopes held at system level. System owners can grant any scope.
 - Keys stay inside their project: requests, threads, and traces are filtered to the key's project, and data storage settings require the system-level `read_data_storages` scope.
 - Rotating a key requires the same grant ability, so a project member cannot rotate a key that carries system scopes.

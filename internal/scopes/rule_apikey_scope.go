@@ -58,12 +58,28 @@ func APIKeyScopeMutationRule(requiredScope ScopeSlug) privacy.MutationRule {
 // targets a project-owned resource, it injects a project_id filter so the
 // caller can only see rows in its own project.
 func APIKeyProjectScopeReadRule(requiredScope ScopeSlug) privacy.QueryRule {
+	return apiKeyProjectReadRule(func(*ent.APIKey) ScopeSlug { return requiredScope })
+}
+
+// APIKeyProjectRequestReadRule accepts a service account's read grant as well
+// as the existing write grant used by inference clients.
+func APIKeyProjectRequestReadRule() privacy.QueryRule {
+	return apiKeyProjectReadRule(func(key *ent.APIKey) ScopeSlug {
+		if key.Type == apikey.TypeServiceAccount && hasScope(key.Scopes, string(ScopeReadRequests)) {
+			return ScopeReadRequests
+		}
+		return ScopeWriteRequests
+	})
+}
+
+func apiKeyProjectReadRule(scopeForKey func(*ent.APIKey) ScopeSlug) privacy.QueryRule {
 	return privacy.FilterFunc(func(ctx context.Context, q privacy.Filter) error {
 		apiKey, err := getAPIKeyFromContext(ctx)
 		if err != nil {
 			return err
 		}
 
+		requiredScope := scopeForKey(apiKey)
 		if !hasScope(apiKey.Scopes, string(requiredScope)) {
 			// Deny rather than Skip: the API key principal IS in context,
 			// it's just missing the required scope. This matches the explicit

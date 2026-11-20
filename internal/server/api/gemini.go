@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
@@ -181,9 +182,37 @@ type GeminiModel struct {
 // This endpoint is compatible with Gemini's /v1/models API.
 // Only enabled registered models and aliases resolving to them are exposed.
 func (handlers *GeminiHandlers) ListModels(c *gin.Context) {
-	ctx := c.Request.Context()
+	models, ok := handlers.visibleModels(c)
+	if !ok {
+		return
+	}
 
-	models, err := handlers.ModelService.ListEnabledModels(ctx)
+	geminiModels := make([]GeminiModel, 0, len(models))
+	for i, model := range models {
+		geminiModels = append(geminiModels, geminiModel(model, i))
+	}
+	c.JSON(http.StatusOK, gin.H{"models": geminiModels})
+}
+
+func (handlers *GeminiHandlers) RetrieveModel(c *gin.Context) {
+	models, ok := handlers.visibleModels(c)
+	if !ok {
+		return
+	}
+	id := strings.TrimPrefix(c.Param("model"), "/")
+	for i, model := range models {
+		if model.ID == id {
+			c.JSON(http.StatusOK, geminiModel(model, i))
+			return
+		}
+	}
+	c.JSON(http.StatusNotFound, gemini.GeminiError{Error: gemini.ErrorDetail{
+		Code: http.StatusNotFound, Status: "NOT_FOUND", Message: "Model not found",
+	}})
+}
+
+func (handlers *GeminiHandlers) visibleModels(c *gin.Context) ([]biz.ModelFacade, bool) {
+	models, err := handlers.ModelService.ListEnabledModels(c.Request.Context())
 	if err != nil {
 		status := http.StatusInternalServerError
 		errorStatus := "internal_server_error"
@@ -200,22 +229,18 @@ func (handlers *GeminiHandlers) ListModels(c *gin.Context) {
 			},
 		})
 
-		return
+		return nil, false
 	}
+	return models, true
+}
 
-	geminiModels := make([]GeminiModel, 0, len(models))
-	for i, model := range models {
-		geminiModels = append(geminiModels, GeminiModel{
-			Name:                       "models/" + model.ID,
-			BaseModelID:                model.ID,
-			Version:                    fmt.Sprintf("%s-%d", model.ID, i),
-			DisplayName:                model.DisplayName,
-			Description:                model.DisplayName,
-			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},
-		})
+func geminiModel(model biz.ModelFacade, index int) GeminiModel {
+	return GeminiModel{
+		Name:                       "models/" + model.ID,
+		BaseModelID:                model.ID,
+		Version:                    fmt.Sprintf("%s-%d", model.ID, index),
+		DisplayName:                model.DisplayName,
+		Description:                model.DisplayName,
+		SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"models": geminiModels,
-	})
 }

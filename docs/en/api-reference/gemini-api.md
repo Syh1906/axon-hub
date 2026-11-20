@@ -37,6 +37,7 @@ or change default pass-through settings.
 - `POST /v1beta/models/{model}:generateContent` - Text and multi-modal content generation (alternative)
 - `GET /gemini/v1beta/models` - List available models
 - `GET /v1beta/models` - List available models (alternative)
+- `GET /gemini/v1beta/models/{model}` or `GET /v1beta/models/{model}` - Append the listed `name` (for example, `models/my-alias`) to the same version prefix to retrieve that key's catalog entry. Hidden and unknown models both return 404. The lookup incurs no inference charges.
 
 **Example Request:**
 ```go

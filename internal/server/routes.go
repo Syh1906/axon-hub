@@ -242,9 +242,6 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		middleware.WithIPBlocklist(services.SystemService),
 		middleware.WithAPIKeyConfig(services.AuthService, nil),
 		middleware.WithSource(request.SourceAPI),
-		middleware.WithResponseHeaders(services.RequestService),
-		middleware.WithThread(server.Config.Trace, services.ThreadService),
-		middleware.WithTrace(server.Config.Trace, services.TraceService),
 	}
 	apiGroup := server.Group("/", append([]gin.HandlerFunc{
 		middleware.WithTimeout(server.Config.LLMRequestTimeout),
@@ -254,17 +251,23 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 	// timeout per response.create event, so it must not inherit the ordinary
 	// single-request timeout from apiGroup.
 	responsesWebSocketGroup := server.Group("/", apiMiddlewares...)
+	inference := append([]gin.HandlerFunc{middleware.RequireInferenceScope}, requestTracking(server, services)...)
+	responsesWebSocketGroup.Use(inference...)
 	responsesWebSocketGroup.GET("/v1/responses", handlers.OpenAI.CreateResponseWebSocket(server.Config.LLMRequestTimeout))
-	apiGroup.GET("/codex/models", handlers.OpenAI.ListCodexModels)
 
+	catalog := apiGroup.Group("", requestTracking(server, services)...)
+	catalog.GET("/codex/models", handlers.OpenAI.ListCodexModels)
+	catalog.GET("/v1/models", handlers.OpenAI.ListModels)
+	catalog.GET("/v1/models/*model", handlers.OpenAI.RetrieveModel)
+	catalog.GET("/anthropic/v1/models", handlers.Anthropic.ListModels)
+	catalog.GET("/anthropic/v1/models/*model", handlers.Anthropic.RetrieveModel)
+	inferenceGroup := apiGroup.Group("", inference...)
 	{
-		openaiGroup := apiGroup.Group("/v1")
+		openaiGroup := inferenceGroup.Group("/v1")
 		openaiGroup.POST("/chat/completions", handlers.OpenAI.ChatCompletion)
 		openaiGroup.POST("/completions", handlers.OpenAI.Completion)
 		openaiGroup.POST("/responses/compact", handlers.OpenAI.CompactResponse)
 		openaiGroup.POST("/responses", handlers.OpenAI.CreateResponse)
-		openaiGroup.GET("/models", handlers.OpenAI.ListModels)
-		openaiGroup.GET("/models/*model", handlers.OpenAI.RetrieveModel)
 		openaiGroup.POST("/embeddings", handlers.OpenAI.CreateEmbedding)
 		openaiGroup.POST("/moderations", handlers.OpenAI.CreateModeration)
 		openaiGroup.POST("/alpha/search", handlers.OpenAI.CreateAlphaSearch)
@@ -292,61 +295,54 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 	}
 
 	{
-		jinaGroup := apiGroup.Group("/jina/v1")
+		jinaGroup := inferenceGroup.Group("/jina/v1")
 		jinaGroup.POST("/embeddings", handlers.Jina.CreateEmbedding)
 		jinaGroup.POST("/rerank", handlers.Jina.Rerank)
 	}
 
 	{
-		typesafeGroup := apiGroup.Group("/typesafe/v1")
+		typesafeGroup := inferenceGroup.Group("/typesafe/v1")
 		typesafeGroup.POST("/systemone", handlers.TypeSafe.SystemOne)
 	}
 
 	{
-		anthropicGroup := apiGroup.Group("/anthropic/v1")
+		anthropicGroup := inferenceGroup.Group("/anthropic/v1")
 		anthropicGroup.POST("/messages", handlers.Anthropic.CreateMessage)
 		anthropicGroup.POST("/messages/count_tokens", handlers.Anthropic.CountTokens)
-		anthropicGroup.GET("/models", handlers.Anthropic.ListModels)
-		anthropicGroup.GET("/models/*model", handlers.Anthropic.RetrieveModel)
 	}
 
 	{
-		doubaoGroup := apiGroup.Group("/doubao/v3")
+		doubaoGroup := inferenceGroup.Group("/doubao/v3")
 		doubaoGroup.POST("/contents/generations/tasks", handlers.Doubao.CreateTask)
 		doubaoGroup.GET("/contents/generations/tasks/:id", handlers.Doubao.GetTask)
 		doubaoGroup.DELETE("/contents/generations/tasks/:id", handlers.Doubao.DeleteTask)
 	}
 
-	{
-		registerGeminiRoutes := func(group *gin.RouterGroup) {
-			group.POST("/models/*action", handlers.Gemini.GenerateContent)
-			group.GET("/models", handlers.Gemini.ListModels)
-		}
+	registerGeminiRoutes(server, handlers.Gemini, services)
+}
 
-		geminiGroup := server.Group("/gemini/:gemini-api-version",
+func registerGeminiRoutes(server *Server, handlers *api.GeminiHandlers, services Services) {
+	for _, prefix := range []string{"/gemini/:gemini-api-version", "/v1beta"} {
+		group := server.Group(prefix,
 			middleware.WithTimeout(server.Config.LLMRequestTimeout),
 			middleware.WithIPBlocklist(services.SystemService),
 			middleware.WithGeminiKeyAuth(services.AuthService),
 			middleware.WithSource(request.SourceAPI),
-			middleware.WithResponseHeaders(services.RequestService),
-			middleware.WithThread(server.Config.Trace, services.ThreadService),
-			middleware.WithTrace(server.Config.Trace, services.TraceService),
 		)
 
-		registerGeminiRoutes(geminiGroup)
+		group.Group("", requestTracking(server, services)...).GET("/models", handlers.ListModels)
+		group.GET("/models/*model", handlers.RetrieveModel)
+		group.Use(middleware.RequireInferenceScope)
+		group.Use(requestTracking(server, services)...)
+		group.POST("/models/*action", handlers.GenerateContent)
+	}
+}
 
-		// Alias for Gemini API
-		geminiAliasGroup := server.Group("/v1beta",
-			middleware.WithTimeout(server.Config.LLMRequestTimeout),
-			middleware.WithIPBlocklist(services.SystemService),
-			middleware.WithGeminiKeyAuth(services.AuthService),
-			middleware.WithSource(request.SourceAPI),
-			middleware.WithResponseHeaders(services.RequestService),
-			middleware.WithThread(server.Config.Trace, services.ThreadService),
-			middleware.WithTrace(server.Config.Trace, services.TraceService),
-		)
-
-		registerGeminiRoutes(geminiAliasGroup)
+func requestTracking(server *Server, services Services) []gin.HandlerFunc {
+	return []gin.HandlerFunc{
+		middleware.WithResponseHeaders(services.RequestService),
+		middleware.WithThread(server.Config.Trace, services.ThreadService),
+		middleware.WithTrace(server.Config.Trace, services.TraceService),
 	}
 }
 

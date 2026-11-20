@@ -13,16 +13,17 @@ func registerCodexRoutes(server *Server, handlers Handlers, services Services) {
 		handlers.CodexCompatibility.Enabled,
 		middleware.WithStrictAPIKeyConfig(services.AuthService, nil),
 		middleware.WithSource(request.SourceAPI),
-		middleware.WithResponseHeaders(services.RequestService),
-		middleware.WithThread(server.Config.Trace, services.ThreadService),
-		middleware.WithTrace(server.Config.Trace, services.TraceService),
 	}
-	httpGroup := server.Group("/codex", append(common, middleware.WithTimeout(server.Config.LLMRequestTimeout))...)
-	httpGroup.GET("/v1/user-auth-credential/whoami", handlers.CodexCompatibility.Whoami)
-	httpGroup.GET("/api/codex/accounts/check", handlers.CodexCompatibility.AccountsCheck)
+	group := server.Group("/codex", common...)
+	timedTracking := append(requestTracking(server, services), middleware.WithTimeout(server.Config.LLMRequestTimeout))
+	account := group.Group("", timedTracking...)
+	account.GET("/v1/user-auth-credential/whoami", handlers.CodexCompatibility.Whoami)
+	account.GET("/api/codex/accounts/check", handlers.CodexCompatibility.AccountsCheck)
+	group.Use(middleware.RequireInferenceScope)
+	httpGroup := group.Group("", timedTracking...)
 	httpGroup.POST("/images/generations", handlers.OpenAI.CreateImage)
 	httpGroup.POST("/images/edits", handlers.OpenAI.CreateImageEdit)
 	httpGroup.POST("/responses", handlers.OpenAI.CreateResponse)
-	websocketGroup := server.Group("/codex", common...)
+	websocketGroup := group.Group("", requestTracking(server, services)...)
 	websocketGroup.GET("/responses", handlers.OpenAI.CreateResponseWebSocket(server.Config.LLMRequestTimeout))
 }

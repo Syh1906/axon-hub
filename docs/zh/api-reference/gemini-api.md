@@ -31,6 +31,7 @@ Interactions API，也未改变默认透传设置。
 - `POST /v1beta/models/{model}:generateContent` - 文本和多模态内容生成 (可选)
 - `GET /gemini/v1beta/models` - 列出可用模型
 - `GET /v1beta/models` - 列出可用模型 (可选)
+- `GET /gemini/v1beta/models/{model}` 或 `GET /v1beta/models/{model}` - 读取单个模型的目录信息。将列表返回的 `name`（如 `models/my-alias`）接到相同的版本前缀后即可。详情与该密钥的列表项一致，模型不可见或不存在时均返回 404。查询详情不产生推理费用。
 
 **示例请求：**
 ```go

@@ -11,11 +11,19 @@ import (
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 
+	"github.com/looplj/axonhub/internal/ent/privacy"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/scopes"
 )
 
 type RequestExecution struct {
 	ent.Schema
+}
+
+// Apply the API key's project boundary to every execution read, including
+// standalone nodes. Other callers keep their existing execution access.
+func (RequestExecution) Policy() ent.Policy {
+	return privacy.Policy{Query: privacy.QueryPolicy{scopes.APIKeyProjectRequestReadRule()}}
 }
 
 func (RequestExecution) Mixin() []ent.Mixin {
