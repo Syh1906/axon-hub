@@ -13,10 +13,10 @@ jobs:
       contents: read
       packages: write
     with:
-      commit: '3b81be7033d61fc50d5e2fdbe5a54758bee64b1c'
+      commit: 'c6d8d36a4ae44007dcf9403c832d69a8cb772f01'
       image: ghcr.io/syh1906/axon-hub
-      version: v1.0.0-rc1-fork.16+snapshot.3b81be7033d6.${{ github.run_id }}.${{ github.run_attempt }}
-      image_tag: snapshot-3b81be7033d6-${{ github.run_id }}-${{ github.run_attempt }}
+      version: v1.0.0-rc1-fork.16+snapshot.c6d8d36a4ae4.${{ github.run_id }}.${{ github.run_attempt }}
+      image_tag: snapshot-c6d8d36a4ae4-${{ github.run_id }}-${{ github.run_attempt }}
       snapshot_attempt: ${{ format('{0}', github.run_attempt) }}
 
   upgrade:
@@ -40,10 +40,10 @@ jobs:
       IMAGE: ghcr.io/syh1906/axon-hub
       BASE_DIGEST: sha256:668cd140b841e7a27b183b759b55bb5cda4962a0184f2e68c98d387dda3faab8
       BASE_COMMIT: 6cb5e4d87ef1fe1888edcf1d0f7fd77423c86d36
-      SOURCE_COMMIT: 3b81be7033d61fc50d5e2fdbe5a54758bee64b1c
+      SOURCE_COMMIT: c6d8d36a4ae44007dcf9403c832d69a8cb772f01
       IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
-      SNAPSHOT_TAG: snapshot-3b81be7033d6-${{ github.run_id }}-${{ github.run_attempt }}
-      VERSION: v1.0.0-rc1-fork.16+snapshot.3b81be7033d6.${{ github.run_id }}.${{ github.run_attempt }}
+      SNAPSHOT_TAG: snapshot-c6d8d36a4ae4-${{ github.run_id }}-${{ github.run_attempt }}
+      VERSION: v1.0.0-rc1-fork.16+snapshot.c6d8d36a4ae4.${{ github.run_id }}.${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
         with:
