@@ -2,6 +2,8 @@ package llm
 
 import "encoding/json"
 
+const ErrCodeVideoCreateOutcomeUnknown = "video_create_outcome_unknown"
+
 // VideoRequest is the unified video generation request model (async task).
 // It is designed based on Seedance's content[] structure for extensibility.
 // Note: Common fields like Model are in the parent Request struct, not here.

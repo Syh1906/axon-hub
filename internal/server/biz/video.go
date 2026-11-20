@@ -54,48 +54,56 @@ func (s *VideoService) GetTask(ctx context.Context, requestID int) (*llm.Respons
 	// Persist snapshot to request table for task tracking.
 	status := mapVideoStatusToRequestStatus(video.Video.Status)
 
-	// Always store the latest response snapshot.
-	if err := s.RequestService.UpdateRequestStatusExternalIDAndResponseBody(ctx, task, status, task.ExternalID, video.Video, nil); err != nil {
-		// non-fatal: return data anyway
+	client := s.RequestService.entFromContext(ctx)
+	if status == request.StatusProcessing {
+		// A queued or running poll can arrive after a concurrent terminal poll.
+		// Check the persisted state in the same write that stores the snapshot.
+		err := client.Request.Update().
+			Where(request.IDEQ(requestID), request.StatusIn(request.StatusPending, request.StatusProcessing)).
+			SetStatus(status).SetResponseBody(s.RequestService.debugResponsePayload(ctx, video.Video)).Exec(ctx)
+		if err != nil {
+			log.Warn(ctx, "persist active video task", log.Cause(err))
+		}
+		return video, nil
 	}
 
-	if llm.IsTerminalVideoStatus(video.Video.Status) {
-		client := s.RequestService.entFromContext(ctx)
-		execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).
-			Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldProjectID, requestexecution.FieldChannelID,
-				requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldExternalID, requestexecution.FieldCostSnapshot).
-			Order(ent.Desc(requestexecution.FieldID)).First(ctx)
-		if execErr == nil {
-			usage := video.Usage
-			if usage == nil && status == request.StatusCompleted && execution.CostSnapshot != nil {
-				price, priceErr := s.RequestService.UsageLogService.budgetSnapshotPrice(ctx, execution.CostSnapshot)
-				if priceErr != nil {
-					return nil, priceErr
-				}
-				if price != nil {
-					items := effectiveModelPriceItems(nil, *price, execution.CostSnapshot.PricedAt)
-					flatOnly := len(items) > 0
-					for _, item := range items {
-						flatOnly = flatOnly && item.Pricing.Mode == objects.PricingModeFlatFee
-					}
-					if flatOnly {
-						usage = &llm.Usage{}
-					}
-				}
+	if err := s.RequestService.UpdateRequestStatusExternalIDAndResponseBody(ctx, task, status, task.ExternalID, video.Video, nil); err != nil {
+		log.Warn(ctx, "persist terminal video task", log.Cause(err))
+	}
+	execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).
+		Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldProjectID, requestexecution.FieldChannelID,
+			requestexecution.FieldModelID, requestexecution.FieldFormat, requestexecution.FieldExternalID, requestexecution.FieldCostSnapshot).
+		Order(ent.Desc(requestexecution.FieldID)).First(ctx)
+	if execErr == nil {
+		usage := video.Usage
+		if usage == nil && status == request.StatusCompleted && execution.CostSnapshot != nil {
+			price, priceErr := s.RequestService.UsageLogService.budgetSnapshotPrice(ctx, execution.CostSnapshot)
+			if priceErr != nil {
+				return nil, priceErr
 			}
-			if usage != nil || status == request.StatusCompleted {
-				if _, err := s.RequestService.UsageLogService.CreateUsageLogFromRequest(ctx, task, execution, usage); err != nil {
-					log.Warn(ctx, "settle video budget", log.Cause(err))
+			if price != nil {
+				items := effectiveModelPriceItems(nil, *price, execution.CostSnapshot.PricedAt)
+				flatOnly := len(items) > 0
+				for _, item := range items {
+					flatOnly = flatOnly && item.Pricing.Mode == objects.PricingModeFlatFee
+				}
+				if flatOnly {
+					usage = &llm.Usage{}
 				}
 			}
-			if err := s.RequestService.UsageLogService.BudgetService.RecordAsyncResult(ctx, execution.ID, video.Video.Status); err != nil {
-				log.Warn(ctx, "persist terminal video budget task", log.Cause(err))
-			} else if err := s.RequestService.UsageLogService.BudgetService.EndAttempt(ctx, execution.ID); err != nil {
-				log.Warn(ctx, "close terminal video budget task", log.Cause(err))
-			}
-		} else if !ent.IsNotFound(execErr) {
-			return nil, execErr
 		}
+		if usage != nil || status == request.StatusCompleted {
+			if _, err := s.RequestService.UsageLogService.CreateUsageLogFromRequest(ctx, task, execution, usage); err != nil {
+				log.Warn(ctx, "settle video budget", log.Cause(err))
+			}
+		}
+		if err := s.RequestService.UsageLogService.BudgetService.RecordAsyncResult(ctx, execution.ID, video.Video.Status); err != nil {
+			log.Warn(ctx, "persist terminal video budget task", log.Cause(err))
+		} else if err := s.RequestService.UsageLogService.BudgetService.EndAttempt(ctx, execution.ID); err != nil {
+			log.Warn(ctx, "close terminal video budget task", log.Cause(err))
+		}
+	} else if !ent.IsNotFound(execErr) {
+		return nil, execErr
 	}
 	return video, nil
 }

@@ -732,7 +732,7 @@ fork 改动，由用户决定。
 
 ### 模型入口校验与渠道分发
 
-- 豆包 Seedance 标准视频任务：创建结果未确认时禁止重放，按供应商终态处理项目记录与预算，按限时 URL 下载成品。同步上游时检查同渠道及跨渠道重试、取消与删除的竞态、409、用量和错误显示策略。[Issue #10](https://github.com/Syh1906/axon-hub/issues/10) ｜ [调用说明](zh/api-reference/openai-api.md#豆包-seedance-视频任务) ｜ [接口回归](../internal/server/seedance_video_test.go)
+- 豆包 Seedance 标准视频任务：创建结果未确认时禁止重放，按供应商终态处理项目记录与预算，按限时 URL 下载成品。同步上游时检查同渠道及跨渠道重试、创建已发出后的总时限、迟到查询覆盖终态、取消与删除的竞态、409、用量和错误显示策略。[Issue #10](https://github.com/Syh1906/axon-hub/issues/10) ｜ [调用说明](zh/api-reference/openai-api.md#豆包-seedance-视频任务) ｜ [接口回归](../internal/server/seedance_video_test.go)
 
 - Gemini 显式缓存（待发布）：CodeGateway 专用 Key 创建、列出、读取、续期和删除自己的缓存。普通与流式生成引用固定到创建时的渠道、原生端点、模型与供应商凭据，客户存储费由 sub2api 结算。Ent 新增 `gemini_caches` 表保存归属、有效期和元数据，已有业务数据无需转换。同步上游时核对双渠道、多凭据、跨身份拒绝、失效后的路由和缓存用量。续期结果未确认时，按已确认的有效期限制读取与生成，`retain_until` 保留原 Key 删除缓存所需的归属。下游恢复记录由 [sub2api #1](https://github.com/Syh1906/sub2api/issues/1) 跟踪。[Issue #9](https://github.com/Syh1906/axon-hub/issues/9) · [配置与 API](zh/api-reference/gemini-api.md#codegateway-显式缓存) · [供应商适配](../internal/server/api/gemini_cache_provider.go) · [隔离联调测试](../internal/server/gemini_cache_test.go)
 

@@ -113,6 +113,11 @@ func classifyRequestFailure(ctx context.Context, err error) error {
 		return err
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) && errors.Is(err, context.DeadlineExceeded) {
+		// After dispatch, the caller needs the provider outcome to decide whether
+		// replay is safe. The wrapped deadline still explains the transport failure.
+		if response, ok := errors.AsType[*llm.ResponseError](err); ok && response.Detail.Code == llm.ErrCodeVideoCreateOutcomeUnknown {
+			return err
+		}
 		code := "request_deadline_exceeded"
 		message := "The request exceeded the gateway's overall time limit."
 		// Non-stream attempts use their own deadline context. Its explicit cause

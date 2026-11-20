@@ -436,7 +436,7 @@ func (p *pipeline) ProcessPrepared(ctx context.Context, llmRequest *llm.Request,
 			p.notifyRetryStopped(ctx, "upstream_outcome_unknown")
 			if llmRequest.RequestType == llm.RequestTypeVideo {
 				return nil, &llm.ResponseError{StatusCode: 502, Cause: lastErr, Detail: llm.ErrorDetail{
-					Code: "video_create_outcome_unknown", Type: "upstream_error",
+					Code: llm.ErrCodeVideoCreateOutcomeUnknown, Type: "upstream_error",
 					Message: "The provider may have accepted the video task. Do not resubmit automatically.",
 				}}
 			}

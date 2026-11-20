@@ -1,15 +1,18 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/request"
@@ -24,6 +27,9 @@ import (
 
 func TestSeedanceStandardVideoTasks(t *testing.T) {
 	var creates, createStatus atomic.Int32
+	var holdCreate atomic.Bool
+	releaseCreate := make(chan struct{})
+	pollStarted, releasePoll := make(chan struct{}), make(chan struct{})
 	var state atomic.Value
 	state.Store("queued")
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +37,10 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 		switch r.Method {
 		case http.MethodPost:
 			n := creates.Add(1)
+			if holdCreate.Load() {
+				<-releaseCreate
+				return
+			}
 			if code := createStatus.Load(); code != 0 {
 				if code == http.StatusTemporaryRedirect {
 					w.Header().Set("Location", "/redirected-create")
@@ -43,6 +53,14 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 		case http.MethodGet:
 			id := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 			switch status := state.Load().(string); status {
+			case "delayed-running":
+				close(pollStarted)
+				select {
+				case <-releasePoll:
+				case <-r.Context().Done():
+					return
+				}
+				fmt.Fprintf(w, `{"id":%q,"status":"running"}`, id)
 			case "deleted":
 				w.WriteHeader(http.StatusNotFound)
 			case "succeeded":
@@ -91,13 +109,17 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 	v1.POST("/videos", h.openAI.CreateVideo)
 	v1.GET("/videos/:id", h.openAI.GetVideo)
 	v1.DELETE("/videos/:id", h.openAI.DeleteVideo)
-	call := func(method, path string, want int) gjson.Result {
-		t.Helper()
-		r := httptest.NewRequest(method, "/v1/videos"+path, strings.NewReader(`{"model":"doubao-seedance-2-0-260128","prompt":"test"}`))
+	send := func(ctx context.Context, method, path string) *httptest.ResponseRecorder {
+		r := httptest.NewRequestWithContext(ctx, method, "/v1/videos"+path, strings.NewReader(`{"model":"doubao-seedance-2-0-260128","prompt":"test"}`))
 		r.Header.Set("Authorization", "Bearer "+h.key.Key)
 		r.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		h.router.ServeHTTP(w, r)
+		return w
+	}
+	call := func(method, path string, want int) gjson.Result {
+		t.Helper()
+		w := send(t.Context(), method, path)
 		require.Equal(t, want, w.Code, w.Body.String())
 		return gjson.Parse(w.Body.String())
 	}
@@ -109,9 +131,28 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 	state.Store("running")
 	call("DELETE", path, 409)
 	require.Equal(t, request.StatusProcessing, saved(path))
+	state.Store("delayed-running")
+	var poll errgroup.Group
+	pollCtx, cancelPoll := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancelPoll()
+	poll.Go(func() error {
+		w := send(pollCtx, "GET", path)
+		if w.Code != http.StatusOK {
+			return fmt.Errorf("poll returned %d", w.Code)
+		}
+		return nil
+	})
+	select {
+	case <-pollStarted:
+	case <-pollCtx.Done():
+		t.Fatal("poll did not reach provider")
+	}
 	state.Store("queued")
 	call("DELETE", path, 204)
 	require.Equal(t, request.StatusCanceled, saved(path))
+	close(releasePoll)
+	require.NoError(t, poll.Wait())
+	require.Equal(t, request.StatusCanceled, saved(path), "a late running poll cannot reopen the canceled task")
 	require.Equal(t, "cancelled", call("GET", path, 200).Get("status").String())
 	path = create()
 	state.Store("expired")
@@ -153,4 +194,13 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 		require.Equal(t, "video_create_outcome_unknown", call("POST", "", 502).Get("error.code").String())
 		require.Equal(t, before+1, creates.Load())
 	}
+	before = creates.Load()
+	holdCreate.Store(true)
+	defer close(releaseCreate)
+	deadlineCtx, cancelCreate := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancelCreate()
+	w := send(deadlineCtx, "POST", "")
+	require.Equal(t, http.StatusBadGateway, w.Code, w.Body.String())
+	require.Equal(t, "video_create_outcome_unknown", gjson.Get(w.Body.String(), "error.code").String())
+	require.Equal(t, before+1, creates.Load())
 }
