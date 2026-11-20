@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -58,6 +59,34 @@ func (h *CodexHandlers) PublicCatalog(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, status)
+}
+
+func (h *CodexHandlers) ImportCatalog(c *gin.Context) {
+	ctx := c.Request.Context()
+	if err := authz.RequireScope(ctx, scopes.ScopeWriteSettings); err != nil {
+		JSONError(c, http.StatusForbidden, err)
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
+	var input biz.CatalogImport
+	if err := c.ShouldBindJSON(&input); err != nil {
+		JSONError(c, http.StatusBadRequest, err)
+		return
+	}
+	preview, err := h.snapshots.ImportCatalog(ctx, input, strings.HasSuffix(c.FullPath(), "/apply"))
+	if err != nil {
+		status := http.StatusBadGateway
+		switch {
+		case errors.Is(err, biz.ErrCatalogImport):
+			status = http.StatusBadRequest
+		case errors.Is(err, biz.ErrPublicCatalogDisabled), errors.Is(err, biz.ErrCatalogPreviewChanged):
+			status = http.StatusConflict
+		}
+		JSONError(c, status, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, preview)
 }
 
 func (h *OpenAIHandlers) ListCodexModels(c *gin.Context) {

@@ -20,6 +20,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/system"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/publicnet"
 )
 
 //go:embed codexdata/*.json
@@ -46,14 +47,15 @@ type codexSnapshot struct {
 // CodexSnapshotService owns credential-free official metadata, independently of
 // inference channels. Release snapshots are immutable and archived by version.
 type CodexSnapshotService struct {
-	public      codexPublicSync
-	config      CodexCatalogConfig
-	db          *ent.Client
-	httpClient  *http.Client
-	mu          sync.Mutex
-	snapshots   map[string]*codexSnapshot
-	nextAttempt map[string]time.Time
-	flight      singleflight.Group
+	public           codexPublicSync
+	config           CodexCatalogConfig
+	db               *ent.Client
+	catalogTransport http.RoundTripper
+	httpClient       *http.Client
+	mu               sync.Mutex
+	snapshots        map[string]*codexSnapshot
+	nextAttempt      map[string]time.Time
+	flight           singleflight.Group
 }
 
 func NewCodexSnapshotService(config CodexCatalogConfig, db *ent.Client) (*CodexSnapshotService, error) {
@@ -61,7 +63,8 @@ func NewCodexSnapshotService(config CodexCatalogConfig, db *ent.Client) (*CodexS
 		return nil, fmt.Errorf("invalid codex_catalog.version")
 	}
 	s := &CodexSnapshotService{config: config, db: db, snapshots: make(map[string]*codexSnapshot), nextAttempt: make(map[string]time.Time),
-		httpClient: &http.Client{Timeout: 1500 * time.Millisecond, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+		catalogTransport: &http.Transport{DialContext: publicnet.DialContext, DisableKeepAlives: true},
+		httpClient:       &http.Client{Timeout: 1500 * time.Millisecond, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	var manifest []struct{ Version, Source, SHA256 string }
 	body, err := codexSnapshotFiles.ReadFile("codexdata/manifest.json")
 	if err != nil {
@@ -136,13 +139,16 @@ func parseCodexSnapshot(version, source, hash string, body []byte) (*codexSnapsh
 // Load uses an exact release when available, otherwise the newest verified
 // snapshot no newer than the client. A configured/per-model pin never drifts.
 func (s *CodexSnapshotService) Load(ctx context.Context, clientVersion, pin string) *codexSnapshot {
-	release := s.loadRelease(ctx, clientVersion, pin)
 	if s.config.Disabled || pin != "" || s.config.Version != "" || !validCodexSnapshotVersion(clientVersion) {
-		return release
+		return s.loadRelease(ctx, clientVersion, pin)
 	}
 	s.public.mu.RLock()
 	current := s.public.archive
 	s.public.mu.RUnlock()
+	if current.source() != "official" {
+		return &codexSnapshot{public: current, clientVersion: clientVersion}
+	}
+	release := s.loadRelease(ctx, clientVersion, pin)
 	if current == nil {
 		return release
 	}

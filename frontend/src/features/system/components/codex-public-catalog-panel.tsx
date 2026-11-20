@@ -9,10 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { CodexCatalogImportDialog, type CatalogSource } from './codex-catalog-import-dialog';
 
 type Schedule = { automatic: boolean; minutes: number };
 type Catalog = Schedule & {
+  source: CatalogSource;
+  url?: string;
   blocked: boolean;
+  canImportLocal: boolean;
   checkedAt: string | null;
   changed: number;
   lastError?: string;
@@ -25,6 +29,7 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
   const client = useQueryClient();
   const userId = useAuthStore((state) => state.auth.user?.id);
   const key = ['codex-public-catalog', userId];
+  const [importing, setImporting] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const query = useQuery({
     queryKey: key,
@@ -42,46 +47,77 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
   });
   const data = query.data;
   const saveError = action.variables !== 'check' ? action.error?.message : undefined;
-  const checkError = data?.lastError || (action.variables === 'check' && action.context?.checkedAt === data?.checkedAt ? action.error?.message : undefined);
+  const checkError =
+    data?.lastError || (action.variables === 'check' && action.context?.checkedAt === data?.checkedAt ? action.error?.message : undefined);
   const disabled = !canEdit || data?.blocked || action.isPending;
   const format = (value: number | null) => (value == null ? '—' : value.toLocaleString(i18n.language));
   return (
     <Card data-testid='codex-public-catalog'>
       <CardHeader>
-        <CardTitle>{t('system.codex.public.title')}</CardTitle>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <CardTitle>{t('system.codex.public.title')}</CardTitle>
+          {canEdit && data && (
+            <Button
+              type='button'
+              size='sm'
+              variant='outline'
+              disabled={!data.canImportLocal || action.isPending}
+              onClick={() => setImporting(true)}
+            >
+              {t('system.codex.import.title')}
+            </Button>
+          )}
+        </div>
         <CardDescription>{t('system.codex.public.description')}</CardDescription>
       </CardHeader>
       <CardContent className='space-y-4'>
         {!data && (query.isPending ? t('common.loading') : <p role='alert'>{t('system.codex.public.loadFailed')}</p>)}
         {data && (
           <>
-            <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4'>
-              <Label htmlFor='public-catalog-auto'>{t('system.codex.public.auto')}</Label>
-              <div className='flex items-center gap-3'>
-                <Switch
-                  id='public-catalog-auto'
-                  checked={data.automatic && !data.blocked}
-                  disabled={disabled}
-                  onCheckedChange={(automatic) => action.mutate({ automatic, minutes: data.minutes })}
-                />
-                <Select
-                  value={String(data.minutes)}
-                  disabled={disabled || !data.automatic}
-                  onValueChange={(value) => action.mutate({ automatic: true, minutes: Number(value) })}
-                >
-                  <SelectTrigger aria-label={t('system.codex.public.frequency')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[5, 15, 30, 60].map((minutes) => (
-                      <SelectItem key={minutes} value={String(minutes)}>
-                        {t('system.codex.public.interval', { minutes })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <p className='text-sm break-all'>
+              {t('system.codex.import.active')} · {t('system.codex.import.' + data.source)} {data.url}
+            </p>
+            {importing && (
+              <CodexCatalogImportDialog
+                activeSource={data.source}
+                activeURL={data.url}
+                offline={data.blocked}
+                onClose={() => setImporting(false)}
+                onApplied={() => {
+                  setImporting(false);
+                  void client.invalidateQueries({ queryKey: key });
+                }}
+              />
+            )}
+            {data.source !== 'manual' && (
+              <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4'>
+                <Label htmlFor='public-catalog-auto'>{t('system.codex.public.auto')}</Label>
+                <div className='flex items-center gap-3'>
+                  <Switch
+                    id='public-catalog-auto'
+                    checked={data.automatic && !data.blocked}
+                    disabled={disabled}
+                    onCheckedChange={(automatic) => action.mutate({ automatic, minutes: data.minutes })}
+                  />
+                  <Select
+                    value={String(data.minutes)}
+                    disabled={disabled || !data.automatic}
+                    onValueChange={(value) => action.mutate({ automatic: true, minutes: Number(value) })}
+                  >
+                    <SelectTrigger aria-label={t('system.codex.public.frequency')}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[5, 15, 30, 60].map((minutes) => (
+                        <SelectItem key={minutes} value={String(minutes)}>
+                          {t('system.codex.public.interval', { minutes })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            )}
             <div className='flex flex-wrap items-center justify-between gap-3'>
               <div className='space-y-1 text-sm' role='status'>
                 <p>
@@ -91,17 +127,25 @@ export function CodexPublicCatalogPanel({ canEdit }: { canEdit: boolean }) {
                 </p>
                 {data.checkedAt && !checkError && (
                   <p className='text-muted-foreground'>
-                    {data.changed ? t('system.codex.public.changed', { count: data.changed }) : t('system.codex.public.unchanged')}
+                    {data.changed
+                      ? t(data.source === 'url' ? 'system.codex.import.pending' : 'system.codex.public.changed', { count: data.changed })
+                      : t('system.codex.public.unchanged')}
                   </p>
                 )}
               </div>
-              <Button type='button' variant='outline' disabled={disabled} onClick={() => action.mutate('check')}>
-                <RefreshCw className={action.isPending && action.variables === 'check' ? 'animate-spin' : ''} />
-                {t(action.isPending && action.variables === 'check' ? 'system.codex.public.checking' : 'system.codex.public.check')}
-              </Button>
+              {data.source !== 'manual' && (
+                <Button type='button' variant='outline' disabled={disabled} onClick={() => action.mutate('check')}>
+                  <RefreshCw className={action.isPending && action.variables === 'check' ? 'animate-spin' : ''} />
+                  {t(action.isPending && action.variables === 'check' ? 'system.codex.public.checking' : 'system.codex.public.check')}
+                </Button>
+              )}
             </div>
             {data.blocked && <p className='text-muted-foreground text-sm'>{t('system.codex.public.blocked')}</p>}
-            {saveError && <p role='alert' className='text-destructive text-sm'>{t('system.codex.public.saveFailed')} {saveError}</p>}
+            {saveError && (
+              <p role='alert' className='text-destructive text-sm'>
+                {t('system.codex.public.saveFailed')} {saveError}
+              </p>
+            )}
             {checkError && (
               <p role='alert' className='text-destructive text-sm'>
                 {t('system.codex.public.checkFailed')} {checkError}

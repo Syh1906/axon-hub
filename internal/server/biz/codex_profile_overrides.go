@@ -12,8 +12,15 @@ func snapshotCodexProfile(snapshot *codexSnapshot, modelID string) *codexModelPr
 	if snapshot.public != nil {
 		entry := snapshot.public.models[modelID]
 		minimum, _ := entry["minimal_client_version"].(string)
-		if validCodexSnapshotVersion(minimum) && compareCodexVersions(minimum, snapshot.clientVersion) <= 0 {
-			return &codexModelProfile{SourceKind: "official_public", SourceSHA256: snapshot.public.SHA256, SourceModelID: modelID, Model: entry}
+		kind := "official_public"
+		if snapshot.public.source() != "official" {
+			kind = "imported_catalog"
+			if minimum == "" {
+				minimum = snapshot.public.ClientVersion
+			}
+		}
+		if entry != nil && ((minimum == "" && kind == "imported_catalog") || (validCodexSnapshotVersion(minimum) && compareCodexVersions(minimum, snapshot.clientVersion) <= 0)) {
+			return &codexModelProfile{SourceKind: kind, SourceSHA256: snapshot.public.SHA256, SourceModelID: modelID, Model: entry}
 		}
 	}
 	if snapshot.Models[modelID] == nil {

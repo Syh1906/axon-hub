@@ -468,6 +468,8 @@ fork 改动，由用户决定。
 
 ### Codex 目录与客户端传输选择
 
+- 基础目录可在官方源码、公开 HTTPS 订阅和本机快照间切换。同步管理只替换基础目录，合并上游时回归来源互斥、预览后确认以及模型和渠道覆写顺序。[配置说明](zh/guides/codex-integration.md#选择基础目录来源)
+
 - Codex 选择器展示已选模型定义的 `display_name`，缺失或为空白时显示对外请求 ID。使用密钥别名时，客户端仍用别名发请求。[目录配置说明](zh/guides/codex-integration.md)
 
 - Page 上下文按渠道兼容（2026-11-10，已发布快照并部署双机）：新增默认关闭的 `settings.transformOptions.codexPageContextCompatibility`，在具体 Responses 渠道出站前，将已识别的 `agent.codex_apps_open_page`／`codex_apps_selected_page_part_N_of_M` 独立通知表达为明确标注不可信来源的文本，保留原字段、内容、顺序、分片及空状态清除含义。普通工具与跨聊天投递保持；不造调用编号、不自动更换传输。透传、重建、历史重放及重试隔离共用该边界，执行记录保存实际发送正文。同步上游时核对中间件顺序、GraphQL 设置输入/输出和渠道表单读写链，不能恢复为全局改写或只修重建路径。无数据库迁移，旧配置默认为关闭；使用方式见 [Page 兼容说明](zh/guides/codex-integration.md#page-上下文的渠道兼容)。

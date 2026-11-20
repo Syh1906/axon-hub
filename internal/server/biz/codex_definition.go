@@ -86,7 +86,7 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 	}
 	for id, profile := range d.Models {
 		official := profile.SourceKind == "official_snapshot" && validCodexSnapshotVersion(profile.SnapshotVersion) && profile.SourceChannelID == 0
-		if profile.SourceKind == "official_public" {
+		if isPublicCatalogKind(profile.SourceKind) {
 			digest, err := hex.DecodeString(profile.SourceSHA256)
 			official = err == nil && len(digest) == 32 && profile.SourceChannelID == 0
 		}
@@ -237,7 +237,7 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			}
 			tierRoute.model = effective
 			tierRoutes = append(tierRoutes, tierRoute)
-			if d.SourceKind == "official_public" && !preserveKnownContext {
+			if isPublicCatalogKind(d.SourceKind) && !preserveKnownContext {
 				variants = append(variants, applyPublicCodexContext(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
 			} else {
 				variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))

@@ -215,6 +215,20 @@ Profiles declaring `freeform` patch tools or `code_mode_only` use visible Respon
 
 Automatic results are not stored in `settings.codexCatalog`. New associations, key permissions and client versions do not require reimport. A valid manual override takes precedence; clear it to restore automatic discovery. In automatic mode, a model is omitted only when neither its associated channels nor official release snapshots provide a usable complete profile. If every model is unavailable the endpoint returns 503. Third-party models can continue using channel metadata, inherited overrides or fixed complete definitions.
 
+### Choose a baseline catalog
+
+Open **Integrations → Codex compatibility → Import model catalog**. Previewing leaves the current source active. Applying a preview selects exactly one baseline for this instance.
+
+| Source | How updates work |
+| --- | --- |
+| Official repository (default) | Scheduled and manual checks update the official baseline as before. |
+| Catalog URL | Use a public HTTPS link that returns JSON directly, such as a GitHub Raw URL. Save it as a subscription to check this URL on the configured schedule. Open Import to preview and apply changes. |
+| Local snapshot | Run the supplied command on the Codex machine and paste its output, or select a JSON file. An import without a URL subscription also creates a snapshot. Remote checks pause until a remote source is selected. |
+
+Provide a JSON object with a nonempty `models` array of complete Codex profiles. The catalog limit is 1 MiB. The local command checks `CODEX_HOME` first and then the current user's `.codex` directory. It copies or prints the existing cache without refreshing it. The import stores the model list and optional `client_version`; it does not need account credentials. Imports honor each model's `minimal_client_version`, using the cache's client version when the model omits it. Select **Official repository**, preview and apply to return to the default source.
+
+The preview compares baseline profiles. It does not publish model IDs, edit channel permissions or overwrite saved model definitions. A fixed model definition continues to use its saved profile. An inherited model follows the selected baseline with its field overrides, context settings and visible route restrictions. An explicit release pin still selects that release. Changes become visible when the client next requests its catalog.
+
 ### Official release snapshots and rollback
 
 For a synchronized public entry, the model page sets the default and maximum context independently. An explicit maximum on a visible route's actual model (including a channel alias) caps both advertised values. For example, a route limited to 128,000 cannot advertise an upstream maximum of 872,000. Admin previews and automatic catalogs select profiles using the same tool protocol requirements. A saved definition is also checked against the caller's current routes before publication: a chat-only route cannot advertise Responses-only tools.

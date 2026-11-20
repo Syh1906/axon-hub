@@ -130,6 +130,8 @@ func SetupRoutes(server *Server, handlers Handlers, client *ent.Client, services
 		adminGroup.POST("/invitations", handlers.Invitation.Create)
 
 		adminGroup.POST("/codex/oauth/start", handlers.Codex.StartOAuth)
+		adminGroup.POST("/codex/public-catalog/preview", handlers.Codex.ImportCatalog)
+		adminGroup.POST("/codex/public-catalog/apply", handlers.Codex.ImportCatalog)
 		adminGroup.GET("/codex/public-catalog", handlers.Codex.PublicCatalog)
 		adminGroup.PUT("/codex/public-catalog", handlers.Codex.PublicCatalog)
 		adminGroup.POST("/codex/public-catalog/check", handlers.Codex.PublicCatalog)

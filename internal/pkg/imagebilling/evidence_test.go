@@ -10,6 +10,8 @@ import (
 	"image"
 	"image/png"
 	"net/netip"
+
+	"github.com/looplj/axonhub/internal/pkg/publicnet"
 	"testing"
 
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -140,9 +142,9 @@ func TestAutomaticDimensionsAreNotLongestEdge(t *testing.T) {
 
 func TestImageFetchRejectsPrivateDestinations(t *testing.T) {
 	for _, address := range []string{"127.0.0.1", "10.1.2.3", "169.254.169.254", "100.64.0.1", "::1", "fc00::1", "::ffff:127.0.0.1", "192.0.2.1"} {
-		require.False(t, publicAddress(netip.MustParseAddr(address).Unmap()), address)
+		require.False(t, publicnet.IsPublicAddress(netip.MustParseAddr(address).Unmap()), address)
 	}
-	require.True(t, publicAddress(netip.MustParseAddr("8.8.8.8")))
+	require.True(t, publicnet.IsPublicAddress(netip.MustParseAddr("8.8.8.8")))
 	_, err := Fetch(context.Background(), "http://127.0.0.1:8090/private")
 	require.Error(t, err)
 	_, err = Fetch(context.Background(), "file:///etc/passwd")

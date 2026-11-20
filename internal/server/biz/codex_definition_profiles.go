@@ -180,7 +180,7 @@ func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*Model
 		hasMetadata = true
 		pinned := inherited != nil && inherited.SnapshotVersion != ""
 		if (!codexProfileRequiresResponses(official.Model, overrides) || canUseResponses) &&
-			(pinned || official.SourceKind == "official_public" || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
+			(pinned || isPublicCatalogKind(official.SourceKind) || profile == nil || profile.SourceModelID != target || codexReasoningChoiceCount(official.Model) > codexReasoningChoiceCount(profile.Model)) {
 			profile = official
 		}
 	}
@@ -238,7 +238,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 				metadata = profile.Model
 			}
 			capabilities := codexRouteCapabilities(metadata)
-			if profile.SourceKind == "official_public" && entry.ActualModel == profile.SourceModelID {
+			if isPublicCatalogKind(profile.SourceKind) && entry.ActualModel == profile.SourceModelID {
 				for _, field := range []string{"context_window", "max_context_window"} {
 					if value, exists := profile.Model[field]; exists {
 						capabilities[field] = value
@@ -264,7 +264,7 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 		}
 	}
 	result, err := d.catalogModel(ctx, m, channels, false)
-	if err == nil && profile.SourceKind == "official_public" {
+	if err == nil && isPublicCatalogKind(profile.SourceKind) {
 		result["axonhub_catalog"] = map[string]any{"source": profile.SourceKind, "sha256": profile.SourceSHA256, "client_version": version}
 	}
 	if err == nil && profile.SourceKind == "official_snapshot" {

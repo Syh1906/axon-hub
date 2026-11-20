@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"slices"
 	"sort"
 	"sync"
@@ -44,6 +43,9 @@ type PublicCatalogEntry struct {
 }
 
 type PublicCatalogStatus struct {
+	CanImportLocal bool   `json:"canImportLocal"`
+	Source         string `json:"source"`
+	URL            string `json:"url,omitempty"`
 	PublicCatalogSchedule
 	Blocked   bool                 `json:"blocked"`
 	CheckedAt *time.Time           `json:"checkedAt"`
@@ -53,14 +55,18 @@ type PublicCatalogStatus struct {
 }
 
 type publicCatalogArchive struct {
-	Body    []byte `json:"body"`
-	ETag    string `json:"etag"`
-	SHA256  string `json:"sha256"`
-	models  map[string]map[string]any
-	entries []PublicCatalogEntry
+	Source        string `json:"source,omitempty"`
+	URL           string `json:"url,omitempty"`
+	ClientVersion string `json:"clientVersion,omitempty"`
+	Body          []byte `json:"body"`
+	ETag          string `json:"etag"`
+	SHA256        string `json:"sha256"`
+	models        map[string]map[string]any
+	entries       []PublicCatalogEntry
 }
 
 type codexPublicSync struct {
+	update  sync.Mutex
 	mu      sync.RWMutex
 	archive *publicCatalogArchive
 	check   publicCatalogCheck
@@ -142,7 +148,7 @@ func (s *CodexSnapshotService) SetPublicSchedule(ctx context.Context, schedule P
 
 func (s *CodexSnapshotService) PublicStatus(ctx context.Context) (PublicCatalogStatus, error) {
 	schedule, err := s.publicSchedule(ctx)
-	result := PublicCatalogStatus{PublicCatalogSchedule: schedule, Blocked: s.publicBlocked(), Entries: []PublicCatalogEntry{}}
+	result := PublicCatalogStatus{CanImportLocal: !s.config.Disabled && s.config.Version == "", Source: "official", PublicCatalogSchedule: schedule, Blocked: s.publicBlocked(), Entries: []PublicCatalogEntry{}}
 	s.public.mu.RLock()
 	defer s.public.mu.RUnlock()
 	if !s.public.check.CheckedAt.IsZero() {
@@ -152,6 +158,7 @@ func (s *CodexSnapshotService) PublicStatus(ctx context.Context) (PublicCatalogS
 	result.LastError, result.Changed = s.public.check.LastError, s.public.check.Changed
 	if a := s.public.archive; a != nil {
 		result.Entries = a.entries
+		result.Source, result.URL = a.source(), a.URL
 	}
 	return result, err
 }
@@ -207,7 +214,8 @@ func (s *CodexSnapshotService) checkPublicIfDue(ctx context.Context) error {
 		return err
 	}
 	s.public.mu.RLock()
-	due := time.Since(s.public.check.CheckedAt) >= time.Duration(schedule.Minutes)*time.Minute
+	manual := s.public.archive.source() == "manual"
+	due := !manual && time.Since(s.public.check.CheckedAt) >= time.Duration(schedule.Minutes)*time.Minute
 	s.public.mu.RUnlock()
 	if due {
 		return s.CheckPublicCatalog(ctx)
@@ -226,41 +234,50 @@ func (s *CodexSnapshotService) CheckPublicCatalog(ctx context.Context) error {
 }
 
 func (s *CodexSnapshotService) checkAndSavePublic(ctx context.Context) (struct{}, error) {
+	s.public.update.Lock()
+	defer s.public.update.Unlock()
 	s.public.mu.RLock()
 	previous := s.public.archive
 	s.public.mu.RUnlock()
-	next, fetchErr := s.fetchPublic(ctx, previous)
+	source := previous.source()
+	if source == "manual" {
+		return struct{}{}, nil
+	}
+	address := publicCatalogURL
+	if source == "url" {
+		address = previous.URL
+	}
+	next, fetchErr := s.fetchPublic(ctx, previous, source, address)
 	check := publicCatalogCheck{CheckedAt: time.Now().UTC()}
 	if fetchErr != nil {
 		check.LastError = fetchErr.Error()
 	}
+	if next != nil {
+		check.Changed = len(catalogChanges(previous, next))
+	}
+	// Subscriptions report differences until an administrator applies them.
+	if source == "url" {
+		next = nil
+	}
+	return struct{}{}, errors.Join(fetchErr, s.savePublic(ctx, next, check))
+}
+
+func (s *CodexSnapshotService) savePublic(ctx context.Context, next *publicCatalogArchive, check publicCatalogCheck) error {
 	var writes []*ent.SystemCreate
 	if next != nil {
-		for slug, entry := range next.models {
-			if previous == nil || !reflect.DeepEqual(entry, previous.models[slug]) {
-				check.Changed++
-			}
-		}
-		if previous != nil {
-			for slug := range previous.models {
-				if next.models[slug] == nil {
-					check.Changed++
-				}
-			}
-		}
 		raw, err := json.Marshal(next)
 		if err != nil {
-			return struct{}{}, err
+			return err
 		}
 		writes = append(writes, s.db.System.Create().SetKey(publicArchiveKey).SetValue(string(raw)))
 	}
 	raw, err := json.Marshal(check)
 	if err != nil {
-		return struct{}{}, err
+		return err
 	}
 	writes = append(writes, s.db.System.Create().SetKey(publicCheckKey).SetValue(string(raw)))
 	if err := s.db.System.CreateBulk(writes...).OnConflictColumns(system.FieldKey).UpdateNewValues().Exec(ctx); err != nil {
-		return struct{}{}, errors.Join(fetchErr, err)
+		return err
 	}
 	s.public.mu.Lock()
 	if next != nil {
@@ -268,11 +285,11 @@ func (s *CodexSnapshotService) checkAndSavePublic(ctx context.Context) (struct{}
 	}
 	s.public.check = check
 	s.public.mu.Unlock()
-	return struct{}{}, fetchErr
+	return nil
 }
 
-func (s *CodexSnapshotService) fetchPublic(ctx context.Context, previous *publicCatalogArchive) (*publicCatalogArchive, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, publicCatalogURL, nil)
+func (s *CodexSnapshotService) fetchPublic(ctx context.Context, previous *publicCatalogArchive, source, address string) (*publicCatalogArchive, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +298,9 @@ func (s *CodexSnapshotService) fetchPublic(ctx context.Context, previous *public
 	}
 	client := *s.httpClient
 	client.Timeout = 10 * time.Second
+	if source == "url" {
+		client.Transport = s.catalogTransport
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -296,13 +316,23 @@ func (s *CodexSnapshotService) fetchPublic(ctx context.Context, previous *public
 	if err != nil {
 		return nil, err
 	}
-	digest := sha256.Sum256(body)
-	next := &publicCatalogArchive{Body: body, ETag: resp.Header.Get("ETag"), SHA256: hex.EncodeToString(digest[:])}
+	var next *publicCatalogArchive
+	if source == "official" {
+		digest := sha256.Sum256(body)
+		next = &publicCatalogArchive{Body: body, SHA256: hex.EncodeToString(digest[:])}
+		err = next.decode()
+	} else {
+		next, err = importedArchive(body)
+		if err == nil {
+			next.Source, next.URL = source, address
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	next.ETag = resp.Header.Get("ETag")
 	if previous != nil && next.SHA256 == previous.SHA256 && previous.ETag == next.ETag {
 		return nil, nil
-	}
-	if err := next.decode(); err != nil {
-		return nil, err
 	}
 	return next, nil
 }
