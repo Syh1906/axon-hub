@@ -1,8 +1,8 @@
-# v1.0.0-rc1-fork.15
+# v1.0.0-rc1-fork.16
 
-从本仓库 rc1-fork.14 升级。本次精简正式发布提供 Linux amd64、arm64 镜像及部署清单 `release.json`。
+从本仓库 fork.15 升级。正式发布提供 Linux amd64、arm64 镜像及固定镜像摘要清单 `release.json`。
 
-- 在「集成与兼容 → Codex 兼容」导入本机快照或订阅公开 JSON 地址，预览通过后应用。目录 URL 预填[本仓库模型目录](https://raw.githubusercontent.com/Syh1906/axon-hub/refs/heads/release/v1.0.x/catalogs/codex/models.json)。官方源码、URL 订阅和本机快照互斥；固定模型定义、字段覆写和渠道限制继续生效。
-- Codex 选择器保留模型展示名。兼容旧客户端的内置或已归档发布快照可离线使用；订阅检查能识别最低客户端版本变化，共享数据库的过期检查结果无法覆盖新来源。
-- 完善请求列表和自助用量页的首字与平均输出速度统计，改进 Responses 断线续传、历史恢复与重复派发处理；结束帧缺少输出时，可用此前已确认完成的输出项恢复续传历史，并区分 Alpha Search 缺少搜索端点与模型不可用。
-- 数据库为 requests 增加可空的 stream_timing 字段。旧记录继续可读，无新增必填配置。多副本部署应升级所有应用进程后再切换目录来源。
+- 项目服务账号可用 `read_requests` 查询本项目的请求及执行尝试。读取关联渠道名称还需 `read_channels`，调用模型仍需 `write_requests`。见 [#7](https://github.com/Syh1906/axon-hub/issues/7)。
+- Gemini 原生路径和 `/v1beta` 支持按列表名称读取模型详情，遵循相同的模型可见范围，保留列表尾斜杠跳转。见 [#8](https://github.com/Syh1906/axon-hub/issues/8)。
+- 单笔请求平均输出速度改用首个输出到结束的时长，按 vLLM 公式计算。Codex 模型与速度档按可用路线筛选，保留目录覆写。
+- 本版无数据库结构或数据迁移。生产部署使用清单中的固定摘要，可切回 fork.15 镜像。
