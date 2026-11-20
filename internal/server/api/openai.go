@@ -494,6 +494,15 @@ func (handlers *OpenAIHandlers) CreateImageVariation(c *gin.Context) {
 
 func (handlers *OpenAIHandlers) CreateVideo(c *gin.Context) {
 	ctx := c.Request.Context()
+	// The default server write deadline coincides with the processing deadline.
+	// Keep time to persist and deliver an indeterminate paid-task result.
+	if deadline, ok := ctx.Deadline(); ok {
+		const deliveryWindow = 30 * time.Second
+		err := http.NewResponseController(c.Writer).SetWriteDeadline(deadline.Add(deliveryWindow))
+		if err != nil && !errors.Is(err, http.ErrNotSupported) {
+			log.Warn(ctx, "set video creation response write deadline", log.Cause(err))
+		}
+	}
 
 	genericReq, err := httpclient.ReadHTTPRequest(c.Request)
 	if err != nil {

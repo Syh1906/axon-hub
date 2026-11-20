@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -105,7 +106,8 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 	h.openAI.VideoInboundTransformer = in
 	h.openAI.VideoHandlers = api.NewChatCompletionHandlers(orchestrator.NewChatCompletionOrchestrator(h.channels, orchestrator.NewDefaultSelector(h.channels, h.openAI.ModelService, h.system), h.requests, httpclient.NewHttpClient(), in, h.system, h.usage, h.prompts, nil, h.protect, biz.NewLiveStreamRegistry(), orchestrator.NewChannelLimiterManager(), nil, orchestrator.PluginIntegration{}))
 	auth := biz.NewAuthService(biz.AuthServiceParams{Ent: h.db, SystemService: h.system, APIKeyService: h.keys})
-	v1 := h.router.Group("/v1", middleware.WithAPIKeyConfig(auth, nil))
+	const requestTimeout = 2 * time.Second
+	v1 := h.router.Group("/v1", middleware.WithTimeout(requestTimeout), middleware.WithAPIKeyConfig(auth, nil), middleware.WithResponseHeaders(h.requests))
 	v1.POST("/videos", h.openAI.CreateVideo)
 	v1.GET("/videos/:id", h.openAI.GetVideo)
 	v1.DELETE("/videos/:id", h.openAI.DeleteVideo)
@@ -197,10 +199,20 @@ func TestSeedanceStandardVideoTasks(t *testing.T) {
 	before = creates.Load()
 	holdCreate.Store(true)
 	defer close(releaseCreate)
-	deadlineCtx, cancelCreate := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancelCreate()
-	w := send(deadlineCtx, "POST", "")
-	require.Equal(t, http.StatusBadGateway, w.Code, w.Body.String())
-	require.Equal(t, "video_create_outcome_unknown", gjson.Get(w.Body.String(), "error.code").String())
+	gateway := httptest.NewUnstartedServer(h.router)
+	gateway.Config.WriteTimeout = requestTimeout // same as the route deadline in the default server config
+	gateway.Start()
+	defer gateway.Close()
+	r, err := http.NewRequestWithContext(t.Context(), http.MethodPost, gateway.URL+"/v1/videos", strings.NewReader(`{"model":"doubao-seedance-2-0-260128","prompt":"test"}`))
+	require.NoError(t, err)
+	r.Header.Set("Authorization", "Bearer "+h.key.Key)
+	r.Header.Set("Content-Type", "application/json")
+	resp, err := gateway.Client().Do(r)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode, string(body))
+	require.Equal(t, "video_create_outcome_unknown", gjson.GetBytes(body, "error.code").String())
 	require.Equal(t, before+1, creates.Load())
 }
