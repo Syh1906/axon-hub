@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 
@@ -51,7 +52,13 @@ func previewCodexModelProfile(publicID string, connections []*ModelChannelConnec
 	if selected == nil {
 		return nil, nil
 	}
-	return selected, codexProfileSourceDifferences(publicID, selected, connections, sources)
+	differences := codexProfileSourceDifferences(publicID, selected, connections, sources)
+	selected.Model = maps.Clone(selected.Model)
+	normalizeCodexWireDefaults(selected.Model)
+	if _, present := selected.Model["experimental_supported_tools"]; !present {
+		selected.Model["experimental_supported_tools"] = []any{}
+	}
+	return selected, differences
 }
 
 func codexProfileSourceDifferences(publicID string, selected *codexModelProfile, connections []*ModelChannelConnection, sources map[int]map[string]map[string]any) []codexSourceDifference {
@@ -198,6 +205,11 @@ func selectCodexProfile(ctx context.Context, m ModelFacade, connections []*Model
 		if err != nil {
 			return nil, nil, err
 		}
+		for _, field := range []string{"node_repl_auto_review_required", "node_repl_disabled"} {
+			if profile.Model[field] == true {
+				patched[field] = true
+			}
+		}
 		copyProfile := *profile
 		copyProfile.Model = patched
 		profile = &copyProfile
@@ -226,18 +238,23 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 	for _, connection := range m.Connections {
 		for _, entry := range connection.Models {
 			metadata := sources[connection.Channel.ID][entry.ActualModel]
+			capabilities := codexRouteCapabilities(metadata)
 			if metadata == nil {
-				metadata = byActualModel[entry.ActualModel]
-			}
-			if actual := snapshotCodexProfile(snapshot, entry.ActualModel); actual != nil {
-				if metadata == nil {
-					metadata = actual.Model
+				// Another source may describe the alias's context, but cannot
+				// attest what this route supports.
+				fallback := byActualModel[entry.ActualModel]
+				if fallback == nil {
+					fallback = profile.Model
+					if actual := snapshotCodexProfile(snapshot, entry.ActualModel); actual != nil {
+						fallback = actual.Model
+					}
+				}
+				for _, field := range codexContextFields {
+					if value, exists := fallback[field]; exists {
+						capabilities[field] = value
+					}
 				}
 			}
-			if metadata == nil {
-				metadata = profile.Model
-			}
-			capabilities := codexRouteCapabilities(metadata)
 			if isPublicCatalogKind(profile.SourceKind) && entry.ActualModel == profile.SourceModelID {
 				for _, field := range []string{"context_window", "max_context_window"} {
 					if value, exists := profile.Model[field]; exists {
@@ -246,7 +263,9 @@ func automaticCodexModel(ctx context.Context, m ModelFacade, connections []*Mode
 				}
 			}
 			if inherited != nil {
-				for _, field := range codexCapabilityFields {
+				// Context overrides have separate Axon precedence. All other
+				// model overrides already apply to the base before route limits.
+				for _, field := range codexContextFields {
 					if _, overridden := inherited.Overrides[field]; !overridden {
 						continue
 					}

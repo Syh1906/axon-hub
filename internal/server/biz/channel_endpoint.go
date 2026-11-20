@@ -77,7 +77,7 @@ func ValidateEndpoints(endpoints []objects.ChannelEndpoint, baseURL ...string) e
 				}
 			}
 			if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
-				if _, err := parseCodexCatalog(ep.CatalogJSON); err != nil {
+				if _, err := parseCodexCatalogEntries(ep.CatalogJSON, true); err != nil {
 					return err
 				}
 			}

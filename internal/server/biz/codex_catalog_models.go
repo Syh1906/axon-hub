@@ -12,6 +12,11 @@ var errCodexPlainModelList = errors.New("Codex catalog requires a models array, 
 var errCodexInvalidEntries = errors.New("Codex catalog contains invalid or duplicate model definitions")
 
 func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
+	return parseCodexCatalogEntries(body, false)
+}
+
+// Channel metadata must retain omitted capabilities until the base profile is selected.
+func parseCodexCatalogEntries(body []byte, channelSource bool) (map[string]map[string]any, error) {
 	if len(body) > codexCatalogMaxBytes {
 		return nil, fmt.Errorf("Codex catalog exceeds 1 MiB")
 	}
@@ -33,6 +38,9 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 			}
 		}
 		for _, field := range []string{"supported_reasoning_levels", "experimental_supported_tools"} {
+			if _, present := m[field]; channelSource && !present && field == "experimental_supported_tools" {
+				continue
+			}
 			if _, ok := m[field].([]any); !ok {
 				return nil, fmt.Errorf("catalog model %q requires %s array", slug, field)
 			}
@@ -60,7 +68,11 @@ func parseCodexCatalog(body []byte) (map[string]map[string]any, error) {
 		if err := validateCodexWireModel(m); err != nil {
 			return nil, fmt.Errorf("catalog model %q: %w", slug, err)
 		}
-		normalizeCodexWireDefaults(m)
+		if channelSource {
+			normalizeCodexToolDialect(m)
+		} else {
+			normalizeCodexWireDefaults(m)
+		}
 		// Preserve both modern instructions and the legacy wire field used by older clients.
 		m["base_instructions"] = instructions
 		result[slug] = m
@@ -219,7 +231,7 @@ func parseRemoteCodexCatalog(body []byte) (map[string]map[string]any, error) {
 	result := make(map[string]map[string]any)
 	seen := make(map[string]bool)
 	for _, raw := range wrapper.Models {
-		parsed, err := parseCodexCatalog(append(append([]byte(`{"models":[`), raw...), []byte(`]}`)...))
+		parsed, err := parseCodexCatalogEntries(append(append([]byte(`{"models":[`), raw...), []byte(`]}`)...), true)
 		if err != nil {
 			continue
 		}

@@ -64,6 +64,24 @@ func (s *CodexCatalogService) Models(ctx context.Context, version string) ([]byt
 	for _, ch := range allChannels {
 		channels[ch.ID] = ch
 	}
+	// Protocol admission is additional to the key's model/channel scope.
+	// Apply it before profile selection so denied routes cannot publish a
+	// model, constrain a visible sibling, or turn an empty catalog into an error.
+	allowed := visible[:0]
+	for _, m := range visible {
+		m.Connections = slices.DeleteFunc(slices.Clone(m.Connections), func(c *ModelChannelConnection) bool {
+			ch := channels[c.Channel.ID]
+			if ch == nil {
+				return true
+			}
+			settings := ch.Settings
+			return settings != nil && !settings.ProtocolPolicy.AllowsClient(llm.APIFormatOpenAIResponse)
+		})
+		if len(m.Connections) > 0 {
+			allowed = append(allowed, m)
+		}
+	}
+	visible = allowed
 	// Model definitions may be shared by routes for the same actual model.
 	// Source discovery does not grant access to those routes: m.Connections stays
 	// scoped to the caller and is used separately for capability intersection.
@@ -195,7 +213,7 @@ selectEndpoint:
 func (s *CodexCatalogService) channelCatalog(ctx context.Context, ch *Channel, version string) (map[string]map[string]any, error) {
 	ep := codexCatalogEndpoint(ch)
 	if len(ep.CatalogJSON) > 0 && string(ep.CatalogJSON) != "null" {
-		return parseCodexCatalog(ep.CatalogJSON)
+		return parseCodexCatalogEntries(ep.CatalogJSON, true)
 	}
 	if ep.APIFormat == "" {
 		return nil, nil

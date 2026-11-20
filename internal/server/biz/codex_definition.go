@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 
 	"github.com/looplj/axonhub/internal/objects"
-	"github.com/looplj/axonhub/llm"
 )
 
 type codexDefinition struct {
@@ -34,6 +34,8 @@ type codexDefinitionRoute struct {
 
 // Source-specific capabilities are kept on routes; instructions and tool dialect
 // remain in the canonical model definition.
+var codexContextFields = []string{"context_window", "max_context_window", "auto_compact_token_limit", "effective_context_window_percent"}
+
 var codexCapabilityFields = []string{
 	"context_window", "max_context_window", "auto_compact_token_limit", "effective_context_window_percent",
 	"supported_reasoning_levels", "service_tiers", "additional_speed_tiers", "input_modalities", "experimental_supported_tools",
@@ -125,9 +127,6 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 			if len(known) != len(r.Capabilities) {
 				return nil, fmt.Errorf("unknown route capability")
 			}
-			for _, field := range codexCapabilityFields {
-				delete(candidate, field)
-			}
 			for k, v := range known {
 				candidate[k] = v
 			}
@@ -168,10 +167,11 @@ func decodeCodexDefinition(raw []byte) (*codexDefinition, error) {
 
 // The saved model profile supplies the baseline for every caller-visible route.
 // Saved route entries only refine capabilities for the channel/model pairs they match.
-func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, channels map[int]*Channel, preserveKnownContext bool) (map[string]any, error) {
+func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, channels map[int]*Channel, fixedDefinition bool) (map[string]any, error) {
 	// ClientVersion records import provenance, not a client allowlist. Schema
 	// validation and declared model capabilities are independent of version equality.
 	canonical := d.Model
+	source := ChannelModelKey{ChannelID: d.SourceChannelID, ModelID: d.SourceModelID}
 	if len(d.Models) > 0 {
 		target := m.TargetID
 		if target == "" {
@@ -182,6 +182,7 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 			return nil, fmt.Errorf("unconfirmed Codex public model %s", target)
 		}
 		canonical = profile.Model
+		source = ChannelModelKey{ChannelID: profile.SourceChannelID, ModelID: profile.SourceModelID}
 	}
 	bindings := make(map[ChannelModelKey]codexDefinitionRoute)
 	for _, r := range d.Routes {
@@ -197,47 +198,66 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 		}
 		for _, entry := range connection.Models {
 			responsesEndpoint := codexRouteSupportsResponses(ctx, ch, entry, m.TargetID)
-			tierRoute := codexTierRoute{settings: ch.Settings, responses: responsesEndpoint && (ch.Settings == nil || ch.Settings.ProtocolPolicy.AllowsClient(llm.APIFormatOpenAIResponse))}
 			if requiresResponses && !responsesEndpoint {
-				tierRoutes = append(tierRoutes, tierRoute)
 				continue
 			}
-			r := bindings[ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}]
-			variant := make(map[string]any, len(canonical))
-			for k, v := range canonical {
-				variant[k] = v
-			}
-
-			if r.Capabilities != nil {
-				for _, field := range codexCapabilityFields {
-					if !codexReasoningProfileField(field) {
-						delete(variant, field)
+			key := ChannelModelKey{ChannelID: connection.Channel.ID, ModelID: entry.ActualModel}
+			r := bindings[key]
+			variant := maps.Clone(canonical)
+			limited := maps.Clone(canonical)
+			for field, value := range r.Capabilities {
+				if codexReasoningProfileField(field) || field == "truncation_policy" {
+					continue
+				}
+				limited[field] = value
+				if fixedDefinition {
+					// The saved route is authoritative for its declared capabilities.
+					// Security requirements and picker tiers still use the model baseline.
+					switch field {
+					case "node_repl_auto_review_required", "node_repl_disabled", "service_tiers", "additional_speed_tiers", "default_service_tier":
+					default:
+						variant[field] = value
 					}
 				}
-				for k, v := range r.Capabilities {
-					if !codexReasoningProfileField(k) {
-						variant[k] = v
+			}
+			// Route context values have their own precedence (including values
+			// larger than the base profile); keep the existing context contract.
+			if r.Capabilities != nil {
+				for _, field := range codexContextFields {
+					if value, ok := r.Capabilities[field]; ok {
+						variant[field], limited[field] = value, value
+					} else {
+						delete(variant, field)
+						delete(limited, field)
 					}
 				}
 			}
 			// Truncation controls local tool output, not an upstream context limit.
 			// Keep accepting old route snapshots but use the confirmed client policy.
-			variant["truncation_policy"] = canonical["truncation_policy"]
+			limited["truncation_policy"] = canonical["truncation_policy"]
 			normalizeCodexWireDefaults(variant)
-			limited := make(map[string]any, len(variant))
-			for k, v := range variant {
-				limited[k] = v
+			normalizeCodexWireDefaults(limited)
+			inputs := []map[string]any{variant, limited}
+			if len(r.Limits) > 0 {
+				explicit := maps.Clone(limited)
+				maps.Copy(explicit, r.Limits)
+				inputs = append(inputs, explicit)
 			}
-			for k, v := range r.Limits {
-				limited[k] = v
-			}
-			effective, err := mergeCodexModels(m.ID, []map[string]any{variant, limited})
+			effective, err := mergeCodexModels(m.ID, inputs)
 			if err != nil {
 				return nil, err
 			}
-			tierRoute.model = effective
+			tierRoute := codexTierRoute{channel: ch, responses: responsesEndpoint, capabilities: r.Capabilities, limits: r.Limits}
+			if key == source {
+				// Older fixed definitions stored this route's tier declaration on the profile itself.
+				_, services := r.Capabilities["service_tiers"]
+				_, speeds := r.Capabilities["additional_speed_tiers"]
+				if !services && !speeds {
+					tierRoute.capabilities = canonical
+				}
+			}
 			tierRoutes = append(tierRoutes, tierRoute)
-			if isPublicCatalogKind(d.SourceKind) && !preserveKnownContext {
+			if isPublicCatalogKind(d.SourceKind) && !fixedDefinition {
 				variants = append(variants, applyPublicCodexContext(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
 			} else {
 				variants = append(variants, applyCodexContextSettings(effective, m.ConfiguredModel.Settings, connection.Channel.Settings, entry.ActualModel))
@@ -251,9 +271,9 @@ func (d *codexDefinition) catalogModel(ctx context.Context, m ModelFacade, chann
 	if err != nil {
 		return nil, err
 	}
-	applyCodexRouteTiers(result, tierRoutes)
+	applyCodexRouteTiers(result, canonical, tierRoutes)
 	constrainCodexReasoningProfile(result, canonical)
-	if !preserveKnownContext {
+	if !fixedDefinition {
 		return result, nil
 	}
 

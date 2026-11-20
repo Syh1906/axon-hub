@@ -139,9 +139,7 @@ func validateCodexWireModel(m map[string]any) error {
 	return nil
 }
 
-// Defaults follow Codex rust-v0.166.0 ModelInfo. Keep omission from turning
-// a known false capability or 95% context budget into a different declaration.
-func normalizeCodexWireDefaults(m map[string]any) {
+func normalizeCodexToolDialect(m map[string]any) {
 	switch m["shell_type"] {
 	case "default", "local", "shell_command":
 		m["shell_type"] = "unified_exec"
@@ -149,7 +147,12 @@ func normalizeCodexWireDefaults(m map[string]any) {
 	if _, ok := m["web_search_tool_type"]; !ok {
 		m["web_search_tool_type"] = "text"
 	}
+}
 
+// Defaults follow Codex rust-v0.166.0 ModelInfo. Keep omission from turning
+// a known false capability or 95% context budget into a different declaration.
+func normalizeCodexWireDefaults(m map[string]any) {
+	normalizeCodexToolDialect(m)
 	for _, field := range []string{"supports_image_detail_original", "supports_search_tool", "supports_experimental_context", "use_responses_lite", "supports_reasoning_effort_updates", "node_repl_disabled", "node_repl_auto_review_required"} {
 		if _, ok := m[field]; !ok {
 			m[field] = false
