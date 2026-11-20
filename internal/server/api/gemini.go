@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
@@ -199,7 +198,7 @@ func (handlers *GeminiHandlers) RetrieveModel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id := strings.TrimPrefix(c.Param("model"), "/")
+	id := c.Param("model") + c.Param("suffix")
 	for i, model := range models {
 		if model.ID == id {
 			c.JSON(http.StatusOK, geminiModel(model, i))

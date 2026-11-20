@@ -96,6 +96,11 @@ func TestCodeGatewayReadOnlyIntegration(t *testing.T) {
 		return string(data)
 	}
 	for _, prefix := range []string{"/v1beta", "/gemini/v1beta"} {
+		redirect := httptest.NewRecorder()
+		server.ServeHTTP(redirect, httptest.NewRequest(http.MethodGet, prefix+"/models/?pageSize=2", nil))
+		require.Equal(t, http.StatusMovedPermanently, redirect.Code)
+		require.Equal(t, prefix+"/models?pageSize=2", redirect.Header().Get("Location"))
+
 		for key, count := range map[string]int{h.key.Key: 2, operator: 1} {
 			list := gjson.Get(call("GET", prefix+"/models", key, "", 200), "models").Array()
 			require.Len(t, list, count)
@@ -136,6 +141,15 @@ func TestCodeGatewayReadOnlyIntegration(t *testing.T) {
 	const channelFields = " channel { id name }"
 	const page = "totalCount pageInfo { endCursor hasNextPage }"
 	const listQuery = "{ requests(first:20, orderBy:{field:CREATED_AT,direction:DESC}) { " + page + " edges { node { " + fields + "%s } } } }"
+	checkCompleted := func(record gjson.Result, id string, latencyMs *int64) {
+		t.Helper()
+		require.Equal(t, id, record.Get("id").String())
+		require.Equal(t, "completed", record.Get("status").String())
+		require.NotNil(t, latencyMs)
+		latency := record.Get("metricsLatencyMs")
+		require.Equal(t, gjson.Number, latency.Type)
+		require.Equal(t, *latencyMs, latency.Int())
+	}
 	for _, key := range []string{reader, operator} {
 		channelSelection := ""
 		if key == operator {
@@ -144,15 +158,14 @@ func TestCodeGatewayReadOnlyIntegration(t *testing.T) {
 		list := query(key, fmt.Sprintf(listQuery, channelSelection))
 		require.False(t, gjson.Get(list, "errors").Exists(), list)
 		require.EqualValues(t, 1, gjson.Get(list, "data.requests.totalCount").Int())
-		id := gjson.Get(list, "data.requests.edges.0.node.id").String()
-		require.Equal(t, fmt.Sprintf("gid://axonhub/Request/%d", own.ID), id)
+		id := fmt.Sprintf("gid://axonhub/Request/%d", own.ID)
+		checkCompleted(gjson.Get(list, "data.requests.edges.0.node"), id, own.MetricsLatencyMs)
 		detail := query(key, fmt.Sprintf(`{ node(id:%q) { ... on Request { %s executions(first:20,orderBy:{field:CREATED_AT,direction:DESC}) { %s edges { node { id createdAt modelID status format responseStatusCode metricsLatencyMs metricsFirstTokenLatencyMs %s } } } } } }`, id, fields+channelSelection, page, channelSelection))
 		require.False(t, gjson.Get(detail, "errors").Exists(), detail)
+		checkCompleted(gjson.Get(detail, "data.node"), id, own.MetricsLatencyMs)
 		require.EqualValues(t, 1, gjson.Get(detail, "data.node.executions.totalCount").Int())
 		entry := gjson.Get(detail, "data.node.executions.edges.0.node")
-		require.Equal(t, fmt.Sprintf("gid://axonhub/RequestExecution/%d", attempt.ID), entry.Get("id").String())
-		require.Equal(t, "completed", entry.Get("status").String())
-		require.True(t, entry.Get("metricsLatencyMs").Exists())
+		checkCompleted(entry, fmt.Sprintf("gid://axonhub/RequestExecution/%d", attempt.ID), attempt.MetricsLatencyMs)
 		if key == operator {
 			require.Equal(t, source.Name, entry.Get("channel.name").String())
 		}

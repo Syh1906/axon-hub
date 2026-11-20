@@ -331,7 +331,9 @@ func registerGeminiRoutes(server *Server, handlers *api.GeminiHandlers, services
 		)
 
 		group.Group("", requestTracking(server, services)...).GET("/models", handlers.ListModels)
-		group.GET("/models/*model", handlers.RetrieveModel)
+		// Require a model name so /models/ keeps Gin's redirect to the list.
+		group.GET("/models/:model", handlers.RetrieveModel)
+		group.GET("/models/:model/*suffix", handlers.RetrieveModel)
 		group.Use(middleware.RequireInferenceScope)
 		group.Use(requestTracking(server, services)...)
 		group.POST("/models/*action", handlers.GenerateContent)
