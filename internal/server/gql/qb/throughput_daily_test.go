@@ -470,7 +470,7 @@ func TestDailyThroughputQueryTypeEnum(t *testing.T) {
 
 func TestBuildDailyThroughputQuery_StreamingLatencyHandling(t *testing.T) {
 	got := BuildDailyModelThroughputQuery("postgres", "UTC", 0, 10, ThroughputModeRowNumber)
-	assert.Contains(t, got, "CASE WHEN se.stream")
+	assert.Contains(t, got, "CASE WHEN se.content_batches = 1 THEN NULL WHEN se.stream")
 	assert.Contains(t, got, "AVG(")
 	assert.Contains(t, got, "se.metrics_latency_ms > 0")
 	assert.Contains(t, got, "metrics_latency_ms - se.metrics_first_byte_latency_ms")

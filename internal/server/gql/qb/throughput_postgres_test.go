@@ -270,6 +270,7 @@ func seedParityFixture(t *testing.T, db *sql.DB, dialect string) {
 			metrics_latency_ms BIGINT NULL,
 			metrics_first_token_latency_ms BIGINT,
 			metrics_first_byte_latency_ms BIGINT,
+			content_batches INTEGER,
 			project_id INT NOT NULL DEFAULT 1,
 			format TEXT NOT NULL DEFAULT 'openai/chat_completions',
 			stream BOOLEAN NOT NULL DEFAULT false,
