@@ -1,5 +1,11 @@
 # Fork 维护台账
 
+## rc1-fork.16 正式发布与双机更新（2026-11-20）
+
+- [精简工作流](https://github.com/Syh1906/axon-hub/actions/runs/44742784562) 从 `6cb5e4d87ef1fe1888edcf1d0f7fd77423c86d36` 发布[正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.16)。源提交 Test、Build、Lint、Govulncheck 全部通过。双架构镜像固定摘要为 `sha256:668cd140b841e7a27b183b759b55bb5cda4962a0184f2e68c98d387dda3faab8`。
+- 新加坡时间 21:23:41 云悠开始切换，7.069 秒重建至健康；21:24:05 泉哥开始切换，耗时 7.268 秒。两台本机和公网的版本、提交、健康、初始化、首页及 34 项静态资源、匿名 API 鉴权和 CORS 验收通过。数据库与其他容器保持原实例，应用重启计数均为零，无 OOM 或启动致命错误标记。
+- 切换前 10 分钟内创建、且切换时仍在处理或切换后有更新的请求中，云悠无记录，泉哥有 7 条最终记录为取消。未重放请求或调用真实供应商。两台均已清理本轮临时配置副本，保留 fork.15 回退镜像；本次无数据库迁移或数据库备份。
+
 ## rc1-fork.15 正式发布与双机更新（2026-11-20）
 
 - [精简发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44718979385) 已从提交 `d3cee468a347bfcdea78c24696eef5bd8bd4bdc1` 发布 [fork.15 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.15)。该提交的 Test、Build、Lint、Govulncheck 全部通过。清单同时覆盖 Linux amd64 和 arm64，固定镜像为 `ghcr.io/syh1906/axon-hub@sha256:faa5522097f0ee5fc8de8c9c92cb51af2c9c8bd6867ee6c1c97970da1254f789`。
@@ -736,7 +742,7 @@ fork 改动，由用户决定。
 - 公开 ID：`public_model_ids` 可为零／一／多个符合规则的具体 ID；显式空数组隐藏发现但不禁用调用。
   旧精确模型的 null 沿用原 ID；规则 null 不公开。三种协议的列表和详情按实际胜出配置与密钥范围展开，
   不泄露表达式或隐藏 ID，不因低优先级规则公开同名 ID 而改变胜出配置的可见性。
-- Gemini 目录（待发布，`289a243f`）：原生路径和 `/v1beta` 均按列表返回的名称读取同一目录项。两个测试密钥的可见范围不同，隐藏和不存在的模型都返回 404，读取目录时本地模拟供应商收到零次调用。无需数据库结构或数据迁移。[Issue #8](https://github.com/Syh1906/axon-hub/issues/8) · [Gemini 接口](../internal/server/api/gemini.go) · [联调测试](../internal/server/codegateway_integration_test.go)
+- Gemini 目录（已随 fork.16 发布，`289a243f`）：原生路径和 `/v1beta` 均按列表返回的名称读取同一目录项。两个测试密钥的可见范围不同，隐藏和不存在的模型都返回 404，读取目录时本地模拟供应商收到零次调用。无需数据库结构或数据迁移。[Issue #8](https://github.com/Syh1906/axon-hub/issues/8) · [Gemini 接口](../internal/server/api/gemini.go) · [联调测试](../internal/server/codegateway_integration_test.go)
 - 开发者身份：内置 ID 在单个／批量创建、编辑与开发者规则保存时统一大小写；列表分组、规则编辑、实际继承及决策计数使用相同身份。已有大小写规则条目全部保留参与继承，自定义名称不转小写。无数据库迁移；`model_developer_test.go`、`candidates_model_rules_test.go` 和前端 `developer.test.mjs` 覆盖写入、旧值继承及输入识别。
 - 列表匹配类型：模型 ID 旁使用现有 `matchType` 与翻译显示精确／前缀／后缀／正则，保持单行。
 - 批量关联审查修正：新增优先级统一原编辑 0–10；同渠道预览合并模型；追加前回读覆盖后端允许的三层条件组叶节点。多标签零匹配禁发空 ID 查询，摘要与标签目录归入渠道缓存失效范围。无新增迁移。
@@ -1287,7 +1293,7 @@ fork 改动，由用户决定。
 
 ### 请求筛选与逐次诊断
 
-- 项目服务账号只读查询（待发布，`289a243f`）：`read_requests` 可读取本项目的请求与执行尝试，CodeGateway 同时读取渠道名称时还需 `read_channels`。模型调用在记录请求和联系供应商前检查 `write_requests`。本地联调用两个项目检查可见范围，并用同一把只读密钥验证模型调用和管理写入均被拒绝。无需数据库结构或数据迁移。[Issue #7](https://github.com/Syh1906/axon-hub/issues/7) · [项目权限规则](../internal/scopes/rule_apikey_scope.go) · [服务账号权限](zh/guides/permissions.md) · [联调测试](../internal/server/codegateway_integration_test.go)
+- 项目服务账号只读查询（已随 fork.16 发布，`289a243f`）：`read_requests` 可读取本项目的请求与执行尝试，CodeGateway 同时读取渠道名称时还需 `read_channels`。模型调用在记录请求和联系供应商前检查 `write_requests`。本地联调用两个项目检查可见范围，并用同一把只读密钥验证模型调用和管理写入均被拒绝。无需数据库结构或数据迁移。[Issue #7](https://github.com/Syh1906/axon-hub/issues/7) · [项目权限规则](../internal/scopes/rule_apikey_scope.go) · [服务账号权限](zh/guides/permissions.md) · [联调测试](../internal/server/codegateway_integration_test.go)
 
 - 2026-11-08 流式交付取消诊断修复（本地验收与独立复审通过，未发布）：保留实际发送错误和关闭前的客户端取消原因，避免上游完成后把交付取消误归为无原因的 `failed`。取消记为 `canceled`；写入错误、超时、停机和无交付确认分别保留原因，使用既有 `requests.failure` 的 `delivery` 阶段展示。取消后先停止上游连接，等待实际消费者退出，再按原有 1 秒／256 事件／1 MiB 收集预算处理已缓冲事件；该预算不等于整个关闭流程的时限。修复后台晚读完成事件时漏记完成与用量的问题，保证尾部收集不提前接管仍在读取的源。成功交付后的断开不撤销完成；已有明确失败不被清理覆盖，不增加重试或改写历史数据。`gpt-6.1-sol / max` 独立审查发现的停止原因丢失、透传发送绕过记录、消费者结束信号提前三个问题已修复并复审。16 项持久化场景、普通／心跳 Responses 六场景各 10 次、真实消费者交接 10 次及相关流式／透传／重试／WebSocket 回归通过。无 schema/data migration。同步上游时核对 `stream_outcome.go`、`inbound.go`、`outbound.go`、`pass_through.go`、`request_failure.go`、`stream_lifecycle.go` 及请求失败保存；行为说明见[请求处理流程](zh/getting-started/request-processing.md)，命令及限制见[本轮记录](../.agent/summary/request57765-delivery-fix-20261108.md)。
 

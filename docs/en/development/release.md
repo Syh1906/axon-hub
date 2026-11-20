@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+On 2026-11-20, [rc1-fork.16](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.16) was published through the image-only workflow and deployed to both production sites. Local and public checks passed. The [deployment ledger](../../fork-maintenance.md) records request outcomes during the switch.
+
 Every release uses the current maintenance branch and its latest published baseline in this repository. Increment the fork number on that baseline. A normal release verifies this repository’s branch, tags, manifest and recorded upstream provenance. Discovering or merging newer upstream releases is a separate operation performed only when explicitly requested.
 
 On 2026-11-20, [rc1-fork.15](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.15) was released from the fork.14 baseline and deployed to both production sites. Both retained the official Codex repository as the active catalog. Version, health and asset checks passed. [Deployment ledger](../../fork-maintenance.md)
