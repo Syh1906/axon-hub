@@ -84,6 +84,10 @@ const (
 	FieldMetricsLatencyMs = "metrics_latency_ms"
 	// FieldMetricsFirstTokenLatencyMs holds the string denoting the metrics_first_token_latency_ms field in the database.
 	FieldMetricsFirstTokenLatencyMs = "metrics_first_token_latency_ms"
+	// FieldContentBatches holds the string denoting the content_batches field in the database.
+	FieldContentBatches = "content_batches"
+	// FieldContentBatchSpanMs holds the string denoting the content_batch_span_ms field in the database.
+	FieldContentBatchSpanMs = "content_batch_span_ms"
 	// FieldMetricsFirstByteLatencyMs holds the string denoting the metrics_first_byte_latency_ms field in the database.
 	FieldMetricsFirstByteLatencyMs = "metrics_first_byte_latency_ms"
 	// FieldMetricsFirstByteRecorded holds the string denoting the metrics_first_byte_recorded field in the database.
@@ -169,6 +173,8 @@ var Columns = []string{
 	FieldStream,
 	FieldMetricsLatencyMs,
 	FieldMetricsFirstTokenLatencyMs,
+	FieldContentBatches,
+	FieldContentBatchSpanMs,
 	FieldMetricsFirstByteLatencyMs,
 	FieldMetricsFirstByteRecorded,
 	FieldCacheCompatibilityKey,
@@ -388,6 +394,16 @@ func ByMetricsLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 // ByMetricsFirstTokenLatencyMs orders the results by the metrics_first_token_latency_ms field.
 func ByMetricsFirstTokenLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMetricsFirstTokenLatencyMs, opts...).ToFunc()
+}
+
+// ByContentBatches orders the results by the content_batches field.
+func ByContentBatches(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentBatches, opts...).ToFunc()
+}
+
+// ByContentBatchSpanMs orders the results by the content_batch_span_ms field.
+func ByContentBatchSpanMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentBatchSpanMs, opts...).ToFunc()
 }
 
 // ByMetricsFirstByteLatencyMs orders the results by the metrics_first_byte_latency_ms field.

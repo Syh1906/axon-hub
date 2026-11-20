@@ -25,6 +25,8 @@ autobind:
 models:
   RequestStreamTiming:
     model: github.com/looplj/axonhub/internal/objects.RequestStreamTiming
+  RequestOutputBatches:
+    model: github.com/looplj/axonhub/internal/server/biz.RequestOutputBatches
   RequestOutputRate:
     model: github.com/looplj/axonhub/internal/server/biz.RequestOutputRate
   PromptWriteCacheVariantCode:

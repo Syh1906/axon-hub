@@ -22,7 +22,7 @@ func appendAnalyticsPerformance(s *sql.Selector) {
 		sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(execution.C("id"), execution.C("request_id"), execution.C("channel_id"), execution.C("project_id"), s.C("id"))),
 	))
 	tokens := usageanalytics.TextTokensSQL(s.C("completion_tokens"), s.C("cost_snapshot"), s.C("completion_audio_tokens"), s.Dialect())
-	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"), execution.C("content_batches"))
 	firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
 	s.AppendSelect(sql.As("AVG("+speed+")", "tokens_per_second"),
 		sql.As("AVG("+firstToken+")", "ttft_ms"))

@@ -156,6 +156,7 @@ export function UsageRequestTable({
                     streamTiming: item.streamTiming,
                     outputTokensPerSecond: item.outputTokensPerSecond,
                     outputRate: item.outputRate,
+                    outputBatches: item.outputBatches,
                   }}
                 />
               </TableCell>

@@ -33318,6 +33318,10 @@ type RequestExecutionMutation struct {
 	addmetrics_latency_ms             *int64
 	metrics_first_token_latency_ms    *int64
 	addmetrics_first_token_latency_ms *int64
+	content_batches                   *int
+	addcontent_batches                *int
+	content_batch_span_ms             *int64
+	addcontent_batch_span_ms          *int64
 	metrics_first_byte_latency_ms     *int64
 	addmetrics_first_byte_latency_ms  *int64
 	metrics_first_byte_recorded       *bool
@@ -35186,6 +35190,146 @@ func (m *RequestExecutionMutation) ResetMetricsFirstTokenLatencyMs() {
 	delete(m.clearedFields, requestexecution.FieldMetricsFirstTokenLatencyMs)
 }
 
+// SetContentBatches sets the "content_batches" field.
+func (m *RequestExecutionMutation) SetContentBatches(i int) {
+	m.content_batches = &i
+	m.addcontent_batches = nil
+}
+
+// ContentBatches returns the value of the "content_batches" field in the mutation.
+func (m *RequestExecutionMutation) ContentBatches() (r int, exists bool) {
+	v := m.content_batches
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentBatches returns the old "content_batches" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldContentBatches(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentBatches is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentBatches requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentBatches: %w", err)
+	}
+	return oldValue.ContentBatches, nil
+}
+
+// AddContentBatches adds i to the "content_batches" field.
+func (m *RequestExecutionMutation) AddContentBatches(i int) {
+	if m.addcontent_batches != nil {
+		*m.addcontent_batches += i
+	} else {
+		m.addcontent_batches = &i
+	}
+}
+
+// AddedContentBatches returns the value that was added to the "content_batches" field in this mutation.
+func (m *RequestExecutionMutation) AddedContentBatches() (r int, exists bool) {
+	v := m.addcontent_batches
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (m *RequestExecutionMutation) ClearContentBatches() {
+	m.content_batches = nil
+	m.addcontent_batches = nil
+	m.clearedFields[requestexecution.FieldContentBatches] = struct{}{}
+}
+
+// ContentBatchesCleared returns if the "content_batches" field was cleared in this mutation.
+func (m *RequestExecutionMutation) ContentBatchesCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldContentBatches]
+	return ok
+}
+
+// ResetContentBatches resets all changes to the "content_batches" field.
+func (m *RequestExecutionMutation) ResetContentBatches() {
+	m.content_batches = nil
+	m.addcontent_batches = nil
+	delete(m.clearedFields, requestexecution.FieldContentBatches)
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (m *RequestExecutionMutation) SetContentBatchSpanMs(i int64) {
+	m.content_batch_span_ms = &i
+	m.addcontent_batch_span_ms = nil
+}
+
+// ContentBatchSpanMs returns the value of the "content_batch_span_ms" field in the mutation.
+func (m *RequestExecutionMutation) ContentBatchSpanMs() (r int64, exists bool) {
+	v := m.content_batch_span_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentBatchSpanMs returns the old "content_batch_span_ms" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldContentBatchSpanMs(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentBatchSpanMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentBatchSpanMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentBatchSpanMs: %w", err)
+	}
+	return oldValue.ContentBatchSpanMs, nil
+}
+
+// AddContentBatchSpanMs adds i to the "content_batch_span_ms" field.
+func (m *RequestExecutionMutation) AddContentBatchSpanMs(i int64) {
+	if m.addcontent_batch_span_ms != nil {
+		*m.addcontent_batch_span_ms += i
+	} else {
+		m.addcontent_batch_span_ms = &i
+	}
+}
+
+// AddedContentBatchSpanMs returns the value that was added to the "content_batch_span_ms" field in this mutation.
+func (m *RequestExecutionMutation) AddedContentBatchSpanMs() (r int64, exists bool) {
+	v := m.addcontent_batch_span_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (m *RequestExecutionMutation) ClearContentBatchSpanMs() {
+	m.content_batch_span_ms = nil
+	m.addcontent_batch_span_ms = nil
+	m.clearedFields[requestexecution.FieldContentBatchSpanMs] = struct{}{}
+}
+
+// ContentBatchSpanMsCleared returns if the "content_batch_span_ms" field was cleared in this mutation.
+func (m *RequestExecutionMutation) ContentBatchSpanMsCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldContentBatchSpanMs]
+	return ok
+}
+
+// ResetContentBatchSpanMs resets all changes to the "content_batch_span_ms" field.
+func (m *RequestExecutionMutation) ResetContentBatchSpanMs() {
+	m.content_batch_span_ms = nil
+	m.addcontent_batch_span_ms = nil
+	delete(m.clearedFields, requestexecution.FieldContentBatchSpanMs)
+}
+
 // SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
 func (m *RequestExecutionMutation) SetMetricsFirstByteLatencyMs(i int64) {
 	m.metrics_first_byte_latency_ms = &i
@@ -35808,7 +35952,7 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 42)
+	fields := make([]string, 0, 44)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
@@ -35907,6 +36051,12 @@ func (m *RequestExecutionMutation) Fields() []string {
 	}
 	if m.metrics_first_token_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
+	}
+	if m.content_batches != nil {
+		fields = append(fields, requestexecution.FieldContentBatches)
+	}
+	if m.content_batch_span_ms != nil {
+		fields = append(fields, requestexecution.FieldContentBatchSpanMs)
 	}
 	if m.metrics_first_byte_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
@@ -36009,6 +36159,10 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.MetricsLatencyMs()
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.MetricsFirstTokenLatencyMs()
+	case requestexecution.FieldContentBatches:
+		return m.ContentBatches()
+	case requestexecution.FieldContentBatchSpanMs:
+		return m.ContentBatchSpanMs()
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		return m.MetricsFirstByteLatencyMs()
 	case requestexecution.FieldMetricsFirstByteRecorded:
@@ -36102,6 +36256,10 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldMetricsLatencyMs(ctx)
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.OldMetricsFirstTokenLatencyMs(ctx)
+	case requestexecution.FieldContentBatches:
+		return m.OldContentBatches(ctx)
+	case requestexecution.FieldContentBatchSpanMs:
+		return m.OldContentBatchSpanMs(ctx)
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		return m.OldMetricsFirstByteLatencyMs(ctx)
 	case requestexecution.FieldMetricsFirstByteRecorded:
@@ -36360,6 +36518,20 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetMetricsFirstTokenLatencyMs(v)
 		return nil
+	case requestexecution.FieldContentBatches:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentBatches(v)
+		return nil
+	case requestexecution.FieldContentBatchSpanMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentBatchSpanMs(v)
+		return nil
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		v, ok := value.(int64)
 		if !ok {
@@ -36461,6 +36633,12 @@ func (m *RequestExecutionMutation) AddedFields() []string {
 	if m.addmetrics_first_token_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
 	}
+	if m.addcontent_batches != nil {
+		fields = append(fields, requestexecution.FieldContentBatches)
+	}
+	if m.addcontent_batch_span_ms != nil {
+		fields = append(fields, requestexecution.FieldContentBatchSpanMs)
+	}
 	if m.addmetrics_first_byte_latency_ms != nil {
 		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
 	}
@@ -36498,6 +36676,10 @@ func (m *RequestExecutionMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedMetricsLatencyMs()
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		return m.AddedMetricsFirstTokenLatencyMs()
+	case requestexecution.FieldContentBatches:
+		return m.AddedContentBatches()
+	case requestexecution.FieldContentBatchSpanMs:
+		return m.AddedContentBatchSpanMs()
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		return m.AddedMetricsFirstByteLatencyMs()
 	case requestexecution.FieldTheoreticalCacheTokens:
@@ -36582,6 +36764,20 @@ func (m *RequestExecutionMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMetricsFirstTokenLatencyMs(v)
+		return nil
+	case requestexecution.FieldContentBatches:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddContentBatches(v)
+		return nil
+	case requestexecution.FieldContentBatchSpanMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddContentBatchSpanMs(v)
 		return nil
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		v, ok := value.(int64)
@@ -36677,6 +36873,12 @@ func (m *RequestExecutionMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(requestexecution.FieldMetricsFirstTokenLatencyMs) {
 		fields = append(fields, requestexecution.FieldMetricsFirstTokenLatencyMs)
+	}
+	if m.FieldCleared(requestexecution.FieldContentBatches) {
+		fields = append(fields, requestexecution.FieldContentBatches)
+	}
+	if m.FieldCleared(requestexecution.FieldContentBatchSpanMs) {
+		fields = append(fields, requestexecution.FieldContentBatchSpanMs)
 	}
 	if m.FieldCleared(requestexecution.FieldMetricsFirstByteLatencyMs) {
 		fields = append(fields, requestexecution.FieldMetricsFirstByteLatencyMs)
@@ -36781,6 +36983,12 @@ func (m *RequestExecutionMutation) ClearField(name string) error {
 		return nil
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		m.ClearMetricsFirstTokenLatencyMs()
+		return nil
+	case requestexecution.FieldContentBatches:
+		m.ClearContentBatches()
+		return nil
+	case requestexecution.FieldContentBatchSpanMs:
+		m.ClearContentBatchSpanMs()
 		return nil
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		m.ClearMetricsFirstByteLatencyMs()
@@ -36912,6 +37120,12 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldMetricsFirstTokenLatencyMs:
 		m.ResetMetricsFirstTokenLatencyMs()
+		return nil
+	case requestexecution.FieldContentBatches:
+		m.ResetContentBatches()
+		return nil
+	case requestexecution.FieldContentBatchSpanMs:
+		m.ResetContentBatchSpanMs()
 		return nil
 	case requestexecution.FieldMetricsFirstByteLatencyMs:
 		m.ResetMetricsFirstByteLatencyMs()

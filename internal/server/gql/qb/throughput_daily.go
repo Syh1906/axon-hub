@@ -152,7 +152,7 @@ func outputSpeedSQL(alias, placeholder string) string {
 		dialect = "postgres"
 	}
 	tokens := usageanalytics.TextTokensSQL("ul.completion_tokens", "ul.cost_snapshot", "ul.completion_audio_tokens", dialect)
-	return usageanalytics.OutputSpeedSQL(tokens, alias+".metrics_latency_ms", alias+".metrics_first_byte_latency_ms", alias+".stream", alias+".format")
+	return usageanalytics.OutputSpeedSQL(tokens, alias+".metrics_latency_ms", alias+".metrics_first_byte_latency_ms", alias+".stream", alias+".format", alias+".content_batches")
 }
 
 func throughputCalculationSQL(alias, placeholder string) string {
@@ -180,7 +180,7 @@ func buildDailyRowNumberQuery(dateExpr string, config DailyQueryFragmentConfig, 
 		"        id, request_id, project_id,\n" +
 		"        channel_id,\n" +
 		"        metrics_latency_ms,\n" +
-		"        metrics_first_token_latency_ms, metrics_first_byte_latency_ms,\n" +
+		"        metrics_first_token_latency_ms, metrics_first_byte_latency_ms, content_batches,\n" +
 		"        stream, format, status,\n" +
 		"        created_at,\n" +
 		"        ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC, id DESC) as rn\n" +
@@ -221,7 +221,7 @@ func buildDailyDistinctOnQuery(dateExpr string, config DailyQueryFragmentConfig,
 		"        id, request_id, project_id,\n" +
 		"        channel_id,\n" +
 		"        metrics_latency_ms,\n" +
-		"        metrics_first_token_latency_ms, metrics_first_byte_latency_ms,\n" +
+		"        metrics_first_token_latency_ms, metrics_first_byte_latency_ms, content_batches,\n" +
 		"        stream, format, status,\n" +
 		"        created_at\n" +
 
@@ -351,7 +351,7 @@ func buildDailyPerformanceStatsRowNumberQuery(dateExpr string, config DailyQuery
 		channelColumn +
 		"        " + config.IDColumn + ",\n" +
 		"        se.metrics_latency_ms,\n" +
-		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms,\n" +
+		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms, se.content_batches,\n" +
 		"        se.stream, se.format, se.status,\n" +
 		"        " + dateExpr + " as exec_date" + rankingColumn + "\n" +
 		"    FROM request_executions se\n" +
@@ -399,7 +399,7 @@ func buildDailyPerformanceStatsDistinctOnQuery(dateExpr string, config DailyQuer
 		channelColumn +
 		"        " + config.IDColumn + ",\n" +
 		"        se.metrics_latency_ms,\n" +
-		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms,\n" +
+		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms, se.content_batches,\n" +
 		"        se.stream, se.format, se.status,\n" +
 		"        " + dateExpr + " as exec_date\n" +
 
@@ -445,7 +445,7 @@ func buildDailyPerformanceStatsMaxIDQuery(dateExpr string, config DailyQueryFrag
 		channelColumn +
 		"        " + config.IDColumn + ",\n" +
 		"        se.metrics_latency_ms,\n" +
-		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms,\n" +
+		"        se.metrics_first_token_latency_ms, se.metrics_first_byte_latency_ms, se.content_batches,\n" +
 		"        se.stream, se.format, se.status,\n" +
 		"        " + dateExpr + " as exec_date\n" +
 		"    FROM request_executions se\n" +

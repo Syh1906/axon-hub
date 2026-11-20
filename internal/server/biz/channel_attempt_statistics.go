@@ -32,7 +32,7 @@ func channelAttemptExpressions(q *sql.Selector) (outcome, first, speed string) {
 	outcome = usageanalytics.ChannelOutcomeSQL(q.C("status"), q.C("selection"), q.C("response_status_code"), q.C("error_message"), q.Dialect())
 	first = usageanalytics.FirstTokenSQL(q.C("metrics_first_token_latency_ms"), q.C("metrics_latency_ms"), q.C("stream"), q.C("status"))
 	speed = usageanalytics.OutputSpeedSQL(usageanalytics.TextTokensSQL(u.C("completion_tokens"), u.C("cost_snapshot"), u.C("completion_audio_tokens"), q.Dialect()),
-		q.C("metrics_latency_ms"), q.C("metrics_first_byte_latency_ms"), q.C("stream"), q.C("format"))
+		q.C("metrics_latency_ms"), q.C("metrics_first_byte_latency_ms"), q.C("stream"), q.C("format"), q.C("content_batches"))
 	return
 }
 

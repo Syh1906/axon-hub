@@ -542,6 +542,8 @@ func extractOutboundReasoningEffort(channelRequest httpclient.Request, format ll
 
 // LatencyMetrics holds latency metrics for a request.
 type LatencyMetrics struct {
+	ContentBatches      *int
+	ContentBatchSpanMs  *int64
 	LatencyMs           *int64
 	FirstTokenLatencyMs *int64
 	FirstByteLatencyMs  *int64
@@ -923,6 +925,7 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 		return err
 	}
 	if metrics != nil {
+		upd.SetNillableContentBatches(metrics.ContentBatches).SetNillableContentBatchSpanMs(metrics.ContentBatchSpanMs)
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
 	}
 
@@ -1027,6 +1030,7 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 		return err
 	}
 	if metrics != nil {
+		upd.SetNillableContentBatches(metrics.ContentBatches).SetNillableContentBatchSpanMs(metrics.ContentBatchSpanMs)
 		upd.SetNillableMetricsFirstByteLatencyMs(metrics.FirstByteLatencyMs).SetMetricsFirstByteRecorded(true)
 	}
 	// A later status-only update must not clear metadata captured at finalization.

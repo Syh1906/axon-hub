@@ -30,7 +30,7 @@ type consumptionDate struct {
 
 var consumptionStatisticFields = map[string][]string{
 	"Request":          {"status", "channel_id", "result_execution_id", "failure"},
-	"RequestExecution": {"status", "metrics_latency_ms", "metrics_first_token_latency_ms", "metrics_first_byte_latency_ms", "metrics_first_byte_recorded", "response_status_code", "error_message", "selection"},
+	"RequestExecution": {"status", "content_batches", "metrics_latency_ms", "metrics_first_token_latency_ms", "metrics_first_byte_latency_ms", "metrics_first_byte_recorded", "response_status_code", "error_message", "selection"},
 	"UsageLog":         nil, "UsageArchive": nil, "CacheEffectivenessWindow": nil,
 	"BudgetCharge": {"usage_log_id"}, "APIKey": {"name", "group_ref", "deleted_at"}, "APIKeyGroup": {"name"},
 	"User": {"first_name", "last_name", "email", "deleted_at"}, "Channel": {"deleted_at"}, "Project": {"name"},

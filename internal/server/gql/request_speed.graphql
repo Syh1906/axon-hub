@@ -1,4 +1,5 @@
 extend type Request {
+  outputBatches: RequestOutputBatches @goField(forceResolver: true)
   outputRate: RequestOutputRate @goField(forceResolver: true)
   outputTokensPerSecond: Float @goField(forceResolver: true)
   costRecalculationPreview: CostRecalculationPreview! @goField(forceResolver: true)

@@ -151,6 +151,8 @@ func (RequestExecution) Fields() []ent.Field {
 		field.Int64("metrics_latency_ms").Optional().Nillable(),
 		// First token latency in milliseconds (only for streaming requests)
 		field.Int64("metrics_first_token_latency_ms").Optional().Nillable(),
+		field.Int("content_batches").Optional().Nillable().Annotations(entgql.Skip()),
+		field.Int64("content_batch_span_ms").Optional().Nillable().Annotations(entgql.Skip()),
 		field.Int64("metrics_first_byte_latency_ms").Optional().Nillable().Annotations(entgql.Skip()),
 		field.Bool("metrics_first_byte_recorded").Optional().Nillable().Annotations(entgql.Skip()),
 		field.String("cache_compatibility_key").MaxLen(160).Optional().Nillable().Immutable().Annotations(entgql.Skip()),

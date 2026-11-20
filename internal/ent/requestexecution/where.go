@@ -180,6 +180,16 @@ func MetricsFirstTokenLatencyMs(v int64) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstTokenLatencyMs, v))
 }
 
+// ContentBatches applies equality check predicate on the "content_batches" field. It's identical to ContentBatchesEQ.
+func ContentBatches(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldContentBatches, v))
+}
+
+// ContentBatchSpanMs applies equality check predicate on the "content_batch_span_ms" field. It's identical to ContentBatchSpanMsEQ.
+func ContentBatchSpanMs(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldContentBatchSpanMs, v))
+}
+
 // MetricsFirstByteLatencyMs applies equality check predicate on the "metrics_first_byte_latency_ms" field. It's identical to MetricsFirstByteLatencyMsEQ.
 func MetricsFirstByteLatencyMs(v int64) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldMetricsFirstByteLatencyMs, v))
@@ -1538,6 +1548,106 @@ func MetricsFirstTokenLatencyMsIsNil() predicate.RequestExecution {
 // MetricsFirstTokenLatencyMsNotNil applies the NotNil predicate on the "metrics_first_token_latency_ms" field.
 func MetricsFirstTokenLatencyMsNotNil() predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldNotNull(FieldMetricsFirstTokenLatencyMs))
+}
+
+// ContentBatchesEQ applies the EQ predicate on the "content_batches" field.
+func ContentBatchesEQ(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldContentBatches, v))
+}
+
+// ContentBatchesNEQ applies the NEQ predicate on the "content_batches" field.
+func ContentBatchesNEQ(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldContentBatches, v))
+}
+
+// ContentBatchesIn applies the In predicate on the "content_batches" field.
+func ContentBatchesIn(vs ...int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldContentBatches, vs...))
+}
+
+// ContentBatchesNotIn applies the NotIn predicate on the "content_batches" field.
+func ContentBatchesNotIn(vs ...int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldContentBatches, vs...))
+}
+
+// ContentBatchesGT applies the GT predicate on the "content_batches" field.
+func ContentBatchesGT(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldContentBatches, v))
+}
+
+// ContentBatchesGTE applies the GTE predicate on the "content_batches" field.
+func ContentBatchesGTE(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldContentBatches, v))
+}
+
+// ContentBatchesLT applies the LT predicate on the "content_batches" field.
+func ContentBatchesLT(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldContentBatches, v))
+}
+
+// ContentBatchesLTE applies the LTE predicate on the "content_batches" field.
+func ContentBatchesLTE(v int) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldContentBatches, v))
+}
+
+// ContentBatchesIsNil applies the IsNil predicate on the "content_batches" field.
+func ContentBatchesIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldContentBatches))
+}
+
+// ContentBatchesNotNil applies the NotNil predicate on the "content_batches" field.
+func ContentBatchesNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldContentBatches))
+}
+
+// ContentBatchSpanMsEQ applies the EQ predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldEQ(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsNEQ applies the NEQ predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsNEQ(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNEQ(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsIn applies the In predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIn(FieldContentBatchSpanMs, vs...))
+}
+
+// ContentBatchSpanMsNotIn applies the NotIn predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsNotIn(vs ...int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotIn(FieldContentBatchSpanMs, vs...))
+}
+
+// ContentBatchSpanMsGT applies the GT predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsGT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGT(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsGTE applies the GTE predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsGTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldGTE(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsLT applies the LT predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsLT(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLT(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsLTE applies the LTE predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsLTE(v int64) predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldLTE(FieldContentBatchSpanMs, v))
+}
+
+// ContentBatchSpanMsIsNil applies the IsNil predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldContentBatchSpanMs))
+}
+
+// ContentBatchSpanMsNotNil applies the NotNil predicate on the "content_batch_span_ms" field.
+func ContentBatchSpanMsNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldContentBatchSpanMs))
 }
 
 // MetricsFirstByteLatencyMsEQ applies the EQ predicate on the "metrics_first_byte_latency_ms" field.

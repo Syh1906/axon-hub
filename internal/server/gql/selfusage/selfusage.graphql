@@ -87,6 +87,7 @@ type SelfUsageRequest {
   cacheWriteTokens5m: Int!
   cacheWriteTokens1h: Int!
   outputTokensPerSecond: Float
+  outputBatches: RequestOutputBatches
   outputRate: RequestOutputRate
 
   apiKeyName: String!

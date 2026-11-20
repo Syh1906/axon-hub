@@ -122,6 +122,7 @@ export const requestRoutingDecisionSchema = z.object({
 export const requestSchema = z.object({
   continuationCount: z.number().int().nonnegative().optional(),
   outputTokensPerSecond: z.number().nullable().optional(),
+  outputBatches: z.object({ count: z.number(), spanMs: z.number().nullable() }).nullish(),
   outputRate: z.object({ outputTokens: z.number(), reasoningTokens: z.number().nullable(), durationMs: z.number() }).nullable().optional(),
   streamTiming: z.object({
     firstEvent: z.string(), firstEventMs: z.number().nullable(), durationMs: z.number().nullable(),

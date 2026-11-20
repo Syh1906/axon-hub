@@ -87,6 +87,7 @@
   "analytics.table.uncachedTokens": "Input Token (Uncached)",
   "analytics.table.outputTokens": "Output Token",
   "analytics.table.totalTokens": "Total Token",
+  "analytics.table.speedCounts": "Measured {{valid}} · Single batch {{single}}",
   "analytics.table.tokensPerSecond": "tok/s",
   "analytics.table.ttft": "TTFT (ms)",
   "analytics.table.cost": "Cost",

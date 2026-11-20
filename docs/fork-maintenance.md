@@ -18,6 +18,7 @@
 
 ## 请求首字、平均流速与上游续聊（待发布）
 
+- 请求流速保留原始估算值，单批输出在数值下方标记。渠道统计按执行排除已确认的单批返回；模型分析展示测速和单批数量。无用量时独立回读分批；OpenRouter、Copilot 推理及通过 Chat 入口返回的 Responses 事件按实际内容计数。
 - 请求列表与个人用量列表使用最终转发的语义首字和vLLM 平均流速（输出 token 减一，再除以首个有效输出到结束的秒数）。请求上的可空 `stream_timing` 记录成功写出的首段、正文和尾段，支持旧记录与备份还原。渠道评分与归档报表继续使用原有样本和公式。[计时契约](zh/guides/storage-maintenance.md#请求列表的首字与平均流速)
 - 对 HTTP 入站按已验证模型、出口和凭据选择上游 WS，并在原连接上核对响应编号和连接代次。需要完整历史的提示、保护、插件与条件选路沿用完整输入。无状态出口核对最终正文后共享旧历史，预算从临时占用原子转交给新快照。主备继承请求剩余时限，已知备用上传来不及时终止本次派发。[HTTP 续聊回归](../internal/server/api/responses_protocol_continuation_test.go) · [三轮历史回归](../internal/server/orchestrator/responses_snapshot_test.go)
 - 复核短续聊的三个边界。带额度的调用按完整历史预估，同一密钥改为只允许其他渠道时重走现有选路；上游省略终帧内容时核对已交付的工具项与正文。切换备用地址前被剩余时限阻止时保留上一次真实错误。所有用量列表的悬浮使用同一执行的 token、转发时长与正文批次。[额度回归](../internal/server/orchestrator/budget_test.go) · [正文交付回归](../internal/contexts/responses_event_timing_test.go)

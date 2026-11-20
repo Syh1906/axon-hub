@@ -92,6 +92,7 @@ type SelfUsageRequest struct {
 	CacheWriteTokens1h    int
 	OutputTokensPerSecond *float64
 	OutputRate            *RequestOutputRate
+	OutputBatches         *RequestOutputBatches
 	APIKeyName            string
 	ID                    int
 	CreatedAt             time.Time
@@ -562,6 +563,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			row.PassThroughApplied, row.ClientStatusCode = display.PassThroughApplied, display.ClientStatusCode
 			row.RetryCount, row.OutputTokensPerSecond = display.RetryCount, display.OutputTokensPerSecond
 			row.OutputRate = display.OutputRate
+			row.OutputBatches = display.OutputBatches
 			row.CacheWriteTokens5m, row.CacheWriteTokens1h = cacheWrites[req.ID].CacheWrite5m, cacheWrites[req.ID].CacheWrite1h
 			if key := callers[req.APIKeyID]; key != nil {
 				row.CallerKeyName = key.Name

@@ -81,6 +81,8 @@ First token measures the selected upstream attempt until its first answer, reaso
 
 Stream rate uses the vLLM per-request formula. Divide the successful attempt’s output token count minus one by the seconds from its first meaningful output to completion. Input and cached tokens are excluded. Reasoning tokens included in the reported output count contribute once. Requests with fewer than two tokens, missing usage or timing, non-streaming or media output, and failed or canceled requests have no rate. The first event displayed in the log can precede the first output token if the provider announces a reasoning or tool item.
 
+A Single batch badge below the estimate identifies output delivered in one upstream event. Text, reasoning and tool arguments count as content. Empty events and repeated completion summaries add no batches. Hover over the rate for the batch count and the time between the first and last content events. Historical rows with missing evidence show unknown batch information. Speed aggregates exclude confirmed single batches. Usage includes their reported tokens. If usage is missing, the log still shows the observed batches and leaves the rate empty.
+
 The stream-rate tooltip shows the matched output tokens, reported reasoning tokens and attempt duration. A single answer-text batch is labeled as such. When each batch of the same answer has verifiable token counts and the first and last writes are at least one millisecond apart, the text delivery rate uses the tokens after the first batch divided by the interval between writes. Repeated completion events count once. Missing measurements are labeled as unavailable.
 
 ## Protecting request traffic

@@ -1099,6 +1099,8 @@ var (
 		{Name: "stream", Type: field.TypeBool, Default: false},
 		{Name: "metrics_latency_ms", Type: field.TypeInt64, Nullable: true},
 		{Name: "metrics_first_token_latency_ms", Type: field.TypeInt64, Nullable: true},
+		{Name: "content_batches", Type: field.TypeInt, Nullable: true},
+		{Name: "content_batch_span_ms", Type: field.TypeInt64, Nullable: true},
 		{Name: "metrics_first_byte_latency_ms", Type: field.TypeInt64, Nullable: true},
 		{Name: "metrics_first_byte_recorded", Type: field.TypeBool, Nullable: true},
 		{Name: "cache_compatibility_key", Type: field.TypeString, Nullable: true, Size: 160},
@@ -1120,19 +1122,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "request_executions_channels_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[40]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[42]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_data_storages_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[41]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[43]},
 				RefColumns: []*schema.Column{DataStoragesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "request_executions_requests_executions",
-				Columns:    []*schema.Column{RequestExecutionsColumns[42]},
+				Columns:    []*schema.Column{RequestExecutionsColumns[44]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1146,7 +1148,7 @@ var (
 			{
 				Name:    "request_executions_by_usage_match",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[40], RequestExecutionsColumns[9], RequestExecutionsColumns[0]},
+				Columns: []*schema.Column{RequestExecutionsColumns[44], RequestExecutionsColumns[42], RequestExecutionsColumns[9], RequestExecutionsColumns[0]},
 			},
 			{
 				Name:    "request_executions_by_created_at",
@@ -1156,17 +1158,17 @@ var (
 			{
 				Name:    "request_executions_by_request_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[27], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[44], RequestExecutionsColumns[27], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_request_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[44], RequestExecutionsColumns[1]},
 			},
 			{
 				Name:    "request_executions_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestExecutionsColumns[40], RequestExecutionsColumns[1]},
+				Columns: []*schema.Column{RequestExecutionsColumns[42], RequestExecutionsColumns[1]},
 			},
 		},
 	}

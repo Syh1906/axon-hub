@@ -360,6 +360,7 @@ type modelChannelAnalyticsRaw struct {
 	CachedInputTokens      int64   `json:"cached_input_tokens"`
 	Cost                   float64 `json:"cost"`
 	SpeedSum               float64 `json:"speed_sum"`
+	SingleBatchCount       int64   `json:"single_batch_count"`
 	SpeedCount             int64   `json:"speed_count"`
 	FirstTokenLatencyMs    int64   `json:"first_token_latency_ms"`
 	FirstTokenLatencyCount int     `json:"first_token_latency_count"`
@@ -453,7 +454,7 @@ func (r *queryResolver) queryAnalyticsModelStats(
 				sql.ExprP(usageanalytics.ExecutionUsageMatchSQL(s.C("id"), s.C("request_id"), s.C("channel_id"), s.C("project_id"), speedUsage.C("id"))),
 			))
 			tokens := usageanalytics.TextTokensSQL(speedUsage.C("completion_tokens"), speedUsage.C("cost_snapshot"), speedUsage.C("completion_audio_tokens"), s.Dialect())
-			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, s.C(requestexecution.FieldMetricsFirstByteLatencyMs), streamColumn, s.C("format"))
+			speed := usageanalytics.OutputSpeedSQL(tokens, latencyColumn, s.C(requestexecution.FieldMetricsFirstByteLatencyMs), streamColumn, s.C("format"), s.C("content_batches"))
 
 			s.Select(
 				sql.As(s.C(requestexecution.FieldModelID), "model_id"),
@@ -488,6 +489,7 @@ func (r *queryResolver) queryAnalyticsModelStats(
 				), "cost"),
 				sql.As("COALESCE(SUM("+speed+"), 0)", "speed_sum"),
 				sql.As("COUNT("+speed+")", "speed_count"),
+				sql.As("COUNT(CASE WHEN "+s.C("content_batches")+" = 1 THEN 1 END)", "single_batch_count"),
 				sql.As("COALESCE(SUM("+usageanalytics.FirstTokenSQL(firstTokenColumn, latencyColumn, streamColumn, statusColumn)+"),0)", "first_token_latency_ms"),
 				sql.As("COUNT("+usageanalytics.FirstTokenSQL(firstTokenColumn, latencyColumn, streamColumn, statusColumn)+")", "first_token_latency_count"),
 			).
@@ -706,6 +708,7 @@ func buildAnalyticsModelStats(
 			Name:             raw.ChannelName,
 			RequestCount:     raw.RequestCount,
 			SpeedSampleCount: safeIntFromInt64(raw.SpeedCount),
+			SingleBatchCount: safeIntFromInt64(raw.SingleBatchCount),
 			TotalTokens:      safeIntFromInt64(raw.TotalTokens),
 			Cost:             raw.Cost,
 		}
@@ -738,6 +741,7 @@ func buildAnalyticsModelStats(
 			groups[raw.ModelID] = group
 		}
 
+		group.stat.SingleBatchCount += channelStat.SingleBatchCount
 		group.stat.RequestCount += raw.RequestCount
 		group.stat.TotalTokens = safeIntFromInt64(
 			int64(group.stat.TotalTokens) + raw.TotalTokens,

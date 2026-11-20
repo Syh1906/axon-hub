@@ -130,7 +130,7 @@ WITH successful_execs AS (
         id, request_id, project_id,
         channel_id,
         metrics_latency_ms,
-        metrics_first_byte_latency_ms,
+        content_batches, metrics_first_byte_latency_ms,
         metrics_first_token_latency_ms,
         stream, format, status,
         ROW_NUMBER() OVER (PARTITION BY request_id ORDER BY created_at DESC, id DESC) as rn
@@ -204,7 +204,7 @@ WITH successful_execs AS (
         id, request_id, project_id,
         channel_id,
         metrics_latency_ms,
-        metrics_first_byte_latency_ms,
+        content_batches, metrics_first_byte_latency_ms,
         metrics_first_token_latency_ms,
         stream, format, status
     FROM request_executions

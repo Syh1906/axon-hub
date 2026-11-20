@@ -408,6 +408,34 @@ func (_c *RequestExecutionCreate) SetNillableMetricsFirstTokenLatencyMs(v *int64
 	return _c
 }
 
+// SetContentBatches sets the "content_batches" field.
+func (_c *RequestExecutionCreate) SetContentBatches(v int) *RequestExecutionCreate {
+	_c.mutation.SetContentBatches(v)
+	return _c
+}
+
+// SetNillableContentBatches sets the "content_batches" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableContentBatches(v *int) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetContentBatches(*v)
+	}
+	return _c
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (_c *RequestExecutionCreate) SetContentBatchSpanMs(v int64) *RequestExecutionCreate {
+	_c.mutation.SetContentBatchSpanMs(v)
+	return _c
+}
+
+// SetNillableContentBatchSpanMs sets the "content_batch_span_ms" field if the given value is not nil.
+func (_c *RequestExecutionCreate) SetNillableContentBatchSpanMs(v *int64) *RequestExecutionCreate {
+	if v != nil {
+		_c.SetContentBatchSpanMs(*v)
+	}
+	return _c
+}
+
 // SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
 func (_c *RequestExecutionCreate) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionCreate {
 	_c.mutation.SetMetricsFirstByteLatencyMs(v)
@@ -825,6 +853,14 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 	if value, ok := _c.mutation.MetricsFirstTokenLatencyMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsFirstTokenLatencyMs, field.TypeInt64, value)
 		_node.MetricsFirstTokenLatencyMs = &value
+	}
+	if value, ok := _c.mutation.ContentBatches(); ok {
+		_spec.SetField(requestexecution.FieldContentBatches, field.TypeInt, value)
+		_node.ContentBatches = &value
+	}
+	if value, ok := _c.mutation.ContentBatchSpanMs(); ok {
+		_spec.SetField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64, value)
+		_node.ContentBatchSpanMs = &value
 	}
 	if value, ok := _c.mutation.MetricsFirstByteLatencyMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsFirstByteLatencyMs, field.TypeInt64, value)
@@ -1328,6 +1364,54 @@ func (u *RequestExecutionUpsert) AddMetricsFirstTokenLatencyMs(v int64) *Request
 // ClearMetricsFirstTokenLatencyMs clears the value of the "metrics_first_token_latency_ms" field.
 func (u *RequestExecutionUpsert) ClearMetricsFirstTokenLatencyMs() *RequestExecutionUpsert {
 	u.SetNull(requestexecution.FieldMetricsFirstTokenLatencyMs)
+	return u
+}
+
+// SetContentBatches sets the "content_batches" field.
+func (u *RequestExecutionUpsert) SetContentBatches(v int) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldContentBatches, v)
+	return u
+}
+
+// UpdateContentBatches sets the "content_batches" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateContentBatches() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldContentBatches)
+	return u
+}
+
+// AddContentBatches adds v to the "content_batches" field.
+func (u *RequestExecutionUpsert) AddContentBatches(v int) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldContentBatches, v)
+	return u
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (u *RequestExecutionUpsert) ClearContentBatches() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldContentBatches)
+	return u
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsert) SetContentBatchSpanMs(v int64) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldContentBatchSpanMs, v)
+	return u
+}
+
+// UpdateContentBatchSpanMs sets the "content_batch_span_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateContentBatchSpanMs() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldContentBatchSpanMs)
+	return u
+}
+
+// AddContentBatchSpanMs adds v to the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsert) AddContentBatchSpanMs(v int64) *RequestExecutionUpsert {
+	u.Add(requestexecution.FieldContentBatchSpanMs, v)
+	return u
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsert) ClearContentBatchSpanMs() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldContentBatchSpanMs)
 	return u
 }
 
@@ -1962,6 +2046,62 @@ func (u *RequestExecutionUpsertOne) UpdateMetricsFirstTokenLatencyMs() *RequestE
 func (u *RequestExecutionUpsertOne) ClearMetricsFirstTokenLatencyMs() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetContentBatches sets the "content_batches" field.
+func (u *RequestExecutionUpsertOne) SetContentBatches(v int) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetContentBatches(v)
+	})
+}
+
+// AddContentBatches adds v to the "content_batches" field.
+func (u *RequestExecutionUpsertOne) AddContentBatches(v int) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddContentBatches(v)
+	})
+}
+
+// UpdateContentBatches sets the "content_batches" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateContentBatches() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateContentBatches()
+	})
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (u *RequestExecutionUpsertOne) ClearContentBatches() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearContentBatches()
+	})
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertOne) SetContentBatchSpanMs(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetContentBatchSpanMs(v)
+	})
+}
+
+// AddContentBatchSpanMs adds v to the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertOne) AddContentBatchSpanMs(v int64) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddContentBatchSpanMs(v)
+	})
+}
+
+// UpdateContentBatchSpanMs sets the "content_batch_span_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateContentBatchSpanMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateContentBatchSpanMs()
+	})
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertOne) ClearContentBatchSpanMs() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearContentBatchSpanMs()
 	})
 }
 
@@ -2781,6 +2921,62 @@ func (u *RequestExecutionUpsertBulk) UpdateMetricsFirstTokenLatencyMs() *Request
 func (u *RequestExecutionUpsertBulk) ClearMetricsFirstTokenLatencyMs() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearMetricsFirstTokenLatencyMs()
+	})
+}
+
+// SetContentBatches sets the "content_batches" field.
+func (u *RequestExecutionUpsertBulk) SetContentBatches(v int) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetContentBatches(v)
+	})
+}
+
+// AddContentBatches adds v to the "content_batches" field.
+func (u *RequestExecutionUpsertBulk) AddContentBatches(v int) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddContentBatches(v)
+	})
+}
+
+// UpdateContentBatches sets the "content_batches" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateContentBatches() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateContentBatches()
+	})
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (u *RequestExecutionUpsertBulk) ClearContentBatches() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearContentBatches()
+	})
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertBulk) SetContentBatchSpanMs(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetContentBatchSpanMs(v)
+	})
+}
+
+// AddContentBatchSpanMs adds v to the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertBulk) AddContentBatchSpanMs(v int64) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.AddContentBatchSpanMs(v)
+	})
+}
+
+// UpdateContentBatchSpanMs sets the "content_batch_span_ms" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateContentBatchSpanMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateContentBatchSpanMs()
+	})
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (u *RequestExecutionUpsertBulk) ClearContentBatchSpanMs() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearContentBatchSpanMs()
 	})
 }
 

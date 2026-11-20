@@ -421,6 +421,60 @@ func (_u *RequestExecutionUpdate) ClearMetricsFirstTokenLatencyMs() *RequestExec
 	return _u
 }
 
+// SetContentBatches sets the "content_batches" field.
+func (_u *RequestExecutionUpdate) SetContentBatches(v int) *RequestExecutionUpdate {
+	_u.mutation.ResetContentBatches()
+	_u.mutation.SetContentBatches(v)
+	return _u
+}
+
+// SetNillableContentBatches sets the "content_batches" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableContentBatches(v *int) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetContentBatches(*v)
+	}
+	return _u
+}
+
+// AddContentBatches adds value to the "content_batches" field.
+func (_u *RequestExecutionUpdate) AddContentBatches(v int) *RequestExecutionUpdate {
+	_u.mutation.AddContentBatches(v)
+	return _u
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (_u *RequestExecutionUpdate) ClearContentBatches() *RequestExecutionUpdate {
+	_u.mutation.ClearContentBatches()
+	return _u
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdate) SetContentBatchSpanMs(v int64) *RequestExecutionUpdate {
+	_u.mutation.ResetContentBatchSpanMs()
+	_u.mutation.SetContentBatchSpanMs(v)
+	return _u
+}
+
+// SetNillableContentBatchSpanMs sets the "content_batch_span_ms" field if the given value is not nil.
+func (_u *RequestExecutionUpdate) SetNillableContentBatchSpanMs(v *int64) *RequestExecutionUpdate {
+	if v != nil {
+		_u.SetContentBatchSpanMs(*v)
+	}
+	return _u
+}
+
+// AddContentBatchSpanMs adds value to the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdate) AddContentBatchSpanMs(v int64) *RequestExecutionUpdate {
+	_u.mutation.AddContentBatchSpanMs(v)
+	return _u
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdate) ClearContentBatchSpanMs() *RequestExecutionUpdate {
+	_u.mutation.ClearContentBatchSpanMs()
+	return _u
+}
+
 // SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
 func (_u *RequestExecutionUpdate) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpdate {
 	_u.mutation.ResetMetricsFirstByteLatencyMs()
@@ -785,6 +839,24 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.MetricsFirstTokenLatencyMsCleared() {
 		_spec.ClearField(requestexecution.FieldMetricsFirstTokenLatencyMs, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ContentBatches(); ok {
+		_spec.SetField(requestexecution.FieldContentBatches, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContentBatches(); ok {
+		_spec.AddField(requestexecution.FieldContentBatches, field.TypeInt, value)
+	}
+	if _u.mutation.ContentBatchesCleared() {
+		_spec.ClearField(requestexecution.FieldContentBatches, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ContentBatchSpanMs(); ok {
+		_spec.SetField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedContentBatchSpanMs(); ok {
+		_spec.AddField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64, value)
+	}
+	if _u.mutation.ContentBatchSpanMsCleared() {
+		_spec.ClearField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.MetricsFirstByteLatencyMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsFirstByteLatencyMs, field.TypeInt64, value)
@@ -1251,6 +1323,60 @@ func (_u *RequestExecutionUpdateOne) ClearMetricsFirstTokenLatencyMs() *RequestE
 	return _u
 }
 
+// SetContentBatches sets the "content_batches" field.
+func (_u *RequestExecutionUpdateOne) SetContentBatches(v int) *RequestExecutionUpdateOne {
+	_u.mutation.ResetContentBatches()
+	_u.mutation.SetContentBatches(v)
+	return _u
+}
+
+// SetNillableContentBatches sets the "content_batches" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableContentBatches(v *int) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetContentBatches(*v)
+	}
+	return _u
+}
+
+// AddContentBatches adds value to the "content_batches" field.
+func (_u *RequestExecutionUpdateOne) AddContentBatches(v int) *RequestExecutionUpdateOne {
+	_u.mutation.AddContentBatches(v)
+	return _u
+}
+
+// ClearContentBatches clears the value of the "content_batches" field.
+func (_u *RequestExecutionUpdateOne) ClearContentBatches() *RequestExecutionUpdateOne {
+	_u.mutation.ClearContentBatches()
+	return _u
+}
+
+// SetContentBatchSpanMs sets the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdateOne) SetContentBatchSpanMs(v int64) *RequestExecutionUpdateOne {
+	_u.mutation.ResetContentBatchSpanMs()
+	_u.mutation.SetContentBatchSpanMs(v)
+	return _u
+}
+
+// SetNillableContentBatchSpanMs sets the "content_batch_span_ms" field if the given value is not nil.
+func (_u *RequestExecutionUpdateOne) SetNillableContentBatchSpanMs(v *int64) *RequestExecutionUpdateOne {
+	if v != nil {
+		_u.SetContentBatchSpanMs(*v)
+	}
+	return _u
+}
+
+// AddContentBatchSpanMs adds value to the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdateOne) AddContentBatchSpanMs(v int64) *RequestExecutionUpdateOne {
+	_u.mutation.AddContentBatchSpanMs(v)
+	return _u
+}
+
+// ClearContentBatchSpanMs clears the value of the "content_batch_span_ms" field.
+func (_u *RequestExecutionUpdateOne) ClearContentBatchSpanMs() *RequestExecutionUpdateOne {
+	_u.mutation.ClearContentBatchSpanMs()
+	return _u
+}
+
 // SetMetricsFirstByteLatencyMs sets the "metrics_first_byte_latency_ms" field.
 func (_u *RequestExecutionUpdateOne) SetMetricsFirstByteLatencyMs(v int64) *RequestExecutionUpdateOne {
 	_u.mutation.ResetMetricsFirstByteLatencyMs()
@@ -1645,6 +1771,24 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if _u.mutation.MetricsFirstTokenLatencyMsCleared() {
 		_spec.ClearField(requestexecution.FieldMetricsFirstTokenLatencyMs, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ContentBatches(); ok {
+		_spec.SetField(requestexecution.FieldContentBatches, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContentBatches(); ok {
+		_spec.AddField(requestexecution.FieldContentBatches, field.TypeInt, value)
+	}
+	if _u.mutation.ContentBatchesCleared() {
+		_spec.ClearField(requestexecution.FieldContentBatches, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ContentBatchSpanMs(); ok {
+		_spec.SetField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedContentBatchSpanMs(); ok {
+		_spec.AddField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64, value)
+	}
+	if _u.mutation.ContentBatchSpanMsCleared() {
+		_spec.ClearField(requestexecution.FieldContentBatchSpanMs, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.MetricsFirstByteLatencyMs(); ok {
 		_spec.SetField(requestexecution.FieldMetricsFirstByteLatencyMs, field.TypeInt64, value)

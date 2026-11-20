@@ -792,6 +792,8 @@ var schemaGraph = func() *sqlgraph.Schema {
 			requestexecution.FieldStream:                     {Type: field.TypeBool, Column: requestexecution.FieldStream},
 			requestexecution.FieldMetricsLatencyMs:           {Type: field.TypeInt64, Column: requestexecution.FieldMetricsLatencyMs},
 			requestexecution.FieldMetricsFirstTokenLatencyMs: {Type: field.TypeInt64, Column: requestexecution.FieldMetricsFirstTokenLatencyMs},
+			requestexecution.FieldContentBatches:             {Type: field.TypeInt, Column: requestexecution.FieldContentBatches},
+			requestexecution.FieldContentBatchSpanMs:         {Type: field.TypeInt64, Column: requestexecution.FieldContentBatchSpanMs},
 			requestexecution.FieldMetricsFirstByteLatencyMs:  {Type: field.TypeInt64, Column: requestexecution.FieldMetricsFirstByteLatencyMs},
 			requestexecution.FieldMetricsFirstByteRecorded:   {Type: field.TypeBool, Column: requestexecution.FieldMetricsFirstByteRecorded},
 			requestexecution.FieldCacheCompatibilityKey:      {Type: field.TypeString, Column: requestexecution.FieldCacheCompatibilityKey},
@@ -5469,6 +5471,16 @@ func (f *RequestExecutionFilter) WhereMetricsLatencyMs(p entql.Int64P) {
 // WhereMetricsFirstTokenLatencyMs applies the entql int64 predicate on the metrics_first_token_latency_ms field.
 func (f *RequestExecutionFilter) WhereMetricsFirstTokenLatencyMs(p entql.Int64P) {
 	f.Where(p.Field(requestexecution.FieldMetricsFirstTokenLatencyMs))
+}
+
+// WhereContentBatches applies the entql int predicate on the content_batches field.
+func (f *RequestExecutionFilter) WhereContentBatches(p entql.IntP) {
+	f.Where(p.Field(requestexecution.FieldContentBatches))
+}
+
+// WhereContentBatchSpanMs applies the entql int64 predicate on the content_batch_span_ms field.
+func (f *RequestExecutionFilter) WhereContentBatchSpanMs(p entql.Int64P) {
+	f.Where(p.Field(requestexecution.FieldContentBatchSpanMs))
 }
 
 // WhereMetricsFirstByteLatencyMs applies the entql int64 predicate on the metrics_first_byte_latency_ms field.

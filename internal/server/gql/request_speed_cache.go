@@ -17,11 +17,11 @@ type requestSpeedCacheKey struct{}
 type requestSpeedCache struct {
 	sync.Mutex
 
-	values map[int]*biz.RequestOutputRate
+	values map[int]biz.RequestOutputDetails
 }
 
 func withRequestSpeedCache(ctx context.Context) context.Context {
-	return context.WithValue(ctx, requestSpeedCacheKey{}, &requestSpeedCache{values: make(map[int]*biz.RequestOutputRate)})
+	return context.WithValue(ctx, requestSpeedCacheKey{}, &requestSpeedCache{values: make(map[int]biz.RequestOutputDetails)})
 }
 
 func cacheRequestSpeeds(ctx context.Context, client *ent.Client, page *ent.RequestConnection, err error) (*ent.RequestConnection, error) {
@@ -36,7 +36,7 @@ func cacheRequestSpeeds(ctx context.Context, client *ent.Client, page *ent.Reque
 	for _, edge := range page.Edges {
 		ids = append(ids, edge.Node.ID)
 	}
-	values, err := biz.RequestOutputRates(ctx, client, ids)
+	values, err := biz.RequestOutputDetailsByID(ctx, client, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -47,14 +47,14 @@ func cacheRequestSpeeds(ctx context.Context, client *ent.Client, page *ent.Reque
 }
 
 func requestOutputSpeed(ctx context.Context, client *ent.Client, id int) (*float64, error) {
-	rate, err := requestOutputRate(ctx, client, id)
-	if rate == nil {
+	detail, err := requestOutputDetails(ctx, client, id)
+	if detail.Rate == nil {
 		return nil, err
 	}
-	return &rate.TokensPerSecond, err
+	return detail.Rate.TokensPerSecond, err
 }
 
-func requestOutputRate(ctx context.Context, client *ent.Client, id int) (*biz.RequestOutputRate, error) {
+func requestOutputDetails(ctx context.Context, client *ent.Client, id int) (biz.RequestOutputDetails, error) {
 	if cache, ok := ctx.Value(requestSpeedCacheKey{}).(*requestSpeedCache); ok {
 		cache.Lock()
 		value, found := cache.values[id]
@@ -63,6 +63,6 @@ func requestOutputRate(ctx context.Context, client *ent.Client, id int) (*biz.Re
 			return value, nil
 		}
 	}
-	values, err := biz.RequestOutputRates(ctx, client, []int{id})
+	values, err := biz.RequestOutputDetailsByID(ctx, client, []int{id})
 	return values[id], err
 }

@@ -343,7 +343,7 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			}
 			f.client.Request.UpdateOne(req).SetChannelID(channels[0].ID).ExecX(ctx)
 			winner := f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[0].ID).
-				SetModelID("adopted").SetStatus("completed").SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+				SetModelID("adopted").SetStatus("completed").SetStream(true).SetContentBatches(2).SetContentBatchSpanMs(850).SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 			f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[1].ID).
 				SetModelID("backup").SetStatus("failed").SetResponseStatusCode(500).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 			if !legacy {
@@ -355,6 +355,11 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			require.Equal(t, 200, *page.Items[0].ClientStatusCode)
 			require.Equal(t, 1, page.Items[0].RetryCount)
 			require.ElementsMatch(t, []string{"adopted", "backup"}, page.Items[0].ExecutedModels)
+			require.NotNil(t, page.Items[0].OutputBatches)
+			require.Equal(t, 2, page.Items[0].OutputBatches.Count)
+			require.EqualValues(t, 850, *page.Items[0].OutputBatches.SpanMs)
+			require.Nil(t, page.Items[0].OutputRate)
+			require.Nil(t, page.Items[0].OutputTokensPerSecond)
 		})
 	}
 }

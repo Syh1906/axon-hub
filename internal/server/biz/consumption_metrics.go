@@ -20,7 +20,7 @@ func consumptionOutcomeAndSpeed(u *sql.Selector, execution *sql.SelectTable) (st
 	matched := sql.Table("usage_logs").As("execution_usage")
 	matched.SetDialect(u.Dialect())
 	tokens := usageanalytics.TextTokensSQL(matched.C("completion_tokens"), matched.C("cost_snapshot"), matched.C("completion_audio_tokens"), u.Dialect())
-	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"))
+	speed := usageanalytics.OutputSpeedSQL(tokens, execution.C("metrics_latency_ms"), execution.C("metrics_first_byte_latency_ms"), execution.C("stream"), execution.C("format"), execution.C("content_batches"))
 	return consumptionOutcome(execution), speed
 }
 

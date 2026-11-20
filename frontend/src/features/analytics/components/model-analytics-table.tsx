@@ -155,6 +155,9 @@ export function ModelAnalyticsTable({ data, isLoading, currencyCode }: ModelAnal
       <TableCell className='px-1.5 text-right'>{formatLatency(item.avgFirstTokenLatencyMs)}</TableCell>
       <TableCell className='px-1.5 text-right' title={t('consumption.speedSamples', { count: item.speedSampleCount })}>
         {formatOutputSpeed(item.avgOutputTokensPerSecond)}
+        <div className='text-muted-foreground text-[10px] whitespace-normal'>
+          {t('analytics.table.speedCounts', { valid: item.speedSampleCount, single: item.singleBatchCount })}
+        </div>
       </TableCell>
       <TableCell className='px-1.5 text-right'>{formatCurrency(item.costPerMillion)}</TableCell>
       <TableCell className='px-1.5 text-right'>{formatCurrency(item.cost)}</TableCell>

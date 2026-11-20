@@ -45,10 +45,12 @@ type OutboundPersistentStream struct {
 	transport          *executionTransport
 	attemptClock       *contexts.AttemptClock
 
-	transformer    transformer.Outbound
-	apiFormat      llm.APIFormat
-	perf           *biz.PerformanceRecord
-	responseChunks []*httpclient.StreamEvent
+	transformer     transformer.Outbound
+	apiFormat       llm.APIFormat
+	perf            *biz.PerformanceRecord
+	contentBatches  contexts.ContentBatches
+	observedCurrent bool
+	responseChunks  []*httpclient.StreamEvent
 	// First reported model only. Intra-stream changes are not tracked.
 	upstreamModelID string
 	terminalState   streamTerminalState
@@ -111,6 +113,7 @@ func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEve
 	if event == nil {
 		return nil
 	}
+	ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
 	ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
 	if ts.terminalState == streamTerminalNone && ts.terminalTracker.Observe(event) {
 		ts.terminalState = ts.terminalTracker.TerminalState()
@@ -122,6 +125,7 @@ func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEve
 
 func (ts *OutboundPersistentStream) Next() bool {
 	if ts.stream.Next() {
+		ts.observedCurrent = false
 		return true
 	}
 	if err := ts.stream.Err(); err != nil && !errors.Is(err, io.EOF) {
@@ -139,6 +143,10 @@ func (ts *OutboundPersistentStream) Next() bool {
 func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
+		if !ts.observedCurrent {
+			ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
+			ts.observedCurrent = true
+		}
 		ts.attemptClock.ObserveOutputProgress(ts.apiFormat, event)
 		if ts.apiFormat == llm.APIFormatOpenAIResponse || ts.apiFormat == llm.APIFormatOpenAIResponseWebSocket {
 			ts.attemptClock.ObserveResponsesEvent(event)
@@ -401,7 +409,7 @@ func (ts *OutboundPersistentStream) persistResponseChunks(ctx context.Context, s
 			// without trusting any partial response or usage returned with the error.
 			status := ts.terminalState.executionStatus()
 			if updateErr := ts.RequestService.UpdateRequestExecutionStatusWithMetrics(
-				persistCtx, ts.requestExec, status, ts.terminalError, nil, ts.failureLatencyMetrics(), ts.upstreamModelID,
+				persistCtx, ts.requestExec, status, ts.terminalError, nil, ts.executionMetrics(), ts.upstreamModelID,
 				ts.responseHeaders(), ts.responseChunks...,
 			); updateErr != nil {
 				log.Warn(persistCtx, "Failed to update terminal execution after aggregation failure",
@@ -423,10 +431,13 @@ func (ts *OutboundPersistentStream) responseHeaders() http.Header {
 	return ts.state.executionResponseHeaders(ts.requestExec.ID)
 }
 
-// failureLatencyMetrics captures the latency metrics collected before the stream failed,
-// so a failed execution still records its time-to-first-token and total latency.
-func (ts *OutboundPersistentStream) failureLatencyMetrics() *biz.LatencyMetrics {
-	return ts.perf.LatencyMetrics()
+// Timing and batching describe the same upstream attempt, including partial output.
+func (ts *OutboundPersistentStream) executionMetrics() *biz.LatencyMetrics {
+	metrics := ts.perf.LatencyMetrics()
+	if metrics != nil {
+		metrics.ContentBatches, metrics.ContentBatchSpanMs = ts.contentBatches.Result()
+	}
+	return metrics
 }
 
 // persistExecutionFailure marks the execution failed (or canceled) with a classified
@@ -436,7 +447,7 @@ func (ts *OutboundPersistentStream) persistExecutionFailure(ctx context.Context,
 		return
 	}
 
-	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec, rawErr, ts.failureLatencyMetrics(), nil, ts.upstreamModelID, ts.responseHeaders(), ts.responseChunks...)
+	err := persistRequestExecutionFailure(ctx, ts.RequestService, ts.requestExec, rawErr, ts.executionMetrics(), nil, ts.upstreamModelID, ts.responseHeaders(), ts.responseChunks...)
 	if err != nil {
 		log.Warn(ctx, "Failed to update request execution status from error", log.Cause(err))
 	}
@@ -477,7 +488,7 @@ func (ts *OutboundPersistentStream) persistAggregatedResponse(ctx context.Contex
 			log.Int("execution_id", ts.requestExec.ID), log.String("reason", accountingUnavailableReason(meta, sourceEnd)))
 	}
 
-	metrics := ts.perf.LatencyMetrics()
+	metrics := ts.executionMetrics()
 
 	status := ts.terminalState.executionStatus()
 	if ts.state.routeDecision != nil || ts.state.channelDecision != nil {

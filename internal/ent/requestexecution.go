@@ -88,6 +88,10 @@ type RequestExecution struct {
 	MetricsLatencyMs *int64 `json:"metrics_latency_ms,omitempty"`
 	// MetricsFirstTokenLatencyMs holds the value of the "metrics_first_token_latency_ms" field.
 	MetricsFirstTokenLatencyMs *int64 `json:"metrics_first_token_latency_ms,omitempty"`
+	// ContentBatches holds the value of the "content_batches" field.
+	ContentBatches *int `json:"content_batches,omitempty"`
+	// ContentBatchSpanMs holds the value of the "content_batch_span_ms" field.
+	ContentBatchSpanMs *int64 `json:"content_batch_span_ms,omitempty"`
 	// MetricsFirstByteLatencyMs holds the value of the "metrics_first_byte_latency_ms" field.
 	MetricsFirstByteLatencyMs *int64 `json:"metrics_first_byte_latency_ms,omitempty"`
 	// MetricsFirstByteRecorded holds the value of the "metrics_first_byte_recorded" field.
@@ -171,7 +175,7 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case requestexecution.FieldStatisticsOutcome, requestexecution.FieldStatisticsChannelOutcome, requestexecution.FieldStatisticsFirstTokenMs, requestexecution.FieldStatisticsOutputSpeed:
 			values[i] = new(sql.NullFloat64)
-		case requestexecution.FieldID, requestexecution.FieldStatisticsVersion, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldChannelAPIKeyIndex, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
+		case requestexecution.FieldID, requestexecution.FieldStatisticsVersion, requestexecution.FieldProjectID, requestexecution.FieldRequestID, requestexecution.FieldChannelID, requestexecution.FieldChannelAPIKeyIndex, requestexecution.FieldDataStorageID, requestexecution.FieldResponseStatusCode, requestexecution.FieldMetricsLatencyMs, requestexecution.FieldMetricsFirstTokenLatencyMs, requestexecution.FieldContentBatches, requestexecution.FieldContentBatchSpanMs, requestexecution.FieldMetricsFirstByteLatencyMs, requestexecution.FieldTheoreticalCacheTokens, requestexecution.FieldMetricsReasoningDurationMs:
 			values[i] = new(sql.NullInt64)
 		case requestexecution.FieldExternalID, requestexecution.FieldModelID, requestexecution.FieldUpstreamModelID, requestexecution.FieldFormat, requestexecution.FieldReasoningEffort, requestexecution.FieldChannelAPIKeySuffix, requestexecution.FieldErrorMessage, requestexecution.FieldRetryDecision, requestexecution.FieldStatus, requestexecution.FieldCacheCompatibilityKey, requestexecution.FieldCacheTTLBucket, requestexecution.FieldRequestURL:
 			values[i] = new(sql.NullString)
@@ -420,6 +424,20 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 				_m.MetricsFirstTokenLatencyMs = new(int64)
 				*_m.MetricsFirstTokenLatencyMs = value.Int64
 			}
+		case requestexecution.FieldContentBatches:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field content_batches", values[i])
+			} else if value.Valid {
+				_m.ContentBatches = new(int)
+				*_m.ContentBatches = int(value.Int64)
+			}
+		case requestexecution.FieldContentBatchSpanMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field content_batch_span_ms", values[i])
+			} else if value.Valid {
+				_m.ContentBatchSpanMs = new(int64)
+				*_m.ContentBatchSpanMs = value.Int64
+			}
 		case requestexecution.FieldMetricsFirstByteLatencyMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field metrics_first_byte_latency_ms", values[i])
@@ -649,6 +667,16 @@ func (_m *RequestExecution) String() string {
 	builder.WriteString(", ")
 	if v := _m.MetricsFirstTokenLatencyMs; v != nil {
 		builder.WriteString("metrics_first_token_latency_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ContentBatches; v != nil {
+		builder.WriteString("content_batches=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ContentBatchSpanMs; v != nil {
+		builder.WriteString("content_batch_span_ms=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

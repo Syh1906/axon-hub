@@ -61,6 +61,7 @@ type SelfUsageRequest struct {
 	CacheWriteTokens5m    int                            `json:"cacheWriteTokens5m"`
 	CacheWriteTokens1h    int                            `json:"cacheWriteTokens1h"`
 	OutputTokensPerSecond *float64                       `json:"outputTokensPerSecond,omitempty"`
+	OutputBatches         *biz.RequestOutputBatches      `json:"outputBatches,omitempty"`
 	OutputRate            *biz.RequestOutputRate         `json:"outputRate,omitempty"`
 	APIKeyName            string                         `json:"apiKeyName"`
 	ID                    int                            `json:"id"`

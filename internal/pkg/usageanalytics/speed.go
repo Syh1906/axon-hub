@@ -9,10 +9,10 @@ const OutputSpeedVersion = 3
 // 计时边界、参与平均的执行与过滤条件遵循本项目规则，并非全部对齐。
 // 缺失计时、过短窗口及明显缓冲后集中交付的样本不用于单次值或平均值。
 // Arguments are trusted SQL column expressions, never request values.
-func OutputSpeedSQL(tokens, duration, firstByte, stream, format string) string {
+func OutputSpeedSQL(tokens, duration, firstByte, stream, format, batches string) string {
 	window := "(" + duration + " - " + firstByte + ")"
 	rate := "(" + tokens + " * 1000.0 / NULLIF(" + window + ", 0))"
-	return fmt.Sprintf("CASE WHEN %s AND COALESCE(%s, '') NOT LIKE '%%image%%' AND COALESCE(%s, '') NOT LIKE '%%audio%%' AND COALESCE(%s, '') NOT LIKE '%%video%%' AND %s > 0 AND %s > 0 AND %s >= 0 AND %s >= 100 AND NOT (%s < %s * 0.1 AND %s > 5000) THEN %s ELSE NULL END", stream, format, format, format, tokens, duration, firstByte, window, window, duration, rate, rate)
+	return fmt.Sprintf("CASE WHEN %s THEN NULL WHEN %s AND COALESCE(%s, '') NOT LIKE '%%image%%' AND COALESCE(%s, '') NOT LIKE '%%audio%%' AND COALESCE(%s, '') NOT LIKE '%%video%%' AND %s > 0 AND %s > 0 AND %s >= 0 AND %s >= 100 AND NOT (%s < %s * 0.1 AND %s > 5000) THEN %s ELSE NULL END", batches+" = 1", stream, format, format, format, tokens, duration, firstByte, window, window, duration, rate, rate)
 }
 
 // TextTokensSQL rejects persisted image outputs even when they were sent over a

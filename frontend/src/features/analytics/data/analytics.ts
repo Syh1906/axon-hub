@@ -109,6 +109,7 @@ export const analyticsModelChannelStatSchema = z.object({
   avgFirstTokenLatencyMs: z.number().nullable(),
   avgOutputTokensPerSecond: z.number().nullable(),
   speedSampleCount: z.number(),
+  singleBatchCount: z.number(),
 });
 
 export type AnalyticsModelChannelStat = z.infer<
@@ -127,6 +128,7 @@ export const analyticsModelStatSchema = z.object({
   avgFirstTokenLatencyMs: z.number().nullable(),
   avgOutputTokensPerSecond: z.number().nullable(),
   speedSampleCount: z.number(),
+  singleBatchCount: z.number(),
   channels: z.array(analyticsModelChannelStatSchema),
 });
 
@@ -242,6 +244,7 @@ const ANALYTICS_MODEL_STATS_QUERY = `
       avgFirstTokenLatencyMs
       avgOutputTokensPerSecond
       speedSampleCount
+      singleBatchCount
       channels {
         id
         name
@@ -254,6 +257,7 @@ const ANALYTICS_MODEL_STATS_QUERY = `
         avgFirstTokenLatencyMs
         avgOutputTokensPerSecond
         speedSampleCount
+        singleBatchCount
       }
     }
   }

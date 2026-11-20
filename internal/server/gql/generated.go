@@ -308,6 +308,7 @@ type ComplexityRoot struct {
 		ID                       func(childComplexity int) int
 		Name                     func(childComplexity int) int
 		RequestCount             func(childComplexity int) int
+		SingleBatchCount         func(childComplexity int) int
 		SpeedSampleCount         func(childComplexity int) int
 		SuccessRate              func(childComplexity int) int
 		TotalTokens              func(childComplexity int) int
@@ -323,6 +324,7 @@ type ComplexityRoot struct {
 		ID                       func(childComplexity int) int
 		Name                     func(childComplexity int) int
 		RequestCount             func(childComplexity int) int
+		SingleBatchCount         func(childComplexity int) int
 		SpeedSampleCount         func(childComplexity int) int
 		SuccessRate              func(childComplexity int) int
 		TotalTokens              func(childComplexity int) int
@@ -2479,6 +2481,7 @@ type ComplexityRoot struct {
 		MetricsLatencyMs           func(childComplexity int) int
 		MetricsReasoningDurationMs func(childComplexity int) int
 		ModelID                    func(childComplexity int) int
+		OutputBatches              func(childComplexity int) int
 		OutputRate                 func(childComplexity int) int
 		OutputTokensPerSecond      func(childComplexity int) int
 		Project                    func(childComplexity int) int
@@ -2613,6 +2616,11 @@ type ComplexityRoot struct {
 		ItemCount    func(childComplexity int) int
 		OutputTokens func(childComplexity int) int
 		TotalTokens  func(childComplexity int) int
+	}
+
+	RequestOutputBatches struct {
+		Count  func(childComplexity int) int
+		SpanMs func(childComplexity int) int
 	}
 
 	RequestOutputRate struct {
@@ -2901,6 +2909,7 @@ type ComplexityRoot struct {
 		Model                 func(childComplexity int) int
 		ModelExecutions       func(childComplexity int) int
 		OutboundFormat        func(childComplexity int) int
+		OutputBatches         func(childComplexity int) int
 		OutputRate            func(childComplexity int) int
 		OutputTokens          func(childComplexity int) int
 		OutputTokensPerSecond func(childComplexity int) int
@@ -4009,6 +4018,7 @@ type RequestResolver interface {
 	ContinuationCount(ctx context.Context, obj *ent.Request) (int, error)
 	SessionExecution(ctx context.Context, obj *ent.Request) (*RequestSessionExecution, error)
 	ResultExecution(ctx context.Context, obj *ent.Request) (*RequestResultExecution, error)
+	OutputBatches(ctx context.Context, obj *ent.Request) (*biz.RequestOutputBatches, error)
 	OutputRate(ctx context.Context, obj *ent.Request) (*biz.RequestOutputRate, error)
 	OutputTokensPerSecond(ctx context.Context, obj *ent.Request) (*float64, error)
 	CostRecalculationPreview(ctx context.Context, obj *ent.Request) (*biz.CostRecalculationPreview, error)
@@ -4912,6 +4922,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AnalyticsModelChannelStat.RequestCount(childComplexity), true
+	case "AnalyticsModelChannelStat.singleBatchCount":
+		if e.complexity.AnalyticsModelChannelStat.SingleBatchCount == nil {
+			break
+		}
+
+		return e.complexity.AnalyticsModelChannelStat.SingleBatchCount(childComplexity), true
 	case "AnalyticsModelChannelStat.speedSampleCount":
 		if e.complexity.AnalyticsModelChannelStat.SpeedSampleCount == nil {
 			break
@@ -4985,6 +5001,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.AnalyticsModelStat.RequestCount(childComplexity), true
+	case "AnalyticsModelStat.singleBatchCount":
+		if e.complexity.AnalyticsModelStat.SingleBatchCount == nil {
+			break
+		}
+
+		return e.complexity.AnalyticsModelStat.SingleBatchCount(childComplexity), true
 	case "AnalyticsModelStat.speedSampleCount":
 		if e.complexity.AnalyticsModelStat.SpeedSampleCount == nil {
 			break
@@ -15279,6 +15301,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ModelID(childComplexity), true
+	case "Request.outputBatches":
+		if e.complexity.Request.OutputBatches == nil {
+			break
+		}
+
+		return e.complexity.Request.OutputBatches(childComplexity), true
 	case "Request.outputRate":
 		if e.complexity.Request.OutputRate == nil {
 			break
@@ -15901,6 +15929,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestMetadata.TotalTokens(childComplexity), true
+
+	case "RequestOutputBatches.count":
+		if e.complexity.RequestOutputBatches.Count == nil {
+			break
+		}
+
+		return e.complexity.RequestOutputBatches.Count(childComplexity), true
+	case "RequestOutputBatches.spanMs":
+		if e.complexity.RequestOutputBatches.SpanMs == nil {
+			break
+		}
+
+		return e.complexity.RequestOutputBatches.SpanMs(childComplexity), true
 
 	case "RequestOutputRate.durationMs":
 		if e.complexity.RequestOutputRate.DurationMs == nil {
@@ -17073,6 +17114,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.OutboundFormat(childComplexity), true
+	case "SelfUsageRequest.outputBatches":
+		if e.complexity.SelfUsageRequest.OutputBatches == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.OutputBatches(childComplexity), true
 	case "SelfUsageRequest.outputRate":
 		if e.complexity.SelfUsageRequest.OutputRate == nil {
 			break
@@ -29056,6 +29103,35 @@ func (ec *executionContext) fieldContext_AnalyticsModelChannelStat_speedSampleCo
 	return fc, nil
 }
 
+func (ec *executionContext) _AnalyticsModelChannelStat_singleBatchCount(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelChannelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AnalyticsModelChannelStat_singleBatchCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SingleBatchCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AnalyticsModelChannelStat_singleBatchCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnalyticsModelChannelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AnalyticsModelStat_id(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29375,6 +29451,35 @@ func (ec *executionContext) fieldContext_AnalyticsModelStat_speedSampleCount(_ c
 	return fc, nil
 }
 
+func (ec *executionContext) _AnalyticsModelStat_singleBatchCount(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AnalyticsModelStat_singleBatchCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SingleBatchCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AnalyticsModelStat_singleBatchCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnalyticsModelStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AnalyticsModelStat_channels(ctx context.Context, field graphql.CollectedField, obj *AnalyticsModelStat) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29421,6 +29526,8 @@ func (ec *executionContext) fieldContext_AnalyticsModelStat_channels(_ context.C
 				return ec.fieldContext_AnalyticsModelChannelStat_avgOutputTokensPerSecond(ctx, field)
 			case "speedSampleCount":
 				return ec.fieldContext_AnalyticsModelChannelStat_speedSampleCount(ctx, field)
+			case "singleBatchCount":
+				return ec.fieldContext_AnalyticsModelChannelStat_singleBatchCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AnalyticsModelChannelStat", field.Name)
 		},
@@ -80168,6 +80275,8 @@ func (ec *executionContext) fieldContext_Query_analyticsModelStats(ctx context.C
 				return ec.fieldContext_AnalyticsModelStat_avgOutputTokensPerSecond(ctx, field)
 			case "speedSampleCount":
 				return ec.fieldContext_AnalyticsModelStat_speedSampleCount(ctx, field)
+			case "singleBatchCount":
+				return ec.fieldContext_AnalyticsModelStat_singleBatchCount(ctx, field)
 			case "channels":
 				return ec.fieldContext_AnalyticsModelStat_channels(ctx, field)
 			}
@@ -83215,6 +83324,41 @@ func (ec *executionContext) fieldContext_Request_resultExecution(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_outputBatches(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_outputBatches,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().OutputBatches(ctx, obj)
+		},
+		nil,
+		ec.marshalORequestOutputBatches2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputBatches,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_outputBatches(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "count":
+				return ec.fieldContext_RequestOutputBatches_count(ctx, field)
+			case "spanMs":
+				return ec.fieldContext_RequestOutputBatches_spanMs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestOutputBatches", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_outputRate(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -83786,6 +83930,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "resultExecution":
 				return ec.fieldContext_Request_resultExecution(ctx, field)
+			case "outputBatches":
+				return ec.fieldContext_Request_outputBatches(ctx, field)
 			case "outputRate":
 				return ec.fieldContext_Request_outputRate(ctx, field)
 			case "outputTokensPerSecond":
@@ -84918,6 +85064,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "resultExecution":
 				return ec.fieldContext_Request_resultExecution(ctx, field)
+			case "outputBatches":
+				return ec.fieldContext_Request_outputBatches(ctx, field)
 			case "outputRate":
 				return ec.fieldContext_Request_outputRate(ctx, field)
 			case "outputTokensPerSecond":
@@ -86107,6 +86255,64 @@ func (ec *executionContext) _RequestMetadata_cachedTokens(ctx context.Context, f
 func (ec *executionContext) fieldContext_RequestMetadata_cachedTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "RequestMetadata",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestOutputBatches_count(ctx context.Context, field graphql.CollectedField, obj *biz.RequestOutputBatches) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestOutputBatches_count,
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestOutputBatches_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestOutputBatches",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestOutputBatches_spanMs(ctx context.Context, field graphql.CollectedField, obj *biz.RequestOutputBatches) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestOutputBatches_spanMs,
+		func(ctx context.Context) (any, error) {
+			return obj.SpanMs, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestOutputBatches_spanMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestOutputBatches",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -91829,6 +92035,41 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_outputTokensPerSecond(
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequest_outputBatches(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_outputBatches,
+		func(ctx context.Context) (any, error) {
+			return obj.OutputBatches, nil
+		},
+		nil,
+		ec.marshalORequestOutputBatches2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputBatches,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_outputBatches(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "count":
+				return ec.fieldContext_RequestOutputBatches_count(ctx, field)
+			case "spanMs":
+				return ec.fieldContext_RequestOutputBatches_spanMs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestOutputBatches", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequest_outputRate(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -92716,6 +92957,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 				return ec.fieldContext_SelfUsageRequest_cacheWriteTokens1h(ctx, field)
 			case "outputTokensPerSecond":
 				return ec.fieldContext_SelfUsageRequest_outputTokensPerSecond(ctx, field)
+			case "outputBatches":
+				return ec.fieldContext_SelfUsageRequest_outputBatches(ctx, field)
 			case "outputRate":
 				return ec.fieldContext_SelfUsageRequest_outputRate(ctx, field)
 			case "apiKeyName":
@@ -102729,6 +102972,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_sessionExecution(ctx, field)
 			case "resultExecution":
 				return ec.fieldContext_Request_resultExecution(ctx, field)
+			case "outputBatches":
+				return ec.fieldContext_Request_outputBatches(ctx, field)
 			case "outputRate":
 				return ec.fieldContext_Request_outputRate(ctx, field)
 			case "outputTokensPerSecond":
@@ -140486,6 +140731,11 @@ func (ec *executionContext) _AnalyticsModelChannelStat(ctx context.Context, sel 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "singleBatchCount":
+			out.Values[i] = ec._AnalyticsModelChannelStat_singleBatchCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -140566,6 +140816,11 @@ func (ec *executionContext) _AnalyticsModelStat(ctx context.Context, sel ast.Sel
 			out.Values[i] = ec._AnalyticsModelStat_avgOutputTokensPerSecond(ctx, field, obj)
 		case "speedSampleCount":
 			out.Values[i] = ec._AnalyticsModelStat_speedSampleCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "singleBatchCount":
+			out.Values[i] = ec._AnalyticsModelStat_singleBatchCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -159973,6 +160228,39 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "outputBatches":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_outputBatches(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "outputRate":
 			field := field
 
@@ -161179,6 +161467,47 @@ func (ec *executionContext) _RequestMetadata(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._RequestMetadata_totalTokens(ctx, field, obj)
 		case "cachedTokens":
 			out.Values[i] = ec._RequestMetadata_cachedTokens(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var requestOutputBatchesImplementors = []string{"RequestOutputBatches"}
+
+func (ec *executionContext) _RequestOutputBatches(ctx context.Context, sel ast.SelectionSet, obj *biz.RequestOutputBatches) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestOutputBatchesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestOutputBatches")
+		case "count":
+			out.Values[i] = ec._RequestOutputBatches_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "spanMs":
+			out.Values[i] = ec._RequestOutputBatches_spanMs(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -163268,6 +163597,8 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 			}
 		case "outputTokensPerSecond":
 			out.Values[i] = ec._SelfUsageRequest_outputTokensPerSecond(ctx, field, obj)
+		case "outputBatches":
+			out.Values[i] = ec._SelfUsageRequest_outputBatches(ctx, field, obj)
 		case "outputRate":
 			out.Values[i] = ec._SelfUsageRequest_outputRate(ctx, field, obj)
 		case "apiKeyName":
@@ -186064,6 +186395,13 @@ func (ec *executionContext) unmarshalORequestOrder2ᚖgithubᚗcomᚋloopljᚋax
 	}
 	res, err := ec.unmarshalInputRequestOrder(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORequestOutputBatches2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputBatches(ctx context.Context, sel ast.SelectionSet, v *biz.RequestOutputBatches) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestOutputBatches(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalORequestOutputRate2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐRequestOutputRate(ctx context.Context, sel ast.SelectionSet, v *biz.RequestOutputRate) graphql.Marshaler {

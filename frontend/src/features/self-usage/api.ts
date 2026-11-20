@@ -94,6 +94,7 @@ export type UsageRequest = Omit<Usage, 'successRequests' | 'failedRequests'> & {
   cacheWriteTokens1h: number;
   outputTokensPerSecond: number | null;
   outputRate?: RequestLog['outputRate'];
+  outputBatches?: RequestLog['outputBatches'];
   costItems: SelfUsageCostItem[];
   costMultiplier: number | null;
   costMultiplierMixed: boolean;
@@ -132,7 +133,7 @@ export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, 
 }`;
 export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
   selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
-    items { channel { name provider channelType tags sessionState multiplier multiplierMixed } modelExecutions { modelID upstreamModelID status format reasoningEffort passThroughApplied } callerKeyName callerGroupName reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond outputRate { outputTokens reasoningTokens durationMs } apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs streamTiming { firstEvent firstEventMs durationMs contentEvent contentWriteMs afterContentMs answerWriteMs singleAnswerBatch answerTokensPerSecond attempts } inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
+    items { channel { name provider channelType tags sessionState multiplier multiplierMixed } modelExecutions { modelID upstreamModelID status format reasoningEffort passThroughApplied } callerKeyName callerGroupName reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond outputRate { outputTokens reasoningTokens durationMs } outputBatches { count spanMs } apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs streamTiming { firstEvent firstEventMs durationMs contentEvent contentWriteMs afterContentMs answerWriteMs singleAnswerBatch answerTokensPerSecond attempts } inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
     channelVisible scopeID apiKeyName groupName page pageSize total
   }
 }`;

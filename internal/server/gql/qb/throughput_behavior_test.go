@@ -35,6 +35,8 @@ INSERT INTO request_executions VALUES
 INSERT INTO usage_logs(request_id,channel_id,completion_tokens) VALUES(1,1,100),(2,1,1500),(3,1,4000),(4,1,4000),(5,1,4000),(6,1,4000),(7,1,4000),(7,1,4000),(8,1,4000),(9,1,300);
 UPDATE usage_logs SET cost_snapshot='{"images":[{"source":"file"}]}' WHERE request_id=6;
 UPDATE usage_logs SET completion_audio_tokens=4000 WHERE request_id=8;
+ALTER TABLE request_executions ADD COLUMN content_batches INTEGER;
+UPDATE request_executions SET content_batches=1 WHERE id=1;
 ALTER TABLE request_executions ADD COLUMN project_id INTEGER DEFAULT 1;
 ALTER TABLE requests ADD COLUMN result_execution_id INTEGER;
 ALTER TABLE requests ADD COLUMN channel_id INTEGER;
@@ -68,10 +70,10 @@ CREATE TABLE budget_charges(execution_id INTEGER, project_id INTEGER, request_id
 			require.NoError(t, rows.Scan(destinations...))
 			for i, column := range columns {
 				if column == "throughput" {
-					require.Equal(t, (100.0+500.0+300.0)/3, values[i])
+					require.Equal(t, (500.0+300.0)/2, values[i])
 				}
 				if column == "request_count" {
-					count := 3
+					count := 2
 					if strings.Contains(query, "speed_sample_count") {
 						count = 9
 						if strings.Contains(query, "se.channel_id as id") {
@@ -81,7 +83,7 @@ CREATE TABLE budget_charges(execution_id INTEGER, project_id INTEGER, request_id
 					require.EqualValues(t, count, values[i])
 				}
 				if column == "speed_sample_count" {
-					require.EqualValues(t, 3, values[i])
+					require.EqualValues(t, 2, values[i])
 				}
 				if column == "first_token_sample_count" {
 					count := 7

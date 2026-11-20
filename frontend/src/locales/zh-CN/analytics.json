@@ -87,6 +87,7 @@
   "analytics.table.uncachedTokens": "输入 Token (未命中缓存)",
   "analytics.table.outputTokens": "输出 Token",
   "analytics.table.totalTokens": "总消耗 Token",
+  "analytics.table.speedCounts": "测速 {{valid}} · 单批 {{single}}",
   "analytics.table.tokensPerSecond": "tok/s",
   "analytics.table.ttft": "TTFT (ms)",
   "analytics.table.cost": "费用",

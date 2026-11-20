@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { extractNumberID } from '@/lib/utils';
+import { cn, extractNumberID } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -185,7 +185,7 @@ function latencyColor(ms: number | null | undefined, metric: 'firstToken' | 'tot
 export function RequestDurationCell({
   request,
 }: {
-  request: Pick<Request, 'stream' | 'metricsLatencyMs' | 'metricsFirstTokenLatencyMs' | 'outputTokensPerSecond' | 'streamTiming' | 'outputRate'>;
+  request: Pick<Request, 'stream' | 'metricsLatencyMs' | 'metricsFirstTokenLatencyMs' | 'outputTokensPerSecond' | 'streamTiming' | 'outputRate' | 'outputBatches'>;
 }) {
   const { t } = useTranslation();
   const latency = request.metricsLatencyMs;
@@ -199,7 +199,13 @@ export function RequestDurationCell({
     timing && timing.attempts > 1 && t('requests.duration.attempts', { count: timing.attempts }),
   ].filter(Boolean).join('\n');
   const rate = request.outputRate;
-  const speedHelp = [t('requests.duration.rateHelp'),
+  const batches = request.outputBatches;
+  const batchHelp = batches?.count === 1
+    ? t(rate ? 'requests.duration.singleBatchHelp' : 'requests.duration.singleBatchNoRate')
+    : batches?.spanMs != null
+      ? t('requests.duration.batchSpan', { count: batches.count, ms: batches.spanMs })
+      : request.stream ? t('requests.duration.batchesUnknown') : undefined;
+  const speedHelp = [t('requests.duration.rateHelp'), batchHelp,
     rate && t('requests.duration.transferTime', { elapsed: formatDuration(rate.durationMs) }),
     rate && t('requests.duration.outputUsage', {
       tokens: rate.outputTokens, reasoning: rate.reasoningTokens ?? '—',
@@ -218,15 +224,29 @@ export function RequestDurationCell({
     : (firstColor ?? totalColor)?.bar;
 
   return (
-    <div className='flex min-w-[150px] gap-2 text-xs whitespace-nowrap'>
-      <span aria-hidden='true' className='w-1 shrink-0 rounded-full' style={{ background: bar }} />
+    <div data-single-output-batch={batches?.count === 1 ? '' : undefined} className='flex min-w-[150px] gap-2 text-xs whitespace-nowrap'>
+      <span aria-hidden='true' className='h-[3.25rem] w-1 shrink-0 rounded-full' style={{ background: bar }} />
       <dl className='text-muted-foreground grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 tabular-nums'>
         <dt title={firstHelp}>{t('requests.duration.firstTokenLabel')}</dt>
         <dd title={firstHelp} className={firstColor && `font-medium ${firstColor.text}`}>{first == null ? '—' : formatDuration(first)}</dd>
         <dt>{t('requests.duration.totalLabel')}</dt>
         <dd className={totalColor && `font-medium ${totalColor.text}`}>{latency == null ? '—' : formatDuration(latency)}</dd>
         <dt title={speedHelp}>{t('requests.duration.outputRate')}</dt>
-        <dd title={speedHelp} className={speed == null ? undefined : 'text-foreground'}>{speed == null ? '—' : `${speed.toFixed(1)} tok/s`}</dd>
+        <dd title={speedHelp} className={cn('relative', speed != null && 'text-foreground')}>
+          {speed == null ? '—' : `${speed.toFixed(1)} tok/s`}
+          {batches?.count === 1 && (
+            <div className='absolute top-full left-0 mt-0.5 leading-none'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge tabIndex={0} variant='outline' aria-label={batchHelp} className='cursor-help border-amber-200 bg-amber-50 px-1 text-[10px] leading-tight text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300'>
+                    {t('requests.duration.singleBatch')}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{batchHelp}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </dd>
       </dl>
     </div>
   );

@@ -69,6 +69,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 		CacheWriteTokens5m: value.CacheWriteTokens5m, CacheWriteTokens1h: value.CacheWriteTokens1h,
 		OutputTokensPerSecond: value.OutputTokensPerSecond,
 		OutputRate:            value.OutputRate,
+		OutputBatches:         value.OutputBatches,
 		ID:                    value.ID, CreatedAt: value.CreatedAt, Model: value.Model,
 		Status: SelfUsageRequestStatus(value.Status), RequestStatus: value.RequestStatus, Stream: value.Stream,
 		LatencyMs: value.LatencyMs, FirstTokenLatencyMs: value.FirstTokenLatencyMs,

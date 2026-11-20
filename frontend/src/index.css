@@ -11,6 +11,10 @@
   box-shadow: none;
 }
 
+/* Request and self-usage rows use py-3. Reserve the badge below the whole
+   row so each cell keeps its original centering, even beside a taller cell. */
+tr:has(> td > [data-single-output-batch]) > td { padding-bottom: calc(0.75rem + 1.25rem); }
+
 .consumption-table {
   --consumption-open: color-mix(in srgb, var(--card) 82%, var(--muted));
 }

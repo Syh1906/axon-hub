@@ -12,12 +12,22 @@ import (
 	"github.com/looplj/axonhub/internal/server/biz"
 )
 
+// OutputBatches is the resolver for the outputBatches field.
+func (r *requestResolver) OutputBatches(ctx context.Context, obj *ent.Request) (*biz.RequestOutputBatches, error) {
+	if obj.Status != "completed" {
+		return nil, nil
+	}
+	detail, err := requestOutputDetails(ctx, r.client, obj.ID)
+	return detail.Batches, err
+}
+
 // OutputRate is the resolver for the outputRate field.
 func (r *requestResolver) OutputRate(ctx context.Context, obj *ent.Request) (*biz.RequestOutputRate, error) {
 	if obj.Status != "completed" {
 		return nil, nil
 	}
-	return requestOutputRate(ctx, r.client, obj.ID)
+	detail, err := requestOutputDetails(ctx, r.client, obj.ID)
+	return detail.Rate, err
 }
 
 // OutputTokensPerSecond is the resolver for the outputTokensPerSecond field.

@@ -29,7 +29,7 @@ func TestOutputSpeedUsesActualFirstByteWindow(t *testing.T) {
 		{"无输出", 0, 1500, 500, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			expression := usageanalytics.OutputSpeedSQL("tokens", "duration", "first_byte", "stream", "format")
+			expression := usageanalytics.OutputSpeedSQL("tokens", "duration", "first_byte", "stream", "format", "NULL")
 			query := fmt.Sprintf("SELECT %s FROM (SELECT ? AS tokens, ? AS duration, ? AS first_byte, TRUE AS stream, 'openai/responses' AS format)", expression)
 			var got sql.NullFloat64
 			require.NoError(t, db.QueryRow(query, tc.tokens, tc.duration, tc.first).Scan(&got))

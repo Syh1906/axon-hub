@@ -1268,15 +1268,15 @@ func init() {
 	// requestexecution.DefaultStream holds the default value on creation for the stream field.
 	requestexecution.DefaultStream = requestexecutionDescStream.Default.(bool)
 	// requestexecutionDescCacheCompatibilityKey is the schema descriptor for cache_compatibility_key field.
-	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[33].Descriptor()
+	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[35].Descriptor()
 	// requestexecution.CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
 	requestexecution.CacheCompatibilityKeyValidator = requestexecutionDescCacheCompatibilityKey.Validators[0].(func(string) error)
 	// requestexecutionDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
-	requestexecutionDescCacheTTLBucket := requestexecutionFields[35].Descriptor()
+	requestexecutionDescCacheTTLBucket := requestexecutionFields[37].Descriptor()
 	// requestexecution.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
 	requestexecution.CacheTTLBucketValidator = requestexecutionDescCacheTTLBucket.Validators[0].(func(string) error)
 	// requestexecutionDescPassThroughApplied is the schema descriptor for pass_through_applied field.
-	requestexecutionDescPassThroughApplied := requestexecutionFields[39].Descriptor()
+	requestexecutionDescPassThroughApplied := requestexecutionFields[41].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
 	responsesoriginMixin := schema.ResponsesOrigin{}.Mixin()

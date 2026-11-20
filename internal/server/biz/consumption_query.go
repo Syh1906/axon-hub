@@ -148,7 +148,7 @@ func joinLatestConsumptionExecution(s *sql.Selector) *sql.SelectTable {
 		legacySQL, _ := legacy.Query()
 		columns := "id, request_id, project_id, channel_id, model_id, statistics_outcome, statistics_first_token_ms, statistics_output_speed, " +
 			"status, error_message, response_status_code, metrics_first_byte_latency_ms, metrics_first_byte_recorded, " +
-			"metrics_first_token_latency_ms, metrics_latency_ms, stream, format, cache_compatibility_key, cache_ttl_bucket, theoretical_cache_tokens"
+			"content_batches, content_batch_span_ms, metrics_first_token_latency_ms, metrics_latency_ms, stream, format, cache_compatibility_key, cache_ttl_bucket, theoretical_cache_tokens"
 		execution = sql.Table("LATERAL (SELECT " + columns + " FROM request_executions WHERE id = COALESCE(" + resultID + ", (" + legacySQL + ")) AND request_id = " + s.C("id") + " AND project_id = " + s.C("project_id") + " AND channel_id = " + s.C("channel_id") + " OFFSET 0) AS execution").Unquote().As("execution")
 		s.LeftJoin(execution).OnP(sql.ExprP("TRUE"))
 		return execution

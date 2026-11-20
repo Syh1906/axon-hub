@@ -148,6 +148,11 @@ func verifyHTTPContinuation(t *testing.T, payloadSize int, disconnect, switchPro
 	require.True(t, row.StreamTiming.SingleAnswerBatch)
 	require.Nil(t, row.StreamTiming.AnswerTokensPerSecond)
 	require.Equal(t, 1, row.StreamTiming.Attempts)
+	details, err := biz.RequestOutputDetailsByID(ctx, client, []int{row.ID})
+	require.NoError(t, err)
+	require.NotNil(t, details[row.ID].Batches)
+	require.Equal(t, 1, details[row.ID].Batches.Count)
+	require.Zero(t, *details[row.ID].Batches.SpanMs)
 }
 
 func TestResponsesProtocolNativeContinuationRetainsCompletedConnection(t *testing.T) {

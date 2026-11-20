@@ -276,7 +276,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.tokens')} />,
         cell: ({ row }) => {
           const log = row.original.usageSummary;
-          return log ? (
+          return log && log.usageRecords > 0 ? (
             <TokensCell
               prompt={log.promptTokens || 0}
               completion={log.completionTokens || 0}
@@ -304,7 +304,10 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         id: 'cache',
         accessorFn: (row) => row.usageSummary?.promptCachedTokens ?? null,
         header: ({ column }) => <DataTableColumnHeader column={column} title={t('requests.columns.cache')} />,
-        cell: ({ row }) => <RequestCacheCell request={row.original} />,
+        cell: ({ row }) => {
+          const usage = row.original.usageSummary;
+          return <RequestCacheCell request={{ usageSummary: usage?.usageRecords ? usage : null }} />;
+        },
         enableSorting: true,
         enableHiding: true,
       },
