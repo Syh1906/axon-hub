@@ -333,9 +333,7 @@ func TestResponsesCrossTransportBodyPreservation(t *testing.T) {
 			adapted, err := applyResponsesTransportRequestBody(outbound).OnOutboundRawRequest(context.Background(), body)
 			require.NoError(t, err)
 			expectedBody := `{"model":"mapped-model","input":[{"type":"function_call_output","call_id":"call_provider","output":"tool-value","item_id":"item_provider"}],"provider_canary":"keep"}`
-			if tt.source != tt.target && tt.target == llm.APIFormatOpenAIResponseWebSocket {
-				expectedBody = `{"model":"mapped-model","input":[{"type":"function_call_output","call_id":"call_provider","output":"tool-value","item_id":"item_provider"}],"provider_canary":"keep","type":"response.create"}`
-			}
+			// The WebSocket executor adds response.create only when it sends the frame.
 			require.JSONEq(t, expectedBody,
 				string(adapted.Body))
 

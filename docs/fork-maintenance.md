@@ -2,7 +2,7 @@
 
 ## rc1-fork.15 发布
 
-基于本仓库 fork.14，纳入 Codex 基础目录订阅、兼容修复和仓库默认目录，以及请求流式计时、Responses 续传和 Alpha Search 修复。精简发布提供双架构镜像和清单。变更与 schema 说明见 [更新日志](../CHANGELOG.md)。
+基于本仓库 fork.14，纳入 Codex 基础目录订阅、兼容修复和仓库默认目录，以及请求流式计时、Responses 续传和 Alpha Search 修复。结束帧缺少输出时复用经过流事件校验的完整输出项；HTTP 请求在 WebSocket 执行器实际发送时封装。精简发布提供双架构镜像和清单。变更与 schema 说明见 [更新日志](../CHANGELOG.md)。
 
 > Parent: [AGENTS.md](../AGENTS.md)
 

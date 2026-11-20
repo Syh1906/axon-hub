@@ -481,10 +481,13 @@ func (s *responsesSessionStream) Next() bool {
 		if IsTerminalStreamEvent(s.current) {
 			s.terminal = true
 			terminal := gjson.GetBytes(s.current.Data, "response")
-			if terminal.Get("status").String() == "completed" && terminal.Get("id").String() != "" && completeHistoryOutput(terminal.Get("output"), s.chunks, s.overflow) {
-				s.recordDelivered([]byte(terminal.Raw))
-				s.chunks = nil
-				return true
+			if !s.overflow && terminal.Get("status").String() == "completed" && terminal.Get("id").String() != "" {
+				proof := observedHistoryOutput(s.chunks, func(int) bool { return true })
+				if body, ok := proof.Complete([]byte(terminal.Raw)); ok && gjson.GetBytes(body, "output.#").Int() > 0 {
+					s.recordDelivered(body)
+					s.chunks = nil
+					return true
+				}
 			}
 		}
 		if !s.overflow {
@@ -515,15 +518,20 @@ func completeHistoryOutput(output gjson.Result, events []*httpclient.StreamEvent
 	if overflow || !output.IsArray() || output.Get("#").Int() == 0 {
 		return false
 	}
+	proof := observedHistoryOutput(events, nil)
+	return proof.Covers(output)
+}
+
+func observedHistoryOutput(events []*httpclient.StreamEvent, retain func(int) bool) responses.HistoryOutput {
 	var proof responses.HistoryOutput
 	for _, ev := range events {
 		kind := ev.Type
 		if kind == "" {
 			kind = gjson.GetBytes(ev.Data, "type").String()
 		}
-		proof.Observe(kind, ev.Data, nil)
+		proof.Observe(kind, ev.Data, retain)
 	}
-	return proof.Covers(output)
+	return proof
 }
 
 func (s *responsesSessionStream) Current() *httpclient.StreamEvent { return s.current }
