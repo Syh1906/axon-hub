@@ -229,6 +229,8 @@ Provide a JSON object with a nonempty `models` array of complete Codex profiles.
 
 When an import or subscription changes a model’s effective minimum client version, the preview shows its old and new minimum. Older clients can still use compatible bundled or previously archived releases. Replicas sharing a database use the same saved source. A check started before a source switch cannot overwrite it.
 
+The catalog URL is prefilled with [the catalog maintained in this repository](https://raw.githubusercontent.com/Syh1906/axon-hub/refs/heads/release/v1.0.x/catalogs/codex/models.json). You may replace it or use **Restore repository URL** to reset the input. New installations still use the official repository until you preview and apply another source.
+
 The preview compares baseline profiles. It does not publish model IDs, edit channel permissions or overwrite saved model definitions. A fixed model definition continues to use its saved profile. An inherited model follows the selected baseline with its field overrides, context settings and visible route restrictions. An explicit release pin still selects that release. Changes become visible when the client next requests its catalog.
 
 ### Official release snapshots and rollback

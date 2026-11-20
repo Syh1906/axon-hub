@@ -775,6 +775,7 @@
   "system.codex.import.file": "或选择已有 JSON 文件",
   "system.codex.import.large": "文件过大。请选择有效模型列表不超过 1 MiB 的目录。",
   "system.codex.import.invalid": "无法读取目录。请提供包含 models 数组的 JSON。",
+  "system.codex.import.restoreRepository": "恢复本仓库地址",
   "system.codex.import.address": "目录地址",
   "system.codex.import.subscribe": "保存为订阅地址",
   "system.codex.import.urlHint": "使用公开的 HTTPS JSON 直链（GitHub 使用 Raw 地址）。订阅按本站计划检查，发现变化后手动应用。取消订阅仅导入一次。",

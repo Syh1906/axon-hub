@@ -776,6 +776,7 @@
   "system.codex.import.file": "Or select a JSON file",
   "system.codex.import.large": "File too large. Select a catalog with at most 1 MiB of model data.",
   "system.codex.import.invalid": "Could not read the catalog. Provide JSON containing a models array.",
+  "system.codex.import.restoreRepository": "Restore repository URL",
   "system.codex.import.address": "Catalog address",
   "system.codex.import.subscribe": "Save as subscription URL",
   "system.codex.import.urlHint": "Use a public HTTPS JSON URL, such as a GitHub Raw URL. Subscriptions check on schedule and wait for you to apply changes. Uncheck to import once.",

@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 export type CatalogSource = 'official' | 'manual' | 'url';
 type Change = { slug: string; action: 'add' | 'remove' | 'update'; fields?: string[]; minimumVersion?: { from: string; to: string } };
 type Preview = { revision: string; changes: Change[] };
+const repositoryCatalogURL = 'https://raw.githubusercontent.com/Syh1906/axon-hub/refs/heads/release/v1.0.x/catalogs/codex/models.json';
 const powershell =
   "$dir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }; Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $dir 'models_cache.json') | ConvertFrom-Json | Select-Object models,client_version,fetched_at | ConvertTo-Json -Depth 100 -Compress | Set-Clipboard";
 const unix = `python3 -c 'import json,os,pathlib; d=json.loads((pathlib.Path(os.environ.get("CODEX_HOME") or pathlib.Path.home()/".codex")/"models_cache.json").read_bytes()); print(json.dumps({k:d[k] for k in ("models","client_version","fetched_at") if k in d}))'`;
@@ -33,7 +34,7 @@ export function CodexCatalogImportDialog({
 }) {
   const { t } = useTranslation();
   const [source, setSource] = useState<CatalogSource>(!offline && activeSource === 'url' ? 'url' : 'manual');
-  const [url, setURL] = useState(activeURL ?? '');
+  const [url, setURL] = useState(activeURL || repositoryCatalogURL);
   const [subscribe, setSubscribe] = useState(true);
   const [raw, setRaw] = useState('');
   const [cacheInfo, setCacheInfo] = useState('');
@@ -172,7 +173,13 @@ export function CodexCatalogImportDialog({
           )}
           {source === 'url' && (
             <>
-              <Label htmlFor='catalog-url'>{t('system.codex.import.address')}</Label>
+              <div className='flex items-center justify-between gap-2'>
+                <Label htmlFor='catalog-url'>{t('system.codex.import.address')}</Label>
+                <Button type='button' size='sm' variant='ghost' disabled={url === repositoryCatalogURL} onClick={() => {
+                  reset();
+                  setURL(repositoryCatalogURL);
+                }}>{t('system.codex.import.restoreRepository')}</Button>
+              </div>
               <Input
                 id='catalog-url'
                 type='url'
