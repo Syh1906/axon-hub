@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/streams"
 )
@@ -19,6 +20,14 @@ func (p *pipeline) notStream(
 	request *httpclient.Request,
 ) (*httpclient.Response, error) {
 	httpResp, err := executor.Do(ctx, request)
+	// A video creation can allocate a paid task even when the reply is lost,
+	// or when decoding a successful reply fails later in this pipeline.
+	if request.IsVideoCreate() && !errors.Is(err, httpclient.ErrRequestNotSent) {
+		httpErr, rejected := errors.AsType[*httpclient.Error](err)
+		if !rejected || !llm.VideoCreateRejected(httpErr.StatusCode) {
+			request.OnReplayUnsafe()
+		}
+	}
 	if err != nil {
 		err = requestTimeoutCause(ctx, err)
 		// Apply error response middlewares

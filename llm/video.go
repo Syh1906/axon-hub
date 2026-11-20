@@ -125,3 +125,17 @@ type VideoError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
+
+// VideoCreateRejected distinguishes a definite client error from ambiguous delivery.
+func VideoCreateRejected(status int) bool {
+	return status >= 400 && status < 500 && status != 408
+}
+
+func IsTerminalVideoStatus(status string) bool {
+	switch status {
+	case "succeeded", "failed", "cancelled", "canceled", "expired":
+		return true
+	default:
+		return false
+	}
+}

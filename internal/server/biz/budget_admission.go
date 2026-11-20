@@ -341,7 +341,7 @@ func budgetAsyncStillPending(ctx context.Context, db *ent.Client, charge *ent.Bu
 	}
 	// A successful video submission may precede a failed task-ID persistence.
 	// Without a definite HTTP rejection, recovery must check the task first.
-	return execution.ResponseStatusCode == nil || *execution.ResponseStatusCode < 400, nil
+	return execution.ResponseStatusCode == nil || !llm.VideoCreateRejected(*execution.ResponseStatusCode), nil
 }
 
 func (s *BudgetService) withCharge(ctx context.Context, executionID int, fn func(context.Context, *ent.Client, *ent.BudgetCharge, []*ent.BudgetAccount) error) error {

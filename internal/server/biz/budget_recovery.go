@@ -90,7 +90,7 @@ func (s *UsageLogService) RecoverBudgets(ctx context.Context, video *VideoServic
 				if taskErr != nil {
 					log.Warn(ctx, "recover async budget task", log.Int("charge_id", charge.ID), log.Cause(taskErr))
 				}
-				if taskErr == nil && response != nil && response.Video != nil && (response.Video.Status == "succeeded" || response.Video.Status == "failed") {
+				if taskErr == nil && response != nil && response.Video != nil && llm.IsTerminalVideoStatus(response.Video.Status) {
 					if req != nil && video.RequestService != nil {
 						if err := video.RequestService.UpdateRequestStatusExternalIDAndResponseBody(ent.NewContext(ctx, s.db), req, mapVideoStatusToRequestStatus(response.Video.Status), charge.AsyncTask.ExternalID, response.Video, nil); err != nil {
 							log.Warn(ctx, "update recovered video task", log.Cause(err))

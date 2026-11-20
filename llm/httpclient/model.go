@@ -86,6 +86,10 @@ type Request struct {
 	StartDeadline time.Time `json:"-"`
 }
 
+func (r *Request) IsVideoCreate() bool {
+	return r.Method == http.MethodPost && r.RequestType == "video"
+}
+
 func (r *Request) ObserveResponseHeaders(ctx context.Context, headers http.Header) {
 	if r != nil && r.OnResponseHeaders != nil {
 		r.OnResponseHeaders(ctx, headers.Clone())

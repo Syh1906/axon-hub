@@ -547,6 +547,12 @@ func (handlers *OpenAIHandlers) GetVideo(c *gin.Context) {
 	resp.Object = "video"
 	resp.APIFormat = llm.APIFormatOpenAIVideo
 	resp.Choices = []llm.Choice{}
+	if detail := resp.Video.Error; detail != nil {
+		policy := loadUpstreamErrorPolicy(ctx, handlers.SystemService)
+		if policy.Mode == biz.UpstreamErrorModeHidden || policy.Mode == biz.UpstreamErrorModeCustom {
+			detail.Message = maskedUpstreamErrorMessage(policy)
+		}
+	}
 
 	httpResp, err := handlers.VideoInboundTransformer.TransformResponse(ctx, resp)
 	if err != nil {
@@ -571,11 +577,19 @@ func (handlers *OpenAIHandlers) DeleteVideo(c *gin.Context) {
 	}
 
 	if err := handlers.VideoService.DeleteTaskByExternalID(ctx, externalID); err != nil {
-		JSONError(c, http.StatusInternalServerError, err)
+		writeVideoDeleteError(c, err)
 		return
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func writeVideoDeleteError(c *gin.Context, err error) {
+	if upstream, ok := errors.AsType[*httpclient.Error](err); ok && upstream.StatusCode == http.StatusConflict {
+		JSONError(c, http.StatusConflict, errors.New("the provider does not allow deletion in the current task state"))
+		return
+	}
+	JSONError(c, http.StatusInternalServerError, err)
 }
 
 type Modalities struct {

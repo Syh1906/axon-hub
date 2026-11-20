@@ -569,6 +569,10 @@ func buildHTTPRequest(ctx context.Context, request *Request, requireHTTP bool) (
 	}
 
 	httpReq.Header = request.Headers
+	// Disable net/http body replay on 307/308 or a reused connection for paid video creates.
+	if request.IsVideoCreate() {
+		httpReq.GetBody = nil
+	}
 	if httpReq.Header == nil {
 		httpReq.Header = make(http.Header)
 	}

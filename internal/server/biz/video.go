@@ -59,7 +59,7 @@ func (s *VideoService) GetTask(ctx context.Context, requestID int) (*llm.Respons
 		// non-fatal: return data anyway
 	}
 
-	if status == request.StatusCompleted || status == request.StatusFailed {
+	if llm.IsTerminalVideoStatus(video.Video.Status) {
 		client := s.RequestService.entFromContext(ctx)
 		execution, execErr := client.RequestExecution.Query().Where(requestexecution.RequestIDEQ(requestID), requestexecution.ExternalIDEQ(task.ExternalID)).
 			Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldProjectID, requestexecution.FieldChannelID,
@@ -178,6 +178,17 @@ func (s *VideoService) DeleteTask(ctx context.Context, requestID int) error {
 		return err
 	}
 
+	if httpReq.APIFormat == llm.APIFormatSeedanceVideo.String() {
+		// Ark's 204 can also mean that a completed task was deleted. Only a
+		// provider observation establishes cancellation; preserve known outcomes.
+		if task.Status == request.StatusProcessing || task.Status == request.StatusPending {
+			if _, err := s.GetTask(ctx, requestID); err != nil {
+				log.Warn(ctx, "could not confirm video status after deletion", log.Cause(err))
+			}
+		}
+		return nil
+	}
+
 	// Best effort: mark canceled locally.
 	_ = s.RequestService.UpdateRequestStatus(ctx, requestID, request.StatusCanceled)
 
@@ -260,7 +271,9 @@ func mapVideoStatusToRequestStatus(status string) request.Status {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "succeeded":
 		return request.StatusCompleted
-	case "failed":
+	case "cancelled", "canceled":
+		return request.StatusCanceled
+	case "failed", "expired":
 		return request.StatusFailed
 	case "queued", "running":
 		return request.StatusProcessing

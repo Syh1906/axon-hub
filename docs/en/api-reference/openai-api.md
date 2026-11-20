@@ -13,6 +13,13 @@ AxonHub provides OpenAI-compatible interfaces for accessing multiple providers t
 
 ## Supported Endpoints
 
+### Doubao Seedance video tasks
+
+- Create with `POST /v1/videos` and retain the provider task ID. If the provider may have accepted the task but the gateway cannot confirm the result, AxonHub stops retrying and returns HTTP 502 with `error.code=video_create_outcome_unknown`. Keep the request for reconciliation and avoid automatic resubmission or treating it as rejected.
+- Poll `GET /v1/videos/{id}` with credentials for the original project. On completion, retain `usage.completion_tokens` and `usage.total_tokens` and download the file from `video_url`. Ark video URLs are valid for 24 hours. AxonHub delivers the result URL and does not proxy the file through `/v1/videos/{id}/content`. [Ark task query](https://docs.volcengine.com/docs/ark/get-video-generation-task-api)
+- Polling preserves `cancelled`, `expired` and `failed`. Management records use `canceled` for cancellation and `failed` for expiration and failure. Confirmed terminal outcomes stop provider polling and allow budget reservations to be reconciled. Failed tasks carry the provider's `error.code` and an `error.message` subject to the upstream error display policy.
+- A successful `DELETE /v1/videos/{id}` returns 204. Ark cancels queued tasks, rejects running tasks (a provider 409 is returned as 409), and deletes finished task records. A task can finish between a GET and a DELETE. A 204 does not certify cancellation, and usage may become unavailable after deletion. For usage-based billing, poll until terminal, record usage and settle before delivery or deletion. [Ark cancellation and deletion](https://docs.volcengine.com/docs/ark/cancel-or-delete-video-generation-tasks-api)
+
 ### Legacy text Completions API
 
 `POST /v1/completions` uses channels supporting native `openai/completions`.

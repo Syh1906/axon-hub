@@ -13,6 +13,13 @@ AxonHub 提供 OpenAI 兼容接口，可通过 OpenAI 客户端 SDK 访问多个
 
 ## 支持的端点
 
+### 豆包 Seedance 视频任务
+
+- 创建：`POST /v1/videos` 返回供应商任务 ID。如果供应商可能已受理，但网关未取得可用结果，AxonHub 停止重试并返回 HTTP 502 和 `error.code=video_create_outcome_unknown`。保留这笔请求以便核对，避免自动重新提交或按拒绝结算。
+- 查询和下载：使用原项目的凭据调用 `GET /v1/videos/{id}`。成功时请保存 `usage.completion_tokens`、`usage.total_tokens`，并从 `video_url` 下载成品。方舟视频链接有效期为 24 小时，请及时转存。AxonHub 采用结果 URL 交付，未提供 `/v1/videos/{id}/content` 文件代理。[方舟查询接口](https://docs.volcengine.com/docs/ark/get-video-generation-task-api)
+- 终态：标准查询保留 `cancelled`、`expired` 和 `failed`。在管理记录中，取消记为 `canceled`，过期和失败记为 `failed`。确认终态后停止轮询上游、处理预算预留；失败响应包含供应商提供的 `error.code` 和受上游错误显示策略控制的 `error.message`。
+- 取消与删除：`DELETE /v1/videos/{id}` 成功返回 204。方舟在执行时决定操作：排队中会取消，运行中拒绝（上游返回 409 时标准接口也返回 409），已结束则删除记录。即使刚查到排队中，删除时也可能已经完成。204 无法证明任务已取消，删除后也可能再查不到用量。需要按实际用量计费时，请先轮询到终态、保存用量并结算，再交付成品或删除记录。[方舟取消与删除契约](https://docs.volcengine.com/docs/ark/cancel-or-delete-video-generation-tasks-api)
+
 ### 旧版文本 Completions API
 
 `POST /v1/completions` 使用支持原生 `openai/completions` 的渠道。`prompt` 保留

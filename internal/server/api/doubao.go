@@ -146,7 +146,7 @@ func (h *DoubaoHandlers) DeleteTask(c *gin.Context) {
 	}
 
 	if err := h.VideoService.DeleteTaskByExternalID(ctx, externalID); err != nil {
-		JSONError(c, http.StatusInternalServerError, err)
+		writeVideoDeleteError(c, err)
 		return
 	}
 

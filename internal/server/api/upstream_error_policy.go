@@ -83,13 +83,7 @@ func applyUpstreamErrorPolicy(ctx context.Context, err error, systemService *biz
 		return err
 	}
 
-	message := biz.DefaultUpstreamErrorMessage
-	if policy.Mode == biz.UpstreamErrorModeCustom {
-		message = strings.TrimSpace(policy.CustomMessage)
-		if message == "" {
-			message = biz.DefaultUpstreamErrorMessage
-		}
-	}
+	message := maskedUpstreamErrorMessage(policy)
 
 	var respErr *llm.ResponseError
 	if errors.As(err, &respErr) {
@@ -140,6 +134,13 @@ func loadUpstreamErrorPolicy(ctx context.Context, systemService *biz.SystemServi
 	defer cancel()
 	policyCtx = authz.WithSystemBypass(policyCtx, "read-upstream-error-policy")
 	return systemService.RetryPolicyOrDefault(policyCtx).UpstreamErrorPolicy
+}
+
+func maskedUpstreamErrorMessage(policy biz.UpstreamErrorPolicy) string {
+	if message := strings.TrimSpace(policy.CustomMessage); policy.Mode == biz.UpstreamErrorModeCustom && message != "" {
+		return message
+	}
+	return biz.DefaultUpstreamErrorMessage
 }
 
 type upstreamErrorStream struct {

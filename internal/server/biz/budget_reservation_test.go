@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/budgetaccount"
 	"github.com/looplj/axonhub/internal/ent/budgetcharge"
+	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
@@ -69,7 +70,7 @@ func TestContinuationBudgetUsesCompleteQuoteBeforeReserving(t *testing.T) {
 }
 
 func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
-	for _, status := range []string{"failed", "running", "succeeded"} {
+	for _, status := range []string{"failed", "running", "succeeded", "cancelled", "expired"} {
 		t.Run(status, func(t *testing.T) {
 			var polls atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +81,11 @@ func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 			t.Cleanup(server.Close)
 			f := newBudgetFixture(t)
 			f.configure(t, "key", f.key.ID, "35")
-			ch := f.db.Channel.Create().SetName("video").SetType("zenmux").SetBaseURL(server.URL).
+			channelType, format := channel.TypeZenmux, llm.APIFormatZenmuxVideo
+			if status == "cancelled" || status == "expired" {
+				channelType, format = channel.TypeDoubao, llm.APIFormatSeedanceVideo
+			}
+			ch := f.db.Channel.Create().SetName("video").SetType(channelType).SetBaseURL(server.URL).
 				SetSupportedModels([]string{"model"}).SetDefaultTestModel("model").SetCredentials(objects.ChannelCredentials{APIKey: "fixture"}).SaveX(f.ctx)
 			req := f.db.Request.Create().SetProjectID(f.key.ProjectID).SetAPIKeyID(f.key.ID).SetChannelID(ch.ID).
 				SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusProcessing).SaveX(f.ctx)
@@ -91,7 +96,7 @@ func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 				Applied:          objects.AppliedCostMultiplier{Value: decimal.NewFromInt(1)},
 			}
 			execution := f.db.RequestExecution.Create().SetProjectID(req.ProjectID).SetRequestID(req.ID).SetChannelID(ch.ID).SetModelID("model").
-				SetFormat(llm.APIFormatZenmuxVideo.String()).SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).SetCostSnapshot(snapshot).SaveX(f.ctx)
+				SetFormat(format.String()).SetRequestBody([]byte(`{}`)).SetStatus(requestexecution.StatusCompleted).SetCostSnapshot(snapshot).SaveX(f.ctx)
 			require.NoError(t, f.service.Reserve(f.ctx, req.ProjectID, f.key.ID, req.ID, execution.ID, budgetAmount(t, "3"), nil))
 			require.NoError(t, f.service.MarkSent(f.ctx, execution.ID))
 			require.NoError(t, f.service.RecordAsyncTask(f.ctx, execution, "task"))
@@ -111,7 +116,9 @@ func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 				require.EqualValues(t, budgetAmount(t, "3"), *charge.Actual)
 				require.Zero(t, account.Reserved)
 				require.EqualValues(t, 1, polls.Load())
-			case "failed":
+			case "failed", "cancelled", "expired":
+				require.Equal(t, status, charge.AsyncTask.Status)
+				require.Equal(t, mapVideoStatusToRequestStatus(status), f.db.Request.GetX(f.ctx, req.ID).Status)
 				require.Equal(t, budgetcharge.StatusUnknown, charge.Status)
 				require.Nil(t, charge.Actual)
 				require.Zero(t, account.Reserved)
@@ -123,6 +130,22 @@ func TestBudgetAsyncRecoveryUsesProviderOutcome(t *testing.T) {
 				require.Nil(t, charge.ReservationReleasedAt)
 				require.EqualValues(t, budgetAmount(t, "3"), account.Reserved)
 			}
+		})
+	}
+}
+
+func TestVideoCreateBudgetWithoutTaskID(t *testing.T) {
+	for _, code := range []int{422, 408, 503} {
+		t.Run(http.StatusText(code), func(t *testing.T) {
+			f := newBudgetFixture(t)
+			f.configure(t, "key", f.key.ID, "35")
+			_, exec, charge := reserveOwnedBudget(t, f, llm.APIFormatSeedanceVideo)
+			require.NoError(t, f.service.MarkSent(f.ctx, exec.ID))
+			exec.Update().SetResponseStatusCode(code).SaveX(f.ctx)
+			require.NoError(t, f.service.EndAttempt(f.ctx, exec.ID))
+			saved := f.db.BudgetCharge.GetX(f.ctx, charge.ID)
+			require.Equal(t, code == 422, saved.ReservationReleasedAt != nil)
+			require.Nil(t, saved.Actual)
 		})
 	}
 }

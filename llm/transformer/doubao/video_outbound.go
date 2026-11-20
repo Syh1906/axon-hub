@@ -203,9 +203,10 @@ func (t *OutboundTransformer) BuildGetVideoTaskRequest(ctx context.Context, prov
 }
 
 type seedanceGetResponse struct {
-	ID     string `json:"id"`
-	Model  string `json:"model,omitempty"`
-	Status string `json:"status,omitempty"`
+	ID     string          `json:"id"`
+	Model  string          `json:"model,omitempty"`
+	Status string          `json:"status,omitempty"`
+	Error  *llm.VideoError `json:"error,omitempty"`
 
 	Content *struct {
 		VideoURL string `json:"video_url,omitempty"`
@@ -248,7 +249,7 @@ func (t *OutboundTransformer) ParseGetVideoTaskResponse(ctx context.Context, htt
 
 	var completedAt int64
 
-	if status == "succeeded" || status == "failed" {
+	if llm.IsTerminalVideoStatus(status) {
 		if resp.UpdatedAt != 0 {
 			completedAt = resp.UpdatedAt
 		} else {
@@ -259,6 +260,7 @@ func (t *OutboundTransformer) ParseGetVideoTaskResponse(ctx context.Context, htt
 	v := &llm.VideoResponse{
 		ID:          resp.ID,
 		Status:      status,
+		Error:       resp.Error,
 		Model:       resp.Model,
 		CreatedAt:   resp.CreatedAt,
 		CompletedAt: completedAt,

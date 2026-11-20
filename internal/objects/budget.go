@@ -1,5 +1,7 @@
 package objects
 
+import "github.com/looplj/axonhub/llm"
+
 // BudgetAsyncTask keeps provider task and price independently of request logs.
 // It contains no provider credentials.
 type BudgetAsyncTask struct {
@@ -12,5 +14,5 @@ type BudgetAsyncTask struct {
 }
 
 func (t *BudgetAsyncTask) Finished() bool {
-	return t.Status == "succeeded" || t.Status == "failed"
+	return llm.IsTerminalVideoStatus(t.Status)
 }
