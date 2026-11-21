@@ -582,10 +582,11 @@ type RequestLogTimeRangeInput struct {
 }
 
 type RequestResultExecution struct {
-	ReasoningEffort    *string                           `json:"reasoningEffort,omitempty"`
-	ReasoningEvidence  *objects.RequestReasoningEvidence `json:"reasoningEvidence,omitempty"`
-	ID                 objects.GUID                      `json:"id"`
-	ResponseStatusCode *int                              `json:"responseStatusCode,omitempty"`
+	OutboundServiceTier *string                           `json:"outboundServiceTier,omitempty"`
+	ReasoningEffort     *string                           `json:"reasoningEffort,omitempty"`
+	ReasoningEvidence   *objects.RequestReasoningEvidence `json:"reasoningEvidence,omitempty"`
+	ID                  objects.GUID                      `json:"id"`
+	ResponseStatusCode  *int                              `json:"responseStatusCode,omitempty"`
 }
 
 type RequestSessionExecution struct {

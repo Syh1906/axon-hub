@@ -379,6 +379,7 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			}
 			f.client.Request.UpdateOne(req).SetChannelID(channels[0].ID).ExecX(ctx)
 			winner := f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[0].ID).
+				SetCostSnapshot(&objects.RequestCostSnapshot{ServiceTier: &objects.ServiceTierEvidence{Client: "fast", Outbound: "ultrafast"}}).
 				SetModelID("adopted").SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "high", Reported: "max"}).SetStatus("completed").SetStream(true).SetContentBatches(2).SetContentBatchSpanMs(850).SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 			f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[1].ID).
 				SetModelID("backup").SetStatus("failed").SetResponseStatusCode(500).SetRequestBody([]byte(`{}`)).SaveX(ctx)
@@ -390,6 +391,8 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			require.Len(t, page.Items, 1)
 			require.Equal(t, 200, *page.Items[0].ClientStatusCode)
 			require.Equal(t, new("max"), page.Items[0].ReasoningEffort)
+			require.Equal(t, new("ultrafast"), page.Items[0].OutboundServiceTier)
+			require.Zero(t, page.Items[0].UsageRecords)
 			require.Equal(t, 1, page.Items[0].RetryCount)
 			require.ElementsMatch(t, []string{"adopted", "backup"}, page.Items[0].ExecutedModels)
 			require.NotNil(t, page.Items[0].OutputBatches)

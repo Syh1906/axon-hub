@@ -143,6 +143,8 @@ func (c *requestEncodingCache) prepare(req *http.Request) (*http.Request, *encod
 	wire.ContentLength = int64(len(encoded))
 	wire.Body = io.NopCloser(bytes.NewReader(encoded))
 	wire.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(encoded)), nil }
+	observer, _ := req.Context().Value(transportObserverKey{}).(*TransportTrace)
+	observer.trackExpectBody(wire)
 	// The transport closes wire.Body; this RoundTrip owns the original body.
 	_ = req.Body.Close()
 	a.encoded = true

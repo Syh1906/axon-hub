@@ -68,6 +68,7 @@ type RequestSessionExecution {
 }
 
 type RequestResultExecution {
+  outboundServiceTier: String
   reasoningEffort: String
   reasoningEvidence: RequestReasoningEvidence
   id: ID!

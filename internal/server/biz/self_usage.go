@@ -78,6 +78,7 @@ type SelfUsageStats struct {
 }
 
 type SelfUsageRequest struct {
+	OutboundServiceTier   *string
 	ClientSessionID       *string
 	ResultUnconfirmed     bool
 	ReasoningEvidence     *objects.RequestReasoningEvidence
@@ -578,6 +579,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 				Cost: usage.Cost, UsageRecords: usage.UsageRecords, UnpricedRecords: usage.UnpricedRecords,
 			}
 			display := displays[req.ID]
+			row.OutboundServiceTier = display.OutboundServiceTier
 			row.ReasoningEvidence, row.ResultUnconfirmed = display.ReasoningEvidence, display.ResultUnconfirmed
 			row.Channel, row.ModelExecutions = display.Channel, display.ModelExecutions
 			row.ExecutedModels, row.ReasoningEffort = display.ExecutedModels, display.ReasoningEffort

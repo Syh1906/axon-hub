@@ -59,13 +59,15 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			}
 		}
 	}
-	executions, err := s.client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...)).
+	var executions []*RequestLogExecution
+	err := s.client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...)).
 		Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldModelID,
 			requestexecution.FieldUpstreamModelID, requestexecution.FieldStatus,
 			requestexecution.FieldChannelID,
 			requestexecution.FieldReasoningEffort, requestexecution.FieldReasoningEvidence, requestexecution.FieldFormat,
 			requestexecution.FieldResponseStatusCode, requestexecution.FieldPassThroughApplied).
-		Order(requestexecution.ByCreatedAt(sql.OrderDesc()), requestexecution.ByID(sql.OrderDesc())).All(ctx)
+		Order(requestexecution.ByCreatedAt(sql.OrderDesc()), requestexecution.ByID(sql.OrderDesc())).
+		Modify(selectExecutionTier).Scan(ctx, &executions)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage execution display: %w", err)
 	}
@@ -91,6 +93,7 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			}
 		}
 		if resultIDs[execution.RequestID] == execution.ID {
+			row.OutboundServiceTier = execution.OutboundServiceTier()
 			row.ReasoningEvidence = execution.ReasoningEvidence
 			row.ReasoningEffort = execution.ReasoningEvidence.Effective(execution.ReasoningEffort)
 		}

@@ -34,12 +34,12 @@ func TestSelfUsageChannelProjection(t *testing.T) {
 	execution := db.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(project.ID).SetChannelID(channel.ID).
 		SetModelID("model").SetUpstreamModelID("reported-model").SetStatus("completed").SetRequestBody([]byte(`{}`)).
 		SetSelection(&objects.RequestExecutionSelection{ChannelName: "historical-channel", Provider: "openai", KeyHint: "private-hint", KeyRemark: "private-remark"}).
-		SetCostSnapshot(&objects.RequestCostSnapshot{KeyRef: "private-key-ref", KeyLabel: "private-key-label", Applied: objects.AppliedCostMultiplier{Value: decimal.RequireFromString("1.75")}}).SaveX(ctx)
+		SetCostSnapshot(&objects.RequestCostSnapshot{ServiceTier: &objects.ServiceTierEvidence{Outbound: "priority"}, KeyRef: "private-key-ref", KeyLabel: "private-key-label", Applied: objects.AppliedCostMultiplier{Value: decimal.RequireFromString("1.75")}}).SaveX(ctx)
 	req.Update().SetResultExecutionID(execution.ID).ExecX(ctx)
 	system := biz.NewSystemService(biz.SystemServiceParams{Ent: db})
 	require.NoError(t, system.SetGeneralSettings(ctx, biz.SystemGeneralSettings{CurrencyCode: "USD", Timezone: "UTC"}))
 	h := NewGraphqlHandlers(Dependencies{SelfUsageService: biz.NewSelfUsageService(db, system)})
-	query := `{"query":"{ selfUsageRequests(start:\"2026-11-05\",end:\"2026-11-05\") { channelVisible items { channel { name provider channelType tags sessionState multiplier multiplierMixed } requestStatus modelExecutions { modelID upstreamModelID status } } } }"}`
+	query := `{"query":"{ selfUsageRequests(start:\"2026-11-05\",end:\"2026-11-05\") { channelVisible items { outboundServiceTier channel { name provider channelType tags sessionState multiplier multiplierMixed } requestStatus modelExecutions { modelID upstreamModelID status } } } }"}`
 	for _, visible := range []bool{false, true, false} {
 		group.Update().SetShowChannelInSelfUsage(visible).ExecX(ctx)
 		r := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(query))
@@ -60,8 +60,9 @@ func TestSelfUsageChannelProjection(t *testing.T) {
 							Multiplier                                *float64
 							MultiplierMixed                           bool
 						}
-						RequestStatus   string
-						ModelExecutions []struct{ ModelID, UpstreamModelID, Status string }
+						OutboundServiceTier string
+						RequestStatus       string
+						ModelExecutions     []struct{ ModelID, UpstreamModelID, Status string }
 					}
 				}
 			}
@@ -71,6 +72,7 @@ func TestSelfUsageChannelProjection(t *testing.T) {
 		require.Equal(t, visible, page.ChannelVisible)
 		require.Len(t, page.Items, 1)
 		row := page.Items[0]
+		require.Equal(t, "fast", row.OutboundServiceTier)
 		if visible {
 			require.Equal(t, "historical-channel", row.Channel.Name)
 			require.Equal(t, "openai", row.Channel.Provider)

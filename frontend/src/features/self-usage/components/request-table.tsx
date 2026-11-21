@@ -80,7 +80,7 @@ export function UsageRequestTable({
               )}
               <TableCell>
                 <RequestModelCell
-                  displayExecution={{ resultUnconfirmed: item.resultUnconfirmed, format: item.outboundFormat, reasoningEffort: item.reasoningEffort, reasoningEvidence: item.reasoningEvidence }}
+                  displayExecution={{ outboundServiceTier: item.outboundServiceTier, resultUnconfirmed: item.resultUnconfirmed, format: item.outboundFormat, reasoningEffort: item.reasoningEffort, reasoningEvidence: item.reasoningEvidence }}
                   request={{
                     modelID: item.model,
                     status: item.requestStatus,

@@ -241,6 +241,7 @@ type ComplexityRoot struct {
 		Model                 func(childComplexity int) int
 		ModelExecutions       func(childComplexity int) int
 		OutboundFormat        func(childComplexity int) int
+		OutboundServiceTier   func(childComplexity int) int
 		OutputBatches         func(childComplexity int) int
 		OutputRate            func(childComplexity int) int
 		OutputTokens          func(childComplexity int) int
@@ -1208,6 +1209,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.OutboundFormat(childComplexity), true
+	case "SelfUsageRequest.outboundServiceTier":
+		if e.complexity.SelfUsageRequest.OutboundServiceTier == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.OutboundServiceTier(childComplexity), true
 	case "SelfUsageRequest.outputBatches":
 		if e.complexity.SelfUsageRequest.OutputBatches == nil {
 			break
@@ -5662,6 +5669,35 @@ func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequest_outboundServiceTier(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_outboundServiceTier,
+		func(ctx context.Context) (any, error) {
+			return obj.OutboundServiceTier, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_outboundServiceTier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequest_clientSessionID(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7085,6 +7121,8 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "outboundServiceTier":
+				return ec.fieldContext_SelfUsageRequest_outboundServiceTier(ctx, field)
 			case "clientSessionID":
 				return ec.fieldContext_SelfUsageRequest_clientSessionID(ctx, field)
 			case "resultUnconfirmed":
@@ -11211,6 +11249,8 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "outboundServiceTier":
+			out.Values[i] = ec._SelfUsageRequest_outboundServiceTier(ctx, field, obj)
 		case "clientSessionID":
 			out.Values[i] = ec._SelfUsageRequest_clientSessionID(ctx, field, obj)
 		case "resultUnconfirmed":

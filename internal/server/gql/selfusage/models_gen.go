@@ -47,6 +47,7 @@ type SelfUsageModelStat struct {
 }
 
 type SelfUsageRequest struct {
+	OutboundServiceTier   *string                           `json:"outboundServiceTier,omitempty"`
 	ClientSessionID       *string                           `json:"clientSessionID,omitempty"`
 	ResultUnconfirmed     bool                              `json:"resultUnconfirmed"`
 	ReasoningEvidence     *objects.RequestReasoningEvidence `json:"reasoningEvidence,omitempty"`

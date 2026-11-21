@@ -300,6 +300,8 @@ query GetUsageLogs {
 
 ## Fast / Ultrafast and Long-Context Costs
 
+The request log and the API key usage table show the Fast or Ultrafast tier sent on the adopted attempt beside the model name. Hover over or focus the badge for details. Below the amount, the speed badge identifies the billing tier and a purple 1M badge indicates that long-context pricing applied. The sent tier can appear even when cost details are unavailable. Historical requests with insufficient send evidence have no model-side badge.
+
 Configure each mode under **Models → Edit → Pricing → Acceleration billing**, using a supported official reference model or a custom non-negative multiplier (including zero). Base token rates must represent standard processing. Official rates retain their model and version; unknown models are not assumed to cost twice as much, and missing accelerated rates remain unpriced.
 
 Expand item rules to configure input, output, cache reads and write variants using a multiplier, an absolute unit price, or explicit unpriced state. Omission inherits; zero is free. Resolution order is context item → context default → mode item → mode default. Absolute prices do not receive the default mode multiplier. A schedule replaces volume-tier rules.

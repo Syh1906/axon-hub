@@ -75,11 +75,12 @@ test('请求结果保留采用执行的状态码，允许缺少客户端交付�
     id: 'request-1', createdAt: execution.createdAt, updatedAt: execution.updatedAt,
     source: 'api', modelID: 'test-model', status: 'completed', stream: true,
     clientStatusCode: null,
-    resultExecution: { id: execution.id, responseStatusCode: 200 },
+    resultExecution: { id: execution.id, responseStatusCode: 200, outboundServiceTier: 'fast' },
     executions: { edges: [{ node: { ...execution, id: 'loser', responseStatusCode: 500 }, cursor: 'loser' }] },
   });
   assert.equal(result.clientStatusCode, null);
   assert.equal(result.resultExecution.responseStatusCode, 200);
+  assert.equal(result.resultExecution.outboundServiceTier, 'fast');
   assert.equal(result.executions.edges[0].node.responseStatusCode, 500);
 });
 

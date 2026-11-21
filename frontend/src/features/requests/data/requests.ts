@@ -114,7 +114,7 @@ function buildRequestsQuery(
             status
             clientIP
             clientStatusCode
-            resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
+            resultExecution { id responseStatusCode outboundServiceTier reasoningEffort reasoningEvidence { requested reported } }
             failure { stage code type message }
             outputTokensPerSecond
             ${REQUEST_USAGE_SUMMARY_SELECTION}
@@ -224,7 +224,7 @@ function buildRequestDetailQuery(
           stream
           clientIP
           clientStatusCode
-          resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
+          resultExecution { id responseStatusCode outboundServiceTier reasoningEffort reasoningEvidence { requested reported } }
           failure { stage code type message }
           projectID
           dataStorageID
@@ -287,7 +287,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           stream
           clientIP
           clientStatusCode
-          resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
+          resultExecution { id responseStatusCode outboundServiceTier reasoningEffort reasoningEvidence { requested reported } }
           failure { stage code type message }
           projectID
           dataStorageID

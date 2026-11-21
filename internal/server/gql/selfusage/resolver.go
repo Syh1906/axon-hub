@@ -61,6 +61,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 		})
 	}
 	return &SelfUsageRequest{APIKeyName: value.APIKeyName, ClientSessionID: value.ClientSessionID, ReasoningEvidence: value.ReasoningEvidence, ResultUnconfirmed: value.ResultUnconfirmed,
+		OutboundServiceTier: value.OutboundServiceTier,
 		CallerKeyName: value.CallerKeyName, CallerGroupName: value.CallerGroupName,
 		Channel: value.Channel, ModelExecutions: lo.ToSlicePtr(value.ModelExecutions),
 		ExecutedModels: value.ExecutedModels, ReasoningEffort: value.ReasoningEffort,

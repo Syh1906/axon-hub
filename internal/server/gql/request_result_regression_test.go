@@ -111,11 +111,12 @@ func TestLogReasoningRequiresIdentifiableSentAttempt(t *testing.T) {
 	add := func(status, dispatch string) *ent.RequestExecution {
 		return f.db.RequestExecution.Create().SetRequestID(r.ID).SetProjectID(f.project.ID).
 			SetChannelID(winner.ChannelID).SetModelID("model").SetStatus(requestexecution.Status(status)).
+			SetCostSnapshot(&objects.RequestCostSnapshot{ServiceTier: &objects.ServiceTierEvidence{Outbound: "priority"}}).
 			SetSelection(&objects.RequestExecutionSelection{Dispatch: dispatch}).
 			SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "high"}).
 			SetRequestBody([]byte(`{}`)).SaveX(f.ctx)
 	}
-	read := func() *ent.RequestExecution {
+	read := func() *biz.RequestLogExecution {
 		rows, err := biz.RequestLogResultExecutions(f.ctx, f.db, []int{r.ID})
 		require.NoError(t, err)
 		return rows[r.ID]
@@ -123,6 +124,7 @@ func TestLogReasoningRequiresIdentifiableSentAttempt(t *testing.T) {
 	add("failed", objects.RequestExecutionDispatchStarted)
 	selected := read()
 	require.NotNil(t, selected)
+	require.Nil(t, selected.OutboundServiceTier(), "the failed attempt's fast tier must not leak onto the result")
 	require.Equal(t, "max", selected.ReasoningEvidence.Reported)
 	f.db.Request.UpdateOneID(r.ID).SetStatus("canceled").SetFailure(&objects.RequestFailure{Stage: "delivery", Code: "stream_delivery_canceled"}).ExecX(f.ctx)
 	require.Equal(t, winner.ID, read().ID, "late provider completion survives a canceled client delivery")
@@ -132,17 +134,28 @@ func TestLogReasoningRequiresIdentifiableSentAttempt(t *testing.T) {
 	f.db.Request.UpdateOneID(r.ID).SetStatus("processing").ExecX(f.ctx)
 	active := add("processing", objects.RequestExecutionDispatchPending)
 	require.Nil(t, read(), "waiting for admission does not prove dispatch")
+	f.db.Request.UpdateOneID(r.ID).SetResultExecutionID(active.ID).ExecX(f.ctx)
+	require.Nil(t, read().OutboundServiceTier(), "a prepared snapshot does not prove that its tier was sent")
+	f.db.Request.UpdateOneID(r.ID).ClearResultExecutionID().ExecX(f.ctx)
 	service := biz.NewRequestService(f.db, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil, nil)
-	require.NoError(t, service.SetExecutionSelection(f.ctx, active.ID, &objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchStarted}))
+	require.NoError(t, service.SetExecutionSelection(f.ctx, active.ID, &objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchStarted, OutboundTierSent: new(true)}))
 	require.Equal(t, active.ID, read().ID)
+	require.Equal(t, new("fast"), read().OutboundServiceTier())
+
+	// Historical rows may have received a final HTTP response before the body was sent.
+	require.NoError(t, service.SetExecutionSelection(f.ctx, active.ID, &objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchStarted}))
+	f.db.RequestExecution.UpdateOne(active).SetStatus("failed").SetResponseStatusCode(417).ExecX(f.ctx)
+	f.db.Request.UpdateOneID(r.ID).SetStatus("failed").SetResultExecutionID(active.ID).ExecX(f.ctx)
+	require.Nil(t, read().OutboundServiceTier())
 }
 
 func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 	f := newContinuationFixture(t)
 	record := f.add(f.at, "completed", "result-status")
-	winner := record.QueryExecutions().OnlyX(f.ctx)
-	f.db.RequestExecution.UpdateOneID(winner.ID).SetResponseStatusCode(200).
-		SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "max", Reported: "high"}).ExecX(f.ctx)
+	winner := f.db.RequestExecution.Create().SetRequestID(record.ID).SetProjectID(f.project.ID).
+		SetChannelID(1).SetModelID("model").SetStatus("completed").SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).
+		SetCostSnapshot(&objects.RequestCostSnapshot{ServiceTier: &objects.ServiceTierEvidence{Client: "ultrafast", Outbound: "priority", Upstream: "default"}}).
+		SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "max", Reported: "high"}).SaveX(f.ctx)
 	f.db.Request.UpdateOneID(record.ID).SetResultExecutionID(winner.ID).ExecX(f.ctx)
 	f.db.RequestExecution.Create().SetProjectID(f.project.ID).SetRequestID(record.ID).SetChannelID(2).
 		SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "low"}).
@@ -152,7 +165,7 @@ func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 	ctx, err := authz.WithPrincipal(ctx, authz.Principal{Type: authz.PrincipalTypeUser, UserID: &viewer.ID})
 	require.NoError(t, err)
 	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: f.db}}))
-	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{ requestLogs(first: 1) { edges { node { clientStatusCode resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } } sessionExecution { id channel { name } } } } } }"}`)).
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{ requestLogs(first: 1) { edges { node { clientStatusCode resultExecution { id responseStatusCode outboundServiceTier reasoningEffort reasoningEvidence { requested reported } } sessionExecution { id channel { name } } } } } }"}`)).
 		WithContext(ent.NewContext(withRequestChannelSessionCache(ctx), f.db))
 	req.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -165,10 +178,11 @@ func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 					Node struct {
 						ClientStatusCode *int
 						ResultExecution  *struct {
-							ID                 string
-							ResponseStatusCode *int
-							ReasoningEffort    string
-							ReasoningEvidence  *objects.RequestReasoningEvidence
+							OutboundServiceTier string
+							ID                  string
+							ResponseStatusCode  *int
+							ReasoningEffort     string
+							ReasoningEvidence   *objects.RequestReasoningEvidence
 						}
 						SessionExecution *struct{ ID string }
 					}
@@ -183,6 +197,7 @@ func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 	require.Nil(t, row.ClientStatusCode, "reading must not invent a client response code")
 	require.Nil(t, row.SessionExecution, "channel metadata remains restricted")
 	require.NotNil(t, row.ResultExecution)
+	require.Equal(t, "fast", row.ResultExecution.OutboundServiceTier)
 	require.Equal(t, fmt.Sprintf("gid://axonhub/RequestExecution/%d", winner.ID), row.ResultExecution.ID)
 	require.Equal(t, 200, *row.ResultExecution.ResponseStatusCode)
 	require.Equal(t, "high", row.ResultExecution.ReasoningEffort)

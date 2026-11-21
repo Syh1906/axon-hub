@@ -62,6 +62,8 @@ type RequestExecutionSelection struct {
 
 	// An empty dispatch value denotes a legacy row without dispatch tracking.
 	Dispatch string `json:"dispatch,omitempty"`
+	// A dispatch can start even if the upstream write fails or a local executor answers.
+	OutboundTierSent *bool `json:"outbound_tier_sent,omitempty"`
 }
 
 // ObserveWebSocket records evidence across selection and dispatch updates. Copies of the

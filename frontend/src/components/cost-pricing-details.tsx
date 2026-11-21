@@ -34,6 +34,7 @@ export function CostPricingDetails({ evidence }: { evidence: CostPricingEvidence
           {context.longContext ? ' · 1M' : ''}
         </span>
       </div>
+      {context.longContext && <p>{t('serviceTier.badge.longContext')}</p>}
       {context.threshold != null && (
         <p>
           {context.inputTokens.toLocaleString()} {context.kind === 'standard' ? '≤' : '>'} {context.threshold.toLocaleString()} ·{' '}

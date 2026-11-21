@@ -187,7 +187,9 @@ func TestProcessPluginOverloadPreservesPreviousExecutionFailure(t *testing.T) {
 		PipelineFactory: pipeline.NewFactory(executor), ModelMapper: NewModelMapper(), channelLimiterManager: NewChannelLimiterManager(),
 		Plugins: PluginIntegration{Hooks: hookProvider{middleware: hook}},
 	}
-	_, err = processor.Process(ctx, buildTestRequest("gpt-4", "Hello", false))
+	raw := buildTestRequest("gpt-4", "Hello", false)
+	raw.Body = []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"Hello"}],"service_tier":"priority"}`)
+	_, err = processor.Process(ctx, raw)
 	var overloaded *PluginOverloadedError
 	require.ErrorAs(t, err, &overloaded)
 	require.Equal(t, 429, overloaded.Response.StatusCode)
@@ -203,6 +205,10 @@ func TestProcessPluginOverloadPreservesPreviousExecutionFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
 	require.Equal(t, request.StatusFailed, requests[0].Status)
+	require.Equal(t, "priority", executions[0].CostSnapshot.ServiceTier.Outbound)
+	results, err := biz.RequestLogResultExecutions(ctx, client, []int{requests[0].ID})
+	require.NoError(t, err)
+	require.Nil(t, results[requests[0].ID], "the rejected retry never sent the previous failed execution's tier")
 }
 
 // Attempt-only hooks do not own any request-scoped resources.

@@ -5,18 +5,23 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ServiceTierBadge } from '@/components/service-tier-badge';
 import { RequestReasoningBadge } from './request-reasoning-badge';
 
-type EffortDisplay = { reasoningEffort?: string | null; reasoningEvidence?: { requested: string; reported: string } | null };
+type ResultDisplay = {
+  outboundServiceTier?: string | null;
+  reasoningEffort?: string | null;
+  reasoningEvidence?: { requested: string; reported: string } | null;
+};
 
 export type RequestModelDisplay = {
-  resultExecution?: EffortDisplay | null;
+  resultExecution?: ResultDisplay | null;
   modelID: string;
   status?: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   reasoningEffort?: string | null;
   format?: string;
   executions?: {
-    edges: { node?: { modelID?: string; upstreamModelID?: string | null; status?: RequestModelDisplay['status']; reasoningEffort?: string | null; reasoningEvidence?: EffortDisplay['reasoningEvidence']; format?: string; passThroughApplied?: boolean | null } | null }[];
+    edges: { node?: { modelID?: string; upstreamModelID?: string | null; status?: RequestModelDisplay['status']; reasoningEffort?: string | null; reasoningEvidence?: ResultDisplay['reasoningEvidence']; format?: string; passThroughApplied?: boolean | null } | null }[];
   } | null;
   oneHourPromptCacheUsageLogs?: { totalCount?: number };
 };
@@ -27,7 +32,7 @@ export function RequestModelCell({
 }: {
   request: RequestModelDisplay;
   // Keep adopted-result display metadata separate from the full execution audit.
-  displayExecution?: EffortDisplay & { format: string | null; resultUnconfirmed: boolean };
+  displayExecution?: ResultDisplay & { format: string | null; resultUnconfirmed: boolean };
 }) {
   const { t } = useTranslation();
   const originalModelId = request.modelID || t('requests.columns.unknown');
@@ -49,6 +54,7 @@ export function RequestModelCell({
         const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
 
   const attempt = displayExecution ?? request.resultExecution;
+  const sentTier = attempt?.outboundServiceTier;
   const evidence = attempt?.reasoningEvidence;
   const reasoningEffort = evidence?.reported || evidence?.requested || attempt?.reasoningEffort;
   const formatEffort = (value: string) => /^-?\d+$/.test(value) ? t('requests.effort.tokens', { value }) : value;
@@ -86,10 +92,10 @@ export function RequestModelCell({
             type='button'
             onClick={copyModelID}
             aria-label={t('requests.diagnostics.copyModel', { model: request.modelID })}
-            className='flex max-w-[180px] cursor-pointer items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
+            className='flex min-w-0 max-w-[180px] cursor-pointer items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
           >
             <span className='truncate'>{originalModelId}</span>
-            <IconRoute className='h-3.5 w-3.5 opacity-80' />
+            <IconRoute className='h-3.5 w-3.5 shrink-0 opacity-80' />
           </button>
         </TooltipTrigger>
         <TooltipContent side='right' className='border-amber-200 bg-white dark:bg-zinc-900'>
@@ -105,7 +111,8 @@ export function RequestModelCell({
       <button
         type='button'
         onClick={copyModelID}
-        className='flex max-w-[180px] items-center gap-1.5 text-left font-mono text-xs font-medium'
+        className='flex min-w-0 max-w-[180px] items-center gap-1.5 text-left font-mono text-xs font-medium'
+        title={originalModelId}
         aria-label={t('requests.diagnostics.copyModel', { model: request.modelID })}
       >
         <span className='truncate'>{originalModelId}</span>
@@ -115,7 +122,10 @@ export function RequestModelCell({
 
   return (
     <div className='flex min-w-[160px] flex-col gap-1'>
-      {modelLabel}
+      <div className='flex min-w-0 max-w-[180px] items-center gap-1.5'>
+        {modelLabel}
+        {(sentTier === 'fast' || sentTier === 'ultrafast') && <ServiceTierBadge mode={sentTier} placement='model' />}
+      </div>
       <div className='flex items-center gap-1.5'>
               <Tooltip>
                 <TooltipTrigger asChild>

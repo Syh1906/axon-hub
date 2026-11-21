@@ -68,3 +68,49 @@ func TestSessionDispatchDoesNotCountLocalContinuationRejection(t *testing.T) {
 	executor.record(ctx, wire, errors.New("response lost after upload"))
 	require.Equal(t, objects.RequestExecutionDispatchStarted, client.RequestExecution.GetX(ctx, attempt.ID).Selection.Dispatch)
 }
+
+func TestOutboundTierSendEvidence(t *testing.T) {
+	ctx, client := setupTest(t)
+	_, requests, _, _ := setupTestServices(t, client)
+	for _, tc := range []struct {
+		name, provider, transport string
+		wroteFrame                bool
+		err                       error
+		want                      bool
+	}{
+		{"websocket write failed", "openai", "websocket", false, httpclient.ErrRequestMayHaveExecuted, false},
+		{"websocket response lost after write", "openai", "websocket", true, httpclient.ErrRequestMayHaveExecuted, true},
+		{"local response", "openai_fake", "http", false, nil, false},
+		{"custom HTTP endpoint on fake channel", "openai_fake", "http", true, nil, true},
+		{"upstream request written", "openai", "http", true, nil, true},
+		{"response without upload evidence", "openai", "http", false, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := client.Request.Create().SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus("failed").SaveX(ctx)
+			attempt := client.RequestExecution.Create().SetRequestID(req.ID).SetModelID("model").SetRequestBody([]byte(`{}`)).
+				SetStatus("failed").SetCostSnapshot(&objects.RequestCostSnapshot{ServiceTier: &objects.ServiceTierEvidence{Outbound: "priority"}}).
+				SetSelection(&objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchPending, Provider: tc.provider, UpstreamTransport: tc.transport}).SaveX(ctx)
+			wire := &httpclient.Request{TransportTrace: new(httpclient.TransportTrace)}
+			if tc.wroteFrame {
+				if tc.transport == "websocket" {
+					wire.TransportTrace.WebSocketFrameWritten()
+				} else {
+					wire.ReportHTTPProgress(httpclient.TransportStarted, time.Now())
+					wire.ReportHTTPProgress(httpclient.TransportUploaded, time.Now())
+				}
+			}
+			recorder := dispatchRecordingExecutor{service: requests, execution: attempt}
+			recorder.record(ctx, wire, tc.err)
+			result, err := biz.RequestLogResultExecutions(ctx, client, []int{req.ID})
+			require.NoError(t, err)
+			row := result[req.ID]
+			require.NotNil(t, row)
+			require.Equal(t, new(tc.want), row.TierSent)
+			if tc.want {
+				require.Equal(t, new("fast"), row.OutboundServiceTier())
+			} else {
+				require.Nil(t, row.OutboundServiceTier())
+			}
+		})
+	}
+}

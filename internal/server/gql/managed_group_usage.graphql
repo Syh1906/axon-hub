@@ -59,6 +59,7 @@ type SelfUsageChannel {
 }
 
 type SelfUsageRequest {
+  outboundServiceTier: String
   clientSessionID: String
   resultUnconfirmed: Boolean!
   reasoningEvidence: RequestReasoningEvidence

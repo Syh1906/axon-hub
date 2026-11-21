@@ -157,6 +157,7 @@ func (r *requestResolver) ResultExecution(ctx context.Context, obj *ent.Request)
 		return nil, err
 	}
 	return &RequestResultExecution{
+		OutboundServiceTier: execution.OutboundServiceTier(),
 		ID: objects.GUID{Type: ent.TypeRequestExecution, ID: execution.ID}, ResponseStatusCode: execution.ResponseStatusCode,
 		ReasoningEffort: execution.ReasoningEvidence.Effective(execution.ReasoningEffort), ReasoningEvidence: execution.ReasoningEvidence,
 	}, nil

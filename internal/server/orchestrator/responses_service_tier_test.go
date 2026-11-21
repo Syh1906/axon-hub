@@ -341,6 +341,8 @@ func checkWebSocketBilling(t *testing.T, peerTier string, stream bool) {
 		require.NoError(t, result.ChatCompletionStream.Close())
 	}
 	require.Equal(t, "priority", <-received)
+	execution := db.RequestExecution.Query().OnlyX(ctx)
+	require.Equal(t, new(true), execution.Selection.OutboundTierSent)
 	charge := db.BudgetCharge.Query().OnlyX(ctx)
 	require.EqualValues(t, 20000, charge.Estimate)
 	require.Equal(t, budgetcharge.StatusSettled, charge.Status)

@@ -164,7 +164,7 @@ export const requestSchema = z.object({
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
   metricsReasoningDurationMs: z.number().nullable().optional(),
   sessionExecution: requestExecutionSchema.pick({ id: true, channel: true, selection: true, costSnapshot: true }).nullable().optional(),
-  resultExecution: requestExecutionSchema.pick({ id: true, responseStatusCode: true, reasoningEffort: true, reasoningEvidence: true }).nullable().optional(),
+  resultExecution: requestExecutionSchema.pick({ id: true, responseStatusCode: true, reasoningEffort: true, reasoningEvidence: true }).extend({ outboundServiceTier: z.string().nullish() }).nullable().optional(),
   executions: z
     .object({
       edges: z.array(

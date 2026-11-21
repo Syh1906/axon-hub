@@ -21,7 +21,7 @@ import (
 type requestChannelSessionCacheKey struct{}
 
 type logResultExecution struct {
-	row *ent.RequestExecution
+	row *biz.RequestLogExecution
 	err error
 }
 
@@ -146,7 +146,7 @@ func requestSessionExecution(ctx context.Context, client *ent.Client, id int) *e
 	return loadRequestSessionExecutions(ctx, client, []int{id})[id]
 }
 
-func requestLogResultExecution(ctx context.Context, client *ent.Client, id int) (*ent.RequestExecution, error) {
+func requestLogResultExecution(ctx context.Context, client *ent.Client, id int) (*biz.RequestLogExecution, error) {
 	if cache, ok := ctx.Value(requestChannelSessionCacheKey{}).(*requestChannelSessionCache); ok {
 		cache.RLock()
 		result, found := cache.results[id]

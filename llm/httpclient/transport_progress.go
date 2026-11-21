@@ -2,10 +2,13 @@ package httpclient
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptrace"
 	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,6 +26,7 @@ const (
 
 // TransportTrace is local to one attempt. net/http invokes some hooks concurrently.
 type TransportTrace struct {
+	expectRemaining    atomic.Pointer[atomic.Int64]
 	streamStart        *streamStartTrace
 	mu                 sync.Mutex
 	times              map[TransportPhase]time.Time
@@ -179,6 +183,52 @@ func (t *TransportTrace) WebSocketFrameWritten() {
 	}
 }
 
+// UploadedBody confirms a completed business frame or HTTP request body.
+// With Expect: 100-continue, net/http may report WroteRequest(nil) after
+// a final response to the headers alone, without reading the body.
+func (t *TransportTrace) UploadedBody() bool {
+	uploaded, _ := t.ResponseTimes()
+	if uploaded == nil {
+		return false
+	}
+	remaining := t.expectRemaining.Load()
+	return remaining == nil || remaining.Load() == 0
+}
+
+type expectContinueBody struct {
+	io.ReadCloser
+	remaining *atomic.Int64
+}
+
+func (b *expectContinueBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	b.remaining.Add(-int64(n))
+	return n, err
+}
+
+func (t *TransportTrace) trackExpectBody(req *http.Request) {
+	if t == nil || req.Body == nil || req.ContentLength <= 0 || !strings.Contains(strings.ToLower(req.Header.Get("Expect")), "100-continue") {
+		return
+	}
+	size := req.ContentLength
+	wrap := func(body io.ReadCloser) io.ReadCloser {
+		remaining := new(atomic.Int64)
+		remaining.Store(size)
+		t.expectRemaining.Store(remaining)
+		return &expectContinueBody{ReadCloser: body, remaining: remaining}
+	}
+	req.Body = wrap(req.Body)
+	if getBody := req.GetBody; getBody != nil {
+		req.GetBody = func() (io.ReadCloser, error) {
+			body, err := getBody()
+			if err != nil {
+				return nil, err
+			}
+			return wrap(body), nil
+		}
+	}
+}
+
 func (t *TransportTrace) Snapshot() TransportTimings {
 	if t == nil {
 		return TransportTimings{}
@@ -222,6 +272,7 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 	if request.TransportTrace == nil {
 		request.TransportTrace = new(TransportTrace)
 	}
+	request.TransportTrace.trackExpectBody(raw)
 	request.ReportHTTPProgress(TransportStarted, time.Now())
 	trace := &httptrace.ClientTrace{
 		GetConn: func(string) {

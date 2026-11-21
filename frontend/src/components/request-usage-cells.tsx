@@ -1,4 +1,5 @@
 import { CostPricingDetails } from './cost-pricing-details';
+import { ServiceTierBadge } from './service-tier-badge';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -192,9 +193,7 @@ export function CostCell({
           {(mode === 'fast' || mode === 'ultrafast' || evidence === 'mixed' || (evidence && evidence.context.longContext) || rows.cacheWriteLabel) && (
             <span className='inline-flex items-center gap-1'>
               {(mode === 'fast' || mode === 'ultrafast') && (
-                <Badge variant='outline' className='border-orange-200 bg-orange-50 px-1 text-[10px] leading-tight text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'>
-                  {t(`serviceTier.mode.${mode}`)}
-                </Badge>
+                <ServiceTierBadge mode={mode} placement='cost' />
               )}
               {evidence && evidence !== 'mixed' && evidence.context.longContext && (
                 <Badge variant='outline' className='border-purple-200 bg-purple-50 px-1 text-[10px] leading-tight text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300'>

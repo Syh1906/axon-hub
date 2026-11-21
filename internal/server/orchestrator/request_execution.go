@@ -270,6 +270,9 @@ func (e dispatchRecordingExecutor) record(ctx context.Context, req *httpclient.R
 	}
 	selection := *e.execution.Selection
 	selection.Dispatch = objects.RequestExecutionDispatchStarted
+	if snapshot := e.execution.CostSnapshot; snapshot != nil && snapshot.ServiceTier != nil && snapshot.ServiceTier.Outbound != "" {
+		selection.OutboundTierSent = new(req.TransportTrace.UploadedBody())
+	}
 	e.execution.Selection = &selection
 	persistCtx, cancel := xcontext.DetachWithTimeout(ctx, 10*time.Second)
 	defer cancel()

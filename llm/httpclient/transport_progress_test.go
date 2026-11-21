@@ -1,8 +1,10 @@
 package httpclient
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,36 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestExpectContinueConfirmsOnlyTransmittedBodies(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/reject" {
+			w.Header().Set("Connection", "close")
+			w.WriteHeader(http.StatusExpectationFailed)
+			return
+		}
+		_, err := io.Copy(io.Discard, r.Body)
+		if err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
+	client := NewHttpClient()
+	defer client.GetNativeClient().CloseIdleConnections()
+	for _, encoded := range []bool{false, true} {
+		for _, path := range []string{"/reject", "/accept"} {
+			r := &Request{URL: server.URL + path, Method: http.MethodPost, Headers: http.Header{"Expect": {"100-continue"}},
+				ContentType: "application/json", Body: bytes.Repeat([]byte(" "), minZstdRequestBytes)}
+			if encoded {
+				r.ZstdEndpoints = []string{r.URL}
+			}
+			_, err := client.Do(t.Context(), r)
+			require.Equal(t, path == "/reject", err != nil)
+			require.Equal(t, encoded, r.TransportTrace.Snapshot().ZstdEncoded)
+			require.Equal(t, path == "/accept", r.TransportTrace.UploadedBody(), "path=%s encoded=%v", path, encoded)
+		}
+	}
+}
 
 func TestHTTPTransportTraceIncludesErrorResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(524); _, _ = w.Write([]byte("timeout")) }))
