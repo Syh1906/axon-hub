@@ -36,6 +36,9 @@ export const CREATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        adaptedCapabilities
+        disabledEndpoints
+        allowWebSearchTool
         allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
@@ -156,6 +159,9 @@ export const DUPLICATE_CHANNEL_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        adaptedCapabilities
+        disabledEndpoints
+        allowWebSearchTool
         allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
@@ -276,6 +282,9 @@ export const BULK_CREATE_CHANNELS_MUTATION = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        adaptedCapabilities
+        disabledEndpoints
+        allowWebSearchTool
         allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }

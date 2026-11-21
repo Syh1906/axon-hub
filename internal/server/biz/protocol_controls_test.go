@@ -16,7 +16,7 @@ import (
 
 func TestEndpointDetectionRequiresProtocolResponse(t *testing.T) {
 	for _, body := range []string{`<html>login</html>`, `{}`, `{"error":{"message":"bad request"}}`, `{"object":"response","output":[],"status":"failed"}`} {
-		for _, format := range detectableEndpointAPIFormats {
+		for _, format := range []string{"openai/chat_completions", "openai/responses", "anthropic/messages"} {
 			require.False(t, validEndpointDetectResponse(format, []byte(body)))
 		}
 	}

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io"
 	"net"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/looplj/axonhub/internal/objects"
@@ -107,20 +105,11 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		if p.state.CurrentCandidate.geminiCacheBase != "" {
 			baseURL = biz.GeminiCacheAPIBase(channel.BaseURL)
 		}
-		base, err := url.Parse(baseURL)
+		route, err := biz.MatchUpstreamAddress(request.URL, baseURL)
 		if err != nil {
 			return nil, err
 		}
-		current, err := url.Parse(request.URL)
-		if err != nil {
-			return nil, err
-		}
-		// 专用服务和接口覆盖地址不属于本地址列表。
-		if current.Host != base.Host {
-			return request, nil
-		}
-		basePath := strings.TrimRight(base.Path, "/")
-		if current.Path != basePath && !strings.HasPrefix(current.Path, basePath+"/") {
+		if route == nil {
 			return request, nil
 		}
 		addresses = p.selectContentAddress(ctx, request, addresses)
@@ -128,26 +117,19 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 		if owner := p.state.CurrentCandidate.geminiCacheBase; owner != "" {
 			targetURL = owner
 		}
-		target, err := url.Parse(targetURL)
+		selectedURL, err := route.URLAt(targetURL)
 		if err != nil {
 			return nil, err
 		}
-		current.Scheme, current.Host = target.Scheme, target.Host
-		current.Path = strings.TrimRight(target.Path, "/") + strings.TrimPrefix(current.Path, basePath)
-		current.RawPath = ""
 		if origin := p.state.CurrentCandidate.continuationUpstreamRef; origin != "" {
 			// Prefer the actual origin even when address priorities changed.
 			for index, address := range addresses {
-				endpoint, err := url.Parse(channel.NormalizeUpstreamAddress(address.URL, format))
+				candidateURL, err := route.URLAt(channel.NormalizeUpstreamAddress(address.URL, format))
 				if err != nil {
 					return nil, err
 				}
-				candidate := *current
-				candidate.Scheme, candidate.Host = endpoint.Scheme, endpoint.Host
-				original, _ := url.Parse(request.URL)
-				candidate.Path = strings.TrimRight(endpoint.Path, "/") + strings.TrimPrefix(original.Path, basePath)
-				if biz.ResponsesUpstreamRef(candidate.String(), request.Headers) == origin {
-					current = &candidate
+				if biz.ResponsesUpstreamRef(candidateURL, request.Headers) == origin {
+					selectedURL = candidateURL
 					p.addressIndex = index
 					if !p.state.CurrentCandidate.continuationStrict && p.continuationAddresses == nil {
 						// Keep the original source first, then every other configured
@@ -161,7 +143,7 @@ func applyUpstreamAddress(p *PersistentOutboundTransformer) pipeline.Middleware 
 			}
 		}
 		copy := *request
-		copy.URL = current.String()
+		copy.URL = selectedURL
 		if p.state.contentAddressOwner != "" {
 			// Retry order may be rotated. Persist the actual successful address
 			// against the original, versioned configuration.

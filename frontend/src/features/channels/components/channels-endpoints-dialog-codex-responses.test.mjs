@@ -93,7 +93,7 @@ test('Codex shares the endpoint editor while the family checkbox owns WebSocket 
 });
 
 test('disabling WebSocket is blocked while an enabled model restriction still uses it', () => {
-  const handler = between('const handleCodexWebSocketChange = useCallback', '[modelProtocols]');
+  const handler = between('const handleCodexWebSocketChange = useCallback', 'const handleRemoveEndpoint');
   assert.match(handler, /!checked && modelProtocols\.some\(\(mp\) => mp\.enabled !== false && mp\.apiFormats\.includes\(OPENAI_RESPONSES_WEBSOCKET\)\)/);
   assert.match(handler, /setBlockedEndpointRemoval\(OPENAI_RESPONSES_WEBSOCKET\)/);
   assert.match(handler, /setCodexResponsesWebSocket\(checked\)/);

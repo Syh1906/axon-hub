@@ -22,19 +22,23 @@ export function ChannelEndpointEditor({
   onManageAddresses,
   container,
   showWebSocketOption = true,
+  webSocketDisabled = false,
   verificationChannel,
+  renderActions,
 }: {
   defaults: ChannelEndpoint[];
   endpoints: ChannelEndpoint[];
   formats: readonly string[];
   baseURL: string;
   addresses: ChannelAddress[];
-  onChange: (endpoints: ChannelEndpoint[]) => void;
+  onChange: (endpoints: ChannelEndpoint[], webSocketChoice?: boolean) => void;
   onRemove: (format: string) => void;
   onManageAddresses: () => void;
   container?: HTMLElement | null;
   showWebSocketOption?: boolean;
+  webSocketDisabled?: boolean;
   verificationChannel?: Channel;
+  renderActions?: (addInterface: React.ReactNode) => React.ReactNode;
 }) {
   const { t } = useTranslation();
   const all = mergeEndpoints(defaults, endpoints);
@@ -50,7 +54,8 @@ export function ChannelEndpointEditor({
     onChange(
       selected === 'openai/responses' && patch.supportsWebSockets != null
         ? setResponsesWebSocketSupport(nextEndpoints, patch.supportsWebSockets)
-        : nextEndpoints
+        : nextEndpoints,
+      patch.supportsWebSockets ?? undefined
     );
   };
   const enabled = addresses.filter((address) => address.enabled).sort((a, b) => a.priority - b.priority);
@@ -59,6 +64,41 @@ export function ChannelEndpointEditor({
     : enabled.length
       ? enabled
       : [{ url: baseURL, name: t('channels.addresses.primary'), priority: 10 }];
+  const addInterface = adding ? (
+    <Select
+      onValueChange={(format) => {
+        onChange([...endpoints, { apiFormat: format }]);
+        setSelected(format);
+        setAdding(false);
+      }}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={t('channels.addresses.addInterface')} />
+      </SelectTrigger>
+      <SelectContent container={container}>
+        <SelectGroup>
+          {formats
+            .filter((format) => !all.some((item) => item.apiFormat === format))
+            .map((format) => (
+              <SelectItem key={format} value={format}>
+                {endpointName(format)}
+              </SelectItem>
+            ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  ) : (
+    <Button
+      type='button'
+      variant='outline'
+      size='sm'
+      className='self-start'
+      disabled={formats.every((format) => all.some((item) => item.apiFormat === format))}
+      onClick={() => setAdding(true)}
+    >
+      {t('channels.addresses.addInterface')}
+    </Button>
+  );
   return (
     <div className='flex flex-col gap-4'>
       <div className='max-h-64 overflow-auto rounded-lg border'>
@@ -138,7 +178,7 @@ export function ChannelEndpointEditor({
               />
             )}
           </div>
-          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} webSocketEnabled={getResponsesWebSocketEnabled({ baseURL, endpoints, defaultEndpoints: defaults })} onChange={update} showWebSocketOption={showWebSocketOption} verificationChannel={verificationChannel} container={container} />}
+          {endpoint.apiFormat === 'openai/responses' && <CodexEndpointOptions key={endpoint.apiFormat} endpoint={endpoint} webSocketEnabled={!webSocketDisabled && getResponsesWebSocketEnabled({ baseURL, endpoints, defaultEndpoints: defaults })} onChange={update} showWebSocketOption={showWebSocketOption} verificationChannel={verificationChannel} container={container} />}
           <div className='bg-muted/40 flex flex-col gap-2 rounded-md p-3'>
             <p className='text-sm font-medium'>{t('channels.addresses.requestURL')}</p>
             {previewBases.slice(0, 3).map((address) => (
@@ -164,41 +204,7 @@ export function ChannelEndpointEditor({
           )}
         </div>
       )}
-      {adding ? (
-        <Select
-          onValueChange={(format) => {
-            onChange([...endpoints, { apiFormat: format }]);
-            setSelected(format);
-            setAdding(false);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('channels.addresses.addInterface')} />
-          </SelectTrigger>
-          <SelectContent container={container}>
-            <SelectGroup>
-              {formats
-                .filter((format) => !all.some((item) => item.apiFormat === format))
-                .map((format) => (
-                  <SelectItem key={format} value={format}>
-                    {endpointName(format)}
-                  </SelectItem>
-                ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      ) : (
-        <Button
-          type='button'
-          variant='outline'
-          size='sm'
-          className='self-start'
-          disabled={formats.every((format) => all.some((item) => item.apiFormat === format))}
-          onClick={() => setAdding(true)}
-        >
-          {t('channels.addresses.addInterface')}
-        </Button>
-      )}
+      {renderActions ? renderActions(addInterface) : addInterface}
     </div>
   );
 }

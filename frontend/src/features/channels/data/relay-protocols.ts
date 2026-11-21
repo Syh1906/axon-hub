@@ -21,11 +21,13 @@ export function isRelayProtocol(apiFormat: string): apiFormat is RelayProtocol {
  */
 export function getChannelRelayProtocols(
   defaultEndpoints: readonly ChannelEndpoint[] | null | undefined,
-  endpoints: readonly ChannelEndpoint[] | null | undefined
+  endpoints: readonly ChannelEndpoint[] | null | undefined,
+  disabled?: readonly string[] | null
 ): Set<RelayProtocol> {
   const protocols = new Set<RelayProtocol>();
 
   for (const endpoint of [...(defaultEndpoints ?? []), ...(endpoints ?? [])]) {
+    if (disabled?.includes(endpoint.apiFormat)) continue;
     const apiFormat = endpoint.apiFormat === 'openai/responses-ws' ? 'openai/responses' : endpoint.apiFormat;
     if (isRelayProtocol(apiFormat)) {
       protocols.add(apiFormat);

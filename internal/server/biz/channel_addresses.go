@@ -16,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/scopes"
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer"
 	xaisubscription "github.com/looplj/axonhub/llm/transformer/xai/subscription"
@@ -114,6 +115,14 @@ func (c *Channel) NormalizeUpstreamAddress(raw, apiFormat string) string {
 	if strings.HasPrefix(apiFormat, "openai/") || apiFormat == "anthropic/messages" {
 		version = "v1"
 	}
+	if apiFormat == string(llm.APIFormatOpenAIChatCompletion) && providerChatEndpointUsesFamilyVersion(c.Type, c.BaseURL) {
+		switch c.Type {
+		case channel.TypeDoubao, channel.TypeVolcengine, channel.TypeDoubaoAnthropic, channel.TypeVolcengineAnthropic:
+			version = "v3"
+		case channel.TypeZai, channel.TypeZhipu, channel.TypeZhipuAnthropic, channel.TypeZaiAnthropic:
+			version = "v4"
+		}
+	}
 	for _, endpoint := range c.Endpoints {
 		if endpoint.APIFormat == apiFormat && endpoint.Path != "" {
 			version = ""
@@ -121,6 +130,41 @@ func (c *Channel) NormalizeUpstreamAddress(raw, apiFormat string) string {
 		}
 	}
 	return transformer.NormalizeBaseURL(raw, version)
+}
+
+// UpstreamAddressRoute keeps the transformer's final endpoint suffix and query
+// while selecting an address belonging to the same configured upstream.
+type UpstreamAddressRoute struct {
+	request url.URL
+	suffix  string
+}
+
+func MatchUpstreamAddress(requestURL, baseURL string) (*UpstreamAddressRoute, error) {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+	current, err := url.Parse(requestURL)
+	if err != nil {
+		return nil, err
+	}
+	path := strings.TrimRight(base.Path, "/")
+	if current.Host != base.Host || current.Path != path && !strings.HasPrefix(current.Path, path+"/") {
+		return nil, nil
+	}
+	return &UpstreamAddressRoute{request: *current, suffix: strings.TrimPrefix(current.Path, path)}, nil
+}
+
+func (route *UpstreamAddressRoute) URLAt(targetURL string) (string, error) {
+	target, err := url.Parse(targetURL)
+	if err != nil {
+		return "", err
+	}
+	current := route.request
+	current.Scheme, current.Host = target.Scheme, target.Host
+	current.Path = strings.TrimRight(target.Path, "/") + route.suffix
+	current.RawPath = ""
+	return current.String(), nil
 }
 
 func (svc *ChannelService) ProbeChannelAddress(ctx context.Context, rawURL string, channelID *int) (*objects.ChannelAddressProbe, error) {

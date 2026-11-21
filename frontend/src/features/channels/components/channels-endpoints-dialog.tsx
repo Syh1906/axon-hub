@@ -1,9 +1,9 @@
-import { channelEndpointSchema } from '../data/schema';
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Google } from '@lobehub/icons';
-import { AlertCircle, Check, ChevronDown, Loader2, Pencil, Plus, Radar, X } from 'lucide-react';
+import { ChannelCapabilityProbes } from './channel-capability-probes';
+import { appendProbeEndpoints, type ProbeEdits } from '../data/capability-probes';
+import { AlertCircle, Check, ChevronDown, Pencil, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -18,67 +18,11 @@ import { ChannelProtocolPolicyEditor, type ProtocolPolicyDraft } from './channel
 import { AutoCompleteSelect } from '@/components/auto-complete-select';
 import { useChannels } from '../context/channels-context';
 import { cn } from '@/lib/utils';
-import { useDetectChannelEndpoints, useUpdateChannelSettings } from '../data/channels';
-import { getAvailableProtocolFormats, getConfigurableApiFormatsForChannelType, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, getCodexResponsesWebSocketURL, isResponsesFamilyFormat, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
-import { Channel, ChannelEndpoint, DetectedChannelEndpoint, ModelProtocol, configurableChannelEndpointApiFormats, configurableChannelEndpointApiFormatSchema } from '../data/schema';
+import { useUpdateChannelSettings } from '../data/channels';
+import { getAvailableProtocolFormats, getProbeConfiguredFormats, getConfigurableApiFormatsForChannelType, buildCodexResponsesEndpoints, getCodexResponsesWebSocketState, getCodexResponsesWebSocketURL, isResponsesFamilyFormat, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { Channel, ChannelEndpoint, ModelProtocol, configurableChannelEndpointApiFormats, configurableChannelEndpointApiFormatSchema } from '../data/schema';
 import { ChannelEndpointEditor } from './channel-endpoint-editor';
 import { ChannelWSVerification } from './channel-ws-verification';
-import { RELAY_PROTOCOL_LABEL_KEYS, getChannelRelayProtocols, isRelayProtocol, type RelayProtocol } from '../data/relay-protocols';
-import { ChatProtocolIcon, MessagesProtocolIcon, ResponsesProtocolIcon } from './endpoint-protocol-icons';
-
-const RELAY_PROTOCOL_ICONS: Record<RelayProtocol, React.ComponentType<{ size?: number | string; className?: string }>> = {
-  'openai/chat_completions': ChatProtocolIcon,
-  'openai/responses': ResponsesProtocolIcon,
-  'anthropic/messages': MessagesProtocolIcon,
-  'gemini/contents': Google,
-};
-
-const RELAY_PROTOCOL_ACTIVE_CLASSES: Record<RelayProtocol, string> = {
-  'openai/chat_completions': 'border-sky-500/30 bg-sky-500/15 text-sky-600 dark:text-sky-400',
-  'openai/responses': 'border-violet-500/30 bg-violet-500/15 text-violet-600 dark:text-violet-400',
-  'anthropic/messages': 'border-amber-500/30 bg-amber-500/15 text-amber-600 dark:text-amber-400',
-  'gemini/contents': 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-};
-
-const DETECTION_REASON_KEYS: Record<string, string> = {
-  supported: 'channels.endpoints.detect.reasons.supported',
-  not_found: 'channels.endpoints.detect.reasons.notFound',
-  auth_error: 'channels.endpoints.detect.reasons.authError',
-  rate_limited: 'channels.endpoints.detect.reasons.rateLimited',
-  server_error: 'channels.endpoints.detect.reasons.serverError',
-  unreachable: 'channels.endpoints.detect.reasons.unreachable',
-  invalid_request: 'channels.endpoints.detect.reasons.invalidRequest',
-  invalid_response: 'protocolPolicy.unverifiedResponse',
-};
-
-function DetectionResultCard({ result }: { result: DetectedChannelEndpoint }) {
-  const { t } = useTranslation();
-
-  if (!isRelayProtocol(result.apiFormat)) {
-    return null;
-  }
-
-  const Icon = RELAY_PROTOCOL_ICONS[result.apiFormat];
-  const label = t(RELAY_PROTOCOL_LABEL_KEYS[result.apiFormat]);
-  const reasonKey = DETECTION_REASON_KEYS[result.reason] ?? DETECTION_REASON_KEYS.unreachable;
-
-  return (
-    <div
-      className={cn(
-        'flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs',
-        result.supported ? RELAY_PROTOCOL_ACTIVE_CLASSES[result.apiFormat] : 'border-border/60 bg-muted/40 text-muted-foreground'
-      )}
-    >
-      <Icon size={14} />
-      <span className='truncate font-medium'>{label}</span>
-      <span className='text-muted-foreground shrink-0'>
-        {result.supported ? t('channels.endpoints.detect.supported') : t(reasonKey)}
-        {!result.supported && result.statusCode ? ` (${result.statusCode})` : ''}
-      </span>
-    </div>
-  );
-}
-
 interface Props {
   channel: Channel;
   open: boolean;
@@ -152,7 +96,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
   const { t } = useTranslation();
   const updateChannelSettings = useUpdateChannelSettings();
   const { setOpen } = useChannels();
-  const detectEndpoints = useDetectChannelEndpoints();
+
   const [dialogContentElement, setDialogContentElement] = useState<HTMLDivElement | null>(null);
   const wasOpenRef = useRef(false);
 
@@ -173,7 +117,17 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
   const [editingProtocolModel, setEditingProtocolModel] = useState<string | null>(null);
   const [blockedEndpointRemoval, setBlockedEndpointRemoval] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [detectionResults, setDetectionResults] = useState<DetectedChannelEndpoint[] | null>(null);
+  const [probeEdits, setProbeEdits] = useState<ProbeEdits>({ settings: {}, additions: [] });
+  const probeSettings = {
+    adaptedCapabilities: channel.settings?.adaptedCapabilities,
+    disabledEndpoints: channel.settings?.disabledEndpoints,
+    allowWebSearchTool: channel.settings?.allowWebSearchTool,
+    allowImageGenerationTool: channel.settings?.allowImageGenerationTool ?? (
+      [...(channel.defaultEndpoints ?? []), ...(channel.endpoints ?? [])].some(ep => isResponsesFamilyFormat(ep.apiFormat) && !channel.settings?.disabledEndpoints?.includes(ep.apiFormat))
+        ? true : undefined
+    ),
+    ...probeEdits.settings,
+  };
   const supportedModelOptions = useMemo(
     () =>
       Array.from(new Set([...channel.supportedModels, ...modelProtocols.map((mp) => mp.model)])).map((model) => ({
@@ -206,7 +160,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     setEditingProtocolModel(null);
     setBlockedEndpointRemoval(null);
     setError(null);
-    setDetectionResults(null);
+    setProbeEdits({settings:{},additions:[]});
   }, [open, channel]);
 
   const savedEndpoints = useMemo(
@@ -220,8 +174,11 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
       return;
     }
     setCodexResponsesWebSocket(checked);
+    if (checked) setProbeEdits(previous => ({...previous, settings:{
+      ...previous.settings, disabledEndpoints:(previous.settings.disabledEndpoints ?? channel.settings?.disabledEndpoints ?? []).filter(format => format !== OPENAI_RESPONSES_WEBSOCKET),
+    }}));
     setBlockedEndpointRemoval(null);
-  }, [modelProtocols]);
+  }, [modelProtocols, channel.settings?.disabledEndpoints]);
   const handleRemoveEndpoint = useCallback((apiFormat: string) => {
     setEndpoints((prev) => prev.filter((ep) => ep.apiFormat !== apiFormat));
     setBlockedEndpointRemoval(null);
@@ -240,42 +197,22 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     [defaultEndpoints, handleRemoveEndpoint, modelProtocols]
   );
 
-  const handleDetectEndpoints = useCallback(async () => {
-    setError(null);
-
-    try {
-      const results = await detectEndpoints.mutateAsync({ channelID: channel.id });
-      setDetectionResults(results);
-
-      // Add the supported relay protocols that the channel does not expose yet.
-      // Default endpoints are built-in and read-only, so only the override list
-      // is updated. The user still has to save to persist the change.
-      const available = getChannelRelayProtocols(defaultEndpoints, savedEndpoints);
-      const additions = results
-        .filter((result) => result.supported && isRelayProtocol(result.apiFormat) && !available.has(result.apiFormat))
-        .map((result) => channelEndpointSchema.parse({ apiFormat: result.apiFormat }));
-
-      if (additions.length > 0) {
-        setEndpoints((prev) => {
-          const existing = new Set(prev.map((ep) => ep.apiFormat));
-          return [...prev, ...additions.filter((ep) => !existing.has(ep.apiFormat))];
-        });
-      }
-    } catch {
-      // error handled by the hook
-    }
-  }, [channel.id, defaultEndpoints, savedEndpoints, detectEndpoints]);
-
   const availableProtocolFormats = useMemo(() => {
-    return getAvailableProtocolFormats(defaultEndpoints, savedEndpoints);
-  }, [defaultEndpoints, savedEndpoints]);
+    return getAvailableProtocolFormats(defaultEndpoints, savedEndpoints).filter(format => !probeSettings.disabledEndpoints?.includes(format));
+  }, [defaultEndpoints, savedEndpoints, probeSettings.disabledEndpoints]);
+
+  // A saved-channel probe must test the same upstream address shown in the editor.
+  const probeTarget = (items: readonly ChannelEndpoint[]) => JSON.stringify(items
+    .filter(ep => ep.path || ep.baseURL).map(ep => [ep.apiFormat,ep.path || '',ep.baseURL || '']).sort());
+  const probeConnection = probeTarget(savedEndpoints);
+  const probeReady = probeConnection === probeTarget(channel.endpoints ?? []);
 
   const affectedProtocolModels = useMemo(
     () =>
-      blockedEndpointRemoval && !defaultEndpoints.some((ep) => ep.apiFormat === blockedEndpointRemoval)
-        ? modelProtocols.filter((mp) => mp.apiFormats.includes(blockedEndpointRemoval)).map((mp) => mp.model)
+      blockedEndpointRemoval
+        ? modelProtocols.filter((mp) => mp.enabled !== false && mp.apiFormats.includes(blockedEndpointRemoval)).map((mp) => mp.model)
         : [],
-    [blockedEndpointRemoval, defaultEndpoints, modelProtocols]
+    [blockedEndpointRemoval, modelProtocols]
   );
 
   useEffect(() => {
@@ -364,7 +301,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
       return;
     }
 
-    const invalidApiFormat = apiFormats.find((format) => !RECOGNIZED_API_FORMATS.includes(format));
+    const invalidApiFormat = apiFormats.find((format) => !RECOGNIZED_API_FORMATS.includes(format) && !channel.endpoints?.some(ep => ep.apiFormat === format) && !defaultEndpoints.some(ep => ep.apiFormat === format));
     if (invalidApiFormat) {
       setError(t('channels.endpoints.invalidApiFormat', 'Unsupported API format'));
       return;
@@ -404,7 +341,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
             catalogJSON: ep.catalogJSON ?? null,
           })),
         },
-        patch: { modelProtocols, protocolPolicy: { ...protocolPolicy, allowedProtocols: restrictedProtocols ? protocolPolicy.allowedProtocols : [] } },
+        patch: { ...probeEdits.settings, modelProtocols, protocolPolicy: { ...protocolPolicy, allowedProtocols: restrictedProtocols ? protocolPolicy.allowedProtocols : [] } },
       });
 
       toast.success(t('channels.messages.updateSuccess'));
@@ -412,7 +349,7 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
     } catch {
       // error handled by hook
     }
-  }, [channel, defaultEndpoints, isCodexChannel, savedEndpoints, modelProtocols, protocolPolicy, restrictedProtocols, onOpenChange, updateChannelSettings, t]);
+  }, [channel, defaultEndpoints, isCodexChannel, savedEndpoints, modelProtocols, protocolPolicy, restrictedProtocols, onOpenChange, updateChannelSettings, t, probeEdits.settings]);
 
   return (
     <>
@@ -452,10 +389,22 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
               defaults={defaultEndpoints}
               endpoints={isCodexChannel ? savedEndpoints.filter((ep) => ep.apiFormat !== OPENAI_RESPONSES_WEBSOCKET) : endpoints}
               showWebSocketOption={!isCodexChannel}
+              webSocketDisabled={probeSettings.disabledEndpoints?.includes(OPENAI_RESPONSES_WEBSOCKET)}
               formats={getConfigurableApiFormatsForChannelType(channel.type, configurableChannelEndpointApiFormats)}
               baseURL={channel.baseURL || ''}
               addresses={channel.settings?.upstreamAddresses ?? []}
-              onChange={setEndpoints}
+              onChange={(next, webSocketChoice) => {
+                if (webSocketChoice === false && modelProtocols.some(mp => mp.enabled !== false && mp.apiFormats.includes(OPENAI_RESPONSES_WEBSOCKET))) {
+                  setBlockedEndpointRemoval(OPENAI_RESPONSES_WEBSOCKET);
+                  return;
+                }
+                const added = next.filter(ep => !endpoints.some(old => old.apiFormat === ep.apiFormat)).map(ep => ep.apiFormat);
+                if (webSocketChoice === true) added.push(OPENAI_RESPONSES_WEBSOCKET);
+                if (added.length && probeSettings.disabledEndpoints?.some(format => added.includes(format))) {
+                  setProbeEdits({...probeEdits, settings:{...probeEdits.settings,disabledEndpoints:probeSettings.disabledEndpoints.filter(format => !added.includes(format))}});
+                }
+                setEndpoints(next);
+              }}
               onRemove={(format) => {
                 if (isCodexChannel && format === 'openai/responses') {
                   setEndpoints((prev) => prev.filter((ep) => !isResponsesFamilyFormat(ep.apiFormat)));
@@ -467,15 +416,27 @@ export function ChannelsEndpointsDialog({ channel, open, onOpenChange }: Props) 
               container={dialogContentElement}
             />
 
-            <div className='space-y-2'>
-              <Button type='button' variant='outline' size='sm' onClick={handleDetectEndpoints} disabled={detectEndpoints.isPending}>
-                {detectEndpoints.isPending ? <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' /> : <Radar className='mr-1.5 h-3.5 w-3.5' />}
-                {t(detectEndpoints.isPending ? 'channels.endpoints.detect.detecting' : 'channels.endpoints.detect.button')}
-              </Button>
-              <p className='text-muted-foreground text-xs'>{t('channels.endpoints.detect.description')}</p>
-              {detectionResults && <div className='flex flex-wrap gap-2'>{detectionResults.map((result) => <DetectionResultCard key={result.apiFormat} result={result} />)}</div>}
-            </div>
-
+            {open && <ChannelCapabilityProbes
+              input={{channelID:channel.id, model:channel.defaultTestModel || undefined}}
+              ready={probeReady}
+              connection={probeConnection}
+              models={channel.supportedModels}
+              configured={getProbeConfiguredFormats(defaultEndpoints, savedEndpoints, channel.baseURL)}
+              edits={{settings:probeSettings, additions:[]}}
+              onBlocked={format => {
+                if (!modelProtocols.some(mp => mp.enabled !== false && mp.apiFormats.includes(format))) return false;
+                setBlockedEndpointRemoval(format);
+                return true;
+              }}
+              onChange={next => {
+                if (next.additions.length) {
+                  setEndpoints(previous => appendProbeEndpoints(previous,next.additions));
+                  if (isCodexChannel && next.additions.includes(OPENAI_RESPONSES_WEBSOCKET)) setCodexResponsesWebSocket(true);
+                }
+                if (isCodexChannel && next.settings.disabledEndpoints?.includes(OPENAI_RESPONSES_WEBSOCKET)) setCodexResponsesWebSocket(false);
+                setProbeEdits({...next, additions:[]});
+              }}
+            />}
             </TabsContent>
             <TabsContent value='policy'>
               <ChannelProtocolPolicyEditor value={protocolPolicy} onChange={setProtocolPolicy} restricted={restrictedProtocols} onRestrictedChange={setRestrictedProtocols} />

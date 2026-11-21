@@ -200,3 +200,14 @@ func TestResponsesOriginKeepsAddressAfterPriorityChange(t *testing.T) {
 	require.Equal(t, "continuation_upstream_changed", failure.Detail.Code)
 	require.Nil(t, p.state.RequestExec)
 }
+
+func TestDoubaoChatUsesEnabledV3Address(t *testing.T) {
+	ch := &biz.Channel{Channel: &ent.Channel{Type: entchannel.TypeDoubao, BaseURL: "https://main.test/api/v3", Settings: &objects.ChannelSettings{UpstreamAddresses: []objects.ChannelUpstreamAddress{
+		{URL: "https://main.test/api/v3", Enabled: false}, {URL: "https://active.test/api/v3", Enabled: true},
+	}}}}
+	p := &PersistentOutboundTransformer{state: &PersistenceState{CurrentCandidate: &ChannelModelsCandidate{Channel: ch, APIFormat: "openai/chat_completions"}}}
+	raw := &httpclient.Request{URL: "https://main.test/api/v3/chat/completions?x=1"}
+	selected, err := applyUpstreamAddress(p).OnOutboundRawRequest(t.Context(), raw)
+	require.NoError(t, err)
+	require.Equal(t, "https://active.test/api/v3/chat/completions?x=1", selected.URL)
+}

@@ -759,12 +759,15 @@ type ComplexityRoot struct {
 	ChannelSettings struct {
 		APIKeyRoundRobinSwitchAfter     func(childComplexity int) int
 		APIKeyStrategy                  func(childComplexity int) int
+		AdaptedCapabilities             func(childComplexity int) int
 		AddressFailover                 func(childComplexity int) int
 		AllowImageGenerationTool        func(childComplexity int) int
+		AllowWebSearchTool              func(childComplexity int) int
 		AutoTrimedModelPrefixes         func(childComplexity int) int
 		BodyOverrideOperations          func(childComplexity int) int
 		CacheWriteBilling               func(childComplexity int) int
 		DisableSessionReuse             func(childComplexity int) int
+		DisabledEndpoints               func(childComplexity int) int
 		ExtraModelPrefix                func(childComplexity int) int
 		ForceOneHourPromptCache         func(childComplexity int) int
 		GlobalPriority                  func(childComplexity int) int
@@ -1265,6 +1268,7 @@ type ComplexityRoot struct {
 
 	DetectedChannelEndpoint struct {
 		APIFormat  func(childComplexity int) int
+		Model      func(childComplexity int) int
 		Reason     func(childComplexity int) int
 		StatusCode func(childComplexity int) int
 		Supported  func(childComplexity int) int
@@ -6721,6 +6725,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.APIKeyStrategy(childComplexity), true
+	case "ChannelSettings.adaptedCapabilities":
+		if e.complexity.ChannelSettings.AdaptedCapabilities == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.AdaptedCapabilities(childComplexity), true
 	case "ChannelSettings.addressFailover":
 		if e.complexity.ChannelSettings.AddressFailover == nil {
 			break
@@ -6733,6 +6743,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.AllowImageGenerationTool(childComplexity), true
+	case "ChannelSettings.allowWebSearchTool":
+		if e.complexity.ChannelSettings.AllowWebSearchTool == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.AllowWebSearchTool(childComplexity), true
 	case "ChannelSettings.autoTrimedModelPrefixes":
 		if e.complexity.ChannelSettings.AutoTrimedModelPrefixes == nil {
 			break
@@ -6757,6 +6773,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ChannelSettings.DisableSessionReuse(childComplexity), true
+	case "ChannelSettings.disabledEndpoints":
+		if e.complexity.ChannelSettings.DisabledEndpoints == nil {
+			break
+		}
+
+		return e.complexity.ChannelSettings.DisabledEndpoints(childComplexity), true
 	case "ChannelSettings.extraModelPrefix":
 		if e.complexity.ChannelSettings.ExtraModelPrefix == nil {
 			break
@@ -8832,6 +8854,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DetectedChannelEndpoint.APIFormat(childComplexity), true
+	case "DetectedChannelEndpoint.model":
+		if e.complexity.DetectedChannelEndpoint.Model == nil {
+			break
+		}
+
+		return e.complexity.DetectedChannelEndpoint.Model(childComplexity), true
 	case "DetectedChannelEndpoint.reason":
 		if e.complexity.DetectedChannelEndpoint.Reason == nil {
 			break
@@ -19981,6 +20009,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelPoliciesInput,
 		ec.unmarshalInputChannelPrioritiesInput,
 		ec.unmarshalInputChannelPriorityInput,
+		ec.unmarshalInputChannelProbeDraftInput,
 		ec.unmarshalInputChannelProbeWhereInput,
 		ec.unmarshalInputChannelProtocolPolicyInput,
 		ec.unmarshalInputChannelProviderQuotaSettingsInput,
@@ -32932,6 +32961,12 @@ func (ec *executionContext) fieldContext_Channel_settings(_ context.Context, fie
 				return ec.fieldContext_ChannelSettings_nonStreamResponseTimeoutSeconds(ctx, field)
 			case "disableSessionReuse":
 				return ec.fieldContext_ChannelSettings_disableSessionReuse(ctx, field)
+			case "adaptedCapabilities":
+				return ec.fieldContext_ChannelSettings_adaptedCapabilities(ctx, field)
+			case "disabledEndpoints":
+				return ec.fieldContext_ChannelSettings_disabledEndpoints(ctx, field)
+			case "allowWebSearchTool":
+				return ec.fieldContext_ChannelSettings_allowWebSearchTool(ctx, field)
 			case "allowImageGenerationTool":
 				return ec.fieldContext_ChannelSettings_allowImageGenerationTool(ctx, field)
 			case "modelPriceMultiplier":
@@ -39089,6 +39124,93 @@ func (ec *executionContext) _ChannelSettings_disableSessionReuse(ctx context.Con
 }
 
 func (ec *executionContext) fieldContext_ChannelSettings_disableSessionReuse(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_adaptedCapabilities(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_adaptedCapabilities,
+		func(ctx context.Context) (any, error) {
+			return obj.AdaptedCapabilities, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_adaptedCapabilities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_disabledEndpoints(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_disabledEndpoints,
+		func(ctx context.Context) (any, error) {
+			return obj.DisabledEndpoints, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_disabledEndpoints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ChannelSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ChannelSettings_allowWebSearchTool(ctx context.Context, field graphql.CollectedField, obj *objects.ChannelSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ChannelSettings_allowWebSearchTool,
+		func(ctx context.Context) (any, error) {
+			return obj.AllowWebSearchTool, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ChannelSettings_allowWebSearchTool(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ChannelSettings",
 		Field:      field,
@@ -49586,6 +49708,8 @@ func (ec *executionContext) fieldContext_DetectChannelEndpointsPayload_endpoints
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "model":
+				return ec.fieldContext_DetectedChannelEndpoint_model(ctx, field)
 			case "apiFormat":
 				return ec.fieldContext_DetectedChannelEndpoint_apiFormat(ctx, field)
 			case "supported":
@@ -49596,6 +49720,35 @@ func (ec *executionContext) fieldContext_DetectChannelEndpointsPayload_endpoints
 				return ec.fieldContext_DetectedChannelEndpoint_reason(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DetectedChannelEndpoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DetectedChannelEndpoint_model(ctx context.Context, field graphql.CollectedField, obj *biz.DetectedChannelEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DetectedChannelEndpoint_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DetectedChannelEndpoint_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DetectedChannelEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -113161,6 +113314,68 @@ func (ec *executionContext) unmarshalInputChannelPriorityInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChannelProbeDraftInput(ctx context.Context, obj any) (biz.ChannelProbeDraftInput, error) {
+	var it biz.ChannelProbeDraftInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"upstreamAddresses", "type", "baseURL", "credentials", "endpoints", "proxy"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "upstreamAddresses":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("upstreamAddresses"))
+			data, err := ec.unmarshalOChannelUpstreamAddressInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelUpstreamAddressᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UpstreamAddresses = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNChannelType2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚋchannelᚐType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "baseURL":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseURL"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BaseURL = data
+		case "credentials":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("credentials"))
+			data, err := ec.unmarshalNChannelCredentialsInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelCredentials(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Credentials = data
+		case "endpoints":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endpoints"))
+			data, err := ec.unmarshalOChannelEndpointInput2ᚕgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐChannelEndpointᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Endpoints = data
+		case "proxy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("proxy"))
+			data, err := ec.unmarshalOProxyConfigInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProxyConfig(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Proxy = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputChannelProbeWhereInput(ctx context.Context, obj any) (ent.ChannelProbeWhereInput, error) {
 	var it ent.ChannelProbeWhereInput
 	asMap := map[string]any{}
@@ -113922,7 +114137,7 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "cacheWriteBilling", "modelContexts", "upstreamAddresses", "addressFailover", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "maxSingleChannelRetries", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "primaryApiFormat", "healthGateFailureThreshold", "forceOneHourPromptCache", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -114006,6 +114221,27 @@ func (ec *executionContext) unmarshalInputChannelSettingsInput(ctx context.Conte
 				return it, err
 			}
 			it.DisableSessionReuse = data
+		case "adaptedCapabilities":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("adaptedCapabilities"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AdaptedCapabilities = data
+		case "disabledEndpoints":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disabledEndpoints"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisabledEndpoints = data
+		case "allowWebSearchTool":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowWebSearchTool"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowWebSearchTool = data
 		case "allowImageGenerationTool":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowImageGenerationTool"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -118215,7 +118451,7 @@ func (ec *executionContext) unmarshalInputDetectChannelEndpointsInput(ctx contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"channelID", "model"}
+	fieldsInOrder := [...]string{"channelID", "draft", "model"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -118224,11 +118460,18 @@ func (ec *executionContext) unmarshalInputDetectChannelEndpointsInput(ctx contex
 		switch k {
 		case "channelID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
-			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
+			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.ChannelID = data
+		case "draft":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("draft"))
+			data, err := ec.unmarshalOChannelProbeDraftInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelProbeDraftInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Draft = data
 		case "model":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("model"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -133164,7 +133407,7 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
+	fieldsInOrder := [...]string{"protocolPolicy", "responsesServiceTierOverride", "serviceTierBilling", "responsesTierSupport", "streamFirstEventTimeoutSeconds", "nonStreamResponseTimeoutSeconds", "disableSessionReuse", "adaptedCapabilities", "disabledEndpoints", "allowWebSearchTool", "allowImageGenerationTool", "extraModelPrefix", "modelMappings", "autoTrimedModelPrefixes", "hideOriginalModels", "hideMappedModels", "lowercaseModelId", "proxy", "transformOptions", "headerOverrideOperations", "bodyOverrideOperations", "passThroughUserAgent", "passThroughBody", "rateLimit", "retryableStatusCodes", "retryableErrorPatterns", "modelProtocols", "apiKeyStrategy", "apiKeyRoundRobinSwitchAfter", "providerQuota", "quotaRoutingMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -133220,6 +133463,27 @@ func (ec *executionContext) unmarshalInputUpdateChannelSettingsInput(ctx context
 				return it, err
 			}
 			it.DisableSessionReuse = data
+		case "adaptedCapabilities":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("adaptedCapabilities"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AdaptedCapabilities = data
+		case "disabledEndpoints":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disabledEndpoints"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisabledEndpoints = data
+		case "allowWebSearchTool":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowWebSearchTool"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AllowWebSearchTool = data
 		case "allowImageGenerationTool":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("allowImageGenerationTool"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -145255,6 +145519,12 @@ func (ec *executionContext) _ChannelSettings(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "adaptedCapabilities":
+			out.Values[i] = ec._ChannelSettings_adaptedCapabilities(ctx, field, obj)
+		case "disabledEndpoints":
+			out.Values[i] = ec._ChannelSettings_disabledEndpoints(ctx, field, obj)
+		case "allowWebSearchTool":
+			out.Values[i] = ec._ChannelSettings_allowWebSearchTool(ctx, field, obj)
 		case "allowImageGenerationTool":
 			out.Values[i] = ec._ChannelSettings_allowImageGenerationTool(ctx, field, obj)
 		case "modelPriceMultiplier":
@@ -148742,6 +149012,11 @@ func (ec *executionContext) _DetectedChannelEndpoint(ctx context.Context, sel as
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("DetectedChannelEndpoint")
+		case "model":
+			out.Values[i] = ec._DetectedChannelEndpoint_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "apiFormat":
 			out.Values[i] = ec._DetectedChannelEndpoint_apiFormat(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -182668,6 +182943,14 @@ func (ec *executionContext) marshalOChannelProbe2ᚕᚖgithubᚗcomᚋloopljᚋa
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOChannelProbeDraftInput2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐChannelProbeDraftInput(ctx context.Context, v any) (*biz.ChannelProbeDraftInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputChannelProbeDraftInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOChannelProbeWhereInput2ᚕᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐChannelProbeWhereInputᚄ(ctx context.Context, v any) ([]*ent.ChannelProbeWhereInput, error) {

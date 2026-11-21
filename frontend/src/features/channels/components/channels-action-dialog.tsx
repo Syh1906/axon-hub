@@ -35,6 +35,8 @@ import { useChannelActionDialog } from '../hooks/use-channel-action-dialog';
 import { ApiFormatOption, MAX_MODELS_DISPLAY, Props, alwaysOAuthProviderKeys, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getResponsesTransportFromChannel } from '../utils/channel-dialog';
 import { isValidModelPattern } from '../utils/pattern';
 import { ChannelAddressesEditor } from './channel-addresses-editor';
+import { buildCodexResponsesEndpoints, getProbeConfiguredFormats, setResponsesWebSocketSupport, toHttpBaseURL } from '../data/protocol-options';
+import { ChannelCapabilityProbes } from './channel-capability-probes';
 import { ChannelEndpointEditor } from './channel-endpoint-editor';
 import { ChannelsModelPicker } from './channels-model-picker';
 import { ProxyType } from './channels-proxy-dialog';
@@ -226,7 +228,18 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
   const [showAddressesPanel, setShowAddressesPanel] = useState(false);
   const addresses = form.watch('settings.upstreamAddresses') ?? [];
   const addressFailover = form.watch('settings.addressFailover') ?? true;
+  const probeCredentials = {
+    apiKey: form.watch('credentials.apiKey')?.trim(),
+    apiKeys: (apiKeys ?? []).map(key => key.trim()).filter(Boolean),
+    vertexApiKeys: (form.watch('credentials.vertexApiKeys') ?? []).filter(key => key.apiKey.trim()).map(key => ({ ...key, region: key.region || 'global' })),
+  };
   const watchedBaseURL = form.watch('baseURL') ?? '';
+  const draftEndpoints = form.watch('endpoints') ?? [];
+  const usesResponsesCheckbox = isCodexType || (selectedApiFormat === OPENAI_RESPONSES && !isXAISubscriptionType);
+  const draftProbeEndpoints = isCodexType
+    ? buildCodexResponsesEndpoints(draftEndpoints, responsesTransport === 'websocket')
+    : usesResponsesCheckbox ? setResponsesWebSocketSupport(draftEndpoints, responsesTransport === 'websocket') : draftEndpoints;
+  const draftProbeBaseURL = usesResponsesCheckbox ? toHttpBaseURL(watchedBaseURL) : watchedBaseURL;
   useEffect(() => {
     if (!open) setShowAddressesPanel(false);
   }, [open]);
@@ -888,6 +901,35 @@ export function ChannelsActionDialog({ currentRow, duplicateFromRow, open, onOpe
                               }
                             }}
                             onManageAddresses={openAddresses}
+                            renderActions={!isEdit && open ? (addInterface) => (
+                              <ChannelCapabilityProbes
+                                compact
+                                startAction={addInterface}
+                                connection={dialog.probeConnection}
+                                input={{
+                                  draft: {
+                                    type: derivedChannelType,
+                                    baseURL: draftProbeBaseURL,
+                                    credentials: probeCredentials,
+                                    endpoints: draftProbeEndpoints,
+                                    upstreamAddresses: addresses,
+                                    proxy: { type: proxyType, ...(proxyType === ProxyType.URL && { url: proxyUrl, username: proxyUsername, password: proxyPassword }) },
+                                  },
+                                  model: form.watch('defaultTestModel') || supportedModels[0],
+                                }}
+                                ready={!!watchedBaseURL.trim() && !!(probeCredentials.apiKeys.length || probeCredentials.apiKey || probeCredentials.vertexApiKeys.length)}
+                                models={supportedModels}
+                                configured={getProbeConfiguredFormats([{apiFormat:selectedApiFormat}], draftProbeEndpoints, draftProbeBaseURL)}
+                                edits={dialog.draftProbeEdits}
+                                onChange={(next, toggledFormat) => {
+                                  if (usesResponsesCheckbox && toggledFormat === 'openai/responses-ws') {
+                                    setResponsesTransport(next.settings.disabledEndpoints?.includes(toggledFormat) ? 'http' : 'websocket');
+                                    next = { ...next, additions: next.additions.filter(format => format !== toggledFormat) };
+                                  }
+                                  dialog.setDraftProbeEdits(next);
+                                }}
+                              />
+                            ) : undefined}
                           />
                         </div>
                       </details>

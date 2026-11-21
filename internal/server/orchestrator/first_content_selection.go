@@ -203,7 +203,7 @@ func sameFirstContentSettings(a, b *objects.ChannelSettings) bool {
 	}
 	return equalSetting(a.CacheWriteBilling, b.CacheWriteBilling) && equalSetting(a.ServiceTierBilling, b.ServiceTierBilling) &&
 		a.ForceOneHourPromptCache == b.ForceOneHourPromptCache && equalSetting(a.PassThroughBody, b.PassThroughBody) &&
-		equalSetting(a.AllowImageGenerationTool, b.AllowImageGenerationTool) && reflect.DeepEqual(a.TransformOptions, b.TransformOptions)
+		equalSetting(a.AllowWebSearchTool, b.AllowWebSearchTool) && equalSetting(a.AllowImageGenerationTool, b.AllowImageGenerationTool) && reflect.DeepEqual(a.TransformOptions, b.TransformOptions)
 }
 
 func equalSetting[T comparable](a, b *T) bool {

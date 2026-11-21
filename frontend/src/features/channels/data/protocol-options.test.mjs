@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   buildCodexResponsesEndpoints,
   getApiFormatsForProvider,
+  getProbeConfiguredFormats,
   getAvailableProtocolFormats,
   getChannelTypeForApiFormat,
   getCodexResponsesWebSocketState,
@@ -476,4 +477,12 @@ test('仅 WS 端点的目录资料在取消后重开及重复保存中保留', (
   }
   const preferred = { apiFormat: H, catalogURL: 'https://http.test/models' };
   assert.deepEqual(buildCodexResponsesEndpoints([{ apiFormat: W, ...metadata }, preferred], true)[0], preferred);
+});
+
+test('探测结果从待保存的端点读取 WS 启停状态', () => {
+  const chat = [{apiFormat:'openai/chat_completions'}];
+  assert.deepEqual(getProbeConfiguredFormats(chat, [], 'https://relay.test'), ['openai/chat_completions']);
+  const http = [{apiFormat:'openai/responses'}];
+  assert.deepEqual(getProbeConfiguredFormats(http, setResponsesWebSocketSupport([], true)), ['openai/responses','openai/responses-ws']);
+  assert.deepEqual(getProbeConfiguredFormats(http, setResponsesWebSocketSupport([], false)), ['openai/responses']);
 });

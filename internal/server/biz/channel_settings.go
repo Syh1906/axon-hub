@@ -54,6 +54,9 @@ type UpdateChannelSettingsInput struct {
 	StreamFirstEventTimeoutSeconds  *int                                  `json:"streamFirstEventTimeoutSeconds"`
 	NonStreamResponseTimeoutSeconds *int                                  `json:"nonStreamResponseTimeoutSeconds"`
 	DisableSessionReuse             *bool                                 `json:"disableSessionReuse"`
+	AdaptedCapabilities             []string                              `json:"adaptedCapabilities,omitempty"`
+	DisabledEndpoints               []string                              `json:"disabledEndpoints,omitempty"`
+	AllowWebSearchTool              *bool                                 `json:"allowWebSearchTool,omitempty"`
 	AllowImageGenerationTool        *bool                                 `json:"allowImageGenerationTool"`
 	ExtraModelPrefix                *string                               `json:"extraModelPrefix"`
 	ModelMappings                   []objects.ModelMapping                `json:"modelMappings"`
@@ -112,6 +115,15 @@ func (i *UpdateChannelSettingsInput) Apply(base *objects.ChannelSettings) object
 	}
 	if i.DisableSessionReuse != nil {
 		merged.DisableSessionReuse = *i.DisableSessionReuse
+	}
+	if i.AdaptedCapabilities != nil {
+		merged.AdaptedCapabilities = i.AdaptedCapabilities
+	}
+	if i.DisabledEndpoints != nil {
+		merged.DisabledEndpoints = i.DisabledEndpoints
+	}
+	if i.AllowWebSearchTool != nil {
+		merged.AllowWebSearchTool = i.AllowWebSearchTool
 	}
 	if i.AllowImageGenerationTool != nil {
 		merged.AllowImageGenerationTool = i.AllowImageGenerationTool

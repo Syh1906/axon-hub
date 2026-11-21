@@ -37,6 +37,9 @@ export const CHANNEL_QUERY_FULL_NODE_SELECTION = `
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
             disableSessionReuse
+            adaptedCapabilities
+            disabledEndpoints
+            allowWebSearchTool
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }
@@ -194,6 +197,9 @@ export const CHANNEL_QUERY_LIST_NODE_BASE_SELECTION = `
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
             disableSessionReuse
+            adaptedCapabilities
+            disabledEndpoints
+            allowWebSearchTool
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }
@@ -236,6 +242,9 @@ export const CHANNEL_QUERY_PROXY_SELECTION = `
             streamFirstEventTimeoutSeconds
             nonStreamResponseTimeoutSeconds
             disableSessionReuse
+            adaptedCapabilities
+            disabledEndpoints
+            allowWebSearchTool
             allowImageGenerationTool
             responsesServiceTierOverride
             responsesTierSupport { fast ultrafast allowDowngrade }

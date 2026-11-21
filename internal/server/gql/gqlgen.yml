@@ -416,6 +416,8 @@ models:
   SaveChannelEndpointsInput:
     model:
       - github.com/looplj/axonhub/internal/server/biz.SaveChannelEndpointsInput
+  ChannelProbeDraftInput:
+    model: github.com/looplj/axonhub/internal/server/biz.ChannelProbeDraftInput
   DetectChannelEndpointsInput:
     model:
       - github.com/looplj/axonhub/internal/server/biz.DetectChannelEndpointsInput

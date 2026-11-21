@@ -107,8 +107,9 @@ export function parseRetryableErrorPatternsInput(value: string): RetryableErrorP
   return patterns;
 }
 
-export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'type' | 'baseURL' | 'endpoints'>): ResponsesTransport {
+export function getResponsesTransportFromChannel(channel?: Pick<Channel, 'type' | 'baseURL' | 'endpoints' | 'settings'>): ResponsesTransport {
   if (!channel) return 'websocket';
+  if (channel.settings?.disabledEndpoints?.includes('openai/responses-ws')) return 'http';
   if (channel.type === 'codex') return getCodexResponsesWebSocketState(channel).enabled ? 'websocket' : 'http';
   return getResponsesWebSocketEnabled(channel) ? 'websocket' : 'http';
 }

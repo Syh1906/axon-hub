@@ -334,12 +334,11 @@ Define upstream capabilities in the channel menu under **Endpoints & Protocols �
 
 ### Endpoint Auto-Detection
 
-The **Upstream endpoints** tab can probe Chat Completions, Responses and Messages. Detection confirms only the test response shape, not support for every model, tool or parameter.
+Enter a Base URL and API key in **Add Channel**, then expand **Endpoints and protocols** to probe the draft. For an existing channel, open **Endpoints and protocols → Upstream endpoints**. **Probe and adapt** sends real requests that may incur upstream charges, including image and audio generation. Enter a test model or use automatic selection. With multiple channel addresses, probes use the highest-priority enabled address and respect endpoint-specific URLs. A video probe submits a job and checks whether the upstream accepted it.
 
-- Click **Auto-detect** in the **Current Endpoints** section. The backend sends one lightweight probe per protocol using the channel Base URL, credentials and default test model.
-- Detected protocols are added to the custom endpoint list. They are not saved automatically — review the list and press **Save** to persist.
-- Support requires a successful HTTP response with the expected protocol structure. HTML, empty JSON, `400`, `422` and `429` do not establish support. `401`/`403` indicate an authentication problem; `5xx` and connection failures are reported as errors.
-- The channel list **Endpoints** column summarizes the configured relay protocols as four icons, including the native Gemini Contents endpoint: colored when configured, dimmed otherwise.
+Each row shows the outcome and evidence for the tested model. Codex search requires search results, the Responses image tool requires an image, and WebSocket requires a completed response over a native connection. Authentication failures, rate limits, unavailable models, timeouts and unexpected responses are inconclusive.
+
+Newly discovered capabilities start disabled. Enable or disable individual rows. Repeating the probe preserves configured endpoints and previous choices. **Create** or **Save** applies the changes to routing. Cancel discards the edits.
 
 ### Model Protocol Overrides (ModelProtocols)
 

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/objects"
@@ -21,6 +22,23 @@ func channelProtocolPolicy(ch *biz.Channel) *objects.ChannelProtocolPolicy {
 // channelProtocolRejection is shared by selection, inspection and final dispatch.
 // Policy applies to chat requests; dedicated image/audio/etc APIs are unaffected.
 func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIFormat) string {
+	if target != "" && ch != nil && ch.Channel != nil && ch.Settings != nil && req != nil {
+		disabled := ch.Settings.DisabledEndpoints
+		if slices.Contains(disabled, string(target)) && !(target == llm.APIFormatOpenAIResponse && ch.UsesAdaptedResponsesTool(req)) {
+			return "no_compatible_endpoint"
+		}
+		if req.RequestType != llm.RequestTypeChat && req.RequestType != "" && slices.Contains(disabled, string(req.APIFormat)) {
+			// Only a real alternative can serve a disabled native endpoint.
+			// OpenAI Images uses the inbound operation to build the final URL even
+			// when selection nominates a different OpenAI Images transformer.
+			if _, ok := llm.CapableAPIFormats(req.RequestType)[string(target)]; !ok || req.RequestType == llm.RequestTypeImage && (target == llm.APIFormatOpenAIImageGeneration || target == llm.APIFormatOpenAIImageEdit || target == llm.APIFormatOpenAIImageVariation) {
+				return "no_compatible_endpoint"
+			}
+		}
+		if isResponsesFormat(target) && ch.BlocksResponsesWebSearch(req) {
+			return "web_search_tool_not_allowed"
+		}
+	}
 	if req == nil || (req.RequestType != "" && req.RequestType != llm.RequestTypeChat && req.RequestType != llm.RequestTypeTokenCount) {
 		return ""
 	}
@@ -62,6 +80,9 @@ func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIF
 }
 
 func requiresChannelProtocolSelection(ch *biz.Channel, req *llm.Request) bool {
+	if ch != nil && ch.Channel != nil && ch.Settings != nil && len(ch.Settings.DisabledEndpoints) > 0 {
+		return true
+	}
 	if req.RequestType == llm.RequestTypeChat || req.RequestType == llm.RequestTypeTokenCount {
 		return true
 	}
@@ -73,7 +94,11 @@ func selectChannelAPIFormat(ctx context.Context, ch *biz.Channel, entries []biz.
 	if reason := channelProtocolRejection(ch, req, ""); reason != "" {
 		return "", reason
 	}
-	endpoints, forced := applyForcedAPIFormatsForRequest(ctx, ch, entries, requestModel, req.RequestType, ch.ResolveEndpoints())
+	resolved := ch.ResolveEndpoints()
+	if ch.UsesAdaptedResponsesTool(req) && !slices.ContainsFunc(resolved, func(ep objects.ChannelEndpoint) bool { return ep.APIFormat == string(llm.APIFormatOpenAIResponse) }) {
+		resolved = append(resolved, objects.ChannelEndpoint{APIFormat: string(llm.APIFormatOpenAIResponse)})
+	}
+	endpoints, forced := applyForcedAPIFormatsForRequest(ctx, ch, entries, requestModel, req.RequestType, resolved)
 	allowed := make([]objects.ChannelEndpoint, 0, len(endpoints))
 	reason := "no_compatible_endpoint"
 	for _, ep := range endpoints {

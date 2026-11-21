@@ -66,19 +66,19 @@ func TestDetectChannelEndpoints_ClassifiesProtocols(t *testing.T) {
 			return &http.Response{
 				StatusCode: status,
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
-				Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"probe"}}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"endpoint not found"}}`)),
 			}, nil
 		},
 	}
 	svc.httpClient = httpclient.NewHttpClientWithClient(&http.Client{Transport: transport})
 
-	ch := newEndpointDetectTestChannel(t, ctx, client, "https://upstream.example")
+	ch := newEndpointDetectTestChannel(t, ctx, client, "http://127.0.0.1:1")
 
 	payload, err := svc.DetectChannelEndpoints(ctx, DetectChannelEndpointsInput{
-		ChannelID: objects.GUID{Type: "Channel", ID: ch.ID},
+		ChannelID: &objects.GUID{Type: "Channel", ID: ch.ID},
 	})
 	require.NoError(t, err)
-	require.Len(t, payload.Endpoints, 3)
+	require.Len(t, payload.Endpoints, len(endpointProbeFormats(ch.Type)))
 
 	byFormat := map[string]DetectedChannelEndpoint{}
 	for _, ep := range payload.Endpoints {
@@ -100,7 +100,7 @@ func TestDetectChannelEndpoints_ClassifiesProtocols(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, anthropic.StatusCode)
 	require.Equal(t, endpointDetectReasonAuthError, anthropic.Reason)
 
-	require.Len(t, transport.requests, 3)
+	require.Contains(t, transport.requests, "/v1/alpha/search")
 }
 
 func TestDetectChannelEndpoints_TransportErrorIsUnreachable(t *testing.T) {
@@ -124,10 +124,10 @@ func TestDetectChannelEndpoints_TransportErrorIsUnreachable(t *testing.T) {
 	}
 	svc.httpClient = httpclient.NewHttpClientWithClient(&http.Client{Transport: transport})
 
-	ch := newEndpointDetectTestChannel(t, ctx, client, "https://upstream.example")
+	ch := newEndpointDetectTestChannel(t, ctx, client, "http://127.0.0.1:1")
 
 	payload, err := svc.DetectChannelEndpoints(ctx, DetectChannelEndpointsInput{
-		ChannelID: objects.GUID{Type: "Channel", ID: ch.ID},
+		ChannelID: &objects.GUID{Type: "Channel", ID: ch.ID},
 	})
 	require.NoError(t, err)
 
@@ -170,7 +170,7 @@ func TestDetectChannelEndpoints_ReusesConfiguredOutboundAuth(t *testing.T) {
 	ch, err := client.Channel.Create().
 		SetType(channel.TypeOllamaAnthropic).
 		SetName("ollama-anthropic").
-		SetBaseURL("https://ollama.example").
+		SetBaseURL("http://127.0.0.1:1").
 		SetCredentials(objects.ChannelCredentials{APIKey: "test-key"}).
 		SetSupportedModels([]string{"llama3"}).
 		SetDefaultTestModel("llama3").
@@ -178,7 +178,7 @@ func TestDetectChannelEndpoints_ReusesConfiguredOutboundAuth(t *testing.T) {
 	require.NoError(t, err)
 
 	payload, err := svc.DetectChannelEndpoints(ctx, DetectChannelEndpointsInput{
-		ChannelID: objects.GUID{Type: "Channel", ID: ch.ID},
+		ChannelID: &objects.GUID{Type: "Channel", ID: ch.ID},
 	})
 	require.NoError(t, err)
 

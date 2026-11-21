@@ -230,6 +230,11 @@ export function getEffectiveResponsesFormats(
   return [OPENAI_RESPONSES_FORMAT, OPENAI_RESPONSES_WEBSOCKET_FORMAT].filter((format) => formats.has(format));
 }
 
+export function getProbeConfiguredFormats(defaults: readonly ChannelEndpoint[], endpoints: readonly ChannelEndpoint[], baseURL?: string | null) {
+  const formats = getAvailableProtocolFormats(defaults, endpoints).filter(format => !isResponsesFamilyFormat(format));
+  return [...formats, ...getEffectiveResponsesFormats({ defaultEndpoints: defaults, endpoints, baseURL })];
+}
+
 /** Read non-Codex capabilities in both published and canonical endpoint formats. */
 export function getResponsesWebSocketEnabled(
   channel: CodexResponsesChannel & { readonly defaultEndpoints?: readonly ChannelEndpoint[] | null }

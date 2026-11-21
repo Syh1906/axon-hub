@@ -21,11 +21,12 @@ import { claudecodeOAuthExchange, claudecodeOAuthStart } from '../data/claudecod
 import { codexDecodeAuthJSON, codexOAuthExchange, codexOAuthStart } from '../data/codex';
 import { getDefaultBaseURL, getDefaultModels, OPENAI_CHAT_COMPLETIONS, OPENAI_RESPONSES, OPENAI_IMAGE_GENERATION, GEMINI_CONTENTS } from '../data/config_channels';
 import { PROVIDER_CONFIGS, getProviderFromChannelType, getApiFormatsForProvider, getChannelTypeForApiFormat, getBaseChannelTypeForProvider } from '../data/config_providers';
-import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, setResponsesWebSocketSupport, translateLegacyCodexModelProtocols } from '../data/protocol-options';
+import { getModelProtocolsForApiFormat, buildCodexResponsesEndpoints, setResponsesWebSocketSupport, toHttpBaseURL, translateLegacyCodexModelProtocols } from '../data/protocol-options';
 import { Channel, ChannelType, ApiFormat, ChannelSettings, ChannelQuotaRoutingMode, createChannelInputSchema, updateChannelInputSchema } from '../data/schema';
 import { xaiDecodeSSO, xaiOAuthExchange, xaiOAuthStart } from '../data/xai';
 import { ProxyConfig, useOAuthFlow } from '../hooks/use-oauth-flow';
 import { recallQuotaRoutingMode, quotaRoutingModeSettingsPatch, formatMaxSingleChannelRetries, parseMaxSingleChannelRetriesInput, isVertexChannelType, emptyVertexAPIKey, getInitialBaseURL, parseOauthToken, getCodexThirdPartySubmitCredentials, getFetchModelsApiKey, getCodexThirdPartyCredentialError, ApiFormatOption, MAX_MODELS_DISPLAY, OPENAI_RESPONSES_WEBSOCKET, Props, ResponsesTransport, alwaysOAuthProviderKeys, baseURLMatchesResponsesTransport, extractCodexAuthJSONText, formatRetryableErrorPatterns, formatRetryableStatusCodes, getInitialApiFormatForRow, getResponsesTransportBaseURLError, getResponsesTransportFromChannel, getResponsesWebSocketBaseURL, isOfficialClaudeCodeChannel, isOfficialCodexChannel, parseRetryableErrorPatternsInput, parseRetryableStatusCodesInput } from '../utils/channel-dialog';
+import { appendProbeEndpoints, type ProbeEdits } from '../data/capability-probes';
 import { mergeChannelSettingsForUpdate } from '../utils/merge';
 import { isSuggestedModel } from '../../models/data/model-suggestions';
 import { matchesModelPattern } from '../utils/pattern';
@@ -760,10 +761,6 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     [selectedProvider, form, useGeminiVertex, useAnthropicAws, useKimiCoding, isDuplicate, isEdit, isOAuthChannel]
   );
 
-  const handleResponsesTransportChange = useCallback((transport: ResponsesTransport) => {
-    setResponsesTransport(transport);
-  }, []);
-
   const handleGeminiVertexChange = useCallback(
     (checked: boolean) => {
       if (isOAuthChannel) return;
@@ -1004,6 +1001,24 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     }
   }, [codexAuthJSONText, form, t]);
 
+  const [draftProbeEdits, setDraftProbeEdits] = useState<ProbeEdits>({settings:{}, additions:[]});
+  const probeConnection = isEdit ? '' : JSON.stringify([derivedChannelType, form.watch('baseURL'), form.watch('credentials.apiKeys'), form.watch('credentials.apiKey'), form.watch('credentials.vertexApiKeys'), proxyType, proxyUrl, proxyUsername, proxyPassword, form.watch('endpoints'), form.watch('settings.upstreamAddresses')]);
+  useEffect(() => {
+    setDraftProbeEdits({settings:{}, additions:[]});
+  }, [open, probeConnection]);
+
+  const handleResponsesTransportChange = (transport: ResponsesTransport) => {
+    setResponsesTransport(transport);
+    if (!isEdit && draftProbeEdits.settings.adaptedCapabilities?.includes('openai/responses-ws')) {
+      setDraftProbeEdits(previous => {
+        const disabled = new Set(previous.settings.disabledEndpoints);
+        if (transport === 'websocket') disabled.delete('openai/responses-ws');
+        else disabled.add('openai/responses-ws');
+        return { additions: previous.additions.filter(format => format !== 'openai/responses-ws'), settings: { ...previous.settings, disabledEndpoints: [...disabled] } };
+      });
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (values.websiteURL) {
       try {
@@ -1136,6 +1151,9 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       }
 
       // Codex always saves an HTTP(S) Base URL; its WebSocket endpoint is derived from it.
+      if (!isCodexType && selectedApiFormat === OPENAI_RESPONSES && !isXAISubscriptionType && dataWithModels.baseURL) {
+        dataWithModels.baseURL = toHttpBaseURL(dataWithModels.baseURL);
+      }
       const requiredResponsesTransport: ResponsesTransport = isCodexType ? 'http' : responsesTransport;
       if (
         (isCodexType || selectedApiFormat === OPENAI_RESPONSES) &&
@@ -1151,8 +1169,11 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
       if (isCodexType) {
         dataWithModels.endpoints = buildCodexResponsesEndpoints(dataWithModels.endpoints, responsesTransport === 'websocket');
       } else if (selectedApiFormat === OPENAI_RESPONSES && !isXAISubscriptionType) {
-        dataWithModels.baseURL = dataWithModels.baseURL?.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
         dataWithModels.endpoints = setResponsesWebSocketSupport(dataWithModels.endpoints, responsesTransport === 'websocket');
+      }
+
+      if (!isEdit && draftProbeEdits.additions.length) {
+        dataWithModels.endpoints = appendProbeEndpoints(dataWithModels.endpoints ?? [], draftProbeEdits.additions);
       }
 
       const codexModelProtocols =
@@ -1164,6 +1185,8 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
           selectedApiFormat === 'zenmux/video' ||
           existingModelProtocols?.some((protocol) => protocol.apiFormats.includes('zenmux/video')) === true;
         const settingsPatch: Partial<ChannelSettings> = {
+          ...(selectedApiFormat === OPENAI_RESPONSES && responsesTransport === 'websocket' && currentRow.settings?.disabledEndpoints?.includes('openai/responses-ws')
+            ? {disabledEndpoints: currentRow.settings.disabledEndpoints.filter(format => format !== 'openai/responses-ws')} : {}),
           upstreamAddresses: values.settings?.upstreamAddresses,
           addressFailover: values.settings?.addressFailover,
           healthGateFailureThreshold: values.settings?.healthGateFailureThreshold ?? null,
@@ -1247,6 +1270,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
         };
 
         const nextSettings = mergeChannelSettingsForUpdate(settingsForSubmit, {
+          ...draftProbeEdits.settings,
           proxy: proxyConfig,
           passThroughUserAgent,
           passThroughBody,
@@ -1653,6 +1677,7 @@ export function useChannelActionDialog({ currentRow, duplicateFromRow, open, onO
     overscan: 5,
   });
   return {
+    draftProbeEdits, setDraftProbeEdits, probeConnection,
     quotaRoutingSettings,
     quotaRoutingMode,
     setQuotaRoutingMode,

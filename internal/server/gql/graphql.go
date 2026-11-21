@@ -112,6 +112,7 @@ var skipMutationTransaction = entgql.SkipIfHasFields(
 	"verifyChannelUpstreamAccount",
 	"saveChannelUpstreamAccount",
 	"probeChannelAddress",
+	"detectChannelEndpoints",
 	"saveAPIKeyBudget",
 	"resetAPIKeyBudget",
 	"startCleanupTask",

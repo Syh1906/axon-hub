@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/ast"
 
 	"github.com/looplj/axonhub/internal/log"
 )
@@ -13,6 +14,7 @@ import (
 type requestTimeoutKey struct{}
 
 type requestTimeout struct {
+	probe      time.Duration
 	processing time.Duration
 	writing    time.Duration
 	response   *http.ResponseController
@@ -21,13 +23,13 @@ type requestTimeout struct {
 
 // WithRequestTimeout 分别限制完整请求的接收和已解析操作的执行。
 // gqlgen 自身负责读取正文；这里不复制正文，也不改变文件上传的临时存储。
-func WithRequestTimeout(next http.Handler, processing, receive, writing time.Duration) http.Handler {
+func WithRequestTimeout(next http.Handler, processing, receive, writing, probe time.Duration) http.Handler {
 	if receive <= 0 {
 		receive = processing
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		controller := http.NewResponseController(w)
-		state := &requestTimeout{processing: processing, writing: writing, response: controller}
+		state := &requestTimeout{probe: probe, processing: processing, writing: writing, response: controller}
 		if writing > 0 {
 			if err := controller.SetWriteDeadline(time.Now().Add(max(receive, 0) + writing)); err != nil {
 				log.Error(r.Context(), "could not set admin response write deadline", log.Cause(err))
@@ -72,6 +74,16 @@ func withOperationTimeout(ctx context.Context, next graphql.OperationHandler) gr
 			return graphql.OneShot(graphql.ErrorResponse(ctx, "could not start response write deadline"))
 		}
 	}
-	ctx, state.cancel = context.WithTimeout(ctx, state.processing)
+	budget := state.processing
+	if state.probe > 0 {
+		op := graphql.GetOperationContext(ctx)
+		if op.Operation != nil && op.Operation.Operation == ast.Mutation {
+			fields := graphql.CollectFields(op, op.Operation.SelectionSet, []string{"Mutation"})
+			if len(fields) == 1 && fields[0].Name == "detectChannelEndpoints" {
+				budget = state.probe
+			}
+		}
+	}
+	ctx, state.cancel = context.WithTimeout(ctx, budget)
 	return next(ctx)
 }

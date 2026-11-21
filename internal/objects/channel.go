@@ -192,6 +192,9 @@ type ChannelSettings struct {
 	NonStreamResponseTimeoutSeconds *int `json:"nonStreamResponseTimeoutSeconds,omitempty"`
 	DisableSessionReuse             bool `json:"disableSessionReuse,omitempty"`
 	// Nil preserves the default permission for existing channels.
+	AdaptedCapabilities      []string                 `json:"adaptedCapabilities,omitempty"`
+	DisabledEndpoints        []string                 `json:"disabledEndpoints,omitempty"`
+	AllowWebSearchTool       *bool                    `json:"allowWebSearchTool,omitempty"`
 	AllowImageGenerationTool *bool                    `json:"allowImageGenerationTool,omitempty"`
 	DisableKeySessionReuse   bool                     `json:"disableKeySessionReuse,omitempty"`
 	KeySettings              []ChannelKeySettings     `json:"keySettings,omitempty"`

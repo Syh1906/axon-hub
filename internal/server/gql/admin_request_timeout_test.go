@@ -31,7 +31,7 @@ func TestAdminGraphQLSlowBodyGetsFreshProcessingBudget(t *testing.T) {
 		return next(ctx)
 	})
 	router := gin.New()
-	wrapped := WithRequestTimeout(graph, 80*time.Millisecond, 2*time.Second, 80*time.Millisecond)
+	wrapped := WithRequestTimeout(graph, 80*time.Millisecond, 2*time.Second, 80*time.Millisecond, 0)
 	router.POST("/admin/graphql", func(c *gin.Context) { wrapped.ServeHTTP(c.Writer, c.Request) })
 	server := httptest.NewUnstartedServer(router)
 	server.Config.WriteTimeout = 80 * time.Millisecond
@@ -61,7 +61,7 @@ func TestAdminGraphQLStalledBodyTerminatesRead(t *testing.T) {
 	for _, contentType := range []string{"application/json", "multipart/form-data; boundary=fixture"} {
 		t.Run(contentType, func(t *testing.T) {
 			graph := NewGraphqlHandlers(Dependencies{}).Graphql
-			server := httptest.NewServer(WithRequestTimeout(graph, time.Second, 60*time.Millisecond, time.Second))
+			server := httptest.NewServer(WithRequestTimeout(graph, time.Second, 60*time.Millisecond, time.Second, 0))
 			defer server.Close()
 			conn, err := net.DialTimeout("tcp", strings.TrimPrefix(server.URL, "http://"), time.Second)
 			require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestAdminGraphQLExecutionStillExpiresAndCancels(t *testing.T) {
 			return graphql.ErrorResponse(ctx, "processing finished: %v", ctx.Err())
 		}
 	})
-	server := httptest.NewServer(WithRequestTimeout(graph, 35*time.Millisecond, time.Second, time.Second))
+	server := httptest.NewServer(WithRequestTimeout(graph, 35*time.Millisecond, time.Second, time.Second, 0))
 	defer server.Close()
 	response, err := http.Post(server.URL, "application/json", strings.NewReader(`{"query":"{__typename}"}`))
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestAdminGraphQLDisconnectCancelsExecution(t *testing.T) {
 			return graphql.ErrorResponse(ctx, "request ended")
 		}
 	})
-	server := httptest.NewServer(WithRequestTimeout(graph, 5*time.Second, time.Second, 5*time.Second))
+	server := httptest.NewServer(WithRequestTimeout(graph, 5*time.Second, time.Second, 5*time.Second, 0))
 	defer server.Close()
 	conn, err := net.DialTimeout("tcp", strings.TrimPrefix(server.URL, "http://"), time.Second)
 	require.NoError(t, err)

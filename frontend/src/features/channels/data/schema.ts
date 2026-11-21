@@ -162,6 +162,7 @@ export type ChannelEndpoint = z.infer<typeof channelEndpointSchema>;
 
 // Channel endpoint auto-detection result
 export const detectedChannelEndpointSchema = z.object({
+  model: z.string(),
   apiFormat: z.string().min(1),
   supported: z.boolean(),
   statusCode: z.number().int().optional().nullable(),
@@ -477,6 +478,9 @@ export const channelSettingsSchema = z.object({
   streamFirstEventTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   nonStreamResponseTimeoutSeconds: z.number().int().nonnegative().optional().nullable(),
   disableSessionReuse: z.boolean().optional(),
+  adaptedCapabilities: z.array(z.string()).nullish(),
+  disabledEndpoints: z.array(z.string()).nullish(),
+  allowWebSearchTool: z.boolean().nullish(),
   allowImageGenerationTool: z.boolean().nullish(),
   modelContexts: z.array(channelModelContextSchema).nullable().optional(),
   healthGateFailureThreshold: z.number().int().min(0).optional().nullable(),

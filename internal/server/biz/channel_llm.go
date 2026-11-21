@@ -272,6 +272,18 @@ func (svc *ChannelService) buildChannelWithOutbounds(c *ent.Channel, apiKeyOverr
 		}
 		outbounds[ep.APIFormat] = out
 	}
+	// A verified Responses tool has its own opt-in. Keep its HTTP transport
+	// available to tool requests even on a channel whose primary API is chat.
+	responsesFormat := string(llm.APIFormatOpenAIResponse)
+	if c.Settings != nil && outbounds[responsesFormat] == nil &&
+		(slices.Contains(c.Settings.AdaptedCapabilities, probeImageTool) && ch.ImageGenerationToolAllowed() ||
+			slices.Contains(c.Settings.AdaptedCapabilities, probeWebSearch) && c.Settings.AllowWebSearchTool != nil && *c.Settings.AllowWebSearchTool) {
+		out, err := svc.buildNonDefaultEndpointOutbound(c, ch, probeEndpoint(c, responsesFormat))
+		if err != nil {
+			return nil, err
+		}
+		outbounds[responsesFormat] = out
+	}
 	for _, raw := range rawUserEndpoints {
 		normalized := NormalizeEndpoints([]objects.ChannelEndpoint{raw}, c.BaseURL)
 		if len(normalized) == 1 && raw.APIFormat != "" && raw.APIFormat != normalized[0].APIFormat {

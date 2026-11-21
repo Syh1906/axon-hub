@@ -123,14 +123,22 @@ input SaveChannelEndpointsInput {
   endpoints: [ChannelEndpointInput!]!
 }
 
-# DetectChannelEndpoints probes the upstream for the relay protocols a channel
-# can expose (chat completions, responses, messages) without persisting them.
+input ChannelProbeDraftInput {
+  upstreamAddresses: [ChannelUpstreamAddressInput!]
+  type: ChannelType!
+  baseURL: String!
+  credentials: ChannelCredentialsInput!
+  endpoints: [ChannelEndpointInput!]
+  proxy: ProxyConfigInput
+}
 input DetectChannelEndpointsInput {
-  channelID: ID!
+  channelID: ID
+  draft: ChannelProbeDraftInput
   model: String
 }
 
 type DetectedChannelEndpoint {
+  model: String!
   apiFormat: String!
   supported: Boolean!
   statusCode: Int
@@ -236,6 +244,9 @@ type ChannelSettings {
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean!
+  adaptedCapabilities: [String!]
+  disabledEndpoints: [String!]
+  allowWebSearchTool: Boolean
   allowImageGenerationTool: Boolean
   modelPriceMultiplier: Decimal
   extraModelPrefix: String
@@ -340,6 +351,9 @@ input ChannelSettingsInput {
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean
+  adaptedCapabilities: [String!]
+  disabledEndpoints: [String!]
+  allowWebSearchTool: Boolean
   allowImageGenerationTool: Boolean
   extraModelPrefix: String
   modelMappings: [ModelMappingInput!]
@@ -391,6 +405,9 @@ input UpdateChannelSettingsInput {
   streamFirstEventTimeoutSeconds: Int
   nonStreamResponseTimeoutSeconds: Int
   disableSessionReuse: Boolean
+  adaptedCapabilities: [String!]
+  disabledEndpoints: [String!]
+  allowWebSearchTool: Boolean
   allowImageGenerationTool: Boolean
   extraModelPrefix: String
   modelMappings: [ModelMappingInput!]

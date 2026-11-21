@@ -53,6 +53,9 @@ const CHANNEL_FIELDS_FRAGMENT = `
         streamFirstEventTimeoutSeconds
         nonStreamResponseTimeoutSeconds
         disableSessionReuse
+        adaptedCapabilities
+        disabledEndpoints
+        allowWebSearchTool
         allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
@@ -249,6 +252,7 @@ const DETECT_CHANNEL_ENDPOINTS_MUTATION = `
       endpoints {
         apiFormat
         supported
+        model
         statusCode
         reason
       }
@@ -334,6 +338,9 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          adaptedCapabilities
+          disabledEndpoints
+          allowWebSearchTool
           allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
@@ -591,6 +598,9 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
           streamFirstEventTimeoutSeconds
           nonStreamResponseTimeoutSeconds
           disableSessionReuse
+          adaptedCapabilities
+          disabledEndpoints
+          allowWebSearchTool
           allowImageGenerationTool
         responsesServiceTierOverride
         responsesTierSupport { fast ultrafast allowDowngrade }
@@ -1289,7 +1299,8 @@ export function useSaveChannelEndpoints() {
 }
 
 export interface DetectChannelEndpointsInput {
-  channelID: string;
+  channelID?: string;
+  draft?: Pick<CreateChannelInput, 'baseURL' | 'type' | 'endpoints'> & { credentials: { apiKey?: string; apiKeys?: string[]; vertexApiKeys?: {projectID: string; apiKey: string; region: string}[] }; proxy?: ProxyConfig; upstreamAddresses?: ChannelSettings['upstreamAddresses'] };
   model?: string;
 }
 

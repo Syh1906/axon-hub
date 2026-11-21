@@ -3,6 +3,7 @@ package biz
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -127,7 +128,8 @@ func validateModelProtocols(settings *objects.ChannelSettings, source *ent.Chann
 	}
 
 	available := make(map[string]struct{})
-	for _, ep := range (&Channel{Channel: source}).ResolveEndpoints() {
+	candidate := &ent.Channel{Type: source.Type, BaseURL: source.BaseURL, Endpoints: source.Endpoints, Settings: settings}
+	for _, ep := range (&Channel{Channel: candidate}).ResolveEndpoints() {
 		available[ep.APIFormat] = struct{}{}
 	}
 
@@ -488,7 +490,13 @@ func (c *Channel) ResolveEndpoints() []objects.ChannelEndpoint {
 		return nil
 	}
 
-	return mergeEndpoints(c.DefaultEndpoints(), NormalizeEndpoints(c.Endpoints, c.BaseURL))
+	resolved := mergeEndpoints(c.DefaultEndpoints(), NormalizeEndpoints(c.Endpoints, c.BaseURL))
+	if c.Settings != nil && len(c.Settings.DisabledEndpoints) > 0 {
+		resolved = slices.DeleteFunc(resolved, func(ep objects.ChannelEndpoint) bool {
+			return slices.Contains(c.Settings.DisabledEndpoints, ep.APIFormat)
+		})
+	}
+	return resolved
 }
 
 // ForcedAPIFormats returns the api formats force-specified for the given request
