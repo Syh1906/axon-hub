@@ -62,6 +62,9 @@ func serveResponsesWebSocket(
 	c.Request = c.Request.WithContext(ctx)
 
 	responseHeaders := c.Writer.Header().Clone()
+	if c.Request.Header.Get(httpclient.AcceptBillingTierHeader) == "1" {
+		responseHeaders.Set(httpclient.BillingTierAckHeader, "1")
+	}
 	upgrader := new(websocket.Upgrader)
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, responseHeaders)
 	if err != nil {

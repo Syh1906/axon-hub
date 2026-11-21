@@ -15,6 +15,8 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
@@ -31,6 +33,85 @@ import (
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
+
+func TestResponsesGatewaysUseSameBillingTier(t *testing.T) {
+	// The supplier reports standard. The upstream gateway can bill the client's
+	// Fast request or a fixed tier even when the supplier reports otherwise.
+	supplier := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(httpclient.AcceptBillingTierHeader) != "" {
+			t.Error("a gateway with a fixed or client billing policy forwarded its caller's negotiation")
+		}
+		body, err := readRequestBody(r)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		response := `{"id":"resp_peer","object":"response","model":"synthetic-model","service_tier":"default","status":"completed","output":[{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":10,"output_tokens":2,"total_tokens":12}}`
+		if gjson.GetBytes(body, "stream").Bool() {
+			w.Header().Set("Content-Type", "text/event-stream")
+			fmt.Fprintf(w, "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":%s}\n\n", response)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, response)
+	}))
+	defer supplier.Close()
+	for _, mode := range []objects.ServiceTierBasis{objects.ServiceTierBasisClient, objects.ServiceTierBasisFixedFast, objects.ServiceTierBasisFixedStandard, objects.ServiceTierBasisFixedUltrafast} {
+		t.Run(string(mode), func(t *testing.T) {
+			newGateway := func(t *testing.T, upstream string, basis objects.ServiceTierBasis, rate int64) (*ent.Client, http.Handler, context.Context) {
+				t.Helper()
+				db, h, project := newResponsesIntegrationFixture(t, upstream, func(c *ent.ChannelCreate) {
+					c.SetSettings(&objects.ChannelSettings{ServiceTierBilling: &objects.ServiceTierSettings{Enabled: true, Basis: basis}})
+				})
+				ctx := authz.WithTestBypass(ent.NewContext(t.Context(), db))
+				ctx = contexts.WithProjectID(contexts.WithAPIKey(ctx, db.APIKey.Query().OnlyX(ctx)), project.ID)
+				channels := h.ResponseCompletionHandlers.ChatCompletionOrchestrator.ChannelService
+				ch := channels.GetEnabledChannels()[0]
+				price := objects.ModelPrice{
+					Items: []objects.ModelPriceItem{{ItemCode: objects.PriceItemCodeCompletion, Pricing: objects.Pricing{Mode: objects.PricingModeUsagePerUnit, UsagePerUnit: lo.ToPtr(decimal.NewFromInt(rate))}}},
+					ServiceTiers: &objects.ServiceTierPrices{
+						Fast:      &objects.ServiceTierPrice{Source: objects.ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.NewFromInt(2))},
+						Ultrafast: &objects.ServiceTierPrice{Source: objects.ServiceTierPriceCustom, Multiplier: lo.ToPtr(decimal.NewFromInt(6))},
+					},
+				}
+				db.ChannelModelPrice.Create().SetChannelID(ch.ID).SetModelID("synthetic-model").SetPrice(price).SetReferenceID("tier-fixture").SaveX(ctx)
+				channels.PreloadModelPricesForTest(ctx, ch)
+				router := gin.New()
+				router.POST("/v1/responses", h.CreateResponse)
+				return db, router, ctx
+			}
+			innerDB, inner, innerCtx := newGateway(t, supplier.URL, mode, 10)
+			peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				inner.ServeHTTP(w, r.WithContext(innerCtx))
+			}))
+			defer peer.Close()
+			for _, stream := range []bool{false, true} {
+				t.Run(fmt.Sprintf("stream=%v", stream), func(t *testing.T) {
+					db, outer, ctx := newGateway(t, peer.URL, objects.ServiceTierBasisUpstream, 20)
+					req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(fmt.Sprintf(`{"model":"synthetic-model","input":"test","service_tier":"priority","stream":%t}`, stream)))
+					req.Header.Set("Content-Type", "application/json")
+					rec := httptest.NewRecorder()
+					outer.ServeHTTP(rec, req.WithContext(ctx))
+					require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+					require.NotContains(t, rec.Body.String(), "axonhub_billing_tier")
+					outerLog := db.UsageLog.Query().OnlyX(ctx)
+					evidence := outerLog.CostSnapshot.ServiceTier
+					want := strings.TrimPrefix(string(mode), "fixed_")
+					if mode == objects.ServiceTierBasisClient {
+						want = "fast"
+					}
+					require.Equal(t, want, evidence.Decision().Mode)
+					require.Equal(t, "upstream_billing", evidence.Decision().Reason)
+					require.Equal(t, "default", evidence.Upstream)
+					multiplier := map[string]float64{"standard": 1, "fast": 2, "ultrafast": 6}[want]
+					innerLog := innerDB.UsageLog.Query().Order(ent.Desc("id")).FirstX(innerCtx)
+					require.InDelta(t, 2*10*multiplier/1e6, *innerLog.TotalCost, 1e-12)
+					require.InDelta(t, 2*20*multiplier/1e6, *outerLog.TotalCost, 1e-12)
+				})
+			}
+		})
+	}
+}
 
 func TestResponsesProtocolIntegrationHTTPUsesProductionHandlerAndUpstream(t *testing.T) {
 	upstreamRequests := make(chan []byte, 1)

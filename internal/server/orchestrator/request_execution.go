@@ -93,6 +93,14 @@ func (o *executionHeaderObserver) load() http.Header {
 	return nil
 }
 
+func (o *executionHeaderObserver) peerAcknowledged() bool {
+	if o == nil {
+		return false
+	}
+	headers := o.headers.Load()
+	return headers != nil && headers.Get(httpclient.BillingTierAckHeader) == "1"
+}
+
 // executionResponseHeaders returns the upstream response headers observed for executionID.
 func (s *PersistenceState) executionResponseHeaders(executionID int) http.Header {
 	if s == nil || s.ExecutionHeaders == nil || s.ExecutionHeaders.executionID != executionID {
@@ -293,6 +301,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 	if response != nil {
 		captureImageCostEvidence(ctx, m.outbound.state, response.Body)
 		if m.outbound.state != nil {
+			if response.Headers.Get(httpclient.BillingTierAckHeader) == "1" || m.headerObserver.peerAcknowledged() {
+				observePeerBillingTier(m.outbound.state.RequestExec, response.Body, false)
+			}
 			observeServiceTier(m.outbound.state.RequestExec, response.Body, false)
 		}
 		state := m.outbound.state

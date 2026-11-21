@@ -42,6 +42,7 @@ type OutboundPersistentStream struct {
 	request            *ent.Request
 	requestExec        *ent.RequestExecution
 	rawProviderRequest *httpclient.Request
+	headers            *executionHeaderObserver
 	transport          *executionTransport
 	attemptClock       *contexts.AttemptClock
 
@@ -85,6 +86,7 @@ func NewOutboundPersistentStream(
 		format = llm.APIFormat(requestExec.Format)
 	}
 	s := &OutboundPersistentStream{
+		headers:            state.ExecutionHeaders,
 		rawProviderRequest: state.RawProviderRequest,
 		transport:          state.ExecutionTransport,
 		attemptClock:       state.attemptClock,
@@ -112,6 +114,9 @@ func NewOutboundPersistentStream(
 func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEvent) error {
 	if event == nil {
 		return nil
+	}
+	if ts.headers.peerAcknowledged() && observePeerBillingTier(ts.requestExec, event.Data, true) {
+		observeServiceTier(ts.requestExec, event.Data, true)
 	}
 	ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
 	ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
@@ -150,6 +155,9 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 		ts.attemptClock.ObserveOutputProgress(ts.apiFormat, event)
 		if ts.apiFormat == llm.APIFormatOpenAIResponse || ts.apiFormat == llm.APIFormatOpenAIResponseWebSocket {
 			ts.attemptClock.ObserveResponsesEvent(event)
+		}
+		if ts.headers.peerAcknowledged() {
+			observePeerBillingTier(ts.requestExec, event.Data, true)
 		}
 		observeServiceTier(ts.requestExec, event.Data, true)
 		if string(event.Data) == "[DONE]" || isNonChoiceTerminalEvent(event) {

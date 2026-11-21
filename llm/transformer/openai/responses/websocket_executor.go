@@ -20,6 +20,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
@@ -101,10 +102,17 @@ func (e *WebSocketExecutor) Do(ctx context.Context, request *httpclient.Request)
 	defer func() { _ = stream.Close() }()
 
 	chunks := make([]*httpclient.StreamEvent, 0, 16)
+	var billingTier string
 	for stream.Next() {
 		ev := stream.Current()
 		if ev == nil {
 			continue
+		}
+		if isTerminalWebSocketEvent(ev.Type) && request.Headers.Get(httpclient.AcceptBillingTierHeader) == "1" {
+			tier := gjson.GetBytes(ev.Data, "response."+httpclient.BillingTierField)
+			if tier.Type == gjson.String {
+				billingTier = tier.Str
+			}
 		}
 		chunks = append(chunks, &httpclient.StreamEvent{
 			Type:        ev.Type,
@@ -122,6 +130,14 @@ func (e *WebSocketExecutor) Do(ctx context.Context, request *httpclient.Request)
 	body, _, err := AggregateStreamChunks(ctx, chunks)
 	if err != nil {
 		return nil, err
+	}
+	// Aggregation reconstructs standard Responses fields. Preserve the negotiated
+	// terminal receipt for the caller that settles this non-streaming attempt.
+	if billingTier != "" {
+		body, err = sjson.SetBytes(body, httpclient.BillingTierField, billingTier)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Response-level terminal events (response.failed, response.cancelled,
@@ -297,6 +313,14 @@ func (e *WebSocketExecutor) DoStream(ctx context.Context, request *httpclient.Re
 func (e *WebSocketExecutor) acquireAndWrite(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header, payload map[string]any) (*webSocketLease, error) {
 	lease, err := e.acquirePreparedLease(ctx, request, wsURL, headers, payload)
 	if err == nil {
+		if pc := lease.pooled; pc != nil {
+			if pc.firstHeaders != nil {
+				request.ObserveResponseHeaders(ctx, pc.firstHeaders)
+				pc.firstHeaders = nil
+			} else if pc.billingTierAck {
+				request.ObserveResponseHeaders(ctx, http.Header{httpclient.BillingTierAckHeader: {"1"}})
+			}
+		}
 		err = lease.write(ctx, payload, request.OnReplayUnsafe)
 		if err != nil {
 			lease.release(true)
@@ -374,16 +398,18 @@ type webSocketPoolKey struct {
 }
 
 type pooledWebSocketConn struct {
-	key          webSocketPoolKey
-	conn         *websocket.Conn
-	inFlight     chan struct{}
-	createdAt    time.Time
-	lastUsedAt   time.Time
-	used         bool
-	readerDone   chan struct{}
-	readerExited chan struct{}
-	readErr      error
-	readerLease  *webSocketLease
+	firstHeaders   http.Header // delivered once, under the inFlight lease
+	billingTierAck bool
+	key            webSocketPoolKey
+	conn           *websocket.Conn
+	inFlight       chan struct{}
+	createdAt      time.Time
+	lastUsedAt     time.Time
+	used           bool
+	readerDone     chan struct{}
+	readerExited   chan struct{}
+	readErr        error
+	readerLease    *webSocketLease
 
 	mu             sync.Mutex
 	closed         bool
@@ -492,10 +518,11 @@ func restorePayloadMap(payload, original map[string]any) {
 func (e *WebSocketExecutor) acquire(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (*webSocketLease, error) {
 	key, ok := e.poolKey(ctx, request, wsURL, headers)
 	if !ok {
-		conn, err := e.dial(ctx, request, wsURL, headers)
+		conn, handshake, err := e.dial(ctx, request, wsURL, headers)
 		if err != nil {
 			return nil, err
 		}
+		request.ObserveResponseHeaders(ctx, handshake)
 		return &webSocketLease{conn: conn}, nil
 	}
 
@@ -534,19 +561,21 @@ func (e *WebSocketExecutor) getOrDialPooled(ctx context.Context, request *httpcl
 	}
 	e.mu.Unlock()
 
-	conn, err := e.dial(ctx, request, wsURL, headers)
+	conn, handshake, err := e.dial(ctx, request, wsURL, headers)
 	if err != nil {
 		return nil, err
 	}
 
 	pc := &pooledWebSocketConn{
-		key:          key,
-		conn:         conn,
-		inFlight:     make(chan struct{}, 1),
-		createdAt:    now,
-		lastUsedAt:   now,
-		readerDone:   make(chan struct{}),
-		readerExited: make(chan struct{}),
+		firstHeaders:   handshake,
+		billingTierAck: handshake.Get(httpclient.BillingTierAckHeader) == "1",
+		key:            key,
+		conn:           conn,
+		inFlight:       make(chan struct{}, 1),
+		createdAt:      now,
+		lastUsedAt:     now,
+		readerDone:     make(chan struct{}),
+		readerExited:   make(chan struct{}),
 	}
 
 	e.mu.Lock()
@@ -579,7 +608,7 @@ func (e *WebSocketExecutor) getOrDialPooled(ctx context.Context, request *httpcl
 	return pc, nil
 }
 
-func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (*websocket.Conn, error) {
+func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (*websocket.Conn, http.Header, error) {
 	dialer := e.dialer
 	if dialer == nil {
 		dialer = websocket.DefaultDialer
@@ -594,23 +623,20 @@ func (e *WebSocketExecutor) dial(ctx context.Context, request *httpclient.Reques
 	}
 	started := time.Now()
 	conn, resp, err := dialer.DialContext(dialCtx, wsURL, headers)
-	if resp != nil {
-		// The WebSocket handshake is an HTTP response. Observe it before
-		// converting a rejected handshake into httpclient.Error so both
-		// successful and failed handshakes retain their provider headers.
-		request.ObserveResponseHeaders(ctx, resp.Header)
-	}
 	if err != nil {
+		if resp != nil {
+			request.ObserveResponseHeaders(ctx, resp.Header)
+		}
 		failure := &webSocketHandshakeError{cause: newWebSocketDialError(request, resp, err)}
 		if ctx.Err() == nil {
 			reportWebSocketFailure(policy, "handshake", failure)
 		}
-		return nil, failure
+		return nil, nil, failure
 	}
 	if policy != nil && policy.Observe != nil {
 		policy.Observe(httpclient.WebSocketObservation{Stage: "handshake", Reason: "accepted", Handshake: time.Since(started)})
 	}
-	return conn, nil
+	return conn, resp.Header, nil
 }
 
 func (e *WebSocketExecutor) poolKey(ctx context.Context, request *httpclient.Request, wsURL string, headers http.Header) (webSocketPoolKey, bool) {

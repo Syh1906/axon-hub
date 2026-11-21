@@ -8,6 +8,11 @@ import (
 	"github.com/looplj/axonhub/llm/streams"
 )
 
+// Peer billing is negotiated independently on each OpenAI-compatible hop.
+const AcceptBillingTierHeader = "X-Axonhub-Accept-Billing-Tier"
+const BillingTierAckHeader = "X-Axonhub-Billing-Tier-Version"
+const BillingTierField = "axonhub_billing_tier"
+
 // ReasoningIncludedHeader tells Codex that upstream usage already includes
 // previously generated reasoning tokens.
 const ReasoningIncludedHeader = "X-Reasoning-Included"

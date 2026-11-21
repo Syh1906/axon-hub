@@ -142,6 +142,9 @@ type ServiceTierEvidence struct {
 	Conflict        bool   `json:"conflict"`
 	Terminal        bool   `json:"terminal,omitempty"`
 	LastValid       string `json:"lastValid,omitempty"`
+	// PeerBillingTier is the upstream gateway's billing mode for this execution.
+	// Keep it separate from the provider's service_tier and budget reservation.
+	PeerBillingTier string `json:"peerBillingTier,omitempty"`
 }
 
 func ServiceTierValue(body []byte) string {
@@ -274,6 +277,10 @@ func (e *ServiceTierEvidence) RequestDecision() ServiceTierDecision {
 func (e *ServiceTierEvidence) Decision() ServiceTierDecision {
 	d := e.RequestDecision()
 	if e == nil || !e.Settings.Enabled || e.Settings.Basis != ServiceTierBasisUpstream {
+		return d
+	}
+	if mode, valid := NormalizeServiceTier(e.PeerBillingTier); valid {
+		d.Mode, d.Basis, d.Reason, d.Confirmed = mode, "upstream", "upstream_billing", true
 		return d
 	}
 	if mode, valid := NormalizeServiceTier(e.Upstream); valid && !e.Conflict {

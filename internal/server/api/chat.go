@@ -152,6 +152,9 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 	}
 
 	writeForwardResponseHeaders(c, genericReq, result)
+	if genericReq.Headers.Get(httpclient.AcceptBillingTierHeader) == "1" {
+		c.Header(httpclient.BillingTierAckHeader, "1")
+	}
 	if shared.IsResponsesAPI(ctx) && c.Request.Method == http.MethodPost &&
 		(result.ChatCompletionStream != nil || result.ChatCompletion != nil && result.ChatCompletion.StatusCode/100 == 2) &&
 		handlers.ChatCompletionOrchestrator.RequestService.PayloadService.AdvertiseResponsesZstd() {

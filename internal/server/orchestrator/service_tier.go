@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"bytes"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/ent"
@@ -30,6 +32,22 @@ func requestServiceTier(state *PersistenceState, request *httpclient.Request, fo
 	}
 	e.UseOutboundTier = responsesTierFormat(format) || converted
 	return e
+}
+
+func observePeerBillingTier(execution *ent.RequestExecution, body []byte, stream bool) bool {
+	if execution == nil || execution.CostSnapshot == nil || execution.CostSnapshot.ServiceTier == nil {
+		return false
+	}
+	e := execution.CostSnapshot.ServiceTier
+	if e.Settings.Enabled && e.Settings.Basis == objects.ServiceTierBasisUpstream && bytes.Contains(body, []byte(httpclient.BillingTierField)) {
+		if path := billingTierPath(llm.APIFormat(execution.Format), body, stream, e.PeerBillingTier != ""); path != "" {
+			if tier, valid := objects.NormalizeServiceTier(gjson.GetBytes(body, path).String()); valid {
+				e.PeerBillingTier = tier
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func observeServiceTier(execution *ent.RequestExecution, body []byte, stream bool) {

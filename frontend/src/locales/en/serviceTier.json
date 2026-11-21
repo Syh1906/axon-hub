@@ -51,6 +51,7 @@
   "serviceTier.reason.unspecified_client": "No explicit accelerated mode requested",
   "serviceTier.reason.channel_client": "Channel bills by client request",
   "serviceTier.reason.upstream": "Using upstream response tier",
+  "serviceTier.reason.upstream_billing": "Using the upstream AxonHub billing tier",
   "serviceTier.reason.conflicting_upstream": "Conflicting upstream tiers; client request used",
   "serviceTier.reason.invalid_upstream": "Invalid upstream tier; client request used",
   "serviceTier.reason.unpriced_mode": "No price configured for this tier",

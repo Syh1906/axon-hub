@@ -114,6 +114,7 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 		// The request execution middleware must be the final middleware
 		// to ensure that the request execution is created with the correct request bodys.
 		persistRequestExecution(outbound),
+		&peerBillingTierMiddleware{state: state},
 
 		// Forward the events to the live streaming.
 		withLivePreview(state, processor.LiveStreamRegistry),

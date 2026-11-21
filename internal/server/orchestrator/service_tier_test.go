@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
+	"github.com/looplj/axonhub/llm/streams"
 )
 
 func TestServiceTierObservesOnlyTerminalResponsesAndIsolatesAttempts(t *testing.T) {
@@ -42,6 +44,80 @@ func TestServiceTierChatFinalUsageOverridesIntermediateAndDetectsFinalConflict(t
 	require.True(t, e.CostSnapshot.ServiceTier.Conflict)
 }
 
+func TestPeerBillingTierReadsFinalStreamEvidence(t *testing.T) {
+	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIChatCompletion, llm.APIFormatOpenAIResponseWebSocket} {
+		e := &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}, UseOutboundTier: true, Outbound: "priority"}
+		exec := &ent.RequestExecution{Format: string(format), CostSnapshot: &objects.RequestCostSnapshot{ServiceTier: e}}
+		chunk := `{"choices":[{"delta":{}}],"axonhub_billing_tier":"fast"}`
+		final := `{"choices":[],"usage":{"prompt_tokens":10},"service_tier":"priority","axonhub_billing_tier":"standard"}`
+		if responsesTierFormat(format) {
+			chunk = `{"type":"response.created","response":{"axonhub_billing_tier":"fast"}}`
+			final = `{"type":"response.completed","response":{"usage":{"input_tokens":10},"service_tier":"priority","axonhub_billing_tier":"standard"}}`
+		}
+		observePeerBillingTier(exec, []byte(chunk), true)
+		require.Empty(t, e.PeerBillingTier)
+		observePeerBillingTier(exec, []byte(final), true)
+		observeServiceTier(exec, []byte(final), true)
+		require.Equal(t, "standard", e.Decision().Mode)
+		require.Equal(t, "priority", e.Upstream)
+		require.Equal(t, "fast", e.RequestDecision().Mode)
+	}
+}
+
+func TestChatBillingTierAfterFinishUsesFinalUsage(t *testing.T) {
+	settings := objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}
+	inner := &objects.ServiceTierEvidence{Settings: settings, Client: "standard"}
+	outer := &objects.ServiceTierEvidence{Settings: settings, Client: "fast"}
+	execution := func(e *objects.ServiceTierEvidence) *ent.RequestExecution {
+		return &ent.RequestExecution{Format: string(llm.APIFormatOpenAIChatCompletion), CostSnapshot: &objects.RequestCostSnapshot{ServiceTier: e}}
+	}
+	state := &PersistenceState{RequestExec: execution(inner), RawRequest: &httpclient.Request{Headers: http.Header{httpclient.AcceptBillingTierHeader: {"1"}}}, LlmRequest: &llm.Request{APIFormat: llm.APIFormatOpenAIChatCompletion}}
+	chunks := []*httpclient.StreamEvent{
+		{Data: []byte(`{"choices":[{"index":0,"delta":{}},{"index":1,"finish_reason":"stop"}],"service_tier":"priority"}`)},
+		{Data: []byte(`{"choices":[{"index":0,"delta":{}}],"service_tier":"default","usage":{"prompt_tokens":10,"completion_tokens":2}}`)},
+	}
+	source := streams.Map(streams.SliceStream(chunks), func(ev *httpclient.StreamEvent) *httpclient.StreamEvent {
+		observeServiceTier(state.RequestExec, ev.Data, true)
+		return ev
+	})
+	wire, err := (&peerBillingTierMiddleware{state: state}).OnInboundRawStream(t.Context(), source)
+	require.NoError(t, err)
+	defer wire.Close()
+	for _, want := range []string{"fast", "standard"} {
+		require.True(t, wire.Next())
+		ev := wire.Current()
+		exec := execution(outer)
+		observePeerBillingTier(exec, ev.Data, true)
+		observeServiceTier(exec, ev.Data, true)
+		require.Equal(t, want, outer.PeerBillingTier)
+		require.Equal(t, inner.Decision().Mode, outer.Decision().Mode)
+	}
+	require.False(t, wire.Next())
+	require.NoError(t, wire.Err())
+	require.Equal(t, "standard", outer.Decision().Mode)
+}
+
+func TestPeerBillingTierTailKeepsProviderEvidence(t *testing.T) {
+	body := []byte(`{"choices":[],"usage":{"prompt_tokens":10},"service_tier":"default","axonhub_billing_tier":"fast"}`)
+	for _, ack := range []bool{false, true} {
+		e := &objects.ServiceTierEvidence{Settings: objects.ServiceTierSettings{Enabled: true, Basis: objects.ServiceTierBasisUpstream}}
+		exec := &ent.RequestExecution{Format: string(llm.APIFormatOpenAIChatCompletion), CostSnapshot: &objects.RequestCostSnapshot{ServiceTier: e}}
+		e.ObserveValue("priority")
+		stream := &OutboundPersistentStream{requestExec: exec, apiFormat: llm.APIFormatOpenAIChatCompletion, terminalState: streamTerminalCompleted, headers: &executionHeaderObserver{}}
+		if ack {
+			stream.headers.observe(t.Context(), http.Header{httpclient.BillingTierAckHeader: {"1"}})
+		}
+		require.NoError(t, stream.consumeTailEvent(&httpclient.StreamEvent{Data: body}))
+		if ack {
+			require.Equal(t, "fast", e.PeerBillingTier)
+			require.Equal(t, "default", e.Upstream)
+		} else {
+			require.Empty(t, e.PeerBillingTier)
+			require.Equal(t, "priority", e.Upstream)
+		}
+	}
+}
+
 func TestServiceTierCancelledResponseUsesUpstreamAndInvalidFallsBack(t *testing.T) {
 	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
 		for _, raw := range []string{`"default"`, `42`, `{}`} {
@@ -61,11 +137,12 @@ func TestServiceTierCancelledResponseUsesUpstreamAndInvalidFallsBack(t *testing.
 }
 
 func TestServiceTierRecoveryUsesFrozenFinalEvidenceAndRemainsIdempotent(t *testing.T) {
-	t.Run("legacy-final", func(t *testing.T) { checkServiceTierRecovery(t, false) })
-	t.Run("new-outbound", func(t *testing.T) { checkServiceTierRecovery(t, true) })
+	t.Run("legacy-final", func(t *testing.T) { checkServiceTierRecovery(t, false, "") })
+	t.Run("new-outbound", func(t *testing.T) { checkServiceTierRecovery(t, true, "") })
+	t.Run("peer-fast", func(t *testing.T) { checkServiceTierRecovery(t, false, "fast") })
 }
 
-func checkServiceTierRecovery(t *testing.T, outbound bool) {
+func checkServiceTierRecovery(t *testing.T, outbound bool, peerTier string) {
 	t.Helper()
 	ctx, db, ch, _, _, usage, key := setupBudgetRequest(t)
 	req := db.Request.Create().SetRequestBody([]byte(`{}`)).SetProjectID(key.ProjectID).SetAPIKeyID(key.ID).SetModelID("gpt-4").SetFormat(string(llm.APIFormatOpenAIResponse)).SetStatus(request.StatusCompleted).SaveX(ctx)
@@ -80,9 +157,11 @@ func checkServiceTierRecovery(t *testing.T, outbound bool) {
 	} else {
 		snapshot.ServiceTier.Observe([]byte(`{"service_tier":"default"}`))
 	}
+	snapshot.ServiceTier.PeerBillingTier = peerTier
 	require.NoError(t, usage.BudgetService.RecordUsage(ctx, exec.ID, &llm.Usage{PromptTokens: 10000, TotalTokens: 10000}, snapshot, nil))
 	// Simulate a process boundary: discard in-memory objects and re-read durable evidence.
 	snapshot.ServiceTier.Upstream = "priority"
+	snapshot.ServiceTier.PeerBillingTier = ""
 	price.ServiceTiers.Fast.Multiplier = lo.ToPtr(decimal.NewFromInt(99))
 	charge := db.BudgetCharge.Query().OnlyX(ctx)
 	require.NotNil(t, charge.Usage)
@@ -100,10 +179,16 @@ func checkServiceTierRecovery(t *testing.T, outbound bool) {
 	require.NoError(t, usage.RecoverBudgets(ctx, nil))
 	charge = db.BudgetCharge.GetX(ctx, charge.ID)
 	require.Equal(t, budgetcharge.StatusSettled, charge.Status)
-	require.Equal(t, int64(2000000), *charge.Actual)
 	log := db.UsageLog.Query().OnlyX(ctx)
-	require.Equal(t, 0.02, *log.TotalCost)
-	require.Equal(t, "standard", log.CostItems[0].PricingEvidence.ServiceTier.Mode)
+	if peerTier == "fast" {
+		require.Equal(t, int64(4000000), *charge.Actual)
+		require.Equal(t, 0.04, *log.TotalCost)
+		require.Equal(t, "fast", log.CostItems[0].PricingEvidence.ServiceTier.Mode)
+	} else {
+		require.Equal(t, int64(2000000), *charge.Actual)
+		require.Equal(t, 0.02, *log.TotalCost)
+		require.Equal(t, "standard", log.CostItems[0].PricingEvidence.ServiceTier.Mode)
+	}
 	require.Equal(t, 1, db.BudgetPosting.Query().CountX(ctx))
 	require.Zero(t, db.BudgetAccount.Query().OnlyX(ctx).Reserved)
 }

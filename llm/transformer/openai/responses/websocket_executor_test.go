@@ -717,7 +717,7 @@ func TestWebSocketExecutorKeepsConnectionForMatchingExplicitPreviousResponseID(t
 	var upgrades atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upgrades.Add(1)
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, http.Header{httpclient.BillingTierAckHeader: {"1"}})
 		require.NoError(t, err)
 		defer conn.Close()
 
@@ -754,6 +754,7 @@ func TestWebSocketExecutorKeepsConnectionForMatchingExplicitPreviousResponseID(t
 
 	executor := NewWebSocketExecutor(nil)
 	ctx := webSocketTestContext()
+	observations := 0
 	for _, body := range [][]byte{
 		[]byte(`{"model":"gpt-5","input":[{"id":"user_1","type":"message","role":"user"}]}`),
 		[]byte(`{"model":"gpt-5","previous_response_id":"resp_1","input":[{"id":"tool_1","type":"function_call_output","call_id":"call_1","output":"ok"}]}`),
@@ -762,7 +763,13 @@ func TestWebSocketExecutorKeepsConnectionForMatchingExplicitPreviousResponseID(t
 			Method: http.MethodPost,
 			URL:    "http" + strings.TrimPrefix(server.URL, "http") + "/v1/responses",
 			Headers: http.Header{
-				webSocketSessionHeader: []string{"matching-explicit-previous"},
+				webSocketSessionHeader:             []string{"matching-explicit-previous"},
+				httpclient.AcceptBillingTierHeader: {"1"},
+			},
+			OnResponseHeaders: func(_ context.Context, h http.Header) {
+				if h.Get(httpclient.BillingTierAckHeader) == "1" {
+					observations++
+				}
 			},
 			Auth: &httpclient.AuthConfig{Type: httpclient.AuthTypeBearer, APIKey: "test-key"},
 			Body: body,
@@ -776,6 +783,7 @@ func TestWebSocketExecutorKeepsConnectionForMatchingExplicitPreviousResponseID(t
 	}
 
 	require.Equal(t, int32(1), upgrades.Load())
+	require.Equal(t, 2, observations)
 }
 
 func TestPrepareWebSocketPayloadChecksExplicitPreviousIDWithEmptyCachedInput(t *testing.T) {

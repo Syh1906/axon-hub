@@ -286,9 +286,23 @@ func TestResponsesSupportedTierRetryAndSkip(t *testing.T) {
 }
 
 func TestResponsesTierWebSocketSettlement(t *testing.T) {
+	t.Run("direct", func(t *testing.T) { checkWebSocketBilling(t, "", true) })
+	t.Run("gateway", func(t *testing.T) { checkWebSocketBilling(t, "fast", true) })
+	t.Run("non-streaming gateway", func(t *testing.T) { checkWebSocketBilling(t, "fast", false) })
+}
+
+func checkWebSocketBilling(t *testing.T, peerTier string, stream bool) {
+	t.Helper()
 	received := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+		if r.Header.Get(httpclient.AcceptBillingTierHeader) != "1" {
+			t.Error("the gateway did not negotiate billing tiers on the WebSocket handshake")
+		}
+		headers := http.Header{}
+		if peerTier != "" {
+			headers.Set(httpclient.BillingTierAckHeader, "1")
+		}
+		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, headers)
 		if err != nil {
 			t.Error(err)
 			return
@@ -300,7 +314,10 @@ func TestResponsesTierWebSocketSettlement(t *testing.T) {
 			return
 		}
 		received <- objects.ServiceTierValue(message)
-		err = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":{"id":"resp_ws_tier","object":"response","status":"completed","model":"gpt-4","output":[],"service_tier":"default","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`))
+		// Without a handshake acknowledgement this can be a field passed
+		// through by an older gateway. Ignore it on that hop.
+		receipt := `,"axonhub_billing_tier":"fast"`
+		err = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.completed","response":{"id":"resp_ws_tier","object":"response","status":"completed","model":"gpt-4","output":[],"service_tier":"default","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}`+receipt+`}}`))
 		if err != nil {
 			t.Error(err)
 		}
@@ -313,27 +330,37 @@ func TestResponsesTierWebSocketSettlement(t *testing.T) {
 	c.Channel.Outbound, c.APIFormat = ws, ws.APIFormat().String()
 	c.Channel.Settings = &objects.ChannelSettings{ResponsesServiceTierOverride: objects.ResponsesServiceTierSupported, ResponsesTierSupport: &objects.ResponsesTierSupport{Fast: true, AllowDowngrade: true}}
 	ctx = shared.WithResponsesWebSocket(attachTierBudget(t, ctx, processor, db, c))
-	result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(`{"model":"gpt-4","input":"test","stream":true,"service_tier":"ultrafast","max_output_tokens":10}`)})
+	result, err := processor.Process(ctx, &httpclient.Request{Method: "POST", Body: []byte(fmt.Sprintf(`{"model":"gpt-4","input":"test","stream":%t,"service_tier":"ultrafast","max_output_tokens":10}`, stream))})
 	require.NoError(t, err)
-	for result.ChatCompletionStream.Next() {
-		result.ChatCompletionStream.Current()
+	if stream {
+		for result.ChatCompletionStream.Next() {
+			result.ChatCompletionStream.Current()
+		}
+		require.NoError(t, result.ChatCompletionStream.Err())
+		result.ChatCompletionStream.(streams.DeliveryAcknowledger).AcknowledgeDelivery()
+		require.NoError(t, result.ChatCompletionStream.Close())
 	}
-	require.NoError(t, result.ChatCompletionStream.Err())
-	result.ChatCompletionStream.(streams.DeliveryAcknowledger).AcknowledgeDelivery()
-	require.NoError(t, result.ChatCompletionStream.Close())
 	require.Equal(t, "priority", <-received)
 	charge := db.BudgetCharge.Query().OnlyX(ctx)
 	require.EqualValues(t, 20000, charge.Estimate)
 	require.Equal(t, budgetcharge.StatusSettled, charge.Status)
-	require.EqualValues(t, 1000, *charge.Actual)
+	expectedCharge := 1000
+	if peerTier != "" {
+		expectedCharge = 2000
+	}
+	require.EqualValues(t, expectedCharge, *charge.Actual)
 	usage := db.UsageLog.Query().OnlyX(ctx)
-	require.InDelta(t, 0.00001, *usage.TotalCost, 1e-12)
+	require.InDelta(t, float64(expectedCharge)/1e8, *usage.TotalCost, 1e-12)
 	tier := usage.CostItems[0].PricingEvidence.ServiceTier
 	require.Equal(t, "ultrafast", tier.Client)
 	require.Equal(t, "priority", tier.Outbound)
 	require.Equal(t, "default", tier.Upstream)
 	require.Equal(t, "upstream", tier.Basis)
 	require.True(t, tier.Confirmed)
+	if peerTier != "" {
+		require.Equal(t, peerTier, tier.Mode)
+		require.Equal(t, "upstream_billing", tier.Reason)
+	}
 }
 
 func TestResponsesTierContinuationEligibilityAndReplay(t *testing.T) {
