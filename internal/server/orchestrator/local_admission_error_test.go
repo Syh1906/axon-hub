@@ -43,8 +43,11 @@ func TestLocalAdmissionErrorClassification(t *testing.T) {
 			require.True(t, isLocalAdmissionError(errors.Join(errors.New("another cause"), err)))
 		})
 	}
-	for _, err := range []error{nil, context.Canceled, errors.New("network failure"), httpclient.ErrRequestNotSent,
-		&llm.ResponseError{Detail: llm.ErrorDetail{Code: "no_compatible_endpoint"}}, &httpclient.Error{StatusCode: 429}, &llm.ResponseError{StatusCode: 429}} {
+	for _, err := range []error{
+		nil, context.Canceled, errors.New("network failure"), httpclient.ErrRequestNotSent,
+		&llm.ResponseError{Detail: llm.ErrorDetail{Code: "no_compatible_endpoint"}},
+		&httpclient.Error{StatusCode: 429}, &llm.ResponseError{StatusCode: 429},
+	} {
 		require.False(t, isLocalAdmissionError(err), "ordinary/upstream errors are not local admission")
 	}
 }

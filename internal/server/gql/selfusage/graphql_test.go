@@ -13,6 +13,10 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/parser"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
@@ -25,11 +29,7 @@ import (
 	"github.com/looplj/axonhub/internal/pkg/budget"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
-	"github.com/stretchr/testify/require"
-
 	"github.com/looplj/axonhub/internal/server/middleware"
-	"github.com/vektah/gqlparser/v2/ast"
-	"github.com/vektah/gqlparser/v2/parser"
 )
 
 func TestGraphqlHandlerTransportAndInputErrors(t *testing.T) {

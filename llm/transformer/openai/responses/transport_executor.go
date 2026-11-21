@@ -99,7 +99,7 @@ func (e *transportExecutor) selectTransport(ctx context.Context, r *httpclient.R
 		reportTransport(r, TransportWebSocket, "")
 		return true, nil
 	}
-	if policy := r.ResponsesWebSocket; policy != nil && policy.NativeOnly {
+	if policy := r.ResponsesWebSocket; policy != nil && policy.HTTPDisabled {
 		return false, &llm.ResponseError{StatusCode: http.StatusUnprocessableEntity, Cause: httpclient.ErrRequestNotSent, Detail: llm.ErrorDetail{
 			Type: "invalid_request_error", Code: "no_compatible_endpoint", Message: "Responses HTTP is unavailable for this request",
 		}}
@@ -133,7 +133,7 @@ func (e *transportExecutor) nativeExecutor(r *httpclient.Request) *WebSocketExec
 
 func (e *transportExecutor) mayFallback(ctx context.Context, r *httpclient.Request, err error) bool {
 	policy := r.ResponsesWebSocket
-	if policy != nil && (policy.Probe || policy.NativeOnly) {
+	if policy != nil && (policy.Probe || policy.NativeOnly || policy.HTTPDisabled) {
 		return false
 	}
 	return canFallbackWebSocket(ctx, err, policy)

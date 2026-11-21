@@ -194,6 +194,9 @@ func (p *PersistentOutboundTransformer) configureWebSocket(ctx context.Context, 
 	credential := biz.SafeWebSocketCredential(sel.KeyRemark, sel.KeyHint)
 	service := p.state.ChannelService
 	policy := &httpclient.ResponsesWebSocketPolicy{Probe: probe != nil}
+	if ch.Settings != nil {
+		policy.HTTPDisabled = slices.Contains(ch.Settings.DisabledEndpoints, string(llm.APIFormatOpenAIResponse))
+	}
 	raw.ResponsesWebSocket = policy
 	sel.WebSocketProfile, sel.WebSocketEndpoint, sel.WebSocketIdentity = key.Profile, key.EndpointRef, key.CredentialRef
 	started := time.Now()

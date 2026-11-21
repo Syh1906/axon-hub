@@ -12,6 +12,9 @@ type ResponsesWebSocketPolicy struct {
 	// VerifiedHTTP permits an HTTP generation to use a verified pooled WS.
 	VerifiedHTTP bool
 	NativeOnly   bool
+	// HTTPDisabled forbids even the initial HTTP dispatch. NativeOnly also
+	// covers legacy routes that forbid retrying a failed WebSocket handshake.
+	HTTPDisabled bool
 	HTTPReason   string
 	HTTPURL      string
 	PrepareHTTP  func(*Request) *Request
