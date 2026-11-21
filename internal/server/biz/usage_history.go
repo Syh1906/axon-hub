@@ -47,7 +47,7 @@ func usageHistory(db string) *sql.Selector {
 }
 
 func requestHistory(dialect string) *sql.Selector {
-	fields := []string{"id", "project_id", "api_key_id", "channel_id", "model_id", "created_at", "status", "source", "failure", "result_execution_id", "attribution_model_id"}
+	fields := []string{"id", "project_id", "api_key_id", "channel_id", "model_id", "created_at", "status", "source", "failure", "result_execution_id", "attribution_model_id", "client_session_id"}
 	live := sql.Table(request.Table)
 	archive := sql.Table(usagearchive.Table).As("history_request_archive")
 	live.SetDialect(dialect)
@@ -90,5 +90,8 @@ func (scope selfUsageScope) joinHistory(s *sql.Selector) *sql.Selector {
 	s.Join(r).On(s.C("request_id"), r.C("id"))
 	s.Where(sql.And(sql.InInts(r.C("api_key_id"), scope.keyIDs...), sql.EQ(r.C("project_id"), scope.projectID),
 		sql.EQ(r.C("source"), string(request.SourceAPI)), sql.GTE(r.C("created_at"), scope.start), sql.LT(r.C("created_at"), scope.end)))
+	if scope.sessionID != "" {
+		s.Where(sql.EQ(r.C(request.FieldClientSessionID), scope.sessionID))
+	}
 	return r
 }

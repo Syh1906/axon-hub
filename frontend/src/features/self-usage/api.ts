@@ -86,6 +86,9 @@ export type UsageRequest = Omit<Usage, 'successRequests' | 'failedRequests'> & {
   }[];
   reasoningEffort: string | null;
   format: string;
+  clientSessionID: string | null;
+  reasoningEvidence: { requested: string; reported: string } | null;
+  resultUnconfirmed: boolean;
   outboundFormat: string | null;
   passThroughApplied: boolean;
   clientStatusCode: number | null;
@@ -124,16 +127,16 @@ export class SelfUsageError extends Error {
 
 export const summaryFields = `successRequests failedRequests inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords`;
 const metaQuery = `query SelfUsageMeta { selfUsageMeta { apiKeyName groupName apiKeyType currencyCode currencyDisplayDecimals timezone maxRangeDays } }`;
-export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, $group: Boolean!) {
-  selfUsageStats(start: $start, end: $end, group: $group) {
+export const statsQuery = `query SelfUsageStats($start: String!, $end: String!, $sessionID: String, $group: Boolean!) {
+  selfUsageStats(start: $start, end: $end, sessionID: $sessionID, group: $group) {
     scopeID apiKeyName groupName start end totals { ${summaryFields} }
     models { model usage { ${summaryFields} } }
     daily { date usage { ${summaryFields} } }
   }
 }`;
-export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $group: Boolean!) {
-  selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, group: $group) {
-    items { channel { name provider channelType tags sessionState multiplier multiplierMixed } modelExecutions { modelID upstreamModelID status format reasoningEffort passThroughApplied } callerKeyName callerGroupName reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond outputRate { outputTokens reasoningTokens durationMs } outputBatches { count spanMs } apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs streamTiming { firstEvent firstEventMs durationMs contentEvent contentWriteMs afterContentMs answerWriteMs singleAnswerBatch answerTokensPerSecond attempts } inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
+export const requestsQuery = `query SelfUsageRequests($start: String!, $end: String!, $model: String, $status: SelfUsageRequestStatus, $page: Int, $pageSize: Int, $sessionID: String, $group: Boolean!) {
+  selfUsageRequests(start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, sessionID: $sessionID, group: $group) {
+    items { clientSessionID resultUnconfirmed reasoningEvidence { requested reported } channel { name provider channelType tags sessionState multiplier multiplierMixed } modelExecutions { modelID upstreamModelID status format reasoningEffort passThroughApplied } callerKeyName callerGroupName reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond outputRate { outputTokens reasoningTokens durationMs } outputBatches { count spanMs } apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs streamTiming { firstEvent firstEventMs durationMs contentEvent contentWriteMs afterContentMs answerWriteMs singleAnswerBatch answerTokensPerSecond attempts } inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens cost usageRecords unpricedRecords costMultiplier costMultiplierMixed costItems { ${COST_PRICING_EVIDENCE_FIELDS} image { width height tier source tierSource requestedWidth requestedHeight inspectionError } imageRule unpriced unpricedReason itemCode promptWriteCacheVariantCode quantity subtotal tierBreakdown { upTo units subtotal } } }
     channelVisible scopeID apiKeyName groupName page pageSize total
   }
 }`;
@@ -165,8 +168,8 @@ async function executeRead<T>(key: string, query: string, variables?: Record<str
 export async function fetchMeta(key: string, signal?: AbortSignal): Promise<SelfUsageMeta> {
   return (await execute<{ selfUsageMeta: SelfUsageMeta }>(key, metaQuery, undefined, signal)).selfUsageMeta;
 }
-export async function fetchStats(key: string, start: string, end: string, signal?: AbortSignal, group = false): Promise<SelfUsageStats> {
-  return (await execute<{ selfUsageStats: SelfUsageStats }>(key, statsQuery, { start, end, group }, signal)).selfUsageStats;
+export async function fetchStats(key: string, start: string, end: string, signal?: AbortSignal, group = false, sessionID?: string): Promise<SelfUsageStats> {
+  return (await execute<{ selfUsageStats: SelfUsageStats }>(key, statsQuery, { start, end, group, sessionID }, signal)).selfUsageStats;
 }
 export async function fetchRequests(
   key: string,
@@ -176,7 +179,8 @@ export async function fetchRequests(
   status: RequestStatus | null,
   page: number,
   signal?: AbortSignal,
-  group = false
+  group = false,
+  sessionID?: string
 ): Promise<RequestPage> {
   return (
     await execute<{ selfUsageRequests: RequestPage }>(
@@ -190,6 +194,7 @@ export async function fetchRequests(
         page,
         pageSize: 20,
         group,
+        sessionID,
       },
       signal
     )

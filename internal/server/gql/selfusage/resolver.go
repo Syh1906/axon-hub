@@ -60,7 +60,7 @@ func toRequest(value biz.SelfUsageRequest) *SelfUsageRequest {
 			Quantity: cost.Quantity, Subtotal: cost.Subtotal, TierBreakdown: tiers,
 		})
 	}
-	return &SelfUsageRequest{APIKeyName: value.APIKeyName,
+	return &SelfUsageRequest{APIKeyName: value.APIKeyName, ClientSessionID: value.ClientSessionID, ReasoningEvidence: value.ReasoningEvidence, ResultUnconfirmed: value.ResultUnconfirmed,
 		CallerKeyName: value.CallerKeyName, CallerGroupName: value.CallerGroupName,
 		Channel: value.Channel, ModelExecutions: lo.ToSlicePtr(value.ModelExecutions),
 		ExecutedModels: value.ExecutedModels, ReasoningEffort: value.ReasoningEffort,

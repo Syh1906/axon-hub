@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/samber/lo"
 )
 
 // ManagedGroupUsageMeta is the resolver for the managedGroupUsageMeta field.
@@ -17,15 +18,15 @@ func (r *queryResolver) ManagedGroupUsageMeta(ctx context.Context, groupRef int)
 }
 
 // ManagedGroupUsageStats is the resolver for the managedGroupUsageStats field.
-func (r *queryResolver) ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string) (*biz.SelfUsageStats, error) {
-	return r.apiKeyService.ManagedGroupUsageStats(ctx, r.systemService, groupRef, start, end)
+func (r *queryResolver) ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string, sessionID *string) (*biz.SelfUsageStats, error) {
+	return r.apiKeyService.ManagedGroupUsageStats(ctx, r.systemService, groupRef, start, end, lo.FromPtr(sessionID))
 }
 
 // ManagedGroupUsageRequests is the resolver for the managedGroupUsageRequests field.
-func (r *queryResolver) ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error) {
+func (r *queryResolver) ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error) {
 	value := ""
 	if status != nil {
 		value = *status
 	}
-	return r.apiKeyService.ManagedGroupUsageRequests(ctx, r.systemService, groupRef, start, end, model, value, page, pageSize)
+	return r.apiKeyService.ManagedGroupUsageRequests(ctx, r.systemService, groupRef, start, end, model, value, page, pageSize, lo.FromPtr(sessionID))
 }

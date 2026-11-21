@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/samber/lo"
 )
 
 // SelfUsageMeta is the resolver for the selfUsageMeta field.
@@ -26,11 +27,11 @@ func (r *queryResolver) SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, erro
 }
 
 // SelfUsageStats is the resolver for the selfUsageStats field.
-func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end string, group bool) (*SelfUsageStats, error) {
+func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end string, sessionID *string, group bool) (*SelfUsageStats, error) {
 	if err := validateRange(start, end); err != nil {
 		return nil, err
 	}
-	stats, err := r.selfUsage.Stats(ctx, start, end, group)
+	stats, err := r.selfUsage.Stats(ctx, start, end, biz.SelfUsageFilter{Group: group, SessionID: lo.FromPtr(sessionID)})
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end st
 }
 
 // SelfUsageRequests is the resolver for the selfUsageRequests field.
-func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error) {
+func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error) {
 	if err := validateRange(start, end); err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	if status != nil {
 		filterStatus = string(*status)
 	}
-	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize, group)
+	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize, biz.SelfUsageFilter{Group: group, SessionID: lo.FromPtr(sessionID)})
 	if err != nil {
 		return nil, err
 	}

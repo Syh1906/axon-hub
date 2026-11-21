@@ -28,6 +28,26 @@ func (_u *UsageArchiveUpdate) Where(ps ...predicate.UsageArchive) *UsageArchiveU
 	return _u
 }
 
+// SetClientSessionID sets the "client_session_id" field.
+func (_u *UsageArchiveUpdate) SetClientSessionID(v string) *UsageArchiveUpdate {
+	_u.mutation.SetClientSessionID(v)
+	return _u
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_u *UsageArchiveUpdate) SetNillableClientSessionID(v *string) *UsageArchiveUpdate {
+	if v != nil {
+		_u.SetClientSessionID(*v)
+	}
+	return _u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (_u *UsageArchiveUpdate) ClearClientSessionID() *UsageArchiveUpdate {
+	_u.mutation.ClearClientSessionID()
+	return _u
+}
+
 // SetTotalCost sets the "total_cost" field.
 func (_u *UsageArchiveUpdate) SetTotalCost(v float64) *UsageArchiveUpdate {
 	_u.mutation.ResetTotalCost()
@@ -464,6 +484,16 @@ func (_u *UsageArchiveUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *UsageArchiveUpdate) check() error {
+	if v, ok := _u.mutation.ClientSessionID(); ok {
+		if err := usagearchive.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "UsageArchive.client_session_id": %w`, err)}
+		}
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *UsageArchiveUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UsageArchiveUpdate {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -471,6 +501,9 @@ func (_u *UsageArchiveUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *U
 }
 
 func (_u *UsageArchiveUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(usagearchive.Table, usagearchive.Columns, sqlgraph.NewFieldSpec(usagearchive.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -478,6 +511,12 @@ func (_u *UsageArchiveUpdate) sqlSave(ctx context.Context) (_node int, err error
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.ClientSessionID(); ok {
+		_spec.SetField(usagearchive.FieldClientSessionID, field.TypeString, value)
+	}
+	if _u.mutation.ClientSessionIDCleared() {
+		_spec.ClearField(usagearchive.FieldClientSessionID, field.TypeString)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagearchive.FieldTotalCost, field.TypeFloat64, value)
@@ -616,6 +655,26 @@ type UsageArchiveUpdateOne struct {
 	hooks     []Hook
 	mutation  *UsageArchiveMutation
 	modifiers []func(*sql.UpdateBuilder)
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (_u *UsageArchiveUpdateOne) SetClientSessionID(v string) *UsageArchiveUpdateOne {
+	_u.mutation.SetClientSessionID(v)
+	return _u
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_u *UsageArchiveUpdateOne) SetNillableClientSessionID(v *string) *UsageArchiveUpdateOne {
+	if v != nil {
+		_u.SetClientSessionID(*v)
+	}
+	return _u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (_u *UsageArchiveUpdateOne) ClearClientSessionID() *UsageArchiveUpdateOne {
+	_u.mutation.ClearClientSessionID()
+	return _u
 }
 
 // SetTotalCost sets the "total_cost" field.
@@ -1067,6 +1126,16 @@ func (_u *UsageArchiveUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *UsageArchiveUpdateOne) check() error {
+	if v, ok := _u.mutation.ClientSessionID(); ok {
+		if err := usagearchive.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "UsageArchive.client_session_id": %w`, err)}
+		}
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *UsageArchiveUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UsageArchiveUpdateOne {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -1074,6 +1143,9 @@ func (_u *UsageArchiveUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder))
 }
 
 func (_u *UsageArchiveUpdateOne) sqlSave(ctx context.Context) (_node *UsageArchive, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(usagearchive.Table, usagearchive.Columns, sqlgraph.NewFieldSpec(usagearchive.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -1098,6 +1170,12 @@ func (_u *UsageArchiveUpdateOne) sqlSave(ctx context.Context) (_node *UsageArchi
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.ClientSessionID(); ok {
+		_spec.SetField(usagearchive.FieldClientSessionID, field.TypeString, value)
+	}
+	if _u.mutation.ClientSessionIDCleared() {
+		_spec.ClearField(usagearchive.FieldClientSessionID, field.TypeString)
 	}
 	if value, ok := _u.mutation.TotalCost(); ok {
 		_spec.SetField(usagearchive.FieldTotalCost, field.TypeFloat64, value)

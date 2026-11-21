@@ -86,7 +86,7 @@ func TestSelfUsageChannelVisibilityAndSelection(t *testing.T) {
 	makeAttempt(processing, 1, "processing", objects.RequestExecutionDispatchStarted, "")
 	empty := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "no-record")
 	load := func(groupUsage bool) *SelfUsageRequestPage {
-		page, err := f.service.Requests(f.ctx, "2026-11-05", "2026-11-05", nil, "", 1, 20, groupUsage)
+		page, err := f.service.Requests(f.ctx, "2026-11-05", "2026-11-05", nil, "", 1, 20, SelfUsageFilter{Group: groupUsage})
 		require.NoError(t, err)
 		return page
 	}

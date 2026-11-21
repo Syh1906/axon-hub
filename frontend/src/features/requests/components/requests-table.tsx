@@ -48,6 +48,8 @@ declare module '@tanstack/react-table' {
 
 interface RequestsTableProps {
   data: Request[];
+  sessionID: string;
+  onSessionFilter: (id: string) => void;
   loading?: boolean;
   pageInfo?: RequestConnection['pageInfo'];
   pageSize: number;
@@ -97,6 +99,8 @@ function getFilterStringValue(filters: ColumnFiltersState, id: string) {
 
 export function RequestsTable({
   data,
+  sessionID,
+  onSessionFilter,
   loading,
   pageInfo,
   totalCount,
@@ -160,7 +164,8 @@ export function RequestsTable({
   }, []);
 
   const requestsColumns = useRequestsColumns({
-    allowContinuationExpansion: true,
+    allowContinuationExpansion: !sessionID,
+    onSessionFilter,
     onBodyClick: handleBodyClick,
     onViewDetail,
     onCallerFilter: (kind, value) =>
@@ -390,6 +395,8 @@ export function RequestsTable({
   return (
     <div className='flex flex-1 flex-col overflow-hidden'>
       <DataTableToolbar
+        sessionID={sessionID}
+        onSessionFilter={onSessionFilter}
         table={table}
         queryWhere={queryWhere}
         dateRange={dateRange}
@@ -480,7 +487,7 @@ export function RequestsTable({
             </TableHeader>
             <RequestsTableBody
               table={table} containerRef={scrolling.containerRef} scroll={scroll} loading={loading} animate={animate}
-              onHistoryBodyClick={handleHistoryBodyClick} onViewDetail={onViewDetail}
+              onHistoryBodyClick={handleHistoryBodyClick} onViewDetail={onViewDetail} onSessionFilter={onSessionFilter}
             />
           </Table>
         </div>

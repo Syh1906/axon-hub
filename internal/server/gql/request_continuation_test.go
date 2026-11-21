@@ -58,6 +58,28 @@ func (f *continuationFixture) add(at time.Time, status, identity string) *ent.Re
 	return r
 }
 
+func TestRequestLogOffsetBySessionCreationTime(t *testing.T) {
+	f := newContinuationFixture(t)
+	session := "session"
+	add := func(at time.Time) *ent.Request {
+		return f.db.Request.UpdateOne(f.add(at, "completed", "")).SetClientSessionID(session).SaveX(f.ctx)
+	}
+	last := add(f.at.Add(time.Minute))
+	first := add(f.at)
+	second := add(f.at)
+	f.add(f.at, "completed", "unrelated")
+	resolver := &queryResolver{&Resolver{client: f.db}}
+	for offset, expected := range []*ent.Request{first, second, last} {
+		page, err := resolver.RequestLogs(f.ctx, nil, lo.ToPtr(1), nil, nil,
+			&ent.RequestOrder{Direction: entgql.OrderDirectionAsc, Field: ent.RequestOrderFieldCreatedAt},
+			&ent.RequestWhereInput{ClientSessionID: &session}, &RequestLogFilterInput{Offset: &offset})
+		require.NoError(t, err)
+		require.Equal(t, 3, page.TotalCount)
+		require.Len(t, page.Edges, 1)
+		require.Equal(t, expected.ID, page.Edges[0].Node.ID)
+	}
+}
+
 func TestRequestContinuationGroupsBeforePagination(t *testing.T) {
 	f := newContinuationFixture(t)
 	first := f.add(f.at, "canceled", "same-turn")

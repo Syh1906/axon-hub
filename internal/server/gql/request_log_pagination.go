@@ -28,6 +28,10 @@ func paginateRequestLogOffset(ctx context.Context, query *ent.RequestQuery, offs
 	}
 	fields := []string{request.FieldID}
 	byUpdatedAt := order.Field != nil && order.Field.String() == "UPDATED_AT"
+	byCreatedAt := order.Field != nil && order.Field.String() == "CREATED_AT"
+	if byCreatedAt {
+		fields = []string{request.FieldCreatedAt, request.FieldID}
+	}
 	if byUpdatedAt {
 		fields = []string{request.FieldUpdatedAt, request.FieldID}
 	}
@@ -49,6 +53,9 @@ func paginateRequestLogOffset(ctx context.Context, query *ent.RequestQuery, offs
 		return nil, err
 	}
 	cursor := &entgql.Cursor[int]{ID: boundary.ID}
+	if byCreatedAt {
+		cursor.Value = boundary.CreatedAt
+	}
 	if byUpdatedAt {
 		cursor.Value = boundary.UpdatedAt
 	}

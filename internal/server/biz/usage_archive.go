@@ -40,6 +40,7 @@ func ArchiveUsageStatistics(ctx context.Context, client *ent.Client, rows []*ent
 }
 
 type archivedRequestFacts struct {
+	ClientSessionID   *string   `json:"client_session_id"`
 	ID                int       `json:"id"`
 	ProjectID         int       `json:"project_id"`
 	APIKeyID          int       `json:"api_key_id"`
@@ -88,7 +89,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 		outcome, speed := consumptionOutcomeAndSpeed(u, execution)
 		firstToken := usageanalytics.FirstTokenSQL(execution.C("metrics_first_token_latency_ms"), execution.C("metrics_latency_ms"), execution.C("stream"), execution.C("status"))
 		cacheRead, cacheWrite := "COALESCE("+u.C("prompt_cached_tokens")+", 0)", "COALESCE("+u.C("prompt_write_cached_tokens")+", 0)"
-		q.Select(q.C("id"), q.C("project_id"), q.C("created_at"),
+		q.Select(q.C("id"), q.C("project_id"), q.C("created_at"), q.C("client_session_id"),
 			sql.As(q.C("model_id"), "request_model"), sql.As(q.C("status"), "request_status"), sql.As(q.C("source"), "request_source"),
 			sql.As("COALESCE("+q.C("api_key_id")+", 0)", "api_key_id"), sql.As("COALESCE("+q.C("channel_id")+", 0)", "channel_id"),
 			sql.As("COALESCE(NULLIF(TRIM("+execution.C("model_id")+"), ''), "+q.C("model_id")+")", "model"))
@@ -109,7 +110,7 @@ func ArchiveRequestStatistics(ctx context.Context, client *ent.Client, requestID
 	}
 	for _, row := range rows {
 		err := client.UsageArchive.Create().SetKind(usagearchive.KindRequest).SetSourceID(row.ID).SetRequestID(row.ID).
-			SetRequestModelID(row.RequestModel).SetRequestStatus(row.RequestStatus).SetRequestSource(row.RequestSource).
+			SetNillableClientSessionID(row.ClientSessionID).SetRequestModelID(row.RequestModel).SetRequestStatus(row.RequestStatus).SetRequestSource(row.RequestSource).
 			SetProjectID(row.ProjectID).SetAPIKeyID(row.APIKeyID).SetChannelID(row.ChannelID).SetModelID(row.Model).SetOccurredAt(row.CreatedAt).
 			SetPromptTokens(row.PromptTokens).SetCompletionTokens(row.CompletionTokens).SetTotalTokens(row.TotalTokens).
 			SetPromptCachedTokens(row.CacheRead).SetPromptWriteCachedTokens(row.CacheWrite).SetCacheInput(row.PromptTokens).

@@ -24,6 +24,8 @@ const (
 	FieldRequestID = "request_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldClientSessionID holds the string denoting the client_session_id field in the database.
+	FieldClientSessionID = "client_session_id"
 	// FieldAPIKeyID holds the string denoting the api_key_id field in the database.
 	FieldAPIKeyID = "api_key_id"
 	// FieldChannelID holds the string denoting the channel_id field in the database.
@@ -87,6 +89,7 @@ var Columns = []string{
 	FieldSourceID,
 	FieldRequestID,
 	FieldProjectID,
+	FieldClientSessionID,
 	FieldAPIKeyID,
 	FieldChannelID,
 	FieldModelID,
@@ -133,6 +136,8 @@ func ValidColumn(column string) bool {
 var (
 	Hooks  [1]ent.Hook
 	Policy ent.Policy
+	// ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
+	ClientSessionIDValidator func(string) error
 	// DefaultAPIKeyID holds the default value on creation for the "api_key_id" field.
 	DefaultAPIKeyID int
 	// DefaultChannelID holds the default value on creation for the "channel_id" field.
@@ -233,6 +238,11 @@ func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByClientSessionID orders the results by the client_session_id field.
+func ByClientSessionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientSessionID, opts...).ToFunc()
 }
 
 // ByAPIKeyID orders the results by the api_key_id field.

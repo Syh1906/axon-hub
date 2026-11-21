@@ -312,7 +312,16 @@ func prepareResponsesAttempt(ctx context.Context, p *PersistentOutboundTransform
 	cloned := *request
 	cloned.Messages = append(append([]llm.Message(nil), historyMessages...), request.Messages...)
 	cloned.ProviderExtensions = parsed.ProviderExtensions
+	applyRecoveredReasoning(&cloned, parsed)
 	return &cloned, nil
+}
+
+// Model suffixes are resolved before route recovery and take precedence over
+// the reasoning configuration in the restored input history.
+func applyRecoveredReasoning(req, restored *llm.Request) {
+	if req.TransformerMetadata[autoEffortApplied] != true && restored.ReasoningEffort != "" {
+		req.ReasoningEffort, req.ReasoningBudget = restored.ReasoningEffort, restored.ReasoningBudget
+	}
 }
 
 func effectiveResponsesRequestBody(state *PersistenceState) []byte {

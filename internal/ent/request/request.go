@@ -30,6 +30,8 @@ const (
 	FieldProjectID = "project_id"
 	// FieldTraceID holds the string denoting the trace_id field in the database.
 	FieldTraceID = "trace_id"
+	// FieldClientSessionID holds the string denoting the client_session_id field in the database.
+	FieldClientSessionID = "client_session_id"
 	// FieldContinuationKey holds the string denoting the continuation_key field in the database.
 	FieldContinuationKey = "continuation_key"
 	// FieldDataStorageID holds the string denoting the data_storage_id field in the database.
@@ -164,6 +166,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldProjectID,
 	FieldTraceID,
+	FieldClientSessionID,
 	FieldContinuationKey,
 	FieldDataStorageID,
 	FieldSource,
@@ -221,6 +224,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultProjectID holds the default value on creation for the "project_id" field.
 	DefaultProjectID int
+	// ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
+	ClientSessionIDValidator func(string) error
 	// ContinuationKeyValidator is a validator for the "continuation_key" field. It is called by the builders before save.
 	ContinuationKeyValidator func(string) error
 	// DefaultFormat holds the default value on creation for the "format" field.
@@ -326,6 +331,11 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 // ByTraceID orders the results by the trace_id field.
 func ByTraceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTraceID, opts...).ToFunc()
+}
+
+// ByClientSessionID orders the results by the client_session_id field.
+func ByClientSessionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientSessionID, opts...).ToFunc()
 }
 
 // ByContinuationKey orders the results by the continuation_key field.

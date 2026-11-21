@@ -268,6 +268,12 @@ func (_c *RequestExecutionCreate) SetNillableReasoningEffort(v *string) *Request
 	return _c
 }
 
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (_c *RequestExecutionCreate) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionCreate {
+	_c.mutation.SetReasoningEvidence(v)
+	return _c
+}
+
 // SetChannelAPIKeySuffix sets the "channel_api_key_suffix" field.
 func (_c *RequestExecutionCreate) SetChannelAPIKeySuffix(v string) *RequestExecutionCreate {
 	_c.mutation.SetChannelAPIKeySuffix(v)
@@ -798,6 +804,10 @@ func (_c *RequestExecutionCreate) createSpec() (*RequestExecution, *sqlgraph.Cre
 		_spec.SetField(requestexecution.FieldReasoningEffort, field.TypeString, value)
 		_node.ReasoningEffort = &value
 	}
+	if value, ok := _c.mutation.ReasoningEvidence(); ok {
+		_spec.SetField(requestexecution.FieldReasoningEvidence, field.TypeJSON, value)
+		_node.ReasoningEvidence = value
+	}
 	if value, ok := _c.mutation.ChannelAPIKeySuffix(); ok {
 		_spec.SetField(requestexecution.FieldChannelAPIKeySuffix, field.TypeString, value)
 		_node.ChannelAPIKeySuffix = &value
@@ -1172,6 +1182,24 @@ func (u *RequestExecutionUpsert) UpdateUpstreamModelID() *RequestExecutionUpsert
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (u *RequestExecutionUpsert) ClearUpstreamModelID() *RequestExecutionUpsert {
 	u.SetNull(requestexecution.FieldUpstreamModelID)
+	return u
+}
+
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (u *RequestExecutionUpsert) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionUpsert {
+	u.Set(requestexecution.FieldReasoningEvidence, v)
+	return u
+}
+
+// UpdateReasoningEvidence sets the "reasoning_evidence" field to the value that was provided on create.
+func (u *RequestExecutionUpsert) UpdateReasoningEvidence() *RequestExecutionUpsert {
+	u.SetExcluded(requestexecution.FieldReasoningEvidence)
+	return u
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (u *RequestExecutionUpsert) ClearReasoningEvidence() *RequestExecutionUpsert {
+	u.SetNull(requestexecution.FieldReasoningEvidence)
 	return u
 }
 
@@ -1822,6 +1850,27 @@ func (u *RequestExecutionUpsertOne) UpdateUpstreamModelID() *RequestExecutionUps
 func (u *RequestExecutionUpsertOne) ClearUpstreamModelID() *RequestExecutionUpsertOne {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
+	})
+}
+
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (u *RequestExecutionUpsertOne) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetReasoningEvidence(v)
+	})
+}
+
+// UpdateReasoningEvidence sets the "reasoning_evidence" field to the value that was provided on create.
+func (u *RequestExecutionUpsertOne) UpdateReasoningEvidence() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateReasoningEvidence()
+	})
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (u *RequestExecutionUpsertOne) ClearReasoningEvidence() *RequestExecutionUpsertOne {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearReasoningEvidence()
 	})
 }
 
@@ -2697,6 +2746,27 @@ func (u *RequestExecutionUpsertBulk) UpdateUpstreamModelID() *RequestExecutionUp
 func (u *RequestExecutionUpsertBulk) ClearUpstreamModelID() *RequestExecutionUpsertBulk {
 	return u.Update(func(s *RequestExecutionUpsert) {
 		s.ClearUpstreamModelID()
+	})
+}
+
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (u *RequestExecutionUpsertBulk) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.SetReasoningEvidence(v)
+	})
+}
+
+// UpdateReasoningEvidence sets the "reasoning_evidence" field to the value that was provided on create.
+func (u *RequestExecutionUpsertBulk) UpdateReasoningEvidence() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.UpdateReasoningEvidence()
+	})
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (u *RequestExecutionUpsertBulk) ClearReasoningEvidence() *RequestExecutionUpsertBulk {
+	return u.Update(func(s *RequestExecutionUpsert) {
+		s.ClearReasoningEvidence()
 	})
 }
 

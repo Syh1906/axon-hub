@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/pkg/clientsession"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/tracing"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -77,22 +78,31 @@ func tryGetTraceIDFromBody(c *gin.Context, config tracing.Config) (string, error
 func WithTrace(config tracing.Config, traceService *biz.TraceService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		traceID := getTraceIDFromHeader(c, config)
-		if traceID == "" && config.OpenCodeTraceEnabled {
-			traceID = tryExtractTraceIDFromOpenCodeRequest(c)
+		sessionID := clientsession.Normalize(c.GetHeader(clientsession.Header))
+		collect := func(native string) {
+			if traceID == "" {
+				traceID = native
+			}
+			if sessionID == "" {
+				sessionID = clientsession.Normalize(native)
+			}
 		}
-
-		if traceID == "" && config.ClaudeCodeTraceEnabled {
-			var err error
-
-			traceID, err = tryExtractTraceIDFromClaudeCodeRequest(c, config)
-			if err != nil {
+		if config.OpenCodeTraceEnabled && (traceID == "" || sessionID == "") {
+			collect(tryExtractTraceIDFromOpenCodeRequest(c))
+		}
+		if config.ClaudeCodeTraceEnabled && (traceID == "" || sessionID == "") {
+			native, err := tryExtractTraceIDFromClaudeCodeRequest(c, config)
+			if err != nil && traceID == "" {
 				AbortWithError(c, http.StatusBadRequest, err)
 				return
 			}
+			collect(native)
 		}
-
-		if traceID == "" && config.CodexTraceEnabled {
-			traceID = tryExtractTraceIDFromCodexRequest(c)
+		if config.CodexTraceEnabled && (traceID == "" || sessionID == "") {
+			collect(tryExtractTraceIDFromCodexRequest(c))
+		}
+		if sessionID != "" {
+			c.Request = c.Request.WithContext(clientsession.WithID(c.Request.Context(), sessionID))
 		}
 
 		if traceID == "" && len(config.ExtraTraceBodyFields) > 0 {

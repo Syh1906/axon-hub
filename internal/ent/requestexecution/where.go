@@ -1095,6 +1095,16 @@ func ReasoningEffortContainsFold(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldContainsFold(FieldReasoningEffort, v))
 }
 
+// ReasoningEvidenceIsNil applies the IsNil predicate on the "reasoning_evidence" field.
+func ReasoningEvidenceIsNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldIsNull(FieldReasoningEvidence))
+}
+
+// ReasoningEvidenceNotNil applies the NotNil predicate on the "reasoning_evidence" field.
+func ReasoningEvidenceNotNil() predicate.RequestExecution {
+	return predicate.RequestExecution(sql.FieldNotNull(FieldReasoningEvidence))
+}
+
 // ChannelAPIKeySuffixEQ applies the EQ predicate on the "channel_api_key_suffix" field.
 func ChannelAPIKeySuffixEQ(v string) predicate.RequestExecution {
 	return predicate.RequestExecution(sql.FieldEQ(FieldChannelAPIKeySuffix, v))

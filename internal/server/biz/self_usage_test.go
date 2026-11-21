@@ -121,6 +121,41 @@ func (f *selfUsageFixture) usage(req *ent.Request, tokens int64, cost *float64) 
 	require.NoError(f.t, err)
 }
 
+func TestSelfUsageClientSessionFilter(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(f.ctx)
+	at := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
+	add := func(minute, keyID, projectID int, id string) *ent.Request {
+		r := f.request(at.Add(time.Duration(minute)*time.Minute), keyID, projectID, request.SourceAPI, request.StatusCompleted, "model")
+		r.Update().SetClientSessionID(id).ExecX(ctx)
+		f.usage(r, 10, new(1.5))
+		return r
+	}
+	late := add(2, f.key.ID, f.project.ID, "Session-A")
+	early := add(1, f.key.ID, f.project.ID, "Session-A")
+	add(3, f.key.ID, f.project.ID, "session-a")
+	add(4, f.other.ID, f.project.ID, "Session-A")
+	add(5, f.key.ID, f.otherProject.ID, "Session-A")
+	filter := SelfUsageFilter{SessionID: "Session-A"}
+	page, err := f.service.Requests(f.ctx, "2026-05-02", "2026-05-02", nil, "", 1, 1, filter)
+	require.NoError(t, err)
+	require.Equal(t, 2, page.Total)
+	require.Equal(t, early.ID, page.Items[0].ID)
+	require.Equal(t, "Session-A", *page.Items[0].ClientSessionID)
+	page, err = f.service.Requests(f.ctx, "2026-05-02", "2026-05-02", nil, "", 2, 1, filter)
+	require.NoError(t, err)
+	require.Equal(t, late.ID, page.Items[0].ID)
+	verifyStats := func() {
+		s, err := f.service.Stats(f.ctx, "2026-05-02", "2026-05-02", filter)
+		require.NoError(t, err)
+		require.Equal(t, 2, s.Totals.SuccessRequests)
+		require.Equal(t, 3.0, *s.Totals.Cost)
+	}
+	verifyStats()
+	require.NoError(t, ArchiveRequestStatistics(ctx, f.client, []int{early.ID}))
+	verifyStats()
+}
+
 func TestSelfUsageIsolationAndAggregation(t *testing.T) {
 	f := newSelfUsageFixture(t, "Asia/Kolkata")
 	at := time.Date(2026, 5, 1, 18, 40, 0, 0, time.UTC) // May 2 locally.
@@ -306,7 +341,8 @@ func TestSelfUsageRequestDisplayMetadata(t *testing.T) {
 	require.EqualValues(t, "completed", row.ModelExecutions[0].Status)
 	require.False(t, page.ChannelVisible)
 	require.Nil(t, row.Channel)
-	require.Equal(t, "8192", *row.ReasoningEffort)
+	require.True(t, row.ResultUnconfirmed)
+	require.Nil(t, row.ReasoningEffort, "two completed attempts on the same channel have no identifiable winner")
 	require.Equal(t, "openai/chat_completions", row.Format)
 	require.Equal(t, "anthropic/messages", *row.OutboundFormat)
 	require.Equal(t, 200, *row.ClientStatusCode, "the client status takes precedence over upstream status")
@@ -343,7 +379,7 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			}
 			f.client.Request.UpdateOne(req).SetChannelID(channels[0].ID).ExecX(ctx)
 			winner := f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[0].ID).
-				SetModelID("adopted").SetStatus("completed").SetStream(true).SetContentBatches(2).SetContentBatchSpanMs(850).SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
+				SetModelID("adopted").SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "high", Reported: "max"}).SetStatus("completed").SetStream(true).SetContentBatches(2).SetContentBatchSpanMs(850).SetResponseStatusCode(200).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 			f.client.RequestExecution.Create().SetRequestID(req.ID).SetProjectID(f.project.ID).SetChannelID(channels[1].ID).
 				SetModelID("backup").SetStatus("failed").SetResponseStatusCode(500).SetRequestBody([]byte(`{}`)).SaveX(ctx)
 			if !legacy {
@@ -353,6 +389,7 @@ func TestSelfUsageDisplayKeepsAdoptedStatus(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, page.Items, 1)
 			require.Equal(t, 200, *page.Items[0].ClientStatusCode)
+			require.Equal(t, new("max"), page.Items[0].ReasoningEffort)
 			require.Equal(t, 1, page.Items[0].RetryCount)
 			require.ElementsMatch(t, []string{"adopted", "backup"}, page.Items[0].ExecutedModels)
 			require.NotNil(t, page.Items[0].OutputBatches)

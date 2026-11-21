@@ -60,6 +60,8 @@ type RequestExecution struct {
 	Format string `json:"format,omitempty"`
 	// Final reasoning effort sent to the upstream provider
 	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// ReasoningEvidence holds the value of the "reasoning_evidence" field.
+	ReasoningEvidence *objects.RequestReasoningEvidence `json:"reasoning_evidence,omitempty"`
 	// Last 4 characters of the channel API key used for this execution
 	ChannelAPIKeySuffix *string `json:"channel_api_key_suffix,omitempty"`
 	// RequestBody holds the value of the "request_body" field.
@@ -169,7 +171,7 @@ func (*RequestExecution) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case requestexecution.FieldCostSnapshot, requestexecution.FieldRequestBody, requestexecution.FieldResponseHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldSelection, requestexecution.FieldFailure, requestexecution.FieldRequestHeaders:
+		case requestexecution.FieldCostSnapshot, requestexecution.FieldReasoningEvidence, requestexecution.FieldRequestBody, requestexecution.FieldResponseHeaders, requestexecution.FieldResponseBody, requestexecution.FieldResponseChunks, requestexecution.FieldSelection, requestexecution.FieldFailure, requestexecution.FieldRequestHeaders:
 			values[i] = new([]byte)
 		case requestexecution.FieldStatisticsReady, requestexecution.FieldStream, requestexecution.FieldMetricsFirstByteRecorded, requestexecution.FieldPassThroughApplied:
 			values[i] = new(sql.NullBool)
@@ -323,6 +325,14 @@ func (_m *RequestExecution) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ReasoningEffort = new(string)
 				*_m.ReasoningEffort = value.String
+			}
+		case requestexecution.FieldReasoningEvidence:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field reasoning_evidence", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ReasoningEvidence); err != nil {
+					return fmt.Errorf("unmarshal field reasoning_evidence: %w", err)
+				}
 			}
 		case requestexecution.FieldChannelAPIKeySuffix:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -619,6 +629,9 @@ func (_m *RequestExecution) String() string {
 		builder.WriteString("reasoning_effort=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("reasoning_evidence=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningEvidence))
 	builder.WriteString(", ")
 	if v := _m.ChannelAPIKeySuffix; v != nil {
 		builder.WriteString("channel_api_key_suffix=")

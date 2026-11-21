@@ -29945,6 +29945,7 @@ type RequestMutation struct {
 	updated_at                        *time.Time
 	user_id                           *int
 	adduser_id                        *int
+	client_session_id                 *string
 	continuation_key                  *string
 	source                            *request.Source
 	model_id                          *string
@@ -30377,6 +30378,55 @@ func (m *RequestMutation) TraceIDCleared() bool {
 func (m *RequestMutation) ResetTraceID() {
 	m.trace = nil
 	delete(m.clearedFields, request.FieldTraceID)
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (m *RequestMutation) SetClientSessionID(s string) {
+	m.client_session_id = &s
+}
+
+// ClientSessionID returns the value of the "client_session_id" field in the mutation.
+func (m *RequestMutation) ClientSessionID() (r string, exists bool) {
+	v := m.client_session_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientSessionID returns the old "client_session_id" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldClientSessionID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientSessionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientSessionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientSessionID: %w", err)
+	}
+	return oldValue.ClientSessionID, nil
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (m *RequestMutation) ClearClientSessionID() {
+	m.client_session_id = nil
+	m.clearedFields[request.FieldClientSessionID] = struct{}{}
+}
+
+// ClientSessionIDCleared returns if the "client_session_id" field was cleared in this mutation.
+func (m *RequestMutation) ClientSessionIDCleared() bool {
+	_, ok := m.clearedFields[request.FieldClientSessionID]
+	return ok
+}
+
+// ResetClientSessionID resets all changes to the "client_session_id" field.
+func (m *RequestMutation) ResetClientSessionID() {
+	m.client_session_id = nil
+	delete(m.clearedFields, request.FieldClientSessionID)
 }
 
 // SetContinuationKey sets the "continuation_key" field.
@@ -32165,7 +32215,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 35)
+	fields := make([]string, 0, 36)
 	if m.created_at != nil {
 		fields = append(fields, request.FieldCreatedAt)
 	}
@@ -32183,6 +32233,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m.trace != nil {
 		fields = append(fields, request.FieldTraceID)
+	}
+	if m.client_session_id != nil {
+		fields = append(fields, request.FieldClientSessionID)
 	}
 	if m.continuation_key != nil {
 		fields = append(fields, request.FieldContinuationKey)
@@ -32291,6 +32344,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case request.FieldTraceID:
 		return m.TraceID()
+	case request.FieldClientSessionID:
+		return m.ClientSessionID()
 	case request.FieldContinuationKey:
 		return m.ContinuationKey()
 	case request.FieldDataStorageID:
@@ -32370,6 +32425,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldProjectID(ctx)
 	case request.FieldTraceID:
 		return m.OldTraceID(ctx)
+	case request.FieldClientSessionID:
+		return m.OldClientSessionID(ctx)
 	case request.FieldContinuationKey:
 		return m.OldContinuationKey(ctx)
 	case request.FieldDataStorageID:
@@ -32478,6 +32535,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTraceID(v)
+		return nil
+	case request.FieldClientSessionID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientSessionID(v)
 		return nil
 	case request.FieldContinuationKey:
 		v, ok := value.(string)
@@ -32808,6 +32872,9 @@ func (m *RequestMutation) ClearedFields() []string {
 	if m.FieldCleared(request.FieldTraceID) {
 		fields = append(fields, request.FieldTraceID)
 	}
+	if m.FieldCleared(request.FieldClientSessionID) {
+		fields = append(fields, request.FieldClientSessionID)
+	}
 	if m.FieldCleared(request.FieldContinuationKey) {
 		fields = append(fields, request.FieldContinuationKey)
 	}
@@ -32890,6 +32957,9 @@ func (m *RequestMutation) ClearField(name string) error {
 		return nil
 	case request.FieldTraceID:
 		m.ClearTraceID()
+		return nil
+	case request.FieldClientSessionID:
+		m.ClearClientSessionID()
 		return nil
 	case request.FieldContinuationKey:
 		m.ClearContinuationKey()
@@ -32976,6 +33046,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldTraceID:
 		m.ResetTraceID()
+		return nil
+	case request.FieldClientSessionID:
+		m.ResetClientSessionID()
 		return nil
 	case request.FieldContinuationKey:
 		m.ResetContinuationKey()
@@ -33297,6 +33370,7 @@ type RequestExecutionMutation struct {
 	cost_snapshot                     **objects.RequestCostSnapshot
 	format                            *string
 	reasoning_effort                  *string
+	reasoning_evidence                **objects.RequestReasoningEvidence
 	channel_api_key_suffix            *string
 	request_body                      *objects.JSONRawMessage
 	appendrequest_body                objects.JSONRawMessage
@@ -34415,6 +34489,55 @@ func (m *RequestExecutionMutation) ReasoningEffortCleared() bool {
 func (m *RequestExecutionMutation) ResetReasoningEffort() {
 	m.reasoning_effort = nil
 	delete(m.clearedFields, requestexecution.FieldReasoningEffort)
+}
+
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (m *RequestExecutionMutation) SetReasoningEvidence(ore *objects.RequestReasoningEvidence) {
+	m.reasoning_evidence = &ore
+}
+
+// ReasoningEvidence returns the value of the "reasoning_evidence" field in the mutation.
+func (m *RequestExecutionMutation) ReasoningEvidence() (r *objects.RequestReasoningEvidence, exists bool) {
+	v := m.reasoning_evidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEvidence returns the old "reasoning_evidence" field's value of the RequestExecution entity.
+// If the RequestExecution object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestExecutionMutation) OldReasoningEvidence(ctx context.Context) (v *objects.RequestReasoningEvidence, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEvidence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEvidence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEvidence: %w", err)
+	}
+	return oldValue.ReasoningEvidence, nil
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (m *RequestExecutionMutation) ClearReasoningEvidence() {
+	m.reasoning_evidence = nil
+	m.clearedFields[requestexecution.FieldReasoningEvidence] = struct{}{}
+}
+
+// ReasoningEvidenceCleared returns if the "reasoning_evidence" field was cleared in this mutation.
+func (m *RequestExecutionMutation) ReasoningEvidenceCleared() bool {
+	_, ok := m.clearedFields[requestexecution.FieldReasoningEvidence]
+	return ok
+}
+
+// ResetReasoningEvidence resets all changes to the "reasoning_evidence" field.
+func (m *RequestExecutionMutation) ResetReasoningEvidence() {
+	m.reasoning_evidence = nil
+	delete(m.clearedFields, requestexecution.FieldReasoningEvidence)
 }
 
 // SetChannelAPIKeySuffix sets the "channel_api_key_suffix" field.
@@ -35952,7 +36075,7 @@ func (m *RequestExecutionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestExecutionMutation) Fields() []string {
-	fields := make([]string, 0, 44)
+	fields := make([]string, 0, 45)
 	if m.created_at != nil {
 		fields = append(fields, requestexecution.FieldCreatedAt)
 	}
@@ -36009,6 +36132,9 @@ func (m *RequestExecutionMutation) Fields() []string {
 	}
 	if m.reasoning_effort != nil {
 		fields = append(fields, requestexecution.FieldReasoningEffort)
+	}
+	if m.reasoning_evidence != nil {
+		fields = append(fields, requestexecution.FieldReasoningEvidence)
 	}
 	if m.channel_api_key_suffix != nil {
 		fields = append(fields, requestexecution.FieldChannelAPIKeySuffix)
@@ -36131,6 +36257,8 @@ func (m *RequestExecutionMutation) Field(name string) (ent.Value, bool) {
 		return m.Format()
 	case requestexecution.FieldReasoningEffort:
 		return m.ReasoningEffort()
+	case requestexecution.FieldReasoningEvidence:
+		return m.ReasoningEvidence()
 	case requestexecution.FieldChannelAPIKeySuffix:
 		return m.ChannelAPIKeySuffix()
 	case requestexecution.FieldRequestBody:
@@ -36228,6 +36356,8 @@ func (m *RequestExecutionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldFormat(ctx)
 	case requestexecution.FieldReasoningEffort:
 		return m.OldReasoningEffort(ctx)
+	case requestexecution.FieldReasoningEvidence:
+		return m.OldReasoningEvidence(ctx)
 	case requestexecution.FieldChannelAPIKeySuffix:
 		return m.OldChannelAPIKeySuffix(ctx)
 	case requestexecution.FieldRequestBody:
@@ -36419,6 +36549,13 @@ func (m *RequestExecutionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReasoningEffort(v)
+		return nil
+	case requestexecution.FieldReasoningEvidence:
+		v, ok := value.(*objects.RequestReasoningEvidence)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEvidence(v)
 		return nil
 	case requestexecution.FieldChannelAPIKeySuffix:
 		v, ok := value.(string)
@@ -36841,6 +36978,9 @@ func (m *RequestExecutionMutation) ClearedFields() []string {
 	if m.FieldCleared(requestexecution.FieldReasoningEffort) {
 		fields = append(fields, requestexecution.FieldReasoningEffort)
 	}
+	if m.FieldCleared(requestexecution.FieldReasoningEvidence) {
+		fields = append(fields, requestexecution.FieldReasoningEvidence)
+	}
 	if m.FieldCleared(requestexecution.FieldChannelAPIKeySuffix) {
 		fields = append(fields, requestexecution.FieldChannelAPIKeySuffix)
 	}
@@ -36950,6 +37090,9 @@ func (m *RequestExecutionMutation) ClearField(name string) error {
 		return nil
 	case requestexecution.FieldReasoningEffort:
 		m.ClearReasoningEffort()
+		return nil
+	case requestexecution.FieldReasoningEvidence:
+		m.ClearReasoningEvidence()
 		return nil
 	case requestexecution.FieldChannelAPIKeySuffix:
 		m.ClearChannelAPIKeySuffix()
@@ -37078,6 +37221,9 @@ func (m *RequestExecutionMutation) ResetField(name string) error {
 		return nil
 	case requestexecution.FieldReasoningEffort:
 		m.ResetReasoningEffort()
+		return nil
+	case requestexecution.FieldReasoningEvidence:
+		m.ResetReasoningEvidence()
 		return nil
 	case requestexecution.FieldChannelAPIKeySuffix:
 		m.ResetChannelAPIKeySuffix()
@@ -41927,6 +42073,7 @@ type UsageArchiveMutation struct {
 	addrequest_id                  *int
 	project_id                     *int
 	addproject_id                  *int
+	client_session_id              *string
 	api_key_id                     *int
 	addapi_key_id                  *int
 	channel_id                     *int
@@ -42279,6 +42426,55 @@ func (m *UsageArchiveMutation) AddedProjectID() (r int, exists bool) {
 func (m *UsageArchiveMutation) ResetProjectID() {
 	m.project_id = nil
 	m.addproject_id = nil
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (m *UsageArchiveMutation) SetClientSessionID(s string) {
+	m.client_session_id = &s
+}
+
+// ClientSessionID returns the value of the "client_session_id" field in the mutation.
+func (m *UsageArchiveMutation) ClientSessionID() (r string, exists bool) {
+	v := m.client_session_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientSessionID returns the old "client_session_id" field's value of the UsageArchive entity.
+// If the UsageArchive object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageArchiveMutation) OldClientSessionID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientSessionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientSessionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientSessionID: %w", err)
+	}
+	return oldValue.ClientSessionID, nil
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (m *UsageArchiveMutation) ClearClientSessionID() {
+	m.client_session_id = nil
+	m.clearedFields[usagearchive.FieldClientSessionID] = struct{}{}
+}
+
+// ClientSessionIDCleared returns if the "client_session_id" field was cleared in this mutation.
+func (m *UsageArchiveMutation) ClientSessionIDCleared() bool {
+	_, ok := m.clearedFields[usagearchive.FieldClientSessionID]
+	return ok
+}
+
+// ResetClientSessionID resets all changes to the "client_session_id" field.
+func (m *UsageArchiveMutation) ResetClientSessionID() {
+	m.client_session_id = nil
+	delete(m.clearedFields, usagearchive.FieldClientSessionID)
 }
 
 // SetAPIKeyID sets the "api_key_id" field.
@@ -43678,7 +43874,7 @@ func (m *UsageArchiveMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageArchiveMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.kind != nil {
 		fields = append(fields, usagearchive.FieldKind)
 	}
@@ -43690,6 +43886,9 @@ func (m *UsageArchiveMutation) Fields() []string {
 	}
 	if m.project_id != nil {
 		fields = append(fields, usagearchive.FieldProjectID)
+	}
+	if m.client_session_id != nil {
+		fields = append(fields, usagearchive.FieldClientSessionID)
 	}
 	if m.api_key_id != nil {
 		fields = append(fields, usagearchive.FieldAPIKeyID)
@@ -43785,6 +43984,8 @@ func (m *UsageArchiveMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestID()
 	case usagearchive.FieldProjectID:
 		return m.ProjectID()
+	case usagearchive.FieldClientSessionID:
+		return m.ClientSessionID()
 	case usagearchive.FieldAPIKeyID:
 		return m.APIKeyID()
 	case usagearchive.FieldChannelID:
@@ -43854,6 +44055,8 @@ func (m *UsageArchiveMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRequestID(ctx)
 	case usagearchive.FieldProjectID:
 		return m.OldProjectID(ctx)
+	case usagearchive.FieldClientSessionID:
+		return m.OldClientSessionID(ctx)
 	case usagearchive.FieldAPIKeyID:
 		return m.OldAPIKeyID(ctx)
 	case usagearchive.FieldChannelID:
@@ -43942,6 +44145,13 @@ func (m *UsageArchiveMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProjectID(v)
+		return nil
+	case usagearchive.FieldClientSessionID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientSessionID(v)
 		return nil
 	case usagearchive.FieldAPIKeyID:
 		v, ok := value.(int)
@@ -44434,6 +44644,9 @@ func (m *UsageArchiveMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *UsageArchiveMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(usagearchive.FieldClientSessionID) {
+		fields = append(fields, usagearchive.FieldClientSessionID)
+	}
 	if m.FieldCleared(usagearchive.FieldTotalCost) {
 		fields = append(fields, usagearchive.FieldTotalCost)
 	}
@@ -44454,6 +44667,9 @@ func (m *UsageArchiveMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *UsageArchiveMutation) ClearField(name string) error {
 	switch name {
+	case usagearchive.FieldClientSessionID:
+		m.ClearClientSessionID()
+		return nil
 	case usagearchive.FieldTotalCost:
 		m.ClearTotalCost()
 		return nil
@@ -44479,6 +44695,9 @@ func (m *UsageArchiveMutation) ResetField(name string) error {
 		return nil
 	case usagearchive.FieldProjectID:
 		m.ResetProjectID()
+		return nil
+	case usagearchive.FieldClientSessionID:
+		m.ResetClientSessionID()
 		return nil
 	case usagearchive.FieldAPIKeyID:
 		m.ResetAPIKeyID()

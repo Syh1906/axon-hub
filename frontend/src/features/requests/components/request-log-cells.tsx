@@ -1,3 +1,6 @@
+import { Copy } from 'lucide-react';
+import { toast } from 'sonner';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { useTranslation } from 'react-i18next';
 import { cn, extractNumberID } from '@/lib/utils';
 import { formatDuration } from '@/utils/format-duration';
@@ -26,22 +29,28 @@ export function RequestLogStatusCell({
   request,
   onOpen,
   onToggleContinuation,
+  onSessionFilter,
+  retryCount,
   continuationExpanded = false,
   continued = false,
 }: {
-  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'resultExecution' | 'stream' | 'continuationCount'> & {
+  request: Pick<Request, 'id' | 'status' | 'clientStatusCode' | 'resultExecution' | 'stream' | 'continuationCount' | 'clientSessionID'> & {
     executions?: { edges: { node?: { responseStatusCode?: number | null } | null }[]; totalCount?: number };
   };
   onOpen?: (tab: RequestDiagnosticTab) => void;
   onToggleContinuation?: () => void;
+  onSessionFilter?: (id: string) => void;
+  retryCount?: number;
   continuationExpanded?: boolean;
   continued?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const id = request.clientSessionID;
+  const shortID = id && id.length > 12 ? `${id.slice(0, 5)}…${id.slice(-4)}` : id;
   const status = request.clientStatusCode ?? request.resultExecution?.responseStatusCode;
-  const retries = Math.max((request.executions?.totalCount ?? 0) - 1, 0);
+  const retries = retryCount ?? Math.max((request.executions?.totalCount ?? 0) - 1, 0);
   return (
-    <div className='flex min-w-0 flex-col gap-1.5'>
+    <div className='flex min-w-0 flex-col items-start gap-0.5'>
       <div className='flex min-w-0 items-center gap-2'>
         {onOpen ? (
           <button
@@ -70,9 +79,21 @@ export function RequestLogStatusCell({
           </button>
         )}
       </div>
-      <div className='flex items-center gap-2 whitespace-nowrap'>
+      <div className='text-muted-foreground flex h-4 max-w-full items-center gap-1 text-[11px]'>
+        <span className='shrink-0'>{t('requests.session.short')}</span>
+        {id && onSessionFilter ? (
+          <button type='button' title={id} aria-label={t('requests.session.show', { id })}
+            className='min-w-0 truncate font-mono hover:text-primary hover:underline' onClick={() => onSessionFilter(id)}>{shortID}</button>
+        ) : <span className='min-w-0 truncate font-mono' title={id ?? undefined}>{shortID || '—'}</span>}
+        {id && <button type='button' className='shrink-0 hover:text-primary' title={t('requests.session.copy')} aria-label={t('requests.session.copy')}
+          onClick={async () => {
+            try { await copyTextToClipboard(id); toast.success(t('requests.actions.copied')); }
+            catch { toast.error(t('requests.diagnostics.copyFailed')); }
+          }}><Copy className='size-3' /></button>}
+      </div>
+      <div className='flex items-center gap-1 whitespace-nowrap'>
         <Badge
-          className={continued ? 'bg-muted text-muted-foreground' : getStatusColor(request.status)}
+          className={cn('h-[21px] justify-center px-1 tabular-nums', i18n.language.startsWith('zh') ? 'w-[86px]' : 'w-[108px]', continued ? 'bg-muted text-muted-foreground' : getStatusColor(request.status))}
           title={continued ? t('requests.continuation.canceled') : undefined}
           asChild={!!onOpen}
         >
@@ -88,6 +109,7 @@ export function RequestLogStatusCell({
             </span>
           )}
         </Badge>
+        {retries > 0 && !onOpen && <span className='text-muted-foreground text-xs'>{t('requests.diagnostics.retries', { count: retries })}</span>}
         {retries > 0 && onOpen && (
           <button type='button' className='text-muted-foreground text-xs hover:underline' onClick={() => onOpen('routing')}>
             {t('requests.diagnostics.retries', { count: retries })}

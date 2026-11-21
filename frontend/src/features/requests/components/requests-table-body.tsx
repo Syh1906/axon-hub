@@ -65,6 +65,7 @@ export function RequestsTableBody({
   loading,
   animate,
   onHistoryBodyClick,
+  onSessionFilter,
   onViewDetail,
 }: {
   table: Table<Request>;
@@ -72,6 +73,7 @@ export function RequestsTableBody({
   scroll: IncrementalScrollOptions;
   loading?: boolean;
   animate: boolean;
+  onSessionFilter: (id: string) => void;
   onHistoryBodyClick: (requests: Request[], id: string, index: number, tab: RequestDiagnosticTab) => void;
   onViewDetail: (id: string) => void;
 }) {
@@ -198,7 +200,7 @@ export function RequestsTableBody({
                       positions.set(row.id, { cursors, scrollTop: 0 });
                       updateHistoryPage((value) => value + 1);
                     }}
-                    onBodyClick={onHistoryBodyClick} onViewDetail={onViewDetail}
+                    onBodyClick={onHistoryBodyClick} onViewDetail={onViewDetail} onSessionFilter={onSessionFilter}
                   />
                 </TableCell>
               </TableRow>

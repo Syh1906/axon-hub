@@ -13,6 +13,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	entrequest "github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/requestreasoning"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -63,6 +64,10 @@ func TestExtractOutboundReasoningEffort(t *testing.T) {
 			body:   `{"model":"deepseek-v4-flash","output_config":{"effort":"max"}}`,
 			want:   lo.ToPtr("max"),
 		},
+		{name: "responses token budget", format: llm.APIFormatOpenAIResponse, body: `{"reasoning":{"max_tokens":2048}}`, want: new("2048")},
+		{name: "gemini budget", format: llm.APIFormatGeminiContents, body: `{"generationConfig":{"thinkingConfig":{"thinkingBudget":3072}}}`, want: new("3072")},
+		{name: "gemini wrapped level", format: llm.APIFormatGeminiContents, body: `{"request":{"generationConfig":{"thinkingConfig":{"thinkingLevel":"HIGH"}}}}`, want: new("HIGH")},
+		{name: "anthropic token budget", format: llm.APIFormatAnthropicMessage, body: `{"thinking":{"type":"enabled","budget_tokens":4096}}`, want: new("4096")},
 		{
 			name:   "missing effort",
 			format: llm.APIFormatOpenAIChatCompletion,
@@ -94,7 +99,7 @@ func TestExtractOutboundReasoningEffort(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := extractOutboundReasoningEffort(httpclient.Request{Body: []byte(tt.body)}, tt.format)
+			got := requestreasoning.Requested([]byte(tt.body), tt.format)
 			require.Equal(t, tt.want, got)
 		})
 	}
@@ -163,6 +168,7 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 	require.NotNil(t, execution.ReasoningEffort)
 	require.Equal(t, "max", *execution.ReasoningEffort)
 
+	require.NoError(t, systemService.SetStoragePolicy(ctx, &StoragePolicy{StoreRequestBody: false}))
 	responsesExecution, err := requestService.CreateRequestExecution(
 		ctx,
 		&Channel{Channel: channelEntity},
@@ -181,6 +187,16 @@ func TestRequestService_CreateRequestExecutionPersistsReasoningEffort(t *testing
 	require.NoError(t, err)
 	require.NotNil(t, responsesExecution.ReasoningEffort)
 	require.Equal(t, "high", *responsesExecution.ReasoningEffort)
+	require.Equal(t, "high", responsesExecution.ReasoningEvidence.Requested)
+	disabled := payloadMarker(requestPayloadReference{State: "disabled"})
+	require.JSONEq(t, string(disabled), string(responsesExecution.RequestBody))
+	recovered := []byte(`{"reasoning":{"effort":"high"},"input":[{"type":"configuration_update","reasoning":{"effort":"low"}}]}`)
+	require.NoError(t, requestService.UpdateRecoveredExecutionBody(ctx, responsesExecution, recovered))
+	require.Equal(t, "low", client.RequestExecution.GetX(ctx, responsesExecution.ID).ReasoningEvidence.Requested)
+	require.JSONEq(t, string(disabled), string(client.RequestExecution.GetX(ctx, responsesExecution.ID).RequestBody))
+	responsesExecution.ReasoningEvidence.Reported = "max"
+	require.NoError(t, requestService.UpdateRequestExecutionFinalized(ctx, responsesExecution, "completed", "", "response", []byte(`{}`), nil, "", nil))
+	require.Equal(t, "max", client.RequestExecution.GetX(ctx, responsesExecution.ID).ReasoningEvidence.Reported)
 
 	anthropicExecution, err := requestService.CreateRequestExecution(
 		ctx,

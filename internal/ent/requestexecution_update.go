@@ -220,6 +220,18 @@ func (_u *RequestExecutionUpdate) ClearUpstreamModelID() *RequestExecutionUpdate
 	return _u
 }
 
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (_u *RequestExecutionUpdate) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionUpdate {
+	_u.mutation.SetReasoningEvidence(v)
+	return _u
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (_u *RequestExecutionUpdate) ClearReasoningEvidence() *RequestExecutionUpdate {
+	_u.mutation.ClearReasoningEvidence()
+	return _u
+}
+
 // SetResponseHeaders sets the "response_headers" field.
 func (_u *RequestExecutionUpdate) SetResponseHeaders(v objects.JSONRawMessage) *RequestExecutionUpdate {
 	_u.mutation.SetResponseHeaders(v)
@@ -753,6 +765,12 @@ func (_u *RequestExecutionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(requestexecution.FieldReasoningEffort, field.TypeString)
 	}
+	if value, ok := _u.mutation.ReasoningEvidence(); ok {
+		_spec.SetField(requestexecution.FieldReasoningEvidence, field.TypeJSON, value)
+	}
+	if _u.mutation.ReasoningEvidenceCleared() {
+		_spec.ClearField(requestexecution.FieldReasoningEvidence, field.TypeJSON)
+	}
 	if _u.mutation.ChannelAPIKeySuffixCleared() {
 		_spec.ClearField(requestexecution.FieldChannelAPIKeySuffix, field.TypeString)
 	}
@@ -1119,6 +1137,18 @@ func (_u *RequestExecutionUpdateOne) SetNillableUpstreamModelID(v *string) *Requ
 // ClearUpstreamModelID clears the value of the "upstream_model_id" field.
 func (_u *RequestExecutionUpdateOne) ClearUpstreamModelID() *RequestExecutionUpdateOne {
 	_u.mutation.ClearUpstreamModelID()
+	return _u
+}
+
+// SetReasoningEvidence sets the "reasoning_evidence" field.
+func (_u *RequestExecutionUpdateOne) SetReasoningEvidence(v *objects.RequestReasoningEvidence) *RequestExecutionUpdateOne {
+	_u.mutation.SetReasoningEvidence(v)
+	return _u
+}
+
+// ClearReasoningEvidence clears the value of the "reasoning_evidence" field.
+func (_u *RequestExecutionUpdateOne) ClearReasoningEvidence() *RequestExecutionUpdateOne {
+	_u.mutation.ClearReasoningEvidence()
 	return _u
 }
 
@@ -1684,6 +1714,12 @@ func (_u *RequestExecutionUpdateOne) sqlSave(ctx context.Context) (_node *Reques
 	}
 	if _u.mutation.ReasoningEffortCleared() {
 		_spec.ClearField(requestexecution.FieldReasoningEffort, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReasoningEvidence(); ok {
+		_spec.SetField(requestexecution.FieldReasoningEvidence, field.TypeJSON, value)
+	}
+	if _u.mutation.ReasoningEvidenceCleared() {
+		_spec.ClearField(requestexecution.FieldReasoningEvidence, field.TypeJSON)
 	}
 	if _u.mutation.ChannelAPIKeySuffixCleared() {
 		_spec.ClearField(requestexecution.FieldChannelAPIKeySuffix, field.TypeString)

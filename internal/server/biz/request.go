@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/eko/gocache/lib/v4/store"
-	"github.com/tidwall/gjson"
 
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -28,7 +27,9 @@ import (
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/metrics"
 	"github.com/looplj/axonhub/internal/objects"
+	"github.com/looplj/axonhub/internal/pkg/clientsession"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
+	"github.com/looplj/axonhub/internal/pkg/requestreasoning"
 	"github.com/looplj/axonhub/internal/pkg/usageanalytics"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
@@ -327,6 +328,10 @@ func (s *RequestService) CreateRequest(
 		}
 	}
 
+	if id := clientsession.FromContext(ctx); id != "" {
+		mut.SetClientSessionID(id)
+	}
+
 	if llmRequest.ReasoningEffort != "" {
 		mut = mut.SetReasoningEffort(llmRequest.ReasoningEffort)
 	}
@@ -472,8 +477,8 @@ func (s *RequestService) CreateRequestExecution(
 			SetCacheTTLBucket(cacheSample.TTLBucket)
 	}
 
-	if reasoningEffort := extractOutboundReasoningEffort(channelRequest, format); reasoningEffort != nil {
-		mut = mut.SetReasoningEffort(*reasoningEffort)
+	if reasoningEffort := requestreasoning.Requested(channelRequest.Body, format); reasoningEffort != nil {
+		mut.SetReasoningEffort(*reasoningEffort).SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: *reasoningEffort})
 	}
 
 	// Record which channel credential served this execution. Both facts are read
@@ -512,32 +517,6 @@ func (s *RequestService) CreateRequestExecution(
 	}
 
 	return execution, nil
-}
-
-// extractOutboundReasoningEffort returns the reasoning effort from the final
-// request body that will be sent to the upstream provider.
-func extractOutboundReasoningEffort(channelRequest httpclient.Request, format llm.APIFormat) *string {
-	var path string
-
-	switch format {
-	case llm.APIFormatOpenAIChatCompletion:
-		path = "reasoning_effort"
-	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatOpenAIResponseCompact:
-		path = "reasoning.effort"
-	case llm.APIFormatAnthropicMessage:
-		path = "output_config.effort"
-	default:
-		return nil
-	}
-
-	result := gjson.GetBytes(channelRequest.Body, path)
-	if result.Type != gjson.String || result.String() == "" {
-		return nil
-	}
-
-	effort := result.String()
-
-	return &effort
 }
 
 // LatencyMetrics holds latency metrics for a request.
@@ -921,6 +900,9 @@ func (s *RequestService) UpdateRequestExecutionFinalized(
 	upd := client.RequestExecution.Update().Where(requestexecution.ID(execution.ID)).
 		SetStatus(status).
 		SetExternalID(externalId)
+	if evidence := execution.ReasoningEvidence; evidence != nil && evidence.Reported != "" {
+		upd.SetReasoningEvidence(evidence)
+	}
 	if err := attachFinalWebSocketEvidence(upd, execution.Selection); err != nil {
 		return err
 	}
@@ -1026,6 +1008,9 @@ func (s *RequestService) UpdateRequestExecutionStatusWithMetrics(
 
 	upd := client.RequestExecution.Update().
 		SetStatus(status)
+	if evidence := execution.ReasoningEvidence; evidence != nil && evidence.Reported != "" {
+		upd.SetReasoningEvidence(evidence)
+	}
 	if err := attachFinalWebSocketEvidence(upd, execution.Selection); err != nil {
 		return err
 	}

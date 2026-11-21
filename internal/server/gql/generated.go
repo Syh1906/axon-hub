@@ -2356,8 +2356,8 @@ type ComplexityRoot struct {
 		KeyManagementResults            func(childComplexity int, operationID string) int
 		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
 		ManagedGroupUsageMeta           func(childComplexity int, groupRef int) int
-		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, model *string, status *string, page int, pageSize int) int
-		ManagedGroupUsageStats          func(childComplexity int, groupRef int, start string, end string) int
+		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) int
+		ManagedGroupUsageStats          func(childComplexity int, groupRef int, start string, end string, sessionID *string) int
 		ManagedKeyGroups                func(childComplexity int, search string, status string, offset int, limit int, descending bool) int
 		MatchModelStandardPrices        func(childComplexity int, modelIDs []string) int
 		Me                              func(childComplexity int) int
@@ -2462,6 +2462,7 @@ type ComplexityRoot struct {
 		Channel                    func(childComplexity int) int
 		ChannelID                  func(childComplexity int) int
 		ClientIP                   func(childComplexity int) int
+		ClientSessionID            func(childComplexity int) int
 		ClientStatusCode           func(childComplexity int) int
 		ContentSaved               func(childComplexity int) int
 		ContentSavedAt             func(childComplexity int) int
@@ -2548,6 +2549,7 @@ type ComplexityRoot struct {
 		PassThroughApplied         func(childComplexity int) int
 		ProjectID                  func(childComplexity int) int
 		ReasoningEffort            func(childComplexity int) int
+		ReasoningEvidence          func(childComplexity int) int
 		Request                    func(childComplexity int) int
 		RequestBody                func(childComplexity int) int
 		RequestHeaders             func(childComplexity int) int
@@ -2629,8 +2631,15 @@ type ComplexityRoot struct {
 		ReasoningTokens func(childComplexity int) int
 	}
 
+	RequestReasoningEvidence struct {
+		Reported  func(childComplexity int) int
+		Requested func(childComplexity int) int
+	}
+
 	RequestResultExecution struct {
 		ID                 func(childComplexity int) int
+		ReasoningEffort    func(childComplexity int) int
+		ReasoningEvidence  func(childComplexity int) int
 		ResponseStatusCode func(childComplexity int) int
 	}
 
@@ -2894,6 +2903,7 @@ type ComplexityRoot struct {
 		CallerGroupName       func(childComplexity int) int
 		CallerKeyName         func(childComplexity int) int
 		Channel               func(childComplexity int) int
+		ClientSessionID       func(childComplexity int) int
 		ClientStatusCode      func(childComplexity int) int
 		Cost                  func(childComplexity int) int
 		CostItems             func(childComplexity int) int
@@ -2915,8 +2925,10 @@ type ComplexityRoot struct {
 		OutputTokensPerSecond func(childComplexity int) int
 		PassThroughApplied    func(childComplexity int) int
 		ReasoningEffort       func(childComplexity int) int
+		ReasoningEvidence     func(childComplexity int) int
 		ReasoningTokens       func(childComplexity int) int
 		RequestStatus         func(childComplexity int) int
+		ResultUnconfirmed     func(childComplexity int) int
 		RetryCount            func(childComplexity int) int
 		Status                func(childComplexity int) int
 		Stream                func(childComplexity int) int
@@ -3964,8 +3976,8 @@ type QueryResolver interface {
 	RequestLogStatusCounts(ctx context.Context, where *ent.RequestWhereInput, filter *RequestLogFilterInput) ([]*RequestLogStatusCount, error)
 	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
 	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
-	ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string) (*biz.SelfUsageStats, error)
-	ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error)
+	ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string, sessionID *string) (*biz.SelfUsageStats, error)
+	ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error)
 	OfficialServiceTierPrices(ctx context.Context) ([]*objects.OfficialServiceTierPrice, error)
 	AnalyticsMetadata(ctx context.Context) (*AnalyticsMetadata, error)
 	AnalyticsOverview(ctx context.Context, filter *AnalyticsFilter) (*AnalyticsOverview, error)
@@ -4003,6 +4015,7 @@ type RequestResolver interface {
 	APIKeyID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
 	ProjectID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
 	TraceID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
+
 	DataStorageID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
 
 	RequestBody(ctx context.Context, obj *ent.Request) (objects.JSONRawMessage, error)
@@ -14426,7 +14439,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.ManagedGroupUsageRequests(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["model"].(*string), args["status"].(*string), args["page"].(int), args["pageSize"].(int)), true
+		return e.complexity.Query.ManagedGroupUsageRequests(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*string), args["page"].(int), args["pageSize"].(int)), true
 	case "Query.managedGroupUsageStats":
 		if e.complexity.Query.ManagedGroupUsageStats == nil {
 			break
@@ -14437,7 +14450,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.ManagedGroupUsageStats(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string)), true
+		return e.complexity.Query.ManagedGroupUsageStats(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["sessionID"].(*string)), true
 	case "Query.managedKeyGroups":
 		if e.complexity.Query.ManagedKeyGroups == nil {
 			break
@@ -15182,6 +15195,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.ClientIP(childComplexity), true
+	case "Request.clientSessionID":
+		if e.complexity.Request.ClientSessionID == nil {
+			break
+		}
+
+		return e.complexity.Request.ClientSessionID(childComplexity), true
 	case "Request.clientStatusCode":
 		if e.complexity.Request.ClientStatusCode == nil {
 			break
@@ -15640,6 +15659,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestExecution.ReasoningEffort(childComplexity), true
+	case "RequestExecution.reasoningEvidence":
+		if e.complexity.RequestExecution.ReasoningEvidence == nil {
+			break
+		}
+
+		return e.complexity.RequestExecution.ReasoningEvidence(childComplexity), true
 	case "RequestExecution.request":
 		if e.complexity.RequestExecution.Request == nil {
 			break
@@ -15962,12 +15987,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RequestOutputRate.ReasoningTokens(childComplexity), true
 
+	case "RequestReasoningEvidence.reported":
+		if e.complexity.RequestReasoningEvidence.Reported == nil {
+			break
+		}
+
+		return e.complexity.RequestReasoningEvidence.Reported(childComplexity), true
+	case "RequestReasoningEvidence.requested":
+		if e.complexity.RequestReasoningEvidence.Requested == nil {
+			break
+		}
+
+		return e.complexity.RequestReasoningEvidence.Requested(childComplexity), true
+
 	case "RequestResultExecution.id":
 		if e.complexity.RequestResultExecution.ID == nil {
 			break
 		}
 
 		return e.complexity.RequestResultExecution.ID(childComplexity), true
+	case "RequestResultExecution.reasoningEffort":
+		if e.complexity.RequestResultExecution.ReasoningEffort == nil {
+			break
+		}
+
+		return e.complexity.RequestResultExecution.ReasoningEffort(childComplexity), true
+	case "RequestResultExecution.reasoningEvidence":
+		if e.complexity.RequestResultExecution.ReasoningEvidence == nil {
+			break
+		}
+
+		return e.complexity.RequestResultExecution.ReasoningEvidence(childComplexity), true
 	case "RequestResultExecution.responseStatusCode":
 		if e.complexity.RequestResultExecution.ResponseStatusCode == nil {
 			break
@@ -17024,6 +17074,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.Channel(childComplexity), true
+	case "SelfUsageRequest.clientSessionID":
+		if e.complexity.SelfUsageRequest.ClientSessionID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ClientSessionID(childComplexity), true
 	case "SelfUsageRequest.clientStatusCode":
 		if e.complexity.SelfUsageRequest.ClientStatusCode == nil {
 			break
@@ -17150,6 +17206,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.ReasoningEffort(childComplexity), true
+	case "SelfUsageRequest.reasoningEvidence":
+		if e.complexity.SelfUsageRequest.ReasoningEvidence == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ReasoningEvidence(childComplexity), true
 	case "SelfUsageRequest.reasoningTokens":
 		if e.complexity.SelfUsageRequest.ReasoningTokens == nil {
 			break
@@ -17162,6 +17224,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.RequestStatus(childComplexity), true
+	case "SelfUsageRequest.resultUnconfirmed":
+		if e.complexity.SelfUsageRequest.ResultUnconfirmed == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ResultUnconfirmed(childComplexity), true
 	case "SelfUsageRequest.retryCount":
 		if e.complexity.SelfUsageRequest.RetryCount == nil {
 			break
@@ -20223,7 +20291,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "request_stream_timing.graphql" "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_websocket.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
+//go:embed "request_reasoning_evidence.graphql" "request_stream_timing.graphql" "protocol_routes.graphql" "maintenance.graphql" "axonhub.graphql" "ent.graphql" "dashboard.graphql" "dashboard_cost.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "channel_health_gate.graphql" "channel_websocket.graphql" "channel_routing.graphql" "channel_upstream.graphql" "channel_usage.graphql" "channel_accounts.graphql" "request_routing.graphql" "request_diagnostics.graphql" "request_speed.graphql" "request_usage.graphql" "managed_group_usage.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "service_tier.graphql" "cost_pricing_evidence.graphql" "price.graphql" "cost.graphql" "usage_cost.graphql" "analytics.graphql" "consumption.graphql" "api_key_group.graphql" "key_management.graphql" "budget_types.graphql" "budget.graphql" "plugin.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -20235,6 +20303,7 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "request_reasoning_evidence.graphql", Input: sourceData("request_reasoning_evidence.graphql"), BuiltIn: false},
 	{Name: "request_stream_timing.graphql", Input: sourceData("request_stream_timing.graphql"), BuiltIn: false},
 	{Name: "protocol_routes.graphql", Input: sourceData("protocol_routes.graphql"), BuiltIn: false},
 	{Name: "maintenance.graphql", Input: sourceData("maintenance.graphql"), BuiltIn: false},
@@ -23629,26 +23698,31 @@ func (ec *executionContext) field_Query_managedGroupUsageRequests_args(ctx conte
 		return nil, err
 	}
 	args["end"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "model", ec.unmarshalOString2ᚖstring)
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["model"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalOString2ᚖstring)
+	args["sessionID"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "model", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["status"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalNInt2int)
+	args["model"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["page"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "pageSize", ec.unmarshalNInt2int)
+	args["status"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalNInt2int)
 	if err != nil {
 		return nil, err
 	}
-	args["pageSize"] = arg6
+	args["page"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "pageSize", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["pageSize"] = arg7
 	return args, nil
 }
 
@@ -23670,6 +23744,11 @@ func (ec *executionContext) field_Query_managedGroupUsageStats_args(ctx context.
 		return nil, err
 	}
 	args["end"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionID"] = arg3
 	return args, nil
 }
 
@@ -79738,7 +79817,7 @@ func (ec *executionContext) _Query_managedGroupUsageStats(ctx context.Context, f
 		ec.fieldContext_Query_managedGroupUsageStats,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().ManagedGroupUsageStats(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string))
+			return ec.resolvers.Query().ManagedGroupUsageStats(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string))
 		},
 		nil,
 		ec.marshalNSelfUsageStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageStats,
@@ -79797,7 +79876,7 @@ func (ec *executionContext) _Query_managedGroupUsageRequests(ctx context.Context
 		ec.fieldContext_Query_managedGroupUsageRequests,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().ManagedGroupUsageRequests(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["model"].(*string), fc.Args["status"].(*string), fc.Args["page"].(int), fc.Args["pageSize"].(int))
+			return ec.resolvers.Query().ManagedGroupUsageRequests(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*string), fc.Args["page"].(int), fc.Args["pageSize"].(int))
 		},
 		nil,
 		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestPage,
@@ -81945,6 +82024,35 @@ func (ec *executionContext) fieldContext_Request_traceID(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_clientSessionID(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_clientSessionID,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientSessionID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_clientSessionID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Request_dataStorageID(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -83313,6 +83421,10 @@ func (ec *executionContext) fieldContext_Request_resultExecution(_ context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "reasoningEffort":
+				return ec.fieldContext_RequestResultExecution_reasoningEffort(ctx, field)
+			case "reasoningEvidence":
+				return ec.fieldContext_RequestResultExecution_reasoningEvidence(ctx, field)
 			case "id":
 				return ec.fieldContext_RequestResultExecution_id(ctx, field)
 			case "responseStatusCode":
@@ -83856,6 +83968,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_projectID(ctx, field)
 			case "traceID":
 				return ec.fieldContext_Request_traceID(ctx, field)
+			case "clientSessionID":
+				return ec.fieldContext_Request_clientSessionID(ctx, field)
 			case "dataStorageID":
 				return ec.fieldContext_Request_dataStorageID(ctx, field)
 			case "source":
@@ -84391,6 +84505,41 @@ func (ec *executionContext) fieldContext_RequestExecution_reasoningEffort(_ cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestExecution_reasoningEvidence(ctx context.Context, field graphql.CollectedField, obj *ent.RequestExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestExecution_reasoningEvidence,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEvidence, nil
+		},
+		nil,
+		ec.marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestExecution_reasoningEvidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "requested":
+				return ec.fieldContext_RequestReasoningEvidence_requested(ctx, field)
+			case "reported":
+				return ec.fieldContext_RequestReasoningEvidence_reported(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestReasoningEvidence", field.Name)
 		},
 	}
 	return fc, nil
@@ -84990,6 +85139,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_projectID(ctx, field)
 			case "traceID":
 				return ec.fieldContext_Request_traceID(ctx, field)
+			case "clientSessionID":
+				return ec.fieldContext_Request_clientSessionID(ctx, field)
 			case "dataStorageID":
 				return ec.fieldContext_Request_dataStorageID(ctx, field)
 			case "source":
@@ -85390,6 +85541,8 @@ func (ec *executionContext) fieldContext_RequestExecutionEdge_node(_ context.Con
 				return ec.fieldContext_RequestExecution_format(ctx, field)
 			case "reasoningEffort":
 				return ec.fieldContext_RequestExecution_reasoningEffort(ctx, field)
+			case "reasoningEvidence":
+				return ec.fieldContext_RequestExecution_reasoningEvidence(ctx, field)
 			case "channelAPIKeySuffix":
 				return ec.fieldContext_RequestExecution_channelAPIKeySuffix(ctx, field)
 			case "requestBody":
@@ -86405,6 +86558,128 @@ func (ec *executionContext) fieldContext_RequestOutputRate_durationMs(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestReasoningEvidence_requested(ctx context.Context, field graphql.CollectedField, obj *objects.RequestReasoningEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestReasoningEvidence_requested,
+		func(ctx context.Context) (any, error) {
+			return obj.Requested, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestReasoningEvidence_requested(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestReasoningEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestReasoningEvidence_reported(ctx context.Context, field graphql.CollectedField, obj *objects.RequestReasoningEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestReasoningEvidence_reported,
+		func(ctx context.Context) (any, error) {
+			return obj.Reported, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestReasoningEvidence_reported(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestReasoningEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestResultExecution_reasoningEffort(ctx context.Context, field graphql.CollectedField, obj *RequestResultExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestResultExecution_reasoningEffort,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEffort, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestResultExecution_reasoningEffort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestResultExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestResultExecution_reasoningEvidence(ctx context.Context, field graphql.CollectedField, obj *RequestResultExecution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestResultExecution_reasoningEvidence,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEvidence, nil
+		},
+		nil,
+		ec.marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestResultExecution_reasoningEvidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestResultExecution",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "requested":
+				return ec.fieldContext_RequestReasoningEvidence_requested(ctx, field)
+			case "reported":
+				return ec.fieldContext_RequestReasoningEvidence_reported(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestReasoningEvidence", field.Name)
 		},
 	}
 	return fc, nil
@@ -91599,6 +91874,99 @@ func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequest_clientSessionID(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_clientSessionID,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientSessionID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_clientSessionID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_resultUnconfirmed(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_resultUnconfirmed,
+		func(ctx context.Context) (any, error) {
+			return obj.ResultUnconfirmed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_resultUnconfirmed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_reasoningEvidence(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_reasoningEvidence,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEvidence, nil
+		},
+		nil,
+		ec.marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_reasoningEvidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "requested":
+				return ec.fieldContext_RequestReasoningEvidence_requested(ctx, field)
+			case "reported":
+				return ec.fieldContext_RequestReasoningEvidence_reported(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestReasoningEvidence", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequest_channel(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -92929,6 +93297,12 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "clientSessionID":
+				return ec.fieldContext_SelfUsageRequest_clientSessionID(ctx, field)
+			case "resultUnconfirmed":
+				return ec.fieldContext_SelfUsageRequest_resultUnconfirmed(ctx, field)
+			case "reasoningEvidence":
+				return ec.fieldContext_SelfUsageRequest_reasoningEvidence(ctx, field)
 			case "channel":
 				return ec.fieldContext_SelfUsageRequest_channel(ctx, field)
 			case "modelExecutions":
@@ -102898,6 +103272,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_projectID(ctx, field)
 			case "traceID":
 				return ec.fieldContext_Request_traceID(ctx, field)
+			case "clientSessionID":
+				return ec.fieldContext_Request_clientSessionID(ctx, field)
 			case "dataStorageID":
 				return ec.fieldContext_Request_dataStorageID(ctx, field)
 			case "source":
@@ -127149,7 +127525,7 @@ func (ec *executionContext) unmarshalInputRequestWhereInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "traceID", "traceIDNEQ", "traceIDIn", "traceIDNotIn", "traceIDIsNil", "traceIDNotNil", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "clientStatusCode", "clientStatusCodeNEQ", "clientStatusCodeIn", "clientStatusCodeNotIn", "clientStatusCodeGT", "clientStatusCodeGTE", "clientStatusCodeLT", "clientStatusCodeLTE", "clientStatusCodeIsNil", "clientStatusCodeNotNil", "stream", "streamNEQ", "clientIP", "clientIPNEQ", "clientIPIn", "clientIPNotIn", "clientIPGT", "clientIPGTE", "clientIPLT", "clientIPLTE", "clientIPContains", "clientIPHasPrefix", "clientIPHasSuffix", "clientIPEqualFold", "clientIPContainsFold", "userAgent", "userAgentNEQ", "userAgentIn", "userAgentNotIn", "userAgentGT", "userAgentGTE", "userAgentLT", "userAgentLTE", "userAgentContains", "userAgentHasPrefix", "userAgentHasSuffix", "userAgentEqualFold", "userAgentContainsFold", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "contentSaved", "contentSavedNEQ", "contentStorageID", "contentStorageIDNEQ", "contentStorageIDIn", "contentStorageIDNotIn", "contentStorageIDGT", "contentStorageIDGTE", "contentStorageIDLT", "contentStorageIDLTE", "contentStorageIDIsNil", "contentStorageIDNotNil", "contentStorageKey", "contentStorageKeyNEQ", "contentStorageKeyIn", "contentStorageKeyNotIn", "contentStorageKeyGT", "contentStorageKeyGTE", "contentStorageKeyLT", "contentStorageKeyLTE", "contentStorageKeyContains", "contentStorageKeyHasPrefix", "contentStorageKeyHasSuffix", "contentStorageKeyIsNil", "contentStorageKeyNotNil", "contentStorageKeyEqualFold", "contentStorageKeyContainsFold", "contentSavedAt", "contentSavedAtNEQ", "contentSavedAtIn", "contentSavedAtNotIn", "contentSavedAtGT", "contentSavedAtGTE", "contentSavedAtLT", "contentSavedAtLTE", "contentSavedAtIsNil", "contentSavedAtNotNil", "hasAPIKey", "hasAPIKeyWith", "hasProject", "hasProjectWith", "hasTrace", "hasTraceWith", "hasDataStorage", "hasDataStorageWith", "hasExecutions", "hasExecutionsWith", "hasChannel", "hasChannelWith", "hasUsageLogs", "hasUsageLogsWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "apiKeyID", "apiKeyIDNEQ", "apiKeyIDIn", "apiKeyIDNotIn", "apiKeyIDIsNil", "apiKeyIDNotNil", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "traceID", "traceIDNEQ", "traceIDIn", "traceIDNotIn", "traceIDIsNil", "traceIDNotNil", "clientSessionID", "clientSessionIDNEQ", "clientSessionIDIn", "clientSessionIDNotIn", "clientSessionIDGT", "clientSessionIDGTE", "clientSessionIDLT", "clientSessionIDLTE", "clientSessionIDContains", "clientSessionIDHasPrefix", "clientSessionIDHasSuffix", "clientSessionIDIsNil", "clientSessionIDNotNil", "clientSessionIDEqualFold", "clientSessionIDContainsFold", "dataStorageID", "dataStorageIDNEQ", "dataStorageIDIn", "dataStorageIDNotIn", "dataStorageIDIsNil", "dataStorageIDNotNil", "source", "sourceNEQ", "sourceIn", "sourceNotIn", "modelID", "modelIDNEQ", "modelIDIn", "modelIDNotIn", "modelIDGT", "modelIDGTE", "modelIDLT", "modelIDLTE", "modelIDContains", "modelIDHasPrefix", "modelIDHasSuffix", "modelIDEqualFold", "modelIDContainsFold", "reasoningEffort", "reasoningEffortNEQ", "reasoningEffortIn", "reasoningEffortNotIn", "reasoningEffortGT", "reasoningEffortGTE", "reasoningEffortLT", "reasoningEffortLTE", "reasoningEffortContains", "reasoningEffortHasPrefix", "reasoningEffortHasSuffix", "reasoningEffortIsNil", "reasoningEffortNotNil", "reasoningEffortEqualFold", "reasoningEffortContainsFold", "format", "formatNEQ", "formatIn", "formatNotIn", "formatGT", "formatGTE", "formatLT", "formatLTE", "formatContains", "formatHasPrefix", "formatHasSuffix", "formatEqualFold", "formatContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "channelIDIsNil", "channelIDNotNil", "externalID", "externalIDNEQ", "externalIDIn", "externalIDNotIn", "externalIDGT", "externalIDGTE", "externalIDLT", "externalIDLTE", "externalIDContains", "externalIDHasPrefix", "externalIDHasSuffix", "externalIDIsNil", "externalIDNotNil", "externalIDEqualFold", "externalIDContainsFold", "status", "statusNEQ", "statusIn", "statusNotIn", "clientStatusCode", "clientStatusCodeNEQ", "clientStatusCodeIn", "clientStatusCodeNotIn", "clientStatusCodeGT", "clientStatusCodeGTE", "clientStatusCodeLT", "clientStatusCodeLTE", "clientStatusCodeIsNil", "clientStatusCodeNotNil", "stream", "streamNEQ", "clientIP", "clientIPNEQ", "clientIPIn", "clientIPNotIn", "clientIPGT", "clientIPGTE", "clientIPLT", "clientIPLTE", "clientIPContains", "clientIPHasPrefix", "clientIPHasSuffix", "clientIPEqualFold", "clientIPContainsFold", "userAgent", "userAgentNEQ", "userAgentIn", "userAgentNotIn", "userAgentGT", "userAgentGTE", "userAgentLT", "userAgentLTE", "userAgentContains", "userAgentHasPrefix", "userAgentHasSuffix", "userAgentEqualFold", "userAgentContainsFold", "metricsLatencyMs", "metricsLatencyMsNEQ", "metricsLatencyMsIn", "metricsLatencyMsNotIn", "metricsLatencyMsGT", "metricsLatencyMsGTE", "metricsLatencyMsLT", "metricsLatencyMsLTE", "metricsLatencyMsIsNil", "metricsLatencyMsNotNil", "metricsFirstTokenLatencyMs", "metricsFirstTokenLatencyMsNEQ", "metricsFirstTokenLatencyMsIn", "metricsFirstTokenLatencyMsNotIn", "metricsFirstTokenLatencyMsGT", "metricsFirstTokenLatencyMsGTE", "metricsFirstTokenLatencyMsLT", "metricsFirstTokenLatencyMsLTE", "metricsFirstTokenLatencyMsIsNil", "metricsFirstTokenLatencyMsNotNil", "metricsReasoningDurationMs", "metricsReasoningDurationMsNEQ", "metricsReasoningDurationMsIn", "metricsReasoningDurationMsNotIn", "metricsReasoningDurationMsGT", "metricsReasoningDurationMsGTE", "metricsReasoningDurationMsLT", "metricsReasoningDurationMsLTE", "metricsReasoningDurationMsIsNil", "metricsReasoningDurationMsNotNil", "contentSaved", "contentSavedNEQ", "contentStorageID", "contentStorageIDNEQ", "contentStorageIDIn", "contentStorageIDNotIn", "contentStorageIDGT", "contentStorageIDGTE", "contentStorageIDLT", "contentStorageIDLTE", "contentStorageIDIsNil", "contentStorageIDNotNil", "contentStorageKey", "contentStorageKeyNEQ", "contentStorageKeyIn", "contentStorageKeyNotIn", "contentStorageKeyGT", "contentStorageKeyGTE", "contentStorageKeyLT", "contentStorageKeyLTE", "contentStorageKeyContains", "contentStorageKeyHasPrefix", "contentStorageKeyHasSuffix", "contentStorageKeyIsNil", "contentStorageKeyNotNil", "contentStorageKeyEqualFold", "contentStorageKeyContainsFold", "contentSavedAt", "contentSavedAtNEQ", "contentSavedAtIn", "contentSavedAtNotIn", "contentSavedAtGT", "contentSavedAtGTE", "contentSavedAtLT", "contentSavedAtLTE", "contentSavedAtIsNil", "contentSavedAtNotNil", "hasAPIKey", "hasAPIKeyWith", "hasProject", "hasProjectWith", "hasTrace", "hasTraceWith", "hasDataStorage", "hasDataStorageWith", "hasExecutions", "hasExecutionsWith", "hasChannel", "hasChannelWith", "hasUsageLogs", "hasUsageLogsWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -127537,6 +127913,111 @@ func (ec *executionContext) unmarshalInputRequestWhereInput(ctx context.Context,
 				return it, err
 			}
 			it.TraceIDNotNil = data
+		case "clientSessionID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionID = data
+		case "clientSessionIDNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDNEQ = data
+		case "clientSessionIDIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDIn = data
+		case "clientSessionIDNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDNotIn = data
+		case "clientSessionIDGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDGT = data
+		case "clientSessionIDGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDGTE = data
+		case "clientSessionIDLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDLT = data
+		case "clientSessionIDLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDLTE = data
+		case "clientSessionIDContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDContains = data
+		case "clientSessionIDHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDHasPrefix = data
+		case "clientSessionIDHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDHasSuffix = data
+		case "clientSessionIDIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDIsNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDIsNil = data
+		case "clientSessionIDNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDNotNil"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDNotNil = data
+		case "clientSessionIDEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDEqualFold = data
+		case "clientSessionIDContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientSessionIDContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientSessionIDContainsFold = data
 		case "dataStorageID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dataStorageID"))
 			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -159650,6 +160131,8 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "clientSessionID":
+			out.Values[i] = ec._Request_clientSessionID(ctx, field, obj)
 		case "dataStorageID":
 			field := field
 
@@ -160785,6 +161268,8 @@ func (ec *executionContext) _RequestExecution(ctx context.Context, sel ast.Selec
 			}
 		case "reasoningEffort":
 			out.Values[i] = ec._RequestExecution_reasoningEffort(ctx, field, obj)
+		case "reasoningEvidence":
+			out.Values[i] = ec._RequestExecution_reasoningEvidence(ctx, field, obj)
 		case "channelAPIKeySuffix":
 			field := field
 
@@ -161577,6 +162062,50 @@ func (ec *executionContext) _RequestOutputRate(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var requestReasoningEvidenceImplementors = []string{"RequestReasoningEvidence"}
+
+func (ec *executionContext) _RequestReasoningEvidence(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestReasoningEvidence) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestReasoningEvidenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestReasoningEvidence")
+		case "requested":
+			out.Values[i] = ec._RequestReasoningEvidence_requested(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reported":
+			out.Values[i] = ec._RequestReasoningEvidence_reported(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var requestResultExecutionImplementors = []string{"RequestResultExecution"}
 
 func (ec *executionContext) _RequestResultExecution(ctx context.Context, sel ast.SelectionSet, obj *RequestResultExecution) graphql.Marshaler {
@@ -161588,6 +162117,10 @@ func (ec *executionContext) _RequestResultExecution(ctx context.Context, sel ast
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RequestResultExecution")
+		case "reasoningEffort":
+			out.Values[i] = ec._RequestResultExecution_reasoningEffort(ctx, field, obj)
+		case "reasoningEvidence":
+			out.Values[i] = ec._RequestResultExecution_reasoningEvidence(ctx, field, obj)
 		case "id":
 			out.Values[i] = ec._RequestResultExecution_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -163545,6 +164078,15 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "clientSessionID":
+			out.Values[i] = ec._SelfUsageRequest_clientSessionID(ctx, field, obj)
+		case "resultUnconfirmed":
+			out.Values[i] = ec._SelfUsageRequest_resultUnconfirmed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningEvidence":
+			out.Values[i] = ec._SelfUsageRequest_reasoningEvidence(ctx, field, obj)
 		case "channel":
 			out.Values[i] = ec._SelfUsageRequest_channel(ctx, field, obj)
 		case "modelExecutions":
@@ -186409,6 +186951,13 @@ func (ec *executionContext) marshalORequestOutputRate2ᚖgithubᚗcomᚋlooplj�
 		return graphql.Null
 	}
 	return ec._RequestOutputRate(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence(ctx context.Context, sel ast.SelectionSet, v *objects.RequestReasoningEvidence) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestReasoningEvidence(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalORequestResultExecution2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐRequestResultExecution(ctx context.Context, sel ast.SelectionSet, v *RequestResultExecution) graphql.Marshaler {

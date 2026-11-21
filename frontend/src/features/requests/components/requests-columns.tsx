@@ -22,6 +22,7 @@ import { RequestModelCell } from './request-model-cell';
 interface UseRequestsColumnsOptions {
   allowContinuationExpansion?: boolean;
   continuationHistory?: boolean;
+  onSessionFilter?: (id: string) => void;
   onBodyClick?: (requestId: string, index: number, tab?: RequestDiagnosticTab) => void;
   onCallerFilter?: (kind: 'key' | 'group', value: string) => void;
   onViewDetail?: (requestId: string) => void;
@@ -115,6 +116,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         cell: ({ row }) => (
           <RequestLogStatusCell
             request={row.original}
+            onSessionFilter={optionsRef.current?.onSessionFilter}
             onToggleContinuation={optionsRef.current?.allowContinuationExpansion ? row.getToggleExpandedHandler() : undefined}
             continuationExpanded={row.getIsExpanded()}
             continued={optionsRef.current?.continuationHistory}

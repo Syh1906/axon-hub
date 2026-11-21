@@ -118,6 +118,8 @@ export function RequestDiagnostics({
   if (!selected) return requestFailure ?? <p className='text-muted-foreground'>{t('requests.diagnostics.noAttempts')}</p>;
   const failed = selected.status === 'failed' || selected.status === 'canceled';
   const kind = knownFailureKind(selected);
+  const evidence = selected.reasoningEvidence;
+  const formatEffort = (value: string) => /^-?\d+$/.test(value) ? t('requests.effort.tokens', { value }) : value;
   const selection = selected.selection;
   const sessionState = selection?.sessionState;
   const sessionLabel = isRequestChannelSessionState(sessionState) ? t(`requests.diagnostics.sessions.${sessionState}`) : undefined;
@@ -164,6 +166,9 @@ export function RequestDiagnostics({
           <p className='break-words'>
             {failed ? selected.errorMessage || t('requests.diagnostics.noMessage') : t('requests.diagnostics.attemptCompleted')}
           </p>
+          {evidence?.requested && <p>{t('requests.effort.attempt', { effort: formatEffort(evidence.requested) })}</p>}
+          {evidence?.reported && <p>{t('requests.effort.reported', { effort: formatEffort(evidence.reported) })}</p>}
+          {!evidence && selected.reasoningEffort && <p>{t('requests.effort.historical')} · {formatEffort(selected.reasoningEffort)}</p>}
           <p>{t('requests.diagnostics.finalResult', { status: t(`requests.status.${request.status}`), count: total })}</p>
         </AlertDescription>
       </Alert>

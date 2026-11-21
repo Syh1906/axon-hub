@@ -56,6 +56,8 @@ const (
 	FieldFormat = "format"
 	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
 	FieldReasoningEffort = "reasoning_effort"
+	// FieldReasoningEvidence holds the string denoting the reasoning_evidence field in the database.
+	FieldReasoningEvidence = "reasoning_evidence"
 	// FieldChannelAPIKeySuffix holds the string denoting the channel_api_key_suffix field in the database.
 	FieldChannelAPIKeySuffix = "channel_api_key_suffix"
 	// FieldRequestBody holds the string denoting the request_body field in the database.
@@ -159,6 +161,7 @@ var Columns = []string{
 	FieldCostSnapshot,
 	FieldFormat,
 	FieldReasoningEffort,
+	FieldReasoningEvidence,
 	FieldChannelAPIKeySuffix,
 	FieldRequestBody,
 	FieldResponseHeaders,

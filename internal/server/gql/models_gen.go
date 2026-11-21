@@ -582,8 +582,10 @@ type RequestLogTimeRangeInput struct {
 }
 
 type RequestResultExecution struct {
-	ID                 objects.GUID `json:"id"`
-	ResponseStatusCode *int         `json:"responseStatusCode,omitempty"`
+	ReasoningEffort    *string                           `json:"reasoningEffort,omitempty"`
+	ReasoningEvidence  *objects.RequestReasoningEvidence `json:"reasoningEvidence,omitempty"`
+	ID                 objects.GUID                      `json:"id"`
+	ResponseStatusCode *int                              `json:"responseStatusCode,omitempty"`
 }
 
 type RequestSessionExecution struct {

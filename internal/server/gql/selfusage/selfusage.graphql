@@ -3,9 +3,9 @@ scalar Time
 
 type Query {
   selfUsageMeta: SelfUsageMeta!
-  selfUsageStats(start: String!, end: String!, group: Boolean! = false): SelfUsageStats!
+  selfUsageStats(start: String!, end: String!, sessionID: String, group: Boolean! = false): SelfUsageStats!
   selfUsageRequests(
-    start: String!, end: String!, model: String, status: SelfUsageRequestStatus,
+    start: String!, end: String!, sessionID: String, model: String, status: SelfUsageRequestStatus,
     page: Int = 1, pageSize: Int = 20, group: Boolean! = false
   ): SelfUsageRequestPage!
 }
@@ -73,6 +73,9 @@ type SelfUsageChannel {
 }
 
 type SelfUsageRequest {
+  clientSessionID: String
+  resultUnconfirmed: Boolean!
+  reasoningEvidence: RequestReasoningEvidence
   channel: SelfUsageChannel
   modelExecutions: [SelfUsageModelExecution!]!
   callerKeyName: String!

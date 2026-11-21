@@ -9,10 +9,12 @@ import type { SelfUsageMeta, UsageRequest } from '../api';
 
 export function UsageRequestTable({
   items,
+  onSessionFilter,
   meta,
   channelVisible,
 }: {
   items: UsageRequest[];
+  onSessionFilter: (id: string) => void;
   meta: SelfUsageMeta;
   channelVisible: boolean;
 }) {
@@ -32,7 +34,7 @@ export function UsageRequestTable({
       <Table className='[&_td]:whitespace-nowrap'>
         <TableHeader className='bg-[var(--table-header)]'>
           <TableRow>
-            <TableHead>{t('common.columns.id')}</TableHead>
+            <TableHead className='min-w-[145px]'>{t('common.columns.id')}</TableHead>
             {channelVisible && <TableHead>{t('requests.columns.channel')}</TableHead>}
             <TableHead>{t('requests.columns.model')}</TableHead>
             <TableHead>{t('requests.columns.tokens')}</TableHead>
@@ -48,16 +50,16 @@ export function UsageRequestTable({
             <TableRow key={item.id} className='[&>td]:border-b [&>td]:border-[var(--table-border)] [&>td]:py-3'>
               <TableCell>
                 <RequestLogStatusCell
+                  onSessionFilter={onSessionFilter}
+                  retryCount={item.retryCount}
                   request={{
+                    clientSessionID: item.clientSessionID,
                     id: String(item.id),
                     stream: item.stream,
                     status: item.requestStatus,
                     clientStatusCode: item.clientStatusCode,
                   }}
                 />
-                {item.retryCount > 0 && (
-                  <span className='text-muted-foreground text-xs'>{t('requests.diagnostics.retries', { count: item.retryCount })}</span>
-                )}
               </TableCell>
               {channelVisible && (
                 <TableCell>
@@ -78,7 +80,7 @@ export function UsageRequestTable({
               )}
               <TableCell>
                 <RequestModelCell
-                  displayExecution={{ format: item.outboundFormat, reasoningEffort: item.reasoningEffort }}
+                  displayExecution={{ resultUnconfirmed: item.resultUnconfirmed, format: item.outboundFormat, reasoningEffort: item.reasoningEffort, reasoningEvidence: item.reasoningEvidence }}
                   request={{
                     modelID: item.model,
                     status: item.requestStatus,

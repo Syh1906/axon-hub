@@ -68,6 +68,8 @@ type RequestSessionExecution {
 }
 
 type RequestResultExecution {
+  reasoningEffort: String
+  reasoningEvidence: RequestReasoningEvidence
   id: ID!
   responseStatusCode: Int
 }

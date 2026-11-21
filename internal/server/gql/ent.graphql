@@ -4582,6 +4582,10 @@ type Request implements Node {
   """
   traceID: ID
   """
+  Session identifier supplied by the client
+  """
+  clientSessionID: String
+  """
   Data Storage ID that this request belongs to
   """
   dataStorageID: ID
@@ -4763,6 +4767,7 @@ type RequestExecution implements Node {
   Final reasoning effort sent to the upstream provider
   """
   reasoningEffort: String
+  reasoningEvidence: RequestReasoningEvidence
   """
   Last 4 characters of the channel API key used for this execution
   """
@@ -5272,6 +5277,24 @@ input RequestWhereInput {
   traceIDNotIn: [ID!]
   traceIDIsNil: Boolean
   traceIDNotNil: Boolean
+  """
+  client_session_id field predicates
+  """
+  clientSessionID: String
+  clientSessionIDNEQ: String
+  clientSessionIDIn: [String!]
+  clientSessionIDNotIn: [String!]
+  clientSessionIDGT: String
+  clientSessionIDGTE: String
+  clientSessionIDLT: String
+  clientSessionIDLTE: String
+  clientSessionIDContains: String
+  clientSessionIDHasPrefix: String
+  clientSessionIDHasSuffix: String
+  clientSessionIDIsNil: Boolean
+  clientSessionIDNotNil: Boolean
+  clientSessionIDEqualFold: String
+  clientSessionIDContainsFold: String
   """
   data_storage_id field predicates
   """

@@ -1,0 +1,4 @@
+type RequestReasoningEvidence {
+  requested: String!
+  reported: String!
+}

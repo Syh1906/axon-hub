@@ -29,16 +29,17 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
   const { t } = useTranslation();
   const currencyDisplayDecimals = meta.currencyDisplayDecimals;
   const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
+  const [sessionID, setSessionID] = useState('');
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((v) => v + 1), []);
   const queryScope = ['managedGroupUsage', identity, project, groupRef];
   const stats = useQuery({
-    queryKey: [...queryScope, 'stats', range, revision],
+    queryKey: [...queryScope, 'stats', range, revision, sessionID],
     queryFn: async ({ signal }) =>
       (
         await graphqlRequest<{ managedGroupUsageStats: SelfUsageStats }>(
           managedStats,
-          { groupRef, ...range },
+          { groupRef, ...range, sessionID: sessionID || undefined },
           { 'X-Project-ID': project },
           { signal }
         )
@@ -53,6 +54,7 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       </Button>
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <DatePicker meta={meta} onChange={setRange} />
+        {sessionID && <span className='text-muted-foreground break-all text-sm'>{t('requests.session.selected', { id: sessionID })}</span>}
         <span className='text-muted-foreground text-xs'>{t('requests.filters.timezone', { timezone: meta.timezone })}</span>
       </div>
       {budget.error && <PageError error={budget.error} retry={() => void budget.refetch()} />}
@@ -74,6 +76,8 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
       )}
       <RequestLog
         key={`${range.start}:${range.end}`}
+        sessionID={sessionID}
+        onSessionFilter={setSessionID}
         keyValue=''
         range={range}
         meta={meta}
@@ -87,7 +91,7 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
           (
             await graphqlRequest<{ managedGroupUsageRequests: RequestPage }>(
               managedRequests,
-              { groupRef, ...range, model, status, page, pageSize: 20 },
+              { groupRef, ...range, model, status, page, pageSize: 20, sessionID: sessionID || undefined },
               { 'X-Project-ID': project },
               { signal }
             )

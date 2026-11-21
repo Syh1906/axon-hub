@@ -25,6 +25,8 @@ type UsageArchive struct {
 	RequestID int `json:"request_id,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID int `json:"project_id,omitempty"`
+	// Session identifier supplied by the client
+	ClientSessionID *string `json:"client_session_id,omitempty"`
 	// APIKeyID holds the value of the "api_key_id" field.
 	APIKeyID int `json:"api_key_id,omitempty"`
 	// ChannelID holds the value of the "channel_id" field.
@@ -91,7 +93,7 @@ func (*UsageArchive) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case usagearchive.FieldID, usagearchive.FieldSourceID, usagearchive.FieldRequestID, usagearchive.FieldProjectID, usagearchive.FieldAPIKeyID, usagearchive.FieldChannelID, usagearchive.FieldSpeedVersion, usagearchive.FieldBillingVersion, usagearchive.FieldPromptTokens, usagearchive.FieldCompletionTokens, usagearchive.FieldTotalTokens, usagearchive.FieldPromptCachedTokens, usagearchive.FieldPromptWriteCachedTokens, usagearchive.FieldCompletionReasoningTokens, usagearchive.FieldCacheRequests, usagearchive.FieldCacheInput, usagearchive.FieldSuccessCount, usagearchive.FieldOutcomeCount, usagearchive.FieldFirstTokenCount, usagearchive.FieldSpeedCount:
 			values[i] = new(sql.NullInt64)
-		case usagearchive.FieldKind, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
+		case usagearchive.FieldKind, usagearchive.FieldClientSessionID, usagearchive.FieldModelID, usagearchive.FieldRequestModelID, usagearchive.FieldRequestStatus, usagearchive.FieldRequestSource:
 			values[i] = new(sql.NullString)
 		case usagearchive.FieldOccurredAt:
 			values[i] = new(sql.NullTime)
@@ -139,6 +141,13 @@ func (_m *UsageArchive) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field project_id", values[i])
 			} else if value.Valid {
 				_m.ProjectID = int(value.Int64)
+			}
+		case usagearchive.FieldClientSessionID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field client_session_id", values[i])
+			} else if value.Valid {
+				_m.ClientSessionID = new(string)
+				*_m.ClientSessionID = value.String
 			}
 		case usagearchive.FieldAPIKeyID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -345,6 +354,11 @@ func (_m *UsageArchive) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))
+	builder.WriteString(", ")
+	if v := _m.ClientSessionID; v != nil {
+		builder.WriteString("client_session_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("api_key_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIKeyID))

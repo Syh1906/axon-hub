@@ -59,6 +59,9 @@ type SelfUsageChannel {
 }
 
 type SelfUsageRequest {
+  clientSessionID: String
+  resultUnconfirmed: Boolean!
+  reasoningEvidence: RequestReasoningEvidence
   channel: SelfUsageChannel
   modelExecutions: [SelfUsageModelExecution!]!
   callerKeyName: String!
@@ -144,6 +147,6 @@ type SelfUsageRequestPage {
 
 extend type Query {
   managedGroupUsageMeta(groupRef: Int!): SelfUsageMeta!
-  managedGroupUsageStats(groupRef: Int!, start: String!, end: String!): SelfUsageStats!
-  managedGroupUsageRequests(groupRef: Int!, start: String!, end: String!, model: String, status: String, page: Int! = 1, pageSize: Int! = 20): SelfUsageRequestPage!
+  managedGroupUsageStats(groupRef: Int!, start: String!, end: String!, sessionID: String): SelfUsageStats!
+  managedGroupUsageRequests(groupRef: Int!, start: String!, end: String!, sessionID: String, model: String, status: String, page: Int! = 1, pageSize: Int! = 20): SelfUsageRequestPage!
 }

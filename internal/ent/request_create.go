@@ -114,6 +114,20 @@ func (_c *RequestCreate) SetNillableTraceID(v *int) *RequestCreate {
 	return _c
 }
 
+// SetClientSessionID sets the "client_session_id" field.
+func (_c *RequestCreate) SetClientSessionID(v string) *RequestCreate {
+	_c.mutation.SetClientSessionID(v)
+	return _c
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableClientSessionID(v *string) *RequestCreate {
+	if v != nil {
+		_c.SetClientSessionID(*v)
+	}
+	return _c
+}
+
 // SetContinuationKey sets the "continuation_key" field.
 func (_c *RequestCreate) SetContinuationKey(v string) *RequestCreate {
 	_c.mutation.SetContinuationKey(v)
@@ -582,6 +596,11 @@ func (_c *RequestCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "Request.project_id"`)}
 	}
+	if v, ok := _c.mutation.ClientSessionID(); ok {
+		if err := request.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "Request.client_session_id": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ContinuationKey(); ok {
 		if err := request.ContinuationKeyValidator(v); err != nil {
 			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
@@ -670,6 +689,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(request.FieldUserID, field.TypeInt, value)
 		_node.UserID = &value
+	}
+	if value, ok := _c.mutation.ClientSessionID(); ok {
+		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)
+		_node.ClientSessionID = &value
 	}
 	if value, ok := _c.mutation.ContinuationKey(); ok {
 		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)
@@ -957,6 +980,24 @@ func (u *RequestUpsert) SetUpdatedAt(v time.Time) *RequestUpsert {
 // UpdateUpdatedAt sets the "updated_at" field to the value that was provided on create.
 func (u *RequestUpsert) UpdateUpdatedAt() *RequestUpsert {
 	u.SetExcluded(request.FieldUpdatedAt)
+	return u
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *RequestUpsert) SetClientSessionID(v string) *RequestUpsert {
+	u.Set(request.FieldClientSessionID, v)
+	return u
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *RequestUpsert) UpdateClientSessionID() *RequestUpsert {
+	u.SetExcluded(request.FieldClientSessionID)
+	return u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *RequestUpsert) ClearClientSessionID() *RequestUpsert {
+	u.SetNull(request.FieldClientSessionID)
 	return u
 }
 
@@ -1439,6 +1480,27 @@ func (u *RequestUpsertOne) SetUpdatedAt(v time.Time) *RequestUpsertOne {
 func (u *RequestUpsertOne) UpdateUpdatedAt() *RequestUpsertOne {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *RequestUpsertOne) SetClientSessionID(v string) *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetClientSessionID(v)
+	})
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *RequestUpsertOne) UpdateClientSessionID() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateClientSessionID()
+	})
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *RequestUpsertOne) ClearClientSessionID() *RequestUpsertOne {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearClientSessionID()
 	})
 }
 
@@ -2151,6 +2213,27 @@ func (u *RequestUpsertBulk) SetUpdatedAt(v time.Time) *RequestUpsertBulk {
 func (u *RequestUpsertBulk) UpdateUpdatedAt() *RequestUpsertBulk {
 	return u.Update(func(s *RequestUpsert) {
 		s.UpdateUpdatedAt()
+	})
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *RequestUpsertBulk) SetClientSessionID(v string) *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.SetClientSessionID(v)
+	})
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *RequestUpsertBulk) UpdateClientSessionID() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.UpdateClientSessionID()
+	})
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *RequestUpsertBulk) ClearClientSessionID() *RequestUpsertBulk {
+	return u.Update(func(s *RequestUpsert) {
+		s.ClearClientSessionID()
 	})
 }
 

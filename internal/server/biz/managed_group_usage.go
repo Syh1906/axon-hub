@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/looplj/axonhub/internal/authz"
@@ -79,18 +80,20 @@ func (s *APIKeyService) managedGroupUsageScope(ctx context.Context, system *Syst
 	return scope, first, err
 }
 
-func (s *APIKeyService) ManagedGroupUsageStats(ctx context.Context, system *SystemService, groupRef int, start, end string) (*SelfUsageStats, error) {
+func (s *APIKeyService) ManagedGroupUsageStats(ctx context.Context, system *SystemService, groupRef int, start, end string, sessionID string) (*SelfUsageStats, error) {
 	scope, first, err := s.managedGroupUsageScope(ctx, system, groupRef, start, end)
 	if err != nil {
 		return nil, err
 	}
+	scope.sessionID = strings.TrimSpace(sessionID)
 	return NewSelfUsageService(s.entFromContext(ctx), system).statsForScope(ctx, scope, first, start, end)
 }
 
-func (s *APIKeyService) ManagedGroupUsageRequests(ctx context.Context, system *SystemService, groupRef int, start, end string, model *string, status string, page, pageSize int) (*SelfUsageRequestPage, error) {
+func (s *APIKeyService) ManagedGroupUsageRequests(ctx context.Context, system *SystemService, groupRef int, start, end string, model *string, status string, page, pageSize int, sessionID string) (*SelfUsageRequestPage, error) {
 	scope, _, err := s.managedGroupUsageScope(ctx, system, groupRef, start, end)
 	if err != nil {
 		return nil, err
 	}
+	scope.sessionID = strings.TrimSpace(sessionID)
 	return NewSelfUsageService(s.entFromContext(ctx), system).requestsForScope(ctx, scope, model, status, page, pageSize)
 }

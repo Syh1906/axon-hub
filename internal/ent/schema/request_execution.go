@@ -104,6 +104,8 @@ func (RequestExecution) Fields() []ent.Field {
 			Nillable().
 			Immutable().
 			Comment("Final reasoning effort sent to the upstream provider"),
+		field.JSON("reasoning_evidence", &objects.RequestReasoningEvidence{}).
+			Optional().Annotations(entgql.Type("RequestReasoningEvidence"), entgql.Skip(entgql.SkipWhereInput, entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)),
 		field.String("channel_api_key_suffix").
 			Optional().
 			Nillable().

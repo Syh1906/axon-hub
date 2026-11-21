@@ -10,6 +10,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 )
 
 type requestImageSummary = requestpayload.ImageSummary
@@ -80,17 +81,40 @@ func summarizeRequestImages(body []byte) *requestImageSummary {
 // history while honoring both the original and current retention decisions.
 func (s *RequestService) UpdateRecoveredExecutionBody(ctx context.Context, execution *ent.RequestExecution, body []byte) error {
 	ref, ok := parsePayloadMarker(execution.RequestBody)
-	if ok && ref.State == "disabled" {
+	storeBody := !ok || ref.State != "disabled"
+	effort := responses.EffectiveReasoningEffort(body)
+	changed := (execution.ReasoningEvidence == nil && effort != "") ||
+		(execution.ReasoningEvidence != nil && execution.ReasoningEvidence.Requested != effort)
+	if !storeBody && !changed {
 		return nil
 	}
-	marker := payloadMarker(requestPayloadReference{State: "disabled"})
-	if policy, err := s.SystemService.StoragePolicy(ctx); err == nil && policy.StoreRequestBody {
-		marker = s.PayloadService.saveRequestDebug(ctx, body)
+	update := s.entFromContext(ctx).RequestExecution.UpdateOneID(execution.ID).Where(requestexecution.StatusEQ(requestexecution.StatusProcessing))
+	marker := execution.RequestBody
+	if storeBody {
+		marker = payloadMarker(requestPayloadReference{State: "disabled"})
+		if policy, err := s.SystemService.StoragePolicy(ctx); err == nil && policy.StoreRequestBody {
+			marker = s.PayloadService.saveRequestDebug(ctx, body)
+		}
+		update.Modify(func(u *sql.UpdateBuilder) { u.Set(requestexecution.FieldRequestBody, string(marker)) })
 	}
-	if err := s.entFromContext(ctx).RequestExecution.UpdateOneID(execution.ID).Where(requestexecution.StatusEQ(requestexecution.StatusProcessing)).Modify(func(u *sql.UpdateBuilder) {
-		u.Set(requestexecution.FieldRequestBody, string(marker))
-	}).Exec(ctx); err != nil {
+	// Recovery runs before any upstream write. Replace the unsent delta's facts.
+	var requested *string
+	var evidence *objects.RequestReasoningEvidence
+	if changed {
+		if effort != "" {
+			requested = &effort
+			evidence = &objects.RequestReasoningEvidence{Requested: effort}
+			update.SetReasoningEvidence(evidence)
+		} else {
+			update.ClearReasoningEvidence()
+		}
+		update.Modify(func(u *sql.UpdateBuilder) { u.Set(requestexecution.FieldReasoningEffort, requested) })
+	}
+	if err := update.Exec(ctx); err != nil {
 		return err
+	}
+	if changed {
+		execution.ReasoningEffort, execution.ReasoningEvidence = requested, evidence
 	}
 	execution.RequestBody = marker
 	return nil

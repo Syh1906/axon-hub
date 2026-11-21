@@ -6752,6 +6752,23 @@ type RequestWhereInput struct {
 	TraceIDIsNil  bool  `json:"traceIDIsNil,omitempty"`
 	TraceIDNotNil bool  `json:"traceIDNotNil,omitempty"`
 
+	// "client_session_id" field predicates.
+	ClientSessionID             *string  `json:"clientSessionID,omitempty"`
+	ClientSessionIDNEQ          *string  `json:"clientSessionIDNEQ,omitempty"`
+	ClientSessionIDIn           []string `json:"clientSessionIDIn,omitempty"`
+	ClientSessionIDNotIn        []string `json:"clientSessionIDNotIn,omitempty"`
+	ClientSessionIDGT           *string  `json:"clientSessionIDGT,omitempty"`
+	ClientSessionIDGTE          *string  `json:"clientSessionIDGTE,omitempty"`
+	ClientSessionIDLT           *string  `json:"clientSessionIDLT,omitempty"`
+	ClientSessionIDLTE          *string  `json:"clientSessionIDLTE,omitempty"`
+	ClientSessionIDContains     *string  `json:"clientSessionIDContains,omitempty"`
+	ClientSessionIDHasPrefix    *string  `json:"clientSessionIDHasPrefix,omitempty"`
+	ClientSessionIDHasSuffix    *string  `json:"clientSessionIDHasSuffix,omitempty"`
+	ClientSessionIDIsNil        bool     `json:"clientSessionIDIsNil,omitempty"`
+	ClientSessionIDNotNil       bool     `json:"clientSessionIDNotNil,omitempty"`
+	ClientSessionIDEqualFold    *string  `json:"clientSessionIDEqualFold,omitempty"`
+	ClientSessionIDContainsFold *string  `json:"clientSessionIDContainsFold,omitempty"`
+
 	// "data_storage_id" field predicates.
 	DataStorageID       *int  `json:"dataStorageID,omitempty"`
 	DataStorageIDNEQ    *int  `json:"dataStorageIDNEQ,omitempty"`
@@ -7190,6 +7207,51 @@ func (i *RequestWhereInput) P() (predicate.Request, error) {
 	}
 	if i.TraceIDNotNil {
 		predicates = append(predicates, request.TraceIDNotNil())
+	}
+	if i.ClientSessionID != nil {
+		predicates = append(predicates, request.ClientSessionIDEQ(*i.ClientSessionID))
+	}
+	if i.ClientSessionIDNEQ != nil {
+		predicates = append(predicates, request.ClientSessionIDNEQ(*i.ClientSessionIDNEQ))
+	}
+	if len(i.ClientSessionIDIn) > 0 {
+		predicates = append(predicates, request.ClientSessionIDIn(i.ClientSessionIDIn...))
+	}
+	if len(i.ClientSessionIDNotIn) > 0 {
+		predicates = append(predicates, request.ClientSessionIDNotIn(i.ClientSessionIDNotIn...))
+	}
+	if i.ClientSessionIDGT != nil {
+		predicates = append(predicates, request.ClientSessionIDGT(*i.ClientSessionIDGT))
+	}
+	if i.ClientSessionIDGTE != nil {
+		predicates = append(predicates, request.ClientSessionIDGTE(*i.ClientSessionIDGTE))
+	}
+	if i.ClientSessionIDLT != nil {
+		predicates = append(predicates, request.ClientSessionIDLT(*i.ClientSessionIDLT))
+	}
+	if i.ClientSessionIDLTE != nil {
+		predicates = append(predicates, request.ClientSessionIDLTE(*i.ClientSessionIDLTE))
+	}
+	if i.ClientSessionIDContains != nil {
+		predicates = append(predicates, request.ClientSessionIDContains(*i.ClientSessionIDContains))
+	}
+	if i.ClientSessionIDHasPrefix != nil {
+		predicates = append(predicates, request.ClientSessionIDHasPrefix(*i.ClientSessionIDHasPrefix))
+	}
+	if i.ClientSessionIDHasSuffix != nil {
+		predicates = append(predicates, request.ClientSessionIDHasSuffix(*i.ClientSessionIDHasSuffix))
+	}
+	if i.ClientSessionIDIsNil {
+		predicates = append(predicates, request.ClientSessionIDIsNil())
+	}
+	if i.ClientSessionIDNotNil {
+		predicates = append(predicates, request.ClientSessionIDNotNil())
+	}
+	if i.ClientSessionIDEqualFold != nil {
+		predicates = append(predicates, request.ClientSessionIDEqualFold(*i.ClientSessionIDEqualFold))
+	}
+	if i.ClientSessionIDContainsFold != nil {
+		predicates = append(predicates, request.ClientSessionIDContainsFold(*i.ClientSessionIDContainsFold))
 	}
 	if i.DataStorageID != nil {
 		predicates = append(predicates, request.DataStorageIDEQ(*i.DataStorageID))

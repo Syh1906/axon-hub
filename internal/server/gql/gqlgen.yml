@@ -1,5 +1,6 @@
 # schema tells gqlgen where the GraphQL schema is located.
 schema:
+  - request_reasoning_evidence.graphql
   - request_stream_timing.graphql
   - protocol_routes.graphql
   - maintenance.graphql
@@ -453,6 +454,8 @@ models:
   HealthGatePolicyInput:
     model:
       - github.com/looplj/axonhub/internal/server/biz.HealthGatePolicy
+  RequestReasoningEvidence:
+    model: github.com/looplj/axonhub/internal/objects.RequestReasoningEvidence
   RequestStreamTiming:
     model:
       - github.com/looplj/axonhub/internal/objects.RequestStreamTiming

@@ -77,6 +77,19 @@ func TestSplitAutoReasoningEffortModel(t *testing.T) {
 	}
 }
 
+func TestRecoveredReasoningPreservesModelSuffix(t *testing.T) {
+	m := autoReasoningEffortMiddleware{settings: &RequestSettings{ModelSettings: biz.SystemModelSettings{AutoReasoningEffort: true}}}
+	req, err := m.OnInboundLlmRequest(t.Context(), &llm.Request{Model: "gpt-xhigh", ReasoningEffort: "high"})
+	require.NoError(t, err)
+	restored := &llm.Request{ReasoningEffort: "max"}
+	applyRecoveredReasoning(req, restored)
+	require.Equal(t, "xhigh", req.ReasoningEffort)
+	ordinary := &llm.Request{ReasoningBudget: new(int64(2048))}
+	applyRecoveredReasoning(ordinary, restored)
+	require.Equal(t, "max", ordinary.ReasoningEffort)
+	require.Nil(t, ordinary.ReasoningBudget)
+}
+
 func TestAutoReasoningEffortMiddleware_OnInboundLlmRequest(t *testing.T) {
 	tests := []struct {
 		name       string

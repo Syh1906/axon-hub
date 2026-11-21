@@ -52,6 +52,8 @@ export const executionFailureSchema = z.object({
   bodyTruncated: z.boolean().optional(),
 });
 
+export const reasoningEvidenceSchema = z.object({ requested: z.string(), reported: z.string() });
+
 // Request Execution
 export const requestExecutionSchema = z.object({
   id: z.string(),
@@ -85,6 +87,7 @@ export const requestExecutionSchema = z.object({
   status: requestExecutionStatusSchema,
   format: z.string().optional(),
   reasoningEffort: z.string().nullable().optional(),
+  reasoningEvidence: reasoningEvidenceSchema.nullish(),
   channelAPIKeySuffix: z.string().nullable().optional(),
   metricsLatencyMs: z.number().nullable().optional(),
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
@@ -120,6 +123,7 @@ export const requestRoutingDecisionSchema = z.object({
 
 // Request
 export const requestSchema = z.object({
+  clientSessionID: z.string().nullish(),
   continuationCount: z.number().int().nonnegative().optional(),
   outputTokensPerSecond: z.number().nullable().optional(),
   outputBatches: z.object({ count: z.number(), spanMs: z.number().nullable() }).nullish(),
@@ -160,7 +164,7 @@ export const requestSchema = z.object({
   metricsFirstTokenLatencyMs: z.number().nullable().optional(),
   metricsReasoningDurationMs: z.number().nullable().optional(),
   sessionExecution: requestExecutionSchema.pick({ id: true, channel: true, selection: true, costSnapshot: true }).nullable().optional(),
-  resultExecution: requestExecutionSchema.pick({ id: true, responseStatusCode: true }).nullable().optional(),
+  resultExecution: requestExecutionSchema.pick({ id: true, responseStatusCode: true, reasoningEffort: true, reasoningEvidence: true }).nullable().optional(),
   executions: z
     .object({
       edges: z.array(

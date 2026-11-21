@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/requestexecution"
 )
 
@@ -26,6 +27,8 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 	ids := make([]int, 0, len(requests))
 	result := make(map[int]*SelfUsageRequest, len(requests))
 	owners := make(map[int]*ent.Request, len(requests))
+	resultIDs := make(map[int]int, len(requests))
+	var legacy []int
 	for _, req := range requests {
 		ids = append(ids, req.ID)
 		owners[req.ID] = req
@@ -34,22 +37,39 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			ExecutedModels:  []string{},
 			Format:          req.Format, ClientStatusCode: req.ClientStatusCode,
 		}
-		if req.ReasoningEffort != "" {
-			result[req.ID].ReasoningEffort = &req.ReasoningEffort
+		if req.ResultExecutionID != nil {
+			resultIDs[req.ID] = *req.ResultExecutionID
+		} else {
+			legacy = append(legacy, req.ID)
+		}
+	}
+	if len(legacy) > 0 {
+		var matches []struct {
+			ID          int
+			ExecutionID *int `json:"execution_id"`
+		}
+		if err := s.client.Request.Query().Where(request.IDIn(legacy...)).Modify(func(q *sql.Selector) {
+			q.Select(q.C(request.FieldID)).AppendSelectExprAs(requestLogResultID(q.Dialect(), q.Table()), "execution_id")
+		}).Scan(ctx, &matches); err != nil {
+			return nil, fmt.Errorf("query request log results: %w", err)
+		}
+		for _, m := range matches {
+			if m.ExecutionID != nil {
+				resultIDs[m.ID] = *m.ExecutionID
+			}
 		}
 	}
 	executions, err := s.client.RequestExecution.Query().Where(requestexecution.RequestIDIn(ids...)).
 		Select(requestexecution.FieldID, requestexecution.FieldRequestID, requestexecution.FieldModelID,
 			requestexecution.FieldUpstreamModelID, requestexecution.FieldStatus,
 			requestexecution.FieldChannelID,
-			requestexecution.FieldReasoningEffort, requestexecution.FieldFormat,
+			requestexecution.FieldReasoningEffort, requestexecution.FieldReasoningEvidence, requestexecution.FieldFormat,
 			requestexecution.FieldResponseStatusCode, requestexecution.FieldPassThroughApplied).
 		Order(requestexecution.ByCreatedAt(sql.OrderDesc()), requestexecution.ByID(sql.OrderDesc())).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query self usage execution display: %w", err)
 	}
 	counts := make(map[int]int, len(requests))
-	adopted := make(map[int]bool, len(requests))
 	for _, execution := range executions {
 		row := result[execution.RequestID]
 		row.ModelExecutions = append(row.ModelExecutions, SelfUsageModelExecution{
@@ -57,22 +77,25 @@ func (s *SelfUsageService) requestDisplayFields(ctx context.Context, requests []
 			Format: execution.Format, ReasoningEffort: execution.ReasoningEffort, PassThroughApplied: execution.PassThroughApplied,
 		})
 		owner := owners[execution.RequestID]
-		eligible := owner.ResultExecutionID == nil || *owner.ResultExecutionID == execution.ID
-		if owner.ResultExecutionID == nil && (owner.Status == "completed" || owner.Failure != nil && owner.Failure.Code == "stream_delivery_canceled") && owner.ChannelID > 0 {
-			eligible = owner.ChannelID == execution.ChannelID
+		counts[execution.RequestID]++
+		// Legacy HTTP status and protocol display already used the last attempt on
+		// the adopted channel; changing effort selection must not erase them.
+		display := owner.ResultExecutionID == nil || *owner.ResultExecutionID == execution.ID
+		if owner.ResultExecutionID == nil && (owner.Status == request.StatusCompleted || owner.Failure != nil && owner.Failure.Code == "stream_delivery_canceled") && owner.ChannelID > 0 {
+			display = owner.ChannelID == execution.ChannelID
 		}
-		if eligible && !adopted[execution.RequestID] {
-			adopted[execution.RequestID] = true
+		if display && row.OutboundFormat == nil {
 			row.OutboundFormat = &execution.Format
-			if execution.ReasoningEffort != nil {
-				row.ReasoningEffort = execution.ReasoningEffort
-			}
 			if row.ClientStatusCode == nil {
 				row.ClientStatusCode = execution.ResponseStatusCode
 			}
 		}
-		counts[execution.RequestID]++
+		if resultIDs[execution.RequestID] == execution.ID {
+			row.ReasoningEvidence = execution.ReasoningEvidence
+			row.ReasoningEffort = execution.ReasoningEvidence.Effective(execution.ReasoningEffort)
+		}
 		row.RetryCount = counts[execution.RequestID] - 1
+		row.ResultUnconfirmed = row.RetryCount > 0 && resultIDs[owner.ID] == 0 && owner.Status != request.StatusProcessing && owner.Status != request.StatusPending
 		if execution.ModelID != "" && !slices.Contains(row.ExecutedModels, execution.ModelID) {
 			row.ExecutedModels = append(row.ExecutedModels, execution.ModelID)
 		}

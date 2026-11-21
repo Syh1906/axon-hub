@@ -38,6 +38,7 @@ func NewMigrator(client *ent.Client) *Migrator {
 	migrator.Register(NewV1_0_0_Beta12_Fork_3())
 	migrator.Register(NewV1_0_0_RC1_Fork_1())
 	migrator.Register(NewV1_0_0_RC1_Fork_9())
+	migrator.Register(NewV1_0_0_RC1_Fork_18())
 
 	return migrator
 }

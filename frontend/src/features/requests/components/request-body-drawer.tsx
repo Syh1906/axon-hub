@@ -188,24 +188,23 @@ export function RequestBodyDrawer({
   const listRequest = visibleRequests[visibleCurrentIndex];
 
   // ── navigation ─────────────────────────────────────────────────────────────
-  // The list is DESC (newest first).
-  // → right arrow = "next" = newer = smaller index.
-  // ← left  arrow = "prev" = older = larger index.
-  const canGoPrev = currentIndex < allRequests.length - 1 || !!navPageInfo?.hasNextPage;
-  const canGoNext = currentIndex > 0 || !!navPageInfo?.hasPreviousPage;
+  // Session logs are chronological; the ordinary log is newest first.
+  const chronological = Boolean(queryWhere?.clientSessionID);
+  const canGoAfter = currentIndex < allRequests.length - 1 || !!navPageInfo?.hasNextPage;
+  const canGoBefore = currentIndex > 0 || !!navPageInfo?.hasPreviousPage;
 
-  const handlePrev = useCallback(async () => {
+  const goAfter = useCallback(async () => {
     if (currentIndex < allRequests.length - 1) {
       setCurrentIndex((i) => i + 1);
       return;
     }
-    // Need to load the next (older) page.
+    // Continue after the last loaded row.
     if (!navPageInfo?.hasNextPage || !navPageInfo.endCursor || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
       const result = await fetchAdjacentRequestPage({
         cursor: navPageInfo.endCursor,
-        direction: 'older',
+        direction: 'after',
         pageSize: 50,
         where: queryWhere,
         permissions,
@@ -230,7 +229,7 @@ export function RequestBodyDrawer({
     }
   }, [currentIndex, allRequests.length, navPageInfo, isLoadingMore, queryWhere, permissions, effectiveProjectId, initialRequests.length]);
 
-  const handleNext = useCallback(async () => {
+  const goBefore = useCallback(async () => {
     if (currentIndex > 0) {
       setCurrentIndex((i) => i - 1);
       return;
@@ -241,7 +240,7 @@ export function RequestBodyDrawer({
     try {
       const result = await fetchAdjacentRequestPage({
         cursor: navPageInfo.startCursor,
-        direction: 'newer',
+        direction: 'before',
         pageSize: 50,
         where: queryWhere,
         permissions,
@@ -317,8 +316,8 @@ export function RequestBodyDrawer({
                 variant='outline'
                 size='icon'
                 className='h-7 w-7'
-                onClick={handlePrev}
-                disabled={!canGoPrev || isLoadingMore}
+                onClick={chronological ? goBefore : goAfter}
+                disabled={!(chronological ? canGoBefore : canGoAfter) || isLoadingMore}
                 title={t('requests.drawer.previous')}
               >
                 <ChevronLeft className='h-4 w-4' />
@@ -327,8 +326,8 @@ export function RequestBodyDrawer({
                 variant='outline'
                 size='icon'
                 className='h-7 w-7'
-                onClick={handleNext}
-                disabled={!canGoNext || isLoadingMore}
+                onClick={chronological ? goAfter : goBefore}
+                disabled={!(chronological ? canGoAfter : canGoBefore) || isLoadingMore}
                 title={t('requests.drawer.next')}
               >
                 <ChevronRight className='h-4 w-4' />

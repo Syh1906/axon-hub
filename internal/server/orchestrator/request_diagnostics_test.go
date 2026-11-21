@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
@@ -12,6 +13,7 @@ import (
 	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestExecutionSelectionKeepsActualKeyAndSession(t *testing.T) {
@@ -57,4 +59,12 @@ func TestSessionDispatchDoesNotCountLocalContinuationRejection(t *testing.T) {
 	require.ErrorIs(t, err, httpclient.ErrContinuationUnavailable)
 	require.False(t, upstream.requestCalled)
 	require.Equal(t, objects.RequestExecutionDispatchPending, client.RequestExecution.GetX(ctx, attempt.ID).Selection.Dispatch)
+
+	wire := &httpclient.Request{TransportTrace: new(httpclient.TransportTrace)}
+	wire.ReportHTTPProgress(httpclient.TransportStarted, time.Now())
+	executor.record(ctx, wire, errors.New("connection failed before upload"))
+	require.Equal(t, objects.RequestExecutionDispatchPending, client.RequestExecution.GetX(ctx, attempt.ID).Selection.Dispatch)
+	wire.ReportHTTPProgress(httpclient.TransportUploaded, time.Now())
+	executor.record(ctx, wire, errors.New("response lost after upload"))
+	require.Equal(t, objects.RequestExecutionDispatchStarted, client.RequestExecution.GetX(ctx, attempt.ID).Selection.Dispatch)
 }

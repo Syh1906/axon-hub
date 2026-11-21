@@ -18,6 +18,7 @@ export function RequestContinuationHistory({
   onPageChange,
   onBodyClick,
   onViewDetail,
+  onSessionFilter,
 }: {
   request: Request;
   parentTable: ReactTable<Request>;
@@ -26,6 +27,7 @@ export function RequestContinuationHistory({
   onPageChange: (cursors: string[]) => void;
   onBodyClick: (requests: Request[], id: string, index: number, tab: RequestDiagnosticTab) => void;
   onViewDetail: (id: string) => void;
+  onSessionFilter: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const after = position.cursors.at(-1) ?? null;
@@ -33,6 +35,7 @@ export function RequestContinuationHistory({
   const requests = useMemo(() => query.data?.edges.map((edge) => edge.node) ?? [], [query.data]);
   const columns = useRequestsColumns({
     continuationHistory: true,
+    onSessionFilter,
     onBodyClick: (id, index, tab = 'request') => onBodyClick(requests, id, index, tab),
     onViewDetail,
   });

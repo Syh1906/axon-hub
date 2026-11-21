@@ -15,6 +15,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/project"
+	"github.com/looplj/axonhub/internal/pkg/clientsession"
 	"github.com/looplj/axonhub/internal/pkg/xcache"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/tracing"
@@ -417,6 +418,28 @@ func TestTryExtractTraceIDFromOpenCodeRequest(t *testing.T) {
 			c.Request.Header = tt.headers
 
 			require.Equal(t, tt.expected, tryExtractTraceIDFromOpenCodeRequest(c))
+		})
+	}
+}
+
+func TestClientSessionIndependentFromTrace(t *testing.T) {
+	for _, tc := range []struct{ path, header, value, body, want string }{
+		{"/v1/responses", "Session-Id", "client-s", "", "client-s"},
+		{"/v1/alpha/search", "X-Codex-Turn-Metadata", `{"session_id":"search-s","thread_id":"different"}`, "", "search-s"},
+		{"/v1/messages", "", "", `{"metadata":{"user_id":"{\"device_id\":\"d\",\"session_id\":\"claude-s\"}"}}`, "claude-s"},
+		{"/v1/embeddings", "AH-Session-Id", "explicit", "", "explicit"},
+		{"/v1/responses", "", "", "", ""},
+	} {
+		t.Run(tc.want+tc.path, func(t *testing.T) {
+			router := gin.New()
+			router.Use(WithTrace(tracing.Config{CodexTraceEnabled: true, ClaudeCodeTraceEnabled: true}, nil))
+			router.POST(tc.path, func(c *gin.Context) { require.Equal(t, tc.want, clientsession.FromContext(c.Request.Context())) })
+			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewBufferString(tc.body))
+			req.Header.Set("AH-Trace-Id", "per-request-trace")
+			if tc.header != "" {
+				req.Header.Set(tc.header, tc.value)
+			}
+			router.ServeHTTP(httptest.NewRecorder(), req)
 		})
 	}
 }

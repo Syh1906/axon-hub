@@ -36,6 +36,8 @@ type Request struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// Trace ID that this request belongs to
 	TraceID int `json:"trace_id,omitempty"`
+	// Session identifier supplied by the client
+	ClientSessionID *string `json:"client_session_id,omitempty"`
 	// SHA256 of explicit client session, thread and turn identity
 	ContinuationKey string `json:"continuation_key,omitempty"`
 	// Data Storage ID that this request belongs to
@@ -210,7 +212,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case request.FieldID, request.FieldAPIKeyID, request.FieldUserID, request.FieldProjectID, request.FieldTraceID, request.FieldDataStorageID, request.FieldChannelID, request.FieldResultExecutionID, request.FieldClientStatusCode, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldMetricsReasoningDurationMs, request.FieldContentStorageID:
 			values[i] = new(sql.NullInt64)
-		case request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
+		case request.FieldClientSessionID, request.FieldContinuationKey, request.FieldSource, request.FieldModelID, request.FieldReasoningEffort, request.FieldFormat, request.FieldExternalID, request.FieldStatus, request.FieldClientIP, request.FieldUserAgent, request.FieldContentStorageKey:
 			values[i] = new(sql.NullString)
 		case request.FieldCreatedAt, request.FieldUpdatedAt, request.FieldContentSavedAt:
 			values[i] = new(sql.NullTime)
@@ -271,6 +273,13 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field trace_id", values[i])
 			} else if value.Valid {
 				_m.TraceID = int(value.Int64)
+			}
+		case request.FieldClientSessionID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field client_session_id", values[i])
+			} else if value.Valid {
+				_m.ClientSessionID = new(string)
+				*_m.ClientSessionID = value.String
 			}
 		case request.FieldContinuationKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -560,6 +569,11 @@ func (_m *Request) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("trace_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TraceID))
+	builder.WriteString(", ")
+	if v := _m.ClientSessionID; v != nil {
+		builder.WriteString("client_session_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("continuation_key=")
 	builder.WriteString(_m.ContinuationKey)

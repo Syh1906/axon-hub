@@ -69,6 +69,11 @@ func ProjectID(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldProjectID, v))
 }
 
+// ClientSessionID applies equality check predicate on the "client_session_id" field. It's identical to ClientSessionIDEQ.
+func ClientSessionID(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldClientSessionID, v))
+}
+
 // APIKeyID applies equality check predicate on the "api_key_id" field. It's identical to APIKeyIDEQ.
 func APIKeyID(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldEQ(FieldAPIKeyID, v))
@@ -337,6 +342,81 @@ func ProjectIDLT(v int) predicate.UsageArchive {
 // ProjectIDLTE applies the LTE predicate on the "project_id" field.
 func ProjectIDLTE(v int) predicate.UsageArchive {
 	return predicate.UsageArchive(sql.FieldLTE(FieldProjectID, v))
+}
+
+// ClientSessionIDEQ applies the EQ predicate on the "client_session_id" field.
+func ClientSessionIDEQ(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEQ(FieldClientSessionID, v))
+}
+
+// ClientSessionIDNEQ applies the NEQ predicate on the "client_session_id" field.
+func ClientSessionIDNEQ(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNEQ(FieldClientSessionID, v))
+}
+
+// ClientSessionIDIn applies the In predicate on the "client_session_id" field.
+func ClientSessionIDIn(vs ...string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIn(FieldClientSessionID, vs...))
+}
+
+// ClientSessionIDNotIn applies the NotIn predicate on the "client_session_id" field.
+func ClientSessionIDNotIn(vs ...string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotIn(FieldClientSessionID, vs...))
+}
+
+// ClientSessionIDGT applies the GT predicate on the "client_session_id" field.
+func ClientSessionIDGT(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGT(FieldClientSessionID, v))
+}
+
+// ClientSessionIDGTE applies the GTE predicate on the "client_session_id" field.
+func ClientSessionIDGTE(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldGTE(FieldClientSessionID, v))
+}
+
+// ClientSessionIDLT applies the LT predicate on the "client_session_id" field.
+func ClientSessionIDLT(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLT(FieldClientSessionID, v))
+}
+
+// ClientSessionIDLTE applies the LTE predicate on the "client_session_id" field.
+func ClientSessionIDLTE(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldLTE(FieldClientSessionID, v))
+}
+
+// ClientSessionIDContains applies the Contains predicate on the "client_session_id" field.
+func ClientSessionIDContains(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldContains(FieldClientSessionID, v))
+}
+
+// ClientSessionIDHasPrefix applies the HasPrefix predicate on the "client_session_id" field.
+func ClientSessionIDHasPrefix(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldHasPrefix(FieldClientSessionID, v))
+}
+
+// ClientSessionIDHasSuffix applies the HasSuffix predicate on the "client_session_id" field.
+func ClientSessionIDHasSuffix(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldHasSuffix(FieldClientSessionID, v))
+}
+
+// ClientSessionIDIsNil applies the IsNil predicate on the "client_session_id" field.
+func ClientSessionIDIsNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldIsNull(FieldClientSessionID))
+}
+
+// ClientSessionIDNotNil applies the NotNil predicate on the "client_session_id" field.
+func ClientSessionIDNotNil() predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldNotNull(FieldClientSessionID))
+}
+
+// ClientSessionIDEqualFold applies the EqualFold predicate on the "client_session_id" field.
+func ClientSessionIDEqualFold(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldEqualFold(FieldClientSessionID, v))
+}
+
+// ClientSessionIDContainsFold applies the ContainsFold predicate on the "client_session_id" field.
+func ClientSessionIDContainsFold(v string) predicate.UsageArchive {
+	return predicate.UsageArchive(sql.FieldContainsFold(FieldClientSessionID, v))
 }
 
 // APIKeyIDEQ applies the EQ predicate on the "api_key_id" field.

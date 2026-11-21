@@ -717,6 +717,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			request.FieldUserID:                     {Type: field.TypeInt, Column: request.FieldUserID},
 			request.FieldProjectID:                  {Type: field.TypeInt, Column: request.FieldProjectID},
 			request.FieldTraceID:                    {Type: field.TypeInt, Column: request.FieldTraceID},
+			request.FieldClientSessionID:            {Type: field.TypeString, Column: request.FieldClientSessionID},
 			request.FieldContinuationKey:            {Type: field.TypeString, Column: request.FieldContinuationKey},
 			request.FieldDataStorageID:              {Type: field.TypeInt, Column: request.FieldDataStorageID},
 			request.FieldSource:                     {Type: field.TypeEnum, Column: request.FieldSource},
@@ -778,6 +779,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			requestexecution.FieldCostSnapshot:               {Type: field.TypeJSON, Column: requestexecution.FieldCostSnapshot},
 			requestexecution.FieldFormat:                     {Type: field.TypeString, Column: requestexecution.FieldFormat},
 			requestexecution.FieldReasoningEffort:            {Type: field.TypeString, Column: requestexecution.FieldReasoningEffort},
+			requestexecution.FieldReasoningEvidence:          {Type: field.TypeJSON, Column: requestexecution.FieldReasoningEvidence},
 			requestexecution.FieldChannelAPIKeySuffix:        {Type: field.TypeString, Column: requestexecution.FieldChannelAPIKeySuffix},
 			requestexecution.FieldRequestBody:                {Type: field.TypeJSON, Column: requestexecution.FieldRequestBody},
 			requestexecution.FieldResponseHeaders:            {Type: field.TypeJSON, Column: requestexecution.FieldResponseHeaders},
@@ -937,6 +939,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagearchive.FieldSourceID:                  {Type: field.TypeInt, Column: usagearchive.FieldSourceID},
 			usagearchive.FieldRequestID:                 {Type: field.TypeInt, Column: usagearchive.FieldRequestID},
 			usagearchive.FieldProjectID:                 {Type: field.TypeInt, Column: usagearchive.FieldProjectID},
+			usagearchive.FieldClientSessionID:           {Type: field.TypeString, Column: usagearchive.FieldClientSessionID},
 			usagearchive.FieldAPIKeyID:                  {Type: field.TypeInt, Column: usagearchive.FieldAPIKeyID},
 			usagearchive.FieldChannelID:                 {Type: field.TypeInt, Column: usagearchive.FieldChannelID},
 			usagearchive.FieldModelID:                   {Type: field.TypeString, Column: usagearchive.FieldModelID},
@@ -5025,6 +5028,11 @@ func (f *RequestFilter) WhereTraceID(p entql.IntP) {
 	f.Where(p.Field(request.FieldTraceID))
 }
 
+// WhereClientSessionID applies the entql string predicate on the client_session_id field.
+func (f *RequestFilter) WhereClientSessionID(p entql.StringP) {
+	f.Where(p.Field(request.FieldClientSessionID))
+}
+
 // WhereContinuationKey applies the entql string predicate on the continuation_key field.
 func (f *RequestFilter) WhereContinuationKey(p entql.StringP) {
 	f.Where(p.Field(request.FieldContinuationKey))
@@ -5401,6 +5409,11 @@ func (f *RequestExecutionFilter) WhereFormat(p entql.StringP) {
 // WhereReasoningEffort applies the entql string predicate on the reasoning_effort field.
 func (f *RequestExecutionFilter) WhereReasoningEffort(p entql.StringP) {
 	f.Where(p.Field(requestexecution.FieldReasoningEffort))
+}
+
+// WhereReasoningEvidence applies the entql json.RawMessage predicate on the reasoning_evidence field.
+func (f *RequestExecutionFilter) WhereReasoningEvidence(p entql.BytesP) {
+	f.Where(p.Field(requestexecution.FieldReasoningEvidence))
 }
 
 // WhereChannelAPIKeySuffix applies the entql string predicate on the channel_api_key_suffix field.
@@ -6175,6 +6188,11 @@ func (f *UsageArchiveFilter) WhereRequestID(p entql.IntP) {
 // WhereProjectID applies the entql int predicate on the project_id field.
 func (f *UsageArchiveFilter) WhereProjectID(p entql.IntP) {
 	f.Where(p.Field(usagearchive.FieldProjectID))
+}
+
+// WhereClientSessionID applies the entql string predicate on the client_session_id field.
+func (f *UsageArchiveFilter) WhereClientSessionID(p entql.StringP) {
+	f.Where(p.Field(usagearchive.FieldClientSessionID))
 }
 
 // WhereAPIKeyID applies the entql int predicate on the api_key_id field.

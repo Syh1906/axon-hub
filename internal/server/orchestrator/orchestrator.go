@@ -22,6 +22,7 @@ import (
 	"github.com/looplj/axonhub/llm/pipeline/stream"
 	"github.com/looplj/axonhub/llm/streams"
 	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/openai/responses"
 	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
@@ -317,7 +318,7 @@ func (processor *ChatCompletionOrchestrator) processWithTitleHedgeDelay(ctx cont
 		metadata := &llm.Request{
 			Model:           gjson.GetBytes(request.Body, "model").String(),
 			Stream:          lo.ToPtr(gjson.GetBytes(request.Body, "stream").Bool()),
-			ReasoningEffort: gjson.GetBytes(request.Body, "reasoning.effort").String(),
+			ReasoningEffort: responses.EffectiveReasoningEffort(request.Body),
 		}
 		var err error
 		state.Request, err = processor.RequestService.CreateRequest(ctx, metadata, request, persistedRequestAPIFormat(ctx, llm.APIFormatOpenAIResponse))

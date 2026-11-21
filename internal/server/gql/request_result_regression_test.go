@@ -103,20 +103,56 @@ func TestRequestSessionExecutionUsesAdoptedResult(t *testing.T) {
 	}
 }
 
+func TestLogReasoningRequiresIdentifiableSentAttempt(t *testing.T) {
+	f := newContinuationFixture(t)
+	r := f.add(f.at, "completed", "legacy")
+	winner := r.QueryExecutions().OnlyX(f.ctx)
+	f.db.RequestExecution.UpdateOneID(winner.ID).SetReasoningEvidence(&objects.RequestReasoningEvidence{Reported: "max"}).ExecX(f.ctx)
+	add := func(status, dispatch string) *ent.RequestExecution {
+		return f.db.RequestExecution.Create().SetRequestID(r.ID).SetProjectID(f.project.ID).
+			SetChannelID(winner.ChannelID).SetModelID("model").SetStatus(requestexecution.Status(status)).
+			SetSelection(&objects.RequestExecutionSelection{Dispatch: dispatch}).
+			SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "high"}).
+			SetRequestBody([]byte(`{}`)).SaveX(f.ctx)
+	}
+	read := func() *ent.RequestExecution {
+		rows, err := biz.RequestLogResultExecutions(f.ctx, f.db, []int{r.ID})
+		require.NoError(t, err)
+		return rows[r.ID]
+	}
+	add("failed", objects.RequestExecutionDispatchStarted)
+	selected := read()
+	require.NotNil(t, selected)
+	require.Equal(t, "max", selected.ReasoningEvidence.Reported)
+	f.db.Request.UpdateOneID(r.ID).SetStatus("canceled").SetFailure(&objects.RequestFailure{Stage: "delivery", Code: "stream_delivery_canceled"}).ExecX(f.ctx)
+	require.Equal(t, winner.ID, read().ID, "late provider completion survives a canceled client delivery")
+	f.db.Request.UpdateOneID(r.ID).SetStatus("completed").ClearFailure().ExecX(f.ctx)
+	add("completed", objects.RequestExecutionDispatchStarted)
+	require.Nil(t, read(), "two successful attempts without an adopted result are ambiguous")
+	f.db.Request.UpdateOneID(r.ID).SetStatus("processing").ExecX(f.ctx)
+	active := add("processing", objects.RequestExecutionDispatchPending)
+	require.Nil(t, read(), "waiting for admission does not prove dispatch")
+	service := biz.NewRequestService(f.db, xcache.Config{Mode: xcache.ModeMemory}, nil, nil, nil, nil, nil)
+	require.NoError(t, service.SetExecutionSelection(f.ctx, active.ID, &objects.RequestExecutionSelection{Dispatch: objects.RequestExecutionDispatchStarted}))
+	require.Equal(t, active.ID, read().ID)
+}
+
 func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 	f := newContinuationFixture(t)
 	record := f.add(f.at, "completed", "result-status")
 	winner := record.QueryExecutions().OnlyX(f.ctx)
-	f.db.RequestExecution.UpdateOneID(winner.ID).SetResponseStatusCode(200).ExecX(f.ctx)
+	f.db.RequestExecution.UpdateOneID(winner.ID).SetResponseStatusCode(200).
+		SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "max", Reported: "high"}).ExecX(f.ctx)
 	f.db.Request.UpdateOneID(record.ID).SetResultExecutionID(winner.ID).ExecX(f.ctx)
 	f.db.RequestExecution.Create().SetProjectID(f.project.ID).SetRequestID(record.ID).SetChannelID(2).
+		SetReasoningEvidence(&objects.RequestReasoningEvidence{Requested: "low"}).
 		SetModelID("model").SetStatus("failed").SetResponseStatusCode(500).SetRequestBody([]byte(`{}`)).SaveX(f.ctx)
 	viewer := &ent.User{ID: 1, Scopes: []string{"read_requests"}}
 	ctx := contexts.WithUser(t.Context(), viewer)
 	ctx, err := authz.WithPrincipal(ctx, authz.Principal{Type: authz.PrincipalTypeUser, UserID: &viewer.ID})
 	require.NoError(t, err)
 	server := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{client: f.db}}))
-	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{ requestLogs(first: 1) { edges { node { clientStatusCode resultExecution { id responseStatusCode } sessionExecution { id channel { name } } } } } }"}`)).
+	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(`{"query":"{ requestLogs(first: 1) { edges { node { clientStatusCode resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } } sessionExecution { id channel { name } } } } } }"}`)).
 		WithContext(ent.NewContext(withRequestChannelSessionCache(ctx), f.db))
 	req.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -131,6 +167,8 @@ func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 						ResultExecution  *struct {
 							ID                 string
 							ResponseStatusCode *int
+							ReasoningEffort    string
+							ReasoningEvidence  *objects.RequestReasoningEvidence
 						}
 						SessionExecution *struct{ ID string }
 					}
@@ -147,4 +185,6 @@ func TestRequestResultStatusWithoutChannelPermission(t *testing.T) {
 	require.NotNil(t, row.ResultExecution)
 	require.Equal(t, fmt.Sprintf("gid://axonhub/RequestExecution/%d", winner.ID), row.ResultExecution.ID)
 	require.Equal(t, 200, *row.ResultExecution.ResponseStatusCode)
+	require.Equal(t, "high", row.ResultExecution.ReasoningEffort)
+	require.Equal(t, &objects.RequestReasoningEvidence{Requested: "max", Reported: "high"}, row.ResultExecution.ReasoningEvidence)
 }

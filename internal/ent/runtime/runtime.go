@@ -1187,32 +1187,36 @@ func init() {
 	requestDescProjectID := requestFields[2].Descriptor()
 	// request.DefaultProjectID holds the default value on creation for the project_id field.
 	request.DefaultProjectID = requestDescProjectID.Default.(int)
+	// requestDescClientSessionID is the schema descriptor for client_session_id field.
+	requestDescClientSessionID := requestFields[4].Descriptor()
+	// request.ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
+	request.ClientSessionIDValidator = requestDescClientSessionID.Validators[0].(func(string) error)
 	// requestDescContinuationKey is the schema descriptor for continuation_key field.
-	requestDescContinuationKey := requestFields[4].Descriptor()
+	requestDescContinuationKey := requestFields[5].Descriptor()
 	// request.ContinuationKeyValidator is a validator for the "continuation_key" field. It is called by the builders before save.
 	request.ContinuationKeyValidator = requestDescContinuationKey.Validators[0].(func(string) error)
 	// requestDescFormat is the schema descriptor for format field.
-	requestDescFormat := requestFields[9].Descriptor()
+	requestDescFormat := requestFields[10].Descriptor()
 	// request.DefaultFormat holds the default value on creation for the format field.
 	request.DefaultFormat = requestDescFormat.Default.(string)
 	// requestDescExternalID is the schema descriptor for external_id field.
-	requestDescExternalID := requestFields[18].Descriptor()
+	requestDescExternalID := requestFields[19].Descriptor()
 	// request.ExternalIDValidator is a validator for the "external_id" field. It is called by the builders before save.
 	request.ExternalIDValidator = requestDescExternalID.Validators[0].(func(string) error)
 	// requestDescStream is the schema descriptor for stream field.
-	requestDescStream := requestFields[22].Descriptor()
+	requestDescStream := requestFields[23].Descriptor()
 	// request.DefaultStream holds the default value on creation for the stream field.
 	request.DefaultStream = requestDescStream.Default.(bool)
 	// requestDescClientIP is the schema descriptor for client_ip field.
-	requestDescClientIP := requestFields[23].Descriptor()
+	requestDescClientIP := requestFields[24].Descriptor()
 	// request.DefaultClientIP holds the default value on creation for the client_ip field.
 	request.DefaultClientIP = requestDescClientIP.Default.(string)
 	// requestDescUserAgent is the schema descriptor for user_agent field.
-	requestDescUserAgent := requestFields[24].Descriptor()
+	requestDescUserAgent := requestFields[25].Descriptor()
 	// request.DefaultUserAgent holds the default value on creation for the user_agent field.
 	request.DefaultUserAgent = requestDescUserAgent.Default.(string)
 	// requestDescContentSaved is the schema descriptor for content_saved field.
-	requestDescContentSaved := requestFields[29].Descriptor()
+	requestDescContentSaved := requestFields[30].Descriptor()
 	// request.DefaultContentSaved holds the default value on creation for the content_saved field.
 	request.DefaultContentSaved = requestDescContentSaved.Default.(bool)
 	requestexecutionMixin := schema.RequestExecution{}.Mixin()
@@ -1260,23 +1264,23 @@ func init() {
 	// requestexecution.DefaultFormat holds the default value on creation for the format field.
 	requestexecution.DefaultFormat = requestexecutionDescFormat.Default.(string)
 	// requestexecutionDescChannelAPIKeySuffix is the schema descriptor for channel_api_key_suffix field.
-	requestexecutionDescChannelAPIKeySuffix := requestexecutionFields[17].Descriptor()
+	requestexecutionDescChannelAPIKeySuffix := requestexecutionFields[18].Descriptor()
 	// requestexecution.ChannelAPIKeySuffixValidator is a validator for the "channel_api_key_suffix" field. It is called by the builders before save.
 	requestexecution.ChannelAPIKeySuffixValidator = requestexecutionDescChannelAPIKeySuffix.Validators[0].(func(string) error)
 	// requestexecutionDescStream is the schema descriptor for stream field.
-	requestexecutionDescStream := requestexecutionFields[28].Descriptor()
+	requestexecutionDescStream := requestexecutionFields[29].Descriptor()
 	// requestexecution.DefaultStream holds the default value on creation for the stream field.
 	requestexecution.DefaultStream = requestexecutionDescStream.Default.(bool)
 	// requestexecutionDescCacheCompatibilityKey is the schema descriptor for cache_compatibility_key field.
-	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[35].Descriptor()
+	requestexecutionDescCacheCompatibilityKey := requestexecutionFields[36].Descriptor()
 	// requestexecution.CacheCompatibilityKeyValidator is a validator for the "cache_compatibility_key" field. It is called by the builders before save.
 	requestexecution.CacheCompatibilityKeyValidator = requestexecutionDescCacheCompatibilityKey.Validators[0].(func(string) error)
 	// requestexecutionDescCacheTTLBucket is the schema descriptor for cache_ttl_bucket field.
-	requestexecutionDescCacheTTLBucket := requestexecutionFields[37].Descriptor()
+	requestexecutionDescCacheTTLBucket := requestexecutionFields[38].Descriptor()
 	// requestexecution.CacheTTLBucketValidator is a validator for the "cache_ttl_bucket" field. It is called by the builders before save.
 	requestexecution.CacheTTLBucketValidator = requestexecutionDescCacheTTLBucket.Validators[0].(func(string) error)
 	// requestexecutionDescPassThroughApplied is the schema descriptor for pass_through_applied field.
-	requestexecutionDescPassThroughApplied := requestexecutionFields[41].Descriptor()
+	requestexecutionDescPassThroughApplied := requestexecutionFields[42].Descriptor()
 	// requestexecution.DefaultPassThroughApplied holds the default value on creation for the pass_through_applied field.
 	requestexecution.DefaultPassThroughApplied = requestexecutionDescPassThroughApplied.Default.(bool)
 	responsesoriginMixin := schema.ResponsesOrigin{}.Mixin()
@@ -1475,96 +1479,100 @@ func init() {
 	}
 	usagearchiveFields := schema.UsageArchive{}.Fields()
 	_ = usagearchiveFields
+	// usagearchiveDescClientSessionID is the schema descriptor for client_session_id field.
+	usagearchiveDescClientSessionID := usagearchiveFields[4].Descriptor()
+	// usagearchive.ClientSessionIDValidator is a validator for the "client_session_id" field. It is called by the builders before save.
+	usagearchive.ClientSessionIDValidator = usagearchiveDescClientSessionID.Validators[0].(func(string) error)
 	// usagearchiveDescAPIKeyID is the schema descriptor for api_key_id field.
-	usagearchiveDescAPIKeyID := usagearchiveFields[4].Descriptor()
+	usagearchiveDescAPIKeyID := usagearchiveFields[5].Descriptor()
 	// usagearchive.DefaultAPIKeyID holds the default value on creation for the api_key_id field.
 	usagearchive.DefaultAPIKeyID = usagearchiveDescAPIKeyID.Default.(int)
 	// usagearchiveDescChannelID is the schema descriptor for channel_id field.
-	usagearchiveDescChannelID := usagearchiveFields[5].Descriptor()
+	usagearchiveDescChannelID := usagearchiveFields[6].Descriptor()
 	// usagearchive.DefaultChannelID holds the default value on creation for the channel_id field.
 	usagearchive.DefaultChannelID = usagearchiveDescChannelID.Default.(int)
 	// usagearchiveDescRequestModelID is the schema descriptor for request_model_id field.
-	usagearchiveDescRequestModelID := usagearchiveFields[7].Descriptor()
+	usagearchiveDescRequestModelID := usagearchiveFields[8].Descriptor()
 	// usagearchive.DefaultRequestModelID holds the default value on creation for the request_model_id field.
 	usagearchive.DefaultRequestModelID = usagearchiveDescRequestModelID.Default.(string)
 	// usagearchiveDescRequestStatus is the schema descriptor for request_status field.
-	usagearchiveDescRequestStatus := usagearchiveFields[8].Descriptor()
+	usagearchiveDescRequestStatus := usagearchiveFields[9].Descriptor()
 	// usagearchive.DefaultRequestStatus holds the default value on creation for the request_status field.
 	usagearchive.DefaultRequestStatus = usagearchiveDescRequestStatus.Default.(string)
 	// usagearchive.RequestStatusValidator is a validator for the "request_status" field. It is called by the builders before save.
 	usagearchive.RequestStatusValidator = usagearchiveDescRequestStatus.Validators[0].(func(string) error)
 	// usagearchiveDescRequestSource is the schema descriptor for request_source field.
-	usagearchiveDescRequestSource := usagearchiveFields[9].Descriptor()
+	usagearchiveDescRequestSource := usagearchiveFields[10].Descriptor()
 	// usagearchive.DefaultRequestSource holds the default value on creation for the request_source field.
 	usagearchive.DefaultRequestSource = usagearchiveDescRequestSource.Default.(string)
 	// usagearchive.RequestSourceValidator is a validator for the "request_source" field. It is called by the builders before save.
 	usagearchive.RequestSourceValidator = usagearchiveDescRequestSource.Validators[0].(func(string) error)
 	// usagearchiveDescCacheCreationCost is the schema descriptor for cache_creation_cost field.
-	usagearchiveDescCacheCreationCost := usagearchiveFields[12].Descriptor()
+	usagearchiveDescCacheCreationCost := usagearchiveFields[13].Descriptor()
 	// usagearchive.DefaultCacheCreationCost holds the default value on creation for the cache_creation_cost field.
 	usagearchive.DefaultCacheCreationCost = usagearchiveDescCacheCreationCost.Default.(float64)
 	// usagearchiveDescFirstTokenSum is the schema descriptor for first_token_sum field.
-	usagearchiveDescFirstTokenSum := usagearchiveFields[13].Descriptor()
+	usagearchiveDescFirstTokenSum := usagearchiveFields[14].Descriptor()
 	// usagearchive.DefaultFirstTokenSum holds the default value on creation for the first_token_sum field.
 	usagearchive.DefaultFirstTokenSum = usagearchiveDescFirstTokenSum.Default.(float64)
 	// usagearchiveDescSpeedSum is the schema descriptor for speed_sum field.
-	usagearchiveDescSpeedSum := usagearchiveFields[14].Descriptor()
+	usagearchiveDescSpeedSum := usagearchiveFields[15].Descriptor()
 	// usagearchive.DefaultSpeedSum holds the default value on creation for the speed_sum field.
 	usagearchive.DefaultSpeedSum = usagearchiveDescSpeedSum.Default.(float64)
 	// usagearchiveDescSpeedVersion is the schema descriptor for speed_version field.
-	usagearchiveDescSpeedVersion := usagearchiveFields[16].Descriptor()
+	usagearchiveDescSpeedVersion := usagearchiveFields[17].Descriptor()
 	// usagearchive.DefaultSpeedVersion holds the default value on creation for the speed_version field.
 	usagearchive.DefaultSpeedVersion = usagearchiveDescSpeedVersion.Default.(int)
 	// usagearchiveDescBillingVersion is the schema descriptor for billing_version field.
-	usagearchiveDescBillingVersion := usagearchiveFields[17].Descriptor()
+	usagearchiveDescBillingVersion := usagearchiveFields[18].Descriptor()
 	// usagearchive.DefaultBillingVersion holds the default value on creation for the billing_version field.
 	usagearchive.DefaultBillingVersion = usagearchiveDescBillingVersion.Default.(int)
 	// usagearchiveDescPromptTokens is the schema descriptor for prompt_tokens field.
-	usagearchiveDescPromptTokens := usagearchiveFields[18].Descriptor()
+	usagearchiveDescPromptTokens := usagearchiveFields[19].Descriptor()
 	// usagearchive.DefaultPromptTokens holds the default value on creation for the prompt_tokens field.
 	usagearchive.DefaultPromptTokens = usagearchiveDescPromptTokens.Default.(int64)
 	// usagearchiveDescCompletionTokens is the schema descriptor for completion_tokens field.
-	usagearchiveDescCompletionTokens := usagearchiveFields[19].Descriptor()
+	usagearchiveDescCompletionTokens := usagearchiveFields[20].Descriptor()
 	// usagearchive.DefaultCompletionTokens holds the default value on creation for the completion_tokens field.
 	usagearchive.DefaultCompletionTokens = usagearchiveDescCompletionTokens.Default.(int64)
 	// usagearchiveDescTotalTokens is the schema descriptor for total_tokens field.
-	usagearchiveDescTotalTokens := usagearchiveFields[20].Descriptor()
+	usagearchiveDescTotalTokens := usagearchiveFields[21].Descriptor()
 	// usagearchive.DefaultTotalTokens holds the default value on creation for the total_tokens field.
 	usagearchive.DefaultTotalTokens = usagearchiveDescTotalTokens.Default.(int64)
 	// usagearchiveDescPromptCachedTokens is the schema descriptor for prompt_cached_tokens field.
-	usagearchiveDescPromptCachedTokens := usagearchiveFields[21].Descriptor()
+	usagearchiveDescPromptCachedTokens := usagearchiveFields[22].Descriptor()
 	// usagearchive.DefaultPromptCachedTokens holds the default value on creation for the prompt_cached_tokens field.
 	usagearchive.DefaultPromptCachedTokens = usagearchiveDescPromptCachedTokens.Default.(int64)
 	// usagearchiveDescPromptWriteCachedTokens is the schema descriptor for prompt_write_cached_tokens field.
-	usagearchiveDescPromptWriteCachedTokens := usagearchiveFields[22].Descriptor()
+	usagearchiveDescPromptWriteCachedTokens := usagearchiveFields[23].Descriptor()
 	// usagearchive.DefaultPromptWriteCachedTokens holds the default value on creation for the prompt_write_cached_tokens field.
 	usagearchive.DefaultPromptWriteCachedTokens = usagearchiveDescPromptWriteCachedTokens.Default.(int64)
 	// usagearchiveDescCompletionReasoningTokens is the schema descriptor for completion_reasoning_tokens field.
-	usagearchiveDescCompletionReasoningTokens := usagearchiveFields[23].Descriptor()
+	usagearchiveDescCompletionReasoningTokens := usagearchiveFields[24].Descriptor()
 	// usagearchive.DefaultCompletionReasoningTokens holds the default value on creation for the completion_reasoning_tokens field.
 	usagearchive.DefaultCompletionReasoningTokens = usagearchiveDescCompletionReasoningTokens.Default.(int64)
 	// usagearchiveDescCacheRequests is the schema descriptor for cache_requests field.
-	usagearchiveDescCacheRequests := usagearchiveFields[24].Descriptor()
+	usagearchiveDescCacheRequests := usagearchiveFields[25].Descriptor()
 	// usagearchive.DefaultCacheRequests holds the default value on creation for the cache_requests field.
 	usagearchive.DefaultCacheRequests = usagearchiveDescCacheRequests.Default.(int64)
 	// usagearchiveDescCacheInput is the schema descriptor for cache_input field.
-	usagearchiveDescCacheInput := usagearchiveFields[25].Descriptor()
+	usagearchiveDescCacheInput := usagearchiveFields[26].Descriptor()
 	// usagearchive.DefaultCacheInput holds the default value on creation for the cache_input field.
 	usagearchive.DefaultCacheInput = usagearchiveDescCacheInput.Default.(int64)
 	// usagearchiveDescSuccessCount is the schema descriptor for success_count field.
-	usagearchiveDescSuccessCount := usagearchiveFields[26].Descriptor()
+	usagearchiveDescSuccessCount := usagearchiveFields[27].Descriptor()
 	// usagearchive.DefaultSuccessCount holds the default value on creation for the success_count field.
 	usagearchive.DefaultSuccessCount = usagearchiveDescSuccessCount.Default.(int64)
 	// usagearchiveDescOutcomeCount is the schema descriptor for outcome_count field.
-	usagearchiveDescOutcomeCount := usagearchiveFields[27].Descriptor()
+	usagearchiveDescOutcomeCount := usagearchiveFields[28].Descriptor()
 	// usagearchive.DefaultOutcomeCount holds the default value on creation for the outcome_count field.
 	usagearchive.DefaultOutcomeCount = usagearchiveDescOutcomeCount.Default.(int64)
 	// usagearchiveDescFirstTokenCount is the schema descriptor for first_token_count field.
-	usagearchiveDescFirstTokenCount := usagearchiveFields[28].Descriptor()
+	usagearchiveDescFirstTokenCount := usagearchiveFields[29].Descriptor()
 	// usagearchive.DefaultFirstTokenCount holds the default value on creation for the first_token_count field.
 	usagearchive.DefaultFirstTokenCount = usagearchiveDescFirstTokenCount.Default.(int64)
 	// usagearchiveDescSpeedCount is the schema descriptor for speed_count field.
-	usagearchiveDescSpeedCount := usagearchiveFields[29].Descriptor()
+	usagearchiveDescSpeedCount := usagearchiveFields[30].Descriptor()
 	// usagearchive.DefaultSpeedCount holds the default value on creation for the speed_count field.
 	usagearchive.DefaultSpeedCount = usagearchiveDescSpeedCount.Default.(int64)
 	usagelogMixin := schema.UsageLog{}.Mixin()

@@ -3,6 +3,7 @@ package schema
 import (
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
@@ -21,6 +22,9 @@ func (UsageArchive) Fields() []ent.Field {
 		field.Int("source_id").Immutable(),
 		field.Int("request_id").Immutable(),
 		field.Int("project_id").Immutable(),
+		field.String("client_session_id").MaxLen(256).Optional().Nillable().
+			SchemaType(map[string]string{dialect.MySQL: "varbinary(256)"}).
+			Comment("Session identifier supplied by the client"),
 		field.Int("api_key_id").Default(0).Immutable(),
 		field.Int("channel_id").Default(0).Immutable(),
 		field.String("model_id").Immutable(),

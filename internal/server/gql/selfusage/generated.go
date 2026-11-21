@@ -120,8 +120,8 @@ type ComplexityRoot struct {
 	Query struct {
 		SelfUsageBudgets  func(childComplexity int) int
 		SelfUsageMeta     func(childComplexity int) int
-		SelfUsageRequests func(childComplexity int, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) int
-		SelfUsageStats    func(childComplexity int, start string, end string, group bool) int
+		SelfUsageRequests func(childComplexity int, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) int
+		SelfUsageStats    func(childComplexity int, start string, end string, sessionID *string, group bool) int
 	}
 
 	RequestOutputBatches struct {
@@ -133,6 +133,11 @@ type ComplexityRoot struct {
 		DurationMs      func(childComplexity int) int
 		OutputTokens    func(childComplexity int) int
 		ReasoningTokens func(childComplexity int) int
+	}
+
+	RequestReasoningEvidence struct {
+		Reported  func(childComplexity int) int
+		Requested func(childComplexity int) int
 	}
 
 	RequestStreamTiming struct {
@@ -220,6 +225,7 @@ type ComplexityRoot struct {
 		CallerGroupName       func(childComplexity int) int
 		CallerKeyName         func(childComplexity int) int
 		Channel               func(childComplexity int) int
+		ClientSessionID       func(childComplexity int) int
 		ClientStatusCode      func(childComplexity int) int
 		Cost                  func(childComplexity int) int
 		CostItems             func(childComplexity int) int
@@ -241,8 +247,10 @@ type ComplexityRoot struct {
 		OutputTokensPerSecond func(childComplexity int) int
 		PassThroughApplied    func(childComplexity int) int
 		ReasoningEffort       func(childComplexity int) int
+		ReasoningEvidence     func(childComplexity int) int
 		ReasoningTokens       func(childComplexity int) int
 		RequestStatus         func(childComplexity int) int
+		ResultUnconfirmed     func(childComplexity int) int
 		RetryCount            func(childComplexity int) int
 		Status                func(childComplexity int) int
 		Stream                func(childComplexity int) int
@@ -321,8 +329,8 @@ type ComplexityRoot struct {
 
 type QueryResolver interface {
 	SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, error)
-	SelfUsageStats(ctx context.Context, start string, end string, group bool) (*SelfUsageStats, error)
-	SelfUsageRequests(ctx context.Context, start string, end string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error)
+	SelfUsageStats(ctx context.Context, start string, end string, sessionID *string, group bool) (*SelfUsageStats, error)
+	SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error)
 	SelfUsageBudgets(ctx context.Context) ([]*biz.BudgetView, error)
 }
 
@@ -678,7 +686,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int), args["group"].(bool)), true
+		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int), args["group"].(bool)), true
 	case "Query.selfUsageStats":
 		if e.complexity.Query.SelfUsageStats == nil {
 			break
@@ -689,7 +697,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SelfUsageStats(childComplexity, args["start"].(string), args["end"].(string), args["group"].(bool)), true
+		return e.complexity.Query.SelfUsageStats(childComplexity, args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["group"].(bool)), true
 
 	case "RequestOutputBatches.count":
 		if e.complexity.RequestOutputBatches.Count == nil {
@@ -722,6 +730,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RequestOutputRate.ReasoningTokens(childComplexity), true
+
+	case "RequestReasoningEvidence.reported":
+		if e.complexity.RequestReasoningEvidence.Reported == nil {
+			break
+		}
+
+		return e.complexity.RequestReasoningEvidence.Reported(childComplexity), true
+	case "RequestReasoningEvidence.requested":
+		if e.complexity.RequestReasoningEvidence.Requested == nil {
+			break
+		}
+
+		return e.complexity.RequestReasoningEvidence.Requested(childComplexity), true
 
 	case "RequestStreamTiming.afterContentMs":
 		if e.complexity.RequestStreamTiming.AfterContentMs == nil {
@@ -1091,6 +1112,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.Channel(childComplexity), true
+	case "SelfUsageRequest.clientSessionID":
+		if e.complexity.SelfUsageRequest.ClientSessionID == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ClientSessionID(childComplexity), true
 	case "SelfUsageRequest.clientStatusCode":
 		if e.complexity.SelfUsageRequest.ClientStatusCode == nil {
 			break
@@ -1217,6 +1244,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.ReasoningEffort(childComplexity), true
+	case "SelfUsageRequest.reasoningEvidence":
+		if e.complexity.SelfUsageRequest.ReasoningEvidence == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ReasoningEvidence(childComplexity), true
 	case "SelfUsageRequest.reasoningTokens":
 		if e.complexity.SelfUsageRequest.ReasoningTokens == nil {
 			break
@@ -1229,6 +1262,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequest.RequestStatus(childComplexity), true
+	case "SelfUsageRequest.resultUnconfirmed":
+		if e.complexity.SelfUsageRequest.ResultUnconfirmed == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequest.ResultUnconfirmed(childComplexity), true
 	case "SelfUsageRequest.retryCount":
 		if e.complexity.SelfUsageRequest.RetryCount == nil {
 			break
@@ -1670,6 +1709,11 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "../request_reasoning_evidence.graphql", Input: `type RequestReasoningEvidence {
+  requested: String!
+  reported: String!
+}
+`, BuiltIn: false},
 	{Name: "selfusage.graphql", Input: sourceData("selfusage.graphql"), BuiltIn: false},
 	{Name: "../request_stream_timing.graphql", Input: `type RequestOutputBatches {
   count: Int!
@@ -1791,31 +1835,36 @@ func (ec *executionContext) field_Query_selfUsageRequests_args(ctx context.Conte
 		return nil, err
 	}
 	args["end"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "model", ec.unmarshalOString2ᚖstring)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["model"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalOSelfUsageRequestStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestStatus)
+	args["sessionID"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "model", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["status"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOInt2ᚖint)
+	args["model"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalOSelfUsageRequestStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestStatus)
 	if err != nil {
 		return nil, err
 	}
-	args["page"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "pageSize", ec.unmarshalOInt2ᚖint)
+	args["status"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "page", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["pageSize"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	args["page"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "pageSize", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["group"] = arg6
+	args["pageSize"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg7
 	return args, nil
 }
 
@@ -1832,11 +1881,16 @@ func (ec *executionContext) field_Query_selfUsageStats_args(ctx context.Context,
 		return nil, err
 	}
 	args["end"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sessionID", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
-	args["group"] = arg2
+	args["sessionID"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg3
 	return args, nil
 }
 
@@ -3524,7 +3578,7 @@ func (ec *executionContext) _Query_selfUsageStats(ctx context.Context, field gra
 		ec.fieldContext_Query_selfUsageStats,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SelfUsageStats(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["group"].(bool))
+			return ec.resolvers.Query().SelfUsageStats(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["group"].(bool))
 		},
 		nil,
 		ec.marshalNSelfUsageStats2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageStats,
@@ -3583,7 +3637,7 @@ func (ec *executionContext) _Query_selfUsageRequests(ctx context.Context, field 
 		ec.fieldContext_Query_selfUsageRequests,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int), fc.Args["group"].(bool))
+			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int), fc.Args["group"].(bool))
 		},
 		nil,
 		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestPage,
@@ -3933,6 +3987,64 @@ func (ec *executionContext) fieldContext_RequestOutputRate_durationMs(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestReasoningEvidence_requested(ctx context.Context, field graphql.CollectedField, obj *objects.RequestReasoningEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestReasoningEvidence_requested,
+		func(ctx context.Context) (any, error) {
+			return obj.Requested, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestReasoningEvidence_requested(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestReasoningEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RequestReasoningEvidence_reported(ctx context.Context, field graphql.CollectedField, obj *objects.RequestReasoningEvidence) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RequestReasoningEvidence_reported,
+		func(ctx context.Context) (any, error) {
+			return obj.Reported, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RequestReasoningEvidence_reported(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RequestReasoningEvidence",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5550,6 +5662,99 @@ func (ec *executionContext) fieldContext_SelfUsageModelStat_usage(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequest_clientSessionID(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_clientSessionID,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientSessionID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_clientSessionID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_resultUnconfirmed(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_resultUnconfirmed,
+		func(ctx context.Context) (any, error) {
+			return obj.ResultUnconfirmed, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_resultUnconfirmed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequest_reasoningEvidence(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequest_reasoningEvidence,
+		func(ctx context.Context) (any, error) {
+			return obj.ReasoningEvidence, nil
+		},
+		nil,
+		ec.marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequest_reasoningEvidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "requested":
+				return ec.fieldContext_RequestReasoningEvidence_requested(ctx, field)
+			case "reported":
+				return ec.fieldContext_RequestReasoningEvidence_reported(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RequestReasoningEvidence", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequest_channel(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6880,6 +7085,12 @@ func (ec *executionContext) fieldContext_SelfUsageRequestPage_items(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "clientSessionID":
+				return ec.fieldContext_SelfUsageRequest_clientSessionID(ctx, field)
+			case "resultUnconfirmed":
+				return ec.fieldContext_SelfUsageRequest_resultUnconfirmed(ctx, field)
+			case "reasoningEvidence":
+				return ec.fieldContext_SelfUsageRequest_reasoningEvidence(ctx, field)
 			case "channel":
 				return ec.fieldContext_SelfUsageRequest_channel(ctx, field)
 			case "modelExecutions":
@@ -10455,6 +10666,50 @@ func (ec *executionContext) _RequestOutputRate(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var requestReasoningEvidenceImplementors = []string{"RequestReasoningEvidence"}
+
+func (ec *executionContext) _RequestReasoningEvidence(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestReasoningEvidence) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, requestReasoningEvidenceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RequestReasoningEvidence")
+		case "requested":
+			out.Values[i] = ec._RequestReasoningEvidence_requested(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reported":
+			out.Values[i] = ec._RequestReasoningEvidence_reported(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var requestStreamTimingImplementors = []string{"RequestStreamTiming"}
 
 func (ec *executionContext) _RequestStreamTiming(ctx context.Context, sel ast.SelectionSet, obj *objects.RequestStreamTiming) graphql.Marshaler {
@@ -10956,6 +11211,15 @@ func (ec *executionContext) _SelfUsageRequest(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequest")
+		case "clientSessionID":
+			out.Values[i] = ec._SelfUsageRequest_clientSessionID(ctx, field, obj)
+		case "resultUnconfirmed":
+			out.Values[i] = ec._SelfUsageRequest_resultUnconfirmed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasoningEvidence":
+			out.Values[i] = ec._SelfUsageRequest_reasoningEvidence(ctx, field, obj)
 		case "channel":
 			out.Values[i] = ec._SelfUsageRequest_channel(ctx, field, obj)
 		case "modelExecutions":
@@ -13116,6 +13380,13 @@ func (ec *executionContext) marshalORequestOutputRate2ᚖgithubᚗcomᚋlooplj�
 		return graphql.Null
 	}
 	return ec._RequestOutputRate(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORequestReasoningEvidence2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestReasoningEvidence(ctx context.Context, sel ast.SelectionSet, v *objects.RequestReasoningEvidence) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RequestReasoningEvidence(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalORequestStreamTiming2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐRequestStreamTiming(ctx context.Context, sel ast.SelectionSet, v *objects.RequestStreamTiming) graphql.Marshaler {

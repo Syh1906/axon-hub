@@ -15,6 +15,18 @@ import (
 	"github.com/looplj/axonhub/llm/transformer"
 )
 
+func TestCodexConfigurationUpdateEffort(t *testing.T) {
+	body := []byte(`{"model":"test","reasoning":{"effort":"high","max_tokens":2048},"input":[{"type":"configuration_update","reasoning":{"effort":"high"}},{"type":"configuration_update","reasoning":{"effort":"max"}},{"type":"configuration_update","reasoning":{"summary":"auto"}},{"role":"user","content":"configuration_update: low"}]}`)
+	require.Equal(t, "max", EffectiveReasoningEffort(body))
+	req, err := NewInboundTransformer().TransformRequest(t.Context(), &httpclient.Request{Body: body})
+	require.NoError(t, err)
+	require.Equal(t, "max", req.ReasoningEffort)
+	require.Nil(t, req.ReasoningBudget)
+	require.Empty(t, ReportedReasoningEffort([]byte(`{"type":"response.created","response":{"reasoning":{"effort":"high"}}}`), "", true))
+	require.Equal(t, "max", ReportedReasoningEffort([]byte(`{"type":"response.completed","response":{"reasoning":{"effort":"max"}}}`), "", true))
+	require.Equal(t, "low", ReportedReasoningEffort([]byte(`{"reasoning":{"effort":"low"}}`), "", false))
+}
+
 func TestNewInboundTransformer(t *testing.T) {
 	transformer := NewInboundTransformer()
 	require.NotNil(t, transformer)

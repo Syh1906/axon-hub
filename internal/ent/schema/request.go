@@ -3,6 +3,7 @@ package schema
 import (
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -30,6 +31,8 @@ func (Request) Indexes() []ent.Index {
 			StorageKey("requests_by_project_id_created_at"),
 		index.Fields("project_id", "user_id", "created_at").
 			StorageKey("requests_by_project_id_user_id_created_at"),
+		index.Fields("project_id", "client_session_id", "created_at", "id").
+			StorageKey("requests_by_project_session_time"),
 		index.Fields("channel_id", "created_at").
 			StorageKey("requests_by_channel_id_created_at"),
 		index.Fields("trace_id", "created_at").
@@ -70,6 +73,9 @@ func (Request) Fields() []ent.Field {
 			Optional().
 			Immutable().
 			Comment("Trace ID that this request belongs to"),
+		field.String("client_session_id").MaxLen(256).Optional().Nillable().
+			SchemaType(map[string]string{dialect.MySQL: "varbinary(256)"}).
+			Comment("Session identifier supplied by the client").Annotations(entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput)),
 		field.String("continuation_key").Optional().MaxLen(64).
 			Annotations(entgql.Skip(entgql.SkipAll)).
 			Comment("SHA256 of explicit client session, thread and turn identity"),

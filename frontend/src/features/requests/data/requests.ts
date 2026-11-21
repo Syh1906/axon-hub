@@ -9,7 +9,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { COST_PRICING_EVIDENCE_FIELDS } from '@/components/cost-pricing-evidence';
 import { useRequestPermissions } from '../../../hooks/useRequestPermissions';
 import { shareRequestList } from './request-list-cache';
-import { requestLogVariables } from './request-log-variables';
+import { requestLogOrder, requestLogVariables } from './request-log-variables';
 import { Request, RequestConnection, RequestExecutionConnection, requestConnectionSchema, requestExecutionConnectionSchema, requestSchema } from './schema';
 
 const REQUEST_USAGE_SUMMARY_SELECTION = `
@@ -102,6 +102,7 @@ function buildRequestsQuery(
         edges {
           node {
             id
+            clientSessionID
             ${mode === 'list' ? 'continuationCount' : ''}
             createdAt
             updatedAt${apiKeyFields}${requestChannelFields}
@@ -113,7 +114,7 @@ function buildRequestsQuery(
             status
             clientIP
             clientStatusCode
-            resultExecution { id responseStatusCode }
+            resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
             failure { stage code type message }
             outputTokensPerSecond
             ${REQUEST_USAGE_SUMMARY_SELECTION}
@@ -223,7 +224,7 @@ function buildRequestDetailQuery(
           stream
           clientIP
           clientStatusCode
-          resultExecution { id responseStatusCode }
+          resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
           failure { stage code type message }
           projectID
           dataStorageID
@@ -286,7 +287,7 @@ function buildRequestDetailPollingQuery(permissions: { canViewApiKeys: boolean; 
           stream
           clientIP
           clientStatusCode
-          resultExecution { id responseStatusCode }
+          resultExecution { id responseStatusCode reasoningEffort reasoningEvidence { requested reported } }
           failure { stage code type message }
           projectID
           dataStorageID
@@ -350,6 +351,7 @@ function buildRequestExecutionsQuery(permissions: { canViewChannels: boolean }, 
                 status
                 format
                 reasoningEffort
+                reasoningEvidence { requested reported }
                 stream
                 requestURL
                 passThroughApplied
@@ -413,7 +415,7 @@ export function useInfiniteRequests(where: Record<string, any> | undefined, page
         {
           first: pageSize,
           after,
-          orderBy: { field: 'CREATED_AT', direction: 'DESC' },
+          orderBy: requestLogOrder(where),
           ...requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) }),
         },
         projectId ? { 'X-Project-ID': projectId } : undefined,
@@ -427,7 +429,7 @@ export function useInfiniteRequests(where: Record<string, any> | undefined, page
         {
           last: pageSize,
           before,
-          orderBy: { field: 'CREATED_AT', direction: 'DESC' },
+          orderBy: requestLogOrder(where),
           ...requestLogVariables({ ...where, ...(projectId && { projectID: projectId }) }),
         },
         projectId ? { 'X-Project-ID': projectId } : undefined,
@@ -596,12 +598,11 @@ export function useRequest(
 
 /**
  * Imperative (non-hook) fetch of a page of requests for drawer navigation.
- * direction 'older' fetches the page after endCursor (older in DESC order).
- * direction 'newer' fetches the page before startCursor (newer in DESC order).
+ * Use the same order as the list that issued the cursor.
  */
 export async function fetchAdjacentRequestPage(params: {
   cursor: string;
-  direction: 'older' | 'newer';
+  direction: 'after' | 'before';
   pageSize: number;
   where?: Record<string, any>;
   permissions: { canViewApiKeys: boolean; canViewChannels: boolean; canViewCallerUser: boolean };
@@ -609,7 +610,7 @@ export async function fetchAdjacentRequestPage(params: {
 }): Promise<{ requests: Request[]; pageInfo: RequestConnection['pageInfo'] }> {
   const query = buildRequestsQuery(params.permissions);
   const variables =
-    params.direction === 'older' ? { first: params.pageSize, after: params.cursor } : { last: params.pageSize, before: params.cursor };
+    params.direction === 'after' ? { first: params.pageSize, after: params.cursor } : { last: params.pageSize, before: params.cursor };
 
   const where: Record<string, any> = { ...params.where };
   if (params.projectId) where.projectID = params.projectId;
@@ -617,7 +618,7 @@ export async function fetchAdjacentRequestPage(params: {
   const headers = params.projectId ? { 'X-Project-ID': params.projectId } : undefined;
   const data = await graphqlRequest<{ requests: RequestConnection }>(
     query,
-    { ...variables, ...requestLogVariables(where), orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
+    { ...variables, ...requestLogVariables(where), orderBy: requestLogOrder(where) },
     headers
   );
   const result = requestConnectionSchema.parse(data?.requests);

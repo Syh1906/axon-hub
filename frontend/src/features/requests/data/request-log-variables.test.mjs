@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { requestLogVariables, requestStatusCountVariables } from './request-log-variables.ts';
+import { requestLogOrder, requestLogVariables, requestStatusCountVariables } from './request-log-variables.ts';
+
+test('会话列表和详情相邻页使用相同方向', () => {
+  assert.equal(requestLogOrder({ clientSessionID: 'session' }).direction, 'ASC');
+  assert.equal(requestLogOrder().direction, 'DESC');
+});
 
 test('状态计数忽略已选状态与分页，保留其他条件和当前项目', () => {
   const where = {

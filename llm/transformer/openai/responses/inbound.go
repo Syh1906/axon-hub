@@ -266,6 +266,17 @@ func convertToLLMRequest(req *Request, rawBody ...[]byte) (*llm.Request, error) 
 		}
 	}
 
+	for i := len(req.Input.Items) - 1; i >= 0; i-- {
+		item := &req.Input.Items[i]
+		if item.Type == "configuration_update" && item.Reasoning != nil {
+			if effort := strings.TrimSpace(item.Reasoning.Effort); effort != "" {
+				chatReq.ReasoningEffort = effort
+				chatReq.ReasoningBudget = nil
+				break
+			}
+		}
+	}
+
 	// Convert stream options
 	if req.StreamOptions != nil {
 		chatReq.StreamOptions = &llm.StreamOptions{}

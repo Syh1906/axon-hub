@@ -7,13 +7,16 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RequestReasoningBadge } from './request-reasoning-badge';
 
+type EffortDisplay = { reasoningEffort?: string | null; reasoningEvidence?: { requested: string; reported: string } | null };
+
 export type RequestModelDisplay = {
+  resultExecution?: EffortDisplay | null;
   modelID: string;
   status?: 'pending' | 'processing' | 'completed' | 'failed' | 'canceled';
   reasoningEffort?: string | null;
   format?: string;
   executions?: {
-    edges: { node?: { modelID?: string; upstreamModelID?: string | null; status?: RequestModelDisplay['status']; reasoningEffort?: string | null; format?: string; passThroughApplied?: boolean | null } | null }[];
+    edges: { node?: { modelID?: string; upstreamModelID?: string | null; status?: RequestModelDisplay['status']; reasoningEffort?: string | null; reasoningEvidence?: EffortDisplay['reasoningEvidence']; format?: string; passThroughApplied?: boolean | null } | null }[];
   } | null;
   oneHourPromptCacheUsageLogs?: { totalCount?: number };
 };
@@ -24,7 +27,7 @@ export function RequestModelCell({
 }: {
   request: RequestModelDisplay;
   // Keep adopted-result display metadata separate from the full execution audit.
-  displayExecution?: { format: string | null; reasoningEffort: string | null };
+  displayExecution?: EffortDisplay & { format: string | null; resultUnconfirmed: boolean };
 }) {
   const { t } = useTranslation();
   const originalModelId = request.modelID || t('requests.columns.unknown');
@@ -45,9 +48,14 @@ export function RequestModelCell({
                 : 'text-red-700 dark:text-red-400';
         const upstreamModelAuditTooltip = getRequestModelAuditTooltip(modelAudit, request.status, t);
 
-  const reasoningEffort = displayExecution
-    ? displayExecution.reasoningEffort
-    : (executions[0]?.reasoningEffort ?? request.reasoningEffort);
+  const attempt = displayExecution ?? request.resultExecution;
+  const evidence = attempt?.reasoningEvidence;
+  const reasoningEffort = evidence?.reported || evidence?.requested || attempt?.reasoningEffort;
+  const formatEffort = (value: string) => /^-?\d+$/.test(value) ? t('requests.effort.tokens', { value }) : value;
+  const effortTitle = evidence
+    ? [evidence.requested && t('requests.effort.requested', { effort: formatEffort(evidence.requested) }), evidence.reported && t('requests.effort.reported', { effort: formatEffort(evidence.reported) })].filter(Boolean).join('\n')
+    : t('requests.effort.historical');
+  const unidentified = displayExecution?.resultUnconfirmed ?? (!request.resultExecution && !requestIsProcessing && executions.length > 1);
   const inboundFormat = request.format;
   const outboundFormat = displayExecution ? displayExecution.format : executions[0]?.format;
   const passThroughApplied = executions.some((execution) => execution.passThroughApplied);
@@ -132,7 +140,8 @@ export function RequestModelCell({
                 </TooltipTrigger>
                 <TooltipContent>{upstreamModelAuditTooltip}</TooltipContent>
               </Tooltip>
-        {reasoningEffort && <RequestReasoningBadge effort={reasoningEffort} />}
+        {reasoningEffort && <span title={effortTitle}><RequestReasoningBadge effort={formatEffort(reasoningEffort)} /></span>}
+        {unidentified && <span className='text-muted-foreground text-xs'>{t('requests.effort.unconfirmed')}</span>}
         <Tooltip>
           <TooltipTrigger asChild>
             <span

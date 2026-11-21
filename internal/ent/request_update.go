@@ -40,6 +40,26 @@ func (_u *RequestUpdate) SetUpdatedAt(v time.Time) *RequestUpdate {
 	return _u
 }
 
+// SetClientSessionID sets the "client_session_id" field.
+func (_u *RequestUpdate) SetClientSessionID(v string) *RequestUpdate {
+	_u.mutation.SetClientSessionID(v)
+	return _u
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableClientSessionID(v *string) *RequestUpdate {
+	if v != nil {
+		_u.SetClientSessionID(*v)
+	}
+	return _u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (_u *RequestUpdate) ClearClientSessionID() *RequestUpdate {
+	_u.mutation.ClearClientSessionID()
+	return _u
+}
+
 // SetContinuationKey sets the "continuation_key" field.
 func (_u *RequestUpdate) SetContinuationKey(v string) *RequestUpdate {
 	_u.mutation.SetContinuationKey(v)
@@ -570,6 +590,11 @@ func (_u *RequestUpdate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RequestUpdate) check() error {
+	if v, ok := _u.mutation.ClientSessionID(); ok {
+		if err := request.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "Request.client_session_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ContinuationKey(); ok {
 		if err := request.ContinuationKeyValidator(v); err != nil {
 			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
@@ -614,6 +639,12 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ClientSessionID(); ok {
+		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)
+	}
+	if _u.mutation.ClientSessionIDCleared() {
+		_spec.ClearField(request.FieldClientSessionID, field.TypeString)
 	}
 	if value, ok := _u.mutation.ContinuationKey(); ok {
 		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)
@@ -908,6 +939,26 @@ type RequestUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RequestUpdateOne) SetUpdatedAt(v time.Time) *RequestUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (_u *RequestUpdateOne) SetClientSessionID(v string) *RequestUpdateOne {
+	_u.mutation.SetClientSessionID(v)
+	return _u
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableClientSessionID(v *string) *RequestUpdateOne {
+	if v != nil {
+		_u.SetClientSessionID(*v)
+	}
+	return _u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (_u *RequestUpdateOne) ClearClientSessionID() *RequestUpdateOne {
+	_u.mutation.ClearClientSessionID()
 	return _u
 }
 
@@ -1454,6 +1505,11 @@ func (_u *RequestUpdateOne) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RequestUpdateOne) check() error {
+	if v, ok := _u.mutation.ClientSessionID(); ok {
+		if err := request.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "Request.client_session_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ContinuationKey(); ok {
 		if err := request.ContinuationKeyValidator(v); err != nil {
 			return &ValidationError{Name: "continuation_key", err: fmt.Errorf(`ent: validator failed for field "Request.continuation_key": %w`, err)}
@@ -1515,6 +1571,12 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if _u.mutation.UserIDCleared() {
 		_spec.ClearField(request.FieldUserID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ClientSessionID(); ok {
+		_spec.SetField(request.FieldClientSessionID, field.TypeString, value)
+	}
+	if _u.mutation.ClientSessionIDCleared() {
+		_spec.ClearField(request.FieldClientSessionID, field.TypeString)
 	}
 	if value, ok := _u.mutation.ContinuationKey(); ok {
 		_spec.SetField(request.FieldContinuationKey, field.TypeString, value)

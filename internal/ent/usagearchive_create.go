@@ -46,6 +46,20 @@ func (_c *UsageArchiveCreate) SetProjectID(v int) *UsageArchiveCreate {
 	return _c
 }
 
+// SetClientSessionID sets the "client_session_id" field.
+func (_c *UsageArchiveCreate) SetClientSessionID(v string) *UsageArchiveCreate {
+	_c.mutation.SetClientSessionID(v)
+	return _c
+}
+
+// SetNillableClientSessionID sets the "client_session_id" field if the given value is not nil.
+func (_c *UsageArchiveCreate) SetNillableClientSessionID(v *string) *UsageArchiveCreate {
+	if v != nil {
+		_c.SetClientSessionID(*v)
+	}
+	return _c
+}
+
 // SetAPIKeyID sets the "api_key_id" field.
 func (_c *UsageArchiveCreate) SetAPIKeyID(v int) *UsageArchiveCreate {
 	_c.mutation.SetAPIKeyID(v)
@@ -541,6 +555,11 @@ func (_c *UsageArchiveCreate) check() error {
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "UsageArchive.project_id"`)}
 	}
+	if v, ok := _c.mutation.ClientSessionID(); ok {
+		if err := usagearchive.ClientSessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_session_id", err: fmt.Errorf(`ent: validator failed for field "UsageArchive.client_session_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.APIKeyID(); !ok {
 		return &ValidationError{Name: "api_key_id", err: errors.New(`ent: missing required field "UsageArchive.api_key_id"`)}
 	}
@@ -665,6 +684,10 @@ func (_c *UsageArchiveCreate) createSpec() (*UsageArchive, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ProjectID(); ok {
 		_spec.SetField(usagearchive.FieldProjectID, field.TypeInt, value)
 		_node.ProjectID = value
+	}
+	if value, ok := _c.mutation.ClientSessionID(); ok {
+		_spec.SetField(usagearchive.FieldClientSessionID, field.TypeString, value)
+		_node.ClientSessionID = &value
 	}
 	if value, ok := _c.mutation.APIKeyID(); ok {
 		_spec.SetField(usagearchive.FieldAPIKeyID, field.TypeInt, value)
@@ -821,6 +844,24 @@ type (
 		*sql.UpdateSet
 	}
 )
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *UsageArchiveUpsert) SetClientSessionID(v string) *UsageArchiveUpsert {
+	u.Set(usagearchive.FieldClientSessionID, v)
+	return u
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *UsageArchiveUpsert) UpdateClientSessionID() *UsageArchiveUpsert {
+	u.SetExcluded(usagearchive.FieldClientSessionID)
+	return u
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *UsageArchiveUpsert) ClearClientSessionID() *UsageArchiveUpsert {
+	u.SetNull(usagearchive.FieldClientSessionID)
+	return u
+}
 
 // SetTotalCost sets the "total_cost" field.
 func (u *UsageArchiveUpsert) SetTotalCost(v float64) *UsageArchiveUpsert {
@@ -1243,6 +1284,27 @@ func (u *UsageArchiveUpsertOne) Update(set func(*UsageArchiveUpsert)) *UsageArch
 		set(&UsageArchiveUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *UsageArchiveUpsertOne) SetClientSessionID(v string) *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetClientSessionID(v)
+	})
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *UsageArchiveUpsertOne) UpdateClientSessionID() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateClientSessionID()
+	})
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *UsageArchiveUpsertOne) ClearClientSessionID() *UsageArchiveUpsertOne {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.ClearClientSessionID()
+	})
 }
 
 // SetTotalCost sets the "total_cost" field.
@@ -1890,6 +1952,27 @@ func (u *UsageArchiveUpsertBulk) Update(set func(*UsageArchiveUpsert)) *UsageArc
 		set(&UsageArchiveUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetClientSessionID sets the "client_session_id" field.
+func (u *UsageArchiveUpsertBulk) SetClientSessionID(v string) *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.SetClientSessionID(v)
+	})
+}
+
+// UpdateClientSessionID sets the "client_session_id" field to the value that was provided on create.
+func (u *UsageArchiveUpsertBulk) UpdateClientSessionID() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.UpdateClientSessionID()
+	})
+}
+
+// ClearClientSessionID clears the value of the "client_session_id" field.
+func (u *UsageArchiveUpsertBulk) ClearClientSessionID() *UsageArchiveUpsertBulk {
+	return u.Update(func(s *UsageArchiveUpsert) {
+		s.ClearClientSessionID()
+	})
 }
 
 // SetTotalCost sets the "total_cost" field.

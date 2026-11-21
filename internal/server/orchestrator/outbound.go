@@ -118,6 +118,7 @@ func (ts *OutboundPersistentStream) consumeTailEvent(event *httpclient.StreamEve
 	if ts.headers.peerAcknowledged() && observePeerBillingTier(ts.requestExec, event.Data, true) {
 		observeServiceTier(ts.requestExec, event.Data, true)
 	}
+	observeResponseEffort(ts.requestExec, event.Type, event.Data, true)
 	ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
 	ts.responseChunks = append(ts.responseChunks, httpclient.SummarizeBinaryChunk(event))
 	if ts.terminalState == streamTerminalNone && ts.terminalTracker.Observe(event) {
@@ -149,6 +150,7 @@ func (ts *OutboundPersistentStream) Current() *httpclient.StreamEvent {
 	event := ts.stream.Current()
 	if event != nil {
 		if !ts.observedCurrent {
+			observeResponseEffort(ts.requestExec, event.Type, event.Data, true)
 			ts.contentBatches.Observe(ts.apiFormat, event, time.Now())
 			ts.observedCurrent = true
 		}

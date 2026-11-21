@@ -101,7 +101,7 @@ test('空执行列表仍然通过，缺失必要字段或状态错误仍然拒�
   assert.equal(schemas.requestExecutionSchema.safeParse({ ...execution, status: 'unknown' }).success, false);
 });
 
-function executionQuery(canViewChannels, onRequest, onError) {
+function requestQueries(canViewChannels, onRequest, onError) {
   const requests = loadModule('./requests.ts', {
     '@tanstack/react-query': { useQuery: (options) => options },
     '@/gql/graphql': { graphqlRequest: onRequest },
@@ -114,20 +114,37 @@ function executionQuery(canViewChannels, onRequest, onError) {
     '@/components/cost-pricing-evidence': { COST_PRICING_EVIDENCE_FIELDS: '' },
     '../../../hooks/useRequestPermissions': { useRequestPermissions: () => ({ canViewChannels }) },
     './request-list-cache': {},
-    './request-log-variables': {},
+    './request-log-variables': loadModule('./request-log-variables.ts', {}),
     './schema': schemas,
   });
-  return requests.useRequestExecutions;
+  return requests;
 }
+
+test('抽屉跨页保留会话、项目与时间方向', async () => {
+  const { fetchAdjacentRequestPage } = requestQueries(false, async (_query, variables, headers) => {
+    assert.equal(variables.orderBy.direction, 'ASC');
+    assert.equal(variables.where.clientSessionID, 'sample');
+    assert.equal(variables.where.projectID, 'project');
+    assert.equal(headers['X-Project-ID'], 'project');
+    assert.equal(variables.filter.collapseContinuations, false);
+    if (variables.after) assert.deepEqual([variables.after, variables.first], ['end', 50]);
+    else assert.deepEqual([variables.before, variables.last], ['start', 50]);
+    return { requests: connection([]) };
+  });
+  for (const [direction, cursor] of [['after', 'end'], ['before', 'start']]) {
+    await fetchAdjacentRequestPage({ direction, cursor, pageSize: 50, where: { clientSessionID: 'sample' }, permissions: {}, projectId: 'project' });
+  }
+});
 
 for (const canViewChannels of [false, true]) {
   for (const includePayload of [false, true, undefined]) {
     test(`真实执行查询保留权限与正文开关（渠道权限=${canViewChannels}，正文=${includePayload}）`, async () => {
       const controller = new AbortController();
       let queryCalls = 0;
-      const useRequestExecutions = executionQuery(canViewChannels, async (query, variables, headers, options) => {
+      const { useRequestExecutions } = requestQueries(canViewChannels, async (query, variables, headers, options) => {
         queryCalls++;
         const hasPayload = includePayload !== false;
+        assert.match(query, /reasoningEvidence\s*\{\s*requested\s+reported\s*\}/);
         for (const field of ['requestHeaders', 'responseHeaders', 'requestBody', 'responseBody', 'responseChunks']) {
           assert.equal(new RegExp(`\\b${field}\\b`).test(query), hasPayload, field);
         }

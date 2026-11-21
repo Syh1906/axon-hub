@@ -3787,6 +3787,11 @@ func (_q *RequestQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, request.FieldTraceID)
 				fieldSeen[request.FieldTraceID] = struct{}{}
 			}
+		case "clientSessionID":
+			if _, ok := fieldSeen[request.FieldClientSessionID]; !ok {
+				selectedFields = append(selectedFields, request.FieldClientSessionID)
+				fieldSeen[request.FieldClientSessionID] = struct{}{}
+			}
 		case "dataStorageID":
 			if _, ok := fieldSeen[request.FieldDataStorageID]; !ok {
 				selectedFields = append(selectedFields, request.FieldDataStorageID)
@@ -4115,6 +4120,11 @@ func (_q *RequestExecutionQuery) collectField(ctx context.Context, oneNode bool,
 			if _, ok := fieldSeen[requestexecution.FieldReasoningEffort]; !ok {
 				selectedFields = append(selectedFields, requestexecution.FieldReasoningEffort)
 				fieldSeen[requestexecution.FieldReasoningEffort] = struct{}{}
+			}
+		case "reasoningEvidence":
+			if _, ok := fieldSeen[requestexecution.FieldReasoningEvidence]; !ok {
+				selectedFields = append(selectedFields, requestexecution.FieldReasoningEvidence)
+				fieldSeen[requestexecution.FieldReasoningEvidence] = struct{}{}
 			}
 		case "channelAPIKeySuffix":
 			if _, ok := fieldSeen[requestexecution.FieldChannelAPIKeySuffix]; !ok {

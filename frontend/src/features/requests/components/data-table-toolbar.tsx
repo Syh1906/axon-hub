@@ -24,10 +24,13 @@ import { getProviderFromChannelType } from '@/features/channels/data/config_prov
 import { useRequestLogStatusCounts } from '../data/request-status-counts';
 import { RequestStatus } from '../data/schema';
 import { DataTableViewOptions } from './data-table-view-options';
+import { RequestSessionFilter } from './request-session-filter';
 import { MODEL_ID_COLUMN } from './requests-columns';
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  sessionID: string;
+  onSessionFilter: (id: string) => void;
   queryWhere?: Record<string, any>;
   dateRange?: DateTimeRangeValue;
   onDateRangeChange?: (range: DateTimeRangeValue | undefined) => void;
@@ -240,6 +243,8 @@ function RequestFilterControls({
 export function DataTableToolbar<TData>({
   table,
   queryWhere,
+  sessionID,
+  onSessionFilter,
   dateRange,
   onDateRangeChange,
   onResetFilters,
@@ -276,7 +281,7 @@ export function DataTableToolbar<TData>({
   const [columnOrderOpen, setColumnOrderOpen] = useState(false);
   const debouncedApiKeySearch = useDebounce(apiKeySearch, 300);
   const hasDateRange = !!dateRange?.from || !!dateRange?.to;
-  const isFiltered = table.getState().columnFilters.length > 0 || hasDateRange;
+  const isFiltered = table.getState().columnFilters.length > 0 || hasDateRange || !!sessionID;
 
   // Active filter count for mobile badge (excludes model ID filter)
   const columnFilters = table.getState().columnFilters;
@@ -429,8 +434,10 @@ export function DataTableToolbar<TData>({
         placeholder={t('requests.filters.filterModelId')}
         value={(table.getColumn(MODEL_ID_COLUMN)?.getFilterValue() as string) ?? ''}
         onChange={(event) => table.getColumn(MODEL_ID_COLUMN)?.setFilterValue(event.target.value)}
-        className='h-8 min-w-0 flex-1 sm:w-[150px] lg:w-[250px]'
+        className='h-8 min-w-32 flex-1 sm:max-w-[250px]'
       />
+
+      <RequestSessionFilter key={sessionID} value={sessionID} onChange={onSessionFilter} />
 
       {/* Mobile: Filters button opens bottom sheet */}
       <Sheet

@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { RequestsTable, type RequestTableFilters } from './components';
 import { RequestDateFilter } from './components/request-date-filter';
 import { RequestsProvider } from './context';
+import { requestLogOrder } from './data/request-log-variables';
 import { useInfiniteRequests, useRequests, useRequestLogTimezone } from './data';
 import { QueryLoadAlert } from '@/components/query-load-alert';
 
@@ -25,6 +26,7 @@ const REQUEST_FILTER_SEARCH_KEYS = {
   period: 'period',
   apiKey: 'apiKey',
   modelID: 'modelID',
+  sessionID: 'sessionID',
   createdAtFrom: 'createdAtFrom',
   createdAtTo: 'createdAtTo',
   createdAtStartTime: 'createdAtStartTime',
@@ -195,6 +197,7 @@ function RequestsContent() {
   const { statusFilter, sourceFilter, channelFilter, channelTagFilter, apiKeyGroupFilter, apiKeyFilter, modelIDFilter, dateRange } =
     useMemo(() => parseRequestSearchFilters(currentSearch), [currentSearch]);
   const { data: timezone } = useRequestLogTimezone();
+  const sessionID = getSearchString(currentSearch.sessionID).trim();
   const rawPeriod = getSearchString(currentSearch.period);
   const period: ConsumptionPeriod = dateRange
     ? 'CUSTOM'
@@ -212,6 +215,7 @@ function RequestsContent() {
         ...(dateRange?.from && { start: `${formatSearchDate(dateRange.from)}T${formatSearchTime(dateRange.startTime)}` }),
         ...(dateRange?.to && { end: `${formatSearchDate(dateRange.to)}T${formatSearchTime(dateRange.endTime)}` }),
       },
+      ...(sessionID && { clientSessionID: sessionID }),
       ...(channelTagFilter.length > 0 && { channelTagsIn: channelTagFilter }),
       ...(apiKeyGroupFilter.length > 0 && { apiKeyGroupRefsIn: apiKeyGroupFilter.map(Number) }),
     };
@@ -242,13 +246,14 @@ function RequestsContent() {
     channelFilter,
     apiKeyFilter,
     debouncedModelIDFilter,
+    sessionID,
   ]);
 
   const [atTop, setAtTop] = useState(true);
   const topRef = useRef(true);
   const infinite = useInfiniteRequests(whereClause, 50, listMode === 'infinite');
   const paged = useRequests(
-    { first: pageSize, where: { ...whereClause, offset: (page - 1) * pageSize }, orderBy: { field: 'CREATED_AT', direction: 'DESC' } },
+    { first: pageSize, where: { ...whereClause, offset: (page - 1) * pageSize }, orderBy: requestLogOrder(whereClause) },
     { enabled: listMode === 'pages', keepPreviousPage: true, notifyOnError: false }
   );
   const query = listMode === 'infinite' ? infinite : paged;
@@ -425,6 +430,8 @@ function RequestsContent() {
         channelTagFilter={channelTagFilter}
         apiKeyGroupFilter={apiKeyGroupFilter}
         apiKeyFilter={apiKeyFilter}
+        sessionID={sessionID}
+        onSessionFilter={(id) => updateRequestSearch((draft) => setSearchString(draft, REQUEST_FILTER_SEARCH_KEYS.sessionID, id))}
         modelIDFilter={modelIDFilter}
         dateRange={dateRange}
         queryWhere={whereClause}

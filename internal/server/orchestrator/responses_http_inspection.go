@@ -121,6 +121,7 @@ func restoreHTTPRouteAfterOriginLoss(ctx context.Context, s *PersistenceState, r
 		return false, err
 	}
 	req.Messages, req.ProviderExtensions, req.PreviousResponseID = restored.Messages, restored.ProviderExtensions, nil
+	applyRecoveredReasoning(req, restored)
 	req.RawRequest.Body, req.RawRequest.JSONBody = body, body
 	c.original, c.previous = body, ""
 	return true, nil

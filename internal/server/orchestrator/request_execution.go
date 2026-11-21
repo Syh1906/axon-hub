@@ -256,11 +256,17 @@ type dispatchRecordingExecutor struct {
 	clock     *contexts.AttemptClock
 }
 
-func (e dispatchRecordingExecutor) record(ctx context.Context, err error) {
+func (e dispatchRecordingExecutor) record(ctx context.Context, req *httpclient.Request, err error) {
 	// Responses can reject a continuation inside its executor before delegating
 	// to HTTP. These typed errors never represent a provider response.
 	if errors.Is(err, httpclient.ErrRequestNotSent) || errors.Is(err, httpclient.ErrContinuationUnavailable) || errors.Is(err, httpclient.ErrContinuationRestoreFailed) {
 		return
+	}
+	if err != nil {
+		uploaded, headers := req.TransportTrace.ResponseTimes()
+		if req.TransportTrace.Snapshot().HTTPObserved && uploaded == nil && headers == nil {
+			return
+		}
 	}
 	selection := *e.execution.Selection
 	selection.Dispatch = objects.RequestExecutionDispatchStarted
@@ -279,7 +285,7 @@ func (e dispatchRecordingExecutor) Do(ctx context.Context, request *httpclient.R
 	}
 	response, err := e.Executor.Do(ctx, request)
 	if active {
-		e.record(ctx, err)
+		e.record(ctx, request, err)
 	}
 	return response, err
 }
@@ -291,7 +297,7 @@ func (e dispatchRecordingExecutor) DoStream(ctx context.Context, request *httpcl
 	}
 	stream, err := e.Executor.DoStream(ctx, request)
 	if active {
-		e.record(ctx, err)
+		e.record(ctx, request, err)
 	}
 	return stream, err
 }
@@ -305,6 +311,7 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawResponse(ctx context.Co
 				observePeerBillingTier(m.outbound.state.RequestExec, response.Body, false)
 			}
 			observeServiceTier(m.outbound.state.RequestExec, response.Body, false)
+			observeResponseEffort(m.outbound.state.RequestExec, "", response.Body, false)
 		}
 		state := m.outbound.state
 		if state != nil && state.RequestExec != nil {

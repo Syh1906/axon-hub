@@ -26,6 +26,7 @@ import { CompactTokens } from './components/compact-tokens';
 import { Cost } from './components/cost';
 import { PageError } from './components/page-error';
 import { UsagePageShell } from './components/page-shell';
+import { RequestSessionFilter } from '@/features/requests/components/request-session-filter';
 import { UsageRequestTable } from './components/request-table';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
@@ -381,7 +382,11 @@ export function RequestLog({
   onScopeMismatch,
   loadRequests,
   queryScope,
+  sessionID,
+  onSessionFilter,
 }: {
+  sessionID: string;
+  onSessionFilter: (id: string) => void;
   loadRequests?: (
     model: RequestStatus | string | null,
     status: RequestStatus | null,
@@ -404,11 +409,11 @@ export function RequestLog({
   const [status, setStatus] = useState<RequestStatus | null>(null);
   const [page, setPage] = useState(1);
   const result = useQuery({
-    queryKey: [...(queryScope ?? ['selfUsage']), 'requests', scopeRevision, group, range.start, range.end, model, status, page],
+    queryKey: [...(queryScope ?? ['selfUsage']), 'requests', scopeRevision, group, range.start, range.end, model, status, sessionID, page],
     queryFn: ({ signal }) =>
       loadRequests
         ? loadRequests(model, status, page, signal)
-        : fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group),
+        : fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group, sessionID || undefined),
     staleTime: 0,
     gcTime: 0,
   });
@@ -420,6 +425,7 @@ export function RequestLog({
     if (scopeMismatch) onScopeMismatch();
   }, [scopeMismatch, onScopeMismatch]);
   const data = scopeMismatch || !expectedScope ? undefined : result.data;
+  const changeSession = (id: string) => { setPage(1); onSessionFilter(id); };
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.pageSize ?? 20)));
   return (
     <Card>
@@ -464,7 +470,9 @@ export function RequestLog({
               ))}
             </SelectContent>
           </Select>
+          <RequestSessionFilter key={sessionID} value={sessionID} onChange={changeSession} />
         </div>
+        {sessionID && <p className='text-muted-foreground text-sm'>{t('requests.session.retention')}</p>}
       </CardHeader>
       <CardContent className='space-y-4'>
         {result.error && (
@@ -478,7 +486,7 @@ export function RequestLog({
         {(result.isPending || scopeMismatch || !expectedScope) && <p role='status'>{t('selfUsage.loading')}</p>}
         {data && (
           <>
-            <UsageRequestTable items={data.items} meta={meta} channelVisible={data.channelVisible} />
+            <UsageRequestTable onSessionFilter={changeSession} items={data.items} meta={meta} channelVisible={data.channelVisible} />
             <div className='flex items-center justify-between gap-2 text-sm'>
               <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t('selfUsage.requests.previous')}
@@ -508,14 +516,15 @@ function Dashboard({
 }) {
   const { t } = useTranslation();
   const [group, setGroup] = useState(false);
+  const [sessionID, setSessionID] = useState('');
   // A log-only interaction can discover reassignment before the summary does.
   // Advance both queries together so old totals and a new group log cannot mix.
   const [scopeRevision, setScopeRevision] = useState(0);
   const syncScope = useCallback(() => setScopeRevision((value) => value + 1), []);
   const [range, setRange] = useState<DateRange>(() => presetRange('last7', meta.timezone));
   const stats = useQuery({
-    queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end],
-    queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group),
+    queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end, sessionID],
+    queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group, sessionID || undefined),
     // Membership can change while this page is open; do not reuse a previous scope after toggling.
     staleTime: 0,
     gcTime: 0,
@@ -540,6 +549,7 @@ function Dashboard({
         </div>
       )}
       <DatePicker meta={meta} onChange={setRange} />
+      {sessionID && <p className='text-muted-foreground break-all text-sm'>{t('requests.session.selected', { id: sessionID })}</p>}
       {stats.isPending && <p role='status'>{t('selfUsage.loading')}</p>}
       {stats.error && (
         <PageError
@@ -559,6 +569,8 @@ function Dashboard({
       <RequestLog
         key={`${group}:${range.start}:${range.end}`}
         group={group}
+        sessionID={sessionID}
+        onSessionFilter={setSessionID}
         keyValue={keyValue}
         range={range}
         meta={meta}

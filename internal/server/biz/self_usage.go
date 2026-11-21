@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect"
@@ -77,6 +78,9 @@ type SelfUsageStats struct {
 }
 
 type SelfUsageRequest struct {
+	ClientSessionID       *string
+	ResultUnconfirmed     bool
+	ReasoningEvidence     *objects.RequestReasoningEvidence
 	Channel               *SelfUsageChannel
 	ModelExecutions       []SelfUsageModelExecution
 	CallerKeyName         string
@@ -131,7 +135,13 @@ type SelfUsageRequestPage struct {
 // The request predicates are applied to every request query and again to the
 // request side of every usage join. Usage-log key/project fields are not used
 // as a substitute: the request is the authoritative owner and time anchor.
+type SelfUsageFilter struct {
+	Group     bool
+	SessionID string
+}
+
 type selfUsageScope struct {
+	sessionID      string
 	channelVisible bool
 	id             string
 	apiKeyName     string
@@ -187,7 +197,7 @@ func (s *SelfUsageService) Meta(ctx context.Context) (*SelfUsageMeta, error) {
 	})
 }
 
-func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, group ...bool) (selfUsageScope, time.Time, error) {
+func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, filters ...SelfUsageFilter) (selfUsageScope, time.Time, error) {
 	key, err := selfUsageKey(ctx)
 	if err != nil {
 		return selfUsageScope{}, time.Time{}, err
@@ -230,7 +240,10 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, gr
 			}
 			result.apiKeyName = labels[current.ID]
 		}
-		if len(group) > 0 && group[0] {
+		if len(filters) > 0 {
+			result.sessionID = strings.TrimSpace(filters[0].SessionID)
+		}
+		if len(filters) > 0 && filters[0].Group {
 			if result.groupName == nil {
 				return result, fmt.Errorf("group usage is unavailable")
 			}
@@ -246,10 +259,14 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, gr
 }
 
 func (scope selfUsageScope) requestQuery(client *ent.Client) *ent.RequestQuery {
-	return client.Request.Query().Where(
+	q := client.Request.Query().Where(
 		request.APIKeyIDIn(scope.keyIDs...), request.ProjectIDEQ(scope.projectID),
 		request.SourceEQ(request.SourceAPI), request.CreatedAtGTE(scope.start), request.CreatedAtLT(scope.end),
 	)
+	if scope.sessionID != "" {
+		q.Where(request.ClientSessionIDEQ(scope.sessionID))
+	}
+	return q
 }
 
 func (scope selfUsageScope) join(s *sql.Selector) *sql.SelectTable {
@@ -351,8 +368,8 @@ func (summary *SelfUsageSummary) finishCost() {
 	}
 }
 
-func (s *SelfUsageService) Stats(ctx context.Context, start, end string, group ...bool) (*SelfUsageStats, error) {
-	scope, first, err := s.rangeScope(ctx, start, end, group...)
+func (s *SelfUsageService) Stats(ctx context.Context, start, end string, filters ...SelfUsageFilter) (*SelfUsageStats, error) {
+	scope, first, err := s.rangeScope(ctx, start, end, filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -444,8 +461,8 @@ func (s *SelfUsageService) statsForScope(ctx context.Context, scope selfUsageSco
 	})
 }
 
-func (s *SelfUsageService) Requests(ctx context.Context, start, end string, model *string, status string, page, pageSize int, group ...bool) (*SelfUsageRequestPage, error) {
-	scope, _, err := s.rangeScope(ctx, start, end, group...)
+func (s *SelfUsageService) Requests(ctx context.Context, start, end string, model *string, status string, page, pageSize int, filters ...SelfUsageFilter) (*SelfUsageRequestPage, error) {
+	scope, _, err := s.rangeScope(ctx, start, end, filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -479,12 +496,16 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		if err != nil {
 			return nil, fmt.Errorf("count self usage requests: %w", err)
 		}
+		order := sql.OrderDesc()
+		if scope.sessionID != "" {
+			order = sql.OrderAsc()
+		}
 		requests, err := query().Select(
 			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
 			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldStreamTiming,
 			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
-			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure,
-		).Order(request.ByCreatedAt(sql.OrderDesc()), request.ByID(sql.OrderDesc())).
+			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure, request.FieldClientSessionID,
+		).Order(request.ByCreatedAt(order), request.ByID(order)).
 			Limit(pageSize).Offset((page - 1) * pageSize).All(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list self usage requests: %w", err)
@@ -549,7 +570,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 			if !ok {
 				usage.finishCost()
 			}
-			row := SelfUsageRequest{APIKeyName: labels[req.APIKeyID],
+			row := SelfUsageRequest{APIKeyName: labels[req.APIKeyID], ClientSessionID: req.ClientSessionID,
 				ID: req.ID, CreatedAt: req.CreatedAt, Model: req.ModelID, Stream: req.Stream,
 				InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens,
 				CacheReadTokens: usage.CacheReadTokens, CacheWriteTokens: usage.CacheWriteTokens,
@@ -557,6 +578,7 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 				Cost: usage.Cost, UsageRecords: usage.UsageRecords, UnpricedRecords: usage.UnpricedRecords,
 			}
 			display := displays[req.ID]
+			row.ReasoningEvidence, row.ResultUnconfirmed = display.ReasoningEvidence, display.ResultUnconfirmed
 			row.Channel, row.ModelExecutions = display.Channel, display.ModelExecutions
 			row.ExecutedModels, row.ReasoningEffort = display.ExecutedModels, display.ReasoningEffort
 			row.Format, row.OutboundFormat = display.Format, display.OutboundFormat

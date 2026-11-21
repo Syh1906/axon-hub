@@ -85,6 +85,11 @@ func TraceID(v int) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldTraceID, v))
 }
 
+// ClientSessionID applies equality check predicate on the "client_session_id" field. It's identical to ClientSessionIDEQ.
+func ClientSessionID(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldClientSessionID, v))
+}
+
 // ContinuationKey applies equality check predicate on the "continuation_key" field. It's identical to ContinuationKeyEQ.
 func ContinuationKey(v string) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldContinuationKey, v))
@@ -388,6 +393,81 @@ func TraceIDIsNil() predicate.Request {
 // TraceIDNotNil applies the NotNil predicate on the "trace_id" field.
 func TraceIDNotNil() predicate.Request {
 	return predicate.Request(sql.FieldNotNull(FieldTraceID))
+}
+
+// ClientSessionIDEQ applies the EQ predicate on the "client_session_id" field.
+func ClientSessionIDEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldClientSessionID, v))
+}
+
+// ClientSessionIDNEQ applies the NEQ predicate on the "client_session_id" field.
+func ClientSessionIDNEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldClientSessionID, v))
+}
+
+// ClientSessionIDIn applies the In predicate on the "client_session_id" field.
+func ClientSessionIDIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldClientSessionID, vs...))
+}
+
+// ClientSessionIDNotIn applies the NotIn predicate on the "client_session_id" field.
+func ClientSessionIDNotIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldClientSessionID, vs...))
+}
+
+// ClientSessionIDGT applies the GT predicate on the "client_session_id" field.
+func ClientSessionIDGT(v string) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldClientSessionID, v))
+}
+
+// ClientSessionIDGTE applies the GTE predicate on the "client_session_id" field.
+func ClientSessionIDGTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldClientSessionID, v))
+}
+
+// ClientSessionIDLT applies the LT predicate on the "client_session_id" field.
+func ClientSessionIDLT(v string) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldClientSessionID, v))
+}
+
+// ClientSessionIDLTE applies the LTE predicate on the "client_session_id" field.
+func ClientSessionIDLTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldClientSessionID, v))
+}
+
+// ClientSessionIDContains applies the Contains predicate on the "client_session_id" field.
+func ClientSessionIDContains(v string) predicate.Request {
+	return predicate.Request(sql.FieldContains(FieldClientSessionID, v))
+}
+
+// ClientSessionIDHasPrefix applies the HasPrefix predicate on the "client_session_id" field.
+func ClientSessionIDHasPrefix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasPrefix(FieldClientSessionID, v))
+}
+
+// ClientSessionIDHasSuffix applies the HasSuffix predicate on the "client_session_id" field.
+func ClientSessionIDHasSuffix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasSuffix(FieldClientSessionID, v))
+}
+
+// ClientSessionIDIsNil applies the IsNil predicate on the "client_session_id" field.
+func ClientSessionIDIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldClientSessionID))
+}
+
+// ClientSessionIDNotNil applies the NotNil predicate on the "client_session_id" field.
+func ClientSessionIDNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldClientSessionID))
+}
+
+// ClientSessionIDEqualFold applies the EqualFold predicate on the "client_session_id" field.
+func ClientSessionIDEqualFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldEqualFold(FieldClientSessionID, v))
+}
+
+// ClientSessionIDContainsFold applies the ContainsFold predicate on the "client_session_id" field.
+func ClientSessionIDContainsFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldContainsFold(FieldClientSessionID, v))
 }
 
 // ContinuationKeyEQ applies the EQ predicate on the "continuation_key" field.

@@ -1,5 +1,9 @@
 # API Key self usage
 
+The first column shows the request number and streaming mode, the client session ID, then the request status. Select a short session ID to filter or use its copy button to copy the full value. Pasting the full ID and pressing Enter performs a case-sensitive exact match within the selected dates and access scope. Matching requests are shown oldest first. The key usage summary, trend, and model totals also follow the session filter. The project request log preserves the filter on refresh. Totals include archived requests with the matching session ID. The log lists retained request details.
+
+Clients can send `AH-Session-Id`. Native Codex, Claude Code, and OpenCode session identifiers are recognized when their tracing options are enabled. An unknown session is shown as a dash. The reasoning badge uses the adopted provider response's reported effort when available, followed by the final outbound effort. Hover over the badge for the source. Historical values without wire evidence are marked unverified.
+
 Administrators can edit a group's name or note using the pencil in Project → Key groups, and enable or disable it with the inline switch. Click a quota to set, increase, or remove that period's limit while retaining usage and reset schedules. Click expiry to extend it, choose a date, or remove expiry, then save; renewal does not enable a disabled group. Batch management retains its preview workflow. Cycle settings and quota resets remain available under Advanced in the row menu.
 
 If the submission result was received but the list failed to refresh, use Refresh in the editor without saving again. If the request outcome is unknown, defer recovery and resume the original operation from the page; already successful operations are not repeated.

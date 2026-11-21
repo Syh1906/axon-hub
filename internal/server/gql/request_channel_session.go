@@ -20,16 +20,23 @@ import (
 
 type requestChannelSessionCacheKey struct{}
 
+type logResultExecution struct {
+	row *ent.RequestExecution
+	err error
+}
+
 type requestChannelSessionCache struct {
 	sync.RWMutex
-	states map[int]string
-	final  map[int]*ent.RequestExecution
+	states  map[int]string
+	results map[int]logResultExecution
+	final   map[int]*ent.RequestExecution
 }
 
 func withRequestChannelSessionCache(ctx context.Context) context.Context {
 	return context.WithValue(ctx, requestChannelSessionCacheKey{}, &requestChannelSessionCache{
-		states: make(map[int]string),
-		final:  make(map[int]*ent.RequestExecution),
+		states:  make(map[int]string),
+		results: make(map[int]logResultExecution),
+		final:   make(map[int]*ent.RequestExecution),
 	})
 }
 
@@ -45,11 +52,12 @@ func cacheRequestChannelSessions(ctx context.Context, client *ent.Client, reques
 		fields = requestLogFields(op, requestLogFields(op, fields, "edges"), "node")
 	}
 	var aliases []string
+	var loadResult bool
 	var loadFinal bool
 	var loadFinalState bool
 	for _, field := range fields {
 		if field.Name == "resultExecution" {
-			loadFinal = true
+			loadResult = true
 		}
 		if field.Name == "sessionExecution" && canReadChannels {
 			loadFinal = true
@@ -67,11 +75,19 @@ func cacheRequestChannelSessions(ctx context.Context, client *ent.Client, reques
 	}
 	var ids []int
 	var finals map[int]*ent.RequestExecution
-	if loadFinal {
-		requestIDs := make([]int, 0, len(requests))
-		for _, request := range requests {
-			requestIDs = append(requestIDs, request.ID)
+	requestIDs := make([]int, 0, len(requests))
+	for _, req := range requests {
+		requestIDs = append(requestIDs, req.ID)
+	}
+	if loadResult {
+		results, err := biz.RequestLogResultExecutions(ctx, client, requestIDs)
+		cache.Lock()
+		for _, id := range requestIDs {
+			cache.results[id] = logResultExecution{row: results[id], err: err}
 		}
+		cache.Unlock()
+	}
+	if loadFinal {
 		finals = loadRequestSessionExecutions(ctx, client, requestIDs)
 		if loadFinalState {
 			for _, execution := range finals {
@@ -128,6 +144,19 @@ func requestSessionExecution(ctx context.Context, client *ent.Client, id int) *e
 		}
 	}
 	return loadRequestSessionExecutions(ctx, client, []int{id})[id]
+}
+
+func requestLogResultExecution(ctx context.Context, client *ent.Client, id int) (*ent.RequestExecution, error) {
+	if cache, ok := ctx.Value(requestChannelSessionCacheKey{}).(*requestChannelSessionCache); ok {
+		cache.RLock()
+		result, found := cache.results[id]
+		cache.RUnlock()
+		if found {
+			return result.row, result.err
+		}
+	}
+	results, err := biz.RequestLogResultExecutions(ctx, client, []int{id})
+	return results[id], err
 }
 
 func finalSessionAttempt(db string, req *sql.SelectTable, field string) *sql.Selector {

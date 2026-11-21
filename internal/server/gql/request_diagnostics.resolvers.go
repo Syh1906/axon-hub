@@ -88,7 +88,7 @@ func (r *queryResolver) RequestLogs(ctx context.Context, after *entgql.Cursor[in
 	if err := validatePaginationArgs(first, last); err != nil {
 		return nil, err
 	}
-	if orderBy != nil && orderBy.Field.String() == "CREATED_AT" {
+	if orderBy != nil && orderBy.Field.String() == "CREATED_AT" && (where == nil || where.ClientSessionID == nil) {
 		orderBy.Field = ent.DefaultRequestOrder.Field
 	}
 	query, err := r.requestLogQuery(ctx, filter)
@@ -152,11 +152,12 @@ func (r *requestResolver) SessionExecution(ctx context.Context, obj *ent.Request
 
 // ResultExecution is the resolver for the resultExecution field.
 func (r *requestResolver) ResultExecution(ctx context.Context, obj *ent.Request) (*RequestResultExecution, error) {
-	execution := requestSessionExecution(ctx, r.client, obj.ID)
-	if execution == nil {
-		return nil, nil
+	execution, err := requestLogResultExecution(ctx, r.client, obj.ID)
+	if err != nil || execution == nil {
+		return nil, err
 	}
 	return &RequestResultExecution{
 		ID: objects.GUID{Type: ent.TypeRequestExecution, ID: execution.ID}, ResponseStatusCode: execution.ResponseStatusCode,
+		ReasoningEffort: execution.ReasoningEvidence.Effective(execution.ReasoningEffort), ReasoningEvidence: execution.ReasoningEvidence,
 	}, nil
 }
