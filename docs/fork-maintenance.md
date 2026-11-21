@@ -1,5 +1,10 @@
 # Fork 维护台账
 
+## rc1-fork.19 正式发布与双站验收（2026-11-21）
+
+- [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.19)与[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44894197547)对应提交 `03a4314204c585d0409a46e10715c540eb0b2b10`。独立复核、本地真实慢传测试及同提交 Test、Build、Lint、Govulncheck 通过。双站镜像摘要 `sha256:074c7bc9435d47800d7541be7b9c7de8199d4706a8588379eda225a560c59a47`。
+- 新加坡时间 18:32:43 切换云悠，18:35:04 切换泉哥。两站公网健康接口返回新版本与目标提交，容器健康、无意外重启，数据库容器 ID 保持一致，升级后均有成功业务请求。切换前采样，云悠无在途请求，泉哥 8 笔中 6 笔取消、2 笔失败，客户端是否逐笔重试无法确认。发布验收时尚未观察到生产自然流量触发新策略，实际首字收益需要后续同条件样本。
+
 ## Responses 大请求自动选择上传协议（fork.19）
 
 同步上游时核对同一请求只走一次协议选择、同源在途上限、配置与账号隔离、上传超时退回自动协商，以及 WebSocket 和 zstd 的适用条件。[连接学习实现](../llm/httpclient/transport_protocol_learning.go) · [使用说明](zh/guides/storage-maintenance.md)
