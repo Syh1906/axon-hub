@@ -28,6 +28,7 @@ type RequestPayloadConfig struct {
 	Directory                string   `conf:"directory" yaml:"directory" json:"directory"`
 	CachedImagesOnlyChannels []int    `conf:"cached_images_only_channels" yaml:"cached_images_only_channels" json:"cached_images_only_channels"`
 	ResponsesZstdEndpoints   []string `conf:"responses_zstd_endpoints" yaml:"responses_zstd_endpoints" json:"responses_zstd_endpoints"`
+	ResponsesHTTP1Endpoints  []string `conf:"responses_http1_endpoints" yaml:"responses_http1_endpoints" json:"responses_http1_endpoints"`
 	DisabledZstdEndpoints    []string `conf:"disabled_zstd_endpoints" yaml:"disabled_zstd_endpoints" json:"disabled_zstd_endpoints"`
 	DisableZstdAdvertisement bool     `conf:"disable_zstd_advertisement" yaml:"disable_zstd_advertisement" json:"disable_zstd_advertisement"`
 	DisableZstdLearning      bool     `conf:"disable_zstd_learning" yaml:"disable_zstd_learning" json:"disable_zstd_learning"`
@@ -70,6 +71,14 @@ func (s *RequestPayloadService) ResponsesZstdEndpoints() []string {
 		return nil
 	}
 	return s.config.ResponsesZstdEndpoints
+}
+
+// ResponsesHTTP1Endpoints lists the verified Responses URLs that should use HTTP/1.1.
+func (s *RequestPayloadService) ResponsesHTTP1Endpoints() []string {
+	if s == nil {
+		return nil
+	}
+	return s.config.ResponsesHTTP1Endpoints
 }
 
 // AdvertiseResponsesZstd reports whether this gateway accepts negotiated request coding.

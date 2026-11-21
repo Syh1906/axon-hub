@@ -372,6 +372,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("request_payload.directory", "data/request-payloads")
 	v.SetDefault("request_payload.cached_images_only_channels", []int{})
 	v.SetDefault("request_payload.responses_zstd_endpoints", []string{})
+	v.SetDefault("request_payload.responses_http1_endpoints", []string{})
 	v.SetDefault("request_payload.disabled_zstd_endpoints", []string{})
 	v.SetDefault("request_payload.disable_zstd_advertisement", false)
 	v.SetDefault("request_payload.disable_zstd_learning", false)

@@ -33,6 +33,8 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 		if request.APIFormat == string(llm.APIFormatOpenAIResponse) || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
 			payload := state.RequestService.PayloadService
 			request.ZstdEndpoints, request.NoZstdEndpoints = payload.ResponsesZstdEndpoints(), payload.DisabledResponsesZstdEndpoints()
+			// The HTTP transport applies this only if the executor actually sends an HTTPS POST.
+			request.HTTP1Endpoints = payload.ResponsesHTTP1Endpoints()
 			request.LearnZstd = payload.LearnResponsesZstd() && len(channel.GetHeaderOverrideOperations()) == 0
 		}
 		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, channel.ID, request.Body, func() httpclient.UploadEstimate {

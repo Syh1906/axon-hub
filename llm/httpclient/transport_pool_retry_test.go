@@ -103,7 +103,7 @@ func TestRecoveryClosesOutsideTraceAndPoolLocks(t *testing.T) {
 	pool := newRecoveringTransport(&http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) {
 		return closing, nil
 	}})
-	generation := pool.newGeneration()
+	generation := pool.newGeneration(false)
 	_, err := generation.transport.DialContext(t.Context(), "tcp", "test.invalid:443")
 	require.NoError(t, err)
 	origin := &originPool{current: generation}

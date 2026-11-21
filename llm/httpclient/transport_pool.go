@@ -56,11 +56,20 @@ func newRecoveringTransport(template *http.Transport) *recoveringTransport {
 	return &recoveringTransport{template: template, tlsConfig: template.TLSClientConfig.Clone(), origins: make(map[string]*originPools)}
 }
 
-func (t *recoveringTransport) newGeneration() *poolGeneration {
+func (t *recoveringTransport) newGeneration(http1Only bool) *poolGeneration {
 	generation := &poolGeneration{
 		id: nextPoolGeneration.Add(1), transport: t.template.Clone(),
 		conns:    make(map[*identifiedConn]struct{}),
 		attempts: make(map[*poolUpload]struct{}),
+	}
+	if http1Only {
+		tr := generation.transport
+		tr.Protocols = new(http.Protocols)
+		tr.Protocols.SetHTTP1(true)
+		// Clone can inherit h2 in ALPN from an already initialized template.
+		if tr.TLSClientConfig != nil {
+			tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
+		}
 	}
 	dial := generation.transport.DialContext
 	if dial == nil {
@@ -113,16 +122,22 @@ func (g *poolGeneration) prepareClose() func() {
 }
 
 type transportObserverKey struct{}
+type http1EndpointKey struct{}
 
 func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req, encoding := t.encodings.prepare(req)
-	// The enclosing http.Client validates the URL. Paths and credentials do
-	// not participate in the key or in transport diagnostics.
+	// Keep both protocols' connections separate even for paths on the same host.
 	origin := strings.ToLower(req.URL.Scheme + "://" + req.URL.Host)
+	endpoint, _ := req.Context().Value(http1EndpointKey{}).(string)
+	// An explicit socket budget must remain shared by all paths on the host.
+	http1Only := endpoint != "" && req.Response == nil && t.template.MaxConnsPerHost <= 0 && req.URL.String() == endpoint
+	if http1Only {
+		origin = "http1 " + origin
+	}
 	t.mu.Lock()
 	pools := t.origins[origin]
 	if pools == nil {
-		pools = &originPools{lanes: []*originPool{{current: t.newGeneration()}}}
+		pools = &originPools{http1Only: http1Only, lanes: []*originPool{{current: t.newGeneration(http1Only)}}}
 		t.origins[origin] = pools
 	}
 	pool, action := t.chooseUploadPool(pools, time.Now())
@@ -256,7 +271,7 @@ func (t *recoveringTransport) recoverUpload(origin string, pool *originPool, gen
 	if pool.draining != nil {
 		return "previous_pool_draining", nil
 	}
-	pool.current = t.newGeneration()
+	pool.current = t.newGeneration(t.origins[origin].http1Only)
 	pool.draining = generation
 	pool.recoveryBytes = bodyBytes
 	pool.lastStall = nil

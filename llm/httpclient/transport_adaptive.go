@@ -18,6 +18,7 @@ const (
 )
 
 type originPools struct {
+	http1Only    bool
 	lanes        []*originPool
 	next         uint64
 	probe        *uploadPoolProbe
@@ -144,7 +145,7 @@ func (t *recoveringTransport) chooseUploadPool(pools *originPools, now time.Time
 	// The last admitting lane may have idled out while a rejected probe still
 	// drains a long response. Reopen baseline capacity without reviving that probe.
 	if best == nil {
-		best = &originPool{current: t.newGeneration()}
+		best = &originPool{current: t.newGeneration(pools.http1Only)}
 		pools.lanes = append(pools.lanes, best)
 		return best, "baseline_reopened"
 	}
@@ -169,7 +170,7 @@ func (t *recoveringTransport) chooseUploadPool(pools *originPools, now time.Time
 	if evidence == nil {
 		return best, action
 	}
-	lane := &originPool{current: t.newGeneration()}
+	lane := &originPool{current: t.newGeneration(pools.http1Only)}
 	pools.lanes = append(pools.lanes, lane)
 	pools.probe = &uploadPoolProbe{
 		lane: lane, generation: lane.current, bytes: evidence.bytes,

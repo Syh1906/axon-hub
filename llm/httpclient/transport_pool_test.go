@@ -53,6 +53,55 @@ func poolTestServer(t *testing.T, h2 bool, handler http.HandlerFunc) (*httptest.
 	return server, client
 }
 
+func TestResponsesHTTP1EndpointKeepsConnectionsAndScopesRedirects(t *testing.T) {
+	server, client := poolTestServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		if r.URL.Path == "/redirect" {
+			http.Redirect(w, r, "/other", http.StatusTemporaryRedirect)
+			return
+		}
+		w.Header().Set("X-Received-Encoding", r.Header.Get("Content-Encoding"))
+		_, _ = io.WriteString(w, r.Proto)
+	})
+	endpoint := server.URL + "/responses"
+	body := bytes.Repeat([]byte(" "), minZstdRequestBytes)
+	call := func(path string) (*Response, TransportTimings) {
+		t.Helper()
+		req := &Request{
+			Method: http.MethodPost, URL: server.URL + path, ContentType: "application/json", Body: body,
+			HTTP1Endpoints: []string{endpoint, server.URL + "/redirect"}, ZstdEndpoints: []string{endpoint},
+		}
+		resp, err := client.Do(t.Context(), req)
+		require.NoError(t, err)
+		return resp, req.TransportTrace.Snapshot()
+	}
+	other, _ := call("/other")
+	require.Equal(t, "HTTP/2.0", string(other.Body))
+	first, firstTiming := call("/responses")
+	require.Equal(t, "HTTP/1.1", string(first.Body))
+	require.Equal(t, "zstd", first.Headers.Get("X-Received-Encoding"))
+	_, nextTiming := call("/responses")
+	require.NotZero(t, firstTiming.ConnectionID)
+	require.Equal(t, firstTiming.ConnectionID, nextTiming.ConnectionID)
+	require.NotNil(t, nextTiming.Reused)
+	require.True(t, *nextTiming.Reused)
+	redirected, _ := call("/redirect")
+	require.Equal(t, "HTTP/2.0", string(redirected.Body))
+	require.Empty(t, redirected.Headers.Get("X-Received-Encoding"))
+
+	// Callers with a per-host socket limit retain one pool across both paths.
+	limited := server.Client().Transport.(*http.Transport).Clone()
+	limited.MaxConnsPerHost = 1
+	bounded := NewHttpClientWithClient(&http.Client{Transport: newRecoveringTransport(limited)})
+	t.Cleanup(bounded.CloseIdleConnections)
+	for _, path := range []string{"/responses", "/other"} {
+		r := &Request{Method: http.MethodPost, URL: server.URL + path, Body: []byte("{}"), HTTP1Endpoints: []string{endpoint}}
+		reply, err := bounded.Do(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, "HTTP/2.0", string(reply.Body))
+	}
+}
+
 // A response held open while another request's upload stalls is the failure
 // mode that makes closing the shared TCP connection unsafe under HTTP/2.
 func TestUploadRecoveryDrainsWithoutInterruptingOtherRequests(t *testing.T) {
@@ -398,7 +447,7 @@ func TestRetiredPoolClosesLateDial(t *testing.T) {
 		<-finish
 		return conn, nil
 	}})
-	generation := pool.newGeneration()
+	generation := pool.newGeneration(false)
 	done := poolTestAsync(func() error {
 		_, err := generation.transport.DialContext(t.Context(), "tcp", "late.invalid:443")
 		return err

@@ -13,6 +13,7 @@ request_payload:
   compaction_cooldown_mode: observe   # observe | enforce | off. Identical Codex compactions, per instance, 30s after a first-event timeout.
   cached_images_only_channels: []
   responses_zstd_endpoints: []
+  responses_http1_endpoints: []        # Exact HTTPS Responses POST URLs tested with HTTP/1.1 keep-alive.
   disabled_zstd_endpoints: []          # Always use plain JSON, including after a peer advertises zstd.
   disable_zstd_advertisement: false   # Set true if the ingress proxy rejects zstd request bodies.
   disable_zstd_learning: false        # Only explicitly enabled endpoints may then use zstd.

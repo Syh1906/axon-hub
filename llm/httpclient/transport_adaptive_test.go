@@ -16,7 +16,7 @@ import (
 func adaptiveFixture(t *testing.T) (*recoveringTransport, *originPools, time.Time) {
 	t.Helper()
 	transport := newRecoveringTransport(&http.Transport{IdleConnTimeout: time.Minute})
-	pools := &originPools{lanes: []*originPool{{current: transport.newGeneration()}}}
+	pools := &originPools{lanes: []*originPool{{current: transport.newGeneration(false)}}}
 	transport.origins["https://upstream.invalid"] = pools
 	t.Cleanup(transport.CloseIdleConnections)
 	now := time.Now()
@@ -181,13 +181,13 @@ func TestAdaptiveUploadRejectsUnhelpfulProbeAndDrains(t *testing.T) {
 
 func TestAdaptiveUploadBoundAndExistingCapacity(t *testing.T) {
 	transport, pools, now := adaptiveFixture(t)
-	idle := &originPool{current: transport.newGeneration()}
+	idle := &originPool{current: transport.newGeneration(false)}
 	pools.lanes = append(pools.lanes, idle)
 	chosen, action := transport.chooseUploadPool(pools, now)
 	require.Same(t, idle, chosen)
 	require.Empty(t, action, "use spare capacity before creating another pool")
 	for len(pools.lanes) < maxUploadPools {
-		pools.lanes = append(pools.lanes, &originPool{current: transport.newGeneration()})
+		pools.lanes = append(pools.lanes, &originPool{current: transport.newGeneration(false)})
 	}
 	for _, lane := range pools.lanes[1:] {
 		for range 2 {
@@ -307,7 +307,7 @@ func TestAdaptiveUploadRecoveryIsLocalToSelectedLane(t *testing.T) {
 
 func TestAdaptiveUploadSeparatesOriginsAndClientPolicies(t *testing.T) {
 	transport, pools, now := adaptiveFixture(t)
-	other := &originPools{lanes: []*originPool{{current: transport.newGeneration()}}}
+	other := &originPools{lanes: []*originPool{{current: transport.newGeneration(false)}}}
 	transport.origins["https://other.invalid"] = other
 	transport.chooseUploadPool(pools, now)
 	require.Len(t, pools.lanes, 2)
@@ -345,7 +345,7 @@ func TestAdaptiveUploadReclaimsIdleLaneWhileResponseStaysOpen(t *testing.T) {
 	managed.mu.Lock()
 	pools := managed.origins[server.URL]
 	old := pools.lanes[0].current
-	lane := &originPool{current: managed.newGeneration()}
+	lane := &originPool{current: managed.newGeneration(false)}
 	pools.lanes = append(pools.lanes, lane)
 	managed.mu.Unlock()
 	_, err = client.Do(t.Context(), &Request{Method: http.MethodGet, URL: server.URL + "/quick"})

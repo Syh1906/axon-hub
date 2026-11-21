@@ -17,6 +17,7 @@ type Request struct {
 	BodyReadAt time.Time `json:"-"`
 	// ZstdEndpoints applies only to an actual HTTP dispatch to an explicitly configured URL.
 	ZstdEndpoints      []string `json:"-"`
+	HTTP1Endpoints     []string `json:"-"`
 	NoZstdEndpoints    []string `json:"-"`
 	LearnZstd          bool     `json:"-"`
 	EncodingScope      int      `json:"-"`

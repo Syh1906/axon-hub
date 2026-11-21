@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptrace"
+	"slices"
 	"sync"
 	"time"
 )
@@ -229,6 +230,11 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 		},
 	}
 	ctx := context.WithValue(raw.Context(), transportObserverKey{}, request.TransportTrace)
+	if raw.Method == http.MethodPost && raw.URL.Scheme == "https" && len(request.HTTP1Endpoints) > 0 {
+		if endpoint := raw.URL.String(); slices.Contains(request.HTTP1Endpoints, endpoint) {
+			ctx = context.WithValue(ctx, http1EndpointKey{}, endpoint)
+		}
+	}
 	if request.LearnZstd || len(request.ZstdEndpoints) != 0 || request.MeasurePlainUpload {
 		ctx = context.WithValue(ctx, requestEncodingKey{}, requestEncodingInput{
 			body: request.Body, endpoints: request.ZstdEndpoints, disabled: request.NoZstdEndpoints,

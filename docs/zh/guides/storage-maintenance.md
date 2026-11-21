@@ -45,6 +45,8 @@
 
 摘要不受 5 分钟文件期限控制：它随数据库中的正文标记保留，按正文清理策略（新初始化默认 7 天）或请求删除一并清理，未开启相应清理时会继续保留。关闭请求正文保存后不采集新摘要。旧标记没有 `images` 时仍正常读取，无需迁移；这不增加缓存容量，但扫描大请求仍有与正文大小相关的短时 CPU 和内存开销。
 
+实测某个 Responses HTTPS 入口用 HTTP/1.1 上传更快时，可把完整 POST URL 加入 `request_payload.responses_http1_endpoints` 并重启应用。网关为该入口保留 HTTP/1.1 长连接；同一主机的其他路径和重定向请求继续协商协议。此设置可以和 zstd 同时使用。复核时查看执行日志中的 `protocol`、`connection_reused`、`wire_body_bytes` 和 `upload_ms`。从列表移除地址并重启即可恢复自动协商。 若调用方已在 Go HTTP 客户端设置每主机连接数硬上限，网关沿用共享池及其协议策略，以保留该上限。
+
 ### Codex 历史压缩的重复请求
 
 `request_payload.compaction_cooldown_mode` 默认是 `observe`。Codex 历史压缩通过普通 Responses HTTP 渠道发出后，如果等到首事件超时，同一实例会记住该次失败。相同压缩任务在 30 秒内再次提交时，观察模式记录命中并继续发送。试点设为 `enforce` 后，匹配的请求直接返回 503 和 `compaction_cooldown`，HTTP 响应附带 `Retry-After`。等待期从原失败结束开始。观察模式的命中保留原窗口。拦截模式下，过期后只放一笔相同请求试探。若这笔请求在本地被队列或预算拒绝，下一个请求仍可试探。设为 `off` 可关闭，配置变更随实例重启生效。
