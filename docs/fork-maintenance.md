@@ -1,5 +1,11 @@
 # Fork 维护台账
 
+## rc1-fork.20 正式发布与双站验收（2026-11-21）
+
+- [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.20)和[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44909451015)对应源码 `76d380c7abb1d2e34dc40004b12b442ec6107233`。同提交 Test、Build、Lint 和 Govulncheck 均通过。精简发布包含 Linux amd64、arm64 镜像与 `release.json`，双站固定镜像摘要为 `sha256:d3a7dcb1c5668bdecc0315012620b9e6da170f826668897d3e682a51d959f233`。
+- 新加坡时间云悠 21:41:38、泉哥 21:43:10 达到容器健康，重建及等待健康分别耗时 6.922 秒和 8.444 秒。两站均核对本机和公网版本、源码提交、初始化、34 项同源前端资源和匿名鉴权。PostgreSQL 容器、应用资源及挂载配置保持一致，临时配置副本已清理，保留 fork.19 回退镜像。
+- 切换前开始、切换后更新的请求中，云悠 1 条取消、1 条失败，泉哥 1 条失败。后续采样两站分别已有 32 条、8 条请求完成，分别有 30 次、6 次加速执行记录了发送凭据。此次没有发起收费探测请求，也没有逐笔核对实际账单。
+
 ## rc1-fork.19 正式发布与双站验收（2026-11-21）
 
 - [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.19)与[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44894197547)对应提交 `03a4314204c585d0409a46e10715c540eb0b2b10`。独立复核、本地真实慢传测试及同提交 Test、Build、Lint、Govulncheck 通过。双站镜像摘要 `sha256:074c7bc9435d47800d7541be7b9c7de8199d4706a8588379eda225a560c59a47`。

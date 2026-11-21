@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+Both production sites upgraded to [fork.20](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.20) on 2026-11-21. The request log and API key usage table show the sent and billed service tiers independently. This release required no database migration. The [maintenance ledger](../../fork-maintenance.md) records health checks, in-flight request outcomes and post-deployment verification.
+
 On 2026-11-21, both production sites upgraded to [fork.19](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.19). Large, slow Responses uploads can now learn a transport preference from normal traffic. See the [maintenance ledger](../../fork-maintenance.md) for the image digest, health checks and in-flight outcomes.
 
 Both production sites deployed [fork.18](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.18) on 2026-11-21. The session and reasoning-evidence migration completed. The verified Responses endpoint now uses HTTP/1.1 keep-alive and request compression. See the [deployment ledger](../../fork-maintenance.md) for cutover times, in-flight requests and production checks, and the [changelog](../../../CHANGELOG.md) for the fork.17 rollback condition.
