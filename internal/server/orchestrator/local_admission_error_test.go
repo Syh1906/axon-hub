@@ -27,10 +27,11 @@ import (
 func localAdmissionCases() map[string]error {
 	ch := &biz.Channel{Channel: &ent.Channel{ID: 42, Name: "test"}}
 	return map[string]error{
-		"queue full":    asChannelQueueError(ch, ErrChannelQueueFull),
-		"queue timeout": asChannelQueueError(ch, ErrChannelQueueTimeout),
-		"rpm":           newLocalRPMExhaustedError(ch, 1),
-		"plugin":        NewPluginOverloadedError(&llm.ResponseError{StatusCode: http.StatusTooManyRequests}),
+		"disabled endpoint": &llm.ResponseError{StatusCode: 422, Detail: llm.ErrorDetail{Code: "no_compatible_endpoint"}, Cause: httpclient.ErrRequestNotSent},
+		"queue full":        asChannelQueueError(ch, ErrChannelQueueFull),
+		"queue timeout":     asChannelQueueError(ch, ErrChannelQueueTimeout),
+		"rpm":               newLocalRPMExhaustedError(ch, 1),
+		"plugin":            NewPluginOverloadedError(&llm.ResponseError{StatusCode: http.StatusTooManyRequests}),
 	}
 }
 
@@ -42,7 +43,8 @@ func TestLocalAdmissionErrorClassification(t *testing.T) {
 			require.True(t, isLocalAdmissionError(errors.Join(errors.New("another cause"), err)))
 		})
 	}
-	for _, err := range []error{nil, context.Canceled, errors.New("network failure"), &httpclient.Error{StatusCode: 429}, &llm.ResponseError{StatusCode: 429}} {
+	for _, err := range []error{nil, context.Canceled, errors.New("network failure"), httpclient.ErrRequestNotSent,
+		&llm.ResponseError{Detail: llm.ErrorDetail{Code: "no_compatible_endpoint"}}, &httpclient.Error{StatusCode: 429}, &llm.ResponseError{StatusCode: 429}} {
 		require.False(t, isLocalAdmissionError(err), "ordinary/upstream errors are not local admission")
 	}
 }

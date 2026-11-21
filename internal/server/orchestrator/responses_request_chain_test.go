@@ -60,6 +60,41 @@ func TestRestoredCiphertextCannotFallbackToAnotherHTTPEndpoint(t *testing.T) {
 	require.EqualValues(t, 1, posts.Load())
 }
 
+func TestDisabledResponsesHTTPCannotBeUsedByUnverifiedWebSocket(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	out, err := responses.NewOutboundTransformerWithConfig(&responses.Config{
+		BaseURL: server.URL, Transport: responses.TransportWebSocket, APIKeyProvider: auth.NewStaticKeyProvider("test"),
+	})
+	require.NoError(t, err)
+	defer out.Stop()
+	ch := &biz.Channel{Channel: &ent.Channel{ID: 1, BaseURL: server.URL, Settings: &objects.ChannelSettings{
+		DisabledEndpoints: []string{"openai/responses"},
+		ModelProtocols:    []objects.ModelProtocol{{Model: "test", APIFormats: []string{"openai/responses-ws", "openai/responses"}}},
+	}}}
+	candidate := &ChannelModelsCandidate{Channel: ch, Models: []biz.ChannelModelEntry{{ActualModel: "test"}}}
+	p := &PersistentOutboundTransformer{state: &PersistenceState{CurrentCandidate: candidate, ChannelService: new(biz.ChannelService)}}
+	ctx := shared.WithResponsesAPI(t.Context())
+	raw := &httpclient.Request{Method: http.MethodPost, URL: out.ResponsesURL(), APIFormat: "openai/responses-ws", Body: []byte(`{"model":"test","input":"hello"}`)}
+	require.NoError(t, p.configureWebSocket(ctx, raw, &ent.RequestExecution{Selection: &objects.RequestExecutionSelection{}}))
+	executor := out.CustomizeExecutor(httpclient.NewHttpClientWithClient(server.Client()))
+	_, err = executor.Do(ctx, raw)
+	require.ErrorIs(t, err, httpclient.ErrRequestNotSent)
+	var rejected *llm.ResponseError
+	require.ErrorAs(t, err, &rejected)
+	require.Equal(t, http.StatusUnprocessableEntity, rejected.StatusCode)
+	require.Equal(t, "no_compatible_endpoint", rejected.Detail.Code)
+	_, err = executor.DoStream(ctx, raw)
+	require.ErrorIs(t, err, httpclient.ErrRequestNotSent)
+	require.Zero(t, calls.Load())
+	chat := &llm.Request{RequestType: llm.RequestTypeChat, APIFormat: llm.APIFormatOpenAIChatCompletion}
+	require.Equal(t, "no_compatible_endpoint", channelProtocolRejection(ch, chat, llm.APIFormatOpenAIResponseWebSocket))
+}
+
 func TestDeliveredHistoryKeepsEffectiveInputAndClientOutput(t *testing.T) {
 	ctx := shared.WithSessionScope(shared.WithResponsesAPI(t.Context()), "fixture-project/key")
 	store := newResponsesSessionStore()

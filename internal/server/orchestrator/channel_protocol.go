@@ -27,6 +27,11 @@ func channelProtocolRejection(ch *biz.Channel, req *llm.Request, target llm.APIF
 		if slices.Contains(disabled, string(target)) && !(target == llm.APIFormatOpenAIResponse && ch.UsesAdaptedResponsesTool(req)) {
 			return "no_compatible_endpoint"
 		}
+		// Other client formats use HTTP when converted by the Responses executor.
+		if target == llm.APIFormatOpenAIResponseWebSocket && !isResponsesFormat(req.APIFormat) &&
+			slices.Contains(disabled, string(llm.APIFormatOpenAIResponse)) {
+			return "no_compatible_endpoint"
+		}
 		if req.RequestType != llm.RequestTypeChat && req.RequestType != "" && slices.Contains(disabled, string(req.APIFormat)) {
 			// Only a real alternative can serve a disabled native endpoint.
 			// OpenAI Images uses the inbound operation to build the final URL even

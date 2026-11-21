@@ -196,7 +196,8 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 			if tc.want == http.StatusOK {
 				require.NotContains(t, response.Body.String(), `"errors"`)
 				require.Contains(t, response.Body.String(), `"currencyDisplayDecimals":4`)
-				require.Contains(t, response.Body.String(), `"reasoningEffort":"high"`)
+			// This fixture records a requested effort but has no upstream execution.
+			require.Contains(t, response.Body.String(), `"reasoningEffort":null`)
 				require.Contains(t, response.Body.String(), `"executedModels":[]`)
 				require.Contains(t, response.Body.String(), `"callerKeyName":"allowed"`)
 				require.NotContains(t, response.Body.String(), "not exposed")

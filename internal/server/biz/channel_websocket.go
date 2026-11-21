@@ -321,6 +321,9 @@ func (cache *wsEvidenceCache) put(key WebSocketScope, sample wsSample) {
 // WebSocketHTTPAllowed accounts for explicit WS-only legacy endpoints/model
 // policies. A channel with both saved transport variants can choose automatically.
 func (c *Channel) WebSocketHTTPAllowed(entries []ChannelModelEntry, requested string) bool {
+	if c.Settings != nil && slices.Contains(c.Settings.DisabledEndpoints, "openai/responses") {
+		return false
+	}
 	if forced := ForcedAPIFormatsForCandidate(c, entries, requested); len(forced) > 0 {
 		return slices.Contains(forced, "openai/responses")
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/pipeline"
 	"github.com/looplj/axonhub/llm/streams"
@@ -37,11 +38,13 @@ func NewTransportExecutor(http pipeline.Executor, ws *WebSocketExecutor, stripPr
 }
 
 func (e *transportExecutor) Do(ctx context.Context, r *httpclient.Request) (*httpclient.Response, error) {
-	if !e.useWebSocket(ctx, r) {
-		reportTransport(r, TransportHTTP, e.reason(ctx, r))
+	native, err := e.selectTransport(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	if !native {
 		return e.doHTTP(ctx, r)
 	}
-	reportTransport(r, TransportWebSocket, "")
 	result, err := e.nativeExecutor(r).Do(ctx, r)
 	if !e.mayFallback(ctx, r, err) {
 		return result, err
@@ -52,11 +55,13 @@ func (e *transportExecutor) Do(ctx context.Context, r *httpclient.Request) (*htt
 }
 
 func (e *transportExecutor) DoStream(ctx context.Context, r *httpclient.Request) (streams.Stream[*httpclient.StreamEvent], error) {
-	if !e.useWebSocket(ctx, r) {
-		reportTransport(r, TransportHTTP, e.reason(ctx, r))
+	native, err := e.selectTransport(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	if !native {
 		return e.streamHTTP(ctx, r)
 	}
-	reportTransport(r, TransportWebSocket, "")
 	result, err := e.nativeExecutor(r).DoStream(ctx, r)
 	if !e.mayFallback(ctx, r, err) {
 		return result, err
@@ -87,6 +92,20 @@ func (e *transportExecutor) checkContinuation(ctx context.Context, r *httpclient
 		return httpclient.ErrContinuationUnavailable
 	}
 	return nil
+}
+
+func (e *transportExecutor) selectTransport(ctx context.Context, r *httpclient.Request) (bool, error) {
+	if e.useWebSocket(ctx, r) {
+		reportTransport(r, TransportWebSocket, "")
+		return true, nil
+	}
+	if policy := r.ResponsesWebSocket; policy != nil && policy.NativeOnly {
+		return false, &llm.ResponseError{StatusCode: http.StatusUnprocessableEntity, Cause: httpclient.ErrRequestNotSent, Detail: llm.ErrorDetail{
+			Type: "invalid_request_error", Code: "no_compatible_endpoint", Message: "Responses HTTP is unavailable for this request",
+		}}
+	}
+	reportTransport(r, TransportHTTP, e.reason(ctx, r))
+	return false, nil
 }
 
 func (e *transportExecutor) useWebSocket(ctx context.Context, r *httpclient.Request) bool {
