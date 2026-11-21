@@ -1,5 +1,9 @@
 # Fork 维护台账
 
+## Responses 大请求自动选择上传协议（fork.19）
+
+同步上游时核对同一请求只走一次协议选择、同源在途上限、配置与账号隔离、上传超时退回自动协商，以及 WebSocket 和 zstd 的适用条件。[连接学习实现](../llm/httpclient/transport_protocol_learning.go) · [使用说明](zh/guides/storage-maintenance.md)
+
 ## rc1-fork.18 正式发布与双站验收（2026-11-21）
 
 - 基于 fork.17 发布[精简正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.18)。提交 `b49b428d10b7e99d626cfe289cd0ba0a3818b0ac` 的 Test、Build、Lint、Govulncheck 均通过。[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44888898964) 已检查双架构镜像，两站使用同一摘要 `sha256:28540e15ecb603179319bcdf0e7cb5eb27a5041a711bd62336136169360e2289`。

@@ -24,6 +24,8 @@ var nextConnectionID atomic.Uint64
 // may have at most one old generation draining. Neither mechanism replays work.
 type recoveringTransport struct {
 	encodings requestEncodingCache
+	protocols protocolHistory // Protected by mu.
+	autoHTTP1 map[string]int  // Active learned HTTP/1 responses per origin.
 	template  *http.Transport
 	tlsConfig *tls.Config // Immutable policy, separate from Transport's lazy HTTP/2 setup.
 	mu        sync.Mutex
@@ -131,16 +133,36 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	endpoint, _ := req.Context().Value(http1EndpointKey{}).(string)
 	// An explicit socket budget must remain shared by all paths on the host.
 	http1Only := endpoint != "" && req.Response == nil && t.template.MaxConnsPerHost <= 0 && req.URL.String() == endpoint
+	key, eligible := uploadProtocolKey(req, t.template, http1Only)
+	t.mu.Lock()
+	var sample protocolSample
+	if eligible && t.autoHTTP1[origin] < 2 {
+		sample = t.protocols.selectProtocol(key, time.Now())
+		http1Only = sample.http1
+	}
+	autoOrigin := ""
+	if sample.http1 {
+		autoOrigin = origin
+		if t.autoHTTP1 == nil {
+			t.autoHTTP1 = make(map[string]int)
+		}
+		t.autoHTTP1[autoOrigin]++
+	}
 	if http1Only {
 		origin = "http1 " + origin
 	}
-	t.mu.Lock()
 	pools := t.origins[origin]
 	if pools == nil {
 		pools = &originPools{http1Only: http1Only, lanes: []*originPool{{current: t.newGeneration(http1Only)}}}
 		t.origins[origin] = pools
 	}
 	pool, action := t.chooseUploadPool(pools, time.Now())
+	if sample.http1 {
+		action = "http1_preferred"
+		if sample.trial {
+			action = "http1_trial"
+		}
+	}
 	var cleanups []func()
 	for _, lane := range slices.Clone(pools.lanes) {
 		if lane.retiring {
@@ -160,7 +182,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	pool.closeWhenIdle = false
 	generation := pool.current
 	generation.active++
-	upload := &poolUpload{ctx: req.Context(), bytes: req.ContentLength}
+	upload := &poolUpload{ctx: req.Context(), bytes: req.ContentLength, autoOrigin: autoOrigin}
 	generation.attempts[upload] = struct{}{}
 	t.mu.Unlock()
 	for _, cleanup := range cleanups {
@@ -173,6 +195,14 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		observer.mu.Lock()
 		observer.wireBytes = bodyBytes
 		observer.zstdEncoded = req.Header.Get("Content-Encoding") == "zstd"
+		observer.rejectProtocol = nil
+		if sample.http1 {
+			observer.rejectProtocol = func() {
+				t.mu.Lock()
+				defer t.mu.Unlock()
+				t.protocols.reject(sample, time.Now())
+			}
+		}
 		observer.encodeDuration = 0
 		if encoding != nil {
 			observer.encodeDuration = encoding.cpu
@@ -193,6 +223,15 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	}
 	// Observe native callers too. Do not depend on application payload decoding or
 	// acquire the diagnostic trace lock while holding the pool lock.
+	var protocolResponse *http.Response
+	observedProtocol := false
+	observeProtocol := func(err error, now time.Time) {
+		if sample.state == nil || observedProtocol || err == nil && (protocolResponse == nil || upload.uploaded.IsZero() && !upload.failed) {
+			return
+		}
+		t.protocols.observe(sample, upload, protocolResponse, err, now)
+		observedProtocol = true
+	}
 	progress := &httptrace.ClientTrace{
 		GetConn: func(string) {
 			t.mu.Lock()
@@ -219,6 +258,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 				upload.failed = true
 			}
 			result := t.observeUploadProbe(pools, pool, generation, upload, now)
+			observeProtocol(nil, now)
 			t.mu.Unlock()
 			if observer != nil && result != "" {
 				observer.setPoolChoice(generation.id, poolCount, result)
@@ -226,6 +266,12 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		},
 	}
 	response, err := generation.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), progress)))
+	if sample.state != nil {
+		t.mu.Lock()
+		protocolResponse = response
+		observeProtocol(err, time.Now())
+		t.mu.Unlock()
+	}
 	if encoding != nil {
 		t.encodings.observe(encoding, response, observer)
 	}
@@ -283,6 +329,12 @@ func (t *recoveringTransport) recoverUpload(origin string, pool *originPool, gen
 
 func (t *recoveringTransport) release(origin string, pool *originPool, generation *poolGeneration, upload *poolUpload) {
 	t.mu.Lock()
+	if upload.autoOrigin != "" {
+		t.autoHTTP1[upload.autoOrigin]--
+		if t.autoHTTP1[upload.autoOrigin] == 0 {
+			delete(t.autoHTTP1, upload.autoOrigin)
+		}
+	}
 	generation.active--
 	delete(generation.attempts, upload)
 	upload.released = true

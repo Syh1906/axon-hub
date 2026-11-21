@@ -39,6 +39,7 @@ type TransportTrace struct {
 	poolAction         string
 	recoverUpload      func() (string, func())
 	verifyUpload       func() bool
+	rejectProtocol     func()
 }
 
 // TransportTimings uses nullable durations: absent evidence is not zero latency.
@@ -118,8 +119,16 @@ func (r *Request) RecoverHTTPUpload() {
 		return
 	}
 	t.mu.Lock()
-	if t.recoverUpload == nil || t.poolRecovery != "" || t.times[TransportConnected].IsZero() ||
+	if t.recoverUpload == nil || t.poolRecovery != "" ||
 		!t.times[TransportUploaded].IsZero() || !t.times[TransportHeaders].IsZero() {
+		t.mu.Unlock()
+		return
+	}
+	if t.rejectProtocol != nil {
+		t.rejectProtocol()
+		t.rejectProtocol = nil
+	}
+	if t.times[TransportConnected].IsZero() {
 		t.mu.Unlock()
 		return
 	}
@@ -230,6 +239,9 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 		},
 	}
 	ctx := context.WithValue(raw.Context(), transportObserverKey{}, request.TransportTrace)
+	if request.LearnHTTP1 && raw.Method == http.MethodPost && raw.URL.Scheme == "https" && raw.ContentLength >= minProtocolUpload {
+		ctx = context.WithValue(ctx, protocolScopeKey{}, protocolScope{request.EncodingScope, request.EncodingGeneration})
+	}
 	if raw.Method == http.MethodPost && raw.URL.Scheme == "https" && len(request.HTTP1Endpoints) > 0 {
 		if endpoint := raw.URL.String(); slices.Contains(request.HTTP1Endpoints, endpoint) {
 			ctx = context.WithValue(ctx, http1EndpointKey{}, endpoint)

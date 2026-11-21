@@ -18,6 +18,7 @@ type Request struct {
 	// ZstdEndpoints applies only to an actual HTTP dispatch to an explicitly configured URL.
 	ZstdEndpoints      []string `json:"-"`
 	HTTP1Endpoints     []string `json:"-"`
+	LearnHTTP1         bool     `json:"-"`
 	NoZstdEndpoints    []string `json:"-"`
 	LearnZstd          bool     `json:"-"`
 	EncodingScope      int      `json:"-"`

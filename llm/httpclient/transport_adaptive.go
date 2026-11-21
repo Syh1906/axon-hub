@@ -44,6 +44,7 @@ type uploadStall struct {
 // its generation until its response ends, but stops being an upload at headers
 // or WroteRequest. This excludes reasoning/response waiting from expansion.
 type poolUpload struct {
+	autoOrigin   string
 	ctx          context.Context
 	bytes        int64
 	connectionID uint64
