@@ -1,5 +1,7 @@
 # 独立维护、同步上游与发版
 
+2026-11-21，云悠、泉哥已部署 [fork.18 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.18)。两站完成会话与思考预算迁移，圆圆端点启用了 HTTP/1.1 长连接及请求压缩。切换时间、在途请求和业务验证见[维护台账](../../fork-maintenance.md)。回切 fork.17 前须按[更新日志](../../../CHANGELOG.md)保护已回填数据。
+
 2026-11-21，云悠和泉哥已更新至 [fork.17 精简正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.17)。两站的版本、镜像摘要、数据库结构和模型卡验收见[部署台账](../../fork-maintenance.md)。
 
 2026-11-20，[rc1-fork.16 正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.16) 已通过精简工作流发布并部署至云悠和泉哥。两台本机及公网验收通过。切换时段的请求状态见[部署记录](../../fork-maintenance.md)。
