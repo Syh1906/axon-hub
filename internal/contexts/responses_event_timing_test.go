@@ -25,12 +25,39 @@ func TestSemanticProgressIsIndependentOfDeliveredContent(t *testing.T) {
 		attempt.ObserveOutputProgress(format, start)
 		clock.WroteResponsesEvent(start)
 		require.Equal(t, "response.output_item.added.reasoning", clock.Snapshot().Attempts[0].Semantic.Type)
+		require.Equal(t, clock.Snapshot().Attempts[0].Semantic.At, attempt.ProtocolFirstOutput())
 		require.Nil(t, clock.Snapshot().FirstWriteContent)
 		clock.WroteResponsesEvent(&httpclient.StreamEvent{Data: []byte(`{"type":"response.function_call_arguments.delta","delta":"{}"}`)})
 		require.Nil(t, clock.Snapshot().FirstAnswer)
 		clock.WroteResponsesEvent(&httpclient.StreamEvent{Data: []byte(`{"type":"response.completed","response":{"output":[{"type":"message","content":[{"type":"output_text","text":"answer"}]}]}}`)})
 		require.NotNil(t, clock.Snapshot().FirstAnswer)
 		require.Equal(t, "response.function_call_arguments.delta", clock.Snapshot().FirstWriteContent.Type)
+	}
+}
+
+func TestProtocolFirstOutputSkipsEmptyTextStarts(t *testing.T) {
+	for _, tc := range []struct {
+		format      llm.APIFormat
+		start, next string
+	}{
+		{llm.APIFormatOpenAIResponse, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
+			`{"type":"response.output_text.delta","delta":"hello"}`},
+		{llm.APIFormatAnthropicMessage, `{"type":"content_block_start","content_block":{"type":"text","text":""}}`,
+			`{"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}`},
+		{llm.APIFormatOpenAIResponseWebSocket, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
+			`{"type":"response.output_item.added","item":{"type":"function_call","name":"lookup"}}`},
+	} {
+		t.Run(string(tc.format), func(t *testing.T) {
+			_, clock := WithRequestClock(t.Context(), time.Now())
+			attempt := clock.AddAttempt(1, 2, nil)
+			attempt.ObserveOutputProgress(tc.format, &httpclient.StreamEvent{Data: []byte(tc.start)})
+			start := clock.Snapshot().Attempts[0].Semantic
+			require.NotNil(t, start)
+			require.True(t, attempt.ProtocolFirstOutput().IsZero())
+			attempt.ObserveOutputProgress(tc.format, &httpclient.StreamEvent{Data: []byte(tc.next)})
+			require.False(t, attempt.ProtocolFirstOutput().IsZero())
+			require.Same(t, start, clock.Snapshot().Attempts[0].Semantic)
+		})
 	}
 }
 

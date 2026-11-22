@@ -213,7 +213,9 @@ func (m *persistRequestExecutionMiddleware) OnOutboundRawRequest(ctx context.Con
 		probe.release = release
 	}
 	attachExecutionTransport(state, request)
-	state.attemptClock = contexts.GetRequestClock(ctx).AddAttempt(requestExec.ID, requestExec.ChannelID, request.TransportTrace)
+	clock := contexts.GetRequestClock(ctx)
+	state.attemptClock = clock.AddAttempt(requestExec.ID, requestExec.ChannelID, request.TransportTrace)
+	state.observeProtocolWork(clock, request)
 	state.observeFirstContentChoice(ctx, requestExec)
 	state.FailureStage = "execution"
 	request.OnTransportSelected = func(protocol, reason string) {

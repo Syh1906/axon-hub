@@ -1625,6 +1625,48 @@ function useSystemSettingsQueryIdentity() {
   return { authUserId, canReadSystemSettings: hasSystemScope('read_settings') };
 }
 
+export type UpstreamHTTPProtocol = 'AUTO' | 'PREFER_HTTP2' | 'HTTP1';
+type UpstreamTransportSettings = { protocol: UpstreamHTTPProtocol; automaticCompression: boolean };
+type UpstreamTransportChange = { protocol: UpstreamHTTPProtocol } | { automaticCompression: boolean };
+
+export function useUpstreamTransportSettings() {
+  const { authUserId, canReadSystemSettings } = useSystemSettingsQueryIdentity();
+  const { handleError } = useErrorHandler();
+  return useQuery({
+    queryKey: ['upstreamTransportSettings', authUserId, canReadSystemSettings],
+    enabled: canReadSystemSettings,
+    queryFn: async ({ signal }) => {
+      try {
+        const data = await graphqlRequest<{ upstreamTransportSettings: UpstreamTransportSettings }>(
+          'query UpstreamTransportSettings { upstreamTransportSettings { protocol automaticCompression } }', undefined, undefined, { signal }
+        );
+        return data.upstreamTransportSettings;
+      } catch (error) {
+        handleError(error, i18n.t('common.errors.internalServerError'));
+        throw error;
+      }
+    },
+  });
+}
+
+export function useUpdateUpstreamTransportSettings() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (change: UpstreamTransportChange) => {
+      if ('protocol' in change) {
+        await graphqlRequest('mutation SetUpstreamHTTPProtocol($protocol: UpstreamHTTPProtocol!) { setUpstreamHTTPProtocol(protocol: $protocol) }', change);
+      } else {
+        await graphqlRequest('mutation SetUpstreamAutomaticCompression($enabled: Boolean!) { setUpstreamAutomaticCompression(enabled: $enabled) }', { enabled: change.automaticCompression });
+      }
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['upstreamTransportSettings'] });
+      toast.success(i18n.t('common.success.systemUpdated'));
+    },
+    onError: () => toast.error(i18n.t('common.errors.systemUpdateFailed')),
+  });
+}
+
 export function useUserAgentPassThroughSettings(options?: { enabled?: boolean }) {
   const { handleError } = useErrorHandler();
   const { authUserId, canReadSystemSettings } = useSystemSettingsQueryIdentity();

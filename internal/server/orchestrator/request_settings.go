@@ -17,6 +17,7 @@ type RequestSettings struct {
 	StoragePolicy        biz.StoragePolicy
 	QuotaRouting         biz.QuotaRoutingSettings
 	ModelSettings        biz.SystemModelSettings
+	UpstreamTransport    biz.UpstreamTransportSettings
 	PassThrough          bool
 	UserAgentPassThrough bool
 	InjectUsageCost      bool
@@ -35,6 +36,9 @@ func (processor *ChatCompletionOrchestrator) loadRequestSettings(ctx context.Con
 	}
 
 	var err error
+	if settings.UpstreamTransport, err = systemService.UpstreamTransportSettings(ctx); err != nil {
+		log.Warn(ctx, "failed to read upstream transport settings", log.Cause(err))
+	}
 	if settings.PassThrough, err = systemService.PassThrough(ctx); err != nil {
 		log.Warn(ctx, "failed to get global pass-through setting", log.Cause(err))
 	}
@@ -52,7 +56,7 @@ func (processor *ChatCompletionOrchestrator) loadRequestSettings(ctx context.Con
 
 // noRequestSettings stands in for states built without a snapshot, such as in
 // unit tests: every global switch reads as off.
-var noRequestSettings = &RequestSettings{}
+var noRequestSettings = &RequestSettings{UpstreamTransport: biz.DefaultUpstreamTransportSettings()}
 
 // settings returns the request's settings snapshot.
 func (s *PersistenceState) settings() *RequestSettings {

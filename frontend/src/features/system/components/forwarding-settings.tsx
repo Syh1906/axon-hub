@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Switch } from '@/components/ui/switch';
 import {
   useUserAgentPassThroughSettings,
@@ -12,12 +14,19 @@ import {
   useUpdatePassThroughSettings,
   useUsageCostInjectionSettings,
   useUpdateUsageCostInjectionSettings,
+  useUpstreamTransportSettings,
+  useUpdateUpstreamTransportSettings,
+  type UpstreamHTTPProtocol,
 } from '../data/system';
 
 // How requests and responses are forwarded between clients and upstream
 // channels. Every switch saves immediately.
 export function ForwardingSettings() {
   const { t } = useTranslation();
+  const { hasSystemScope } = usePermissions();
+  const { data: transport } = useUpstreamTransportSettings();
+  const updateTransport = useUpdateUpstreamTransportSettings();
+  const transportDisabled = !transport || !hasSystemScope('write_settings') || updateTransport.isPending;
 
   // User-Agent Pass-Through settings
   const { data: uaSettings, isLoading: isLoadingUASettings } = useUserAgentPassThroughSettings();
@@ -87,6 +96,41 @@ export function ForwardingSettings() {
 
   return (
     <div className='space-y-6'>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('system.upstreamTransport.title')}</CardTitle>
+          <CardDescription>{t('system.upstreamTransport.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='space-y-0.5'>
+              <Label htmlFor='upstream-http-protocol'>{t('system.upstreamTransport.protocol')}</Label>
+              <p id='upstream-protocol-help' className='text-muted-foreground text-sm'>{t('system.upstreamTransport.protocolHelp')}</p>
+            </div>
+            <Select value={transport?.protocol ?? ''} disabled={transportDisabled} onValueChange={(value: UpstreamHTTPProtocol) => updateTransport.mutate({ protocol: value })}>
+              <SelectTrigger id='upstream-http-protocol' aria-describedby='upstream-protocol-help' className='w-full sm:w-56'><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value='AUTO'>{t('system.upstreamTransport.autoProtocol')}</SelectItem>
+                <SelectItem value='PREFER_HTTP2'>{t('system.upstreamTransport.preferHTTP2')}</SelectItem>
+                <SelectItem value='HTTP1'>HTTP/1.1</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='space-y-0.5'>
+              <Label htmlFor='upstream-compression'>{t('system.upstreamTransport.compression')}</Label>
+              <p id='upstream-compression-help' className='text-muted-foreground text-sm'>{t('system.upstreamTransport.compressionHelp')}</p>
+            </div>
+            <Select value={transport ? (transport.automaticCompression ? 'auto' : 'off') : ''} disabled={transportDisabled} onValueChange={(value) => updateTransport.mutate({ automaticCompression: value === 'auto' })}>
+              <SelectTrigger id='upstream-compression' aria-describedby='upstream-compression-help' className='w-full sm:w-56'><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value='auto'>{t('system.upstreamTransport.autoCompression')}</SelectItem>
+                <SelectItem value='off'>{t('system.upstreamTransport.off')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>{t('system.passThroughGroup.title')}</CardTitle>

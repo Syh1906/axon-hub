@@ -347,6 +347,11 @@ func TestAlphaSearchRoutingDistinguishesMissingEndpoint(t *testing.T) {
 
 func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure ...func(*ent.ChannelCreate)) (*ent.Client, *OpenAIHandlers, *ent.Project) {
 	t.Helper()
+	return newResponsesIntegrationFixtureWithClient(t, upstreamURL, httpclient.NewHttpClient(), configure...)
+}
+
+func newResponsesIntegrationFixtureWithClient(t *testing.T, upstreamURL string, upstreamClient *httpclient.HttpClient, configure ...func(*ent.ChannelCreate)) (*ent.Client, *OpenAIHandlers, *ent.Project) {
+	t.Helper()
 	client := enttest.NewEntClient(t, "sqlite3", "file:"+t.Name()+"?mode=memory&_fk=1")
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
@@ -364,7 +369,7 @@ func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure 
 	cacheConfig := xcache.Config{Mode: xcache.ModeMemory}
 	systemService := biz.NewSystemService(biz.SystemServiceParams{CacheConfig: cacheConfig, Ent: client})
 	client.Model.Create().SetDeveloper("test").SetName("synthetic-model").SetModelID("synthetic-model").SetIcon("test").SetGroup("test").SetStatus("enabled").SetModelCard(&objects.ModelCard{}).SetSettings(&objects.ModelSettings{Associations: []*objects.ModelAssociation{{Type: "channel_model", ChannelModel: &objects.ChannelModelAssociation{ChannelID: fixtureChannel.ID, ModelID: "synthetic-model"}}}}).SaveX(ctx)
-	channelService := biz.NewChannelService(biz.ChannelServiceParams{CacheConfig: cacheConfig, Ent: client, SystemService: systemService, HttpClient: httpclient.NewHttpClient()})
+	channelService := biz.NewChannelService(biz.ChannelServiceParams{CacheConfig: cacheConfig, Ent: client, SystemService: systemService, HttpClient: upstreamClient})
 	usageLogService := biz.NewUsageLogService(client, systemService, channelService)
 	storage := &biz.DataStorageService{AbstractService: &biz.AbstractService{}, SystemService: systemService, Cache: xcache.NewFromConfig[ent.DataStorage](cacheConfig)}
 	requestService := biz.NewRequestService(client, cacheConfig, systemService, usageLogService, storage, biz.NewLiveStreamRegistry(), biz.NewRequestPayloadService(biz.RequestPayloadConfig{Directory: t.TempDir()}))
@@ -378,7 +383,7 @@ func newResponsesIntegrationFixture(t *testing.T, upstreamURL string, configure 
 	params := OpenAIHandlersParams{
 		ChannelService: channelService, ModelService: modelService, DefaultSelector: selector, RequestService: requestService,
 		SystemService: systemService, UsageLogService: usageLogService, PromptService: biz.NewPromptService(biz.PromptServiceParams{Ent: client}),
-		PromptProtectionRuleService: protection, QuotaService: biz.NewQuotaService(client, systemService), HttpClient: httpclient.NewHttpClient(),
+		PromptProtectionRuleService: protection, QuotaService: biz.NewQuotaService(client, systemService), HttpClient: upstreamClient,
 		LiveStreamRegistry: biz.NewLiveStreamRegistry(), ChannelLimiterManager: orchestrator.NewChannelLimiterManager(), Client: client,
 	}
 	return client, NewOpenAIHandlers(params), project

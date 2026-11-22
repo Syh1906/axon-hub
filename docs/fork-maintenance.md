@@ -1,5 +1,13 @@
 # Fork 维护台账
 
+## 各渠道按真实首字选择 HTTP 协议（rc1-fork.21）
+
+- 2026-11-22 完成本地阶段验收及独立复审。定向用例验证固定端点优先、自动回退并发上限、空文本容器计时、按出站模型分组及配置备份恢复；真实后台完成保存和刷新回读。从 fork.20 升级无数据库迁移。
+
+- 「请求处理 → 转发行为」提供实例默认协议和自动请求压缩，保存后新请求生效，固定端点优先。明确的 HTTP/2 协议错误会使后续同端点派发暂时回退。错误回退和速度试用共享同源并发额度。维护时复核系统设置备份恢复、权限、固定端点优先级，以及空文本容器和正文覆盖模型的学习口径。
+
+- 共用 HTTP 客户端的流式 HTTPS POST 按渠道及同类工作量比较首个模型或工具输出。两次 HTTP/1.1 试用之间插入新的 HTTP/2 对照，保留显式固定端点、连接数约束和失败退回。普通 JSON 对话端点可以各自协商请求压缩。同步上游时用[首字协议学习测试](../llm/httpclient/transport_protocol_learning_test.go)和[网关端到端测试](../internal/server/api/responses_two_gateways_test.go)核对选择、渠道隔离和不重复派发。配置和计时口径见[维护说明](zh/guides/storage-maintenance.md)。
+
 ## rc1-fork.20 正式发布与双站验收（2026-11-21）
 
 - [正式版](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.20)和[发布工作流](https://github.com/Syh1906/axon-hub/actions/runs/44909451015)对应源码 `76d380c7abb1d2e34dc40004b12b442ec6107233`。同提交 Test、Build、Lint 和 Govulncheck 均通过。精简发布包含 Linux amd64、arm64 镜像与 `release.json`，双站固定镜像摘要为 `sha256:d3a7dcb1c5668bdecc0315012620b9e6da170f826668897d3e682a51d959f233`。

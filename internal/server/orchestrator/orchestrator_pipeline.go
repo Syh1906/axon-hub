@@ -101,7 +101,7 @@ func (processor *ChatCompletionOrchestrator) requestPipeline(state *PersistenceS
 		// Adapt only the selected channel's final Responses body, including restored
 		// history and pass-through, before recording or sending the attempt.
 		applyCodexPageContextCompatibility(outbound),
-		optimizeRequestImages(outbound),
+		optimizeRequestTransport(outbound),
 		applyGeminiCache(outbound),
 		checkCompactionCooldown(processor.compactionCooldown, outbound),
 

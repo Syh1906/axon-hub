@@ -23,13 +23,14 @@ var nextConnectionID atomic.Uint64
 // HTTP/2 uploads stall. Recovery changes only future requests; an active pool
 // may have at most one old generation draining. Neither mechanism replays work.
 type recoveringTransport struct {
-	encodings requestEncodingCache
-	protocols protocolHistory // Protected by mu.
-	autoHTTP1 map[string]int  // Active learned HTTP/1 responses per origin.
-	template  *http.Transport
-	tlsConfig *tls.Config // Immutable policy, separate from Transport's lazy HTTP/2 setup.
-	mu        sync.Mutex
-	origins   map[string]*originPools
+	encodings     requestEncodingCache
+	protocols     protocolHistory // Protected by mu.
+	http2Failures map[encodingResource]time.Time
+	autoHTTP1     map[string]int // Active learned HTTP/1 responses per origin.
+	template      *http.Transport
+	tlsConfig     *tls.Config // Immutable policy, separate from Transport's lazy HTTP/2 setup.
+	mu            sync.Mutex
+	origins       map[string]*originPools
 }
 
 type originPool struct {
@@ -125,6 +126,7 @@ func (g *poolGeneration) prepareClose() func() {
 
 type transportObserverKey struct{}
 type http1EndpointKey struct{}
+type protocolPreferenceKey struct{}
 
 func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req, encoding := t.encodings.prepare(req)
@@ -134,14 +136,25 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	// An explicit socket budget must remain shared by all paths on the host.
 	http1Only := endpoint != "" && req.Response == nil && t.template.MaxConnsPerHost <= 0 && req.URL.String() == endpoint
 	key, eligible := uploadProtocolKey(req, t.template, http1Only)
+	preference, _ := req.Context().Value(protocolPreferenceKey{}).(ProtocolPreference)
 	t.mu.Lock()
 	var sample protocolSample
-	if eligible && t.autoHTTP1[origin] < 2 {
-		sample = t.protocols.selectProtocol(key, time.Now())
-		http1Only = sample.http1
+	fallback := false
+	if eligible && preference == ProtocolHTTP1 {
+		http1Only = true
+	} else if eligible && t.autoHTTP1[origin] < 2 {
+		now := time.Now()
+		switch {
+		case now.Before(t.http2Failures[key.resource]):
+			http1Only, fallback = true, true
+		case preference != ProtocolPreferHTTP2 &&
+			(key.work != (ProtocolWorkload{}) || req.ContentLength >= minProtocolUpload):
+			sample = t.protocols.selectProtocol(key, now)
+			http1Only = sample.http1
+		}
 	}
 	autoOrigin := ""
-	if sample.http1 {
+	if sample.http1 || fallback {
 		autoOrigin = origin
 		if t.autoHTTP1 == nil {
 			t.autoHTTP1 = make(map[string]int)
@@ -157,6 +170,9 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		t.origins[origin] = pools
 	}
 	pool, action := t.chooseUploadPool(pools, time.Now())
+	if fallback {
+		action = "http2_error_fallback"
+	}
 	if sample.http1 {
 		action = "http1_preferred"
 		if sample.trial {
@@ -226,7 +242,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	var protocolResponse *http.Response
 	observedProtocol := false
 	observeProtocol := func(err error, now time.Time) {
-		if sample.state == nil || observedProtocol || err == nil && (protocolResponse == nil || upload.uploaded.IsZero() && !upload.failed) {
+		if sample.state == nil || key.work != (ProtocolWorkload{}) || observedProtocol || err == nil && (protocolResponse == nil || upload.uploaded.IsZero() && !upload.failed) {
 			return
 		}
 		t.protocols.observe(sample, upload, protocolResponse, err, now)
@@ -266,7 +282,26 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		},
 	}
 	response, err := generation.transport.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), progress)))
-	if sample.state != nil {
+	var onReadError func(error)
+	if eligible && !http1Only {
+		if err != nil && req.Context().Err() == nil && isHTTP2ProtocolFailure(err) {
+			t.mu.Lock()
+			wasHTTP2 := upload.protocol == "HTTP/2.0"
+			t.mu.Unlock()
+			if wasHTTP2 {
+				t.recordHTTP2Failure(key.resource, time.Now())
+			}
+		} else if response != nil && response.ProtoMajor == 2 {
+			onReadError = func(readErr error) {
+				if req.Context().Err() == nil && isHTTP2ProtocolFailure(readErr) {
+					t.recordHTTP2Failure(key.resource, time.Now())
+				}
+			}
+		}
+	}
+	if sample.state != nil && key.work != (ProtocolWorkload{}) {
+		t.trackProtocolOutput(sample, observer, response, err)
+	} else if sample.state != nil {
 		t.mu.Lock()
 		protocolResponse = response
 		observeProtocol(err, time.Now())
@@ -293,7 +328,7 @@ func (t *recoveringTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		// observes both events in either order rather than sampling only here.
 		observer.record(TransportHeaders, time.Now())
 	}
-	response.Body = &poolResponseBody{ReadCloser: response.Body, release: func() {
+	response.Body = &poolResponseBody{ReadCloser: response.Body, onReadError: onReadError, release: func() {
 		t.release(origin, pool, generation, upload)
 	}}
 	return response, nil
@@ -448,14 +483,17 @@ func (t *recoveringTransport) hasPool(origin string, pool *originPool) bool {
 
 type poolResponseBody struct {
 	io.ReadCloser
-	once    sync.Once
-	release func()
+	onReadError func(error)
+	once        sync.Once
+	release     func()
 }
 
 func (b *poolResponseBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if err == io.EOF {
 		b.once.Do(b.release)
+	} else if err != nil && b.onReadError != nil {
+		b.onReadError(err)
 	}
 	return n, err
 }

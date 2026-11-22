@@ -358,6 +358,17 @@ type UserAgentPassThroughSettings {
   enabled: Boolean!
 }
 
+enum UpstreamHTTPProtocol {
+  AUTO
+  PREFER_HTTP2
+  HTTP1
+}
+
+type UpstreamTransportSettings {
+  protocol: UpstreamHTTPProtocol!
+  automaticCompression: Boolean!
+}
+
 input UpdateUserAgentPassThroughSettingsInput {
   enabled: Boolean!
 }
@@ -480,6 +491,8 @@ extend type Mutation {
   saveProxyPreset(input: SaveProxyPresetInput!): Boolean!
   deleteProxyPreset(url: String!): Boolean!
   updateUserAgentPassThroughSettings(input: UpdateUserAgentPassThroughSettingsInput!): Boolean!
+  setUpstreamHTTPProtocol(protocol: UpstreamHTTPProtocol!): Boolean!
+  setUpstreamAutomaticCompression(enabled: Boolean!): Boolean!
   updatePassThroughSettings(input: UpdatePassThroughSettingsInput!): Boolean!
   updateUsageCostInjectionSettings(input: UpdateUsageCostInjectionSettingsInput!): Boolean!
   updateCatalogSettings(input: UpdateCatalogSettingsInput!): Boolean!
@@ -551,6 +564,7 @@ extend type Query {
   securitySettings: SecuritySettings!
   proxyPresets: [ProxyPreset!]!
   userAgentPassThroughSettings: UserAgentPassThroughSettings!
+  upstreamTransportSettings: UpstreamTransportSettings!
   passThroughSettings: PassThroughSettings!
   usageCostInjectionSettings: UsageCostInjectionSettings!
   getCacheDiagnostics(input: GetCacheDiagnosticsInput): GetCacheDiagnosticsPayload!

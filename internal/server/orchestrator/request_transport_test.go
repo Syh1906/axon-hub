@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
@@ -65,7 +66,7 @@ func TestRequestImageOptimizationPreservesPassThroughAndStoredAttempt(t *testing
 
 func TestRequestImageOptimizerSkipsImageEditingAndOpaqueBodies(t *testing.T) {
 	state := &PersistenceState{Request: &ent.Request{ProjectID: 1}, RequestService: &biz.RequestService{}}
-	middleware := optimizeRequestImages(&PersistentOutboundTransformer{state: state})
+	middleware := optimizeRequestTransport(&PersistentOutboundTransformer{state: state})
 	body := []byte(`{"image":"signed-original","mask":"keep-mask"}`)
 	request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIImageEdit), Body: body}
 	got, err := middleware.OnOutboundRawRequest(context.Background(), request)
@@ -99,7 +100,7 @@ func TestImageOptimizationUpdatesRecoveredResponsesSnapshot(t *testing.T) {
 			CurrentCandidate:      &ChannelModelsCandidate{Channel: &biz.Channel{Channel: &ent.Channel{ID: 1}}},
 		}
 		request := &httpclient.Request{APIFormat: string(llm.APIFormatOpenAIResponse), Body: body, JSONBody: body}
-		got, err := optimizeRequestImages(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
+		got, err := optimizeRequestTransport(&PersistentOutboundTransformer{state: state}).OnOutboundRawRequest(context.Background(), request)
 		require.NoError(t, err)
 		require.Less(t, len(got.Body), len(body))
 		require.Equal(t, got.Body, got.JSONBody)
@@ -111,6 +112,25 @@ func TestImageOptimizationUpdatesRecoveredResponsesSnapshot(t *testing.T) {
 		} else {
 			require.Empty(t, continuation.input)
 		}
+	}
+}
+
+func TestProtocolWorkUsesModelFromFinalBody(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{`{"model":"upstream-a"}`, "upstream-a"},
+		{`{"model":"upstream-b"}`, "upstream-b"},
+		{`{"contents":[]}`, "mapped-model"},
+	} {
+		_, clock := contexts.WithRequestClock(t.Context(), time.Now())
+		trace := new(httpclient.TransportTrace)
+		state := &PersistenceState{
+			Request: &ent.Request{}, RequestExec: &ent.RequestExecution{ID: 1, Stream: true, ModelID: "mapped-model"},
+			attemptClock: clock.AddAttempt(1, 20, trace),
+		}
+		request := &httpclient.Request{LearnHTTP1: true, TransportTrace: trace, Body: []byte(tc.body)}
+		state.observeProtocolWork(clock, request)
+		require.Equal(t, tc.want, request.ProtocolWork.Model)
+		require.Equal(t, "mapped-model", state.RequestExec.ModelID)
 	}
 }
 

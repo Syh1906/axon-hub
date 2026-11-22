@@ -649,6 +649,8 @@ var pluginMutationFieldSnapshot = []string{
 	"setChannelKeySessionReuse",
 	"setCleanupTaskPaused",
 	"setPluginKV",
+	"setUpstreamAutomaticCompression",
+	"setUpstreamHTTPProtocol",
 	"startCleanupTask",
 	"syncChannelModels",
 	"testChannel",

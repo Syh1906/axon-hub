@@ -19,6 +19,7 @@ import (
 	"github.com/looplj/axonhub/internal/scopes"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/gc"
+	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/samber/lo"
 )
 
@@ -339,6 +340,24 @@ func (r *mutationResolver) UpdateUserAgentPassThroughSettings(ctx context.Contex
 	}
 
 	return true, nil
+}
+
+// SetUpstreamHTTPProtocol is the resolver for the setUpstreamHTTPProtocol field.
+func (r *mutationResolver) SetUpstreamHTTPProtocol(ctx context.Context, protocol httpclient.ProtocolPreference) (bool, error) {
+	if err := authz.RequireScope(ctx, scopes.ScopeWriteSettings); err != nil {
+		return false, err
+	}
+	err := r.systemService.SetUpstreamHTTPProtocol(ctx, protocol)
+	return err == nil, err
+}
+
+// SetUpstreamAutomaticCompression is the resolver for the setUpstreamAutomaticCompression field.
+func (r *mutationResolver) SetUpstreamAutomaticCompression(ctx context.Context, enabled bool) (bool, error) {
+	if err := authz.RequireScope(ctx, scopes.ScopeWriteSettings); err != nil {
+		return false, err
+	}
+	err := r.systemService.SetUpstreamAutomaticCompression(ctx, enabled)
+	return err == nil, err
 }
 
 // UpdatePassThroughSettings is the resolver for the updatePassThroughSettings field.
@@ -776,6 +795,18 @@ func (r *queryResolver) UserAgentPassThroughSettings(ctx context.Context) (*User
 	return &UserAgentPassThroughSettings{
 		Enabled: enabled,
 	}, nil
+}
+
+// UpstreamTransportSettings is the resolver for the upstreamTransportSettings field.
+func (r *queryResolver) UpstreamTransportSettings(ctx context.Context) (*biz.UpstreamTransportSettings, error) {
+	if err := authz.RequireScope(ctx, scopes.ScopeReadSettings); err != nil {
+		return nil, err
+	}
+	settings, err := r.systemService.UpstreamTransportSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &settings, nil
 }
 
 // PassThroughSettings is the resolver for the passThroughSettings field.

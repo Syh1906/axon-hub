@@ -44,6 +44,19 @@ type TransportTrace struct {
 	recoverUpload      func() (string, func())
 	verifyUpload       func() bool
 	rejectProtocol     func()
+	finishProtocol     func(time.Time)
+}
+
+// FinishProtocolObservation receives the first meaningful upstream output of a
+// successfully delivered stream. A zero timestamp discards an incomplete trial.
+func (t *TransportTrace) FinishProtocolObservation(first time.Time) {
+	t.mu.Lock()
+	finish := t.finishProtocol
+	t.finishProtocol = nil
+	t.mu.Unlock()
+	if finish != nil {
+		finish(first)
+	}
 }
 
 // TransportTimings uses nullable durations: absent evidence is not zero latency.
@@ -290,8 +303,11 @@ func traceHTTPRequest(request *Request, raw *http.Request) *http.Request {
 		},
 	}
 	ctx := context.WithValue(raw.Context(), transportObserverKey{}, request.TransportTrace)
-	if request.LearnHTTP1 && raw.Method == http.MethodPost && raw.URL.Scheme == "https" && raw.ContentLength >= minProtocolUpload {
-		ctx = context.WithValue(ctx, protocolScopeKey{}, protocolScope{request.EncodingScope, request.EncodingGeneration})
+	if request.LearnHTTP1 && raw.Method == http.MethodPost && raw.URL.Scheme == "https" {
+		ctx = context.WithValue(ctx, protocolPreferenceKey{}, request.ProtocolPreference)
+		ctx = context.WithValue(ctx, protocolScopeKey{}, protocolScope{
+			channel: request.EncodingScope, generation: request.EncodingGeneration, work: request.ProtocolWork, varyHeaders: request.ProtocolVaryHeaders,
+		})
 	}
 	if raw.Method == http.MethodPost && raw.URL.Scheme == "https" && len(request.HTTP1Endpoints) > 0 {
 		if endpoint := raw.URL.String(); slices.Contains(request.HTTP1Endpoints, endpoint) {

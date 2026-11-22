@@ -81,18 +81,18 @@ func (s *RequestPayloadService) ResponsesHTTP1Endpoints() []string {
 	return s.config.ResponsesHTTP1Endpoints
 }
 
-// AdvertiseResponsesZstd reports whether this gateway accepts negotiated request coding.
-func (s *RequestPayloadService) AdvertiseResponsesZstd() bool {
+// AdvertiseRequestZstd reports whether this gateway accepts negotiated request coding.
+func (s *RequestPayloadService) AdvertiseRequestZstd() bool {
 	return s != nil && !s.config.DisableZstdAdvertisement
 }
 
-// LearnResponsesZstd permits using an upstream's own success response as capability evidence.
-func (s *RequestPayloadService) LearnResponsesZstd() bool {
+// LearnRequestZstd permits using an upstream's own success response as capability evidence.
+func (s *RequestPayloadService) LearnRequestZstd() bool {
 	return s != nil && !s.config.DisableZstdLearning
 }
 
-// DisabledResponsesZstdEndpoints overrides both explicit and learned encoding.
-func (s *RequestPayloadService) DisabledResponsesZstdEndpoints() []string {
+// DisabledZstdEndpoints overrides both explicit and learned encoding.
+func (s *RequestPayloadService) DisabledZstdEndpoints() []string {
 	if s == nil {
 		return nil
 	}

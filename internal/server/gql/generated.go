@@ -1757,6 +1757,8 @@ type ComplexityRoot struct {
 		SetChannelKeySessionReuse             func(childComplexity int, channelID objects.GUID, enabled bool) int
 		SetCleanupTaskPaused                  func(childComplexity int, id string, paused bool) int
 		SetPluginKv                           func(childComplexity int, namespace *string, key string, value string, ttlSeconds *int) int
+		SetUpstreamAutomaticCompression       func(childComplexity int, enabled bool) int
+		SetUpstreamHTTPProtocol               func(childComplexity int, protocol httpclient.ProtocolPreference) int
 		StartCleanupTask                      func(childComplexity int, input gc.TriggerGcCleanupInput) int
 		SyncChannelModels                     func(childComplexity int, channelID objects.GUID, pattern *string) int
 		TestChannel                           func(childComplexity int, input TestChannelInput) int
@@ -2427,6 +2429,7 @@ type ComplexityRoot struct {
 		TokenStatsByModel               func(childComplexity int, timeWindow *string) int
 		TopRequestsProjects             func(childComplexity int) int
 		Traces                          func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.TraceOrder, where *ent.TraceWhereInput) int
+		UpstreamTransportSettings       func(childComplexity int) int
 		UsageCostInjectionSettings      func(childComplexity int) int
 		UsageGroupOptions               func(childComplexity int, input biz.ConsumptionFilter) int
 		UsageLogs                       func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
@@ -3410,6 +3413,11 @@ type ComplexityRoot struct {
 		ValidUntil func(childComplexity int) int
 	}
 
+	UpstreamTransportSettings struct {
+		AutomaticCompression func(childComplexity int) int
+		Protocol             func(childComplexity int) int
+	}
+
 	UsageCostInjectionSettings struct {
 		Enabled func(childComplexity int) int
 	}
@@ -3786,6 +3794,8 @@ type MutationResolver interface {
 	SaveProxyPreset(ctx context.Context, input biz.ProxyPreset) (bool, error)
 	DeleteProxyPreset(ctx context.Context, url string) (bool, error)
 	UpdateUserAgentPassThroughSettings(ctx context.Context, input UpdateUserAgentPassThroughSettingsInput) (bool, error)
+	SetUpstreamHTTPProtocol(ctx context.Context, protocol httpclient.ProtocolPreference) (bool, error)
+	SetUpstreamAutomaticCompression(ctx context.Context, enabled bool) (bool, error)
 	UpdatePassThroughSettings(ctx context.Context, input UpdatePassThroughSettingsInput) (bool, error)
 	UpdateUsageCostInjectionSettings(ctx context.Context, input UpdateUsageCostInjectionSettingsInput) (bool, error)
 	UpdateCatalogSettings(ctx context.Context, input UpdateCatalogSettingsInput) (bool, error)
@@ -3959,6 +3969,7 @@ type QueryResolver interface {
 	SecuritySettings(ctx context.Context) (*biz.SecuritySettings, error)
 	ProxyPresets(ctx context.Context) ([]*biz.ProxyPreset, error)
 	UserAgentPassThroughSettings(ctx context.Context) (*UserAgentPassThroughSettings, error)
+	UpstreamTransportSettings(ctx context.Context) (*biz.UpstreamTransportSettings, error)
 	PassThroughSettings(ctx context.Context) (*PassThroughSettings, error)
 	UsageCostInjectionSettings(ctx context.Context) (*UsageCostInjectionSettings, error)
 	GetCacheDiagnostics(ctx context.Context, input *GetCacheDiagnosticsInput) (*GetCacheDiagnosticsPayload, error)
@@ -11401,6 +11412,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SetPluginKv(childComplexity, args["namespace"].(*string), args["key"].(string), args["value"].(string), args["ttlSeconds"].(*int)), true
+	case "Mutation.setUpstreamAutomaticCompression":
+		if e.complexity.Mutation.SetUpstreamAutomaticCompression == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setUpstreamAutomaticCompression_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetUpstreamAutomaticCompression(childComplexity, args["enabled"].(bool)), true
+	case "Mutation.setUpstreamHTTPProtocol":
+		if e.complexity.Mutation.SetUpstreamHTTPProtocol == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setUpstreamHTTPProtocol_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetUpstreamHTTPProtocol(childComplexity, args["protocol"].(httpclient.ProtocolPreference)), true
 	case "Mutation.startCleanupTask":
 		if e.complexity.Mutation.StartCleanupTask == nil {
 			break
@@ -15046,6 +15079,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Traces(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.TraceOrder), args["where"].(*ent.TraceWhereInput)), true
+	case "Query.upstreamTransportSettings":
+		if e.complexity.Query.UpstreamTransportSettings == nil {
+			break
+		}
+
+		return e.complexity.Query.UpstreamTransportSettings(childComplexity), true
 	case "Query.usageCostInjectionSettings":
 		if e.complexity.Query.UsageCostInjectionSettings == nil {
 			break
@@ -19118,6 +19157,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.UpstreamRateSnapshot.ValidUntil(childComplexity), true
 
+	case "UpstreamTransportSettings.automaticCompression":
+		if e.complexity.UpstreamTransportSettings.AutomaticCompression == nil {
+			break
+		}
+
+		return e.complexity.UpstreamTransportSettings.AutomaticCompression(childComplexity), true
+	case "UpstreamTransportSettings.protocol":
+		if e.complexity.UpstreamTransportSettings.Protocol == nil {
+			break
+		}
+
+		return e.complexity.UpstreamTransportSettings.Protocol(childComplexity), true
+
 	case "UsageCostInjectionSettings.enabled":
 		if e.complexity.UsageCostInjectionSettings.Enabled == nil {
 			break
@@ -21915,6 +21967,28 @@ func (ec *executionContext) field_Mutation_setPluginKV_args(ctx context.Context,
 		return nil, err
 	}
 	args["ttlSeconds"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setUpstreamAutomaticCompression_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "enabled", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["enabled"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setUpstreamHTTPProtocol_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "protocol", ec.unmarshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference)
+	if err != nil {
+		return nil, err
+	}
+	args["protocol"] = arg0
 	return args, nil
 }
 
@@ -62599,6 +62673,88 @@ func (ec *executionContext) fieldContext_Mutation_updateUserAgentPassThroughSett
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setUpstreamHTTPProtocol(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setUpstreamHTTPProtocol,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetUpstreamHTTPProtocol(ctx, fc.Args["protocol"].(httpclient.ProtocolPreference))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setUpstreamHTTPProtocol(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setUpstreamHTTPProtocol_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setUpstreamAutomaticCompression(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setUpstreamAutomaticCompression,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetUpstreamAutomaticCompression(ctx, fc.Args["enabled"].(bool))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setUpstreamAutomaticCompression(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setUpstreamAutomaticCompression_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updatePassThroughSettings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -78906,6 +79062,41 @@ func (ec *executionContext) fieldContext_Query_userAgentPassThroughSettings(_ co
 				return ec.fieldContext_UserAgentPassThroughSettings_enabled(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UserAgentPassThroughSettings", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_upstreamTransportSettings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_upstreamTransportSettings,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().UpstreamTransportSettings(ctx)
+		},
+		nil,
+		ec.marshalNUpstreamTransportSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐUpstreamTransportSettings,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_upstreamTransportSettings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "protocol":
+				return ec.fieldContext_UpstreamTransportSettings_protocol(ctx, field)
+			case "automaticCompression":
+				return ec.fieldContext_UpstreamTransportSettings_automaticCompression(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UpstreamTransportSettings", field.Name)
 		},
 	}
 	return fc, nil
@@ -102568,6 +102759,64 @@ func (ec *executionContext) fieldContext_UpstreamRateSnapshot_validUntil(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UpstreamTransportSettings_protocol(ctx context.Context, field graphql.CollectedField, obj *biz.UpstreamTransportSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UpstreamTransportSettings_protocol,
+		func(ctx context.Context) (any, error) {
+			return obj.Protocol, nil
+		},
+		nil,
+		ec.marshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UpstreamTransportSettings_protocol(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UpstreamTransportSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UpstreamHTTPProtocol does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UpstreamTransportSettings_automaticCompression(ctx context.Context, field graphql.CollectedField, obj *biz.UpstreamTransportSettings) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UpstreamTransportSettings_automaticCompression,
+		func(ctx context.Context) (any, error) {
+			return obj.AutomaticCompression, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UpstreamTransportSettings_automaticCompression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UpstreamTransportSettings",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -152618,6 +152867,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setUpstreamHTTPProtocol":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setUpstreamHTTPProtocol(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setUpstreamAutomaticCompression":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setUpstreamAutomaticCompression(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updatePassThroughSettings":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updatePassThroughSettings(ctx, field)
@@ -158895,6 +159158,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_userAgentPassThroughSettings(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "upstreamTransportSettings":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_upstreamTransportSettings(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -168436,6 +168721,50 @@ func (ec *executionContext) _UpstreamRateSnapshot(ctx context.Context, sel ast.S
 			}
 		case "validUntil":
 			out.Values[i] = ec._UpstreamRateSnapshot_validUntil(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var upstreamTransportSettingsImplementors = []string{"UpstreamTransportSettings"}
+
+func (ec *executionContext) _UpstreamTransportSettings(ctx context.Context, sel ast.SelectionSet, obj *biz.UpstreamTransportSettings) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, upstreamTransportSettingsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UpstreamTransportSettings")
+		case "protocol":
+			out.Values[i] = ec._UpstreamTransportSettings_protocol(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "automaticCompression":
+			out.Values[i] = ec._UpstreamTransportSettings_automaticCompression(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -180748,6 +181077,36 @@ func (ec *executionContext) marshalNUpstreamErrorPolicy2githubᚗcomᚋloopljᚋ
 	return ec._UpstreamErrorPolicy(ctx, sel, &v)
 }
 
+func (ec *executionContext) unmarshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference(ctx context.Context, v any) (httpclient.ProtocolPreference, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := unmarshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference[tmp]
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference(ctx context.Context, sel ast.SelectionSet, v httpclient.ProtocolPreference) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(marshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference[v])
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+var (
+	unmarshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference = map[string]httpclient.ProtocolPreference{
+		"AUTO":         httpclient.ProtocolAuto,
+		"PREFER_HTTP2": httpclient.ProtocolPreferHTTP2,
+		"HTTP1":        httpclient.ProtocolHTTP1,
+	}
+	marshalNUpstreamHTTPProtocol2githubᚗcomᚋloopljᚋaxonhubᚋllmᚋhttpclientᚐProtocolPreference = map[httpclient.ProtocolPreference]string{
+		httpclient.ProtocolAuto:        "AUTO",
+		httpclient.ProtocolPreferHTTP2: "PREFER_HTTP2",
+		httpclient.ProtocolHTTP1:       "HTTP1",
+	}
+)
+
 func (ec *executionContext) marshalNUpstreamKeySnapshot2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐUpstreamKeySnapshot(ctx context.Context, sel ast.SelectionSet, v *objects.UpstreamKeySnapshot) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -180790,6 +181149,20 @@ func (ec *executionContext) marshalNUpstreamQueryState2githubᚗcomᚋloopljᚋa
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNUpstreamTransportSettings2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐUpstreamTransportSettings(ctx context.Context, sel ast.SelectionSet, v biz.UpstreamTransportSettings) graphql.Marshaler {
+	return ec._UpstreamTransportSettings(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUpstreamTransportSettings2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐUpstreamTransportSettings(ctx context.Context, sel ast.SelectionSet, v *biz.UpstreamTransportSettings) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UpstreamTransportSettings(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNUsageCostInjectionSettings2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐUsageCostInjectionSettings(ctx context.Context, sel ast.SelectionSet, v UsageCostInjectionSettings) graphql.Marshaler {

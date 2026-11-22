@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -17,13 +18,114 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 
+	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/channel"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/llm/httpclient"
 )
+
+// Headers arrive immediately on both protocols. Only the first real Chat
+// delta is delayed, and the POST is much smaller than the upload threshold.
+func TestChatGatewayLearnsProtocolFromFirstOutput(t *testing.T) {
+	observed := make(chan int, 7)
+	encodings := make(chan string, 7)
+	supplier := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		observed <- r.ProtoMajor
+		encodings <- r.Header.Get("Content-Encoding")
+		decoded, err := httpclient.ReadHTTPRequest(r)
+		require.NoError(t, err)
+		require.True(t, gjson.GetBytes(decoded.Body, "messages.0.content").Exists())
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Accept-Encoding", "zstd")
+		const chunk = `{"id":"chat","object":"chat.completion.chunk","model":"synthetic-model","choices":[{"index":0,"delta":%s,"finish_reason":%s}]}`
+		fmt.Fprintf(w, "data: "+chunk+"\n\n", `{"role":"assistant"}`, "null")
+		w.(http.Flusher).Flush()
+		if r.ProtoMajor == 2 {
+			time.Sleep(200 * time.Millisecond)
+		}
+		fmt.Fprintf(w, "data: "+chunk+"\n\n", `{"content":"hello"}`, "null")
+		fmt.Fprintf(w, "data: "+chunk+"\n\ndata: [DONE]\n\n", "{}", `"stop"`)
+	}))
+	supplier.EnableHTTP2 = true
+	supplier.StartTLS()
+	t.Cleanup(supplier.Close)
+	client := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled}, httpclient.WithInsecureSkipVerify(true))
+	t.Cleanup(client.CloseIdleConnections)
+	db, handlers, project := newResponsesIntegrationFixtureWithClient(t, supplier.URL, client, func(c *ent.ChannelCreate) {
+		c.SetType(channel.TypeOpenai)
+	})
+	site := responsesIntegrationGateway(t, db, handlers, project)
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), db))
+	for i, want := range []int{2, 2, 1, 2, 1, 1} {
+		code, body := responsesIntegrationPost(t, site, "/v1/chat/completions", `{"model":"synthetic-model","stream":true,"messages":[{"role":"user","content":"hello"}]}`)
+		require.Equal(t, http.StatusOK, code, string(body))
+		require.Contains(t, string(body), "hello")
+		protocol := <-observed
+		require.Empty(t, <-encodings)
+		// Final timing is persisted after protocol feedback. Do not start
+		// the next comparison while the previous stream is still settling.
+		require.Eventually(t, func() bool {
+			row, err := db.Request.Get(ctx, i+1)
+			return err == nil && row.StreamTiming != nil && row.StreamTiming.FirstEventMs != nil
+		}, 2*time.Second, 5*time.Millisecond)
+		timing := db.Request.GetX(ctx, i+1).StreamTiming
+		t.Logf("POST %d used HTTP version %d and delivered first event %s at %d ms", i+1, protocol, timing.FirstEvent, *timing.FirstEventMs)
+		require.Equalf(t, want, protocol, "upstream POST %d", i+1)
+	}
+	// The Chat peer has advertised its decoder. This new size/encoding
+	// group starts its own protocol comparison with a single compressed POST.
+	large := `{"model":"synthetic-model","stream":true,"messages":[{"role":"user","content":"` + strings.Repeat("abc", 400000) + `"}]}`
+	code, body := responsesIntegrationPost(t, site, "/v1/chat/completions", large)
+	require.Equal(t, http.StatusOK, code, string(body))
+	require.Equal(t, 2, <-observed)
+	require.Equal(t, "zstd", <-encodings)
+	settings := handlers.ChatCompletionHandlers.ChatCompletionOrchestrator.SystemService
+	require.NoError(t, settings.SetUpstreamHTTPProtocol(ctx, httpclient.ProtocolHTTP1))
+	require.NoError(t, settings.SetUpstreamAutomaticCompression(ctx, false))
+	code, body = responsesIntegrationPost(t, site, "/v1/chat/completions", large)
+	require.Equal(t, http.StatusOK, code, string(body))
+	require.Equal(t, 1, <-observed)
+	require.Empty(t, <-encodings)
+	require.Empty(t, observed)
+}
+
+func TestResponsesGatewayLearnsAfterEmptyMessageStart(t *testing.T) {
+	protocols := make(chan int, 6)
+	supplier := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		protocols <- r.ProtoMajor
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: "+`{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg","role":"assistant","content":[]}}`+"\n\n")
+		w.(http.Flusher).Flush()
+		if r.ProtoMajor == 2 {
+			time.Sleep(200 * time.Millisecond)
+		}
+		fmt.Fprint(w, "data: "+`{"type":"response.output_text.delta","output_index":0,"content_index":0,"item_id":"msg","delta":"hello"}`+"\n\n")
+		fmt.Fprint(w, "data: "+`{"type":"response.completed","response":{"id":"resp","model":"synthetic-model","object":"response","status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hello"}]}]}}`+"\n\n")
+	}))
+	supplier.EnableHTTP2 = true
+	supplier.StartTLS()
+	t.Cleanup(supplier.Close)
+	client := httpclient.NewHttpClientWithProxy(&httpclient.ProxyConfig{Type: httpclient.ProxyTypeDisabled}, httpclient.WithInsecureSkipVerify(true))
+	t.Cleanup(client.CloseIdleConnections)
+	db, handlers, project := newResponsesIntegrationFixtureWithClient(t, supplier.URL, client)
+	site := responsesIntegrationGateway(t, db, handlers, project)
+	ctx := authz.WithTestBypass(ent.NewContext(t.Context(), db))
+	for i, want := range []int{2, 2, 1, 2, 1, 1} {
+		code, body := responsesIntegrationPost(t, site, "/v1/responses", `{"model":"synthetic-model","input":"hello","stream":true}`)
+		require.Equal(t, http.StatusOK, code, string(body))
+		require.Contains(t, string(body), "response.completed")
+		require.Equal(t, want, <-protocols)
+		require.Eventually(t, func() bool {
+			row, err := db.Request.Get(ctx, i+1)
+			return err == nil && row.StreamTiming != nil && row.StreamTiming.FirstEvent == "response.output_item.added.message"
+		}, 2*time.Second, 5*time.Millisecond)
+	}
+}
 
 // The outer gateway uses WS to the inner gateway. Only the inner gateway
 // can observe its final HTTP supplier and restore the second turn for it.
@@ -51,6 +153,9 @@ func TestResponsesTwoGatewaysWebSocketToHTTP(t *testing.T) {
 		fmt.Fprintf(w, "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r-%d\",\"model\":\"synthetic-model\",\"object\":\"response\",\"status\":\"completed\",\"output\":[%s],\"usage\":{\"input_tokens\":100,\"output_tokens\":5,\"total_tokens\":105}}}\n\n", n, item)
 	}))
 	innerDB, inner, innerProject := newResponsesIntegrationFixture(t, supplier.URL)
+	// Global compression off does not revoke this explicitly verified endpoint.
+	require.NoError(t, inner.ResponseCompletionHandlers.ChatCompletionOrchestrator.SystemService.SetUpstreamAutomaticCompression(
+		authz.WithTestBypass(ent.NewContext(t.Context(), innerDB)), false))
 	inner.ResponseCompletionHandlers.ChatCompletionOrchestrator.RequestService.PayloadService = biz.NewRequestPayloadService(biz.RequestPayloadConfig{
 		Directory: t.TempDir(), ResponsesZstdEndpoints: []string{supplier.URL + "/v1/responses"},
 	})

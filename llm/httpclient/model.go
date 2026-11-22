@@ -16,14 +16,17 @@ import (
 type Request struct {
 	BodyReadAt time.Time `json:"-"`
 	// ZstdEndpoints applies only to an actual HTTP dispatch to an explicitly configured URL.
-	ZstdEndpoints      []string `json:"-"`
-	HTTP1Endpoints     []string `json:"-"`
-	LearnHTTP1         bool     `json:"-"`
-	NoZstdEndpoints    []string `json:"-"`
-	LearnZstd          bool     `json:"-"`
-	EncodingScope      int      `json:"-"`
-	EncodingGeneration int64    `json:"-"`
-	MeasurePlainUpload bool     `json:"-"`
+	ZstdEndpoints       []string           `json:"-"`
+	HTTP1Endpoints      []string           `json:"-"`
+	LearnHTTP1          bool               `json:"-"`
+	ProtocolPreference  ProtocolPreference `json:"-"`
+	ProtocolWork        ProtocolWorkload   `json:"-"`
+	ProtocolVaryHeaders []string           `json:"-"`
+	NoZstdEndpoints     []string           `json:"-"`
+	LearnZstd           bool               `json:"-"`
+	EncodingScope       int                `json:"-"`
+	EncodingGeneration  int64              `json:"-"`
+	MeasurePlainUpload  bool               `json:"-"`
 	// HTTP basics
 	Method      string      `json:"method"`
 	URL         string      `json:"url"`

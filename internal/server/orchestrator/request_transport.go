@@ -7,7 +7,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/gjson"
+
+	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/requestpayload"
 	"github.com/looplj/axonhub/llm"
 	"github.com/looplj/axonhub/llm/httpclient"
@@ -16,27 +20,39 @@ import (
 
 const optimizationMetadataKey = "axon_payload_optimization_v1"
 
-func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Middleware {
-	return pipeline.OnRawRequest("optimize-request-images", func(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
+func optimizeRequestTransport(outbound *PersistentOutboundTransformer) pipeline.Middleware {
+	return pipeline.OnRawRequest("optimize-request-transport", func(ctx context.Context, request *httpclient.Request) (*httpclient.Request, error) {
+		state, channel := outbound.state, outbound.GetCurrentChannel()
+		if channel == nil || state.Request == nil {
+			return request, nil
+		}
+		request.EncodingScope, request.EncodingGeneration = channel.ID, channel.UpdatedAt.UnixNano()
+		request.LearnHTTP1 = true
+		transport := state.settings().UpstreamTransport
+		request.ProtocolPreference = transport.Protocol
+		overrides := channel.GetHeaderOverrideOperations()
+		request.ProtocolVaryHeaders = nil
+		for _, op := range overrides {
+			switch op.Op {
+			case objects.OverrideOpCopy, objects.OverrideOpRename:
+				request.ProtocolVaryHeaders = append(request.ProtocolVaryHeaders, op.From, op.To)
+			default:
+				request.ProtocolVaryHeaders = append(request.ProtocolVaryHeaders, op.Path)
+			}
+		}
 		switch llm.APIFormat(request.APIFormat) {
 		case llm.APIFormatOpenAIChatCompletion, llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatOpenAIResponseCompact, llm.APIFormatAnthropicMessage, llm.APIFormatGeminiContents:
 		default:
 			return request, nil
 		}
-		state := outbound.state
-		if state.Request == nil {
-			return request, nil
-		}
-		channel := outbound.GetCurrentChannel()
 		outbound.applyAddressDeadline(ctx, request)
-		request.EncodingScope, request.EncodingGeneration = channel.ID, channel.UpdatedAt.UnixNano()
+		payload := state.RequestService.PayloadService
+		request.NoZstdEndpoints = payload.DisabledZstdEndpoints()
+		request.LearnZstd = transport.AutomaticCompression && payload.LearnRequestZstd() && len(overrides) == 0
 		if request.APIFormat == string(llm.APIFormatOpenAIResponse) || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
-			payload := state.RequestService.PayloadService
-			request.ZstdEndpoints, request.NoZstdEndpoints = payload.ResponsesZstdEndpoints(), payload.DisabledResponsesZstdEndpoints()
+			request.ZstdEndpoints = payload.ResponsesZstdEndpoints()
 			// The HTTP transport applies this only if the executor actually sends an HTTPS POST.
 			request.HTTP1Endpoints = payload.ResponsesHTTP1Endpoints()
-			request.LearnHTTP1 = len(channel.GetHeaderOverrideOperations()) == 0
-			request.LearnZstd = payload.LearnResponsesZstd() && len(channel.GetHeaderOverrideOperations()) == 0
 		}
 		body, stats := state.RequestService.OptimizeRequestImages(ctx, state.Request.ProjectID, channel.ID, request.Body, func() httpclient.UploadEstimate {
 			if state.Proxy != nil || request.APIFormat == string(llm.APIFormatOpenAIResponseWebSocket) {
@@ -88,6 +104,40 @@ func optimizeRequestImages(outbound *PersistentOutboundTransformer) pipeline.Mid
 	})
 }
 
+// Every channel using the shared HTTP client can compare protocols on its own
+// real traffic. The transport decides eligibility from the final HTTPS request.
+func (s *PersistenceState) observeProtocolWork(clock *contexts.RequestClock, request *httpclient.Request) {
+	exec := s.RequestExec
+	if !request.LearnHTTP1 || clock == nil || !exec.Stream {
+		return
+	}
+	work := httpclient.ProtocolWorkload{Model: exec.ModelID, Format: exec.Format, Ingress: s.Request.Format}
+	// Pricing keeps the channel's mapped model. Conditional body overrides
+	// can send a different model to the same URL and account.
+	if body := bytes.TrimSpace(request.Body); len(body) > 0 && body[0] == '{' {
+		if model := gjson.GetBytes(body, "model"); model.Type == gjson.String && model.Str != "" {
+			work.Model = model.Str
+		}
+	}
+	if exec.ReasoningEffort != nil {
+		work.Effort = *exec.ReasoningEffort
+	}
+	if exec.CostSnapshot != nil && exec.CostSnapshot.ServiceTier != nil {
+		work.Tier = exec.CostSnapshot.ServiceTier.Outbound
+	}
+	request.ProtocolWork = work
+	trace, attempt := request.TransportTrace, s.attemptClock
+	clock.OnFinish(func(t contexts.RequestTiming, failed bool) {
+		var first time.Time
+		if !failed && t.Delivered != nil && s.StreamCompleted && s.StreamTerminalError == nil && len(t.Attempts) == 1 {
+			if t.Attempts[0].ExecutionID == attempt.ID {
+				first = attempt.ProtocolFirstOutput()
+			}
+		}
+		trace.FinishProtocolObservation(first)
+	})
+}
+
 func addressUploadExceedsDeadline(bytes int, estimate httpclient.UploadEstimate, remaining time.Duration) bool {
 	if remaining <= 0 {
 		return true
@@ -120,7 +170,8 @@ func (t *executionTransport) record(ctx context.Context, failed bool) {
 	largeRequest := t.bytes >= 5<<20 || (t.optimization != nil && t.optimization.InputBytes >= 5<<20)
 	timings := t.trace.Snapshot()
 	slowUpload := timings.UploadMs != nil && *timings.UploadMs >= 2000
-	info := failed || largeRequest || slowUpload || timings.PoolRecovery != "" || timings.PoolAction != ""
+	poolChanged := timings.PoolAction != "" && timings.PoolAction != "http1_preferred"
+	info := failed || largeRequest || slowUpload || timings.PoolRecovery != "" || poolChanged
 	// Transport completion can precede decoding or aggregate-response failure.
 	// Permit a debug record to become visible at info once, without duplicates.
 	if t.recorded && (t.recordedInfo || !info) {

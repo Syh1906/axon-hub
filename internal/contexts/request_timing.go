@@ -32,6 +32,7 @@ type AttemptClock struct {
 	firstContent, settled  atomic.Pointer[time.Time]
 	firstEvent, firstDelta atomic.Pointer[TimedStreamEvent]
 	semantic               atomic.Pointer[TimedStreamEvent]
+	protocolOutput         atomic.Pointer[TimedStreamEvent]
 	prepared               time.Time
 	dispatched             atomic.Pointer[time.Time]
 }

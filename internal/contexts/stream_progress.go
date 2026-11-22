@@ -19,16 +19,33 @@ func (a *AttemptClock) ObserveNormalizedOutput(format llm.APIFormat) {
 	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket, llm.APIFormatAnthropicMessage, llm.APIFormatOpenAIChatCompletion, llm.APIFormatGeminiContents:
 		return
 	}
-	a.semantic.CompareAndSwap(nil, &TimedStreamEvent{Type: "model.output", At: time.Now()})
+	a.recordOutputProgress(&TimedStreamEvent{Type: "model.output", At: time.Now()}, false)
+}
+
+func (a *AttemptClock) recordOutputProgress(event *TimedStreamEvent, emptyTextStart bool) {
+	a.semantic.CompareAndSwap(nil, event)
+	if !emptyTextStart {
+		a.protocolOutput.CompareAndSwap(nil, event)
+	}
+}
+
+// ProtocolFirstOutput skips empty message containers for protocol comparisons.
+// Request logs keep their existing progress event, including empty text starts.
+func (a *AttemptClock) ProtocolFirstOutput() time.Time {
+	if event := a.protocolOutput.Load(); event != nil {
+		return event.At
+	}
+	return time.Time{}
 }
 
 // ObserveOutputProgress records an upstream event without committing the stream
 // or changing delivery, retry, quota or channel health decisions.
 func (a *AttemptClock) ObserveOutputProgress(format llm.APIFormat, e *httpclient.StreamEvent) {
-	if a == nil || e == nil || a.semantic.Load() != nil {
+	if a == nil || e == nil || a.protocolOutput.Load() != nil {
 		return
 	}
 	kind := ""
+	emptyTextStart := false
 	switch format {
 	case llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket:
 		event, delta := responsesEventKind(e)
@@ -36,6 +53,7 @@ func (a *AttemptClock) ObserveOutputProgress(format llm.APIFormat, e *httpclient
 			switch item := gjson.GetBytes(e.Data, "item.type").String(); item {
 			case "reasoning", "message", "function_call", "custom_tool_call", "web_search_call", "file_search_call", "computer_call", "code_interpreter_call", "image_generation_call":
 				kind = event + "." + item
+				emptyTextStart = item == "message" && !wholeResponsesContent(event, e.Data)
 			}
 		}
 		if kind == "" && (delta || wholeResponsesContent(event, e.Data)) {
@@ -48,6 +66,7 @@ func (a *AttemptClock) ObserveOutputProgress(format llm.APIFormat, e *httpclient
 			switch block := gjson.GetBytes(e.Data, "content_block.type").String(); block {
 			case "thinking", "text", "tool_use", "server_tool_use":
 				kind = "anthropic." + block
+				emptyTextStart = block == "text" && !hasStreamText(gjson.GetBytes(e.Data, "content_block.text"))
 			}
 		}
 	case llm.APIFormatOpenAIChatCompletion:
@@ -63,7 +82,7 @@ func (a *AttemptClock) ObserveOutputProgress(format llm.APIFormat, e *httpclient
 		kind = streamContentKind(format, e)
 	}
 	if kind != "" {
-		a.semantic.CompareAndSwap(nil, &TimedStreamEvent{Type: kind, At: time.Now(), Bytes: len(e.Data)})
+		a.recordOutputProgress(&TimedStreamEvent{Type: kind, At: time.Now(), Bytes: len(e.Data)}, emptyTextStart)
 	}
 }
 

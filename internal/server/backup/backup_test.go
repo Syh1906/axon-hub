@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/server/biz"
+	"github.com/looplj/axonhub/llm/httpclient"
 )
 
 func setupBackupTest(t *testing.T) (*ent.Client, *BackupService, context.Context) {
@@ -320,11 +322,13 @@ func TestBackupService_Backup_SystemConfigs(t *testing.T) {
 	defer client.Close()
 
 	for key, value := range map[string]string{
-		biz.SystemKeyRetryPolicy:        `{"max_retries":4}`,
-		biz.SystemKeyChannelSettings:    `{"probe":{"enabled":true}}`,
-		biz.SystemKeySecretKey:          "must-not-be-backed-up",
-		biz.SystemKeyDefaultDataStorage: "42",
-		biz.SystemKeyAutoBackupSettings: `{"data_storage_id":42}`,
+		biz.SystemKeyRetryPolicy:         `{"max_retries":4}`,
+		biz.SystemKeyChannelSettings:     `{"probe":{"enabled":true}}`,
+		biz.SystemKeyUpstreamProtocol:    "PREFER_HTTP2",
+		biz.SystemKeyUpstreamCompression: "false",
+		biz.SystemKeySecretKey:           "must-not-be-backed-up",
+		biz.SystemKeyDefaultDataStorage:  "42",
+		biz.SystemKeyAutoBackupSettings:  `{"data_storage_id":42}`,
 	} {
 		_, err := client.System.Create().SetKey(key).SetValue(value).Save(ctx)
 		require.NoError(t, err)
@@ -341,7 +345,18 @@ func TestBackupService_Backup_SystemConfigs(t *testing.T) {
 	require.ElementsMatch(t, []*BackupSystemConfig{
 		{Key: biz.SystemKeyRetryPolicy, Value: `{"max_retries":4}`},
 		{Key: biz.SystemKeyChannelSettings, Value: `{"probe":{"enabled":true}}`},
+		{Key: biz.SystemKeyUpstreamProtocol, Value: "PREFER_HTTP2"},
+		{Key: biz.SystemKeyUpstreamCompression, Value: "false"},
 	}, backupData.SystemConfigs)
+	require.NoError(t, service.systemService.SetUpstreamHTTPProtocol(ctx, httpclient.ProtocolAuto))
+	require.NoError(t, service.systemService.SetUpstreamAutomaticCompression(ctx, true))
+	current, err := service.systemService.UpstreamTransportSettings(ctx)
+	require.NoError(t, err)
+	require.Equal(t, biz.DefaultUpstreamTransportSettings(), current)
+	require.NoError(t, service.Restore(ctx, bytes.NewReader(data), RestoreOptions{IncludeSystemConfigs: true}))
+	restored, err := service.systemService.UpstreamTransportSettings(ctx)
+	require.NoError(t, err)
+	require.Equal(t, biz.UpstreamTransportSettings{Protocol: httpclient.ProtocolPreferHTTP2, AutomaticCompression: false}, restored)
 }
 
 func TestBackupService_Backup_WithUsageStats(t *testing.T) {

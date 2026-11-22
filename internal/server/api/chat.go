@@ -155,9 +155,9 @@ func (handlers *ChatCompletionHandlers) ChatCompletionWithRequest(c *gin.Context
 	if genericReq.Headers.Get(httpclient.AcceptBillingTierHeader) == "1" {
 		c.Header(httpclient.BillingTierAckHeader, "1")
 	}
-	if shared.IsResponsesAPI(ctx) && c.Request.Method == http.MethodPost &&
+	if c.Request.Method == http.MethodPost && (strings.EqualFold(c.ContentType(), "application/json") || shared.IsResponsesAPI(ctx)) &&
 		(result.ChatCompletionStream != nil || result.ChatCompletion != nil && result.ChatCompletion.StatusCode/100 == 2) &&
-		handlers.ChatCompletionOrchestrator.RequestService.PayloadService.AdvertiseResponsesZstd() {
+		handlers.ChatCompletionOrchestrator.RequestService.PayloadService.AdvertiseRequestZstd() {
 		// This header describes this hop's request decoder. Upstream response
 		// headers are filtered independently by writeForwardResponseHeaders.
 		c.Header("Accept-Encoding", "zstd")

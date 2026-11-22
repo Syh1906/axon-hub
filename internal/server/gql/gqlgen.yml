@@ -200,6 +200,17 @@ models:
     model: github.com/looplj/axonhub/internal/server/biz.ClaudeCodeSafeguardsConfig
   CodexCompatibilitySettings:
     model: github.com/looplj/axonhub/internal/server/biz.CodexCompatibilitySettings
+  UpstreamTransportSettings:
+    model: github.com/looplj/axonhub/internal/server/biz.UpstreamTransportSettings
+  UpstreamHTTPProtocol:
+    model: github.com/looplj/axonhub/llm/httpclient.ProtocolPreference
+    enum_values:
+      AUTO:
+        value: github.com/looplj/axonhub/llm/httpclient.ProtocolAuto
+      PREFER_HTTP2:
+        value: github.com/looplj/axonhub/llm/httpclient.ProtocolPreferHTTP2
+      HTTP1:
+        value: github.com/looplj/axonhub/llm/httpclient.ProtocolHTTP1
   UpdateCodexCompatibilitySettingsInput:
     model: github.com/looplj/axonhub/internal/server/biz.CodexCompatibilitySettings
   # Defines the ID field as Go 'int'.
