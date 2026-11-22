@@ -15,9 +15,11 @@ func TestSemanticProgressIsIndependentOfDeliveredContent(t *testing.T) {
 	for _, format := range []llm.APIFormat{llm.APIFormatOpenAIResponse, llm.APIFormatOpenAIResponseWebSocket} {
 		_, clock := WithRequestClock(t.Context(), time.Now())
 		attempt := clock.AddAttempt(1, 2, nil)
-		for _, frame := range []string{`{"type":"response.created"}`, `{"type":"response.queued"}`,
+		for _, frame := range []string{
+			`{"type":"response.created"}`, `{"type":"response.queued"}`,
 			`{"type":"response.output_text.delta","delta":""}`, `{"type":"unknown"}`, `{"type":"error"}`,
-			`{"type":"response.completed","response":{"output":[],"usage":{"output_tokens":3}}}`} {
+			`{"type":"response.completed","response":{"output":[],"usage":{"output_tokens":3}}}`,
+		} {
 			attempt.ObserveOutputProgress(format, &httpclient.StreamEvent{Data: []byte(frame)})
 		}
 		require.Nil(t, clock.Snapshot().Attempts[0].Semantic)
@@ -40,12 +42,18 @@ func TestProtocolFirstOutputSkipsEmptyTextStarts(t *testing.T) {
 		format      llm.APIFormat
 		start, next string
 	}{
-		{llm.APIFormatOpenAIResponse, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
-			`{"type":"response.output_text.delta","delta":"hello"}`},
-		{llm.APIFormatAnthropicMessage, `{"type":"content_block_start","content_block":{"type":"text","text":""}}`,
-			`{"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}`},
-		{llm.APIFormatOpenAIResponseWebSocket, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
-			`{"type":"response.output_item.added","item":{"type":"function_call","name":"lookup"}}`},
+		{
+			llm.APIFormatOpenAIResponse, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
+			`{"type":"response.output_text.delta","delta":"hello"}`,
+		},
+		{
+			llm.APIFormatAnthropicMessage, `{"type":"content_block_start","content_block":{"type":"text","text":""}}`,
+			`{"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}`,
+		},
+		{
+			llm.APIFormatOpenAIResponseWebSocket, `{"type":"response.output_item.added","item":{"type":"message","content":[]}}`,
+			`{"type":"response.output_item.added","item":{"type":"function_call","name":"lookup"}}`,
+		},
 	} {
 		t.Run(string(tc.format), func(t *testing.T) {
 			_, clock := WithRequestClock(t.Context(), time.Now())
