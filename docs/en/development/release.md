@@ -1,5 +1,7 @@
 # Independent releases and upstream maintenance
 
+Both production sites upgraded to [fork.21](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.21) on 2026-11-22. The admin console now controls adaptive protocol selection and request compression defaults while honoring existing pinned endpoints. The [maintenance ledger](../../fork-maintenance.md) records the shared image digest, health checks and requests affected during the cutovers.
+
 Both production sites upgraded to [fork.20](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.20) on 2026-11-21. The request log and API key usage table show the sent and billed service tiers independently. This release required no database migration. The [maintenance ledger](../../fork-maintenance.md) records health checks, in-flight request outcomes and post-deployment verification.
 
 On 2026-11-21, both production sites upgraded to [fork.19](https://github.com/Syh1906/axon-hub/releases/tag/v1.0.0-rc1-fork.19). Large, slow Responses uploads can now learn a transport preference from normal traffic. See the [maintenance ledger](../../fork-maintenance.md) for the image digest, health checks and in-flight outcomes.
