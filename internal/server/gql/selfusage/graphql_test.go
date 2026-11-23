@@ -181,7 +181,7 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 		{"IP whitelist mismatch", restrictedKey, http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(`{"query":"{ selfUsageMeta { apiKeyName apiKeyType maxRangeDays currencyDisplayDecimals } selfUsageRequests(start:\"2026-11-05\",end:\"2026-11-05\") { items { callerKeyName callerGroupName executedModels reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond } } }"}`))
+			req := httptest.NewRequest(http.MethodPost, "/self-service/v1/graphql", strings.NewReader(`{"query":"{ selfUsageMeta { apiKeyName apiKeyType maxRangeDays currencyDisplayDecimals } selfUsageRequests(start:\"2026-11-05\",end:\"2026-11-05\",after:{createdAt:\"2026-11-05T12:00:00Z\",id:1}) { hasMore items { callerKeyName callerGroupName executedModels reasoningEffort format outboundFormat passThroughApplied clientStatusCode retryCount cacheWriteTokens5m cacheWriteTokens1h outputTokensPerSecond } } }"}`))
 			req.Header.Set("Authorization", "Bearer "+tc.key)
 			req.Header.Set("Content-Type", "application/json")
 			req.RemoteAddr = "198.51.100.77:12345"
@@ -196,6 +196,7 @@ func TestGraphqlHandlerAuthenticatedMiddlewareChain(t *testing.T) {
 			if tc.want == http.StatusOK {
 				require.NotContains(t, response.Body.String(), `"errors"`)
 				require.Contains(t, response.Body.String(), `"currencyDisplayDecimals":4`)
+				require.Contains(t, response.Body.String(), `"hasMore":false`)
 			// This fixture records a requested effort but has no upstream execution.
 			require.Contains(t, response.Body.String(), `"reasoningEffort":null`)
 				require.Contains(t, response.Body.String(), `"executedModels":[]`)

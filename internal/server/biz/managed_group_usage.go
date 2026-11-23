@@ -77,6 +77,7 @@ func (s *APIKeyService) managedGroupUsageScope(ctx context.Context, system *Syst
 	}
 	// Deleted credentials still own historical requests and usage.
 	scope.keyIDs, err = q.IDs(schematype.SkipSoftDelete(ctx))
+	scope.includeMembershipInID()
 	return scope, first, err
 }
 
@@ -89,11 +90,11 @@ func (s *APIKeyService) ManagedGroupUsageStats(ctx context.Context, system *Syst
 	return NewSelfUsageService(s.entFromContext(ctx), system).statsForScope(ctx, scope, first, start, end)
 }
 
-func (s *APIKeyService) ManagedGroupUsageRequests(ctx context.Context, system *SystemService, groupRef int, start, end string, model *string, status string, page, pageSize int, sessionID string) (*SelfUsageRequestPage, error) {
+func (s *APIKeyService) ManagedGroupUsageRequests(ctx context.Context, system *SystemService, groupRef int, start, end string, model *string, status string, page, pageSize int, sessionID string, after *SelfUsageRequestCursor) (*SelfUsageRequestPage, error) {
 	scope, _, err := s.managedGroupUsageScope(ctx, system, groupRef, start, end)
 	if err != nil {
 		return nil, err
 	}
 	scope.sessionID = strings.TrimSpace(sessionID)
-	return NewSelfUsageService(s.entFromContext(ctx), system).requestsForScope(ctx, scope, model, status, page, pageSize)
+	return NewSelfUsageService(s.entFromContext(ctx), system).requestsForScope(ctx, scope, model, status, page, pageSize, after)
 }

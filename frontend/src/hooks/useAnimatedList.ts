@@ -7,7 +7,7 @@ const parsedInterval = parseInt(import.meta.env.VITE_REQUESTS_ANIMATION_INTERVAL
 const ANIMATION_INTERVAL = !isNaN(parsedInterval) && parsedInterval > 0 ? parsedInterval : 500;
 const MAX_ANIMATED_ITEMS = getMaxSequentialAnimatedItems(ANIMATION_INTERVAL);
 
-export function useAnimatedList<T extends { id: string; createdAt: Date | string }>(
+export function useAnimatedList<T extends { id: string | number; createdAt: Date | string }>(
   data: T[],
   animateUpdates: boolean,
   pageSize: number = MAX_ITEMS,
@@ -37,6 +37,8 @@ export function useAnimatedList<T extends { id: string; createdAt: Date | string
       return;
     }
     if (startedAnimating) {
+      prevResetKeyRef.current = resetKey;
+      pendingResetDataSignatureRef.current = null;
       setDisplayedData(data);
       queueRef.current = [];
       prevDataSignatureRef.current = dataSignature;

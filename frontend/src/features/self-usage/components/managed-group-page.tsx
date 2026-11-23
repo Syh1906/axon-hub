@@ -6,10 +6,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { BudgetTable } from '@/features/budgets/budget-table';
 import { useBudget, hasBudgetLimits } from '@/features/budgets/data';
-import { DatePicker, Summary, Trend, ModelTable, RequestLog } from '@/features/self-usage';
+import { DatePicker, Summary, Trend, ModelTable } from '@/features/self-usage';
 import { statsQuery, requestsQuery, type SelfUsageMeta, type SelfUsageStats, type RequestPage } from '@/features/self-usage/api';
 import { PageError } from '@/features/self-usage/components/page-error';
 import { presetRange, type DateRange } from '@/features/self-usage/utils/date-range';
+import { RequestLog } from './request-log';
 import { UsagePageShell } from './page-shell';
 
 const managedStats = statsQuery
@@ -44,6 +45,8 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
           { signal }
         )
       ).managedGroupUsageStats,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     staleTime: 0,
   });
   const budget = useBudget({ kind: 'group', ownerID: groupRef, name: meta.apiKeyName }, groupRef > 0, project);
@@ -83,15 +86,16 @@ function UsageContent({ groupRef, meta, project, identity }: { groupRef: number;
         meta={meta}
         models={stats.data?.models.map((m) => m.model) ?? []}
         onUnauthorized={refresh}
+        refreshStats={stats.refetch}
         expectedScope={stats.data}
         scopeRevision={revision}
         onScopeMismatch={refresh}
         queryScope={queryScope}
-        loadRequests={async (model, status, page, signal) =>
+        loadRequests={async (model, status, page, signal, after) =>
           (
             await graphqlRequest<{ managedGroupUsageRequests: RequestPage }>(
               managedRequests,
-              { groupRef, ...range, model, status, page, pageSize: 20, sessionID: sessionID || undefined },
+              { groupRef, ...range, model, status, page, pageSize: 20, after, sessionID: sessionID || undefined },
               { 'X-Project-ID': project },
               { signal }
             )

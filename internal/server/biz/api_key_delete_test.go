@@ -50,7 +50,7 @@ func TestDeleteAPIKeysDestroysCredentialAndPreservesHistory(t *testing.T) {
 	after, err := f.admin.ManagedGroupUsageStats(f.ctx, f.admin.SystemService, f.group.ID, date, date, "")
 	require.NoError(t, err)
 	require.Equal(t, before, after)
-	page, err := f.admin.ManagedGroupUsageRequests(f.ctx, f.admin.SystemService, f.group.ID, date, date, nil, "", 1, 10, "")
+	page, err := f.admin.ManagedGroupUsageRequests(f.ctx, f.admin.SystemService, f.group.ID, date, date, nil, "", 1, 10, "", nil)
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)
 	require.Contains(t, page.Items[0].APIKeyName, f.key.Name)

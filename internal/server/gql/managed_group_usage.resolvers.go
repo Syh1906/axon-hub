@@ -23,10 +23,10 @@ func (r *queryResolver) ManagedGroupUsageStats(ctx context.Context, groupRef int
 }
 
 // ManagedGroupUsageRequests is the resolver for the managedGroupUsageRequests field.
-func (r *queryResolver) ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error) {
+func (r *queryResolver) ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int, after *biz.SelfUsageRequestCursor) (*biz.SelfUsageRequestPage, error) {
 	value := ""
 	if status != nil {
 		value = *status
 	}
-	return r.apiKeyService.ManagedGroupUsageRequests(ctx, r.systemService, groupRef, start, end, model, value, page, pageSize, lo.FromPtr(sessionID))
+	return r.apiKeyService.ManagedGroupUsageRequests(ctx, r.systemService, groupRef, start, end, model, value, page, pageSize, lo.FromPtr(sessionID), after)
 }

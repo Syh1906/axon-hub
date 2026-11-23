@@ -25,8 +25,8 @@ import (
 func TestManagedGroupUsageRequestsSupportsRequestLogFields(t *testing.T) {
 	// 分组页面复用自助用量查询，主接口也必须接受完整的请求日志字段。
 	_, err := gqlparser.LoadQuery(NewExecutableSchema(Config{}).Schema(), `
-		query ManagedGroupRequests($start: String!, $end: String!, $model: String, $status: String, $page: Int!, $pageSize: Int!, $groupRef: Int!) {
-			managedGroupUsageRequests(groupRef: $groupRef, start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize) {
+		query ManagedGroupRequests($start: String!, $end: String!, $model: String, $status: String, $page: Int!, $pageSize: Int!, $after: SelfUsageRequestCursor, $groupRef: Int!) {
+			managedGroupUsageRequests(groupRef: $groupRef, start: $start, end: $end, model: $model, status: $status, page: $page, pageSize: $pageSize, after: $after) {
 				items {
 					apiKeyName id createdAt model status requestStatus stream latencyMs firstTokenLatencyMs
 					inputTokens outputTokens cacheReadTokens cacheWriteTokens reasoningTokens totalTokens
@@ -44,7 +44,7 @@ func TestManagedGroupUsageRequestsSupportsRequestLogFields(t *testing.T) {
 						tierBreakdown { upTo units subtotal }
 					}
 				}
-				scopeID apiKeyName groupName page pageSize total
+				scopeID apiKeyName groupName page pageSize total hasMore
 			}
 		}`)
 	require.Empty(t, err)

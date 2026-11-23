@@ -90,5 +90,7 @@ models:
   SelfUsageExecutionStatus:
     model: github.com/looplj/axonhub/internal/ent/requestexecution.Status
 
+  SelfUsageRequestCursor:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageRequestCursor
   SelfUsageChannel:
     model: github.com/looplj/axonhub/internal/server/biz.SelfUsageChannel

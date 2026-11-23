@@ -35,6 +35,40 @@ type selfUsageFixture struct {
 	otherProject *ent.Project
 }
 
+func TestSelfUsageRequestCursorKeepsReadingOrder(t *testing.T) {
+	f := newSelfUsageFixture(t, "UTC")
+	ctx := authz.WithTestBypass(f.ctx)
+	at := time.Date(2026, 1, 1, 10, 0, 0, 123456000, time.UTC)
+	date := at.Format("2006-01-02")
+	add := func(at time.Time) *ent.Request {
+		row := f.request(at, f.key.ID, f.project.ID, request.SourceAPI, request.StatusCompleted, "model")
+		return row.Update().SetClientSessionID("session").SaveX(ctx)
+	}
+	first, second, third := add(at), add(at), add(at)
+	fetch := func(filter SelfUsageFilter) *SelfUsageRequestPage {
+		page, err := f.service.Requests(f.ctx, date, date, nil, "", 1, 2, filter)
+		require.NoError(t, err)
+		return page
+	}
+	head := fetch(SelfUsageFilter{})
+	require.True(t, head.HasMore)
+	require.Equal(t, third.ID, head.Items[0].ID)
+	require.Equal(t, second.ID, head.Items[1].ID)
+	anchor := &SelfUsageRequestCursor{ID: second.ID, CreatedAt: head.Items[1].CreatedAt}
+	newest := add(at.Add(time.Second))
+	tail := fetch(SelfUsageFilter{After: anchor})
+	require.False(t, tail.HasMore)
+	require.Equal(t, 4, tail.Total)
+	require.Len(t, tail.Items, 1)
+	require.Equal(t, first.ID, tail.Items[0].ID)
+
+	session := fetch(SelfUsageFilter{SessionID: "session", After: anchor})
+	require.False(t, session.HasMore)
+	require.Len(t, session.Items, 2)
+	require.Equal(t, third.ID, session.Items[0].ID)
+	require.Equal(t, newest.ID, session.Items[1].ID)
+}
+
 func TestSelfUsageStatisticsSurviveDetailCleanup(t *testing.T) {
 	f := newSelfUsageFixture(t, "UTC")
 	at := time.Now().UTC().AddDate(0, 0, -70)

@@ -8,29 +8,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   fetchMeta,
-  fetchRequests,
   fetchStats,
   SelfUsageError,
-  type RequestStatus,
   type SelfUsageDisplayMeta as SelfUsageMeta,
   type Usage,
 } from './api';
-import type { SelfUsageIdentity } from './api';
 import { SelfUsageBudgets } from './components/budgets';
 import { CacheHitCard } from './components/cache-hit-card';
 import { CompactTokens } from './components/compact-tokens';
 import { Cost } from './components/cost';
 import { PageError } from './components/page-error';
 import { UsagePageShell } from './components/page-shell';
-import { RequestSessionFilter } from '@/features/requests/components/request-session-filter';
-import { UsageRequestTable } from './components/request-table';
+import { RequestLog } from './components/request-log';
 import { displayCost } from './cost/format';
 import { selfUsageQueryClient } from './query-client';
-import { sameUsageScope } from './scope';
 import { getPageKey, setPageKey } from './session';
 import { chartDay, presetRange, validRange, type DatePreset, type DateRange } from './utils/date-range';
 
@@ -370,139 +364,6 @@ export function ModelTable({ models, meta }: { models: { model: string; usage: U
   );
 }
 
-export function RequestLog({
-  group = false,
-  keyValue,
-  range,
-  meta,
-  models,
-  onUnauthorized,
-  expectedScope,
-  scopeRevision,
-  onScopeMismatch,
-  loadRequests,
-  queryScope,
-  sessionID,
-  onSessionFilter,
-}: {
-  sessionID: string;
-  onSessionFilter: (id: string) => void;
-  loadRequests?: (
-    model: RequestStatus | string | null,
-    status: RequestStatus | null,
-    page: number,
-    signal?: AbortSignal
-  ) => ReturnType<typeof fetchRequests>;
-  queryScope?: readonly unknown[];
-  group?: boolean;
-  keyValue: string;
-  range: DateRange;
-  meta: SelfUsageMeta;
-  models: string[];
-  onUnauthorized: () => void;
-  expectedScope?: SelfUsageIdentity;
-  scopeRevision: number;
-  onScopeMismatch: () => void;
-}) {
-  const { t } = usePageLabels(meta);
-  const [model, setModel] = useState<string | null>(null);
-  const [status, setStatus] = useState<RequestStatus | null>(null);
-  const [page, setPage] = useState(1);
-  const result = useQuery({
-    queryKey: [...(queryScope ?? ['selfUsage']), 'requests', scopeRevision, group, range.start, range.end, model, status, sessionID, page],
-    queryFn: ({ signal }) =>
-      loadRequests
-        ? loadRequests(model, status, page, signal)
-        : fetchRequests(keyValue, range.start, range.end, model, status, page, signal, group, sessionID || undefined),
-    staleTime: 0,
-    gcTime: 0,
-  });
-  useEffect(() => {
-    if (result.error instanceof SelfUsageError && result.error.status === 401) onUnauthorized();
-  }, [result.error, onUnauthorized]);
-  const scopeMismatch = !!result.data && !!expectedScope && !sameUsageScope(result.data, expectedScope);
-  useEffect(() => {
-    if (scopeMismatch) onScopeMismatch();
-  }, [scopeMismatch, onScopeMismatch]);
-  const data = scopeMismatch || !expectedScope ? undefined : result.data;
-  const changeSession = (id: string) => { setPage(1); onSessionFilter(id); };
-  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.pageSize ?? 20)));
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('selfUsage.requests.title')}</CardTitle>
-        <div className='flex flex-wrap gap-2 pt-2'>
-          <Select
-            value={model ?? '__all__'}
-            onValueChange={(value) => {
-              setModel(value === '__all__' ? null : value);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className='w-48' aria-label={t('selfUsage.requests.model')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='__all__'>{t('selfUsage.requests.allModels')}</SelectItem>
-              {models.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={status ?? '__all__'}
-            onValueChange={(value) => {
-              setStatus(value === '__all__' ? null : (value as RequestStatus));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className='w-44' aria-label={t('selfUsage.requests.status')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='__all__'>{t('selfUsage.requests.allStatuses')}</SelectItem>
-              {(['SUCCESS', 'FAILED', 'PROCESSING'] as const).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`selfUsage.requests.${value.toLowerCase()}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <RequestSessionFilter key={sessionID} value={sessionID} onChange={changeSession} />
-        </div>
-        {sessionID && <p className='text-muted-foreground text-sm'>{t('requests.session.retention')}</p>}
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        {result.error && (
-          <PageError
-            error={result.error}
-            retry={() => {
-              void result.refetch();
-            }}
-          />
-        )}
-        {(result.isPending || scopeMismatch || !expectedScope) && <p role='status'>{t('selfUsage.loading')}</p>}
-        {data && (
-          <>
-            <UsageRequestTable onSessionFilter={changeSession} items={data.items} meta={meta} channelVisible={data.channelVisible} />
-            <div className='flex items-center justify-between gap-2 text-sm'>
-              <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                {t('selfUsage.requests.previous')}
-              </Button>
-              <span>{t('selfUsage.requests.page', { page: data.page, pages, total: data.total })}</span>
-              <Button variant='outline' size='sm' disabled={page >= pages} onClick={() => setPage(page + 1)}>
-                {t('selfUsage.requests.next')}
-              </Button>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function Dashboard({
   keyValue,
   meta,
@@ -525,6 +386,8 @@ function Dashboard({
   const stats = useQuery({
     queryKey: ['selfUsage', 'stats', scopeRevision, group, range.start, range.end, sessionID],
     queryFn: ({ signal }) => fetchStats(keyValue, range.start, range.end, signal, group, sessionID || undefined),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     // Membership can change while this page is open; do not reuse a previous scope after toggling.
     staleTime: 0,
     gcTime: 0,
@@ -575,6 +438,7 @@ function Dashboard({
         range={range}
         meta={meta}
         models={stats.data?.models.map((item) => item.model) ?? []}
+        refreshStats={stats.refetch}
         expectedScope={stats.data}
         scopeRevision={scopeRevision}
         onScopeMismatch={syncScope}

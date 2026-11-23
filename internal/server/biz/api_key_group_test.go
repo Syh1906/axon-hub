@@ -171,9 +171,11 @@ func TestSelfUsageGroupScopeAndReassignment(t *testing.T) {
 	for _, row := range page.Items {
 		require.Contains(t, row.APIKeyName, "recipient")
 	}
+	previousScopeID := combined.ScopeID
 	f.other.Update().ClearGroupRef().SaveX(ctx)
 	combined, err = f.service.Stats(f.ctx, "2026-01-01", "2026-01-01", SelfUsageFilter{Group: true})
 	require.NoError(t, err)
+	require.NotEqual(t, previousScopeID, combined.ScopeID)
 	require.Equal(t, 1, combined.Totals.SuccessRequests)
 	_, err = f.service.Stats(contexts.WithAPIKey(f.ctx, f.other), "2026-01-01", "2026-01-01", SelfUsageFilter{Group: true})
 	require.Error(t, err)

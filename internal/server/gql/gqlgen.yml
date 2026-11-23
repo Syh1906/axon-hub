@@ -1229,6 +1229,8 @@ models:
   SelfUsageModelExecution:
     model: github.com/looplj/axonhub/internal/server/biz.SelfUsageModelExecution
 
+  SelfUsageRequestCursor:
+    model: github.com/looplj/axonhub/internal/server/biz.SelfUsageRequestCursor
   SelfUsageChannel:
     model: github.com/looplj/axonhub/internal/server/biz.SelfUsageChannel
   # Plugin is not ent.Plugin. The DTO has no package bytes.

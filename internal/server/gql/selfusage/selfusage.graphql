@@ -6,7 +6,7 @@ type Query {
   selfUsageStats(start: String!, end: String!, sessionID: String, group: Boolean! = false): SelfUsageStats!
   selfUsageRequests(
     start: String!, end: String!, sessionID: String, model: String, status: SelfUsageRequestStatus,
-    page: Int = 1, pageSize: Int = 20, group: Boolean! = false
+    page: Int = 1, pageSize: Int = 20, after: SelfUsageRequestCursor, group: Boolean! = false
   ): SelfUsageRequestPage!
 }
 
@@ -148,7 +148,13 @@ type SelfUsageTierCost {
   subtotal: Float!
 }
 
+input SelfUsageRequestCursor {
+  createdAt: Time!
+  id: Int!
+}
+
 type SelfUsageRequestPage {
+  hasMore: Boolean!
   channelVisible: Boolean!
   scopeID: String!
   apiKeyName: String!

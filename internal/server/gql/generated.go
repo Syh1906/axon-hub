@@ -2363,7 +2363,7 @@ type ComplexityRoot struct {
 		KeyManagementResults            func(childComplexity int, operationID string) int
 		ManagedGroupKeys                func(childComplexity int, groupRef int, offset int, limit int) int
 		ManagedGroupUsageMeta           func(childComplexity int, groupRef int) int
-		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) int
+		ManagedGroupUsageRequests       func(childComplexity int, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int, after *biz.SelfUsageRequestCursor) int
 		ManagedGroupUsageStats          func(childComplexity int, groupRef int, start string, end string, sessionID *string) int
 		ManagedKeyGroups                func(childComplexity int, search string, status string, offset int, limit int, descending bool) int
 		MatchModelStandardPrices        func(childComplexity int, modelIDs []string) int
@@ -2952,6 +2952,7 @@ type ComplexityRoot struct {
 		APIKeyName     func(childComplexity int) int
 		ChannelVisible func(childComplexity int) int
 		GroupName      func(childComplexity int) int
+		HasMore        func(childComplexity int) int
 		Items          func(childComplexity int) int
 		Page           func(childComplexity int) int
 		PageSize       func(childComplexity int) int
@@ -3995,7 +3996,7 @@ type QueryResolver interface {
 	RequestLogs(ctx context.Context, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.RequestOrder, where *ent.RequestWhereInput, filter *RequestLogFilterInput) (*ent.RequestConnection, error)
 	ManagedGroupUsageMeta(ctx context.Context, groupRef int) (*biz.SelfUsageMeta, error)
 	ManagedGroupUsageStats(ctx context.Context, groupRef int, start string, end string, sessionID *string) (*biz.SelfUsageStats, error)
-	ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int) (*biz.SelfUsageRequestPage, error)
+	ManagedGroupUsageRequests(ctx context.Context, groupRef int, start string, end string, sessionID *string, model *string, status *string, page int, pageSize int, after *biz.SelfUsageRequestCursor) (*biz.SelfUsageRequestPage, error)
 	OfficialServiceTierPrices(ctx context.Context) ([]*objects.OfficialServiceTierPrice, error)
 	AnalyticsMetadata(ctx context.Context) (*AnalyticsMetadata, error)
 	AnalyticsOverview(ctx context.Context, filter *AnalyticsFilter) (*AnalyticsOverview, error)
@@ -14514,7 +14515,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.ManagedGroupUsageRequests(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*string), args["page"].(int), args["pageSize"].(int)), true
+		return e.complexity.Query.ManagedGroupUsageRequests(childComplexity, args["groupRef"].(int), args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*string), args["page"].(int), args["pageSize"].(int), args["after"].(*biz.SelfUsageRequestCursor)), true
 	case "Query.managedGroupUsageStats":
 		if e.complexity.Query.ManagedGroupUsageStats == nil {
 			break
@@ -17384,6 +17385,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequestPage.GroupName(childComplexity), true
+	case "SelfUsageRequestPage.hasMore":
+		if e.complexity.SelfUsageRequestPage.HasMore == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.HasMore(childComplexity), true
 	case "SelfUsageRequestPage.items":
 		if e.complexity.SelfUsageRequestPage.Items == nil {
 			break
@@ -20227,6 +20234,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSaveChannelModelPriceInput,
 		ec.unmarshalInputSaveChannelUpstreamAccountInput,
 		ec.unmarshalInputSaveProxyPresetInput,
+		ec.unmarshalInputSelfUsageRequestCursor,
 		ec.unmarshalInputServiceTierItemRuleInput,
 		ec.unmarshalInputServiceTierPriceInput,
 		ec.unmarshalInputServiceTierPricesInput,
@@ -23868,6 +23876,11 @@ func (ec *executionContext) field_Query_managedGroupUsageRequests_args(ctx conte
 		return nil, err
 	}
 	args["pageSize"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOSelfUsageRequestCursor2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestCursor)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg8
 	return args, nil
 }
 
@@ -80316,7 +80329,7 @@ func (ec *executionContext) _Query_managedGroupUsageRequests(ctx context.Context
 		ec.fieldContext_Query_managedGroupUsageRequests,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().ManagedGroupUsageRequests(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*string), fc.Args["page"].(int), fc.Args["pageSize"].(int))
+			return ec.resolvers.Query().ManagedGroupUsageRequests(ctx, fc.Args["groupRef"].(int), fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*string), fc.Args["page"].(int), fc.Args["pageSize"].(int), fc.Args["after"].(*biz.SelfUsageRequestCursor))
 		},
 		nil,
 		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestPage,
@@ -80333,6 +80346,8 @@ func (ec *executionContext) fieldContext_Query_managedGroupUsageRequests(ctx con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "hasMore":
+				return ec.fieldContext_SelfUsageRequestPage_hasMore(ctx, field)
 			case "channelVisible":
 				return ec.fieldContext_SelfUsageRequestPage_channelVisible(ctx, field)
 			case "scopeID":
@@ -93652,6 +93667,35 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_unpricedRecords(_ cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SelfUsageRequestPage_hasMore(ctx context.Context, field graphql.CollectedField, obj *biz.SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_hasMore,
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -130994,6 +131038,40 @@ func (ec *executionContext) unmarshalInputSaveProxyPresetInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSelfUsageRequestCursor(ctx context.Context, obj any) (biz.SelfUsageRequestCursor, error) {
+	var it biz.SelfUsageRequestCursor
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"createdAt", "id"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "createdAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAt"))
+			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CreatedAt = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputServiceTierItemRuleInput(ctx context.Context, obj any) (objects.ServiceTierItemRule, error) {
 	var it objects.ServiceTierItemRule
 	asMap := map[string]any{}
@@ -164999,6 +165077,11 @@ func (ec *executionContext) _SelfUsageRequestPage(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequestPage")
+		case "hasMore":
+			out.Values[i] = ec._SelfUsageRequestPage_hasMore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelVisible":
 			out.Values[i] = ec._SelfUsageRequestPage_channelVisible(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -188399,6 +188482,14 @@ func (ec *executionContext) marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopl
 		return graphql.Null
 	}
 	return ec._SelfUsageImageOutput(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOSelfUsageRequestCursor2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestCursor(ctx context.Context, v any) (*biz.SelfUsageRequestCursor, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputSelfUsageRequestCursor(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOServiceTierItemMethod2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐServiceTierItemMethod(ctx context.Context, v any) (*objects.ServiceTierItemMethod, error) {

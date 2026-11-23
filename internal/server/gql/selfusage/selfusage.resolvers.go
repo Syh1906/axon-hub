@@ -51,7 +51,7 @@ func (r *queryResolver) SelfUsageStats(ctx context.Context, start string, end st
 }
 
 // SelfUsageRequests is the resolver for the selfUsageRequests field.
-func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error) {
+func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, after *biz.SelfUsageRequestCursor, group bool) (*SelfUsageRequestPage, error) {
 	if err := validateRange(start, end); err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	if status != nil {
 		filterStatus = string(*status)
 	}
-	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize, biz.SelfUsageFilter{Group: group, SessionID: lo.FromPtr(sessionID)})
+	result, err := r.selfUsage.Requests(ctx, start, end, model, filterStatus, requestedPage, requestedSize, biz.SelfUsageFilter{After: after, Group: group, SessionID: lo.FromPtr(sessionID)})
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (r *queryResolver) SelfUsageRequests(ctx context.Context, start string, end
 	for _, item := range result.Items {
 		items = append(items, toRequest(item))
 	}
-	return &SelfUsageRequestPage{ChannelVisible: result.ChannelVisible, ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
+	return &SelfUsageRequestPage{HasMore: result.HasMore, ChannelVisible: result.ChannelVisible, ScopeID: result.ScopeID, APIKeyName: result.APIKeyName, GroupName: result.GroupName, Items: items, Page: result.Page, PageSize: result.PageSize, Total: result.Total}, nil
 }
 
 // SelfUsageBudgets is the resolver for the selfUsageBudgets field.

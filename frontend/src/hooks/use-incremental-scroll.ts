@@ -122,7 +122,9 @@ export function useIncrementalScroll(options: IncrementalScrollOptions) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         const current = optionsRef.current;
-        if (entry.isIntersecting && direction.current === 'down' && current.hasMore && !current.fetching && !current.error)
+        // After a reset, a tall viewport may have no scroll range to initiate the next page.
+        const canAdvance = direction.current === 'down' || container.scrollHeight <= container.clientHeight + 1;
+        if (entry.isIntersecting && canAdvance && current.hasMore && !current.fetching && !current.error)
           current.onLoadMore();
       },
       { root: container, rootMargin: '180px' }

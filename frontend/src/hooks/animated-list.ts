@@ -9,18 +9,18 @@ export function getMaxSequentialAnimatedItems(animationIntervalMs: number): numb
   return Math.min(MAX_SEQUENTIAL_ANIMATED_ITEMS, Math.floor(MAX_SEQUENTIAL_ANIMATION_DURATION_MS / animationIntervalMs));
 }
 
-export interface AnimatedListUpdatePlan {
+export interface AnimatedListUpdatePlan<ID extends string | number = string> {
   shouldReplace: boolean;
-  queuedIds: string[];
+  queuedIds: ID[];
 }
 
-export function planAnimatedListUpdate(
-  previousIds: string[],
-  incomingIds: string[],
-  queuedIds: string[],
+export function planAnimatedListUpdate<ID extends string | number>(
+  previousIds: ID[],
+  incomingIds: ID[],
+  queuedIds: ID[],
   pageSize: number = incomingIds.length,
   maxSequentialAnimatedItems: number = MAX_SEQUENTIAL_ANIMATED_ITEMS
-): AnimatedListUpdatePlan {
+): AnimatedListUpdatePlan<ID> {
   const incomingIdSet = new Set(incomingIds);
   const nextQueue = queuedIds.filter((id, index) => incomingIdSet.has(id) && queuedIds.indexOf(id) === index);
   const snapshotsMatch = previousIds.length === incomingIds.length && previousIds.every((id, index) => id === incomingIds[index]);

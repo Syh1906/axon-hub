@@ -22,7 +22,7 @@ import type { AutoRefreshInterval } from '@/hooks/use-auto-refresh-interval';
 import { useIncrementalScroll, type IncrementalScrollOptions } from '@/hooks/use-incremental-scroll';
 import { useIsMobile, MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { useAnimatedList } from '@/hooks/useAnimatedList';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RequestListModeControls, useRequestListPreference } from './request-list-mode-controls';
 import { Table, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IncrementalListFooter } from '@/components/incremental-list-footer';
 import { Request, RequestConnection } from '../data/schema';
@@ -129,13 +129,7 @@ export function RequestsTable({
 }: RequestsTableProps) {
   const { t } = useTranslation();
   const scrolling = useIncrementalScroll(scroll);
-  const [refreshMode, setRefreshMode] = useState(() => {
-    try {
-      return localStorage.getItem('requests-refresh-mode') === 'sequential' ? 'sequential' : 'steady';
-    } catch {
-      return 'steady';
-    }
-  });
+  const [refreshMode, setRefreshMode] = useRequestListPreference('requests-refresh-mode', 'steady', 'sequential');
   const animate = refreshMode === 'sequential' && showRefresh && autoRefreshInterval !== null;
 
   const [drawerInitialTab, setDrawerInitialTab] = useState<RequestDiagnosticTab>('request');
@@ -405,43 +399,13 @@ export function RequestsTable({
         onRefresh={scrolling.backToTop}
         showRefresh
         refreshControls={
-          <>
-            <Select value={listMode} onValueChange={onListModeChange}>
-              <SelectTrigger className='h-8 w-28' aria-label={t('requests.pagination.mode')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value='infinite'>{t('requests.pagination.infinite')}</SelectItem>
-                  <SelectItem value='pages'>{t('requests.pagination.pages')}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {!showRefresh && autoRefreshInterval !== null && (
-              <span className='text-muted-foreground text-xs'>{t('requests.refresh.paused')}</span>
-            )}
-            <Select
-              value={refreshMode}
-              onValueChange={(value) => {
-                setRefreshMode(value);
-                try {
-                  localStorage.setItem('requests-refresh-mode', value);
-                } catch {
-                  // Keep the in-memory choice when browser storage is unavailable.
-                }
-              }}
-            >
-              <SelectTrigger className='h-8 w-28' aria-label={t('requests.refresh.mode')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value='steady'>{t('requests.refresh.steady')}</SelectItem>
-                  <SelectItem value='sequential'>{t('requests.refresh.sequential')}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </>
+          <RequestListModeControls
+            listMode={listMode}
+            onListModeChange={onListModeChange}
+            refreshMode={refreshMode}
+            onRefreshModeChange={setRefreshMode}
+            paused={!showRefresh && autoRefreshInterval !== null}
+          />
         }
         autoRefreshInterval={autoRefreshInterval}
         autoRefreshActive={showRefresh}

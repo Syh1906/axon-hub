@@ -120,7 +120,7 @@ type ComplexityRoot struct {
 	Query struct {
 		SelfUsageBudgets  func(childComplexity int) int
 		SelfUsageMeta     func(childComplexity int) int
-		SelfUsageRequests func(childComplexity int, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) int
+		SelfUsageRequests func(childComplexity int, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, after *biz.SelfUsageRequestCursor, group bool) int
 		SelfUsageStats    func(childComplexity int, start string, end string, sessionID *string, group bool) int
 	}
 
@@ -265,6 +265,7 @@ type ComplexityRoot struct {
 		APIKeyName     func(childComplexity int) int
 		ChannelVisible func(childComplexity int) int
 		GroupName      func(childComplexity int) int
+		HasMore        func(childComplexity int) int
 		Items          func(childComplexity int) int
 		Page           func(childComplexity int) int
 		PageSize       func(childComplexity int) int
@@ -331,7 +332,7 @@ type ComplexityRoot struct {
 type QueryResolver interface {
 	SelfUsageMeta(ctx context.Context) (*SelfUsageMeta, error)
 	SelfUsageStats(ctx context.Context, start string, end string, sessionID *string, group bool) (*SelfUsageStats, error)
-	SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, group bool) (*SelfUsageRequestPage, error)
+	SelfUsageRequests(ctx context.Context, start string, end string, sessionID *string, model *string, status *SelfUsageRequestStatus, page *int, pageSize *int, after *biz.SelfUsageRequestCursor, group bool) (*SelfUsageRequestPage, error)
 	SelfUsageBudgets(ctx context.Context) ([]*biz.BudgetView, error)
 }
 
@@ -687,7 +688,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int), args["group"].(bool)), true
+		return e.complexity.Query.SelfUsageRequests(childComplexity, args["start"].(string), args["end"].(string), args["sessionID"].(*string), args["model"].(*string), args["status"].(*SelfUsageRequestStatus), args["page"].(*int), args["pageSize"].(*int), args["after"].(*biz.SelfUsageRequestCursor), args["group"].(bool)), true
 	case "Query.selfUsageStats":
 		if e.complexity.Query.SelfUsageStats == nil {
 			break
@@ -1336,6 +1337,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SelfUsageRequestPage.GroupName(childComplexity), true
+	case "SelfUsageRequestPage.hasMore":
+		if e.complexity.SelfUsageRequestPage.HasMore == nil {
+			break
+		}
+
+		return e.complexity.SelfUsageRequestPage.HasMore(childComplexity), true
 	case "SelfUsageRequestPage.items":
 		if e.complexity.SelfUsageRequestPage.Items == nil {
 			break
@@ -1623,6 +1630,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputBudgetResetInput,
 		ec.unmarshalInputBudgetRuleInput,
 		ec.unmarshalInputBudgetSettingsInput,
+		ec.unmarshalInputSelfUsageRequestCursor,
 	)
 	first := true
 
@@ -1867,11 +1875,16 @@ func (ec *executionContext) field_Query_selfUsageRequests_args(ctx context.Conte
 		return nil, err
 	}
 	args["pageSize"] = arg6
-	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "after", ec.unmarshalOSelfUsageRequestCursor2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestCursor)
 	if err != nil {
 		return nil, err
 	}
-	args["group"] = arg7
+	args["after"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "group", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["group"] = arg8
 	return args, nil
 }
 
@@ -3644,7 +3657,7 @@ func (ec *executionContext) _Query_selfUsageRequests(ctx context.Context, field 
 		ec.fieldContext_Query_selfUsageRequests,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int), fc.Args["group"].(bool))
+			return ec.resolvers.Query().SelfUsageRequests(ctx, fc.Args["start"].(string), fc.Args["end"].(string), fc.Args["sessionID"].(*string), fc.Args["model"].(*string), fc.Args["status"].(*SelfUsageRequestStatus), fc.Args["page"].(*int), fc.Args["pageSize"].(*int), fc.Args["after"].(*biz.SelfUsageRequestCursor), fc.Args["group"].(bool))
 		},
 		nil,
 		ec.marshalNSelfUsageRequestPage2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestPage,
@@ -3661,6 +3674,8 @@ func (ec *executionContext) fieldContext_Query_selfUsageRequests(ctx context.Con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "hasMore":
+				return ec.fieldContext_SelfUsageRequestPage_hasMore(ctx, field)
 			case "channelVisible":
 				return ec.fieldContext_SelfUsageRequestPage_channelVisible(ctx, field)
 			case "scopeID":
@@ -6981,6 +6996,35 @@ func (ec *executionContext) fieldContext_SelfUsageRequest_unpricedRecords(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _SelfUsageRequestPage_hasMore(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SelfUsageRequestPage_hasMore,
+		func(ctx context.Context) (any, error) {
+			return obj.HasMore, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SelfUsageRequestPage_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SelfUsageRequestPage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SelfUsageRequestPage_channelVisible(ctx context.Context, field graphql.CollectedField, obj *SelfUsageRequestPage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10103,6 +10147,40 @@ func (ec *executionContext) unmarshalInputBudgetSettingsInput(ctx context.Contex
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSelfUsageRequestCursor(ctx context.Context, obj any) (biz.SelfUsageRequestCursor, error) {
+	var it biz.SelfUsageRequestCursor
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"createdAt", "id"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "createdAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAt"))
+			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CreatedAt = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -11445,6 +11523,11 @@ func (ec *executionContext) _SelfUsageRequestPage(ctx context.Context, sel ast.S
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SelfUsageRequestPage")
+		case "hasMore":
+			out.Values[i] = ec._SelfUsageRequestPage_hasMore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelVisible":
 			out.Values[i] = ec._SelfUsageRequestPage_channelVisible(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13448,6 +13531,14 @@ func (ec *executionContext) marshalOSelfUsageImageOutput2ᚖgithubᚗcomᚋloopl
 		return graphql.Null
 	}
 	return ec._SelfUsageImageOutput(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOSelfUsageRequestCursor2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋbizᚐSelfUsageRequestCursor(ctx context.Context, v any) (*biz.SelfUsageRequestCursor, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputSelfUsageRequestCursor(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOSelfUsageRequestStatus2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚋselfusageᚐSelfUsageRequestStatus(ctx context.Context, v any) (*SelfUsageRequestStatus, error) {

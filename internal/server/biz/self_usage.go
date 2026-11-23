@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"sort"
 	"strings"
@@ -122,7 +123,13 @@ type SelfUsageRequest struct {
 	UnpricedRecords       int
 }
 
+type SelfUsageRequestCursor struct {
+	CreatedAt time.Time
+	ID        int
+}
+
 type SelfUsageRequestPage struct {
+	HasMore        bool
 	ChannelVisible bool
 	ScopeID        string
 	APIKeyName     string
@@ -137,6 +144,7 @@ type SelfUsageRequestPage struct {
 // request side of every usage join. Usage-log key/project fields are not used
 // as a substitute: the request is the authoritative owner and time anchor.
 type SelfUsageFilter struct {
+	After     *SelfUsageRequestCursor
 	Group     bool
 	SessionID string
 }
@@ -250,6 +258,7 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, fi
 			}
 			result.id = fmt.Sprintf("group:%d", *current.GroupRef)
 			result.keyIDs, err = s.client.APIKey.Query().Where(apikey.ProjectIDEQ(key.ProjectID), apikey.GroupRefEQ(*current.GroupRef)).IDs(schematype.SkipSoftDelete(ctx))
+			result.includeMembershipInID()
 		}
 		return result, err
 	})
@@ -257,6 +266,13 @@ func (s *SelfUsageService) rangeScope(ctx context.Context, start, end string, fi
 		return selfUsageScope{}, time.Time{}, err
 	}
 	return scope, first, nil
+}
+
+// Group pages can outlive a membership change. Identify the authorized member set
+// so a newly fetched page cannot be appended to history for a different set.
+func (scope *selfUsageScope) includeMembershipInID() {
+	sort.Ints(scope.keyIDs)
+	scope.id = fmt.Sprintf("%s:%x", scope.id, sha256.Sum256([]byte(fmt.Sprint(scope.keyIDs))))
 }
 
 func (scope selfUsageScope) requestQuery(client *ent.Client) *ent.RequestQuery {
@@ -471,10 +487,14 @@ func (s *SelfUsageService) Requests(ctx context.Context, start, end string, mode
 	if err != nil {
 		return nil, err
 	}
-	return s.requestsForScope(ctx, scope, model, status, page, pageSize)
+	var after *SelfUsageRequestCursor
+	if len(filters) > 0 {
+		after = filters[0].After
+	}
+	return s.requestsForScope(ctx, scope, model, status, page, pageSize, after)
 }
 
-func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsageScope, model *string, status string, page, pageSize int) (*SelfUsageRequestPage, error) {
+func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsageScope, model *string, status string, page, pageSize int, after *SelfUsageRequestCursor) (*SelfUsageRequestPage, error) {
 	if page < 1 || pageSize < 1 || pageSize > 100 || page > int(^uint(0)>>1)/pageSize {
 		return nil, fmt.Errorf("invalid_page: page must be positive and pageSize between 1 and 100")
 	}
@@ -501,21 +521,33 @@ func (s *SelfUsageService) requestsForScope(ctx context.Context, scope selfUsage
 		if err != nil {
 			return nil, fmt.Errorf("count self usage requests: %w", err)
 		}
+		rows := query()
+		if after == nil {
+			rows.Offset((page - 1) * pageSize)
+		} else if scope.sessionID == "" {
+			rows.Where(request.Or(request.CreatedAtLT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDLT(after.ID))))
+		} else {
+			rows.Where(request.Or(request.CreatedAtGT(after.CreatedAt), request.And(request.CreatedAtEQ(after.CreatedAt), request.IDGT(after.ID))))
+		}
 		order := sql.OrderDesc()
 		if scope.sessionID != "" {
 			order = sql.OrderAsc()
 		}
-		requests, err := query().Select(
+		requests, err := rows.Select(
 			request.FieldID, request.FieldAPIKeyID, request.FieldCreatedAt, request.FieldModelID, request.FieldStatus,
 			request.FieldStream, request.FieldMetricsLatencyMs, request.FieldMetricsFirstTokenLatencyMs, request.FieldStreamTiming,
 			request.FieldFormat, request.FieldReasoningEffort, request.FieldClientStatusCode,
 			request.FieldChannelID, request.FieldResultExecutionID, request.FieldFailure, request.FieldClientSessionID,
 		).Order(request.ByCreatedAt(order), request.ByID(order)).
-			Limit(pageSize).Offset((page - 1) * pageSize).All(ctx)
+			Limit(pageSize + 1).All(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list self usage requests: %w", err)
 		}
-		result := &SelfUsageRequestPage{ChannelVisible: scope.channelVisible, ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
+		hasMore := len(requests) > pageSize
+		if hasMore {
+			requests = requests[:pageSize]
+		}
+		result := &SelfUsageRequestPage{HasMore: hasMore, ChannelVisible: scope.channelVisible, ScopeID: scope.id, APIKeyName: scope.apiKeyName, GroupName: scope.groupName, Items: make([]SelfUsageRequest, 0, len(requests)), Page: page, PageSize: pageSize, Total: total}
 		if len(requests) == 0 {
 			return result, nil
 		}

@@ -92,6 +92,7 @@ type SelfUsageRequest struct {
 }
 
 type SelfUsageRequestPage struct {
+	HasMore        bool                `json:"hasMore"`
 	ChannelVisible bool                `json:"channelVisible"`
 	ScopeID        string              `json:"scopeID"`
 	APIKeyName     string              `json:"apiKeyName"`
