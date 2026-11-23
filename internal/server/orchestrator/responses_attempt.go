@@ -41,6 +41,7 @@ type responsesContinuation struct {
 func newResponsesContinuation(store *responsesSessionStore, body []byte) *responsesContinuation {
 	return responsesContinuationWithID(store, body, responsePreviousID(body))
 }
+
 func responsesContinuationWithID(store *responsesSessionStore, body []byte, previous string) *responsesContinuation {
 	return &responsesContinuation{store: store, original: body, previous: previous, capture: &responsesCompletion{}}
 }

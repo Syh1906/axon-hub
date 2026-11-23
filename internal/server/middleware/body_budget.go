@@ -12,7 +12,8 @@ import (
 	"github.com/looplj/axonhub/llm/httpclient"
 )
 
-// Run after authentication and before any trace hook that inspects the body.
+// WithInferenceBody admits request bodies after authentication and before any
+// trace hook inspects them.
 func WithInferenceBody(payload *biz.RequestPayloadService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if payload == nil {

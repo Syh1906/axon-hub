@@ -155,7 +155,7 @@ func TestTwoGatewaysDictionaryKeepsSupplierBodyAndCount(t *testing.T) {
 	supplier := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, err := httpclient.ReadHTTPRequest(r)
 		if err != nil {
-			http.Error(w, err.Error(), 400)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		for k := range r.Header {
@@ -286,7 +286,7 @@ func TestHTTPAndWebSocketShareInflightBodyBudget(t *testing.T) {
 				bigDone <- 0
 			}
 		}()
-		req, _ := http.NewRequestWithContext(t.Context(), "POST", srv.URL+"/v1/responses", strings.NewReader(strings.Repeat("x", 2*m)))
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/v1/responses", strings.NewReader(strings.Repeat("x", 2*m)))
 		resp, err := srv.Client().Do(req)
 		if err != nil {
 			bigDone <- 0

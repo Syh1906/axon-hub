@@ -33,6 +33,8 @@ import (
 //
 //nolint:containedctx // Checked.
 type OutboundPersistentStream struct {
+	streamHistory
+
 	ctx context.Context
 
 	RequestService  *biz.RequestService
@@ -51,10 +53,9 @@ type OutboundPersistentStream struct {
 	perf            *biz.PerformanceRecord
 	contentBatches  contexts.ContentBatches
 	observedCurrent bool
-	streamHistory
-	cachedTokens   int64
-	cacheReported  bool
-	cacheFieldSeen bool
+	cachedTokens    int64
+	cacheReported   bool
+	cacheFieldSeen  bool
 	// First reported model only. Intra-stream changes are not tracked.
 	upstreamModelID string
 	terminalState   streamTerminalState

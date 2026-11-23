@@ -94,8 +94,8 @@ func (s *RequestPayloadService) PeerRequest(ctx context.Context) *httpclient.Pee
 	return &httpclient.PeerRequest{Scope: scope + "\x00" + clientsession.FromContext(ctx), Endpoints: s.config.PeerDictionaryEndpoints, Dictionaries: s.sendDictionaries}
 }
 
-// Anonymous callers share one reserved API key. Its routing scope must never
-// identify an owner for reusable request text.
+// PeerDictionaryScope identifies the authenticated owner of reusable request
+// text. Anonymous callers share a reserved API key and have no dictionary scope.
 func PeerDictionaryScope(ctx context.Context) string {
 	if key, ok := contexts.GetAPIKey(ctx); ok && key.Type == apikey.TypeNoauth {
 		return ""

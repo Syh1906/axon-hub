@@ -14,6 +14,7 @@ func DetachWithTimeout(ctx context.Context, timeout time.Duration) (context.Cont
 // still be reachable from the runtime until it next services the timer heap.
 type detachedTimeout struct {
 	context.Context
+
 	values context.Context
 }
 
